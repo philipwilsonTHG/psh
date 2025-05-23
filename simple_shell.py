@@ -9,6 +9,7 @@ import glob
 from tokenizer import tokenize
 from parser import parse, ParseError
 from ast_nodes import Command, Pipeline, CommandList, Redirect
+from tab_completion import LineEditor
 
 
 class Shell:
@@ -449,6 +450,12 @@ class Shell:
         print("Python Shell (psh) - Educational Unix Shell")
         print("Type 'exit' to quit")
         
+        # Use LineEditor if terminal supports it, otherwise fall back to input()
+        if sys.stdin.isatty():
+            line_editor = LineEditor(self.history)
+        else:
+            line_editor = None
+        
         while True:
             try:
                 # Prompt with exit status indicator
@@ -456,7 +463,16 @@ class Shell:
                     prompt = f"[{self.last_exit_code}] {os.getcwd()}$ "
                 else:
                     prompt = f"{os.getcwd()}$ "
-                command = input(prompt)
+                
+                # Get command using LineEditor or input()
+                if line_editor:
+                    command = line_editor.read_line(prompt)
+                    if command is None:  # EOF
+                        print("\nexit")
+                        self._save_history()
+                        break
+                else:
+                    command = input(prompt)
                 
                 if command.strip():
                     self.run_command(command)
@@ -466,7 +482,8 @@ class Shell:
                 self._save_history()
                 break
             except KeyboardInterrupt:
-                print("^C")
+                if not line_editor:
+                    print("^C")
                 continue
     
     # Built-in command implementations

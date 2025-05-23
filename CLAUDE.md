@@ -71,6 +71,7 @@ Implemented:
 - Here documents (<< and <<-)
 - Stderr redirection (2>, 2>>, 2>&1)
 - Command substitution ($(...) and `...`)
+- Tab completion for files and directories
 
 Not implemented:
 - Job control (fg, bg, jobs commands)

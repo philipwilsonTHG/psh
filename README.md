@@ -41,6 +41,13 @@ Python Shell (psh) is a POSIX-style shell written entirely in Python. It uses a 
   - Wildcards/globbing (`*`, `?`, `[...]`)
   - Quote handling to prevent expansion
   
+- ✅ **Tab Completion**
+  - File and directory completion
+  - Handles spaces and special characters
+  - Shows multiple matches when ambiguous
+  - Hidden file support (when explicitly requested)
+  - Path navigation with `/` preservation
+  
 - ✅ **Built-in Commands**
   - `cd` - Change directory
   - `exit` - Exit shell
