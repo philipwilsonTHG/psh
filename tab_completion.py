@@ -354,15 +354,35 @@ class LineEditor:
             # Not in quotes, escape special characters
             completion = self.completion_engine.escape_path(completion)
         
-        # Replace the partial word with the completion
+        # Calculate what we need to erase
+        chars_to_erase = self.cursor_pos - word_start
+        
+        # Move cursor back to word start
+        if chars_to_erase > 0:
+            sys.stdout.write('\b' * chars_to_erase)
+        
+        # Clear from cursor to end of line
+        sys.stdout.write('\033[K')
+        
+        # Write the completion
+        sys.stdout.write(completion)
+        
+        # Write any remaining text after the cursor
+        if self.cursor_pos < len(line):
+            remaining = line[self.cursor_pos:]
+            sys.stdout.write(remaining)
+            # Move cursor back to end of completion
+            sys.stdout.write('\b' * len(remaining))
+        
+        sys.stdout.flush()
+        
+        # Update buffer and cursor position
         new_line = line[:word_start] + completion
         if self.cursor_pos < len(line):
             new_line += line[self.cursor_pos:]
         
-        # Update buffer and display
-        self._replace_line(new_line)
+        self.buffer = list(new_line)
         self.cursor_pos = word_start + len(completion)
-        self._redraw_line()
     
     def _show_completions(self, completions: List[str]):
         """Display multiple completions."""
