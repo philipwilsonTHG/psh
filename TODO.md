@@ -5,11 +5,11 @@ Features ordered by ease of implementation, from simplest to most complex.
 ## Easy Features (1-2 hours each)
 
 ### 1. ✅ Additional Built-in Commands
-- [ ] `pwd` - Print working directory
-- [ ] `echo` - Print arguments (with proper quote handling)
-- [ ] `env` - Display environment variables
-- [ ] `unset` - Remove environment variables
-- [ ] `source` or `.` - Execute commands from file
+- [x] `pwd` - Print working directory
+- [x] `echo` - Print arguments (with proper quote handling)
+- [x] `env` - Display environment variables
+- [x] `unset` - Remove environment variables
+- [x] `source` or `.` - Execute commands from file
 
 ### 2. ✅ Exit Status Handling
 - [ ] Set `$?` variable to last command's exit code
