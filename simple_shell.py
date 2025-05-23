@@ -476,11 +476,6 @@ class Shell:
                 
                 if command.strip():
                     self.run_command(command)
-                    # Print a newline-check marker like zsh does
-                    if line_editor and sys.stdout.isatty():
-                        # Print reverse-video % and newline to ensure clean prompt
-                        sys.stdout.write('\033[7m%\033[0m\n')
-                        sys.stdout.flush()
             
             except EOFError:
                 print("\nexit")

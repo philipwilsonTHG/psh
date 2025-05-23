@@ -375,7 +375,9 @@ class LineEditor:
         
         # Redraw prompt and current line
         self.terminal.enter_raw_mode()
-        sys.stdout.write('\r' + '\033[K')  # Clear line
+        # First print a newline to ensure we're on a fresh line
+        sys.stdout.write('\n')
+        # Now print prompt and buffer
         sys.stdout.write(self.current_prompt)
         sys.stdout.write(''.join(self.buffer))
         
@@ -490,7 +492,8 @@ class LineEditor:
     
     def _redraw_line(self):
         """Redraw the current line."""
-        # Move cursor to beginning of line
+        # Move cursor to beginning of input (after prompt)
+        # We need to move back by cursor_pos characters
         if self.cursor_pos > 0:
             sys.stdout.write('\b' * self.cursor_pos)
         
