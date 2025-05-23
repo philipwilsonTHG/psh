@@ -47,7 +47,7 @@ python -m pytest tests/
 - Test dependencies: pytest (install with `pip install -r requirements-dev.txt`)
 - Comprehensive test suite covering tokenizer, parser, built-ins, and integration
 - When adding features, maintain the educational clarity of the code
-- Pipeline execution (actual piping between processes) is not yet implemented
+- Pipeline execution fully implemented using os.fork() and os.pipe()
 
 ## Current Implementation Status
 
@@ -60,8 +60,8 @@ Implemented:
 - Built-ins: exit, cd, export
 
 Not implemented:
-- Actual pipeline execution (pipes are parsed but not executed)
 - Job control
 - Control structures (if, while, for)
 - Command substitution
 - Wildcards/globbing
+- Signal handling in pipelines

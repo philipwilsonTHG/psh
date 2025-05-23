@@ -24,9 +24,9 @@ Features ordered by ease of implementation, from simplest to most complex.
 
 ## Medium Features (3-5 hours each)
 
-### 4. 🔧 Pipeline Execution
-- [ ] Implement actual pipe functionality between processes
-- [ ] Handle pipeline exit status (last command's status)
+### 4. ✅ Pipeline Execution
+- [x] Implement actual pipe functionality between processes
+- [x] Handle pipeline exit status (last command's status)
 - [ ] Proper signal handling in pipelines
 
 ### 5. 🔧 Wildcards/Globbing

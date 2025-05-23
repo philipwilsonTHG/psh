@@ -159,7 +159,12 @@ class TestIntegration:
             # Run complex command
             outfile = os.path.join(tmpdir, "output.txt")
             
-            # Note: Pipeline execution is not implemented, so this tests parsing
-            with patch('sys.stderr', new=StringIO()) as mock_stderr:
-                self.shell.run_command(f"cat < {infile} | grep line > {outfile}")
-                assert "Pipeline execution not yet implemented" in mock_stderr.getvalue()
+            # Test pipeline execution
+            self.shell.run_command(f"cat < {infile} | grep line > {outfile}")
+            
+            # Check the output
+            with open(outfile, 'r') as f:
+                output = f.read()
+            assert "line 1" in output
+            assert "line 2" in output
+            assert "line 3" in output

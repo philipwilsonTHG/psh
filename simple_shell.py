@@ -127,10 +127,52 @@ class Shell:
             # Simple command, no pipes
             return self.execute_command(pipeline.commands[0])
         
-        # Execute pipeline - simplified version
-        # In a real shell, you'd create pipes between processes
-        print("Pipeline execution not yet implemented", file=sys.stderr)
-        return 1
+        # Execute pipeline using fork and pipe
+        num_commands = len(pipeline.commands)
+        pipes = []
+        pids = []
+        
+        # Create pipes for inter-process communication
+        for i in range(num_commands - 1):
+            pipe_read, pipe_write = os.pipe()
+            pipes.append((pipe_read, pipe_write))
+        
+        for i, command in enumerate(pipeline.commands):
+            pid = os.fork()
+            
+            if pid == 0:  # Child process
+                # Set up pipes
+                if i > 0:  # Not first command - read from previous pipe
+                    os.dup2(pipes[i-1][0], 0)  # stdin = pipe_read
+                    
+                if i < num_commands - 1:  # Not last command - write to next pipe
+                    os.dup2(pipes[i][1], 1)  # stdout = pipe_write
+                
+                # Close all pipe file descriptors
+                for pipe_read, pipe_write in pipes:
+                    os.close(pipe_read)
+                    os.close(pipe_write)
+                
+                # Execute the command
+                exit_code = self._execute_in_child(command)
+                os._exit(exit_code)
+            
+            else:  # Parent process
+                pids.append(pid)
+        
+        # Parent: Close all pipes
+        for pipe_read, pipe_write in pipes:
+            os.close(pipe_read)
+            os.close(pipe_write)
+        
+        # Wait for all children and get exit status of last command
+        last_status = 0
+        for i, pid in enumerate(pids):
+            _, status = os.waitpid(pid, 0)
+            if i == len(pids) - 1:  # Last command
+                last_status = os.WEXITSTATUS(status) if os.WIFEXITED(status) else 1
+        
+        return last_status
     
     def execute_command_list(self, command_list: CommandList):
         exit_code = 0
@@ -206,12 +248,15 @@ class Shell:
     
     def _builtin_pwd(self, args):
         print(os.getcwd())
+        sys.stdout.flush()
         return 0
     
     def _builtin_echo(self, args):
         # Join args with spaces, handling empty args list
+        # Simple implementation - doesn't handle -e flag
         output = ' '.join(args[1:])
         print(output)
+        sys.stdout.flush()
         return 0
     
     def _builtin_env(self, args):
@@ -299,6 +344,73 @@ class Shell:
         except Exception:
             # Silently ignore history file errors
             pass
+    
+    def _execute_in_child(self, command: Command):
+        """Execute a command in a child process (after fork)"""
+        # Expand variables in arguments
+        args = []
+        for arg in command.args:
+            if arg.startswith('$'):
+                var_name = arg[1:]
+                # Handle special variable $?
+                if var_name == '?':
+                    args.append(str(self.last_exit_code))
+                else:
+                    args.append(self.env.get(var_name, ''))
+            else:
+                args.append(arg)
+        
+        if not args:
+            return 0
+        
+        # Check for built-in commands
+        if args[0] in self.builtins:
+            # Handle redirections for built-ins
+            try:
+                for redirect in command.redirects:
+                    if redirect.type == '<':
+                        fd = os.open(redirect.target, os.O_RDONLY)
+                        os.dup2(fd, 0)
+                        os.close(fd)
+                    elif redirect.type == '>':
+                        fd = os.open(redirect.target, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)
+                        os.dup2(fd, 1)
+                        os.close(fd)
+                    elif redirect.type == '>>':
+                        fd = os.open(redirect.target, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o644)
+                        os.dup2(fd, 1)
+                        os.close(fd)
+                
+                return self.builtins[args[0]](args)
+            except Exception as e:
+                print(f"{args[0]}: {e}", file=sys.stderr)
+                return 1
+        
+        # Execute external command
+        try:
+            # Set up redirections
+            for redirect in command.redirects:
+                if redirect.type == '<':
+                    fd = os.open(redirect.target, os.O_RDONLY)
+                    os.dup2(fd, 0)
+                    os.close(fd)
+                elif redirect.type == '>':
+                    fd = os.open(redirect.target, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)
+                    os.dup2(fd, 1)
+                    os.close(fd)
+                elif redirect.type == '>>':
+                    fd = os.open(redirect.target, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o644)
+                    os.dup2(fd, 1)
+                    os.close(fd)
+            
+            # Execute with execvpe to pass environment
+            os.execvpe(args[0], args, self.env)
+        except FileNotFoundError:
+            print(f"{args[0]}: command not found", file=sys.stderr)
+            return 127
+        except Exception as e:
+            print(f"{args[0]}: {e}", file=sys.stderr)
+            return 1
 
 
 if __name__ == "__main__":
