@@ -12,6 +12,19 @@ class Shell:
     def __init__(self):
         self.env = os.environ.copy()
         self.last_exit_code = 0
+        
+        # Built-in command dispatch table
+        self.builtins = {
+            'exit': self._builtin_exit,
+            'cd': self._builtin_cd,
+            'export': self._builtin_export,
+            'pwd': self._builtin_pwd,
+            'echo': self._builtin_echo,
+            'env': self._builtin_env,
+            'unset': self._builtin_unset,
+            'source': self._builtin_source,
+            '.': self._builtin_source,
+        }
     
     def execute_command(self, command: Command):
         # Expand variables in arguments
@@ -27,23 +40,8 @@ class Shell:
             return 0
         
         # Check for built-in commands
-        if args[0] == 'exit':
-            exit_code = int(args[1]) if len(args) > 1 else 0
-            sys.exit(exit_code)
-        elif args[0] == 'cd':
-            try:
-                path = args[1] if len(args) > 1 else os.environ.get('HOME', '/')
-                os.chdir(path)
-                return 0
-            except OSError as e:
-                print(f"cd: {e}", file=sys.stderr)
-                return 1
-        elif args[0] == 'export':
-            if len(args) > 1 and '=' in args[1]:
-                var, value = args[1].split('=', 1)
-                self.env[var] = value
-                os.environ[var] = value
-            return 0
+        if args[0] in self.builtins:
+            return self.builtins[args[0]](args)
         
         # Execute external command
         try:
@@ -137,6 +135,68 @@ class Shell:
             except KeyboardInterrupt:
                 print("^C")
                 continue
+    
+    # Built-in command implementations
+    def _builtin_exit(self, args):
+        exit_code = int(args[1]) if len(args) > 1 else 0
+        sys.exit(exit_code)
+    
+    def _builtin_cd(self, args):
+        try:
+            path = args[1] if len(args) > 1 else os.environ.get('HOME', '/')
+            os.chdir(path)
+            return 0
+        except OSError as e:
+            print(f"cd: {e}", file=sys.stderr)
+            return 1
+    
+    def _builtin_export(self, args):
+        if len(args) > 1 and '=' in args[1]:
+            var, value = args[1].split('=', 1)
+            self.env[var] = value
+            os.environ[var] = value
+        return 0
+    
+    def _builtin_pwd(self, args):
+        print(os.getcwd())
+        return 0
+    
+    def _builtin_echo(self, args):
+        # Join args with spaces, handling empty args list
+        output = ' '.join(args[1:])
+        print(output)
+        return 0
+    
+    def _builtin_env(self, args):
+        # Print all environment variables
+        for key, value in sorted(self.env.items()):
+            print(f"{key}={value}")
+        return 0
+    
+    def _builtin_unset(self, args):
+        # Remove environment variables
+        for var in args[1:]:
+            self.env.pop(var, None)
+            os.environ.pop(var, None)
+        return 0
+    
+    def _builtin_source(self, args):
+        if len(args) < 2:
+            print(f"{args[0]}: filename argument required", file=sys.stderr)
+            return 1
+        try:
+            with open(args[1], 'r') as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith('#'):
+                        self.run_command(line)
+            return 0
+        except FileNotFoundError:
+            print(f"{args[0]}: {args[1]}: No such file or directory", file=sys.stderr)
+            return 1
+        except Exception as e:
+            print(f"{args[0]}: {args[1]}: {e}", file=sys.stderr)
+            return 1
 
 
 if __name__ == "__main__":
