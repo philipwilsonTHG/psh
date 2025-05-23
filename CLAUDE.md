@@ -60,8 +60,7 @@ Implemented:
 - Built-ins: exit, cd, export
 
 Not implemented:
-- Job control
+- Job control (fg, bg, jobs commands)
 - Control structures (if, while, for)
 - Command substitution
 - Wildcards/globbing
-- Signal handling in pipelines

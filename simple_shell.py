@@ -4,6 +4,7 @@ import os
 import sys
 import subprocess
 import readline
+import signal
 from tokenizer import tokenize
 from parser import parse, ParseError
 from ast_nodes import Command, Pipeline, CommandList, Redirect
@@ -16,6 +17,10 @@ class Shell:
         self.history = []
         self.history_file = os.path.expanduser("~/.psh_history")
         self.max_history_size = 1000
+        self.foreground_pgid = None  # Track foreground process group
+        
+        # Set up signal handlers
+        self._setup_signal_handlers()
         
         # Load history from file
         self._load_history()
@@ -107,6 +112,10 @@ class Shell:
                 return 0
             else:
                 proc.wait()
+                # Handle signal termination
+                if proc.returncode < 0:
+                    # Process was killed by signal
+                    return 128 + abs(proc.returncode)
                 return proc.returncode
         
         except FileNotFoundError:
@@ -132,6 +141,15 @@ class Shell:
         pipes = []
         pids = []
         
+        # Create a new process group for the pipeline
+        pgid = None
+        
+        # Save current terminal foreground process group
+        try:
+            original_pgid = os.tcgetpgrp(0)
+        except:
+            original_pgid = None
+        
         # Create pipes for inter-process communication
         for i in range(num_commands - 1):
             pipe_read, pipe_write = os.pipe()
@@ -141,6 +159,18 @@ class Shell:
             pid = os.fork()
             
             if pid == 0:  # Child process
+                # Set process group - first child becomes group leader
+                if pgid is None:
+                    pgid = os.getpid()
+                    os.setpgid(0, pgid)
+                else:
+                    os.setpgid(0, pgid)
+                
+                # Reset signal handlers to default
+                signal.signal(signal.SIGINT, signal.SIG_DFL)
+                signal.signal(signal.SIGTSTP, signal.SIG_DFL)
+                signal.signal(signal.SIGTTOU, signal.SIG_DFL)
+                
                 # Set up pipes
                 if i > 0:  # Not first command - read from previous pipe
                     os.dup2(pipes[i-1][0], 0)  # stdin = pipe_read
@@ -158,7 +188,23 @@ class Shell:
                 os._exit(exit_code)
             
             else:  # Parent process
+                if pgid is None:
+                    pgid = pid
+                    os.setpgid(pid, pgid)
+                else:
+                    try:
+                        os.setpgid(pid, pgid)
+                    except:
+                        pass  # Race condition - child may have already done it
                 pids.append(pid)
+        
+        # Give terminal control to the pipeline
+        if original_pgid is not None and not pipeline.commands[-1].background:
+            self.foreground_pgid = pgid
+            try:
+                os.tcsetpgrp(0, pgid)
+            except:
+                pass
         
         # Parent: Close all pipes
         for pipe_read, pipe_write in pipes:
@@ -168,9 +214,26 @@ class Shell:
         # Wait for all children and get exit status of last command
         last_status = 0
         for i, pid in enumerate(pids):
-            _, status = os.waitpid(pid, 0)
-            if i == len(pids) - 1:  # Last command
-                last_status = os.WEXITSTATUS(status) if os.WIFEXITED(status) else 1
+            try:
+                _, status = os.waitpid(pid, 0)
+                if i == len(pids) - 1:  # Last command
+                    if os.WIFEXITED(status):
+                        last_status = os.WEXITSTATUS(status)
+                    elif os.WIFSIGNALED(status):
+                        last_status = 128 + os.WTERMSIG(status)
+                    else:
+                        last_status = 1
+            except OSError:
+                # Child might have been killed by signal
+                last_status = 1
+        
+        # Restore terminal control
+        if original_pgid is not None and not pipeline.commands[-1].background:
+            self.foreground_pgid = None
+            try:
+                os.tcsetpgrp(0, original_pgid)
+            except:
+                pass
         
         return last_status
     
@@ -344,6 +407,25 @@ class Shell:
         except Exception:
             # Silently ignore history file errors
             pass
+    
+    def _setup_signal_handlers(self):
+        """Set up signal handlers for the shell"""
+        # Ignore SIGTTOU - we handle terminal control ourselves
+        signal.signal(signal.SIGTTOU, signal.SIG_IGN)
+        
+        # Handle SIGINT (Ctrl-C)
+        signal.signal(signal.SIGINT, self._handle_sigint)
+        
+        # Handle SIGTSTP (Ctrl-Z) - for now, ignore it
+        signal.signal(signal.SIGTSTP, signal.SIG_IGN)
+    
+    def _handle_sigint(self, signum, frame):
+        """Handle SIGINT (Ctrl-C)"""
+        # If there's a foreground process group, it will handle the signal
+        # We just need to print a newline for the prompt
+        print()
+        # The signal will be delivered to the foreground process group
+        # which is set in execute_pipeline
     
     def _execute_in_child(self, command: Command):
         """Execute a command in a child process (after fork)"""

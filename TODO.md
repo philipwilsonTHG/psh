@@ -27,7 +27,7 @@ Features ordered by ease of implementation, from simplest to most complex.
 ### 4. ✅ Pipeline Execution
 - [x] Implement actual pipe functionality between processes
 - [x] Handle pipeline exit status (last command's status)
-- [ ] Proper signal handling in pipelines
+- [x] Proper signal handling in pipelines
 
 ### 5. 🔧 Wildcards/Globbing
 - [ ] Implement `*` wildcard expansion
