@@ -226,7 +226,11 @@ class LineEditor:
                 
                 if char == self.CTRL_C:
                     # Clear line and raise KeyboardInterrupt
-                    self._clear_line()
+                    # Move to beginning of line first
+                    sys.stdout.write('\r')
+                    # Clear entire line
+                    sys.stdout.write('\033[K')
+                    # Show ^C on its own line
                     sys.stdout.write('^C\n')
                     sys.stdout.flush()
                     raise KeyboardInterrupt()
