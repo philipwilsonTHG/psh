@@ -3,6 +3,7 @@
 import os
 import sys
 import subprocess
+import readline
 from tokenizer import tokenize
 from parser import parse, ParseError
 from ast_nodes import Command, Pipeline, CommandList, Redirect
@@ -12,6 +13,12 @@ class Shell:
     def __init__(self):
         self.env = os.environ.copy()
         self.last_exit_code = 0
+        self.history = []
+        self.history_file = os.path.expanduser("~/.psh_history")
+        self.max_history_size = 1000
+        
+        # Load history from file
+        self._load_history()
         
         # Built-in command dispatch table
         self.builtins = {
@@ -24,6 +31,7 @@ class Shell:
             'unset': self._builtin_unset,
             'source': self._builtin_source,
             '.': self._builtin_source,
+            'history': self._builtin_history,
         }
     
     def execute_command(self, command: Command):
@@ -131,7 +139,11 @@ class Shell:
             self.last_exit_code = exit_code
         return exit_code
     
-    def run_command(self, command_string: str):
+    def run_command(self, command_string: str, add_to_history=True):
+        # Add to history if not empty and add_to_history is True
+        if add_to_history and command_string.strip():
+            self._add_to_history(command_string.strip())
+        
         try:
             tokens = tokenize(command_string)
             ast = parse(tokens)
@@ -164,6 +176,7 @@ class Shell:
             
             except EOFError:
                 print("\nexit")
+                self._save_history()
                 break
             except KeyboardInterrupt:
                 print("^C")
@@ -172,6 +185,7 @@ class Shell:
     # Built-in command implementations
     def _builtin_exit(self, args):
         exit_code = int(args[1]) if len(args) > 1 else 0
+        self._save_history()
         sys.exit(exit_code)
     
     def _builtin_cd(self, args):
@@ -222,7 +236,7 @@ class Shell:
                 for line in f:
                     line = line.strip()
                     if line and not line.startswith('#'):
-                        self.run_command(line)
+                        self.run_command(line, add_to_history=False)
             return 0
         except FileNotFoundError:
             print(f"{args[0]}: {args[1]}: No such file or directory", file=sys.stderr)
@@ -230,6 +244,61 @@ class Shell:
         except Exception as e:
             print(f"{args[0]}: {args[1]}: {e}", file=sys.stderr)
             return 1
+    
+    def _builtin_history(self, args):
+        """Display command history"""
+        # Parse arguments
+        show_count = 10  # Default
+        if len(args) > 1:
+            try:
+                show_count = int(args[1])
+            except ValueError:
+                print(f"history: {args[1]}: numeric argument required", file=sys.stderr)
+                return 1
+        
+        # Show last N commands
+        start_idx = max(0, len(self.history) - show_count)
+        for i in range(start_idx, len(self.history)):
+            print(f"{i + 1:5d}  {self.history[i]}")
+        return 0
+    
+    def _add_to_history(self, command):
+        """Add a command to history"""
+        # Don't add duplicates of the immediately previous command
+        if not self.history or self.history[-1] != command:
+            self.history.append(command)
+            readline.add_history(command)
+            # Trim history if it exceeds max size
+            if len(self.history) > self.max_history_size:
+                self.history = self.history[-self.max_history_size:]
+    
+    def _load_history(self):
+        """Load history from file"""
+        try:
+            if os.path.exists(self.history_file):
+                with open(self.history_file, 'r') as f:
+                    self.history = [line.rstrip('\n') for line in f]
+                    # Trim to max size
+                    if len(self.history) > self.max_history_size:
+                        self.history = self.history[-self.max_history_size:]
+                
+                # Load into readline
+                readline.clear_history()
+                for cmd in self.history:
+                    readline.add_history(cmd)
+        except Exception:
+            # Silently ignore history file errors
+            pass
+    
+    def _save_history(self):
+        """Save history to file"""
+        try:
+            with open(self.history_file, 'w') as f:
+                for cmd in self.history:
+                    f.write(cmd + '\n')
+        except Exception:
+            # Silently ignore history file errors
+            pass
 
 
 if __name__ == "__main__":

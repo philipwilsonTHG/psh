@@ -17,10 +17,10 @@ Features ordered by ease of implementation, from simplest to most complex.
 - [x] Make exit status available to shell scripts
 
 ### 3. ✅ Command History
-- [ ] Store command history in memory
-- [ ] `history` built-in command
-- [ ] Up/down arrow navigation (using readline)
-- [ ] Save history to ~/.psh_history
+- [x] Store command history in memory
+- [x] `history` built-in command
+- [x] Up/down arrow navigation (using readline)
+- [x] Save history to ~/.psh_history
 
 ## Medium Features (3-5 hours each)
 
