@@ -96,11 +96,13 @@ class Parser:
         command = Command()
         
         # A command must have at least one word
-        if not self.match(TokenType.WORD, TokenType.STRING, TokenType.VARIABLE):
+        if not self.match(TokenType.WORD, TokenType.STRING, TokenType.VARIABLE,
+                         TokenType.COMMAND_SUB, TokenType.COMMAND_SUB_BACKTICK):
             raise ParseError("Expected command", self.peek())
         
         # Parse command arguments and redirections
         while self.match(TokenType.WORD, TokenType.STRING, TokenType.VARIABLE,
+                         TokenType.COMMAND_SUB, TokenType.COMMAND_SUB_BACKTICK,
                          TokenType.REDIRECT_IN, TokenType.REDIRECT_OUT, 
                          TokenType.REDIRECT_APPEND, TokenType.HEREDOC,
                          TokenType.HEREDOC_STRIP, TokenType.REDIRECT_ERR,
@@ -122,6 +124,12 @@ class Parser:
                 elif token.type == TokenType.STRING:
                     command.args.append(token.value)
                     command.arg_types.append('STRING')
+                elif token.type == TokenType.COMMAND_SUB:
+                    command.args.append(token.value)
+                    command.arg_types.append('COMMAND_SUB')
+                elif token.type == TokenType.COMMAND_SUB_BACKTICK:
+                    command.args.append(token.value)
+                    command.arg_types.append('COMMAND_SUB_BACKTICK')
                 else:
                     command.args.append(token.value)
                     command.arg_types.append('WORD')

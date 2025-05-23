@@ -20,6 +20,8 @@ class TokenType(Enum):
     EOF = auto()
     STRING = auto()
     VARIABLE = auto()
+    COMMAND_SUB = auto()
+    COMMAND_SUB_BACKTICK = auto()
 
 
 @dataclass
@@ -55,7 +57,7 @@ class Tokenizer:
     
     def read_word(self) -> str:
         value = ''
-        while self.current_char() and self.current_char() not in ' \t\n|<>;&':
+        while self.current_char() and self.current_char() not in ' \t\n|<>;&`':
             if self.current_char() == '\\' and self.peek_char():
                 # Skip backslash and add the escaped character
                 self.advance()
@@ -85,6 +87,65 @@ class Tokenizer:
             raise SyntaxError(f"Unclosed quote at position {self.position}")
         
         return value
+    
+    def read_command_substitution(self) -> str:
+        """Read $(...) command substitution"""
+        self.advance()  # Skip $
+        self.advance()  # Skip (
+        
+        depth = 1
+        command = ''
+        
+        while depth > 0 and self.current_char() is not None:
+            char = self.current_char()
+            
+            if char == '(':
+                depth += 1
+            elif char == ')':
+                depth -= 1
+                if depth == 0:
+                    break
+            
+            command += char
+            self.advance()
+        
+        if self.current_char() == ')':
+            self.advance()  # Skip final )
+        else:
+            raise SyntaxError(f"Unclosed command substitution at position {self.position}")
+        
+        return f"$({command})"
+    
+    def read_backtick_substitution(self) -> str:
+        """Read `...` backtick command substitution"""
+        self.advance()  # Skip opening `
+        
+        command = ''
+        while self.current_char() is not None and self.current_char() != '`':
+            if self.current_char() == '\\':
+                # Handle escape sequences in backticks
+                self.advance()
+                if self.current_char() in ['$', '\\', '`']:
+                    # For backticks, \$ means literal $ in the output
+                    # So we keep the backslash for $ to prevent expansion
+                    if self.current_char() == '$':
+                        command += '\\$'
+                    else:
+                        command += self.current_char()
+                    self.advance()
+                else:
+                    # Not a special escape, keep the backslash
+                    command += '\\'
+            else:
+                command += self.current_char()
+                self.advance()
+        
+        if self.current_char() == '`':
+            self.advance()  # Skip closing `
+        else:
+            raise SyntaxError(f"Unclosed backtick at position {self.position}")
+        
+        return f"`{command}`"
     
     def check_fd_redirect(self) -> bool:
         """Check if current position has a file descriptor redirect like 2>"""
@@ -180,20 +241,29 @@ class Tokenizer:
                 value = self.read_quoted_string(char)
                 self.tokens.append(Token(TokenType.STRING, value, start_pos))
             elif char == '$':
-                self.advance()
-                if self.current_char() == '{':
-                    # Handle ${...} syntax
-                    self.advance()  # Skip {
-                    var_content = ''
-                    while self.current_char() and self.current_char() != '}':
-                        var_content += self.current_char()
-                        self.advance()
-                    if self.current_char() == '}':
-                        self.advance()  # Skip }
-                    self.tokens.append(Token(TokenType.VARIABLE, '{' + var_content + '}', start_pos))
+                if self.peek_char() == '(':
+                    # Handle $(...) command substitution
+                    value = self.read_command_substitution()
+                    self.tokens.append(Token(TokenType.COMMAND_SUB, value, start_pos))
                 else:
-                    var_name = self.read_word()
-                    self.tokens.append(Token(TokenType.VARIABLE, var_name, start_pos))
+                    self.advance()
+                    if self.current_char() == '{':
+                        # Handle ${...} syntax
+                        self.advance()  # Skip {
+                        var_content = ''
+                        while self.current_char() and self.current_char() != '}':
+                            var_content += self.current_char()
+                            self.advance()
+                        if self.current_char() == '}':
+                            self.advance()  # Skip }
+                        self.tokens.append(Token(TokenType.VARIABLE, '{' + var_content + '}', start_pos))
+                    else:
+                        var_name = self.read_word()
+                        self.tokens.append(Token(TokenType.VARIABLE, var_name, start_pos))
+            elif char == '`':
+                # Handle backtick command substitution
+                value = self.read_backtick_substitution()
+                self.tokens.append(Token(TokenType.COMMAND_SUB_BACKTICK, value, start_pos))
             else:
                 word = self.read_word()
                 self.tokens.append(Token(TokenType.WORD, word, start_pos))

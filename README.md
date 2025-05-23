@@ -1,99 +1,224 @@
-# Python Shell (psh) - Parser Architecture
+# Python Shell (psh)
 
-## Recommendation: Hand-Written Recursive Descent Parser
+An educational Unix shell implementation in Python, designed to teach shell internals and compiler/interpreter concepts through a clean, readable codebase.
 
-Based on your preference and educational goals, I recommend a hand-written recursive descent parser with the following architecture:
+## Overview
 
-### Key Components
+Python Shell (psh) is a POSIX-style shell written entirely in Python. It uses a hand-written recursive descent parser for clarity and educational value, making it easy to understand how shells parse and execute commands.
 
-1. **Tokenizer** (`tokenizer.py`)
-   - Converts input string into tokens
-   - Handles operators, quotes, variables
-   - Clean separation from parsing logic
+## Features
 
-2. **AST Nodes** (`ast_nodes.py`)
-   - Simple dataclasses for AST representation
-   - Command, Pipeline, CommandList, Redirect
+### Currently Implemented
 
-3. **Parser** (`parser.py`)
-   - Recursive descent implementation
+- ✅ **Command Execution**
+  - Basic command execution with arguments
+  - Multiple commands (`;` separator)
+  - Background processes (`&`)
+  
+- ✅ **I/O Redirection**
+  - Input redirection (`<`)
+  - Output redirection (`>`, `>>`)
+  - Stderr redirection (`2>`, `2>>`, `2>&1`)
+  - Here documents (`<<`, `<<-`)
+
+- ✅ **Pipes and Pipelines**
+  - Full pipeline support (`cmd1 | cmd2 | cmd3`)
+  - Proper process group management
+  
+- ✅ **Variable Expansion**
+  - Environment variables (`$VAR`)
+  - Shell variables (separate from environment)
+  - Special variables (`$?`, `$$`, `$!`, `$#`, `$@`, `$*`, `$0`)
+  - Positional parameters (`$1`, `$2`, ...)
+  - Parameter expansion (`${VAR}`, `${VAR:-default}`)
+  
+- ✅ **Command Substitution**
+  - Modern syntax: `$(command)`
+  - Legacy syntax: `` `command` ``
+  - Nested substitution support
+  
+- ✅ **Pattern Matching**
+  - Wildcards/globbing (`*`, `?`, `[...]`)
+  - Quote handling to prevent expansion
+  
+- ✅ **Built-in Commands**
+  - `cd` - Change directory
+  - `exit` - Exit shell
+  - `export` - Export variables
+  - `pwd` - Print working directory
+  - `echo` - Print arguments
+  - `env` - Display environment
+  - `unset` - Remove variables
+  - `source` - Execute commands from file
+  - `history` - Command history
+  - `set` - Set positional parameters
+  - `cat` - Concatenate files
+  
+- ✅ **Interactive Features**
+  - Command history with persistence
+  - Exit status in prompt
+  - Signal handling (Ctrl-C)
+
+### Not Yet Implemented
+
+- ❌ Job control (`fg`, `bg`, `jobs`)
+- ❌ Control structures (`if`, `while`, `for`)
+- ❌ Functions
+- ❌ Aliases
+- ❌ Advanced expansions (arithmetic, brace)
+
+## Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/psh.git
+cd psh
+
+# Install development dependencies (for testing)
+pip install -r requirements-dev.txt
+```
+
+## Usage
+
+### Interactive Mode
+
+```bash
+python3 simple_shell.py
+```
+
+### Execute Single Command
+
+```bash
+python3 simple_shell.py "ls -la | grep python"
+```
+
+### Execute Command with -c Flag
+
+```bash
+python3 simple_shell.py -c "echo hello world"
+```
+
+## Examples
+
+```bash
+# Basic commands
+$ ls -la
+$ cd /usr/local
+$ pwd
+
+# I/O redirection
+$ echo "Hello, World!" > output.txt
+$ cat < input.txt
+$ ls /nonexistent 2> errors.txt
+$ command > output.txt 2>&1
+
+# Pipelines
+$ ls -la | grep python | wc -l
+$ cat file.txt | sort | uniq
+
+# Variables
+$ export PATH=/usr/local/bin:$PATH
+$ echo "Home is $HOME"
+$ echo "Exit status: $?"
+
+# Command substitution
+$ echo "Today is $(date)"
+$ files=`ls *.txt`
+
+# Wildcards
+$ ls *.py
+$ rm temp?.txt
+$ cat [abc]*.log
+
+# Here documents
+$ cat << EOF
+Line 1
+Line 2
+EOF
+```
+
+## Architecture
+
+The shell follows a classic three-phase interpreter architecture:
+
+1. **Tokenization** (`tokenizer.py`)
+   - Converts input strings into tokens
+   - Handles operators, quotes, and special characters
+   
+2. **Parsing** (`parser.py`)
+   - Builds an Abstract Syntax Tree (AST)
+   - Uses recursive descent parsing
    - One function per grammar rule
-   - Clear error reporting
+   
+3. **Execution** (`simple_shell.py`)
+   - Interprets the AST
+   - Manages processes and I/O
+   - Implements built-in commands
 
-4. **Shell** (`simple_shell.py`)
-   - Basic executor for demonstration
-   - Shows how to use the parser
-
-### Architecture Benefits
-
-1. **Educational Value**
-   - Each parsing function maps directly to a grammar rule
-   - Easy to trace through with a debugger
-   - Clear separation of concerns
-
-2. **Extensibility**
-   - Easy to add new operators or syntax
-   - Can incrementally add features
-   - No external dependencies
-
-3. **Error Handling**
-   - Can provide context-aware error messages
-   - Shows exact position of syntax errors
-   - Easy to add error recovery
-
-### Grammar
+## Grammar
 
 ```
 command_list → pipeline (SEMICOLON pipeline)* [SEMICOLON]
 pipeline     → command (PIPE command)*
 command      → word+ redirect* [AMPERSAND]
 redirect     → REDIRECT_OP word
-word         → WORD | STRING | VARIABLE
+word         → WORD | STRING | VARIABLE | COMMAND_SUB
 ```
 
-### Next Steps
+## Testing
 
-1. **Implement Pipeline Execution**
-   - Use subprocess with pipes
-   - Handle proper process management
+Run the test suite:
 
-2. **Add More Built-ins**
-   - pwd, echo, source, etc.
-   - Job control (jobs, fg, bg)
-
-3. **Enhance Variable Handling**
-   - Environment vs shell variables
-   - Special variables ($?, $$, $!)
-   - Command substitution
-
-4. **Add Control Structures**
-   - if/then/else
-   - for/while loops
-   - functions
-
-5. **Improve Interactive Features**
-   - Line editing with readline
-   - History support
-   - Tab completion
-
-### Testing
-
-Run the demo to see the parser in action:
 ```bash
-python3 demo.py
+# Run all tests
+python -m pytest tests/
+
+# Run specific test file
+python -m pytest tests/test_parser.py -v
+
+# Run with coverage
+python -m pytest tests/ --cov=.
 ```
 
-Run the simple shell:
-```bash
-python3 simple_shell.py
+## Development
+
+### Project Structure
+
+```
+psh/
+├── simple_shell.py      # Main shell implementation
+├── tokenizer.py         # Lexical analysis
+├── parser.py           # Syntax analysis
+├── ast_nodes.py        # AST node definitions
+├── tests/              # Test suite
+│   ├── test_tokenizer.py
+│   ├── test_parser.py
+│   └── ...
+└── docs/               # Documentation
+    └── command_substitution_strategy.md
 ```
 
-### Implementation Order
+### Adding New Features
 
-1. ✅ Basic tokenizer and parser
-2. ✅ Simple command execution
-3. ⬜ Pipeline execution
-4. ⬜ Job control
-5. ⬜ Advanced expansions
-6. ⬜ Control structures
-7. ⬜ Interactive features
+1. Update the tokenizer if new tokens are needed
+2. Extend the parser to handle new syntax
+3. Implement execution logic in the shell
+4. Add comprehensive tests
+5. Update documentation
+
+## Contributing
+
+This is an educational project designed to be clear and understandable. When contributing:
+
+- Maintain code clarity over cleverness
+- Add comments explaining complex logic
+- Include tests for new features
+- Update documentation
+
+## License
+
+MIT License - see LICENSE file for details
+
+## Acknowledgments
+
+This project was created as an educational tool to understand shell internals. It draws inspiration from traditional Unix shells while prioritizing readability and educational value.

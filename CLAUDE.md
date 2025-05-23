@@ -70,6 +70,7 @@ Implemented:
 - Basic parameter expansion (${var}, ${var:-default})
 - Here documents (<< and <<-)
 - Stderr redirection (2>, 2>>, 2>&1)
+- Command substitution ($(...) and `...`)
 
 Not implemented:
 - Job control (fg, bg, jobs commands)

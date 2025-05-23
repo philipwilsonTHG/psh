@@ -98,15 +98,67 @@ class Shell:
             return self.variables[var_name]
         return self.env.get(var_name, '')
     
+    def _execute_command_substitution(self, cmd_sub: str) -> str:
+        """Execute a command substitution and return its output"""
+        # Extract command from $(...) or `...`
+        if cmd_sub.startswith('$(') and cmd_sub.endswith(')'):
+            command = cmd_sub[2:-1]
+        elif cmd_sub.startswith('`') and cmd_sub.endswith('`'):
+            command = cmd_sub[1:-1]
+        else:
+            return cmd_sub  # Invalid format, return as-is
+        
+        # Execute the command in a subprocess
+        try:
+            # Create a new shell instance in the subprocess with current positional params
+            shell_cmd = [sys.executable, __file__, "-c", command]
+            # Pass positional parameters as additional arguments
+            if self.positional_params:
+                shell_cmd.extend(self.positional_params)
+            
+            # Merge shell variables into environment for subprocess
+            sub_env = self.env.copy()
+            sub_env.update(self.variables)
+            
+            result = subprocess.run(
+                shell_cmd,
+                capture_output=True,
+                text=True,
+                env=sub_env,
+                cwd=os.getcwd()
+            )
+            
+            # Update exit status
+            self.last_exit_code = result.returncode
+            
+            # POSIX: strip only trailing newlines
+            output = result.stdout.rstrip('\n')
+            
+            return output
+        except Exception:
+            # If execution fails, return empty string
+            self.last_exit_code = 1
+            return ''
+    
     def execute_command(self, command: Command):
         # Expand variables and globs in arguments
         args = []
         for i, arg in enumerate(command.args):
             arg_type = command.arg_types[i] if i < len(command.arg_types) else 'WORD'
             
-            if arg.startswith('$'):
+            if arg.startswith('$') and not (arg.startswith('$(') or arg.startswith('`')):
+                # Variable expansion
                 expanded = self._expand_variable(arg)
                 args.append(expanded)
+            elif arg_type in ('COMMAND_SUB', 'COMMAND_SUB_BACKTICK'):
+                # Command substitution
+                output = self._execute_command_substitution(arg)
+                # POSIX: apply word splitting to unquoted command substitution
+                if output:
+                    # Split on whitespace
+                    words = output.split()
+                    args.extend(words)
+                # If output is empty, don't add anything
             else:
                 # Check if the argument contains glob characters and wasn't quoted
                 if any(c in arg for c in ['*', '?', '[']) and arg_type != 'STRING':
@@ -631,9 +683,19 @@ class Shell:
         for i, arg in enumerate(command.args):
             arg_type = command.arg_types[i] if i < len(command.arg_types) else 'WORD'
             
-            if arg.startswith('$'):
+            if arg.startswith('$') and not (arg.startswith('$(') or arg.startswith('`')):
+                # Variable expansion
                 expanded = self._expand_variable(arg)
                 args.append(expanded)
+            elif arg_type in ('COMMAND_SUB', 'COMMAND_SUB_BACKTICK'):
+                # Command substitution
+                output = self._execute_command_substitution(arg)
+                # POSIX: apply word splitting to unquoted command substitution
+                if output:
+                    # Split on whitespace
+                    words = output.split()
+                    args.extend(words)
+                # If output is empty, don't add anything
             else:
                 # Check if the argument contains glob characters and wasn't quoted
                 if any(c in arg for c in ['*', '?', '[']) and arg_type != 'STRING':
@@ -735,10 +797,16 @@ if __name__ == "__main__":
     shell = Shell()
     
     if len(sys.argv) > 1:
-        # Execute command from arguments
-        command = ' '.join(sys.argv[1:])
-        exit_code = shell.run_command(command)
-        sys.exit(exit_code)
+        if sys.argv[1] == "-c" and len(sys.argv) > 2:
+            # Execute command with -c flag
+            command = sys.argv[2]
+            exit_code = shell.run_command(command, add_to_history=False)
+            sys.exit(exit_code)
+        else:
+            # Execute command from arguments
+            command = ' '.join(sys.argv[1:])
+            exit_code = shell.run_command(command)
+            sys.exit(exit_code)
     else:
         # Interactive mode
         shell.interactive_loop()
