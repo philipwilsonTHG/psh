@@ -91,3 +91,14 @@ if __name__ == "__main__":
     demo_parse('echo file?.txt')
     demo_parse('rm [abc]*.log')
     demo_parse('echo "*.txt"')  # Quoted glob not expanded
+    
+    # Variable assignment
+    demo_parse('FOO=bar')
+    demo_parse('NAME="John Doe"')
+    
+    # Special variables
+    demo_parse('echo $$ $? $#')
+    
+    # Parameter expansion
+    demo_parse('echo ${HOME}')
+    demo_parse('echo ${UNSET:-default}')

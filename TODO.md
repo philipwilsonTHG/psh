@@ -35,11 +35,11 @@ Features ordered by ease of implementation, from simplest to most complex.
 - [x] Implement `[...]` character classes
 - [x] Integrate with command argument parsing
 
-### 6. 🔧 Enhanced Variable Support
-- [ ] Positional parameters ($1, $2, etc.)
-- [ ] Special variables ($$, $!, $#, $@, $*)
-- [ ] Variable assignment without export
-- [ ] Basic parameter expansion (${var:-default})
+### 6. ✅ Enhanced Variable Support
+- [x] Positional parameters ($1, $2, etc.)
+- [x] Special variables ($$, $!, $#, $@, $*)
+- [x] Variable assignment without export
+- [x] Basic parameter expansion (${var:-default})
 
 ### 7. 🔧 Here Documents
 - [ ] Parse << operator

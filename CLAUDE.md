@@ -57,12 +57,17 @@ Implemented:
 - Multiple commands (;)
 - Background execution (&)
 - Quoted strings and variable expansion
-- Built-ins: exit, cd, export, pwd, echo, unset, env, source, history
+- Built-ins: exit, cd, export, pwd, echo, unset, env, source, history, set
 - Wildcards/globbing (*, ?, [...])
 - Exit status tracking ($? variable)
 - Command history with persistence
 - Pipeline execution with proper process groups
 - Signal handling (SIGINT, SIGTSTP)
+- Shell variables (separate from environment)
+- Positional parameters ($1, $2, etc.)
+- Special variables ($$, $!, $#, $@, $*, $0)
+- Variable assignment (VAR=value)
+- Basic parameter expansion (${var}, ${var:-default})
 
 Not implemented:
 - Job control (fg, bg, jobs commands)

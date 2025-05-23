@@ -12,9 +12,12 @@ from ast_nodes import Command, Pipeline, CommandList, Redirect
 
 
 class Shell:
-    def __init__(self):
+    def __init__(self, args=None):
         self.env = os.environ.copy()
+        self.variables = {}  # Shell variables (not exported to environment)
+        self.positional_params = args if args else []  # $1, $2, etc.
         self.last_exit_code = 0
+        self.last_bg_pid = None  # For $!
         self.history = []
         self.history_file = os.path.expanduser("~/.psh_history")
         self.max_history_size = 1000
@@ -38,7 +41,61 @@ class Shell:
             'source': self._builtin_source,
             '.': self._builtin_source,
             'history': self._builtin_history,
+            'set': self._builtin_set,
         }
+    
+    def _expand_variable(self, var_expr: str) -> str:
+        """Expand a variable expression starting with $"""
+        if not var_expr.startswith('$'):
+            return var_expr
+            
+        var_name = var_expr[1:]
+        
+        # Handle ${var} and ${var:-default} syntax
+        if var_name.startswith('{') and var_name.endswith('}'):
+            var_content = var_name[1:-1]
+            if ':-' in var_content:
+                # ${var:-default} - use default if var is unset or empty
+                var_name, default = var_content.split(':-', 1)
+                value = self._get_variable_value(var_name)
+                return value if value else default
+            else:
+                # ${var} - simple expansion
+                var_name = var_content
+        
+        # Handle special variables
+        if var_name == '?':
+            return str(self.last_exit_code)
+        elif var_name == '$':
+            return str(os.getpid())
+        elif var_name == '!':
+            return str(self.last_bg_pid) if self.last_bg_pid else ''
+        elif var_name == '#':
+            return str(len(self.positional_params))
+        elif var_name == '@':
+            # $@ expands to separate words
+            return ' '.join(f'"{param}"' for param in self.positional_params)
+        elif var_name == '*':
+            # $* expands to a single word
+            return ' '.join(self.positional_params)
+        elif var_name == '0':
+            # $0 is the shell name
+            return 'psh'
+        elif var_name.isdigit():
+            # Positional parameters
+            index = int(var_name) - 1
+            if 0 <= index < len(self.positional_params):
+                return self.positional_params[index]
+            return ''
+        else:
+            return self._get_variable_value(var_name)
+    
+    def _get_variable_value(self, var_name: str) -> str:
+        """Get value of a variable from shell variables or environment"""
+        # Check shell variables first, then environment
+        if var_name in self.variables:
+            return self.variables[var_name]
+        return self.env.get(var_name, '')
     
     def execute_command(self, command: Command):
         # Expand variables and globs in arguments
@@ -47,12 +104,8 @@ class Shell:
             arg_type = command.arg_types[i] if i < len(command.arg_types) else 'WORD'
             
             if arg.startswith('$'):
-                var_name = arg[1:]
-                # Handle special variable $?
-                if var_name == '?':
-                    args.append(str(self.last_exit_code))
-                else:
-                    args.append(self.env.get(var_name, ''))
+                expanded = self._expand_variable(arg)
+                args.append(expanded)
             else:
                 # Check if the argument contains glob characters and wasn't quoted
                 if any(c in arg for c in ['*', '?', '[']) and arg_type != 'STRING':
@@ -69,6 +122,19 @@ class Shell:
         
         if not args:
             return 0
+        # Check for variable assignments (VAR=value)
+        if '=' in args[0] and not args[0].startswith('='):
+            # This is a variable assignment
+            var_name, var_value = args[0].split('=', 1)
+            if len(args) == 1:
+                # Pure assignment, no command
+                self.variables[var_name] = var_value
+                return 0
+            else:
+                # Assignment followed by command - set temporarily
+                # This is more complex, skip for now
+                pass
+        
         
         # Check for built-in commands
         if args[0] in self.builtins:
@@ -123,6 +189,7 @@ class Shell:
             
             if command.background:
                 print(f"[{proc.pid}]")
+                self.last_bg_pid = proc.pid
                 return 0
             else:
                 proc.wait()
@@ -317,10 +384,19 @@ class Shell:
             return 1
     
     def _builtin_export(self, args):
-        if len(args) > 1 and '=' in args[1]:
-            var, value = args[1].split('=', 1)
-            self.env[var] = value
-            os.environ[var] = value
+        if len(args) > 1:
+            if '=' in args[1]:
+                var, value = args[1].split('=', 1)
+                self.env[var] = value
+                os.environ[var] = value
+                # Also update shell variable
+                self.variables[var] = value
+            else:
+                # Export existing shell variable
+                var = args[1]
+                if var in self.variables:
+                    self.env[var] = self.variables[var]
+                    os.environ[var] = self.variables[var]
         return 0
     
     def _builtin_pwd(self, args):
@@ -382,6 +458,18 @@ class Shell:
         start_idx = max(0, len(self.history) - show_count)
         for i in range(start_idx, len(self.history)):
             print(f"{i + 1:5d}  {self.history[i]}")
+        return 0
+    
+    def _builtin_set(self, args):
+        """Set positional parameters"""
+        if len(args) > 1:
+            # Set positional parameters to the arguments after 'set'
+            self.positional_params = args[1:]
+        else:
+            # No arguments, show all variables
+            # Show shell variables
+            for var, value in sorted(self.variables.items()):
+                print(f"{var}={value}")
         return 0
     
     def _add_to_history(self, command):
@@ -449,12 +537,8 @@ class Shell:
             arg_type = command.arg_types[i] if i < len(command.arg_types) else 'WORD'
             
             if arg.startswith('$'):
-                var_name = arg[1:]
-                # Handle special variable $?
-                if var_name == '?':
-                    args.append(str(self.last_exit_code))
-                else:
-                    args.append(self.env.get(var_name, ''))
+                expanded = self._expand_variable(arg)
+                args.append(expanded)
             else:
                 # Check if the argument contains glob characters and wasn't quoted
                 if any(c in arg for c in ['*', '?', '[']) and arg_type != 'STRING':

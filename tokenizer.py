@@ -119,8 +119,19 @@ class Tokenizer:
                 self.tokens.append(Token(TokenType.STRING, value, start_pos))
             elif char == '$':
                 self.advance()
-                var_name = self.read_word()
-                self.tokens.append(Token(TokenType.VARIABLE, var_name, start_pos))
+                if self.current_char() == '{':
+                    # Handle ${...} syntax
+                    self.advance()  # Skip {
+                    var_content = ''
+                    while self.current_char() and self.current_char() != '}':
+                        var_content += self.current_char()
+                        self.advance()
+                    if self.current_char() == '}':
+                        self.advance()  # Skip }
+                    self.tokens.append(Token(TokenType.VARIABLE, '{' + var_content + '}', start_pos))
+                else:
+                    var_name = self.read_word()
+                    self.tokens.append(Token(TokenType.VARIABLE, var_name, start_pos))
             else:
                 word = self.read_word()
                 self.tokens.append(Token(TokenType.WORD, word, start_pos))
