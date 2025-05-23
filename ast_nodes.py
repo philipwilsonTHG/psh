@@ -9,8 +9,10 @@ class ASTNode(ABC):
 
 @dataclass
 class Redirect(ASTNode):
-    type: str  # '<', '>', '>>', '<<', '<<-'
+    type: str  # '<', '>', '>>', '<<', '<<-', '2>', '2>>', '2>&1', etc.
     target: str
+    fd: Optional[int] = None  # File descriptor (None for stdin/stdout, 2 for stderr, etc.)
+    dup_fd: Optional[int] = None  # For duplications like 2>&1
     heredoc_content: Optional[str] = None  # For here documents
 
 

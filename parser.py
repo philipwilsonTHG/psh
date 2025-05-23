@@ -103,11 +103,13 @@ class Parser:
         while self.match(TokenType.WORD, TokenType.STRING, TokenType.VARIABLE,
                          TokenType.REDIRECT_IN, TokenType.REDIRECT_OUT, 
                          TokenType.REDIRECT_APPEND, TokenType.HEREDOC,
-                         TokenType.HEREDOC_STRIP):
+                         TokenType.HEREDOC_STRIP, TokenType.REDIRECT_ERR,
+                         TokenType.REDIRECT_ERR_APPEND, TokenType.REDIRECT_DUP):
             
             if self.match(TokenType.REDIRECT_IN, TokenType.REDIRECT_OUT, 
                          TokenType.REDIRECT_APPEND, TokenType.HEREDOC,
-                         TokenType.HEREDOC_STRIP):
+                         TokenType.HEREDOC_STRIP, TokenType.REDIRECT_ERR,
+                         TokenType.REDIRECT_ERR_APPEND, TokenType.REDIRECT_DUP):
                 redirect = self.parse_redirect()
                 command.redirects.append(redirect)
             else:
@@ -146,6 +148,35 @@ class Parser:
                 target=delimiter_token.value,
                 heredoc_content=None  # Content will be filled in later
             )
+        elif redirect_token.type == TokenType.REDIRECT_DUP:
+            # Handle 2>&1 syntax - extract fd and dup_fd from the token value
+            # Token value is like "2>&1"
+            parts = redirect_token.value.split('>&')
+            fd = int(parts[0]) if parts[0] else 1  # Default to stdout
+            dup_fd = int(parts[1]) if len(parts) > 1 and parts[1] else 1
+            
+            return Redirect(
+                type='>&',
+                target='',  # No target file for dup
+                fd=fd,
+                dup_fd=dup_fd
+            )
+        elif redirect_token.type in (TokenType.REDIRECT_ERR, TokenType.REDIRECT_ERR_APPEND):
+            # Handle 2> and 2>> - extract fd from token value
+            # Token value is like "2>" or "2>>"
+            fd_part = redirect_token.value.rstrip('>')
+            fd = int(fd_part) if fd_part else 2
+            
+            if not self.match(TokenType.WORD, TokenType.STRING):
+                raise ParseError("Expected file name after redirection", self.peek())
+            
+            target_token = self.advance()
+            
+            return Redirect(
+                type='>>' if redirect_token.type == TokenType.REDIRECT_ERR_APPEND else '>',
+                target=target_token.value,
+                fd=fd
+            )
         else:
             # Regular redirection - the next token should be the target file
             if not self.match(TokenType.WORD, TokenType.STRING):
@@ -153,9 +184,19 @@ class Parser:
             
             target_token = self.advance()
             
+            # Extract fd if present (for cases like 0<, 1>, etc.)
+            redirect_str = redirect_token.value
+            fd = None
+            if redirect_str[0].isdigit():
+                fd = int(redirect_str[0])
+                redirect_type = redirect_str[1:]  # Remove fd part
+            else:
+                redirect_type = redirect_str
+            
             return Redirect(
-                type=redirect_token.value,
-                target=target_token.value
+                type=redirect_type,
+                target=target_token.value,
+                fd=fd
             )
 
 

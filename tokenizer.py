@@ -9,6 +9,9 @@ class TokenType(Enum):
     REDIRECT_IN = auto()
     REDIRECT_OUT = auto()
     REDIRECT_APPEND = auto()
+    REDIRECT_ERR = auto()
+    REDIRECT_ERR_APPEND = auto()
+    REDIRECT_DUP = auto()
     HEREDOC = auto()
     HEREDOC_STRIP = auto()
     SEMICOLON = auto()
@@ -83,6 +86,25 @@ class Tokenizer:
         
         return value
     
+    def check_fd_redirect(self) -> bool:
+        """Check if current position has a file descriptor redirect like 2>"""
+        if not self.current_char() or not self.current_char().isdigit():
+            return False
+        
+        # Save position
+        saved_pos = self.position
+        
+        # Skip digits
+        while self.current_char() and self.current_char().isdigit():
+            self.advance()
+        
+        # Check if followed by > or <
+        result = self.current_char() in ['>', '<']
+        
+        # Restore position
+        self.position = saved_pos
+        return result
+    
     def tokenize(self) -> List[Token]:
         while self.current_char() is not None:
             self.skip_whitespace()
@@ -93,7 +115,34 @@ class Tokenizer:
             start_pos = self.position
             char = self.current_char()
             
-            if char == '\n':
+            # Check for file descriptor redirects (e.g., 2>, 2>&1)
+            if self.check_fd_redirect():
+                # Read the file descriptor number
+                fd = ''
+                while self.current_char() and self.current_char().isdigit():
+                    fd += self.current_char()
+                    self.advance()
+                
+                # Now handle the redirect operator
+                if self.current_char() == '>':
+                    self.advance()
+                    if self.current_char() == '>':
+                        self.tokens.append(Token(TokenType.REDIRECT_ERR_APPEND, fd + '>>', start_pos))
+                        self.advance()
+                    elif self.current_char() == '&':
+                        # Handle 2>&1 syntax
+                        self.advance()  # Skip &
+                        dup_target = ''
+                        while self.current_char() and self.current_char().isdigit():
+                            dup_target += self.current_char()
+                            self.advance()
+                        self.tokens.append(Token(TokenType.REDIRECT_DUP, fd + '>&' + dup_target, start_pos))
+                    else:
+                        self.tokens.append(Token(TokenType.REDIRECT_ERR, fd + '>', start_pos))
+                elif self.current_char() == '<':
+                    self.advance()
+                    self.tokens.append(Token(TokenType.REDIRECT_IN, fd + '<', start_pos))
+            elif char == '\n':
                 self.tokens.append(Token(TokenType.NEWLINE, '\n', start_pos))
                 self.advance()
             elif char == '|':

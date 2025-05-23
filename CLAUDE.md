@@ -53,7 +53,7 @@ python -m pytest tests/
 
 Implemented:
 - Basic command execution
-- I/O redirections (<, >, >>)
+- I/O redirections (<, >, >>, 2>, 2>>, 2>&1)
 - Multiple commands (;)
 - Background execution (&)
 - Quoted strings and variable expansion
@@ -69,6 +69,7 @@ Implemented:
 - Variable assignment (VAR=value)
 - Basic parameter expansion (${var}, ${var:-default})
 - Here documents (<< and <<-)
+- Stderr redirection (2>, 2>>, 2>&1)
 
 Not implemented:
 - Job control (fg, bg, jobs commands)

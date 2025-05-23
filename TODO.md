@@ -74,6 +74,7 @@ Features ordered by ease of implementation, from simplest to most complex.
 - [ ] `for` loops (both styles)
 - [ ] `case`/`esac` statements
 - [ ] `&&` and `||` operators
+- [ ] `;` command separator (already partially implemented)
 
 ## Advanced Features (Multiple days)
 

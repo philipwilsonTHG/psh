@@ -141,6 +141,7 @@ class Shell:
         if args[0] in self.builtins:
             # Handle redirections for built-ins
             stdout_backup = None
+            stderr_backup = None
             stdin_backup = None
             try:
                 for redirect in command.redirects:
@@ -152,22 +153,39 @@ class Shell:
                         # Create a StringIO object from heredoc content
                         import io
                         sys.stdin = io.StringIO(redirect.heredoc_content or '')
-                    elif redirect.type == '>':
+                    elif redirect.type == '>' and redirect.fd == 2:
+                        stderr_backup = sys.stderr
+                        sys.stderr = open(redirect.target, 'w')
+                    elif redirect.type == '>>' and redirect.fd == 2:
+                        stderr_backup = sys.stderr
+                        sys.stderr = open(redirect.target, 'a')
+                    elif redirect.type == '>' and (redirect.fd is None or redirect.fd == 1):
                         stdout_backup = sys.stdout
                         sys.stdout = open(redirect.target, 'w')
-                    elif redirect.type == '>>':
+                    elif redirect.type == '>>' and (redirect.fd is None or redirect.fd == 1):
                         stdout_backup = sys.stdout
                         sys.stdout = open(redirect.target, 'a')
+                    elif redirect.type == '>&':
+                        # Handle fd duplication like 2>&1
+                        if redirect.fd == 2 and redirect.dup_fd == 1:
+                            stderr_backup = sys.stderr
+                            sys.stderr = sys.stdout
                 
                 return self.builtins[args[0]](args)
             finally:
-                # Restore original stdin/stdout
+                # Restore original stdin/stdout/stderr
                 if stdin_backup:
-                    sys.stdin.close()
+                    if hasattr(sys.stdin, 'close') and sys.stdin != stdin_backup:
+                        sys.stdin.close()
                     sys.stdin = stdin_backup
                 if stdout_backup:
-                    sys.stdout.close()
+                    if hasattr(sys.stdout, 'close') and sys.stdout != stdout_backup:
+                        sys.stdout.close()
                     sys.stdout = stdout_backup
+                if stderr_backup:
+                    if hasattr(sys.stderr, 'close') and sys.stderr != stderr_backup:
+                        sys.stderr.close()
+                    sys.stderr = stderr_backup
         
         # Execute external command
         try:
@@ -182,10 +200,18 @@ class Shell:
                 elif redirect.type in ('<<', '<<-'):
                     # For heredocs, we need to use PIPE and write content
                     stdin = subprocess.PIPE
-                elif redirect.type == '>':
+                elif redirect.type == '>' and redirect.fd == 2:
+                    stderr = open(redirect.target, 'w')
+                elif redirect.type == '>>' and redirect.fd == 2:
+                    stderr = open(redirect.target, 'a')
+                elif redirect.type == '>' and (redirect.fd is None or redirect.fd == 1):
                     stdout = open(redirect.target, 'w')
-                elif redirect.type == '>>':
+                elif redirect.type == '>>' and (redirect.fd is None or redirect.fd == 1):
                     stdout = open(redirect.target, 'a')
+                elif redirect.type == '>&':
+                    # Handle fd duplication like 2>&1
+                    if redirect.fd == 2 and redirect.dup_fd == 1:
+                        stderr = subprocess.STDOUT
             
             # Run the command
             proc = subprocess.Popen(
@@ -226,8 +252,10 @@ class Shell:
             # Close any opened files
             if stdin and stdin != sys.stdin and stdin != subprocess.PIPE:
                 stdin.close()
-            if stdout and stdout != sys.stdout and stdout != subprocess.PIPE:
+            if stdout and stdout != sys.stdout and stdout != subprocess.PIPE and stdout != subprocess.STDOUT:
                 stdout.close()
+            if stderr and stderr != sys.stderr and stderr != subprocess.PIPE and stderr != subprocess.STDOUT:
+                stderr.close()
     
     def execute_pipeline(self, pipeline: Pipeline):
         if len(pipeline.commands) == 1:
@@ -643,12 +671,18 @@ class Shell:
                         os.close(r)
                     elif redirect.type == '>':
                         fd = os.open(redirect.target, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)
-                        os.dup2(fd, 1)
+                        target_fd = redirect.fd if redirect.fd is not None else 1
+                        os.dup2(fd, target_fd)
                         os.close(fd)
                     elif redirect.type == '>>':
                         fd = os.open(redirect.target, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o644)
-                        os.dup2(fd, 1)
+                        target_fd = redirect.fd if redirect.fd is not None else 1
+                        os.dup2(fd, target_fd)
                         os.close(fd)
+                    elif redirect.type == '>&':
+                        # Handle fd duplication like 2>&1
+                        if redirect.fd is not None and redirect.dup_fd is not None:
+                            os.dup2(redirect.dup_fd, redirect.fd)
                 
                 return self.builtins[args[0]](args)
             except Exception as e:
@@ -674,12 +708,18 @@ class Shell:
                     os.close(r)
                 elif redirect.type == '>':
                     fd = os.open(redirect.target, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)
-                    os.dup2(fd, 1)
+                    target_fd = redirect.fd if redirect.fd is not None else 1
+                    os.dup2(fd, target_fd)
                     os.close(fd)
                 elif redirect.type == '>>':
                     fd = os.open(redirect.target, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o644)
-                    os.dup2(fd, 1)
+                    target_fd = redirect.fd if redirect.fd is not None else 1
+                    os.dup2(fd, target_fd)
                     os.close(fd)
+                elif redirect.type == '>&':
+                    # Handle fd duplication like 2>&1
+                    if redirect.fd is not None and redirect.dup_fd is not None:
+                        os.dup2(redirect.dup_fd, redirect.fd)
             
             # Execute with execvpe to pass environment
             os.execvpe(args[0], args, self.env)
