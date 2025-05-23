@@ -1,0 +1,64 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project Overview
+
+Python Shell (psh) is an educational Unix shell implementation designed for teaching shell internals and compiler/interpreter concepts. It uses a hand-written recursive descent parser for clarity and educational value.
+
+## Architecture
+
+The shell follows a three-phase architecture:
+
+1. **Tokenization** (`tokenizer.py`): Converts input strings into tokens, handling operators, quotes, and variables
+2. **Parsing** (`parser.py`): Builds an AST using recursive descent, with one function per grammar rule
+3. **Execution** (`simple_shell.py`): Interprets the AST, executing commands and managing I/O
+
+Key design principle: Each component is intentionally simple and readable for teaching purposes.
+
+## Grammar
+
+```
+command_list → pipeline (SEMICOLON pipeline)* [SEMICOLON]
+pipeline     → command (PIPE command)*
+command      → word+ redirect* [AMPERSAND]
+redirect     → REDIRECT_OP word
+word         → WORD | STRING | VARIABLE
+```
+
+## Running the Project
+
+```bash
+# Run parser demonstration (shows tokenization and AST)
+python3 demo.py
+
+# Start interactive shell
+python3 simple_shell.py
+
+# Execute single command
+python3 simple_shell.py "ls -la"
+```
+
+## Development Notes
+
+- No external dependencies - uses only Python 3 standard library
+- No formal test suite yet - use `demo.py` to verify parser behavior
+- When adding features, maintain the educational clarity of the code
+- Pipeline execution (actual piping between processes) is not yet implemented
+
+## Current Implementation Status
+
+Implemented:
+- Basic command execution
+- I/O redirections (<, >, >>)
+- Multiple commands (;)
+- Background execution (&)
+- Quoted strings and variable expansion
+- Built-ins: exit, cd, export
+
+Not implemented:
+- Actual pipeline execution (pipes are parsed but not executed)
+- Job control
+- Control structures (if, while, for)
+- Command substitution
+- Wildcards/globbing
