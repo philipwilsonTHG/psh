@@ -57,7 +57,7 @@ Implemented:
 - Multiple commands (;)
 - Background execution (&)
 - Quoted strings and variable expansion
-- Built-ins: exit, cd, export, pwd, echo, unset, env, source, history, set
+- Built-ins: exit, cd, export, pwd, echo, unset, env, source, history, set, cat
 - Wildcards/globbing (*, ?, [...])
 - Exit status tracking ($? variable)
 - Command history with persistence
@@ -68,6 +68,7 @@ Implemented:
 - Special variables ($$, $!, $#, $@, $*, $0)
 - Variable assignment (VAR=value)
 - Basic parameter expansion (${var}, ${var:-default})
+- Here documents (<< and <<-)
 
 Not implemented:
 - Job control (fg, bg, jobs commands)

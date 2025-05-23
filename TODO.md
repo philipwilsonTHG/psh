@@ -41,10 +41,10 @@ Features ordered by ease of implementation, from simplest to most complex.
 - [x] Variable assignment without export
 - [x] Basic parameter expansion (${var:-default})
 
-### 7. 🔧 Here Documents
-- [ ] Parse << operator
-- [ ] Implement here-doc input collection
-- [ ] Support <<- for tab stripping
+### 7. ✅ Here Documents
+- [x] Parse << operator
+- [x] Implement here-doc input collection
+- [x] Support <<- for tab stripping
 - [ ] Here-strings (<<<)
 
 ## Hard Features (1-2 days each)

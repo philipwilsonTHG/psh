@@ -102,3 +102,7 @@ if __name__ == "__main__":
     # Parameter expansion
     demo_parse('echo ${HOME}')
     demo_parse('echo ${UNSET:-default}')
+    
+    # Here documents
+    demo_parse('cat << EOF')
+    demo_parse('wc -l <<- END')

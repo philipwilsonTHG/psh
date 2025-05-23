@@ -102,10 +102,12 @@ class Parser:
         # Parse command arguments and redirections
         while self.match(TokenType.WORD, TokenType.STRING, TokenType.VARIABLE,
                          TokenType.REDIRECT_IN, TokenType.REDIRECT_OUT, 
-                         TokenType.REDIRECT_APPEND):
+                         TokenType.REDIRECT_APPEND, TokenType.HEREDOC,
+                         TokenType.HEREDOC_STRIP):
             
             if self.match(TokenType.REDIRECT_IN, TokenType.REDIRECT_OUT, 
-                         TokenType.REDIRECT_APPEND):
+                         TokenType.REDIRECT_APPEND, TokenType.HEREDOC,
+                         TokenType.HEREDOC_STRIP):
                 redirect = self.parse_redirect()
                 command.redirects.append(redirect)
             else:
@@ -132,16 +134,29 @@ class Parser:
     def parse_redirect(self) -> Redirect:
         redirect_token = self.advance()
         
-        # The next token should be the target file
-        if not self.match(TokenType.WORD, TokenType.STRING):
-            raise ParseError("Expected file name after redirection", self.peek())
-        
-        target_token = self.advance()
-        
-        return Redirect(
-            type=redirect_token.value,
-            target=target_token.value
-        )
+        # For here documents, the delimiter is the next word
+        if redirect_token.type in (TokenType.HEREDOC, TokenType.HEREDOC_STRIP):
+            if not self.match(TokenType.WORD):
+                raise ParseError("Expected delimiter after here document operator", self.peek())
+            
+            delimiter_token = self.advance()
+            
+            return Redirect(
+                type=redirect_token.value,
+                target=delimiter_token.value,
+                heredoc_content=None  # Content will be filled in later
+            )
+        else:
+            # Regular redirection - the next token should be the target file
+            if not self.match(TokenType.WORD, TokenType.STRING):
+                raise ParseError("Expected file name after redirection", self.peek())
+            
+            target_token = self.advance()
+            
+            return Redirect(
+                type=redirect_token.value,
+                target=target_token.value
+            )
 
 
 def parse(tokens: List[Token]) -> CommandList:

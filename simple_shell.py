@@ -42,6 +42,7 @@ class Shell:
             '.': self._builtin_source,
             'history': self._builtin_history,
             'set': self._builtin_set,
+            'cat': self._builtin_cat,
         }
     
     def _expand_variable(self, var_expr: str) -> str:
@@ -146,6 +147,11 @@ class Shell:
                     if redirect.type == '<':
                         stdin_backup = sys.stdin
                         sys.stdin = open(redirect.target, 'r')
+                    elif redirect.type in ('<<', '<<-'):
+                        stdin_backup = sys.stdin
+                        # Create a StringIO object from heredoc content
+                        import io
+                        sys.stdin = io.StringIO(redirect.heredoc_content or '')
                     elif redirect.type == '>':
                         stdout_backup = sys.stdout
                         sys.stdout = open(redirect.target, 'w')
@@ -173,6 +179,9 @@ class Shell:
             for redirect in command.redirects:
                 if redirect.type == '<':
                     stdin = open(redirect.target, 'r')
+                elif redirect.type in ('<<', '<<-'):
+                    # For heredocs, we need to use PIPE and write content
+                    stdin = subprocess.PIPE
                 elif redirect.type == '>':
                     stdout = open(redirect.target, 'w')
                 elif redirect.type == '>>':
@@ -186,6 +195,14 @@ class Shell:
                 stderr=stderr,
                 env=self.env
             )
+            
+            # Write heredoc content if using PIPE
+            if stdin == subprocess.PIPE:
+                for redirect in command.redirects:
+                    if redirect.type in ('<<', '<<-') and redirect.heredoc_content:
+                        proc.stdin.write(redirect.heredoc_content.encode())
+                        proc.stdin.close()
+                        break
             
             if command.background:
                 print(f"[{proc.pid}]")
@@ -207,9 +224,9 @@ class Shell:
             return 1
         finally:
             # Close any opened files
-            if stdin and stdin != sys.stdin:
+            if stdin and stdin != sys.stdin and stdin != subprocess.PIPE:
                 stdin.close()
-            if stdout and stdout != sys.stdout:
+            if stdout and stdout != sys.stdout and stdout != subprocess.PIPE:
                 stdout.close()
     
     def execute_pipeline(self, pipeline: Pipeline):
@@ -333,6 +350,10 @@ class Shell:
         try:
             tokens = tokenize(command_string)
             ast = parse(tokens)
+            
+            # Collect here documents if any
+            self._collect_heredocs(ast)
+            
             exit_code = self.execute_command_list(ast)
             return exit_code
         except ParseError as e:
@@ -472,6 +493,52 @@ class Shell:
                 print(f"{var}={value}")
         return 0
     
+    def _builtin_cat(self, args):
+        """Simple cat implementation for testing"""
+        try:
+            # If no args, read from stdin
+            if len(args) == 1:
+                for line in sys.stdin:
+                    print(line, end='')
+            else:
+                # Read from files
+                for filename in args[1:]:
+                    with open(filename, 'r') as f:
+                        for line in f:
+                            print(line, end='')
+        except Exception as e:
+            print(f"cat: {e}", file=sys.stderr)
+            return 1
+        sys.stdout.flush()
+        return 0
+    
+    def _collect_heredocs(self, command_list: CommandList):
+        """Collect here document content for all commands"""
+        for pipeline in command_list.pipelines:
+            for command in pipeline.commands:
+                for redirect in command.redirects:
+                    if redirect.type in ('<<', '<<-'):
+                        # Collect here document content
+                        lines = []
+                        delimiter = redirect.target
+                        
+                        # Read lines until we find the delimiter
+                        while True:
+                            try:
+                                line = input()
+                                if line.strip() == delimiter:
+                                    break
+                                if redirect.type == '<<-':
+                                    # Strip leading tabs
+                                    line = line.lstrip('\t')
+                                lines.append(line)
+                            except EOFError:
+                                break
+                        
+                        redirect.heredoc_content = '\n'.join(lines)
+                        if lines:  # Add final newline if there was content
+                            redirect.heredoc_content += '\n'
+    
     def _add_to_history(self, command):
         """Add a command to history"""
         # Don't add duplicates of the immediately previous command
@@ -565,6 +632,15 @@ class Shell:
                         fd = os.open(redirect.target, os.O_RDONLY)
                         os.dup2(fd, 0)
                         os.close(fd)
+                    elif redirect.type in ('<<', '<<-'):
+                        # Create a pipe for heredoc
+                        r, w = os.pipe()
+                        # Write heredoc content to pipe
+                        os.write(w, (redirect.heredoc_content or '').encode())
+                        os.close(w)
+                        # Redirect stdin to read end
+                        os.dup2(r, 0)
+                        os.close(r)
                     elif redirect.type == '>':
                         fd = os.open(redirect.target, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)
                         os.dup2(fd, 1)
@@ -587,6 +663,15 @@ class Shell:
                     fd = os.open(redirect.target, os.O_RDONLY)
                     os.dup2(fd, 0)
                     os.close(fd)
+                elif redirect.type in ('<<', '<<-'):
+                    # Create a pipe for heredoc
+                    r, w = os.pipe()
+                    # Write heredoc content to pipe
+                    os.write(w, (redirect.heredoc_content or '').encode())
+                    os.close(w)
+                    # Redirect stdin to read end
+                    os.dup2(r, 0)
+                    os.close(r)
                 elif redirect.type == '>':
                     fd = os.open(redirect.target, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)
                     os.dup2(fd, 1)

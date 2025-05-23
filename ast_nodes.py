@@ -9,8 +9,9 @@ class ASTNode(ABC):
 
 @dataclass
 class Redirect(ASTNode):
-    type: str  # '<', '>', '>>'
+    type: str  # '<', '>', '>>', '<<', '<<-'
     target: str
+    heredoc_content: Optional[str] = None  # For here documents
 
 
 @dataclass

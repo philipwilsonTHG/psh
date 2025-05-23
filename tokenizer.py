@@ -9,6 +9,8 @@ class TokenType(Enum):
     REDIRECT_IN = auto()
     REDIRECT_OUT = auto()
     REDIRECT_APPEND = auto()
+    HEREDOC = auto()
+    HEREDOC_STRIP = auto()
     SEMICOLON = auto()
     AMPERSAND = auto()
     NEWLINE = auto()
@@ -104,8 +106,19 @@ class Tokenizer:
                 self.tokens.append(Token(TokenType.AMPERSAND, '&', start_pos))
                 self.advance()
             elif char == '<':
-                self.tokens.append(Token(TokenType.REDIRECT_IN, '<', start_pos))
-                self.advance()
+                if self.peek_char() == '<':
+                    # Check for << or <<-
+                    self.advance()  # Skip first <
+                    if self.peek_char() == '-':
+                        self.tokens.append(Token(TokenType.HEREDOC_STRIP, '<<-', start_pos))
+                        self.advance()  # Skip second <
+                        self.advance()  # Skip -
+                    else:
+                        self.tokens.append(Token(TokenType.HEREDOC, '<<', start_pos))
+                        self.advance()  # Skip second <
+                else:
+                    self.tokens.append(Token(TokenType.REDIRECT_IN, '<', start_pos))
+                    self.advance()
             elif char == '>':
                 if self.peek_char() == '>':
                     self.tokens.append(Token(TokenType.REDIRECT_APPEND, '>>', start_pos))
