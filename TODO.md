@@ -2,137 +2,147 @@
 
 Features ordered by ease of implementation, from simplest to most complex.
 
-## Easy Features (1-2 hours each)
+## ✅ Completed Features
 
-### 1. ✅ Additional Built-in Commands
-- [x] `pwd` - Print working directory
-- [x] `echo` - Print arguments (with proper quote handling)
-- [x] `env` - Display environment variables
-- [x] `unset` - Remove environment variables
-- [x] `source` or `.` - Execute commands from file
+### Easy Features (1-2 hours each)
+1. **Additional Built-in Commands** - pwd, echo, env, unset, source, cat
+2. **Exit Status Handling** - $? variable, prompt display, shell script access
+3. **Command History** - In-memory storage, history command, readline integration, persistence
 
-### 2. ✅ Exit Status Handling
-- [x] Set `$?` variable to last command's exit code
-- [x] Display exit status in prompt when non-zero
-- [x] Make exit status available to shell scripts
+### Medium Features (3-5 hours each)
+4. **Pipeline Execution** - Process pipes, exit status handling, signal management
+5. **Wildcards/Globbing** - *, ?, [...] patterns with proper quote handling
+6. **Enhanced Variable Support** - Positional params, special variables, shell variables, ${var:-default}
+7. **Here Documents** - << and <<- operators with tab stripping
+8. **I/O Redirection Extensions** - stderr redirection (2>, 2>>, 2>&1)
+9. **Command Substitution** - $(...) and `...` with nesting support
 
-### 3. ✅ Command History
-- [x] Store command history in memory
-- [x] `history` built-in command
-- [x] Up/down arrow navigation (using readline)
-- [x] Save history to ~/.psh_history
+## 🚧 In Progress / Remaining Features
 
-## Medium Features (3-5 hours each)
+### Easy-Medium Features
 
-### 4. ✅ Pipeline Execution
-- [x] Implement actual pipe functionality between processes
-- [x] Handle pipeline exit status (last command's status)
-- [x] Proper signal handling in pipelines
+#### Here-strings (<<<)
+- [ ] Parse <<< operator
+- [ ] Implement as single-line here document
+- [ ] Test with variables and quotes
 
-### 5. ✅ Wildcards/Globbing
-- [x] Implement `*` wildcard expansion
-- [x] Implement `?` single-character wildcard
-- [x] Implement `[...]` character classes
-- [x] Integrate with command argument parsing
+#### Command Separators
+- [x] `;` (already implemented)
+- [ ] `&&` - Run second command only if first succeeds
+- [ ] `||` - Run second command only if first fails
 
-### 6. ✅ Enhanced Variable Support
-- [x] Positional parameters ($1, $2, etc.)
-- [x] Special variables ($$, $!, $#, $@, $*)
-- [x] Variable assignment without export
-- [x] Basic parameter expansion (${var:-default})
+### Hard Features (1-2 days each)
 
-### 7. ✅ Here Documents
-- [x] Parse << operator
-- [x] Implement here-doc input collection
-- [x] Support <<- for tab stripping
-- [ ] Here-strings (<<<)
-
-## Hard Features (1-2 days each)
-
-### 8. 🚀 Job Control
-- [ ] Track background processes
+#### Job Control
+- [ ] Track background processes in job table
 - [ ] `jobs` command to list jobs
-- [ ] `fg` and `bg` commands
-- [ ] Ctrl-Z to suspend foreground job
-- [ ] Job notifications when complete
+- [ ] `fg` command to bring job to foreground
+- [ ] `bg` command to resume suspended job in background
+- [ ] Ctrl-Z (SIGTSTP) to suspend foreground job
+- [ ] Job notifications when background jobs complete
+- [ ] %job notation for referring to jobs
 
-### 9. 🚀 Command Substitution
-- [ ] Implement $(...) syntax
-- [ ] Implement backtick syntax
-- [ ] Nested command substitution
-- [ ] Proper quote handling within substitutions
-
-### 10. 🚀 Aliases and Functions
+#### Aliases
 - [ ] `alias` built-in command
-- [ ] Alias expansion during parsing
-- [ ] Basic function definition syntax
+- [ ] Alias expansion during tokenization
+- [ ] Recursive alias prevention
+- [ ] `unalias` command
+
+#### Shell Functions
+- [ ] Function definition syntax: `name() { commands; }`
 - [ ] Function invocation
+- [ ] Local variables in functions
+- [ ] Return values from functions
 
-### 11. 🚀 Control Structures
+### Very Hard Features (Multiple days)
+
+#### Control Structures
 - [ ] `if`/`then`/`else`/`fi`
-- [ ] `while`/`do`/`done`
-- [ ] `for` loops (both styles)
+- [ ] `while`/`do`/`done` loops
+- [ ] `for` loops (both C-style and in-list style)
 - [ ] `case`/`esac` statements
-- [ ] `&&` and `||` operators
-- [ ] `;` command separator (already partially implemented)
+- [ ] `break` and `continue`
+- [ ] `test` or `[` command for conditionals
 
-## Advanced Features (Multiple days)
-
-### 12. 🎯 Arithmetic Expansion
-- [ ] $((...)) arithmetic evaluation
-- [ ] Basic operators (+, -, *, /, %)
-- [ ] Comparison operators
+#### Arithmetic Expansion
+- [ ] `$((...))` arithmetic evaluation
+- [ ] Basic operators (+, -, *, /, %, **)
+- [ ] Comparison operators (<, >, <=, >=, ==, !=)
+- [ ] Logical operators (&&, ||, !)
 - [ ] Variable references in arithmetic
+- [ ] C-style increment/decrement (++, --)
 
-### 13. 🎯 Advanced Expansions
-- [ ] Brace expansion ({a,b,c})
-- [ ] Tilde expansion (~, ~user)
-- [ ] Advanced parameter expansion (${var%pattern}, etc.)
-- [ ] Process substitution (<(...), >(...))
+#### Advanced Expansions
+- [ ] Brace expansion (`{a,b,c}`, `{1..10}`)
+- [ ] Tilde expansion (`~`, `~user`)
+- [ ] Advanced parameter expansion:
+  - [ ] `${var#pattern}` - Remove shortest prefix
+  - [ ] `${var##pattern}` - Remove longest prefix
+  - [ ] `${var%pattern}` - Remove shortest suffix
+  - [ ] `${var%%pattern}` - Remove longest suffix
+  - [ ] `${var/pattern/replacement}` - Pattern substitution
+  - [ ] `${#var}` - String length
+- [ ] Process substitution (`<(...)`, `>(...)`)
 
-### 14. 🎯 Script Support
-- [ ] Execute .psh scripts
-- [ ] Shebang support
-- [ ] Script arguments
-- [ ] `set` options (-e, -u, -x, etc.)
-- [ ] Error handling and trap
+#### Script Support
+- [ ] Execute .psh scripts from files
+- [ ] Shebang (`#!/usr/bin/env psh`) support
+- [ ] Script arguments ($0, $@, etc.)
+- [ ] `set` options:
+  - [ ] `-e` (errexit) - Exit on error
+  - [ ] `-u` (nounset) - Error on undefined variables
+  - [ ] `-x` (xtrace) - Print commands before execution
+  - [ ] `-o pipefail` - Pipeline fails if any command fails
+- [ ] `trap` command for signal handling
+- [ ] `exit` with cleanup
 
-### 15. 🎯 Interactive Enhancements
+#### Interactive Enhancements
 - [ ] Tab completion for commands
-- [ ] Tab completion for files
-- [ ] Syntax highlighting
-- [ ] Multi-line command editing
-- [ ] Custom prompts (PS1, PS2)
+- [ ] Tab completion for files/directories
+- [ ] Programmable completion
+- [ ] Syntax highlighting in prompt
+- [ ] Multi-line command editing with PS2
+- [ ] Custom prompts (PS1, PS2, PS3, PS4)
+- [ ] Vi/Emacs key bindings
+- [ ] Command line editing shortcuts
 
-## Implementation Notes
+## Implementation Priorities
 
-### Starting Points
+### Next Features to Implement
 
-1. **Built-ins are easiest** - Just add to the `execute_command` method
-2. **Pipeline execution** - Critical missing feature, good learning experience
-3. **History** - Use Python's `readline` module for quick implementation
-4. **Wildcards** - Use `glob` module from standard library
-
-### Testing Strategy
-
-- Create test scripts for each feature
-- Build a test harness that compares psh output with bash
-- Focus on POSIX compliance where reasonable
+1. **Here-strings (`<<<`)** - Easy extension of here-docs
+2. **Command separators (`&&`, `||`)** - Useful and relatively simple
+3. **Job control basics** - Start with jobs tracking and notifications
+4. **Aliases** - Common user feature, moderate complexity
+5. **Simple control structures** - Start with `if`/`then`/`else`
 
 ### Architecture Considerations
 
-- Keep parser additions clean and well-documented
-- Maintain separation between parsing and execution
-- Consider creating a separate module for built-ins
-- Add integration tests as features are implemented
+#### For Control Structures
+- Need to extend AST significantly
+- Consider separate parsing mode for multi-line constructs
+- May need lookahead in tokenizer
 
-### Learning Goals
+#### For Job Control
+- Need job table data structure
+- Process group management is crucial
+- Signal handling becomes more complex
 
-Each feature teaches different concepts:
-- Built-ins → Command dispatch patterns
-- Pipelines → Process management and IPC
-- Job control → Signal handling
-- Control structures → Interpreter design
-- Expansions → String processing and parsing complexity
+#### For Advanced Expansions
+- Order of expansions matters (follow POSIX)
+- Need careful quote handling
+- Some expansions happen at different phases
 
-Start with easy features to build momentum, then tackle medium features that add significant functionality. Hard features may require parser restructuring.
+### Testing Strategy
+
+- Unit tests for each component (tokenizer, parser, executor)
+- Integration tests comparing with bash output
+- Edge case testing for each feature
+- Performance testing for recursive features
+
+### Learning Resources
+
+- POSIX Shell specification
+- Bash source code for implementation details
+- "The Linux Programming Interface" for process management
+- "Advanced Programming in the Unix Environment" for system calls
