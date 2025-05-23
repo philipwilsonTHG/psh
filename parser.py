@@ -1,0 +1,144 @@
+from typing import List, Optional
+from tokenizer import Token, TokenType
+from ast_nodes import Command, Pipeline, CommandList, Redirect
+
+
+class ParseError(Exception):
+    def __init__(self, message: str, token: Optional[Token] = None):
+        self.message = message
+        self.token = token
+        super().__init__(self.format_error())
+    
+    def format_error(self) -> str:
+        if self.token:
+            return f"Parse error at position {self.token.position}: {self.message}"
+        return f"Parse error: {self.message}"
+
+
+class Parser:
+    def __init__(self, tokens: List[Token]):
+        self.tokens = tokens
+        self.current = 0
+    
+    def peek(self) -> Token:
+        if self.current < len(self.tokens):
+            return self.tokens[self.current]
+        return self.tokens[-1]  # Return EOF token
+    
+    def advance(self) -> Token:
+        token = self.peek()
+        if self.current < len(self.tokens) - 1:
+            self.current += 1
+        return token
+    
+    def expect(self, token_type: TokenType) -> Token:
+        token = self.peek()
+        if token.type != token_type:
+            raise ParseError(f"Expected {token_type.name}, got {token.type.name}", token)
+        return self.advance()
+    
+    def match(self, *token_types: TokenType) -> bool:
+        return self.peek().type in token_types
+    
+    def parse(self) -> CommandList:
+        command_list = self.parse_command_list()
+        if self.peek().type != TokenType.EOF:
+            raise ParseError("Unexpected tokens after command list", self.peek())
+        return command_list
+    
+    def parse_command_list(self) -> CommandList:
+        command_list = CommandList()
+        
+        # Skip leading newlines
+        while self.match(TokenType.NEWLINE):
+            self.advance()
+        
+        if self.match(TokenType.EOF):
+            return command_list
+        
+        # Parse first pipeline
+        pipeline = self.parse_pipeline()
+        command_list.pipelines.append(pipeline)
+        
+        # Parse additional pipelines separated by semicolons or newlines
+        while self.match(TokenType.SEMICOLON, TokenType.NEWLINE):
+            self.advance()
+            
+            # Skip multiple separators
+            while self.match(TokenType.SEMICOLON, TokenType.NEWLINE):
+                self.advance()
+            
+            # Check if we've reached the end
+            if self.match(TokenType.EOF):
+                break
+            
+            pipeline = self.parse_pipeline()
+            command_list.pipelines.append(pipeline)
+        
+        return command_list
+    
+    def parse_pipeline(self) -> Pipeline:
+        pipeline = Pipeline()
+        
+        # Parse first command
+        command = self.parse_command()
+        pipeline.commands.append(command)
+        
+        # Parse additional commands separated by pipes
+        while self.match(TokenType.PIPE):
+            self.advance()
+            command = self.parse_command()
+            pipeline.commands.append(command)
+        
+        return pipeline
+    
+    def parse_command(self) -> Command:
+        command = Command()
+        
+        # A command must have at least one word
+        if not self.match(TokenType.WORD, TokenType.STRING, TokenType.VARIABLE):
+            raise ParseError("Expected command", self.peek())
+        
+        # Parse command arguments and redirections
+        while self.match(TokenType.WORD, TokenType.STRING, TokenType.VARIABLE,
+                         TokenType.REDIRECT_IN, TokenType.REDIRECT_OUT, 
+                         TokenType.REDIRECT_APPEND):
+            
+            if self.match(TokenType.REDIRECT_IN, TokenType.REDIRECT_OUT, 
+                         TokenType.REDIRECT_APPEND):
+                redirect = self.parse_redirect()
+                command.redirects.append(redirect)
+            else:
+                # It's an argument
+                token = self.advance()
+                if token.type == TokenType.VARIABLE:
+                    # For now, just prepend $ to indicate it's a variable
+                    command.args.append(f"${token.value}")
+                else:
+                    command.args.append(token.value)
+        
+        # Check for background execution
+        if self.match(TokenType.AMPERSAND):
+            self.advance()
+            command.background = True
+        
+        return command
+    
+    def parse_redirect(self) -> Redirect:
+        redirect_token = self.advance()
+        
+        # The next token should be the target file
+        if not self.match(TokenType.WORD, TokenType.STRING):
+            raise ParseError("Expected file name after redirection", self.peek())
+        
+        target_token = self.advance()
+        
+        return Redirect(
+            type=redirect_token.value,
+            target=target_token.value
+        )
+
+
+def parse(tokens: List[Token]) -> CommandList:
+    parser = Parser(tokens)
+    return parser.parse()
