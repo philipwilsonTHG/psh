@@ -16,6 +16,7 @@ Features ordered by ease of implementation, from simplest to most complex.
 7. **Here Documents** - << and <<- operators with tab stripping
 8. **I/O Redirection Extensions** - stderr redirection (2>, 2>>, 2>&1)
 9. **Command Substitution** - $(...) and `...` with nesting support
+10. **Tab Completion** - File/directory completion with special character handling
 
 ## 🚧 In Progress / Remaining Features
 
@@ -98,7 +99,7 @@ Features ordered by ease of implementation, from simplest to most complex.
 
 #### Interactive Enhancements
 - [ ] Tab completion for commands
-- [ ] Tab completion for files/directories
+- [x] Tab completion for files/directories
 - [ ] Programmable completion
 - [ ] Syntax highlighting in prompt
 - [ ] Multi-line command editing with PS2
