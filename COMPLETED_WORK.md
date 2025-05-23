@@ -121,3 +121,31 @@ The implementation prioritizes:
 - Comprehensive error messages for debugging
 
 This provides a solid foundation for teaching shell internals and compiler/interpreter design principles.
+
+## Phase 2: Enhanced Shell Features
+
+### Date: May 23, 2025
+
+### Additional Built-in Commands
+- Refactored built-in commands to use dictionary dispatch table
+- Added pwd, echo, env, unset, source/. commands
+- Support for redirections with built-in commands
+
+### Exit Status Handling
+- Implemented $? special variable for last command exit code
+- Non-zero exit codes displayed in prompt as [code]
+- Proper exit status tracking for all command types
+
+### Command History
+- In-memory history with 1000 command limit
+- Persistent history saved to ~/.psh_history
+- Arrow key navigation via readline integration
+- 'history' built-in command with optional count
+- Smart duplicate prevention and source command handling
+
+### Testing Infrastructure
+- Comprehensive pytest test suite (68 tests total)
+- Tests for tokenizer, parser, built-ins, integration
+- Tests for exit status handling (10 tests)
+- Tests for command history (12 tests)
+- All tests passing with 100% feature coverage
