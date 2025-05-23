@@ -72,6 +72,31 @@ class TestTokenizer:
         assert tokens[2].type == TokenType.VARIABLE
         assert tokens[2].value == "USER"
     
+    def test_brace_expansion_variables(self):
+        # Simple brace expansion
+        tokens = tokenize("echo ${HOME}")
+        assert tokens[1].type == TokenType.VARIABLE
+        assert tokens[1].value == "{HOME}"
+        
+        # Parameter expansion with default
+        tokens = tokenize("echo ${FOO:-default}")
+        assert tokens[1].type == TokenType.VARIABLE
+        assert tokens[1].value == "{FOO:-default}"
+        
+        # Multiple variables
+        tokens = tokenize("echo ${VAR1} ${VAR2}")
+        assert tokens[1].type == TokenType.VARIABLE
+        assert tokens[1].value == "{VAR1}"
+        assert tokens[2].type == TokenType.VARIABLE
+        assert tokens[2].value == "{VAR2}"
+        
+        # Concatenation (tokenizer splits this)
+        tokens = tokenize("echo ${PREFIX}suffix")
+        assert tokens[1].type == TokenType.VARIABLE
+        assert tokens[1].value == "{PREFIX}"
+        assert tokens[2].type == TokenType.WORD
+        assert tokens[2].value == "suffix"
+    
     def test_whitespace_handling(self):
         tokens = tokenize("  echo   hello   ")
         assert len(tokens) == 3  # echo, hello, EOF
@@ -120,3 +145,18 @@ class TestTokenizer:
         
         with pytest.raises(SyntaxError, match="Unclosed quote"):
             tokenize("echo 'hello world")
+    
+    def test_escaped_characters_in_words(self):
+        # Escaped spaces
+        tokens = tokenize(r"echo hello\ world")
+        assert len(tokens) == 3  # echo, hello world, EOF
+        assert tokens[1].value == "hello world"
+        
+        # Escaped special characters
+        tokens = tokenize(r"echo \$HOME")
+        assert tokens[1].type == TokenType.WORD
+        assert tokens[1].value == "$HOME"
+        
+        # Escaped glob characters
+        tokens = tokenize(r"echo \*.txt")
+        assert tokens[1].value == "*.txt"
