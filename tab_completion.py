@@ -231,14 +231,14 @@ class LineEditor:
                     # Clear entire line
                     sys.stdout.write('\033[K')
                     # Show ^C on its own line
-                    sys.stdout.write('^C\n')
+                    sys.stdout.write('^C\r\n')
                     sys.stdout.flush()
                     raise KeyboardInterrupt()
                 
                 elif char == self.CTRL_D:
                     if not self.buffer:
                         # EOF on empty line
-                        sys.stdout.write('\n')
+                        sys.stdout.write('\r\n')
                         sys.stdout.flush()
                         return None
                     else:
@@ -249,7 +249,7 @@ class LineEditor:
                     self._handle_tab()
                 
                 elif char == self.ENTER:
-                    sys.stdout.write('\n')
+                    sys.stdout.write('\r\n')
                     sys.stdout.flush()
                     line = ''.join(self.buffer)
                     if line.strip():
@@ -370,13 +370,13 @@ class LineEditor:
         self.terminal.exit_raw_mode()
         
         # Display completions
-        sys.stdout.write('\n')
+        sys.stdout.write('\r\n')
         self._display_in_columns(completions)
         
         # Redraw prompt and current line
         self.terminal.enter_raw_mode()
-        # First print a newline to ensure we're on a fresh line
-        sys.stdout.write('\n')
+        # In raw mode, we need both newline and carriage return
+        sys.stdout.write('\r\n')
         # Now print prompt and buffer
         sys.stdout.write(self.current_prompt)
         sys.stdout.write(''.join(self.buffer))
