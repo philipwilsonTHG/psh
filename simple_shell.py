@@ -5,6 +5,7 @@ import sys
 import subprocess
 import readline
 import signal
+import glob
 from tokenizer import tokenize
 from parser import parse, ParseError
 from ast_nodes import Command, Pipeline, CommandList, Redirect
@@ -40,9 +41,11 @@ class Shell:
         }
     
     def execute_command(self, command: Command):
-        # Expand variables in arguments
+        # Expand variables and globs in arguments
         args = []
-        for arg in command.args:
+        for i, arg in enumerate(command.args):
+            arg_type = command.arg_types[i] if i < len(command.arg_types) else 'WORD'
+            
             if arg.startswith('$'):
                 var_name = arg[1:]
                 # Handle special variable $?
@@ -51,7 +54,18 @@ class Shell:
                 else:
                     args.append(self.env.get(var_name, ''))
             else:
-                args.append(arg)
+                # Check if the argument contains glob characters and wasn't quoted
+                if any(c in arg for c in ['*', '?', '[']) and arg_type != 'STRING':
+                    # Perform glob expansion
+                    matches = glob.glob(arg)
+                    if matches:
+                        # Sort matches for consistent output
+                        args.extend(sorted(matches))
+                    else:
+                        # No matches, use literal argument (bash behavior)
+                        args.append(arg)
+                else:
+                    args.append(arg)
         
         if not args:
             return 0
@@ -429,9 +443,11 @@ class Shell:
     
     def _execute_in_child(self, command: Command):
         """Execute a command in a child process (after fork)"""
-        # Expand variables in arguments
+        # Expand variables and globs in arguments
         args = []
-        for arg in command.args:
+        for i, arg in enumerate(command.args):
+            arg_type = command.arg_types[i] if i < len(command.arg_types) else 'WORD'
+            
             if arg.startswith('$'):
                 var_name = arg[1:]
                 # Handle special variable $?
@@ -440,7 +456,18 @@ class Shell:
                 else:
                     args.append(self.env.get(var_name, ''))
             else:
-                args.append(arg)
+                # Check if the argument contains glob characters and wasn't quoted
+                if any(c in arg for c in ['*', '?', '[']) and arg_type != 'STRING':
+                    # Perform glob expansion
+                    matches = glob.glob(arg)
+                    if matches:
+                        # Sort matches for consistent output
+                        args.extend(sorted(matches))
+                    else:
+                        # No matches, use literal argument (bash behavior)
+                        args.append(arg)
+                else:
+                    args.append(arg)
         
         if not args:
             return 0

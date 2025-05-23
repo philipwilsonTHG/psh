@@ -29,11 +29,11 @@ Features ordered by ease of implementation, from simplest to most complex.
 - [x] Handle pipeline exit status (last command's status)
 - [x] Proper signal handling in pipelines
 
-### 5. 🔧 Wildcards/Globbing
-- [ ] Implement `*` wildcard expansion
-- [ ] Implement `?` single-character wildcard
-- [ ] Implement `[...]` character classes
-- [ ] Integrate with command argument parsing
+### 5. ✅ Wildcards/Globbing
+- [x] Implement `*` wildcard expansion
+- [x] Implement `?` single-character wildcard
+- [x] Implement `[...]` character classes
+- [x] Integrate with command argument parsing
 
 ### 6. 🔧 Enhanced Variable Support
 - [ ] Positional parameters ($1, $2, etc.)

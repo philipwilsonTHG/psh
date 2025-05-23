@@ -49,10 +49,18 @@ class Tokenizer:
             self.advance()
     
     def read_word(self) -> str:
-        start = self.position
+        value = ''
         while self.current_char() and self.current_char() not in ' \t\n|<>;&':
-            self.advance()
-        return self.input[start:self.position]
+            if self.current_char() == '\\' and self.peek_char():
+                # Skip backslash and add the escaped character
+                self.advance()
+                if self.current_char():
+                    value += self.current_char()
+                    self.advance()
+            else:
+                value += self.current_char()
+                self.advance()
+        return value
     
     def read_quoted_string(self, quote_char: str) -> str:
         self.advance()  # Skip opening quote

@@ -114,8 +114,13 @@ class Parser:
                 if token.type == TokenType.VARIABLE:
                     # For now, just prepend $ to indicate it's a variable
                     command.args.append(f"${token.value}")
+                    command.arg_types.append('VARIABLE')
+                elif token.type == TokenType.STRING:
+                    command.args.append(token.value)
+                    command.arg_types.append('STRING')
                 else:
                     command.args.append(token.value)
+                    command.arg_types.append('WORD')
         
         # Check for background execution
         if self.match(TokenType.AMPERSAND):

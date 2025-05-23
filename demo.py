@@ -85,3 +85,9 @@ if __name__ == "__main__":
     
     # With variables
     demo_parse('echo $HOME $USER')
+    
+    # With glob patterns
+    demo_parse('ls *.py')
+    demo_parse('echo file?.txt')
+    demo_parse('rm [abc]*.log')
+    demo_parse('echo "*.txt"')  # Quoted glob not expanded

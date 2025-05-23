@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from abc import ABC
 
 
@@ -16,6 +16,7 @@ class Redirect(ASTNode):
 @dataclass
 class Command(ASTNode):
     args: List[str] = field(default_factory=list)
+    arg_types: List[str] = field(default_factory=list)  # Track if arg was quoted
     redirects: List[Redirect] = field(default_factory=list)
     background: bool = False
 

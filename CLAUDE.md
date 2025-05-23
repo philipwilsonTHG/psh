@@ -57,10 +57,15 @@ Implemented:
 - Multiple commands (;)
 - Background execution (&)
 - Quoted strings and variable expansion
-- Built-ins: exit, cd, export
+- Built-ins: exit, cd, export, pwd, echo, unset, env, source, history
+- Wildcards/globbing (*, ?, [...])
+- Exit status tracking ($? variable)
+- Command history with persistence
+- Pipeline execution with proper process groups
+- Signal handling (SIGINT, SIGTSTP)
 
 Not implemented:
 - Job control (fg, bg, jobs commands)
 - Control structures (if, while, for)
 - Command substitution
-- Wildcards/globbing
+- Advanced expansions (brace, tilde, parameter)
