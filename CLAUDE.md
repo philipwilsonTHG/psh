@@ -37,12 +37,15 @@ python3 simple_shell.py
 
 # Execute single command
 python3 simple_shell.py "ls -la"
+
+# Run tests
+python -m pytest tests/
 ```
 
 ## Development Notes
 
-- No external dependencies - uses only Python 3 standard library
-- No formal test suite yet - use `demo.py` to verify parser behavior
+- Test dependencies: pytest (install with `pip install -r requirements-dev.txt`)
+- Comprehensive test suite covering tokenizer, parser, built-ins, and integration
 - When adding features, maintain the educational clarity of the code
 - Pipeline execution (actual piping between processes) is not yet implemented
 

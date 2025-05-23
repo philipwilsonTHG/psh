@@ -41,7 +41,30 @@ class Shell:
         
         # Check for built-in commands
         if args[0] in self.builtins:
-            return self.builtins[args[0]](args)
+            # Handle redirections for built-ins
+            stdout_backup = None
+            stdin_backup = None
+            try:
+                for redirect in command.redirects:
+                    if redirect.type == '<':
+                        stdin_backup = sys.stdin
+                        sys.stdin = open(redirect.target, 'r')
+                    elif redirect.type == '>':
+                        stdout_backup = sys.stdout
+                        sys.stdout = open(redirect.target, 'w')
+                    elif redirect.type == '>>':
+                        stdout_backup = sys.stdout
+                        sys.stdout = open(redirect.target, 'a')
+                
+                return self.builtins[args[0]](args)
+            finally:
+                # Restore original stdin/stdout
+                if stdin_backup:
+                    sys.stdin.close()
+                    sys.stdin = stdin_backup
+                if stdout_backup:
+                    sys.stdout.close()
+                    sys.stdout = stdout_backup
         
         # Execute external command
         try:
