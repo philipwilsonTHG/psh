@@ -10,6 +10,7 @@ from tokenizer import tokenize
 from parser import parse, ParseError
 from ast_nodes import Command, Pipeline, CommandList, Redirect
 from tab_completion import LineEditor
+from version import get_version_info
 
 
 class Shell:
@@ -44,6 +45,7 @@ class Shell:
             'history': self._builtin_history,
             'set': self._builtin_set,
             'cat': self._builtin_cat,
+            'version': self._builtin_version,
         }
     
     def _expand_variable(self, var_expr: str) -> str:
@@ -447,7 +449,7 @@ class Shell:
             return 1
     
     def interactive_loop(self):
-        print("Python Shell (psh) - Educational Unix Shell")
+        print(get_version_info())
         print("Type 'exit' to quit")
         
         # Use LineEditor if terminal supports it, otherwise fall back to input()
@@ -607,6 +609,17 @@ class Shell:
             print(f"cat: {e}", file=sys.stderr)
             return 1
         sys.stdout.flush()
+        return 0
+    
+    def _builtin_version(self, args):
+        """Display version information"""
+        if len(args) > 1 and args[1] == '--short':
+            # Just print version number
+            from version import __version__
+            print(__version__)
+        else:
+            # Full version info
+            print(get_version_info())
         return 0
     
     def _collect_heredocs(self, command_list: CommandList):

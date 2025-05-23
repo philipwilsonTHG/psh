@@ -60,6 +60,7 @@ Python Shell (psh) is a POSIX-style shell written entirely in Python. It uses a 
   - `history` - Command history
   - `set` - Set positional parameters
   - `cat` - Concatenate files
+  - `version` - Display shell version
   
 - ✅ **Interactive Features**
   - Command history with persistence
