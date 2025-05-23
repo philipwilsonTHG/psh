@@ -12,9 +12,9 @@ Features ordered by ease of implementation, from simplest to most complex.
 - [x] `source` or `.` - Execute commands from file
 
 ### 2. ✅ Exit Status Handling
-- [ ] Set `$?` variable to last command's exit code
-- [ ] Display exit status in prompt when non-zero
-- [ ] Make exit status available to shell scripts
+- [x] Set `$?` variable to last command's exit code
+- [x] Display exit status in prompt when non-zero
+- [x] Make exit status available to shell scripts
 
 ### 3. ✅ Command History
 - [ ] Store command history in memory

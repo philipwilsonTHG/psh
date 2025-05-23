@@ -32,7 +32,11 @@ class Shell:
         for arg in command.args:
             if arg.startswith('$'):
                 var_name = arg[1:]
-                args.append(self.env.get(var_name, ''))
+                # Handle special variable $?
+                if var_name == '?':
+                    args.append(str(self.last_exit_code))
+                else:
+                    args.append(self.env.get(var_name, ''))
             else:
                 args.append(arg)
         
@@ -131,12 +135,15 @@ class Shell:
         try:
             tokens = tokenize(command_string)
             ast = parse(tokens)
-            return self.execute_command_list(ast)
+            exit_code = self.execute_command_list(ast)
+            return exit_code
         except ParseError as e:
             print(f"psh: {e}", file=sys.stderr)
+            self.last_exit_code = 1
             return 1
         except Exception as e:
             print(f"psh: unexpected error: {e}", file=sys.stderr)
+            self.last_exit_code = 1
             return 1
     
     def interactive_loop(self):
@@ -145,8 +152,11 @@ class Shell:
         
         while True:
             try:
-                # Simple prompt
-                prompt = f"{os.getcwd()}$ "
+                # Prompt with exit status indicator
+                if self.last_exit_code != 0:
+                    prompt = f"[{self.last_exit_code}] {os.getcwd()}$ "
+                else:
+                    prompt = f"{os.getcwd()}$ "
                 command = input(prompt)
                 
                 if command.strip():
