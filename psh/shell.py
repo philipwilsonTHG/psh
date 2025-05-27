@@ -8,7 +8,7 @@ import pwd
 from .tokenizer import tokenize
 from .parser import parse, ParseError
 from .ast_nodes import Command, Pipeline, CommandList, AndOrList, Redirect
-from .tab_completion import LineEditor
+from .line_editor import LineEditor
 from .version import get_version_info
 
 
@@ -43,6 +43,9 @@ class Shell:
         self.last_exit_code = 0
         self.last_bg_pid = None
         self.foreground_pgid = None
+        
+        # Editor configuration
+        self.edit_mode = 'emacs'  # Default to emacs mode
         
         # Set up signal handlers
         signal.signal(signal.SIGINT, self._handle_sigint)
@@ -626,8 +629,8 @@ class Shell:
         readline.parse_and_bind('tab: complete')
         readline.set_completer_delims(' \t\n;|&<>')
         
-        # Set up tab completion
-        line_editor = LineEditor(self.history)
+        # Set up tab completion with current edit mode
+        line_editor = LineEditor(self.history, edit_mode=self.edit_mode)
         
         while True:
             try:
@@ -802,6 +805,27 @@ class Shell:
             # Show shell variables
             for var, value in sorted(self.variables.items()):
                 print(f"{var}={value}")
+            # Also show set options
+            print(f"edit_mode={self.edit_mode}")
+        elif len(args) >= 3 and args[1] == '-o':
+            # Set option: set -o vi or set -o emacs
+            option = args[2].lower()
+            if option in ('vi', 'emacs'):
+                self.edit_mode = option
+                print(f"Edit mode set to {option}")
+            else:
+                print(f"psh: set: invalid option: {option}", file=sys.stderr)
+                print("Valid options: vi, emacs", file=sys.stderr)
+                return 1
+        elif args[1] == '-o' and len(args) == 2:
+            # Show current options
+            print(f"edit_mode {self.edit_mode}")
+        elif args[1] == '+o' and len(args) >= 3:
+            # Unset option (for compatibility, we just set to emacs)
+            option = args[2].lower()
+            if option == 'vi':
+                self.edit_mode = 'emacs'
+                print("Edit mode set to emacs")
         else:
             # Set positional parameters
             self.positional_params = args[1:]

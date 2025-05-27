@@ -83,6 +83,7 @@ Implemented:
 - Comments (# at word boundaries)
 - Conditional execution (&& and || operators with short-circuit evaluation)
 - Tilde expansion (~ and ~user)
+- Vi and Emacs key bindings (set -o vi/emacs)
 
 Not implemented:
 - Job control (fg, bg, jobs commands)

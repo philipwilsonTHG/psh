@@ -21,6 +21,7 @@ Features ordered by ease of implementation, from simplest to most complex.
 12. **Conditional Execution** - && and || operators with short-circuit evaluation
 13. **Here Strings** - <<< operator for single-line stdin input with variable expansion
 14. **Tilde Expansion** - ~ for home directory, ~user for user's home directory
+15. **Vi/Emacs Key Bindings** - Full command line editing with set -o vi/emacs, history search (Ctrl-R)
 
 ## 🚧 In Progress / Remaining Features
 
@@ -104,8 +105,8 @@ Features ordered by ease of implementation, from simplest to most complex.
 - [ ] Syntax highlighting in prompt
 - [ ] Multi-line command editing with PS2
 - [ ] Custom prompts (PS1, PS2, PS3, PS4)
-- [ ] Vi/Emacs key bindings
-- [ ] Command line editing shortcuts
+- [x] Vi/Emacs key bindings (set -o vi/emacs)
+- [x] Command line editing shortcuts (Ctrl-A/E, Ctrl-K/U, Ctrl-R for history search, etc.)
 
 ## Implementation Priorities
 
