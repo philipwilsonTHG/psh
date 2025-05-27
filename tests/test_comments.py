@@ -145,7 +145,7 @@ class TestComments:
         # Test that # in word is preserved
         import subprocess
         result = subprocess.run(
-            ["python3", "simple_shell.py", "-c", "echo file#name"],
+            ["python3", "-m", "psh", "-c", "echo file#name"],
             capture_output=True,
             text=True,
             cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
