@@ -5,7 +5,7 @@ Features ordered by ease of implementation, from simplest to most complex.
 ## ✅ Completed Features
 
 ### Easy Features (1-2 hours each)
-1. **Additional Built-in Commands** - pwd, echo, env, unset, source, cat
+1. **Additional Built-in Commands** - pwd, echo, env, unset, source
 2. **Exit Status Handling** - $? variable, prompt display, shell script access
 3. **Command History** - In-memory storage, history command, readline integration, persistence
 
@@ -19,15 +19,11 @@ Features ordered by ease of implementation, from simplest to most complex.
 10. **Tab Completion** - File/directory completion with special character handling
 11. **Comments** - # at word boundaries, preserved in quotes and when escaped
 12. **Conditional Execution** - && and || operators with short-circuit evaluation
+13. **Here Strings** - <<< operator for single-line stdin input with variable expansion
 
 ## 🚧 In Progress / Remaining Features
 
 ### Easy-Medium Features
-
-#### Here-strings (<<<)
-- [ ] Parse <<< operator
-- [ ] Implement as single-line here document
-- [ ] Test with variables and quotes
 
 #### Command Separators
 - [x] `;` (already implemented)
@@ -114,11 +110,11 @@ Features ordered by ease of implementation, from simplest to most complex.
 
 ### Next Features to Implement
 
-1. **Here-strings (`<<<`)** - Easy extension of here-docs
-2. **Job control basics** - Start with jobs tracking and notifications
-3. **Aliases** - Common user feature, moderate complexity
-4. **Simple control structures** - Start with `if`/`then`/`else`
-5. **Basic arithmetic expansion** - `$((...))`
+1. **Job control basics** - Start with jobs tracking and notifications
+2. **Aliases** - Common user feature, moderate complexity
+3. **Simple control structures** - Start with `if`/`then`/`else`
+4. **Basic arithmetic expansion** - `$((...))`
+5. **Tilde expansion** - `~` and `~user` for home directories
 
 ### Architecture Considerations
 
