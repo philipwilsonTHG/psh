@@ -493,6 +493,7 @@ class LineEditor:
             
             self.history_pos -= 1
             self._replace_line(self.history[self.history_pos])
+            self._redraw_line()
     
     def _history_down(self):
         """Move down in history."""
@@ -504,6 +505,7 @@ class LineEditor:
                 self._replace_line(self.original_line)
             else:
                 self._replace_line(self.history[self.history_pos])
+            self._redraw_line()
     
     def _replace_line(self, new_line: str):
         """Replace the current line with new text."""
