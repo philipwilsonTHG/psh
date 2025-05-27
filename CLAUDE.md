@@ -34,10 +34,17 @@ word         → WORD | STRING | VARIABLE
 python3 demo.py
 
 # Start interactive shell
-python3 simple_shell.py
+python3 -m psh
 
 # Execute single command
-python3 simple_shell.py "ls -la"
+python3 -m psh -c "ls -la"
+
+# Install psh locally (in development mode)
+pip install -e .
+
+# After installation, run directly
+psh
+psh -c "echo hello"
 
 # Run tests
 python -m pytest tests/
