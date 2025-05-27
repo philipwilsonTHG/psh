@@ -106,27 +106,36 @@ class Shell:
         else:
             return ''
         
-        # Create a temporary shell to execute the command
-        # This ensures proper parsing and execution
-        temp_shell = Shell()
-        temp_shell.env = self.env.copy()
-        temp_shell.variables = self.variables.copy()
+        # Use subprocess to capture output from both builtins and external commands
+        import subprocess
+        import tempfile
         
-        # Capture output
-        import io
-        from contextlib import redirect_stdout, redirect_stderr
-        output_buffer = io.StringIO()
+        # Create a temporary file to capture output
+        with tempfile.NamedTemporaryFile(mode='w+', delete=False) as tmpfile:
+            temp_output = tmpfile.name
         
-        # Redirect stdout to capture output
-        with redirect_stdout(output_buffer), redirect_stderr(io.StringIO()):
-            temp_shell.run_command(command, add_to_history=False)
-        
-        # Get output and strip trailing newline (bash behavior)
-        output = output_buffer.getvalue()
-        if output.endswith('\n'):
-            output = output[:-1]
-        
-        return output
+        try:
+            # Create a temporary shell to execute the command with output redirected
+            temp_shell = Shell()
+            temp_shell.env = self.env.copy()
+            temp_shell.variables = self.variables.copy()
+            
+            # Execute the command with output redirected to temp file
+            temp_shell.run_command(f"{command} > {temp_output}", add_to_history=False)
+            
+            # Read the captured output
+            with open(temp_output, 'r') as f:
+                output = f.read()
+            
+            # Strip trailing newline (bash behavior)
+            if output.endswith('\n'):
+                output = output[:-1]
+            
+            return output
+        finally:
+            # Clean up temp file
+            if os.path.exists(temp_output):
+                os.unlink(temp_output)
     
     def _expand_arguments(self, command: Command) -> list:
         """Expand variables, command substitutions, and globs in command arguments"""
