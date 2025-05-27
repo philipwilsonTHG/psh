@@ -1,4 +1,5 @@
 import pytest
+import os
 from simple_shell import Shell
 from tokenizer import tokenize, TokenType
 from parser import parse
@@ -39,15 +40,19 @@ class TestHereDoc:
         assert redirect.heredoc_content is None  # Not collected yet
     
     def test_heredoc_with_builtin(self, shell, capsys, monkeypatch):
-        """Test here document with built-in command"""
+        """Test here document with cat command"""
         # Mock input to provide heredoc content
         input_lines = ["Hello", "World", "EOF"]
         input_iter = iter(input_lines)
         monkeypatch.setattr('builtins.input', lambda: next(input_iter))
         
-        shell.run_command("cat << EOF")
-        captured = capsys.readouterr()
-        assert "Hello\nWorld\n" in captured.out
+        output_file = "/tmp/heredoc_test.txt"
+        shell.run_command(f"cat << EOF > {output_file}")
+        
+        with open(output_file, 'r') as f:
+            content = f.read()
+        assert "Hello\nWorld\n" in content
+        os.unlink(output_file)
     
     def test_heredoc_strip_tabs(self, shell, capsys, monkeypatch):
         """Test here document with tab stripping"""
@@ -56,10 +61,14 @@ class TestHereDoc:
         input_iter = iter(input_lines)
         monkeypatch.setattr('builtins.input', lambda: next(input_iter))
         
-        shell.run_command("cat <<- END")
-        captured = capsys.readouterr()
-        assert "Line with tab\nDouble tab\n" in captured.out
-        assert "\t" not in captured.out
+        output_file = "/tmp/heredoc_strip_test.txt"
+        shell.run_command(f"cat <<- END > {output_file}")
+        
+        with open(output_file, 'r') as f:
+            content = f.read()
+        assert "Line with tab\nDouble tab\n" in content
+        assert "\t" not in content
+        os.unlink(output_file)
     
     def test_heredoc_empty(self, shell, capsys, monkeypatch):
         """Test empty here document"""
@@ -68,9 +77,13 @@ class TestHereDoc:
         input_iter = iter(input_lines)
         monkeypatch.setattr('builtins.input', lambda: next(input_iter))
         
-        shell.run_command("cat << EOF")
-        captured = capsys.readouterr()
-        assert captured.out == ""
+        output_file = "/tmp/heredoc_empty_test.txt"
+        shell.run_command(f"cat << EOF > {output_file}")
+        
+        with open(output_file, 'r') as f:
+            content = f.read()
+        assert content == ""
+        os.unlink(output_file)
     
     def test_heredoc_with_variable_expansion(self, shell, capsys, monkeypatch):
         """Test that variables in heredocs are not expanded (for now)"""
@@ -80,10 +93,14 @@ class TestHereDoc:
         input_iter = iter(input_lines)
         monkeypatch.setattr('builtins.input', lambda: next(input_iter))
         
-        shell.run_command("cat << EOF")
-        captured = capsys.readouterr()
+        output_file = "/tmp/heredoc_var_test.txt"
+        shell.run_command(f"cat << EOF > {output_file}")
+        
+        with open(output_file, 'r') as f:
+            content = f.read()
         # Variables are not expanded in heredocs (this is a simplification)
-        assert "Hello $VAR\n" in captured.out
+        assert "Hello $VAR\n" in content
+        os.unlink(output_file)
     
     @pytest.mark.skip(reason="Pytest capture doesn't work well with external commands")
     def test_heredoc_with_external_command(self, shell, capsys, monkeypatch):

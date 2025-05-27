@@ -1,6 +1,6 @@
 from typing import List, Optional
 from tokenizer import Token, TokenType
-from ast_nodes import Command, Pipeline, CommandList, Redirect
+from ast_nodes import Command, Pipeline, CommandList, AndOrList, Redirect
 
 
 class ParseError(Exception):
@@ -56,11 +56,11 @@ class Parser:
         if self.match(TokenType.EOF):
             return command_list
         
-        # Parse first pipeline
-        pipeline = self.parse_pipeline()
-        command_list.pipelines.append(pipeline)
+        # Parse first and_or_list
+        and_or_list = self.parse_and_or_list()
+        command_list.and_or_lists.append(and_or_list)
         
-        # Parse additional pipelines separated by semicolons or newlines
+        # Parse additional and_or_lists separated by semicolons or newlines
         while self.match(TokenType.SEMICOLON, TokenType.NEWLINE):
             self.advance()
             
@@ -72,10 +72,31 @@ class Parser:
             if self.match(TokenType.EOF):
                 break
             
-            pipeline = self.parse_pipeline()
-            command_list.pipelines.append(pipeline)
+            and_or_list = self.parse_and_or_list()
+            command_list.and_or_lists.append(and_or_list)
         
         return command_list
+    
+    def parse_and_or_list(self) -> AndOrList:
+        and_or_list = AndOrList()
+        
+        # Parse first pipeline
+        pipeline = self.parse_pipeline()
+        and_or_list.pipelines.append(pipeline)
+        
+        # Parse additional pipelines connected by && or ||
+        while self.match(TokenType.AND_AND, TokenType.OR_OR):
+            operator = self.advance()
+            and_or_list.operators.append(operator.value)
+            
+            # Skip newlines after operator (bash allows this)
+            while self.match(TokenType.NEWLINE):
+                self.advance()
+            
+            pipeline = self.parse_pipeline()
+            and_or_list.pipelines.append(pipeline)
+        
+        return and_or_list
     
     def parse_pipeline(self) -> Pipeline:
         pipeline = Pipeline()

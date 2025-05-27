@@ -8,7 +8,7 @@ import signal
 import glob
 from tokenizer import tokenize
 from parser import parse, ParseError
-from ast_nodes import Command, Pipeline, CommandList, Redirect
+from ast_nodes import Command, Pipeline, CommandList, AndOrList, Redirect
 from tab_completion import LineEditor
 from version import get_version_info
 
@@ -44,7 +44,6 @@ class Shell:
             '.': self._builtin_source,
             'history': self._builtin_history,
             'set': self._builtin_set,
-            'cat': self._builtin_cat,
             'version': self._builtin_version,
         }
     
@@ -418,10 +417,36 @@ class Shell:
         
         return last_status
     
+    def execute_and_or_list(self, and_or_list: AndOrList):
+        """Execute pipelines with && and || operators, implementing short-circuit evaluation"""
+        if not and_or_list.pipelines:
+            return 0
+        
+        # Execute first pipeline
+        exit_code = self.execute_pipeline(and_or_list.pipelines[0])
+        self.last_exit_code = exit_code
+        
+        # Process remaining pipelines with operators
+        for i, operator in enumerate(and_or_list.operators):
+            if operator == '&&':
+                # AND: execute next pipeline only if previous succeeded (exit code 0)
+                if exit_code != 0:
+                    continue  # Skip this pipeline
+            elif operator == '||':
+                # OR: execute next pipeline only if previous failed (non-zero exit code)
+                if exit_code == 0:
+                    continue  # Skip this pipeline
+            
+            # Execute the next pipeline
+            exit_code = self.execute_pipeline(and_or_list.pipelines[i + 1])
+            self.last_exit_code = exit_code
+        
+        return exit_code
+    
     def execute_command_list(self, command_list: CommandList):
         exit_code = 0
-        for pipeline in command_list.pipelines:
-            exit_code = self.execute_pipeline(pipeline)
+        for and_or_list in command_list.and_or_lists:
+            exit_code = self.execute_and_or_list(and_or_list)
             self.last_exit_code = exit_code
         return exit_code
     
@@ -592,24 +617,6 @@ class Shell:
                 print(f"{var}={value}")
         return 0
     
-    def _builtin_cat(self, args):
-        """Simple cat implementation for testing"""
-        try:
-            # If no args, read from stdin
-            if len(args) == 1:
-                for line in sys.stdin:
-                    print(line, end='')
-            else:
-                # Read from files
-                for filename in args[1:]:
-                    with open(filename, 'r') as f:
-                        for line in f:
-                            print(line, end='')
-        except Exception as e:
-            print(f"cat: {e}", file=sys.stderr)
-            return 1
-        sys.stdout.flush()
-        return 0
     
     def _builtin_version(self, args):
         """Display version information"""
@@ -624,30 +631,31 @@ class Shell:
     
     def _collect_heredocs(self, command_list: CommandList):
         """Collect here document content for all commands"""
-        for pipeline in command_list.pipelines:
-            for command in pipeline.commands:
-                for redirect in command.redirects:
-                    if redirect.type in ('<<', '<<-'):
-                        # Collect here document content
-                        lines = []
-                        delimiter = redirect.target
-                        
-                        # Read lines until we find the delimiter
-                        while True:
-                            try:
-                                line = input()
-                                if line.strip() == delimiter:
+        for and_or_list in command_list.and_or_lists:
+            for pipeline in and_or_list.pipelines:
+                for command in pipeline.commands:
+                    for redirect in command.redirects:
+                        if redirect.type in ('<<', '<<-'):
+                            # Collect here document content
+                            lines = []
+                            delimiter = redirect.target
+                            
+                            # Read lines until we find the delimiter
+                            while True:
+                                try:
+                                    line = input()
+                                    if line.strip() == delimiter:
+                                        break
+                                    if redirect.type == '<<-':
+                                        # Strip leading tabs
+                                        line = line.lstrip('\t')
+                                    lines.append(line)
+                                except EOFError:
                                     break
-                                if redirect.type == '<<-':
-                                    # Strip leading tabs
-                                    line = line.lstrip('\t')
-                                lines.append(line)
-                            except EOFError:
-                                break
-                        
-                        redirect.heredoc_content = '\n'.join(lines)
-                        if lines:  # Add final newline if there was content
-                            redirect.heredoc_content += '\n'
+                            
+                            redirect.heredoc_content = '\n'.join(lines)
+                            if lines:  # Add final newline if there was content
+                                redirect.heredoc_content += '\n'
     
     def _add_to_history(self, command):
         """Add a command to history"""

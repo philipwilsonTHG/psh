@@ -30,5 +30,20 @@ class Pipeline(ASTNode):
 
 
 @dataclass
-class CommandList(ASTNode):
+class AndOrList(ASTNode):
     pipelines: List[Pipeline] = field(default_factory=list)
+    operators: List[str] = field(default_factory=list)  # '&&' or '||' between pipelines
+
+
+@dataclass
+class CommandList(ASTNode):
+    and_or_lists: List[AndOrList] = field(default_factory=list)
+    
+    @property
+    def pipelines(self):
+        """Backward compatibility property for tests"""
+        # Flatten all pipelines from all and_or_lists
+        pipelines = []
+        for and_or_list in self.and_or_lists:
+            pipelines.extend(and_or_list.pipelines)
+        return pipelines

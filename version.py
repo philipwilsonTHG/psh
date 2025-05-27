@@ -2,10 +2,16 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 # Version history
 VERSION_HISTORY = """
+0.3.0 (2025-01-27) - Conditional execution
+  - Added && and || operators for conditional command execution
+  - Implemented short-circuit evaluation
+  - Fixed pipeline execution issues by removing cat builtin
+  - Improved test suite reliability
+
 0.2.0 (2025-01-23) - Tab completion and comments
   - Added interactive tab completion for files/directories
   - Added comment support (# at word boundaries)

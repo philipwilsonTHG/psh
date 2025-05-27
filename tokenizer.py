@@ -16,6 +16,8 @@ class TokenType(Enum):
     HEREDOC_STRIP = auto()
     SEMICOLON = auto()
     AMPERSAND = auto()
+    AND_AND = auto()
+    OR_OR = auto()
     NEWLINE = auto()
     EOF = auto()
     STRING = auto()
@@ -214,14 +216,24 @@ class Tokenizer:
                 self.tokens.append(Token(TokenType.NEWLINE, '\n', start_pos))
                 self.advance()
             elif char == '|':
-                self.tokens.append(Token(TokenType.PIPE, '|', start_pos))
-                self.advance()
+                if self.peek_char() == '|':
+                    self.tokens.append(Token(TokenType.OR_OR, '||', start_pos))
+                    self.advance()
+                    self.advance()
+                else:
+                    self.tokens.append(Token(TokenType.PIPE, '|', start_pos))
+                    self.advance()
             elif char == ';':
                 self.tokens.append(Token(TokenType.SEMICOLON, ';', start_pos))
                 self.advance()
             elif char == '&':
-                self.tokens.append(Token(TokenType.AMPERSAND, '&', start_pos))
-                self.advance()
+                if self.peek_char() == '&':
+                    self.tokens.append(Token(TokenType.AND_AND, '&&', start_pos))
+                    self.advance()
+                    self.advance()
+                else:
+                    self.tokens.append(Token(TokenType.AMPERSAND, '&', start_pos))
+                    self.advance()
             elif char == '<':
                 if self.peek_char() == '<':
                     # Check for << or <<-

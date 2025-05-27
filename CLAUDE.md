@@ -19,7 +19,8 @@ Key design principle: Each component is intentionally simple and readable for te
 ## Grammar
 
 ```
-command_list → pipeline (SEMICOLON pipeline)* [SEMICOLON]
+command_list → and_or_list (SEMICOLON and_or_list)* [SEMICOLON]
+and_or_list  → pipeline ((AND_AND | OR_OR) pipeline)*
 pipeline     → command (PIPE command)*
 command      → word+ redirect* [AMPERSAND]
 redirect     → REDIRECT_OP word
@@ -73,6 +74,7 @@ Implemented:
 - Command substitution ($(...) and `...`)
 - Tab completion for files and directories
 - Comments (# at word boundaries)
+- Conditional execution (&& and || operators with short-circuit evaluation)
 
 Not implemented:
 - Job control (fg, bg, jobs commands)
