@@ -20,6 +20,7 @@ Features ordered by ease of implementation, from simplest to most complex.
 11. **Comments** - # at word boundaries, preserved in quotes and when escaped
 12. **Conditional Execution** - && and || operators with short-circuit evaluation
 13. **Here Strings** - <<< operator for single-line stdin input with variable expansion
+14. **Tilde Expansion** - ~ for home directory, ~user for user's home directory
 
 ## 🚧 In Progress / Remaining Features
 
@@ -74,7 +75,7 @@ Features ordered by ease of implementation, from simplest to most complex.
 
 #### Advanced Expansions
 - [ ] Brace expansion (`{a,b,c}`, `{1..10}`)
-- [ ] Tilde expansion (`~`, `~user`)
+- [x] Tilde expansion (`~`, `~user`)
 - [ ] Advanced parameter expansion:
   - [ ] `${var#pattern}` - Remove shortest prefix
   - [ ] `${var##pattern}` - Remove longest prefix
@@ -113,8 +114,7 @@ Features ordered by ease of implementation, from simplest to most complex.
 1. **Job control basics** - Start with jobs tracking and notifications
 2. **Aliases** - Common user feature, moderate complexity
 3. **Simple control structures** - Start with `if`/`then`/`else`
-4. **Basic arithmetic expansion** - `$((...))`
-5. **Tilde expansion** - `~` and `~user` for home directories
+4. **Basic arithmetic expansion** - `$((...))` 
 
 ### Architecture Considerations
 

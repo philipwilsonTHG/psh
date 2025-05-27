@@ -4,6 +4,7 @@ import subprocess
 import readline
 import signal
 import glob
+import pwd
 from .tokenizer import tokenize
 from .parser import parse, ParseError
 from .ast_nodes import Command, Pipeline, CommandList, AndOrList, Redirect
@@ -124,6 +125,45 @@ class Shell:
         # Regular variables - check shell variables first, then environment
         return self.variables.get(var_name, self.env.get(var_name, ''))
     
+    def _expand_tilde(self, path: str) -> str:
+        """Expand tilde in paths like ~ and ~user"""
+        if not path.startswith('~'):
+            return path
+        
+        # Just ~ or ~/path
+        if path == '~' or path.startswith('~/'):
+            # Get home directory from HOME env var, fallback to pwd
+            home = os.environ.get('HOME')
+            if not home:
+                try:
+                    home = pwd.getpwuid(os.getuid()).pw_dir
+                except:
+                    home = '/'
+            
+            if path == '~':
+                return home
+            else:
+                return home + path[1:]  # Replace ~ with home
+        
+        # ~username or ~username/path
+        else:
+            # Find where username ends
+            slash_pos = path.find('/')
+            if slash_pos == -1:
+                username = path[1:]  # Everything after ~
+                rest = ''
+            else:
+                username = path[1:slash_pos]
+                rest = path[slash_pos:]
+            
+            # Look up user's home directory
+            try:
+                user_info = pwd.getpwnam(username)
+                return user_info.pw_dir + rest
+            except KeyError:
+                # User not found, return unchanged
+                return path
+    
     def _execute_command_substitution(self, cmd_sub: str) -> str:
         """Execute command substitution and return output"""
         # Remove $(...) or `...`
@@ -166,7 +206,7 @@ class Shell:
                 os.unlink(temp_output)
     
     def _expand_arguments(self, command: Command) -> list:
-        """Expand variables, command substitutions, and globs in command arguments"""
+        """Expand variables, command substitutions, tildes, and globs in command arguments"""
         args = []
         for i, arg in enumerate(command.args):
             arg_type = command.arg_types[i] if i < len(command.arg_types) else 'WORD'
@@ -185,6 +225,10 @@ class Shell:
                     args.extend(words)
                 # If output is empty, don't add anything
             else:
+                # Tilde expansion (only for unquoted words)
+                if arg.startswith('~') and arg_type == 'WORD':
+                    arg = self._expand_tilde(arg)
+                
                 # Check if the argument contains glob characters and wasn't quoted
                 if any(c in arg for c in ['*', '?', '[']) and arg_type != 'STRING':
                     # Perform glob expansion
@@ -208,6 +252,9 @@ class Shell:
         var_name, var_value = args[0].split('=', 1)
         if len(args) == 1:
             # Pure assignment, no command
+            # Expand tilde in the value
+            if var_value.startswith('~'):
+                var_value = self._expand_tilde(var_value)
             self.variables[var_name] = var_value
             return 0
         else:
@@ -222,9 +269,14 @@ class Shell:
         stdin_backup = None
         
         for redirect in command.redirects:
+            # Expand tilde in target for file redirections
+            target = redirect.target
+            if target and redirect.type in ('<', '>', '>>') and target.startswith('~'):
+                target = self._expand_tilde(target)
+            
             if redirect.type == '<':
                 stdin_backup = sys.stdin
-                sys.stdin = open(redirect.target, 'r')
+                sys.stdin = open(target, 'r')
             elif redirect.type in ('<<', '<<-'):
                 stdin_backup = sys.stdin
                 # Create a StringIO object from heredoc content
@@ -238,16 +290,16 @@ class Shell:
                 sys.stdin = io.StringIO(content)
             elif redirect.type == '>' and redirect.fd == 2:
                 stderr_backup = sys.stderr
-                sys.stderr = open(redirect.target, 'w')
+                sys.stderr = open(target, 'w')
             elif redirect.type == '>>' and redirect.fd == 2:
                 stderr_backup = sys.stderr
-                sys.stderr = open(redirect.target, 'a')
+                sys.stderr = open(target, 'a')
             elif redirect.type == '>' and (redirect.fd is None or redirect.fd == 1):
                 stdout_backup = sys.stdout
-                sys.stdout = open(redirect.target, 'w')
+                sys.stdout = open(target, 'w')
             elif redirect.type == '>>' and (redirect.fd is None or redirect.fd == 1):
                 stdout_backup = sys.stdout
-                sys.stdout = open(redirect.target, 'a')
+                sys.stdout = open(target, 'a')
             elif redirect.type == '>&':
                 # Handle fd duplication like 2>&1
                 if redirect.fd == 2 and redirect.dup_fd == 1:
@@ -278,8 +330,13 @@ class Shell:
         stderr = None
         
         for redirect in command.redirects:
+            # Expand tilde in target for file redirections
+            target = redirect.target
+            if target and redirect.type in ('<', '>', '>>') and target.startswith('~'):
+                target = self._expand_tilde(target)
+            
             if redirect.type == '<':
-                stdin = open(redirect.target, 'r')
+                stdin = open(target, 'r')
             elif redirect.type in ('<<', '<<-'):
                 # For heredocs, we need to use PIPE and write content
                 stdin = subprocess.PIPE
@@ -287,13 +344,13 @@ class Shell:
                 # For here strings, we also use PIPE
                 stdin = subprocess.PIPE
             elif redirect.type == '>' and redirect.fd == 2:
-                stderr = open(redirect.target, 'w')
+                stderr = open(target, 'w')
             elif redirect.type == '>>' and redirect.fd == 2:
-                stderr = open(redirect.target, 'a')
+                stderr = open(target, 'a')
             elif redirect.type == '>' and (redirect.fd is None or redirect.fd == 1):
-                stdout = open(redirect.target, 'w')
+                stdout = open(target, 'w')
             elif redirect.type == '>>' and (redirect.fd is None or redirect.fd == 1):
-                stdout = open(redirect.target, 'a')
+                stdout = open(target, 'a')
             elif redirect.type == '>&':
                 # Handle fd duplication like 2>&1
                 if redirect.fd == 2 and redirect.dup_fd == 1:
@@ -837,8 +894,13 @@ class Shell:
     def _setup_child_redirections(self, command: Command):
         """Set up redirections in child process (after fork) using dup2"""
         for redirect in command.redirects:
+            # Expand tilde in target for file redirections
+            target = redirect.target
+            if target and redirect.type in ('<', '>', '>>') and target.startswith('~'):
+                target = self._expand_tilde(target)
+            
             if redirect.type == '<':
-                fd = os.open(redirect.target, os.O_RDONLY)
+                fd = os.open(target, os.O_RDONLY)
                 os.dup2(fd, 0)
                 os.close(fd)
             elif redirect.type in ('<<', '<<-'):
@@ -861,12 +923,12 @@ class Shell:
                 os.dup2(r, 0)
                 os.close(r)
             elif redirect.type == '>':
-                fd = os.open(redirect.target, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)
+                fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)
                 target_fd = redirect.fd if redirect.fd is not None else 1
                 os.dup2(fd, target_fd)
                 os.close(fd)
             elif redirect.type == '>>':
-                fd = os.open(redirect.target, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o644)
+                fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o644)
                 target_fd = redirect.fd if redirect.fd is not None else 1
                 os.dup2(fd, target_fd)
                 os.close(fd)

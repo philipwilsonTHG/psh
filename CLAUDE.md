@@ -75,6 +75,7 @@ Implemented:
 - Tab completion for files and directories
 - Comments (# at word boundaries)
 - Conditional execution (&& and || operators with short-circuit evaluation)
+- Tilde expansion (~ and ~user)
 
 Not implemented:
 - Job control (fg, bg, jobs commands)
