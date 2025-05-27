@@ -428,29 +428,61 @@ class LineEditor:
     
     def _transpose_chars(self):
         """Transpose characters around cursor."""
-        if self.cursor_pos > 0 and len(self.buffer) > 1:
+        if len(self.buffer) >= 2:
             self.save_undo_state()
             
-            # If at end of line, work with last two chars
-            if self.cursor_pos == len(self.buffer):
-                self.cursor_pos -= 1
+            # Special cases:
+            # 1. If at beginning of line (pos 0), transpose first two chars
+            # 2. If at end of line, transpose last two chars
+            # 3. Otherwise, transpose char at cursor with char after cursor
             
-            # Swap characters
-            if self.cursor_pos > 0:
-                self.buffer[self.cursor_pos - 1], self.buffer[self.cursor_pos] = \
-                    self.buffer[self.cursor_pos], self.buffer[self.cursor_pos - 1]
-                
-                # Redraw
-                sys.stdout.write('\b')
-                sys.stdout.write(''.join(self.buffer[self.cursor_pos - 1:self.cursor_pos + 1]))
-                
-                # Move cursor forward
+            if self.cursor_pos == 0:
+                # At beginning, transpose first two characters
+                if len(self.buffer) >= 2:
+                    self.buffer[0], self.buffer[1] = self.buffer[1], self.buffer[0]
+                    # Redraw
+                    sys.stdout.write(''.join(self.buffer[0:2]))
+                    sys.stdout.write('\b')  # Position after first char
+                    self.cursor_pos = 1
+            elif self.cursor_pos >= len(self.buffer):
+                # At or past end, transpose last two characters
+                pos = len(self.buffer) - 1
+                self.buffer[pos - 1], self.buffer[pos] = self.buffer[pos], self.buffer[pos - 1]
+                # Move to position before last two chars
+                move_back = self.cursor_pos - (pos - 1)
+                if move_back > 0:
+                    sys.stdout.write('\b' * move_back)
+                # Redraw last two chars
+                sys.stdout.write(''.join(self.buffer[pos - 1:pos + 1]))
+                self.cursor_pos = pos + 1
+            else:
+                # Normal case: transpose char at cursor with next char
                 if self.cursor_pos < len(self.buffer) - 1:
-                    self.cursor_pos += 1
+                    self.buffer[self.cursor_pos], self.buffer[self.cursor_pos + 1] = \
+                        self.buffer[self.cursor_pos + 1], self.buffer[self.cursor_pos]
+                    
+                    # Redraw the two swapped characters
+                    sys.stdout.write(''.join(self.buffer[self.cursor_pos:self.cursor_pos + 2]))
+                    
+                    # Move cursor forward past the transposed pair
+                    self.cursor_pos += 2
+                    
+                    # If not at end, redraw remaining chars and reposition
+                    if self.cursor_pos < len(self.buffer):
+                        rest = ''.join(self.buffer[self.cursor_pos:])
+                        sys.stdout.write(rest)
+                        sys.stdout.write('\b' * len(rest))
                 else:
-                    sys.stdout.write('\b')
-                
-                sys.stdout.flush()
+                    # Only one char after cursor, transpose with char before
+                    if self.cursor_pos > 0:
+                        self.buffer[self.cursor_pos - 1], self.buffer[self.cursor_pos] = \
+                            self.buffer[self.cursor_pos], self.buffer[self.cursor_pos - 1]
+                        # Move back and redraw
+                        sys.stdout.write('\b')
+                        sys.stdout.write(''.join(self.buffer[self.cursor_pos - 1:self.cursor_pos + 1]))
+                        self.cursor_pos += 1
+            
+            sys.stdout.flush()
     
     def _history_up(self):
         """Move up in history."""
