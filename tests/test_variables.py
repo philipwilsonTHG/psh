@@ -76,6 +76,7 @@ class TestVariables:
     def test_special_variable_dollar_hash(self, shell, capsys):
         """Test $# number of parameters"""
         shell.run_command("set")
+        capsys.readouterr()  # Clear the output from set command
         shell.run_command("echo $#")
         captured = capsys.readouterr()
         assert captured.out.strip() == "0"
