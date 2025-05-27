@@ -696,6 +696,9 @@ class Shell:
             # Show shell variables
             for var, value in sorted(self.variables.items()):
                 print(f"{var}={value}")
+        else:
+            # Set positional parameters
+            self.positional_params = args[1:]
         return 0
     
     def _builtin_version(self, args):

@@ -157,16 +157,16 @@ class TestVariables:
         # Set shell variable
         shell.run_command("SHELLVAR=local")
         assert shell.variables['SHELLVAR'] == 'local'
-        assert 'SHELLVAR' not in os.environ
+        assert 'SHELLVAR' not in shell.env
         
-        # Export makes it available in environment
+        # Export makes it available in shell's environment
         shell.run_command("export SHELLVAR")
-        assert os.environ.get('SHELLVAR') == 'local'
+        assert shell.env.get('SHELLVAR') == 'local'
         
         # New export syntax
         shell.run_command("export NEWVAR=exported")
         assert shell.env['NEWVAR'] == 'exported'
-        assert os.environ.get('NEWVAR') == 'exported'
+        assert shell.variables['NEWVAR'] == 'exported'
     
     def test_variable_priority(self, shell, capsys):
         """Test that shell variables take priority over environment"""
