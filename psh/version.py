@@ -2,10 +2,19 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.5.0"
+__version__ = "0.6.0"
 
 # Version history
 VERSION_HISTORY = """
+0.6.0 (2025-05-27) - Vi and Emacs key bindings
+  - Added comprehensive vi and emacs key binding support
+  - Emacs mode (default): Ctrl-A/E, Ctrl-K/U/W, Ctrl-Y, Alt-F/B, and more
+  - Vi mode: normal/insert modes, hjkl movement, word motions, editing commands
+  - Implemented reverse history search with Ctrl-R (works in both modes)
+  - Added kill ring for cut/paste operations
+  - Support mode switching via 'set -o vi/emacs' command
+  - Added full documentation and test coverage for key bindings
+
 0.5.0 (2025-05-27) - Tilde expansion
   - Added tilde expansion for home directories (~ and ~user)
   - Tilde expansion works in arguments, redirections, and variable assignments
