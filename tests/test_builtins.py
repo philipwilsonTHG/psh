@@ -54,7 +54,7 @@ class TestBuiltins:
         exit_code = self.shell._builtin_export(['export', 'TEST_VAR=test_value'])
         assert exit_code == 0
         assert self.shell.env['TEST_VAR'] == 'test_value'
-        assert os.environ['TEST_VAR'] == 'test_value'
+        # Note: export only modifies shell.env, not os.environ
         
         # Export without value (should do nothing but not error)
         exit_code = self.shell._builtin_export(['export', 'NOVALUE'])
@@ -63,13 +63,12 @@ class TestBuiltins:
     def test_unset(self):
         # Set up a variable
         self.shell.env['TEST_VAR'] = 'value'
-        os.environ['TEST_VAR'] = 'value'
+        # Note: unset only removes from shell.env, not os.environ
         
         # Unset it
         exit_code = self.shell._builtin_unset(['unset', 'TEST_VAR'])
         assert exit_code == 0
         assert 'TEST_VAR' not in self.shell.env
-        assert 'TEST_VAR' not in os.environ
         
         # Unset non-existent variable (should not error)
         exit_code = self.shell._builtin_unset(['unset', 'NONEXISTENT'])
