@@ -2,10 +2,17 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 # Version history
 VERSION_HISTORY = """
+0.5.0 (2025-05-27) - Tilde expansion
+  - Added tilde expansion for home directories (~ and ~user)
+  - Tilde expansion works in arguments, redirections, and variable assignments
+  - Only expands unquoted tildes at the beginning of words
+  - Added comprehensive test suite for tilde expansion
+  - Note: Escaped tilde handling requires future architectural changes
+
 0.4.0 (2025-05-27) - Here strings and bug fixes
   - Added here string support (<<<) for passing strings as stdin
   - Fixed command substitution to properly capture external command output
