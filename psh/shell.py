@@ -521,7 +521,7 @@ class Shell:
         readline.set_completer_delims(' \t\n;|&<>')
         
         # Set up tab completion
-        line_editor = LineEditor(self)
+        line_editor = LineEditor(self.history)
         
         while True:
             try:
@@ -532,7 +532,7 @@ class Shell:
                     prompt = f'psh[{self.last_exit_code}]$ '
                 
                 # Use our custom input handler for tab completion
-                command = line_editor.get_input(prompt)
+                command = line_editor.read_line(prompt)
                 
                 if command is None:  # EOF (Ctrl-D)
                     print()  # New line before exit
