@@ -679,7 +679,10 @@ class Shell:
                 print(f"history: {args[1]}: numeric argument required", file=sys.stderr)
                 return 1
         else:
-            history_slice = self.history
+            # Default to showing last 10 commands (bash behavior)
+            count = 10
+            start = max(0, len(self.history) - count)
+            history_slice = self.history[start:]
         
         # Print with line numbers
         start_num = len(self.history) - len(history_slice) + 1

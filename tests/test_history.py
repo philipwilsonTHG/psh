@@ -12,9 +12,12 @@ class TestHistory:
         self.temp_history = tempfile.NamedTemporaryFile(mode='w', delete=False)
         self.temp_history.close()
         
-        self.shell = Shell()
-        self.shell.history_file = self.temp_history.name
-        self.shell.history = []  # Start with empty history
+        # Patch the history file path before creating Shell
+        # This prevents loading the user's real history
+        with patch.dict(os.environ, {'HOME': os.path.dirname(self.temp_history.name)}):
+            self.shell = Shell()
+            self.shell.history_file = self.temp_history.name
+            self.shell.history = []  # Clear any loaded history
     
     def teardown_method(self):
         # Clean up temporary file
@@ -143,10 +146,12 @@ class TestHistory:
         # Save history
         self.shell._save_history()
         
-        # Create new shell and load history
-        new_shell = Shell()
-        new_shell.history_file = self.temp_history.name
-        new_shell._load_history()
+        # Create new shell with patched HOME to avoid loading user's history
+        with patch.dict(os.environ, {'HOME': os.path.dirname(self.temp_history.name)}):
+            new_shell = Shell()
+            new_shell.history_file = self.temp_history.name
+            new_shell.history = []  # Clear any default history
+            new_shell._load_history()
         
         assert new_shell.history == commands
     
