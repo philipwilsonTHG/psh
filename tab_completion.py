@@ -491,13 +491,23 @@ class LineEditor:
             if self.history_pos == len(self.history):
                 self.original_line = ''.join(self.buffer)
             
+            # Clear current line
+            self._clear_current_line()
+            
+            # Update to previous history entry
             self.history_pos -= 1
             self._replace_line(self.history[self.history_pos])
-            self._redraw_line()
+            
+            # Display the new line
+            sys.stdout.write(''.join(self.buffer))
+            sys.stdout.flush()
     
     def _history_down(self):
         """Move down in history."""
         if self.history_pos < len(self.history):
+            # Clear current line
+            self._clear_current_line()
+            
             self.history_pos += 1
             
             if self.history_pos == len(self.history):
@@ -505,7 +515,19 @@ class LineEditor:
                 self._replace_line(self.original_line)
             else:
                 self._replace_line(self.history[self.history_pos])
-            self._redraw_line()
+            
+            # Display the new line
+            sys.stdout.write(''.join(self.buffer))
+            sys.stdout.flush()
+    
+    def _clear_current_line(self):
+        """Clear the current input line (preserving prompt)."""
+        # Move cursor to beginning of input
+        if self.cursor_pos > 0:
+            sys.stdout.write('\b' * self.cursor_pos)
+        # Clear from cursor to end of line
+        sys.stdout.write('\033[K')
+        sys.stdout.flush()
     
     def _replace_line(self, new_line: str):
         """Replace the current line with new text."""
