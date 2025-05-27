@@ -18,6 +18,7 @@ Features ordered by ease of implementation, from simplest to most complex.
 9. **Command Substitution** - $(...) and `...` with nesting support
 10. **Tab Completion** - File/directory completion with special character handling
 11. **Comments** - # at word boundaries, preserved in quotes and when escaped
+12. **Conditional Execution** - && and || operators with short-circuit evaluation
 
 ## 🚧 In Progress / Remaining Features
 
@@ -30,8 +31,8 @@ Features ordered by ease of implementation, from simplest to most complex.
 
 #### Command Separators
 - [x] `;` (already implemented)
-- [ ] `&&` - Run second command only if first succeeds
-- [ ] `||` - Run second command only if first fails
+- [x] `&&` - Run second command only if first succeeds
+- [x] `||` - Run second command only if first fails
 
 
 ### Hard Features (1-2 days each)
@@ -114,12 +115,18 @@ Features ordered by ease of implementation, from simplest to most complex.
 ### Next Features to Implement
 
 1. **Here-strings (`<<<`)** - Easy extension of here-docs
-2. **Command separators (`&&`, `||`)** - Useful and relatively simple
-3. **Job control basics** - Start with jobs tracking and notifications
-4. **Aliases** - Common user feature, moderate complexity
-5. **Simple control structures** - Start with `if`/`then`/`else`
+2. **Job control basics** - Start with jobs tracking and notifications
+3. **Aliases** - Common user feature, moderate complexity
+4. **Simple control structures** - Start with `if`/`then`/`else`
+5. **Basic arithmetic expansion** - `$((...))`
 
 ### Architecture Considerations
+
+#### Lessons from && and || Implementation
+- Grammar changes can require AST restructuring
+- Backward compatibility important for existing tests
+- Short-circuit evaluation requires careful exit status tracking
+- Operator precedence affects grammar design
 
 #### For Control Structures
 - Need to extend AST significantly
