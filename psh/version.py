@@ -2,10 +2,18 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.6.0"
+__version__ = "0.7.0"
 
 # Version history
 VERSION_HISTORY = """
+0.7.0 (2025-05-27) - Shell aliases
+  - Added alias and unalias builtin commands
+  - Implemented recursive alias expansion with loop prevention
+  - Support for trailing space in aliases (enables next word expansion)
+  - Position-aware expansion (only at command positions)
+  - Proper handling of quoted alias definitions
+  - Added comprehensive test suite for alias functionality
+
 0.6.0 (2025-05-27) - Vi and Emacs key bindings
   - Added comprehensive vi and emacs key binding support
   - Emacs mode (default): Ctrl-A/E, Ctrl-K/U/W, Ctrl-Y, Alt-F/B, and more
