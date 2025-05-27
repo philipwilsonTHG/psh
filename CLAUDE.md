@@ -84,6 +84,7 @@ Implemented:
 - Conditional execution (&& and || operators with short-circuit evaluation)
 - Tilde expansion (~ and ~user)
 - Vi and Emacs key bindings (set -o vi/emacs)
+- Aliases (alias, unalias) with recursive expansion and trailing space support
 
 Not implemented:
 - Job control (fg, bg, jobs commands)

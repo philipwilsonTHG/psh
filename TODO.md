@@ -22,6 +22,7 @@ Features ordered by ease of implementation, from simplest to most complex.
 13. **Here Strings** - <<< operator for single-line stdin input with variable expansion
 14. **Tilde Expansion** - ~ for home directory, ~user for user's home directory
 15. **Vi/Emacs Key Bindings** - Full command line editing with set -o vi/emacs, history search (Ctrl-R)
+16. **Aliases** - alias/unalias commands, recursive expansion prevention, trailing space support
 
 ## 🚧 In Progress / Remaining Features
 
@@ -45,10 +46,10 @@ Features ordered by ease of implementation, from simplest to most complex.
 - [ ] %job notation for referring to jobs
 
 #### Aliases
-- [ ] `alias` built-in command
-- [ ] Alias expansion during tokenization
-- [ ] Recursive alias prevention
-- [ ] `unalias` command
+- [x] `alias` built-in command
+- [x] Alias expansion during tokenization
+- [x] Recursive alias prevention
+- [x] `unalias` command
 
 #### Shell Functions
 - [ ] Function definition syntax: `name() { commands; }`
@@ -113,9 +114,9 @@ Features ordered by ease of implementation, from simplest to most complex.
 ### Next Features to Implement
 
 1. **Job control basics** - Start with jobs tracking and notifications
-2. **Aliases** - Common user feature, moderate complexity
-3. **Simple control structures** - Start with `if`/`then`/`else`
-4. **Basic arithmetic expansion** - `$((...))` 
+2. **Simple control structures** - Start with `if`/`then`/`else`
+3. **Basic arithmetic expansion** - `$((...))` 
+4. **Shell functions** - Function definition and invocation
 
 ### Architecture Considerations
 

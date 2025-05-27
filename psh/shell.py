@@ -10,6 +10,7 @@ from .parser import parse, ParseError
 from .ast_nodes import Command, Pipeline, CommandList, AndOrList, Redirect
 from .line_editor import LineEditor
 from .version import get_version_info
+from .aliases import AliasManager
 
 
 class Shell:
@@ -30,6 +31,8 @@ class Shell:
             'history': self._builtin_history,
             'set': self._builtin_set,
             'version': self._builtin_version,
+            'alias': self._builtin_alias,
+            'unalias': self._builtin_unalias,
         }
         # History setup
         self.history = []
@@ -46,6 +49,9 @@ class Shell:
         
         # Editor configuration
         self.edit_mode = 'emacs'  # Default to emacs mode
+        
+        # Alias management
+        self.alias_manager = AliasManager()
         
         # Set up signal handlers
         signal.signal(signal.SIGINT, self._handle_sigint)
@@ -608,6 +614,8 @@ class Shell:
         
         try:
             tokens = tokenize(command_string)
+            # Expand aliases
+            tokens = self.alias_manager.expand_aliases(tokens)
             ast = parse(tokens)
             
             # Collect here documents if any
@@ -841,6 +849,104 @@ class Shell:
             # Full version info
             print(get_version_info())
         return 0
+    
+    def _builtin_alias(self, args):
+        """Define or display aliases"""
+        if len(args) == 1:
+            # No arguments - list all aliases
+            for name, value in sorted(self.alias_manager.list_aliases()):
+                # Escape single quotes in value for display
+                escaped_value = value.replace("'", "'\"'\"'")
+                print(f"alias {name}='{escaped_value}'")
+            return 0
+        
+        exit_code = 0
+        
+        # Process each argument
+        i = 1
+        while i < len(args):
+            arg = args[i]
+            
+            if '=' in arg:
+                # This looks like an assignment
+                equals_pos = arg.index('=')
+                name = arg[:equals_pos]
+                value_start = arg[equals_pos + 1:]
+                
+                # Check if value starts with a quote
+                if value_start and value_start[0] in ("'", '"'):
+                    quote_char = value_start[0]
+                    # Need to find the closing quote, which might be in later args
+                    value_parts = [value_start[1:]]  # Remove opening quote
+                    
+                    # Look for closing quote
+                    found_close = False
+                    j = i
+                    
+                    # Check if closing quote is in the same arg
+                    if value_start[1:].endswith(quote_char):
+                        value = value_start[1:-1]
+                        found_close = True
+                    else:
+                        # Look in subsequent args
+                        j = i + 1
+                        while j < len(args):
+                            if args[j].endswith(quote_char):
+                                value_parts.append(args[j][:-1])  # Remove closing quote
+                                found_close = True
+                                break
+                            else:
+                                value_parts.append(args[j])
+                            j += 1
+                        
+                        if found_close:
+                            value = ' '.join(value_parts)
+                            i = j  # Skip the args we consumed
+                        else:
+                            # No closing quote found
+                            value = value_start
+                else:
+                    # No quotes, just use the value as is
+                    value = value_start
+                
+                try:
+                    self.alias_manager.define_alias(name, value)
+                except ValueError as e:
+                    print(f"psh: alias: {e}", file=sys.stderr)
+                    exit_code = 1
+            else:
+                # Show specific alias
+                value = self.alias_manager.get_alias(arg)
+                if value is not None:
+                    # Escape single quotes in value for display
+                    escaped_value = value.replace("'", "'\"'\"'")
+                    print(f"alias {arg}='{escaped_value}'")
+                else:
+                    print(f"psh: alias: {arg}: not found", file=sys.stderr)
+                    exit_code = 1
+            
+            i += 1
+        
+        return exit_code
+    
+    def _builtin_unalias(self, args):
+        """Remove aliases"""
+        if len(args) == 1:
+            print("unalias: usage: unalias [-a] name [name ...]", file=sys.stderr)
+            return 1
+        
+        if args[1] == '-a':
+            # Remove all aliases
+            self.alias_manager.clear_aliases()
+            return 0
+        
+        exit_code = 0
+        for name in args[1:]:
+            if not self.alias_manager.undefine_alias(name):
+                print(f"psh: unalias: {name}: not found", file=sys.stderr)
+                exit_code = 1
+        
+        return exit_code
     
     def _collect_heredocs(self, command_list: CommandList):
         """Collect here document content for all commands"""
