@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "psh"
-version = "0.7.0"
+dynamic = ["version"]
 description = "Python Shell (psh) - An educational Unix shell implementation"
 readme = "README.md"
 authors = [
     {name = "Your Name", email = "your.email@example.com"}
 ]
-license = "MIT"
+license = {text = "MIT"}
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Console",
@@ -49,3 +49,6 @@ packages = ["psh"]
 
 [tool.setuptools.package-data]
 psh = ["*.md"]
+
+[tool.setuptools.dynamic]
+version = {attr = "psh.version.__version__"}
