@@ -2,17 +2,23 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 # Version history
 VERSION_HISTORY = """
+0.2.0 (2025-01-23) - Tab completion and comments
+  - Added interactive tab completion for files/directories
+  - Added comment support (# at word boundaries)
+  - Fixed prompt positioning issues in raw terminal mode
+  - Fixed history navigation display
+  - Added version builtin command
+
 0.1.0 (2025-01-23) - Initial versioned release
   - Basic command execution
   - I/O redirection (<, >, >>, 2>, 2>>, 2>&1)
   - Pipelines
   - Background processes (&)
   - Command history
-  - Tab completion for files/directories
   - Built-in commands: cd, exit, pwd, echo, env, export, unset, source, history, set, cat
   - Variable expansion and special variables
   - Command substitution ($() and ``)
