@@ -48,6 +48,34 @@ class Shell:
         signal.signal(signal.SIGTSTP, signal.SIG_IGN)  # Ignore Ctrl-Z in shell
         signal.signal(signal.SIGTTOU, signal.SIG_IGN)  # Ignore terminal output stops
     
+    def _expand_string_variables(self, text: str) -> str:
+        """Expand variables in a string (for here strings)"""
+        result = []
+        i = 0
+        while i < len(text):
+            if text[i] == '$' and i + 1 < len(text):
+                if text[i + 1] == '{':
+                    # ${var} syntax
+                    end = text.find('}', i + 2)
+                    if end != -1:
+                        var_name = text[i + 2:end]
+                        result.append(self._expand_variable('$' + var_name))
+                        i = end + 1
+                        continue
+                else:
+                    # $var syntax
+                    j = i + 1
+                    while j < len(text) and (text[j].isalnum() or text[j] == '_'):
+                        j += 1
+                    if j > i + 1:
+                        var_name = text[i + 1:j]
+                        result.append(self._expand_variable('$' + var_name))
+                        i = j
+                        continue
+            result.append(text[i])
+            i += 1
+        return ''.join(result)
+    
     def _expand_variable(self, var_expr: str) -> str:
         """Expand a variable expression starting with $"""
         if not var_expr.startswith('$'):
@@ -202,6 +230,12 @@ class Shell:
                 # Create a StringIO object from heredoc content
                 import io
                 sys.stdin = io.StringIO(redirect.heredoc_content or '')
+            elif redirect.type == '<<<':
+                stdin_backup = sys.stdin
+                # For here string, add a newline to the content
+                import io
+                content = redirect.target + '\n'
+                sys.stdin = io.StringIO(content)
             elif redirect.type == '>' and redirect.fd == 2:
                 stderr_backup = sys.stderr
                 sys.stderr = open(redirect.target, 'w')
@@ -249,6 +283,9 @@ class Shell:
             elif redirect.type in ('<<', '<<-'):
                 # For heredocs, we need to use PIPE and write content
                 stdin = subprocess.PIPE
+            elif redirect.type == '<<<':
+                # For here strings, we also use PIPE
+                stdin = subprocess.PIPE
             elif redirect.type == '>' and redirect.fd == 2:
                 stderr = open(redirect.target, 'w')
             elif redirect.type == '>>' and redirect.fd == 2:
@@ -295,12 +332,18 @@ class Shell:
                 env=self.env
             )
             
-            # Write heredoc content if using PIPE
+            # Write heredoc/here string content if using PIPE
             if stdin == subprocess.PIPE:
                 for redirect in command.redirects:
                     if redirect.type in ('<<', '<<-'):
                         # Write content even if empty (empty heredoc is valid)
                         content = redirect.heredoc_content or ''
+                        proc.stdin.write(content.encode())
+                        proc.stdin.close()
+                        break
+                    elif redirect.type == '<<<':
+                        # Write here string content with newline
+                        content = redirect.target + '\n'
                         proc.stdin.write(content.encode())
                         proc.stdin.close()
                         break
@@ -328,6 +371,12 @@ class Shell:
     
     def execute_command(self, command: Command):
         """Execute a single command"""
+        # Preprocess here strings to expand variables
+        for redirect in command.redirects:
+            if redirect.type == '<<<':
+                # Expand variables in here string content
+                redirect.target = self._expand_string_variables(redirect.target)
+        
         # Expand arguments (variables, command substitutions, globs)
         args = self._expand_arguments(command)
         
@@ -797,6 +846,16 @@ class Shell:
                 r, w = os.pipe()
                 # Write heredoc content to pipe
                 os.write(w, (redirect.heredoc_content or '').encode())
+                os.close(w)
+                # Redirect stdin to read end
+                os.dup2(r, 0)
+                os.close(r)
+            elif redirect.type == '<<<':
+                # Create a pipe for here string
+                r, w = os.pipe()
+                # Write here string content with newline
+                content = redirect.target + '\n'
+                os.write(w, content.encode())
                 os.close(w)
                 # Redirect stdin to read end
                 os.dup2(r, 0)

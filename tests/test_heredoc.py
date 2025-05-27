@@ -141,3 +141,92 @@ class TestHereDoc:
         shell.run_command("cat << EOF | wc -l")
         captured = capsys.readouterr()
         assert "3" in captured.out
+
+
+class TestHereString:
+    """Tests for here strings (<<<)"""
+    
+    @pytest.fixture
+    def shell(self):
+        return Shell()
+    
+    def test_tokenize_here_string(self):
+        """Test that <<< is tokenized correctly"""
+        tokens = tokenize("cat <<< 'hello world'")
+        assert tokens[1].type == TokenType.HERE_STRING
+        assert tokens[1].value == "<<<"
+        assert tokens[2].type == TokenType.STRING
+        assert tokens[2].value == "hello world"
+    
+    def test_parse_here_string(self):
+        """Test parsing of here string"""
+        tokens = tokenize("cat <<< 'test string'")
+        ast = parse(tokens)
+        command = ast.and_or_lists[0].pipelines[0].commands[0]
+        
+        assert len(command.redirects) == 1
+        redirect = command.redirects[0]
+        assert redirect.type == "<<<"
+        assert redirect.target == "test string"
+    
+    def test_here_string_with_variable(self, shell, capsys):
+        """Test here string with variable expansion"""
+        shell.variables['NAME'] = 'World'
+        
+        output_file = "/tmp/herestring_var_test.txt"
+        shell.run_command(f"cat <<< \"Hello $NAME\" > {output_file}")
+        
+        with open(output_file, 'r') as f:
+            content = f.read()
+        assert content == "Hello World\n"
+        os.unlink(output_file)
+    
+    def test_here_string_literal(self, shell, capsys):
+        """Test here string with literal text"""
+        output_file = "/tmp/herestring_literal_test.txt"
+        shell.run_command(f"cat <<< 'literal text' > {output_file}")
+        
+        with open(output_file, 'r') as f:
+            content = f.read()
+        assert content == "literal text\n"
+        os.unlink(output_file)
+    
+    def test_here_string_with_builtin(self, shell, capsys):
+        """Test here string output to file"""
+        output_file = "/tmp/herestring_builtin_test.txt"
+        shell.run_command(f"cat <<< 'from here string' > {output_file}")
+        
+        with open(output_file, 'r') as f:
+            content = f.read()
+        assert content == "from here string\n"
+        os.unlink(output_file)
+    
+    def test_here_string_in_pipeline(self, shell, capsys):
+        """Test here string in a pipeline"""
+        output_file = "/tmp/herestring_pipeline_test.txt"
+        shell.run_command(f"cat <<< 'apple banana cherry' | wc -w > {output_file}")
+        
+        with open(output_file, 'r') as f:
+            content = f.read().strip()
+        assert "3" in content
+        os.unlink(output_file)
+    
+    def test_here_string_with_quotes(self, shell, capsys):
+        """Test here string handling quotes properly"""
+        output_file = "/tmp/herestring_quotes_test.txt"
+        shell.run_command(f'cat <<< "She said \\"Hello\\"" > {output_file}')
+        
+        with open(output_file, 'r') as f:
+            content = f.read()
+        assert content == 'She said "Hello"\n'
+        os.unlink(output_file)
+    
+    def test_here_string_empty(self, shell, capsys):
+        """Test empty here string"""
+        output_file = "/tmp/herestring_empty_test.txt"
+        shell.run_command(f"cat <<< '' > {output_file}")
+        
+        with open(output_file, 'r') as f:
+            content = f.read()
+        assert content == "\n"  # Just a newline
+        os.unlink(output_file)

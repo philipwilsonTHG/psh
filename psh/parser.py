@@ -126,12 +126,14 @@ class Parser:
                          TokenType.COMMAND_SUB, TokenType.COMMAND_SUB_BACKTICK,
                          TokenType.REDIRECT_IN, TokenType.REDIRECT_OUT, 
                          TokenType.REDIRECT_APPEND, TokenType.HEREDOC,
-                         TokenType.HEREDOC_STRIP, TokenType.REDIRECT_ERR,
+                         TokenType.HEREDOC_STRIP, TokenType.HERE_STRING,
+                         TokenType.REDIRECT_ERR,
                          TokenType.REDIRECT_ERR_APPEND, TokenType.REDIRECT_DUP):
             
             if self.match(TokenType.REDIRECT_IN, TokenType.REDIRECT_OUT, 
                          TokenType.REDIRECT_APPEND, TokenType.HEREDOC,
-                         TokenType.HEREDOC_STRIP, TokenType.REDIRECT_ERR,
+                         TokenType.HEREDOC_STRIP, TokenType.HERE_STRING,
+                         TokenType.REDIRECT_ERR,
                          TokenType.REDIRECT_ERR_APPEND, TokenType.REDIRECT_DUP):
                 redirect = self.parse_redirect()
                 command.redirects.append(redirect)
@@ -176,6 +178,18 @@ class Parser:
                 type=redirect_token.value,
                 target=delimiter_token.value,
                 heredoc_content=None  # Content will be filled in later
+            )
+        # For here strings, the content is the next word/string
+        elif redirect_token.type == TokenType.HERE_STRING:
+            if not self.match(TokenType.WORD, TokenType.STRING, TokenType.VARIABLE):
+                raise ParseError("Expected string after here string operator", self.peek())
+            
+            content_token = self.advance()
+            
+            return Redirect(
+                type=redirect_token.value,
+                target=content_token.value,
+                heredoc_content=None  # Will be set by shell
             )
         elif redirect_token.type == TokenType.REDIRECT_DUP:
             # Handle 2>&1 syntax - extract fd and dup_fd from the token value

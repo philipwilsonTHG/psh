@@ -14,6 +14,7 @@ class TokenType(Enum):
     REDIRECT_DUP = auto()
     HEREDOC = auto()
     HEREDOC_STRIP = auto()
+    HERE_STRING = auto()
     SEMICOLON = auto()
     AMPERSAND = auto()
     AND_AND = auto()
@@ -236,9 +237,14 @@ class Tokenizer:
                     self.advance()
             elif char == '<':
                 if self.peek_char() == '<':
-                    # Check for << or <<-
+                    # Check for <<, <<-, or <<<
                     self.advance()  # Skip first <
-                    if self.peek_char() == '-':
+                    if self.peek_char() == '<':
+                        # This is <<<
+                        self.tokens.append(Token(TokenType.HERE_STRING, '<<<', start_pos))
+                        self.advance()  # Skip second <
+                        self.advance()  # Skip third <
+                    elif self.peek_char() == '-':
                         self.tokens.append(Token(TokenType.HEREDOC_STRIP, '<<-', start_pos))
                         self.advance()  # Skip second <
                         self.advance()  # Skip -
