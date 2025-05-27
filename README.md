@@ -40,6 +40,11 @@ Python Shell (psh) is a POSIX-style shell written entirely in Python. It uses a 
 - ✅ **Pattern Matching**
   - Wildcards/globbing (`*`, `?`, `[...]`)
   - Quote handling to prevent expansion
+
+- ✅ **Comments**
+  - Hash (`#`) starts a comment at word boundaries
+  - Everything after `#` is ignored
+  - Preserved in quotes and when escaped (`\#`)
   
 - ✅ **Tab Completion**
   - File and directory completion

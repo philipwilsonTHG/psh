@@ -173,6 +173,13 @@ class Tokenizer:
             if self.current_char() is None:
                 break
             
+            # Check for comments at word boundary
+            if self.current_char() == '#':
+                # Skip everything until end of line
+                while self.current_char() is not None and self.current_char() != '\n':
+                    self.advance()
+                continue
+            
             start_pos = self.position
             char = self.current_char()
             

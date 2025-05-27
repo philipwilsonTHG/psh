@@ -17,6 +17,7 @@ Features ordered by ease of implementation, from simplest to most complex.
 8. **I/O Redirection Extensions** - stderr redirection (2>, 2>>, 2>&1)
 9. **Command Substitution** - $(...) and `...` with nesting support
 10. **Tab Completion** - File/directory completion with special character handling
+11. **Comments** - # at word boundaries, preserved in quotes and when escaped
 
 ## 🚧 In Progress / Remaining Features
 
@@ -32,11 +33,6 @@ Features ordered by ease of implementation, from simplest to most complex.
 - [ ] `&&` - Run second command only if first succeeds
 - [ ] `||` - Run second command only if first fails
 
-#### Comments
-- [ ] `#` - Ignore everything after # (except in quotes)
-- [ ] Handle at beginning of line
-- [ ] Handle after commands
-- [ ] Preserve in quoted strings
 
 ### Hard Features (1-2 days each)
 

@@ -72,6 +72,7 @@ Implemented:
 - Stderr redirection (2>, 2>>, 2>&1)
 - Command substitution ($(...) and `...`)
 - Tab completion for files and directories
+- Comments (# at word boundaries)
 
 Not implemented:
 - Job control (fg, bg, jobs commands)
