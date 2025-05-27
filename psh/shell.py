@@ -298,8 +298,10 @@ class Shell:
             # Write heredoc content if using PIPE
             if stdin == subprocess.PIPE:
                 for redirect in command.redirects:
-                    if redirect.type in ('<<', '<<-') and redirect.heredoc_content:
-                        proc.stdin.write(redirect.heredoc_content.encode())
+                    if redirect.type in ('<<', '<<-'):
+                        # Write content even if empty (empty heredoc is valid)
+                        content = redirect.heredoc_content or ''
+                        proc.stdin.write(content.encode())
                         proc.stdin.close()
                         break
             
