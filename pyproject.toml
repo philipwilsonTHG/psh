@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "psh"
+version = "0.3.0"
+description = "Python Shell (psh) - An educational Unix shell implementation"
+readme = "README.md"
+authors = [
+    {name = "Your Name", email = "your.email@example.com"}
+]
+license = "MIT"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Education",
+    "Operating System :: POSIX",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Education",
+    "Topic :: System :: Shells",
+]
+keywords = ["shell", "unix", "education", "interpreter", "command-line"]
+requires-python = ">=3.8"
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov",
+]
+
+[project.urls]
+Homepage = "https://github.com/yourusername/psh"
+Repository = "https://github.com/yourusername/psh"
+Issues = "https://github.com/yourusername/psh/issues"
+
+[project.scripts]
+psh = "psh.__main__:main"
+
+[tool.setuptools]
+packages = ["psh"]
+
+[tool.setuptools.package-data]
+psh = ["*.md"]

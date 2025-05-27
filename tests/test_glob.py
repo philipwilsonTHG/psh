@@ -2,7 +2,7 @@ import pytest
 import os
 import tempfile
 import shutil
-from simple_shell import Shell
+from psh.shell import Shell
 
 
 class TestGlobExpansion:

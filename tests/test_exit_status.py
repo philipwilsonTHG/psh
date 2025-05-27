@@ -3,7 +3,7 @@ import os
 import subprocess
 from io import StringIO
 from unittest.mock import patch, MagicMock
-from simple_shell import Shell
+from psh.shell import Shell
 
 
 class TestExitStatus:

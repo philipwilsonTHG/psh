@@ -1,16 +1,14 @@
-#!/usr/bin/env python3
-
 import os
 import sys
 import subprocess
 import readline
 import signal
 import glob
-from tokenizer import tokenize
-from parser import parse, ParseError
-from ast_nodes import Command, Pipeline, CommandList, AndOrList, Redirect
-from tab_completion import LineEditor
-from version import get_version_info
+from .tokenizer import tokenize
+from .parser import parse, ParseError
+from .ast_nodes import Command, Pipeline, CommandList, AndOrList, Redirect
+from .tab_completion import LineEditor
+from .version import get_version_info
 
 
 class Shell:
@@ -830,21 +828,3 @@ class Shell:
             print(f"{args[0]}: {e}", file=sys.stderr)
             return 1
 
-
-if __name__ == "__main__":
-    shell = Shell()
-    
-    if len(sys.argv) > 1:
-        if sys.argv[1] == "-c" and len(sys.argv) > 2:
-            # Execute command with -c flag
-            command = sys.argv[2]
-            exit_code = shell.run_command(command, add_to_history=False)
-            sys.exit(exit_code)
-        else:
-            # Execute command from arguments
-            command = ' '.join(sys.argv[1:])
-            exit_code = shell.run_command(command)
-            sys.exit(exit_code)
-    else:
-        # Interactive mode
-        shell.interactive_loop()

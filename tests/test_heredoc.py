@@ -1,8 +1,8 @@
 import pytest
 import os
-from simple_shell import Shell
-from tokenizer import tokenize, TokenType
-from parser import parse
+from psh.shell import Shell
+from psh.tokenizer import tokenize, TokenType
+from psh.parser import parse
 
 
 class TestHereDoc:

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
-from tokenizer import tokenize
-from parser import parse
-from ast_nodes import Command, Pipeline, CommandList, AndOrList, Redirect
+from psh.tokenizer import tokenize
+from psh.parser import parse
+from psh.ast_nodes import Command, Pipeline, CommandList, AndOrList, Redirect
 
 
 def print_tokens(tokens):

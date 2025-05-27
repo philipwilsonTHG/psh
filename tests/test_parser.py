@@ -1,7 +1,7 @@
 import pytest
-from tokenizer import tokenize
-from parser import Parser, parse, ParseError
-from ast_nodes import Command, Pipeline, CommandList, Redirect
+from psh.tokenizer import tokenize
+from psh.parser import Parser, parse, ParseError
+from psh.ast_nodes import Command, Pipeline, CommandList, Redirect
 
 
 class TestParser:

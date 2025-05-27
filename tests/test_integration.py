@@ -4,9 +4,9 @@ import tempfile
 import subprocess
 from io import StringIO
 from unittest.mock import patch
-from simple_shell import Shell
-from tokenizer import tokenize
-from parser import parse
+from psh.shell import Shell
+from psh.tokenizer import tokenize
+from psh.parser import parse
 
 
 class TestIntegration:

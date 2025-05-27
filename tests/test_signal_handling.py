@@ -4,7 +4,7 @@ import signal
 import time
 import tempfile
 import subprocess
-from simple_shell import Shell
+from psh.shell import Shell
 
 
 class TestSignalHandling:

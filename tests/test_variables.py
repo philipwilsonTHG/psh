@@ -1,6 +1,6 @@
 import pytest
 import os
-from simple_shell import Shell
+from psh.shell import Shell
 
 
 class TestVariables:

@@ -1,5 +1,5 @@
 import pytest
-from tokenizer import Tokenizer, Token, TokenType, tokenize
+from psh.tokenizer import Tokenizer, Token, TokenType, tokenize
 
 
 class TestTokenizer:

@@ -1,6 +1,6 @@
 from typing import List, Optional
-from tokenizer import Token, TokenType
-from ast_nodes import Command, Pipeline, CommandList, AndOrList, Redirect
+from .tokenizer import Token, TokenType
+from .ast_nodes import Command, Pipeline, CommandList, AndOrList, Redirect
 
 
 class ParseError(Exception):
