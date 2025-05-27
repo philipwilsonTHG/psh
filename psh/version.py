@@ -2,10 +2,18 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 # Version history
 VERSION_HISTORY = """
+0.4.0 (2025-05-27) - Here strings and bug fixes
+  - Added here string support (<<<) for passing strings as stdin
+  - Fixed command substitution to properly capture external command output
+  - Fixed history builtin to show last 10 commands by default (bash behavior)
+  - Fixed set builtin to support positional parameters ($1, $2, etc.)
+  - Fixed multiple test suite issues for better reliability
+  - Improved error handling for empty heredocs
+
 0.3.0 (2025-01-27) - Conditional execution
   - Added && and || operators for conditional command execution
   - Implemented short-circuit evaluation
