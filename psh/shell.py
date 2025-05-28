@@ -963,8 +963,8 @@ class Shell:
             tokens = self.alias_manager.expand_aliases(tokens)
             ast = parse(tokens)
             
-            # Add to history if interactive
-            if add_to_history and input_source.is_interactive() and command_string.strip():
+            # Add to history if requested (for interactive or testing)
+            if add_to_history and command_string.strip():
                 self._add_to_history(command_string.strip())
             
             # Handle TopLevel AST node (functions + commands)
