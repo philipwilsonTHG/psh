@@ -2,10 +2,22 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.13.0"
+__version__ = "0.13.1"
 
 # Version history
 VERSION_HISTORY = """
+0.13.1 (2025-05-28) - Complete file test operators
+  - Implemented all missing POSIX and bash file test operators
+  - Added file size and type operators: -s, -L/-h, -b, -c, -p, -S
+  - Added file permission operators: -k, -u, -g, -O, -G
+  - Added file comparison operators: -nt, -ot, -ef
+  - Added special operators: -t (terminal), -N (modified since read)
+  - Enhanced test command with comprehensive file condition testing
+  - Added stat module integration for detailed file information
+  - Created extensive test suite covering all new operators
+  - Proper error handling for non-existent files and invalid arguments
+  - Full compatibility with bash file test semantics
+
 0.13.0 (2025-05-28) - Control structures (if/then/else/fi)
   - Implemented full if/then/else/fi conditional statements
   - Added IfStatement AST node for control structure representation

@@ -50,6 +50,41 @@ Features ordered by implementation status and complexity.
 
 ### High Priority Features
 
+#### Enhanced Test Command and File Operators  
+- [x] **Complete File Test Operators** - ✅ Comprehensive POSIX and bash file test operators implemented (v0.13.1)
+  - [x] `-f` (regular file), `-d` (directory), `-e` (exists) - ✅ Implemented  
+  - [x] `-r` (readable), `-w` (writable), `-x` (executable) - ✅ Implemented
+  - [x] `-s` (non-empty file) - ✅ Check if file exists and has size > 0
+  - [x] `-L` or `-h` (symbolic link) - ✅ Check if file is a symbolic link
+  - [x] `-b` (block device) - ✅ Check if file is a block special device
+  - [x] `-c` (character device) - ✅ Check if file is a character special device  
+  - [x] `-p` (named pipe/FIFO) - ✅ Check if file is a named pipe
+  - [x] `-S` (socket) - ✅ Check if file is a socket
+  - [x] `-k` (sticky bit) - ✅ Check if file has sticky bit set
+  - [x] `-u` (setuid) - ✅ Check if file has setuid bit set
+  - [x] `-g` (setgid) - ✅ Check if file has setgid bit set
+  - [x] `-O` (owned by effective UID) - ✅ Check if file is owned by effective user ID
+  - [x] `-G` (owned by effective GID) - ✅ Check if file is owned by effective group ID
+  - [x] `-N` (modified since last read) - ✅ Check if file was modified since last read
+  - [x] `-t FD` (terminal) - ✅ Check if file descriptor FD is open and refers to terminal
+  - [x] `FILE1 -nt FILE2` (newer than) - ✅ Check if FILE1 is newer than FILE2
+  - [x] `FILE1 -ot FILE2` (older than) - ✅ Check if FILE1 is older than FILE2  
+  - [x] `FILE1 -ef FILE2` (same file) - ✅ Check if FILE1 and FILE2 refer to same file
+- [ ] **Enhanced String Test Operators**
+  - [x] `-z` (zero length), `-n` (non-zero length) - ✅ Implemented
+  - [ ] `STRING1 < STRING2` - Lexicographic string comparison (in [[ ]])
+  - [ ] `STRING1 > STRING2` - Lexicographic string comparison (in [[ ]])
+  - [ ] `STRING =~ REGEX` - Pattern matching with regular expressions (in [[ ]])
+- [ ] **Compound Test Expressions**
+  - [ ] `! EXPR` - Logical negation
+  - [ ] `EXPR1 -a EXPR2` - Logical AND (deprecated, use && in [[ ]])
+  - [ ] `EXPR1 -o EXPR2` - Logical OR (deprecated, use || in [[ ]])
+  - [ ] `[[ ]]` command - Enhanced test with pattern matching and logical operators
+- [ ] **Test Command Error Handling**
+  - [x] Proper error codes (0=true, 1=false, 2=syntax error) - ✅ Implemented
+  - [ ] Detailed error messages for invalid operators/syntax
+  - [ ] File permission error handling (vs file not found)
+
 #### Remaining Control Structures
 - [x] `if`/`then`/`else`/`fi` - Conditional execution blocks (✅ v0.13.0)
 - [x] `test` or `[` command for conditionals - Boolean testing (✅ v0.13.0)

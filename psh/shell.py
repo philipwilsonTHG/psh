@@ -5,6 +5,7 @@ import readline
 import signal
 import glob
 import pwd
+import stat
 from .tokenizer import tokenize
 from .parser import parse, ParseError
 from .ast_nodes import Command, Pipeline, CommandList, AndOrList, Redirect, TopLevel, FunctionDef, IfStatement
@@ -1653,6 +1654,92 @@ class Shell:
             elif op == '-x':
                 # True if file is executable
                 return 0 if os.path.isfile(arg) and os.access(arg, os.X_OK) else 1
+            elif op == '-s':
+                # True if file exists and has size > 0
+                try:
+                    return 0 if os.path.isfile(arg) and os.path.getsize(arg) > 0 else 1
+                except (OSError, IOError):
+                    return 1
+            elif op == '-L' or op == '-h':
+                # True if file exists and is a symbolic link
+                return 0 if os.path.islink(arg) else 1
+            elif op == '-b':
+                # True if file exists and is a block device
+                try:
+                    st = os.stat(arg)
+                    return 0 if stat.S_ISBLK(st.st_mode) else 1
+                except (OSError, IOError):
+                    return 1
+            elif op == '-c':
+                # True if file exists and is a character device
+                try:
+                    st = os.stat(arg)
+                    return 0 if stat.S_ISCHR(st.st_mode) else 1
+                except (OSError, IOError):
+                    return 1
+            elif op == '-p':
+                # True if file exists and is a named pipe (FIFO)
+                try:
+                    st = os.stat(arg)
+                    return 0 if stat.S_ISFIFO(st.st_mode) else 1
+                except (OSError, IOError):
+                    return 1
+            elif op == '-S':
+                # True if file exists and is a socket
+                try:
+                    st = os.stat(arg)
+                    return 0 if stat.S_ISSOCK(st.st_mode) else 1
+                except (OSError, IOError):
+                    return 1
+            elif op == '-k':
+                # True if file has sticky bit set
+                try:
+                    st = os.stat(arg)
+                    return 0 if st.st_mode & stat.S_ISVTX else 1
+                except (OSError, IOError):
+                    return 1
+            elif op == '-u':
+                # True if file has setuid bit set
+                try:
+                    st = os.stat(arg)
+                    return 0 if st.st_mode & stat.S_ISUID else 1
+                except (OSError, IOError):
+                    return 1
+            elif op == '-g':
+                # True if file has setgid bit set
+                try:
+                    st = os.stat(arg)
+                    return 0 if st.st_mode & stat.S_ISGID else 1
+                except (OSError, IOError):
+                    return 1
+            elif op == '-O':
+                # True if file is owned by effective user ID
+                try:
+                    st = os.stat(arg)
+                    return 0 if st.st_uid == os.geteuid() else 1
+                except (OSError, IOError):
+                    return 1
+            elif op == '-G':
+                # True if file is owned by effective group ID
+                try:
+                    st = os.stat(arg)
+                    return 0 if st.st_gid == os.getegid() else 1
+                except (OSError, IOError):
+                    return 1
+            elif op == '-N':
+                # True if file was modified since it was last read
+                try:
+                    st = os.stat(arg)
+                    return 0 if st.st_mtime > st.st_atime else 1
+                except (OSError, IOError):
+                    return 1
+            elif op == '-t':
+                # True if file descriptor is open and refers to a terminal
+                try:
+                    fd = int(arg)
+                    return 0 if os.isatty(fd) else 1
+                except (ValueError, OSError):
+                    return 1
             else:
                 return 2  # Unknown operator
         
@@ -1693,6 +1780,30 @@ class Shell:
                     return 0 if int(arg1) >= int(arg2) else 1
                 except ValueError:
                     return 2
+            elif op == '-nt':
+                # True if file1 is newer than file2 (modification time)
+                try:
+                    stat1 = os.stat(arg1)
+                    stat2 = os.stat(arg2)
+                    return 0 if stat1.st_mtime > stat2.st_mtime else 1
+                except (OSError, IOError):
+                    return 1
+            elif op == '-ot':
+                # True if file1 is older than file2 (modification time)
+                try:
+                    stat1 = os.stat(arg1)
+                    stat2 = os.stat(arg2)
+                    return 0 if stat1.st_mtime < stat2.st_mtime else 1
+                except (OSError, IOError):
+                    return 1
+            elif op == '-ef':
+                # True if file1 and file2 refer to the same file (same device and inode)
+                try:
+                    stat1 = os.stat(arg1)
+                    stat2 = os.stat(arg2)
+                    return 0 if (stat1.st_dev == stat2.st_dev and stat1.st_ino == stat2.st_ino) else 1
+                except (OSError, IOError):
+                    return 1
             else:
                 return 2  # Unknown operator
         
