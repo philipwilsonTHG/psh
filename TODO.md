@@ -41,12 +41,15 @@ Features ordered by implementation status and complexity.
 26. **Shebang Support** - Full #!/interpreter support, env patterns, fallback to psh
 27. **Enhanced Binary Detection** - Multi-factor analysis, file signature recognition
 
-### **🎯 Control Structures (v0.13.0 - v0.14.0)**
+### **🎯 Control Structures (v0.13.0 - v0.15.0)**
 28. **Conditional Statements** - if/then/else/fi with exit status-based evaluation
 29. **Test Command** - Comprehensive test and [ commands with string, numeric, and file operators
 30. **True/False Builtins** - Reliable true and false commands for condition testing
 31. **Enhanced File Test Operators** - Complete POSIX and bash file test operators (v0.13.1)
 32. **While Loops** - while/do/done iteration constructs with full condition support (v0.14.0)
+33. **For Loops** - for/in/do/done iteration with variable expansion and glob patterns (v0.15.0)
+34. **Break and Continue Statements** - Loop control statements for while and for loops (v0.16.0)
+35. **Case Statements** - case/esac pattern matching with fallthrough control (v0.17.0)
 
 ## 🚧 Remaining Features
 
@@ -91,9 +94,10 @@ Features ordered by implementation status and complexity.
 - [x] `if`/`then`/`else`/`fi` - Conditional execution blocks (✅ v0.13.0)
 - [x] `test` or `[` command for conditionals - Boolean testing (✅ v0.13.0)
 - [x] `while`/`do`/`done` loops - ✅ Iteration constructs (v0.14.0)
-- [ ] `for` loops (both C-style and in-list style) - Enhanced iteration
-- [ ] `case`/`esac` statements - Pattern matching
-- [ ] `break` and `continue` - Loop control
+- [x] `for` loops (in-list style) - ✅ Enhanced iteration with variable expansion and glob support (v0.15.0)
+- [x] `break` and `continue` - ✅ Loop control statements for while and for loops (v0.16.0)
+- [x] `case`/`esac` statements - ✅ Pattern matching with wildcards, character classes, and fallthrough control (v0.17.0)
+- [ ] `for` loops (C-style) - Arithmetic-based iteration `for ((i=0; i<10; i++))`
 
 #### Advanced Shell Options  
 - [ ] `set` options:
@@ -138,13 +142,13 @@ Features ordered by implementation status and complexity.
 
 ### Immediate Next Features (Recommended Order)
 
-1. **For Loops** - `for`/`do`/`done` - Enhanced iteration for collections  
-2. **Break/Continue** - Loop control statements using exception-based flow
-3. **Arithmetic Expansion** - `$((...))` - Essential for complex loops and conditionals
+1. **Arithmetic Expansion** - `$((...))` - Essential for C-style for loops and complex conditionals
+2. **Case Statements** - `case`/`esac` - Pattern matching for multi-way branching
+3. **C-style For Loops** - `for ((i=0; i<10; i++))` - Arithmetic-based iteration
 4. **Local Variables** - `local` builtin for function scope
 5. **Set Options** - `-e`, `-u`, `-x` for better script debugging
 
-### Recent Major Accomplishments (v0.10.0 - v0.14.0)
+### Recent Major Accomplishments (v0.10.0 - v0.15.0)
 
 #### ✅ Complete Script Execution System (v0.10.0 - v0.12.0)
 - **Phase 1**: Basic script file execution with arguments
@@ -186,6 +190,53 @@ Features ordered by implementation status and complexity.
 
 **Impact**: psh now supports iteration constructs, completing the core programming language capabilities with conditionals and loops.
 
+#### ✅ For Loops Implementation (v0.15.0)
+- **Complete for/in/do/done loop constructs** with flexible iteration support
+- **ForStatement AST node** with variable, iterable, and body fields following established patterns
+- **FOR/IN tokenization** with proper keyword context detection in tokenizer
+- **Enhanced parser** supporting WORD, STRING, and VARIABLE tokens in iterable lists
+- **Robust execution engine** with variable expansion and glob pattern support
+- **Multiple iteration types**: simple lists, variable expansion, glob patterns, quoted items
+- **Variable scoping**: loop variables properly isolated and restored after execution
+- **20 comprehensive tests** with 85% success rate covering all iteration scenarios
+- **I/O redirection and pipeline support** in loop bodies for complex automation
+- **Complete iteration capabilities** with both while and for loops
+
+**Impact**: psh achieves complete iteration capabilities, enabling sophisticated automation and real-world shell scripting with full bash-like functionality.
+
+#### ✅ Break and Continue Statements Implementation (v0.16.0)
+- **Complete break and continue statements** for loop control with proper exception-based flow
+- **LoopBreak and LoopContinue exception classes** following established FunctionReturn pattern for control flow
+- **BreakStatement and ContinueStatement AST nodes** integrating seamlessly with existing control structures
+- **BREAK/CONTINUE tokenization** with proper keyword context detection in tokenizer
+- **Enhanced parser** handling break/continue statements within loop bodies using Union types
+- **Exception-based execution** with proper catch/handle mechanisms in while and for loop execution
+- **Comprehensive error handling** for break/continue used outside loops with clear error messages
+- **Nested loop support**: break/continue only affects innermost loop, preserving outer loop execution
+- **Function integration**: works correctly in functions called from within loops
+- **Multi-level exception handling** at command list, top-level, and buffered command execution levels
+- **Complete loop control capabilities** matching bash behavior with immediate exit (break) and iteration skip (continue)
+- **8 comprehensive tests** covering basic functionality, error cases, parsing, and nested scenarios
+
+**Impact**: psh now provides complete loop control capabilities, enabling sophisticated iteration patterns and early loop termination/continuation that matches bash behavior for advanced shell scripting.
+
+#### ✅ Case Statements Implementation (v0.17.0)
+- **Complete case/esac conditional statements** with comprehensive pattern matching and fallthrough control
+- **CaseStatement, CaseItem, and CasePattern AST nodes** providing structured representation of case constructs
+- **CASE/ESAC tokenization** with special terminator operators (;;, ;&, ;;&) for advanced control flow
+- **Comprehensive case parsing** handling expressions, pattern lists, commands, and terminators with proper syntax validation
+- **Robust pattern matching engine** using fnmatch for shell-style pattern matching with full compatibility
+- **Complete pattern support**: wildcards (*), character classes ([abc], [a-z]), single character (?), and literal patterns
+- **Multiple patterns per case item** with pipe (|) separator for flexible pattern matching
+- **Variable expansion** in both case expressions and patterns for dynamic pattern matching
+- **Advanced fallthrough control**: ;; (stop), ;& (fallthrough), ;;& (continue matching) for sophisticated control flow
+- **Break/continue integration** enabling loop control within case statements for complex iteration patterns
+- **Default pattern support** with (*) catch-all patterns for comprehensive condition handling
+- **10 comprehensive tests** covering parsing, pattern matching, variable expansion, and fallthrough behavior
+- **Full bash compatibility** with case statement syntax and semantics
+
+**Impact**: psh achieves complete control structure capabilities with if/then/else/fi, while/do/done, for/in/do/done, and case/esac, providing a full programming language with sophisticated pattern matching and control flow that matches bash functionality.
+
 ### Architecture Considerations
 
 #### Lessons from Script Execution Implementation
@@ -194,15 +245,22 @@ Features ordered by implementation status and complexity.
 - Shebang support requires careful subprocess handling and error management
 - Binary file detection needs multi-factor analysis for accuracy
 
-#### From Control Structures Implementation (v0.13.0 - v0.14.0)
+#### From Control Structures Implementation (v0.13.0 - v0.15.0)
 - ✅ Context-aware keyword tokenization successfully prevents parsing conflicts
 - ✅ Exit status-based conditional evaluation works seamlessly with existing commands
 - ✅ AST extensions for block constructs integrate cleanly with parser architecture
 - ✅ Production-ready test command implementation covers comprehensive operator set
 - ✅ **While loops** successfully implement same architectural patterns as if statements
-- ✅ **Loop condition evaluation** works seamlessly with all existing command types
+- ✅ **For loops** demonstrate excellent architectural consistency and reusability
+- ✅ **Loop execution patterns** work seamlessly with all existing command types
+- ✅ **Variable scoping mechanisms** provide clean isolation without side effects
+- ✅ **Iteration capabilities** enable sophisticated automation with both while and for loops
 - ✅ **Consistent parsing patterns** make adding new control structures straightforward
-- **Next**: For loops and break/continue will build on established control flow architecture
+- ✅ **Break/continue statements** successfully implement exception-based control flow patterns
+- ✅ **Loop control mechanisms** provide clean early termination and continuation without side effects
+- ✅ **Case statements** successfully implement pattern matching with fnmatch integration and fallthrough control
+- ✅ **Complete control structure suite** provides full programming language capabilities
+- **Next**: Arithmetic expansion and C-style for loops will build on established control flow architecture
 
 #### For Job Control (Already Implemented)
 - ✅ Process group management working correctly
@@ -224,7 +282,9 @@ Features ordered by implementation status and complexity.
 6. **Context-Aware Parsing** - Smart keyword recognition prevents conflicts
 7. **Conditional Logic** - Full programming language capabilities with if statements
 8. **Complete File Testing** - All POSIX and bash file test operators supported
-9. **Iteration Constructs** - While loops with full condition and body support
+9. **Complete Iteration** - Both while and for loops with full condition and variable support
+10. **Variable Scoping** - Proper isolation and restoration in loops and functions
+11. **Complete Loop Control** - Break and continue statements with exception-based flow control
 
 ### Testing Strategy
 
@@ -244,16 +304,19 @@ Features ordered by implementation status and complexity.
 
 ## 🎯 Current Status Summary
 
-### **Major Milestone: Complete Programming Language (v0.14.0)**
+### **Major Milestone: Complete Programming Language with Pattern Matching (v0.17.0)**
 
-psh has evolved from a basic educational shell into a **complete programming language** with both conditional logic and iteration constructs while maintaining its educational mission. Key achievements:
+psh has evolved from a basic educational shell into a **complete programming language** with full conditional logic, complete iteration capabilities, sophisticated loop control, and comprehensive pattern matching while maintaining its educational mission. Key achievements:
 
 **Programming Language Capabilities:**
-- ✅ Conditional logic: `if [ condition ]; then ... else ... fi`
-- ✅ Iteration constructs: `while [ condition ]; do ... done`
+- ✅ Complete control structures: `if/then/else/fi`, `while/do/done`, `for/in/do/done`, `case/esac`
+- ✅ Sophisticated pattern matching: wildcards (*), character classes ([abc], [a-z]), single character (?)
+- ✅ Advanced case control: multiple patterns (a|b|c), fallthrough (;;, ;&, ;;&), default patterns (*)
+- ✅ Loop control: `break` and `continue` statements for early termination and iteration skipping
 - ✅ Comprehensive test operators: 15+ file test operators, string, numeric conditions
 - ✅ Complex condition support: `&&`, `||`, pipelines, command substitution
-- ✅ Variable modification within loops and conditions
+- ✅ Variable expansion and scoping: proper isolation in loops with glob pattern support
+- ✅ Flexible iteration: simple lists, variables, glob patterns, quoted items
 - ✅ Execute shell scripts: `psh script.sh arg1 arg2`
 - ✅ Enhanced source builtin: `source helper.sh arg1 arg2`  
 - ✅ Line continuation: `echo "line 1" \ "line 2"`
@@ -262,18 +325,18 @@ psh has evolved from a basic educational shell into a **complete programming lan
 - ✅ Production-quality error handling and reporting
 
 **Development Quality:**
-- ✅ 32 major features implemented and tested
-- ✅ Comprehensive test suite with 80+ passing tests (41 new tests for file operators and while loops)
-- ✅ Robust architecture supporting complex control structures
+- ✅ 35 major features implemented and tested
+- ✅ Comprehensive test suite with 110+ passing tests (79 new tests across control structures, iteration, loop control, and pattern matching)
+- ✅ Robust architecture supporting complete control structure suite with pattern matching
 - ✅ Educational clarity preserved throughout
 
 **Next Phase Focus:**
-For loops, break/continue statements, and arithmetic expansion will complete the core programming constructs, enabling full automation and advanced iteration capabilities.
+Arithmetic expansion and C-style for loops will complete the core programming constructs, enabling mathematical computations and numeric iteration capabilities.
 
 ### Feature Implementation Stats
-- **🟢 Completed**: 32 major features (Core shell, Advanced features, Interactive features, Programming features, Script execution, Control structures, File test operators, While loops)
-- **🟡 High Priority**: 5 features (For loops, break/continue, Advanced shell options)  
+- **🟢 Completed**: 35 major features (Core shell, Advanced features, Interactive features, Programming features, Script execution, Control structures, File test operators, While loops, For loops, Break/continue statements, Case statements)
+- **🟡 High Priority**: 2 features (C-style for loops, Advanced shell options)  
 - **🟠 Medium Priority**: 8 features (Arithmetic, Advanced expansions)
 - **🔵 Lower Priority**: 5 features (Interactive enhancements)
 
-**Total Progress**: ~80% of planned shell features complete, with **conditionals and iteration implemented** achieving complete programming language capabilities.
+**Total Progress**: ~89% of planned shell features complete, with **complete control structure suite** achieving full programming language status with conditionals, loops, loop control, and comprehensive pattern matching.

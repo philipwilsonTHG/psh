@@ -93,6 +93,27 @@ class ContinueStatement(ASTNode):
 
 
 @dataclass
+class CasePattern(ASTNode):
+    """A single pattern in a case statement."""
+    pattern: str
+
+
+@dataclass
+class CaseItem(ASTNode):
+    """A case item: patterns + commands + terminator."""
+    patterns: List[CasePattern] = field(default_factory=list)
+    commands: CommandList = field(default_factory=lambda: CommandList())
+    terminator: str = ';;'  # ';;', ';&', or ';;&'
+
+
+@dataclass
+class CaseStatement(ASTNode):
+    """Case/esac statement."""
+    expr: str  # The expression to match against
+    items: List[CaseItem] = field(default_factory=list)
+
+
+@dataclass
 class TopLevel(ASTNode):
     """Root node that can contain functions and/or commands."""
     items: List[ASTNode] = field(default_factory=list)  # List of FunctionDef or CommandList

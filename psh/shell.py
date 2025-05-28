@@ -6,9 +6,10 @@ import signal
 import glob
 import pwd
 import stat
+import fnmatch
 from .tokenizer import tokenize
 from .parser import parse, ParseError
-from .ast_nodes import Command, Pipeline, CommandList, AndOrList, Redirect, TopLevel, FunctionDef, IfStatement, WhileStatement, ForStatement, BreakStatement, ContinueStatement
+from .ast_nodes import Command, Pipeline, CommandList, AndOrList, Redirect, TopLevel, FunctionDef, IfStatement, WhileStatement, ForStatement, BreakStatement, ContinueStatement, CaseStatement, CaseItem, CasePattern
 from .line_editor import LineEditor
 from .version import get_version_info
 from .aliases import AliasManager
@@ -765,6 +766,9 @@ class Shell:
                 elif isinstance(item, ForStatement):
                     # Execute for statement
                     last_exit = self.execute_for_statement(item)
+                elif isinstance(item, CaseStatement):
+                    # Execute case statement
+                    last_exit = self.execute_case_statement(item)
                 elif isinstance(item, BreakStatement):
                     # Execute break statement (this will raise LoopBreak)
                     last_exit = self.execute_break_statement(item)
@@ -907,6 +911,61 @@ class Shell:
     def execute_continue_statement(self, continue_stmt: ContinueStatement) -> int:
         """Execute a continue statement."""
         raise LoopContinue()
+    
+    def execute_case_statement(self, case_stmt: CaseStatement) -> int:
+        """Execute a case/esac statement."""
+        # Expand the case expression
+        expr = self._expand_string_variables(case_stmt.expr)
+        
+        last_exit = 0
+        fallthrough = False
+        
+        # Iterate through case items
+        for i, item in enumerate(case_stmt.items):
+            # Check if expression matches any pattern in this item
+            matched = fallthrough  # Start with fallthrough state
+            
+            if not fallthrough:
+                # Only check patterns if not falling through
+                for pattern in item.patterns:
+                    pattern_str = self._expand_string_variables(pattern.pattern)
+                    if fnmatch.fnmatch(expr, pattern_str):
+                        matched = True
+                        break
+            
+            if matched:
+                # Execute commands for this case item
+                if item.commands.and_or_lists:
+                    try:
+                        # Collect here documents for commands
+                        self._collect_heredocs(item.commands)
+                        # Execute commands
+                        last_exit = self.execute_command_list(item.commands)
+                    except LoopBreak:
+                        # Break can be used in case statements to exit loops
+                        raise
+                    except LoopContinue:
+                        # Continue can be used in case statements to continue loops
+                        raise
+                
+                # Handle fallthrough based on terminator
+                if item.terminator == ';;':
+                    # Standard terminator - stop after this case
+                    break
+                elif item.terminator == ';&':
+                    # Fallthrough to next case unconditionally
+                    fallthrough = True
+                elif item.terminator == ';;&':
+                    # Continue pattern matching (reset fallthrough)
+                    fallthrough = False
+                else:
+                    # Default to standard behavior
+                    break
+            else:
+                # Reset fallthrough if no match
+                fallthrough = False
+        
+        return last_exit
     
     def _execute_function(self, func, args: list, command: Command) -> int:
         """Execute a function with given arguments."""

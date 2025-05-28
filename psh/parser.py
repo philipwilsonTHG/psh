@@ -1,6 +1,6 @@
 from typing import List, Optional, Union
 from .tokenizer import Token, TokenType
-from .ast_nodes import Command, Pipeline, CommandList, AndOrList, Redirect, FunctionDef, TopLevel, IfStatement, WhileStatement, ForStatement, BreakStatement, ContinueStatement
+from .ast_nodes import Command, Pipeline, CommandList, AndOrList, Redirect, FunctionDef, TopLevel, IfStatement, WhileStatement, ForStatement, BreakStatement, ContinueStatement, CaseStatement, CaseItem, CasePattern
 
 
 class ParseError(Exception):
@@ -61,6 +61,9 @@ class Parser:
             elif self.match(TokenType.FOR):
                 for_stmt = self.parse_for_statement()
                 top_level.items.append(for_stmt)
+            elif self.match(TokenType.CASE):
+                case_stmt = self.parse_case_statement()
+                top_level.items.append(case_stmt)
             elif self.match(TokenType.BREAK):
                 break_stmt = self.parse_break_statement()
                 top_level.items.append(break_stmt)
@@ -595,6 +598,100 @@ class Parser:
         """Parse continue statement."""
         self.expect(TokenType.CONTINUE)
         return ContinueStatement()
+    
+    def parse_case_statement(self) -> CaseStatement:
+        """Parse case/esac statement."""
+        # Consume 'case'
+        self.expect(TokenType.CASE)
+        
+        # Parse expression (word to match against)
+        if not self.match(TokenType.WORD, TokenType.STRING, TokenType.VARIABLE):
+            raise ParseError("Expected expression after 'case'", self.peek())
+        token = self.advance()
+        if token.type == TokenType.VARIABLE:
+            expr = f"${token.value}"
+        else:
+            expr = token.value
+        
+        # Skip newlines
+        while self.match(TokenType.NEWLINE):
+            self.advance()
+        
+        # Consume 'in'
+        self.expect(TokenType.IN)
+        
+        # Skip newlines after 'in'
+        while self.match(TokenType.NEWLINE):
+            self.advance()
+        
+        # Parse case items
+        items = []
+        while not self.match(TokenType.ESAC) and not self.match(TokenType.EOF):
+            item = self.parse_case_item()
+            items.append(item)
+            
+            # Skip newlines between items
+            while self.match(TokenType.NEWLINE):
+                self.advance()
+        
+        # Consume 'esac'
+        self.expect(TokenType.ESAC)
+        
+        return CaseStatement(expr, items)
+    
+    def parse_case_item(self) -> CaseItem:
+        """Parse a single case item: patterns) commands terminator"""
+        # Parse patterns separated by |
+        patterns = []
+        patterns.append(CasePattern(self.parse_case_pattern()))
+        
+        # Parse additional patterns separated by |
+        while self.match(TokenType.PIPE):
+            self.advance()  # Consume |
+            patterns.append(CasePattern(self.parse_case_pattern()))
+        
+        # Consume )
+        self.expect(TokenType.RPAREN)
+        
+        # Skip newlines after )
+        while self.match(TokenType.NEWLINE):
+            self.advance()
+        
+        # Parse commands until terminator
+        commands = CommandList()
+        while not self.match(TokenType.DOUBLE_SEMICOLON, TokenType.SEMICOLON_AMP, 
+                           TokenType.AMP_SEMICOLON, TokenType.ESAC) and not self.match(TokenType.EOF):
+            and_or_list = self.parse_and_or_list()
+            commands.and_or_lists.append(and_or_list)
+            
+            # Handle separators but stop at terminators
+            while self.match(TokenType.SEMICOLON, TokenType.NEWLINE):
+                self.advance()
+                if self.match(TokenType.DOUBLE_SEMICOLON, TokenType.SEMICOLON_AMP, 
+                            TokenType.AMP_SEMICOLON, TokenType.ESAC):
+                    break
+        
+        # Parse terminator (default to ;; if at esac or EOF)
+        terminator = ';;'
+        if self.match(TokenType.DOUBLE_SEMICOLON):
+            terminator = self.advance().value
+        elif self.match(TokenType.SEMICOLON_AMP):
+            terminator = self.advance().value
+        elif self.match(TokenType.AMP_SEMICOLON):
+            terminator = self.advance().value
+        # If we hit esac or EOF, leave default terminator
+        
+        return CaseItem(patterns, commands, terminator)
+    
+    def parse_case_pattern(self) -> str:
+        """Parse a case pattern (word, string, or variable)."""
+        if not self.match(TokenType.WORD, TokenType.STRING, TokenType.VARIABLE):
+            raise ParseError("Expected pattern in case statement", self.peek())
+        token = self.advance()
+        if token.type == TokenType.VARIABLE:
+            return f"${token.value}"
+        else:
+            return token.value
 
 
 def parse(tokens: List[Token]) -> Union[CommandList, TopLevel]:

@@ -2,10 +2,26 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.16.0"
+__version__ = "0.17.0"
 
 # Version history
 VERSION_HISTORY = """
+0.17.0 (2025-05-28) - Case statements (case/esac)
+  - Implemented complete case/esac conditional statements with pattern matching
+  - Added CaseStatement, CaseItem, and CasePattern AST nodes for structured representation
+  - Extended tokenizer with CASE/ESAC tokens and case terminator operators (;;, ;&, ;;&)
+  - Enhanced parser with comprehensive case parsing: expressions, patterns, commands, terminators
+  - Added robust execution engine with fnmatch-based shell pattern matching
+  - Support for all shell patterns: wildcards (*), character classes ([abc], [a-z]), single char (?)
+  - Multiple patterns per case item with pipe (|) separator
+  - Variable expansion in both case expressions and patterns
+  - Advanced fallthrough control: ;; (stop), ;& (fallthrough), ;;& (continue matching)
+  - Proper integration with break/continue statements for use within loops
+  - Default pattern support (*) for catch-all cases
+  - Created comprehensive test suite with 10 test methods covering all functionality
+  - Full compatibility with bash-style case statement syntax and semantics
+  - Complete control structure suite: if/then/else/fi, while/do/done, for/in/do/done, case/esac
+
 0.16.0 (2025-05-28) - Break and continue statements
   - Implemented break and continue statements for loop control
   - Added LoopBreak and LoopContinue exception classes for control flow

@@ -41,6 +41,11 @@ class TokenType(Enum):
     IN = auto()
     BREAK = auto()
     CONTINUE = auto()
+    CASE = auto()
+    ESAC = auto()
+    DOUBLE_SEMICOLON = auto()  # ;;
+    SEMICOLON_AMP = auto()     # ;&
+    AMP_SEMICOLON = auto()     # ;;&
 
 
 @dataclass
@@ -105,14 +110,14 @@ class Tokenizer:
                 return False  # Don't treat as keyword when it's an echo argument
         
         # Handle specific keyword contexts
-        if word in ['if', 'function']:
-            # 'if' and 'function' are keywords at command start positions
+        if word in ['if', 'function', 'case']:
+            # 'if', 'function', and 'case' are keywords at command start positions
             return last_token.type in [
                 TokenType.SEMICOLON, TokenType.NEWLINE, 
                 TokenType.AND_AND, TokenType.OR_OR,
                 TokenType.PIPE, TokenType.LBRACE
             ]
-        elif word in ['then', 'else', 'fi', 'do', 'done', 'in', 'break', 'continue']:
+        elif word in ['then', 'else', 'fi', 'do', 'done', 'in', 'break', 'continue', 'esac']:
             # Control structure keywords - generally always keywords unless they're echo args
             return True
         elif word in ['while', 'for']:
@@ -278,8 +283,24 @@ class Tokenizer:
                     self.tokens.append(Token(TokenType.PIPE, '|', start_pos))
                     self.advance()
             elif char == ';':
-                self.tokens.append(Token(TokenType.SEMICOLON, ';', start_pos))
-                self.advance()
+                if self.peek_char() == ';':
+                    # Check for ;;& pattern
+                    if self.peek_char(2) == '&':
+                        self.tokens.append(Token(TokenType.AMP_SEMICOLON, ';;&', start_pos))
+                        self.advance()
+                        self.advance()
+                        self.advance()
+                    else:
+                        self.tokens.append(Token(TokenType.DOUBLE_SEMICOLON, ';;', start_pos))
+                        self.advance()
+                        self.advance()
+                elif self.peek_char() == '&':
+                    self.tokens.append(Token(TokenType.SEMICOLON_AMP, ';&', start_pos))
+                    self.advance()
+                    self.advance()
+                else:
+                    self.tokens.append(Token(TokenType.SEMICOLON, ';', start_pos))
+                    self.advance()
             elif char == '&':
                 if self.peek_char() == '&':
                     self.tokens.append(Token(TokenType.AND_AND, '&&', start_pos))
@@ -381,6 +402,10 @@ class Tokenizer:
                     self.tokens.append(Token(TokenType.BREAK, word, start_pos))
                 elif word == 'continue' and self.is_keyword_context(word):
                     self.tokens.append(Token(TokenType.CONTINUE, word, start_pos))
+                elif word == 'case' and self.is_keyword_context(word):
+                    self.tokens.append(Token(TokenType.CASE, word, start_pos))
+                elif word == 'esac' and self.is_keyword_context(word):
+                    self.tokens.append(Token(TokenType.ESAC, word, start_pos))
                 else:
                     # Not a keyword or not in keyword context, treat as regular word
                     self.tokens.append(Token(TokenType.WORD, word, start_pos))
