@@ -69,7 +69,7 @@ Implemented:
 - Multiple commands (;)
 - Background execution (&)
 - Quoted strings and variable expansion
-- Built-ins: exit, cd, export, pwd, echo, unset, env, source, history, set, declare, return
+- Built-ins: exit, cd, export, pwd, echo, unset, env, source, history, set, declare, return, jobs, fg, bg
 - Wildcards/globbing (*, ?, [...])
 - Exit status tracking ($? variable)
 - Command history with persistence
@@ -92,8 +92,10 @@ Implemented:
 - Shell functions with both POSIX (name() {}) and bash (function name {}) syntax
 - Function management (declare -f, unset -f, return builtin)
 - Function parameters and special variables within functions
+- Job control (jobs, fg, bg commands, Ctrl-Z suspension, background job notifications)
+- Job specifications (%1, %+, %-, %string)
+- Process group management and terminal control
 
 Not implemented:
-- Job control (fg, bg, jobs commands)
 - Control structures (if, while, for)
 - Advanced expansions (brace expansion, advanced parameter expansion)

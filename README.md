@@ -66,18 +66,54 @@ Python Shell (psh) is a POSIX-style shell written entirely in Python. It uses a 
   - `set` - Set positional parameters
   - `cat` - Concatenate files
   - `version` - Display shell version
+  - `alias`/`unalias` - Manage command aliases
+  - `declare` - Declare variables and functions
+  - `return` - Return from function
+  - `jobs` - List active jobs
+  - `fg` - Bring job to foreground
+  - `bg` - Resume job in background
   
 - ✅ **Interactive Features**
   - Command history with persistence
   - Exit status in prompt
-  - Signal handling (Ctrl-C)
+  - Signal handling (Ctrl-C, Ctrl-Z)
+  - Vi and Emacs key bindings (`set -o vi/emacs`)
+  
+- ✅ **Job Control**
+  - Background job execution (`&`)
+  - Job suspension (Ctrl-Z)
+  - Job management (`jobs`, `fg`, `bg`)
+  - Job specifications (`%1`, `%+`, `%-`, `%string`)
+  - Process group management
+  - Background job completion notifications
+  
+- ✅ **Functions**
+  - POSIX syntax: `name() { commands; }`
+  - Bash syntax: `function name { commands; }`
+  - Function parameters and local scope
+  - `declare -f` to list functions
+  - `unset -f` to remove functions
+  - `return` builtin
+  
+- ✅ **Aliases**
+  - Command aliases with `alias` builtin
+  - Recursive alias expansion
+  - Trailing space for continued expansion
+  - `unalias` to remove aliases
+  
+- ✅ **Conditional Execution**
+  - AND operator (`&&`) - run if previous succeeded
+  - OR operator (`||`) - run if previous failed
+  - Short-circuit evaluation
+  
+- ✅ **Additional Features**
+  - Tilde expansion (`~`, `~user`)
+  - Here strings (`<<<`)
+  - Command line editing with history navigation
 
 ### Not Yet Implemented
 
-- ❌ Job control (`fg`, `bg`, `jobs`)
 - ❌ Control structures (`if`, `while`, `for`)
-- ❌ Functions
-- ❌ Aliases
 - ❌ Advanced expansions (arithmetic, brace)
 
 ## Installation

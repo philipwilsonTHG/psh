@@ -12,6 +12,7 @@ from .line_editor import LineEditor
 from .version import get_version_info
 from .aliases import AliasManager
 from .functions import FunctionManager
+from .job_control import JobManager, JobState
 
 
 class FunctionReturn(Exception):
@@ -43,6 +44,9 @@ class Shell:
             'unalias': self._builtin_unalias,
             'declare': self._builtin_declare,
             'return': self._builtin_return,
+            'jobs': self._builtin_jobs,
+            'fg': self._builtin_fg,
+            'bg': self._builtin_bg,
         }
         # History setup
         self.history = []
@@ -67,10 +71,15 @@ class Shell:
         self.function_manager = FunctionManager()
         self.function_stack = []  # Track function call stack
         
+        # Job control
+        self.job_manager = JobManager()
+        
         # Set up signal handlers
         signal.signal(signal.SIGINT, self._handle_sigint)
-        signal.signal(signal.SIGTSTP, signal.SIG_IGN)  # Ignore Ctrl-Z in shell
+        signal.signal(signal.SIGTSTP, signal.SIG_DFL)  # Allow Ctrl-Z for job control
         signal.signal(signal.SIGTTOU, signal.SIG_IGN)  # Ignore terminal output stops
+        signal.signal(signal.SIGTTIN, signal.SIG_IGN)  # Ignore terminal input stops
+        signal.signal(signal.SIGCHLD, self._handle_sigchld)  # Track child status
     
     def _expand_string_variables(self, text: str) -> str:
         """Expand variables in a string (for here strings)"""
@@ -544,6 +553,16 @@ class Shell:
                 last_status = 1
         return last_status
     
+    def _build_pipeline_string(self, pipeline: Pipeline) -> str:
+        """Build a string representation of the pipeline for job display."""
+        parts = []
+        for command in pipeline.commands:
+            cmd_str = ' '.join(command.args) if command.args else ''
+            if command.background:
+                cmd_str += ' &'
+            parts.append(cmd_str)
+        return ' | '.join(parts)
+    
     def execute_pipeline(self, pipeline: Pipeline):
         if len(pipeline.commands) == 1:
             # Simple command, no pipes
@@ -553,11 +572,15 @@ class Shell:
                 # Propagate up
                 raise
         
+        # Build command string for job tracking
+        command_string = self._build_pipeline_string(pipeline)
+        
         # Execute pipeline using fork and pipe
         num_commands = len(pipeline.commands)
         pipes = []
         pids = []
         pgid = None
+        job = None
         
         # Save current terminal foreground process group
         try:
@@ -590,13 +613,25 @@ class Shell:
                         pass  # Race condition - child may have already done it
                 pids.append(pid)
         
+        # Create job entry for tracking
+        job = self.job_manager.create_job(pgid, command_string)
+        for i, pid in enumerate(pids):
+            cmd_str = ' '.join(pipeline.commands[i].args) if pipeline.commands[i].args else ''
+            job.add_process(pid, cmd_str)
+        
         # Give terminal control to the pipeline
         if original_pgid is not None and not pipeline.commands[-1].background:
             self.foreground_pgid = pgid
+            job.foreground = True
+            self.job_manager.set_foreground_job(job)
             try:
                 os.tcsetpgrp(0, pgid)
             except:
                 pass
+        else:
+            # Background job
+            job.foreground = False
+            print(f"[{job.job_id}] {job.pgid}")
         
         # Parent: Close all pipes
         for pipe_read, pipe_write in pipes:
@@ -604,15 +639,26 @@ class Shell:
             os.close(pipe_write)
         
         # Wait for all children and get exit status
-        last_status = self._wait_for_pipeline(pids)
-        
-        # Restore terminal control
-        if original_pgid is not None and not pipeline.commands[-1].background:
-            self.foreground_pgid = None
-            try:
-                os.tcsetpgrp(0, original_pgid)
-            except:
-                pass
+        if not pipeline.commands[-1].background:
+            # Foreground job - wait for it
+            last_status = self.job_manager.wait_for_job(job)
+            
+            # Restore terminal control
+            if original_pgid is not None:
+                self.foreground_pgid = None
+                self.job_manager.set_foreground_job(None)
+                try:
+                    os.tcsetpgrp(0, original_pgid)
+                except:
+                    pass
+            
+            # Remove completed job
+            if job.state == JobState.DONE:
+                self.job_manager.remove_job(job.job_id)
+        else:
+            # Background job - don't wait
+            last_status = 0
+            self.last_bg_pid = pids[-1] if pids else None
         
         return last_status
     
@@ -746,6 +792,9 @@ class Shell:
         
         while True:
             try:
+                # Check for completed background jobs
+                self.job_manager.notify_completed_jobs()
+                
                 # Create prompt with exit status
                 if self.last_exit_code == 0:
                     prompt = 'psh$ '
@@ -1117,6 +1166,64 @@ class Shell:
         # so we'll use an exception for control flow
         raise FunctionReturn(exit_code)
     
+    def _builtin_jobs(self, args):
+        """List active jobs."""
+        for line in self.job_manager.list_jobs():
+            print(line)
+        return 0
+    
+    def _builtin_fg(self, args):
+        """Bring job to foreground."""
+        job_spec = args[1] if len(args) > 1 else '%+'
+        job = self.job_manager.parse_job_spec(job_spec)
+        
+        if not job:
+            print(f"fg: {job_spec}: no such job", file=sys.stderr)
+            return 1
+        
+        # Continue stopped job
+        if job.state.value == 'stopped':
+            os.killpg(job.pgid, signal.SIGCONT)
+        
+        # Give it terminal control
+        self.job_manager.set_foreground_job(job)
+        job.foreground = True
+        try:
+            os.tcsetpgrp(0, job.pgid)
+        except OSError:
+            pass
+        
+        # Wait for it
+        exit_status = self.job_manager.wait_for_job(job)
+        
+        # Restore terminal control to shell
+        try:
+            os.tcsetpgrp(0, os.getpgrp())
+        except OSError:
+            pass
+        
+        # Remove job if completed
+        if job.state.value == 'done':
+            self.job_manager.remove_job(job.job_id)
+        
+        return exit_status
+    
+    def _builtin_bg(self, args):
+        """Resume job in background."""
+        job_spec = args[1] if len(args) > 1 else '%+'
+        job = self.job_manager.parse_job_spec(job_spec)
+        
+        if not job:
+            print(f"bg: {job_spec}: no such job", file=sys.stderr)
+            return 1
+        
+        if job.state.value == 'stopped':
+            job.state = JobState.RUNNING
+            job.foreground = False
+            os.killpg(job.pgid, signal.SIGCONT)
+            print(f"[{job.job_id}]+ {job.command} &")
+        return 0
+    
     def _collect_heredocs(self, command_list: CommandList):
         """Collect here document content for all commands"""
         for and_or_list in command_list.and_or_lists:
@@ -1189,6 +1296,33 @@ class Shell:
         print()
         # The signal will be delivered to the foreground process group
         # which is set in execute_pipeline
+    
+    def _handle_sigchld(self, signum, frame):
+        """Handle child process state changes."""
+        while True:
+            try:
+                pid, status = os.waitpid(-1, os.WNOHANG)
+                if pid == 0:
+                    break
+                
+                job = self.job_manager.get_job_by_pid(pid)
+                if job:
+                    job.update_process_status(pid, status)
+                    job.update_state()
+                    
+                    # Check if entire job is stopped
+                    if job.state == JobState.STOPPED and job.foreground:
+                        # Stopped foreground job
+                        print(f"\n[{job.job_id}]+  Stopped                 {job.command}")
+                        # Return control to shell
+                        try:
+                            os.tcsetpgrp(0, os.getpgrp())
+                        except OSError:
+                            pass
+                        self.job_manager.set_foreground_job(None)
+                        job.foreground = False
+            except OSError:
+                break
     
     def _setup_child_redirections(self, command: Command):
         """Set up redirections in child process (after fork) using dup2"""

@@ -2,10 +2,31 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.7.0"
+__version__ = "0.9.0"
 
 # Version history
 VERSION_HISTORY = """
+0.9.0 (2025-05-28) - Job control
+  - Full job control implementation with process group management
+  - Job suspension with Ctrl-Z (SIGTSTP handling)
+  - Built-in commands: jobs, fg, bg for job management
+  - Job specifications: %1, %+, %-, %string for referencing jobs
+  - Background job completion notifications
+  - Terminal control management between shell and jobs
+  - Terminal mode preservation when switching jobs
+  - SIGCHLD handler for tracking job state changes
+  - Comprehensive test suite for job control features
+
+0.8.0 (2025-05-28) - Shell functions
+  - Added shell function definitions (POSIX name() {} and bash function name {})
+  - Functions stored as AST nodes for proper execution
+  - Function execution in current shell process (no fork)
+  - Proper parameter isolation with positional parameters
+  - Return builtin with exception-based control flow
+  - Function management (declare -f, unset -f)
+  - Functions work in pipelines and subshells
+  - Comprehensive test suite with 32 passing tests
+
 0.7.0 (2025-05-27) - Shell aliases
   - Added alias and unalias builtin commands
   - Implemented recursive alias expansion with loop prevention
