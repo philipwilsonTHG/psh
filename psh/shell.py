@@ -23,10 +23,11 @@ class FunctionReturn(Exception):
 
 
 class Shell:
-    def __init__(self, args=None):
+    def __init__(self, args=None, script_name=None):
         self.env = os.environ.copy()
         self.variables = {}  # Shell variables (not exported to environment)
         self.positional_params = args if args else []  # $1, $2, etc.
+        self.script_name = script_name or "psh"  # $0 value
         self.builtins = {
             'exit': self._builtin_exit,
             'cd': self._builtin_cd,
@@ -74,9 +75,19 @@ class Shell:
         # Job control
         self.job_manager = JobManager()
         
+        # Ensure shell is in its own process group for job control
+        shell_pgid = os.getpid()
+        try:
+            os.setpgid(0, shell_pgid)
+            # Make shell the foreground process group
+            os.tcsetpgrp(0, shell_pgid)
+        except OSError:
+            # Not a terminal or already set
+            pass
+        
         # Set up signal handlers
         signal.signal(signal.SIGINT, self._handle_sigint)
-        signal.signal(signal.SIGTSTP, signal.SIG_DFL)  # Allow Ctrl-Z for job control
+        signal.signal(signal.SIGTSTP, signal.SIG_IGN)  # Shell ignores SIGTSTP
         signal.signal(signal.SIGTTOU, signal.SIG_IGN)  # Ignore terminal output stops
         signal.signal(signal.SIGTTIN, signal.SIG_IGN)  # Ignore terminal input stops
         signal.signal(signal.SIGCHLD, self._handle_sigchld)  # Track child status
@@ -146,7 +157,7 @@ class Shell:
         elif var_name == '#':
             return str(len(self.positional_params))
         elif var_name == '0':
-            return 'psh'  # Shell name
+            return self.script_name  # Shell or script name
         elif var_name == '@':
             # When in a string context (like echo "$@"), don't add quotes
             # The quotes are only added when $@ is unquoted
@@ -367,50 +378,6 @@ class Shell:
                 sys.stderr.close()
             sys.stderr = stderr_backup
     
-    def _setup_external_redirections(self, command: Command):
-        """Set up redirections for external commands. Returns file handles."""
-        stdin = None
-        stdout = None
-        stderr = None
-        
-        for redirect in command.redirects:
-            # Expand tilde in target for file redirections
-            target = redirect.target
-            if target and redirect.type in ('<', '>', '>>') and target.startswith('~'):
-                target = self._expand_tilde(target)
-            
-            if redirect.type == '<':
-                stdin = open(target, 'r')
-            elif redirect.type in ('<<', '<<-'):
-                # For heredocs, we need to use PIPE and write content
-                stdin = subprocess.PIPE
-            elif redirect.type == '<<<':
-                # For here strings, we also use PIPE
-                stdin = subprocess.PIPE
-            elif redirect.type == '>' and redirect.fd == 2:
-                stderr = open(target, 'w')
-            elif redirect.type == '>>' and redirect.fd == 2:
-                stderr = open(target, 'a')
-            elif redirect.type == '>' and (redirect.fd is None or redirect.fd == 1):
-                stdout = open(target, 'w')
-            elif redirect.type == '>>' and (redirect.fd is None or redirect.fd == 1):
-                stdout = open(target, 'a')
-            elif redirect.type == '>&':
-                # Handle fd duplication like 2>&1
-                if redirect.fd == 2 and redirect.dup_fd == 1:
-                    stderr = subprocess.STDOUT
-        
-        return stdin, stdout, stderr
-    
-    def _close_external_redirections(self, stdin, stdout, stderr):
-        """Close file handles opened for external command redirections"""
-        if stdin and stdin != sys.stdin and stdin != subprocess.PIPE:
-            stdin.close()
-        if stdout and stdout != sys.stdout and stdout != subprocess.PIPE and stdout != subprocess.STDOUT:
-            stdout.close()
-        if stderr and stderr != sys.stderr and stderr != subprocess.PIPE and stderr != subprocess.STDOUT:
-            stderr.close()
-    
     def _execute_builtin(self, args: list, command: Command) -> int:
         """Execute a built-in command with proper redirection handling"""
         stdin_backup, stdout_backup, stderr_backup = self._setup_builtin_redirections(command)
@@ -424,54 +391,84 @@ class Shell:
     
     def _execute_external(self, args: list, command: Command) -> int:
         """Execute an external command with proper redirection and process handling"""
-        stdin, stdout, stderr = self._setup_external_redirections(command)
-        
+        # Save current terminal foreground process group
         try:
-            # Run the command
-            proc = subprocess.Popen(
-                args,
-                stdin=stdin,
-                stdout=stdout,
-                stderr=stderr,
-                env=self.env
-            )
+            original_pgid = os.tcgetpgrp(0)
+        except:
+            original_pgid = None
+        
+        pid = os.fork()
+        
+        if pid == 0:  # Child process
+            # Create new process group
+            os.setpgid(0, 0)
             
-            # Write heredoc/here string content if using PIPE
-            if stdin == subprocess.PIPE:
-                for redirect in command.redirects:
-                    if redirect.type in ('<<', '<<-'):
-                        # Write content even if empty (empty heredoc is valid)
-                        content = redirect.heredoc_content or ''
-                        proc.stdin.write(content.encode())
-                        proc.stdin.close()
-                        break
-                    elif redirect.type == '<<<':
-                        # Write here string content with newline
-                        content = redirect.target + '\n'
-                        proc.stdin.write(content.encode())
-                        proc.stdin.close()
-                        break
+            # Reset signal handlers to default
+            signal.signal(signal.SIGINT, signal.SIG_DFL)
+            signal.signal(signal.SIGTSTP, signal.SIG_DFL)
+            signal.signal(signal.SIGTTOU, signal.SIG_DFL)
+            signal.signal(signal.SIGTTIN, signal.SIG_DFL)
+            signal.signal(signal.SIGCHLD, signal.SIG_DFL)
+            
+            # Set up redirections
+            self._setup_child_redirections(command)
+            
+            # Execute the command
+            try:
+                os.execvpe(args[0], args, self.env)
+            except FileNotFoundError:
+                print(f"{args[0]}: command not found", file=sys.stderr)
+                os._exit(127)
+            except Exception as e:
+                print(f"{args[0]}: {e}", file=sys.stderr)
+                os._exit(1)
+        
+        else:  # Parent process
+            # Set child's process group
+            try:
+                os.setpgid(pid, pid)
+            except:
+                pass  # Race condition - child may have already done it
+            
+            # Create job for tracking
+            job = self.job_manager.create_job(pid, ' '.join(args))
+            job.add_process(pid, args[0])
             
             if command.background:
-                print(f"[{proc.pid}]")
-                self.last_bg_pid = proc.pid
+                # Background job
+                job.foreground = False
+                print(f"[{job.job_id}] {pid}")
+                self.last_bg_pid = pid
                 return 0
             else:
-                proc.wait()
-                # Handle signal termination
-                if proc.returncode < 0:
-                    # Process was killed by signal
-                    return 128 + abs(proc.returncode)
-                return proc.returncode
-        
-        except FileNotFoundError:
-            print(f"{args[0]}: command not found", file=sys.stderr)
-            return 127
-        except Exception as e:
-            print(f"{args[0]}: {e}", file=sys.stderr)
-            return 1
-        finally:
-            self._close_external_redirections(stdin, stdout, stderr)
+                # Foreground job - give it terminal control
+                job.foreground = True
+                self.job_manager.set_foreground_job(job)
+                
+                if original_pgid is not None:
+                    self.foreground_pgid = pid
+                    try:
+                        os.tcsetpgrp(0, pid)
+                    except:
+                        pass
+                
+                # Wait for the job
+                exit_status = self.job_manager.wait_for_job(job)
+                
+                # Restore terminal control
+                if original_pgid is not None:
+                    self.foreground_pgid = None
+                    self.job_manager.set_foreground_job(None)
+                    try:
+                        os.tcsetpgrp(0, original_pgid)
+                    except:
+                        pass
+                
+                # Remove completed job
+                if job.state == JobState.DONE:
+                    self.job_manager.remove_job(job.job_id)
+                
+                return exit_status
     
     def execute_command(self, command: Command):
         """Execute a single command"""
@@ -726,6 +723,7 @@ class Shell:
                 # Execute commands
                 last_exit = self.execute_command_list(item)
         
+        self.last_exit_code = last_exit
         return last_exit
     
     def _execute_function(self, func, args: list, command: Command) -> int:
@@ -752,6 +750,80 @@ class Shell:
             # Restore environment
             self.function_stack.pop()
             self.positional_params = saved_params
+    
+    def set_positional_params(self, params):
+        """Set positional parameters ($1, $2, etc.)."""
+        self.positional_params = params.copy() if params else []
+    
+    def _is_binary_file(self, file_path: str) -> bool:
+        """Check if file is binary by looking for null bytes."""
+        try:
+            with open(file_path, 'rb') as f:
+                chunk = f.read(1024)
+                return b'\0' in chunk
+        except:
+            return True
+    
+    def _validate_script_file(self, script_path: str) -> int:
+        """Validate script file and return appropriate exit code.
+        
+        Returns:
+            0 if file is valid
+            126 if permission denied
+            127 if file not found
+        """
+        if not os.path.exists(script_path):
+            print(f"psh: {script_path}: No such file or directory", file=sys.stderr)
+            return 127
+        
+        if not os.access(script_path, os.R_OK):
+            print(f"psh: {script_path}: Permission denied", file=sys.stderr)
+            return 126
+        
+        if self._is_binary_file(script_path):
+            print(f"psh: {script_path}: cannot execute binary file", file=sys.stderr)
+            return 126
+        
+        return 0
+    
+    def run_script(self, script_path: str) -> int:
+        """Execute a script file."""
+        # Validate the script file first
+        validation_result = self._validate_script_file(script_path)
+        if validation_result != 0:
+            return validation_result
+        
+        # Save current script name
+        old_script_name = self.script_name
+        self.script_name = script_path
+        
+        try:
+            from .input_sources import FileInput
+            with FileInput(script_path) as input_source:
+                return self._execute_from_source(input_source)
+        except Exception as e:
+            print(f"psh: {script_path}: {e}", file=sys.stderr)
+            return 1
+        finally:
+            self.script_name = old_script_name
+    
+    def _execute_from_source(self, input_source, add_to_history=True) -> int:
+        """Execute commands from an input source."""
+        exit_code = 0
+        
+        while True:
+            line = input_source.read_line()
+            if line is None:  # EOF
+                break
+            
+            # Skip empty lines and comments
+            if not line.strip() or line.strip().startswith('#'):
+                continue
+            
+            # Execute the command using existing run_command method
+            exit_code = self.run_command(line, add_to_history=add_to_history and input_source.is_interactive())
+        
+        return exit_code
     
     def run_command(self, command_string: str, add_to_history=True):
         # Add to history if not empty and add_to_history is True
@@ -1181,17 +1253,28 @@ class Shell:
             print(f"fg: {job_spec}: no such job", file=sys.stderr)
             return 1
         
-        # Continue stopped job
-        if job.state.value == 'stopped':
-            os.killpg(job.pgid, signal.SIGCONT)
+        # Print job info
+        print(job.command)
         
-        # Give it terminal control
+        # Give it terminal control FIRST before sending SIGCONT
         self.job_manager.set_foreground_job(job)
         job.foreground = True
         try:
             os.tcsetpgrp(0, job.pgid)
-        except OSError:
-            pass
+        except OSError as e:
+            print(f"fg: can't set terminal control: {e}", file=sys.stderr)
+            return 1
+        
+        # Continue stopped job
+        if job.state.value == 'stopped':
+            # Mark processes as running again
+            for proc in job.processes:
+                if proc.stopped:
+                    proc.stopped = False
+            job.state = JobState.RUNNING
+            
+            # Send SIGCONT to the process group
+            os.killpg(job.pgid, signal.SIGCONT)
         
         # Wait for it
         exit_status = self.job_manager.wait_for_job(job)
@@ -1203,7 +1286,7 @@ class Shell:
             pass
         
         # Remove job if completed
-        if job.state.value == 'done':
+        if job.state == JobState.DONE:
             self.job_manager.remove_job(job.job_id)
         
         return exit_status
@@ -1218,8 +1301,14 @@ class Shell:
             return 1
         
         if job.state.value == 'stopped':
+            # Mark processes as running again
+            for proc in job.processes:
+                if proc.stopped:
+                    proc.stopped = False
             job.state = JobState.RUNNING
             job.foreground = False
+            
+            # Send SIGCONT to resume
             os.killpg(job.pgid, signal.SIGCONT)
             print(f"[{job.job_id}]+ {job.command} &")
         return 0
