@@ -766,13 +766,49 @@ class Shell:
         self.positional_params = params.copy() if params else []
     
     def _is_binary_file(self, file_path: str) -> bool:
-        """Check if file is binary by looking for null bytes."""
+        """Check if file is binary by looking for null bytes and other indicators."""
         try:
             with open(file_path, 'rb') as f:
+                # Read first 1024 bytes for analysis
                 chunk = f.read(1024)
-                return b'\0' in chunk
+                
+                if not chunk:
+                    return False  # Empty file is not binary
+                
+                # Check for null bytes (strong indicator of binary)
+                if b'\0' in chunk:
+                    return True
+                
+                # Check for very high ratio of non-printable characters
+                printable_chars = 0
+                for byte in chunk:
+                    # Count ASCII printable chars (32-126) plus common whitespace
+                    if 32 <= byte <= 126 or byte in (9, 10, 13):  # tab, newline, carriage return
+                        printable_chars += 1
+                
+                # If less than 70% printable characters, consider it binary
+                if len(chunk) > 0 and (printable_chars / len(chunk)) < 0.70:
+                    return True
+                
+                # Check for common binary file signatures
+                binary_signatures = [
+                    b'\x7fELF',      # ELF executable
+                    b'MZ',           # DOS/Windows executable
+                    b'\xca\xfe\xba\xbe',  # Java class file
+                    b'\x89PNG',      # PNG image
+                    b'\xff\xd8\xff', # JPEG image
+                    b'GIF8',         # GIF image
+                    b'%PDF',         # PDF file
+                ]
+                
+                for sig in binary_signatures:
+                    if chunk.startswith(sig):
+                        return True
+                
+                return False
+                
         except:
-            return True
+            return True  # If we can't read it, assume binary
     
     def _validate_script_file(self, script_path: str) -> int:
         """Validate script file and return appropriate exit code.
@@ -800,18 +836,28 @@ class Shell:
         
         return 0
     
-    def run_script(self, script_path: str) -> int:
-        """Execute a script file."""
+    def run_script(self, script_path: str, script_args: list = None) -> int:
+        """Execute a script file with optional arguments."""
+        if script_args is None:
+            script_args = []
+            
         # Validate the script file first
         validation_result = self._validate_script_file(script_path)
         if validation_result != 0:
             return validation_result
         
+        # Check for shebang and execute with appropriate interpreter
+        if self._should_execute_with_shebang(script_path):
+            return self._execute_with_shebang(script_path, script_args)
+        
         # Save current script state
         old_script_name = self.script_name
         old_script_mode = self.is_script_mode
+        old_positional = self.positional_params.copy()
+        
         self.script_name = script_path
         self.is_script_mode = True
+        self.positional_params = script_args
         
         try:
             from .input_sources import FileInput
@@ -823,6 +869,7 @@ class Shell:
         finally:
             self.script_name = old_script_name
             self.is_script_mode = old_script_mode
+            self.positional_params = old_positional
     
     def _execute_from_source(self, input_source, add_to_history=True) -> int:
         """Execute commands from an input source with enhanced processing."""
@@ -1131,6 +1178,114 @@ class Shell:
                     return full_path
         
         return None
+    
+    def _parse_shebang(self, script_path: str) -> tuple:
+        """Parse shebang line from script file.
+        
+        Returns:
+            tuple: (has_shebang, interpreter_path, interpreter_args)
+        """
+        try:
+            with open(script_path, 'rb') as f:
+                # Read first line, max 1024 bytes
+                first_line = f.readline(1024)
+                
+                # Check for shebang
+                if not first_line.startswith(b'#!'):
+                    return (False, None, [])
+                
+                # Decode shebang line
+                try:
+                    shebang_line = first_line[2:].decode('utf-8', errors='ignore').strip()
+                except UnicodeDecodeError:
+                    return (False, None, [])
+                
+                if not shebang_line:
+                    return (False, None, [])
+                
+                # Parse interpreter and arguments
+                parts = shebang_line.split()
+                if not parts:
+                    return (False, None, [])
+                
+                interpreter = parts[0]
+                interpreter_args = parts[1:] if len(parts) > 1 else []
+                
+                return (True, interpreter, interpreter_args)
+                
+        except (IOError, OSError):
+            return (False, None, [])
+    
+    def _should_execute_with_shebang(self, script_path: str) -> bool:
+        """Determine if script should be executed with its shebang interpreter."""
+        has_shebang, interpreter, interpreter_args = self._parse_shebang(script_path)
+        
+        if not has_shebang:
+            return False
+        
+        # If interpreter is psh or our script name, use psh directly
+        if interpreter.endswith('/psh') or interpreter == 'psh':
+            return False
+        
+        # Handle /usr/bin/env pattern - check the actual interpreter
+        if interpreter.endswith('/env') or interpreter == 'env':
+            # Get the actual interpreter from interpreter_args
+            if not interpreter_args:
+                return False
+            actual_interpreter = interpreter_args[0]
+            if actual_interpreter.endswith('/psh') or actual_interpreter == 'psh':
+                return False
+        
+        # Check if interpreter exists and is executable
+        if interpreter.startswith('/'):
+            # Absolute path
+            return os.path.exists(interpreter) and os.access(interpreter, os.X_OK)
+        else:
+            # Search in PATH
+            path_dirs = self.env.get('PATH', '').split(':')
+            for path_dir in path_dirs:
+                if path_dir:
+                    full_path = os.path.join(path_dir, interpreter)
+                    if os.path.exists(full_path) and os.access(full_path, os.X_OK):
+                        return True
+            return False
+    
+    def _execute_with_shebang(self, script_path: str, script_args: list) -> int:
+        """Execute script using its shebang interpreter."""
+        has_shebang, interpreter, interpreter_args = self._parse_shebang(script_path)
+        
+        if not has_shebang:
+            return 1
+        
+        # Build command line for interpreter
+        cmd_args = []
+        
+        # Add interpreter
+        cmd_args.append(interpreter)
+        
+        # Add interpreter arguments
+        cmd_args.extend(interpreter_args)
+        
+        # Add script path
+        cmd_args.append(script_path)
+        
+        # Add script arguments
+        cmd_args.extend(script_args)
+        
+        try:
+            # Execute the interpreter
+            import subprocess
+            result = subprocess.run(cmd_args, env=self.env)
+            return result.returncode
+        except FileNotFoundError:
+            print(f"psh: {interpreter}: No such file or directory", file=sys.stderr)
+            return 127
+        except PermissionError:
+            print(f"psh: {interpreter}: Permission denied", file=sys.stderr)
+            return 126
+        except Exception as e:
+            print(f"psh: {interpreter}: {e}", file=sys.stderr)
+            return 1
     
     def _builtin_history(self, args):
         # Simple history implementation

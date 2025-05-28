@@ -44,8 +44,8 @@ def main():
             # End of options marker
             if len(sys.argv) > 2:
                 script_path = sys.argv[2]
-                shell.set_positional_params(sys.argv[3:])
-                exit_code = shell.run_script(script_path)
+                script_args = sys.argv[3:]
+                exit_code = shell.run_script(script_path, script_args)
                 sys.exit(exit_code)
             else:
                 # No script after --, start interactive mode
@@ -58,9 +58,8 @@ def main():
         else:
             # Script file execution
             script_path = sys.argv[1]
-            # Set positional parameters from script arguments
-            shell.set_positional_params(sys.argv[2:])
-            exit_code = shell.run_script(script_path)
+            script_args = sys.argv[2:]
+            exit_code = shell.run_script(script_path, script_args)
             sys.exit(exit_code)
     else:
         # Interactive mode

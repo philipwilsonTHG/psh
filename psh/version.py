@@ -2,10 +2,19 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.11.0"
+__version__ = "0.12.0"
 
 # Version history
 VERSION_HISTORY = """
+0.12.0 (2025-05-28) - Shebang support and advanced script execution
+  - Full shebang support for multi-interpreter execution (#!/bin/bash, #!/usr/bin/env python3)
+  - Enhanced binary file detection with multi-factor analysis
+  - Improved script argument passing and state management
+  - Production-quality script execution with proper fallback handling
+  - Support for common shebang patterns and env-based interpreters
+  - Comprehensive file signature recognition and encoding handling
+  - Updated documentation and TODO.md reflecting 26 completed features
+
 0.11.0 (2025-05-28) - Enhanced script execution
   - Enhanced source builtin with PATH search and argument support
   - Improved command line processing with -h, -V, and -- options
