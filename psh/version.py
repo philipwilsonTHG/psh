@@ -2,10 +2,26 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.15.0"
+__version__ = "0.16.0"
 
 # Version history
 VERSION_HISTORY = """
+0.16.0 (2025-05-28) - Break and continue statements
+  - Implemented break and continue statements for loop control
+  - Added LoopBreak and LoopContinue exception classes for control flow
+  - Added BreakStatement and ContinueStatement AST nodes
+  - Extended tokenizer with BREAK/CONTINUE tokens and keyword context detection
+  - Enhanced parser to handle break/continue statements within loop bodies
+  - Added execution methods with proper exception-based control flow
+  - Modified while and for loop execution to catch and handle break/continue exceptions
+  - Added comprehensive error handling for break/continue used outside loops
+  - Break exits loops immediately; continue skips to next iteration
+  - Works correctly in nested loops (affects only innermost loop)
+  - Works correctly in functions called from within loops
+  - Created comprehensive test suite with full break/continue functionality
+  - Full integration into existing control structures and loop constructs
+  - Complete loop control capabilities matching bash behavior
+
 0.15.0 (2025-05-28) - For loops implementation
   - Implemented complete for/in/do/done loop constructs
   - Added ForStatement AST node with variable, iterable, and body fields

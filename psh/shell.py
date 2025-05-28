@@ -8,7 +8,7 @@ import pwd
 import stat
 from .tokenizer import tokenize
 from .parser import parse, ParseError
-from .ast_nodes import Command, Pipeline, CommandList, AndOrList, Redirect, TopLevel, FunctionDef, IfStatement, WhileStatement, ForStatement
+from .ast_nodes import Command, Pipeline, CommandList, AndOrList, Redirect, TopLevel, FunctionDef, IfStatement, WhileStatement, ForStatement, BreakStatement, ContinueStatement
 from .line_editor import LineEditor
 from .version import get_version_info
 from .aliases import AliasManager
@@ -21,6 +21,16 @@ class FunctionReturn(Exception):
     def __init__(self, exit_code):
         self.exit_code = exit_code
         super().__init__()
+
+
+class LoopBreak(Exception):
+    """Exception used to implement break statement."""
+    pass
+
+
+class LoopContinue(Exception):
+    """Exception used to implement continue statement."""
+    pass
 
 
 class Shell:
@@ -707,8 +717,16 @@ class Shell:
     def execute_command_list(self, command_list: CommandList):
         exit_code = 0
         try:
-            for and_or_list in command_list.and_or_lists:
-                exit_code = self.execute_and_or_list(and_or_list)
+            for item in command_list.and_or_lists:
+                if isinstance(item, (BreakStatement, ContinueStatement)):
+                    # Handle control statements
+                    if isinstance(item, BreakStatement):
+                        exit_code = self.execute_break_statement(item)
+                    else:
+                        exit_code = self.execute_continue_statement(item)
+                else:
+                    # Handle regular and_or_list
+                    exit_code = self.execute_and_or_list(item)
                 self.last_exit_code = exit_code
         except FunctionReturn:
             # Only catch FunctionReturn if we're in a function
@@ -723,29 +741,41 @@ class Shell:
         """Execute a top-level script/input containing functions and commands."""
         last_exit = 0
         
-        for item in toplevel.items:
-            if isinstance(item, FunctionDef):
-                # Register the function
-                try:
-                    self.function_manager.define_function(item.name, item.body)
-                    last_exit = 0
-                except ValueError as e:
-                    print(f"psh: {e}", file=sys.stderr)
-                    last_exit = 1
-            elif isinstance(item, CommandList):
-                # Collect here documents if any
-                self._collect_heredocs(item)
-                # Execute commands
-                last_exit = self.execute_command_list(item)
-            elif isinstance(item, IfStatement):
-                # Execute if statement
-                last_exit = self.execute_if_statement(item)
-            elif isinstance(item, WhileStatement):
-                # Execute while statement
-                last_exit = self.execute_while_statement(item)
-            elif isinstance(item, ForStatement):
-                # Execute for statement
-                last_exit = self.execute_for_statement(item)
+        try:
+            for item in toplevel.items:
+                if isinstance(item, FunctionDef):
+                    # Register the function
+                    try:
+                        self.function_manager.define_function(item.name, item.body)
+                        last_exit = 0
+                    except ValueError as e:
+                        print(f"psh: {e}", file=sys.stderr)
+                        last_exit = 1
+                elif isinstance(item, CommandList):
+                    # Collect here documents if any
+                    self._collect_heredocs(item)
+                    # Execute commands
+                    last_exit = self.execute_command_list(item)
+                elif isinstance(item, IfStatement):
+                    # Execute if statement
+                    last_exit = self.execute_if_statement(item)
+                elif isinstance(item, WhileStatement):
+                    # Execute while statement
+                    last_exit = self.execute_while_statement(item)
+                elif isinstance(item, ForStatement):
+                    # Execute for statement
+                    last_exit = self.execute_for_statement(item)
+                elif isinstance(item, BreakStatement):
+                    # Execute break statement (this will raise LoopBreak)
+                    last_exit = self.execute_break_statement(item)
+                elif isinstance(item, ContinueStatement):
+                    # Execute continue statement (this will raise LoopContinue)  
+                    last_exit = self.execute_continue_statement(item)
+        except (LoopBreak, LoopContinue) as e:
+            # Break/continue outside of loops is an error
+            stmt_name = "break" if isinstance(e, LoopBreak) else "continue"
+            print(f"{stmt_name}: only meaningful in a `for' or `while' loop", file=sys.stderr)
+            last_exit = 1
         
         self.last_exit_code = last_exit
         return last_exit
@@ -792,11 +822,18 @@ class Shell:
                 
             # Condition is true, execute the body
             if while_stmt.body.and_or_lists:
-                # Collect here documents for body
-                self._collect_heredocs(while_stmt.body)
-                # Execute body commands
-                last_exit = self.execute_command_list(while_stmt.body)
-                # Note: We continue the loop regardless of body exit status
+                try:
+                    # Collect here documents for body
+                    self._collect_heredocs(while_stmt.body)
+                    # Execute body commands
+                    last_exit = self.execute_command_list(while_stmt.body)
+                    # Note: We continue the loop regardless of body exit status
+                except LoopBreak:
+                    # Break out of the loop
+                    break
+                except LoopContinue:
+                    # Continue to next iteration
+                    continue
                 # (unlike some shells that might break on certain exit codes)
         
         return last_exit
@@ -841,11 +878,18 @@ class Shell:
                 
                 # Execute the body
                 if for_stmt.body.and_or_lists:
-                    # Collect here documents for body
-                    self._collect_heredocs(for_stmt.body)
-                    # Execute body commands
-                    last_exit = self.execute_command_list(for_stmt.body)
-                    # Continue regardless of body exit status
+                    try:
+                        # Collect here documents for body
+                        self._collect_heredocs(for_stmt.body)
+                        # Execute body commands
+                        last_exit = self.execute_command_list(for_stmt.body)
+                        # Continue regardless of body exit status
+                    except LoopBreak:
+                        # Break out of the loop
+                        break
+                    except LoopContinue:
+                        # Continue to next iteration
+                        continue
         finally:
             # Restore the previous value of the loop variable
             if saved_value is not None:
@@ -855,6 +899,14 @@ class Shell:
                 self.variables.pop(loop_var, None)
         
         return last_exit
+    
+    def execute_break_statement(self, break_stmt: BreakStatement) -> int:
+        """Execute a break statement."""
+        raise LoopBreak()
+    
+    def execute_continue_statement(self, continue_stmt: ContinueStatement) -> int:
+        """Execute a continue statement."""
+        raise LoopContinue()
     
     def _execute_function(self, func, args: list, command: Command) -> int:
         """Execute a function with given arguments."""
@@ -1061,10 +1113,16 @@ class Shell:
                 return self.execute_toplevel(ast)
             else:
                 # Backward compatibility - CommandList
-                # Collect here documents if any
-                self._collect_heredocs(ast)
-                exit_code = self.execute_command_list(ast)
-                return exit_code
+                try:
+                    # Collect here documents if any
+                    self._collect_heredocs(ast)
+                    exit_code = self.execute_command_list(ast)
+                    return exit_code
+                except (LoopBreak, LoopContinue) as e:
+                    # Break/continue outside of loops is an error
+                    stmt_name = "break" if isinstance(e, LoopBreak) else "continue"
+                    print(f"{stmt_name}: only meaningful in a `for' or `while' loop", file=sys.stderr)
+                    return 1
         except ParseError as e:
             # Enhanced error message with location
             location = input_source.get_location() if start_line == 0 else f"{input_source.get_name()}:{start_line}"
@@ -1908,8 +1966,11 @@ class Shell:
     
     def _collect_heredocs(self, command_list: CommandList):
         """Collect here document content for all commands"""
-        for and_or_list in command_list.and_or_lists:
-            for pipeline in and_or_list.pipelines:
+        for item in command_list.and_or_lists:
+            # Skip control statements (they don't have heredocs)
+            if not hasattr(item, 'pipelines'):
+                continue
+            for pipeline in item.pipelines:
                 for command in pipeline.commands:
                     for redirect in command.redirects:
                         if redirect.type in ('<<', '<<-'):

@@ -1,6 +1,6 @@
 from typing import List, Optional, Union
 from .tokenizer import Token, TokenType
-from .ast_nodes import Command, Pipeline, CommandList, AndOrList, Redirect, FunctionDef, TopLevel, IfStatement, WhileStatement, ForStatement
+from .ast_nodes import Command, Pipeline, CommandList, AndOrList, Redirect, FunctionDef, TopLevel, IfStatement, WhileStatement, ForStatement, BreakStatement, ContinueStatement
 
 
 class ParseError(Exception):
@@ -61,6 +61,12 @@ class Parser:
             elif self.match(TokenType.FOR):
                 for_stmt = self.parse_for_statement()
                 top_level.items.append(for_stmt)
+            elif self.match(TokenType.BREAK):
+                break_stmt = self.parse_break_statement()
+                top_level.items.append(break_stmt)
+            elif self.match(TokenType.CONTINUE):
+                continue_stmt = self.parse_continue_statement()
+                top_level.items.append(continue_stmt)
             else:
                 # Parse command list until we hit a function or EOF
                 cmd_list = self._parse_command_list_until_function()
@@ -74,6 +80,11 @@ class Parser:
         # For backward compatibility, return CommandList if no functions
         if len(top_level.items) == 1 and isinstance(top_level.items[0], CommandList):
             return top_level.items[0]
+        elif len(top_level.items) == 1 and isinstance(top_level.items[0], (BreakStatement, ContinueStatement)):
+            # Wrap single break/continue in CommandList for backward compatibility
+            cmd_list = CommandList()
+            cmd_list.and_or_lists.append(top_level.items[0])
+            return cmd_list
         elif len(top_level.items) == 0:
             return CommandList()
         else:
@@ -110,7 +121,13 @@ class Parser:
         
         return command_list
     
-    def parse_and_or_list(self) -> AndOrList:
+    def parse_and_or_list(self) -> Union[AndOrList, BreakStatement, ContinueStatement]:
+        # Check for control statements first
+        if self.match(TokenType.BREAK):
+            return self.parse_break_statement()
+        elif self.match(TokenType.CONTINUE):
+            return self.parse_continue_statement()
+        
         and_or_list = AndOrList()
         
         # Parse first pipeline
@@ -568,6 +585,16 @@ class Parser:
         self.expect(TokenType.DONE)
         
         return ForStatement(variable, iterable, body)
+    
+    def parse_break_statement(self) -> BreakStatement:
+        """Parse break statement."""
+        self.expect(TokenType.BREAK)
+        return BreakStatement()
+    
+    def parse_continue_statement(self) -> ContinueStatement:
+        """Parse continue statement."""
+        self.expect(TokenType.CONTINUE)
+        return ContinueStatement()
 
 
 def parse(tokens: List[Token]) -> Union[CommandList, TopLevel]:

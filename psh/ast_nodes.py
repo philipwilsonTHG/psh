@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 from abc import ABC
 
 
@@ -37,15 +37,16 @@ class AndOrList(ASTNode):
 
 @dataclass
 class CommandList(ASTNode):
-    and_or_lists: List[AndOrList] = field(default_factory=list)
+    and_or_lists: List[Union['AndOrList', 'BreakStatement', 'ContinueStatement']] = field(default_factory=list)
     
     @property
     def pipelines(self):
         """Backward compatibility property for tests"""
-        # Flatten all pipelines from all and_or_lists
+        # Flatten all pipelines from all and_or_lists (skip control statements)
         pipelines = []
-        for and_or_list in self.and_or_lists:
-            pipelines.extend(and_or_list.pipelines)
+        for item in self.and_or_lists:
+            if hasattr(item, 'pipelines'):  # It's an AndOrList
+                pipelines.extend(item.pipelines)
         return pipelines
 
 
@@ -77,6 +78,18 @@ class ForStatement(ASTNode):
     variable: str           # The loop variable name (e.g., "i", "file")
     iterable: List[str]     # List of items to iterate over (after expansion)
     body: CommandList       # Commands to execute for each iteration
+
+
+@dataclass
+class BreakStatement(ASTNode):
+    """Break statement to exit loops."""
+    pass
+
+
+@dataclass
+class ContinueStatement(ASTNode):
+    """Continue statement to skip to next iteration."""
+    pass
 
 
 @dataclass
