@@ -2,21 +2,10 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.17.2"
+__version__ = "0.17.1"
 
 # Version history
 VERSION_HISTORY = """
-0.17.2 (2025-05-28) - Built-in commands refactoring
-  - Extracted all built-in commands from shell.py into dedicated builtins.py module (701 lines)
-  - Created exceptions.py module for shared control flow exceptions (FunctionReturn, LoopBreak, LoopContinue)
-  - Reduced shell.py from 2230+ lines to 1570 lines (30% reduction)
-  - Implemented BuiltinCommands class with composition pattern for better organization
-  - Maintained complete backward compatibility through method delegation
-  - All 22 built-in commands (exit, cd, export, pwd, echo, etc.) moved to focused module
-  - Preserved all existing functionality while improving maintainability and testability
-  - First phase of comprehensive refactoring to address large shell.py file
-  - All tests continue to pass (344 tests) ensuring zero regressions
-
 0.17.1 (2025-05-28) - Refactoring preparation
   - Added comprehensive refactoring proposal document for shell.py restructuring
   - Documented plan to extract built-ins, process execution, environment management, I/O redirection, and script running
