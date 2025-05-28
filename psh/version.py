@@ -2,10 +2,21 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.9.0"
+__version__ = "0.10.0"
 
 # Version history
 VERSION_HISTORY = """
+0.10.0 (2025-05-28) - Script file execution
+  - Added script file execution support with `psh script.sh`
+  - Implemented InputSource abstraction for flexible input handling
+  - Added proper $0 variable handling for script names
+  - Support script arguments as $1, $2, etc. via set_positional_params()
+  - File validation with appropriate exit codes (126, 127)
+  - Comment and empty line handling in scripts
+  - Binary file detection and rejection
+  - Enhanced -c flag to accept additional arguments
+  - Comprehensive architecture documentation for future development
+
 0.9.0 (2025-05-28) - Job control
   - Full job control implementation with process group management
   - Job suspension with Ctrl-Z (SIGTSTP handling)
