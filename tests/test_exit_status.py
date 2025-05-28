@@ -105,22 +105,17 @@ class TestExitStatus:
     
     def test_external_command_exit_status(self):
         """Test exit status from external commands"""
-        with patch.object(subprocess, 'Popen') as mock_popen:
-            # Simulate successful external command
-            mock_process = MagicMock()
-            mock_process.wait.return_value = 0
-            mock_process.returncode = 0
-            mock_popen.return_value = mock_process
-            
-            self.shell.run_command("ls")
-            assert self.shell.last_exit_code == 0
-            
-            # Simulate failed external command
-            mock_process.wait.return_value = 2
-            mock_process.returncode = 2
-            
-            self.shell.run_command("ls")
-            assert self.shell.last_exit_code == 2
+        # Test successful external command
+        self.shell.run_command("/usr/bin/true")
+        assert self.shell.last_exit_code == 0
+        
+        # Test failed external command
+        self.shell.run_command("/usr/bin/false")
+        assert self.shell.last_exit_code == 1
+        
+        # Test command that returns specific exit code
+        self.shell.run_command("sh -c 'exit 42'")
+        assert self.shell.last_exit_code == 42
     
     def test_exit_status_preserved_across_empty_commands(self):
         """Test that empty commands don't reset exit status"""

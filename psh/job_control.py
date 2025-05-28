@@ -258,6 +258,18 @@ class JobManager:
             except OSError:
                 break
         
+        # If processes were already reaped by SIGCHLD handler, get exit status from stored status
+        if not job.any_process_running() and job.processes:
+            last_process = job.processes[-1]  # Last process in pipeline
+            if last_process.completed and last_process.status is not None:
+                status = last_process.status
+                if os.WIFEXITED(status):
+                    exit_status = os.WEXITSTATUS(status)
+                elif os.WIFSIGNALED(status):
+                    exit_status = 128 + os.WTERMSIG(status)
+                elif os.WIFSTOPPED(status):
+                    exit_status = 128 + os.WSTOPSIG(status)
+        
         # Update job state
         job.update_state()
         
