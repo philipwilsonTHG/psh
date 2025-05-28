@@ -17,21 +17,39 @@ def main():
             shell.set_positional_params(sys.argv[3:])
             exit_code = shell.run_command(command, add_to_history=False)
             sys.exit(exit_code)
-        elif sys.argv[1] == "--version":
+        elif sys.argv[1] in ("--version", "-V"):
             # Show version
             from .version import get_version_info
             print(get_version_info())
             sys.exit(0)
-        elif sys.argv[1] == "--help":
+        elif sys.argv[1] in ("--help", "-h"):
             # Show help
-            print("Usage: psh [-c command] [script] [--version] [--help]")
+            print("Usage: psh [options] [script [args...]]")
+            print("       psh [options] -c command [args...]")
             print("\nPython Shell (psh) - An educational Unix shell implementation")
             print("\nOptions:")
-            print("  -c command    Execute command and exit")
-            print("  script        Execute script file")
-            print("  --version     Show version information")
-            print("  --help        Show this help message")
+            print("  -c command       Execute command and exit")
+            print("  -h, --help       Show this help message and exit")
+            print("  -V, --version    Show version information and exit")
+            print("\nArguments:")
+            print("  script           Script file to execute")
+            print("  args             Arguments passed to script or command")
+            print("\nExamples:")
+            print("  psh                          # Start interactive shell")
+            print("  psh script.sh arg1 arg2      # Execute script with arguments")
+            print("  psh -c 'echo $1' hello       # Execute command with arguments")
+            print("  source script.sh arg1        # Source script with arguments")
             sys.exit(0)
+        elif sys.argv[1] == "--":
+            # End of options marker
+            if len(sys.argv) > 2:
+                script_path = sys.argv[2]
+                shell.set_positional_params(sys.argv[3:])
+                exit_code = shell.run_script(script_path)
+                sys.exit(exit_code)
+            else:
+                # No script after --, start interactive mode
+                shell.interactive_loop()
         elif sys.argv[1].startswith("-"):
             # Unknown option
             print(f"psh: {sys.argv[1]}: invalid option", file=sys.stderr)

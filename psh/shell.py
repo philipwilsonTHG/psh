@@ -28,6 +28,7 @@ class Shell:
         self.variables = {}  # Shell variables (not exported to environment)
         self.positional_params = args if args else []  # $1, $2, etc.
         self.script_name = script_name or "psh"  # $0 value
+        self.is_script_mode = script_name is not None and script_name != "psh"
         self.builtins = {
             'exit': self._builtin_exit,
             'cd': self._builtin_cd,
@@ -85,12 +86,21 @@ class Shell:
             # Not a terminal or already set
             pass
         
-        # Set up signal handlers
-        signal.signal(signal.SIGINT, self._handle_sigint)
-        signal.signal(signal.SIGTSTP, signal.SIG_IGN)  # Shell ignores SIGTSTP
-        signal.signal(signal.SIGTTOU, signal.SIG_IGN)  # Ignore terminal output stops
-        signal.signal(signal.SIGTTIN, signal.SIG_IGN)  # Ignore terminal input stops
-        signal.signal(signal.SIGCHLD, self._handle_sigchld)  # Track child status
+        # Set up signal handlers based on mode
+        if self.is_script_mode:
+            # Script mode: simpler signal handling
+            signal.signal(signal.SIGINT, signal.SIG_DFL)  # Default SIGINT behavior
+            signal.signal(signal.SIGTSTP, signal.SIG_DFL)  # Default SIGTSTP behavior
+            signal.signal(signal.SIGTTOU, signal.SIG_IGN)  # Still ignore terminal output stops
+            signal.signal(signal.SIGTTIN, signal.SIG_IGN)  # Still ignore terminal input stops
+            signal.signal(signal.SIGCHLD, signal.SIG_DFL)  # Default child handling
+        else:
+            # Interactive mode: full signal handling
+            signal.signal(signal.SIGINT, self._handle_sigint)
+            signal.signal(signal.SIGTSTP, signal.SIG_IGN)  # Shell ignores SIGTSTP
+            signal.signal(signal.SIGTTOU, signal.SIG_IGN)  # Ignore terminal output stops
+            signal.signal(signal.SIGTTIN, signal.SIG_IGN)  # Ignore terminal input stops
+            signal.signal(signal.SIGCHLD, self._handle_sigchld)  # Track child status
     
     def _expand_string_variables(self, text: str) -> str:
         """Expand variables in a string (for here strings)"""
@@ -776,6 +786,10 @@ class Shell:
             print(f"psh: {script_path}: No such file or directory", file=sys.stderr)
             return 127
         
+        if os.path.isdir(script_path):
+            print(f"psh: {script_path}: Is a directory", file=sys.stderr)
+            return 126
+        
         if not os.access(script_path, os.R_OK):
             print(f"psh: {script_path}: Permission denied", file=sys.stderr)
             return 126
@@ -793,9 +807,11 @@ class Shell:
         if validation_result != 0:
             return validation_result
         
-        # Save current script name
+        # Save current script state
         old_script_name = self.script_name
+        old_script_mode = self.is_script_mode
         self.script_name = script_path
+        self.is_script_mode = True
         
         try:
             from .input_sources import FileInput
@@ -806,35 +822,72 @@ class Shell:
             return 1
         finally:
             self.script_name = old_script_name
+            self.is_script_mode = old_script_mode
     
     def _execute_from_source(self, input_source, add_to_history=True) -> int:
-        """Execute commands from an input source."""
+        """Execute commands from an input source with enhanced processing."""
         exit_code = 0
+        command_buffer = ""
+        command_start_line = 0
         
         while True:
             line = input_source.read_line()
             if line is None:  # EOF
+                # Execute any remaining command in buffer
+                if command_buffer.strip():
+                    exit_code = self._execute_buffered_command(
+                        command_buffer, input_source, command_start_line, add_to_history
+                    )
                 break
             
-            # Skip empty lines and comments
-            if not line.strip() or line.strip().startswith('#'):
+            # Skip empty lines when no command is being built
+            if not command_buffer and not line.strip():
                 continue
             
-            # Execute the command using existing run_command method
-            exit_code = self.run_command(line, add_to_history=add_to_history and input_source.is_interactive())
+            # Skip comment lines when no command is being built
+            if not command_buffer and line.strip().startswith('#'):
+                continue
+            
+            # Handle line continuation (backslash at end)
+            if line.endswith('\\'):
+                # Remove the backslash and add to buffer
+                if not command_buffer:
+                    command_start_line = input_source.get_line_number()
+                command_buffer += line[:-1] + ' '
+                continue
+            
+            # Add current line to buffer
+            if not command_buffer:
+                command_start_line = input_source.get_line_number()
+            command_buffer += line
+            
+            # Execute the complete command
+            if command_buffer.strip():
+                exit_code = self._execute_buffered_command(
+                    command_buffer, input_source, command_start_line, add_to_history
+                )
+            
+            # Reset buffer for next command
+            command_buffer = ""
+            command_start_line = 0
         
         return exit_code
     
-    def run_command(self, command_string: str, add_to_history=True):
-        # Add to history if not empty and add_to_history is True
-        if add_to_history and command_string.strip():
-            self._add_to_history(command_string.strip())
+    def _execute_buffered_command(self, command_string: str, input_source, start_line: int, add_to_history: bool) -> int:
+        """Execute a buffered command with enhanced error reporting."""
+        # Skip empty commands and comments
+        if not command_string.strip() or command_string.strip().startswith('#'):
+            return 0
         
         try:
             tokens = tokenize(command_string)
             # Expand aliases
             tokens = self.alias_manager.expand_aliases(tokens)
             ast = parse(tokens)
+            
+            # Add to history if interactive
+            if add_to_history and input_source.is_interactive() and command_string.strip():
+                self._add_to_history(command_string.strip())
             
             # Handle TopLevel AST node (functions + commands)
             if isinstance(ast, TopLevel):
@@ -846,13 +899,25 @@ class Shell:
                 exit_code = self.execute_command_list(ast)
                 return exit_code
         except ParseError as e:
-            print(f"psh: {e}", file=sys.stderr)
+            # Enhanced error message with location
+            location = input_source.get_location() if start_line == 0 else f"{input_source.get_name()}:{start_line}"
+            print(f"psh: {location}: {e.message}", file=sys.stderr)
             self.last_exit_code = 1
             return 1
         except Exception as e:
-            print(f"psh: unexpected error: {e}", file=sys.stderr)
+            # Enhanced error message with location  
+            location = input_source.get_location() if start_line == 0 else f"{input_source.get_name()}:{start_line}"
+            print(f"psh: {location}: unexpected error: {e}", file=sys.stderr)
             self.last_exit_code = 1
             return 1
+    
+    def run_command(self, command_string: str, add_to_history=True):
+        """Execute a command string using the unified input system."""
+        from .input_sources import StringInput
+        
+        # Use the unified execution system for consistency
+        input_source = StringInput(command_string, "<command>")
+        return self._execute_from_source(input_source, add_to_history)
     
     def interactive_loop(self):
         # Set up readline for better line editing
@@ -1002,25 +1067,70 @@ class Shell:
             return 0
     
     def _builtin_source(self, args):
+        """Enhanced source builtin with PATH search and argument support."""
         if len(args) < 2:
             print("source: filename argument required", file=sys.stderr)
             return 1
         
         filename = args[1]
-        try:
-            with open(filename, 'r') as f:
-                for line in f:
-                    line = line.strip()
-                    if line and not line.startswith('#'):
-                        # Don't add source commands to history
-                        self.run_command(line, add_to_history=False)
-            return 0
-        except FileNotFoundError:
+        source_args = args[2:] if len(args) > 2 else []
+        
+        # Find the script file
+        script_path = self._find_source_file(filename)
+        if script_path is None:
             print(f"source: {filename}: No such file or directory", file=sys.stderr)
             return 1
+        
+        # Validate the script file
+        validation_result = self._validate_script_file(script_path)
+        if validation_result != 0:
+            return validation_result
+        
+        # Save current shell state
+        old_positional = self.positional_params.copy()
+        old_script_name = self.script_name
+        old_script_mode = self.is_script_mode
+        
+        # Set new state for sourced script
+        self.positional_params = source_args
+        self.script_name = script_path
+        # Keep current script mode (sourcing inherits mode)
+        
+        try:
+            from .input_sources import FileInput
+            with FileInput(script_path) as input_source:
+                # Execute with no history since it's sourced
+                return self._execute_from_source(input_source, add_to_history=False)
         except Exception as e:
-            print(f"source: {filename}: {e}", file=sys.stderr)
+            print(f"source: {script_path}: {e}", file=sys.stderr)
             return 1
+        finally:
+            # Restore previous state
+            self.positional_params = old_positional
+            self.script_name = old_script_name
+            self.is_script_mode = old_script_mode
+    
+    def _find_source_file(self, filename: str) -> str:
+        """Find a source file, searching PATH if needed."""
+        # If filename contains a slash, don't search PATH
+        if '/' in filename:
+            if os.path.exists(filename):
+                return filename
+            return None
+        
+        # First check current directory
+        if os.path.exists(filename):
+            return filename
+        
+        # Search in PATH
+        path_dirs = self.env.get('PATH', '').split(':')
+        for path_dir in path_dirs:
+            if path_dir:  # Skip empty path components
+                full_path = os.path.join(path_dir, filename)
+                if os.path.exists(full_path):
+                    return full_path
+        
+        return None
     
     def _builtin_history(self, args):
         # Simple history implementation

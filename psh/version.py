@@ -2,10 +2,20 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.10.0"
+__version__ = "0.11.0"
 
 # Version history
 VERSION_HISTORY = """
+0.11.0 (2025-05-28) - Enhanced script execution
+  - Enhanced source builtin with PATH search and argument support
+  - Improved command line processing with -h, -V, and -- options
+  - Line continuation support with backslash
+  - Enhanced error messages with file and line number information
+  - Script vs interactive mode distinction with appropriate signal handling
+  - Unified input processing system for better consistency
+  - Comprehensive help and usage examples
+  - Better file validation and error handling
+
 0.10.0 (2025-05-28) - Script file execution
   - Added script file execution support with `psh script.sh`
   - Implemented InputSource abstraction for flexible input handling

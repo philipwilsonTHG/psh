@@ -31,6 +31,17 @@ class InputSource(ABC):
     def get_name(self) -> str:
         """Return the name of this input source for error messages."""
         pass
+    
+    def get_line_number(self) -> int:
+        """Return the current line number (1-based). Override if tracking line numbers."""
+        return 0
+    
+    def get_location(self) -> str:
+        """Return a location string for error messages."""
+        line_num = self.get_line_number()
+        if line_num > 0:
+            return f"{self.get_name()}:{line_num}"
+        return self.get_name()
 
 
 class FileInput(InputSource):
@@ -63,6 +74,9 @@ class FileInput(InputSource):
     
     def get_name(self) -> str:
         return self.file_path
+    
+    def get_line_number(self) -> int:
+        return self.line_number
 
 
 class StringInput(InputSource):
@@ -72,12 +86,14 @@ class StringInput(InputSource):
         self.lines = command.split('\n')
         self.current = 0
         self.name = name
+        self.line_number = 0
     
     def read_line(self) -> Optional[str]:
         """Read the next line from the string."""
         if self.current < len(self.lines):
             line = self.lines[self.current]
             self.current += 1
+            self.line_number += 1
             return line
         return None
     
@@ -86,6 +102,9 @@ class StringInput(InputSource):
     
     def get_name(self) -> str:
         return self.name
+    
+    def get_line_number(self) -> int:
+        return self.line_number
 
 
 class InteractiveInput(InputSource):
