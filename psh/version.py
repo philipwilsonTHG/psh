@@ -2,10 +2,23 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.14.0"
+__version__ = "0.15.0"
 
 # Version history
 VERSION_HISTORY = """
+0.15.0 (2025-05-28) - For loops implementation
+  - Implemented complete for/in/do/done loop constructs
+  - Added ForStatement AST node with variable, iterable, and body fields
+  - Extended tokenizer with FOR/IN tokens and keyword context detection
+  - Enhanced parser with parse_for_statement() method supporting WORD, STRING, and VARIABLE tokens
+  - Added robust loop execution with variable expansion and glob pattern support
+  - Variable scoping: loop variables are properly isolated and restored after execution
+  - Support for complex iterables: simple lists, quoted items, variable expansion, glob patterns
+  - I/O redirection and pipeline support in loop bodies
+  - Comprehensive test suite with 20 test methods and 85% success rate
+  - Full integration into main parsing and execution flow
+  - Complete iteration capabilities with both while and for loops
+
 0.14.0 (2025-05-28) - While loops implementation
   - Implemented complete while/do/done loop constructs
   - Added WhileStatement AST node with condition and body CommandLists

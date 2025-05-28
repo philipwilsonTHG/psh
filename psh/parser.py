@@ -1,6 +1,6 @@
 from typing import List, Optional, Union
 from .tokenizer import Token, TokenType
-from .ast_nodes import Command, Pipeline, CommandList, AndOrList, Redirect, FunctionDef, TopLevel, IfStatement, WhileStatement
+from .ast_nodes import Command, Pipeline, CommandList, AndOrList, Redirect, FunctionDef, TopLevel, IfStatement, WhileStatement, ForStatement
 
 
 class ParseError(Exception):
@@ -58,6 +58,9 @@ class Parser:
             elif self.match(TokenType.WHILE):
                 while_stmt = self.parse_while_statement()
                 top_level.items.append(while_stmt)
+            elif self.match(TokenType.FOR):
+                for_stmt = self.parse_for_statement()
+                top_level.items.append(for_stmt)
             else:
                 # Parse command list until we hit a function or EOF
                 cmd_list = self._parse_command_list_until_function()
@@ -369,7 +372,7 @@ class Parser:
         while self.match(TokenType.NEWLINE):
             self.advance()
         
-        while not self.match(TokenType.EOF) and not self._is_function_def() and not self.match(TokenType.IF) and not self.match(TokenType.WHILE):
+        while not self.match(TokenType.EOF) and not self._is_function_def() and not self.match(TokenType.IF) and not self.match(TokenType.WHILE) and not self.match(TokenType.FOR):
             and_or_list = self.parse_and_or_list()
             command_list.and_or_lists.append(and_or_list)
             
@@ -380,8 +383,8 @@ class Parser:
                 while self.match(TokenType.SEMICOLON, TokenType.NEWLINE):
                     self.advance()
                 
-                if self._is_function_def() or self.match(TokenType.EOF) or self.match(TokenType.IF) or self.match(TokenType.WHILE):
-                    # Stop here, let main parse loop handle the function/if/while statement
+                if self._is_function_def() or self.match(TokenType.EOF) or self.match(TokenType.IF) or self.match(TokenType.WHILE) or self.match(TokenType.FOR):
+                    # Stop here, let main parse loop handle the function/if/while/for statement
                     self.current = saved_pos
                     break
                 
@@ -503,6 +506,68 @@ class Parser:
         self.expect(TokenType.DONE)
         
         return WhileStatement(condition, body)
+    
+    def parse_for_statement(self) -> ForStatement:
+        """Parse for/in/do/done loop statement."""
+        # Consume 'for'
+        self.expect(TokenType.FOR)
+        
+        # Skip newlines after for
+        while self.match(TokenType.NEWLINE):
+            self.advance()
+        
+        # Parse variable name
+        var_token = self.expect(TokenType.WORD)
+        variable = var_token.value
+        
+        # Skip newlines after variable
+        while self.match(TokenType.NEWLINE):
+            self.advance()
+        
+        # Consume 'in'
+        self.expect(TokenType.IN)
+        
+        # Skip newlines after in
+        while self.match(TokenType.NEWLINE):
+            self.advance()
+        
+        # Parse iterable list (words until 'do' or ';')
+        iterable = []
+        while not self.match(TokenType.DO) and not self.match(TokenType.SEMICOLON) and not self.match(TokenType.NEWLINE) and not self.match(TokenType.EOF):
+            # Accept WORD, STRING, or VARIABLE tokens in the iterable list
+            if self.match(TokenType.WORD, TokenType.STRING, TokenType.VARIABLE):
+                token = self.advance()
+                iterable.append(token.value)
+            else:
+                break
+        
+        # Handle separators between iterable and 'do'
+        while self.match(TokenType.SEMICOLON, TokenType.NEWLINE):
+            self.advance()
+        
+        # Consume 'do'
+        self.expect(TokenType.DO)
+        
+        # Skip newlines after do
+        while self.match(TokenType.NEWLINE):
+            self.advance()
+        
+        # Parse body (commands until 'done')
+        body = CommandList()
+        while not self.match(TokenType.DONE) and not self.match(TokenType.EOF):
+            and_or_list = self.parse_and_or_list()
+            body.and_or_lists.append(and_or_list)
+            
+            # Handle separators but stop at 'done'
+            while self.match(TokenType.SEMICOLON, TokenType.NEWLINE):
+                self.advance()
+                if self.match(TokenType.DONE):
+                    break
+        
+        # Consume 'done'
+        self.expect(TokenType.DONE)
+        
+        return ForStatement(variable, iterable, body)
 
 
 def parse(tokens: List[Token]) -> Union[CommandList, TopLevel]:

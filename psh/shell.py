@@ -8,7 +8,7 @@ import pwd
 import stat
 from .tokenizer import tokenize
 from .parser import parse, ParseError
-from .ast_nodes import Command, Pipeline, CommandList, AndOrList, Redirect, TopLevel, FunctionDef, IfStatement, WhileStatement
+from .ast_nodes import Command, Pipeline, CommandList, AndOrList, Redirect, TopLevel, FunctionDef, IfStatement, WhileStatement, ForStatement
 from .line_editor import LineEditor
 from .version import get_version_info
 from .aliases import AliasManager
@@ -743,6 +743,9 @@ class Shell:
             elif isinstance(item, WhileStatement):
                 # Execute while statement
                 last_exit = self.execute_while_statement(item)
+            elif isinstance(item, ForStatement):
+                # Execute for statement
+                last_exit = self.execute_for_statement(item)
         
         self.last_exit_code = last_exit
         return last_exit
@@ -795,6 +798,61 @@ class Shell:
                 last_exit = self.execute_command_list(while_stmt.body)
                 # Note: We continue the loop regardless of body exit status
                 # (unlike some shells that might break on certain exit codes)
+        
+        return last_exit
+    
+    def execute_for_statement(self, for_stmt: ForStatement) -> int:
+        """Execute a for/in/do/done loop statement."""
+        last_exit = 0
+        
+        # Expand the iterable list (handle variables, globs, etc.)
+        expanded_items = []
+        for item in for_stmt.iterable:
+            # Expand variables in the item
+            expanded_item = self._expand_string_variables(item)
+            
+            # Handle glob patterns
+            if '*' in expanded_item or '?' in expanded_item or '[' in expanded_item:
+                # Use glob to expand patterns
+                import glob
+                matches = glob.glob(expanded_item)
+                if matches:
+                    # Sort for consistent ordering
+                    expanded_items.extend(sorted(matches))
+                else:
+                    # No matches, use literal string
+                    expanded_items.append(expanded_item)
+            else:
+                expanded_items.append(expanded_item)
+        
+        # If no items to iterate over, return successfully
+        if not expanded_items:
+            return 0
+        
+        # Save the current value of the loop variable (if it exists)
+        loop_var = for_stmt.variable
+        saved_value = self.variables.get(loop_var)
+        
+        try:
+            # Iterate over each item
+            for item in expanded_items:
+                # Set the loop variable to the current item
+                self.variables[loop_var] = item
+                
+                # Execute the body
+                if for_stmt.body.and_or_lists:
+                    # Collect here documents for body
+                    self._collect_heredocs(for_stmt.body)
+                    # Execute body commands
+                    last_exit = self.execute_command_list(for_stmt.body)
+                    # Continue regardless of body exit status
+        finally:
+            # Restore the previous value of the loop variable
+            if saved_value is not None:
+                self.variables[loop_var] = saved_value
+            else:
+                # Variable didn't exist before, remove it
+                self.variables.pop(loop_var, None)
         
         return last_exit
     

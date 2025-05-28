@@ -72,6 +72,14 @@ class WhileStatement(ASTNode):
 
 
 @dataclass
+class ForStatement(ASTNode):
+    """For/in/do/done loop statement."""
+    variable: str           # The loop variable name (e.g., "i", "file")
+    iterable: List[str]     # List of items to iterate over (after expansion)
+    body: CommandList       # Commands to execute for each iteration
+
+
+@dataclass
 class TopLevel(ASTNode):
     """Root node that can contain functions and/or commands."""
     items: List[ASTNode] = field(default_factory=list)  # List of FunctionDef or CommandList
