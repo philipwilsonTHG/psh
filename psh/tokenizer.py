@@ -30,6 +30,10 @@ class TokenType(Enum):
     LBRACE = auto()
     RBRACE = auto()
     FUNCTION = auto()
+    IF = auto()
+    THEN = auto()
+    ELSE = auto()
+    FI = auto()
 
 
 @dataclass
@@ -76,6 +80,36 @@ class Tokenizer:
                 value += self.current_char()
                 self.advance()
         return value
+    
+    def is_keyword_context(self, word: str) -> bool:
+        """Check if we're in a position where this word should be a keyword."""
+        if not self.tokens:
+            return True  # Start of input
+        
+        last_token = self.tokens[-1]
+        
+        # Special case: don't treat keywords as keywords when they're arguments to echo
+        if len(self.tokens) >= 2:
+            prev_token = self.tokens[-2] if len(self.tokens) >= 2 else None
+            if (last_token.type == TokenType.WORD and last_token.value == 'echo' and
+                prev_token and prev_token.type in [TokenType.SEMICOLON, TokenType.NEWLINE, 
+                                                  TokenType.AND_AND, TokenType.OR_OR,
+                                                  TokenType.PIPE, TokenType.LBRACE, TokenType.THEN, TokenType.ELSE]):
+                return False  # Don't treat as keyword when it's an echo argument
+        
+        # Handle specific keyword contexts
+        if word in ['if', 'function']:
+            # 'if' and 'function' are keywords at command start positions
+            return last_token.type in [
+                TokenType.SEMICOLON, TokenType.NEWLINE, 
+                TokenType.AND_AND, TokenType.OR_OR,
+                TokenType.PIPE, TokenType.LBRACE
+            ]
+        elif word in ['then', 'else', 'fi']:
+            # Control structure keywords - generally always keywords unless they're echo args
+            return True
+        
+        return False
     
     def read_quoted_string(self, quote_char: str) -> str:
         self.advance()  # Skip opening quote
@@ -308,10 +342,19 @@ class Tokenizer:
                 self.advance()
             else:
                 word = self.read_word()
-                # Check if word is 'function' keyword
-                if word == 'function':
+                # Check for keywords based on word and context
+                if word == 'function' and self.is_keyword_context(word):
                     self.tokens.append(Token(TokenType.FUNCTION, word, start_pos))
+                elif word == 'if' and self.is_keyword_context(word):
+                    self.tokens.append(Token(TokenType.IF, word, start_pos))
+                elif word == 'then' and self.is_keyword_context(word):
+                    self.tokens.append(Token(TokenType.THEN, word, start_pos))
+                elif word == 'else' and self.is_keyword_context(word):
+                    self.tokens.append(Token(TokenType.ELSE, word, start_pos))
+                elif word == 'fi' and self.is_keyword_context(word):
+                    self.tokens.append(Token(TokenType.FI, word, start_pos))
                 else:
+                    # Not a keyword or not in keyword context, treat as regular word
                     self.tokens.append(Token(TokenType.WORD, word, start_pos))
         
         self.tokens.append(Token(TokenType.EOF, '', self.position))

@@ -57,6 +57,14 @@ class FunctionDef(ASTNode):
 
 
 @dataclass
+class IfStatement(ASTNode):
+    """If/then/else/fi conditional statement."""
+    condition: CommandList  # The command list that determines truth/false
+    then_part: CommandList  # Commands to execute if condition is true
+    else_part: Optional[CommandList] = None  # Commands to execute if condition is false
+
+
+@dataclass
 class TopLevel(ASTNode):
     """Root node that can contain functions and/or commands."""
     items: List[ASTNode] = field(default_factory=list)  # List of FunctionDef or CommandList

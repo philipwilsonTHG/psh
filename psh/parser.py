@@ -1,6 +1,6 @@
 from typing import List, Optional, Union
 from .tokenizer import Token, TokenType
-from .ast_nodes import Command, Pipeline, CommandList, AndOrList, Redirect, FunctionDef, TopLevel
+from .ast_nodes import Command, Pipeline, CommandList, AndOrList, Redirect, FunctionDef, TopLevel, IfStatement
 
 
 class ParseError(Exception):
@@ -52,6 +52,9 @@ class Parser:
             if self._is_function_def():
                 func_def = self.parse_function_def()
                 top_level.items.append(func_def)
+            elif self.match(TokenType.IF):
+                if_stmt = self.parse_if_statement()
+                top_level.items.append(if_stmt)
             else:
                 # Parse command list until we hit a function or EOF
                 cmd_list = self._parse_command_list_until_function()
@@ -363,19 +366,19 @@ class Parser:
         while self.match(TokenType.NEWLINE):
             self.advance()
         
-        while not self.match(TokenType.EOF) and not self._is_function_def():
+        while not self.match(TokenType.EOF) and not self._is_function_def() and not self.match(TokenType.IF):
             and_or_list = self.parse_and_or_list()
             command_list.and_or_lists.append(and_or_list)
             
             # Check for separators
             if self.match(TokenType.SEMICOLON, TokenType.NEWLINE):
-                # Peek ahead to see if a function follows
+                # Peek ahead to see if a function or if statement follows
                 saved_pos = self.current
                 while self.match(TokenType.SEMICOLON, TokenType.NEWLINE):
                     self.advance()
                 
-                if self._is_function_def() or self.match(TokenType.EOF):
-                    # Stop here, let main parse loop handle the function
+                if self._is_function_def() or self.match(TokenType.EOF) or self.match(TokenType.IF):
+                    # Stop here, let main parse loop handle the function/if statement
                     self.current = saved_pos
                     break
                 
@@ -386,6 +389,72 @@ class Parser:
                 break
         
         return command_list
+    
+    def parse_if_statement(self) -> IfStatement:
+        """Parse if/then/else/fi conditional statement."""
+        # Consume 'if'
+        self.expect(TokenType.IF)
+        
+        # Skip newlines after if
+        while self.match(TokenType.NEWLINE):
+            self.advance()
+        
+        # Parse condition (command list until 'then')
+        condition = CommandList()
+        while not self.match(TokenType.THEN) and not self.match(TokenType.EOF):
+            and_or_list = self.parse_and_or_list()
+            condition.and_or_lists.append(and_or_list)
+            
+            # Handle separators but stop at 'then'
+            while self.match(TokenType.SEMICOLON, TokenType.NEWLINE):
+                self.advance()
+                if self.match(TokenType.THEN):
+                    break
+        
+        # Consume 'then'
+        self.expect(TokenType.THEN)
+        
+        # Skip newlines after then
+        while self.match(TokenType.NEWLINE):
+            self.advance()
+        
+        # Parse then_part (commands until 'else' or 'fi')
+        then_part = CommandList()
+        while not self.match(TokenType.ELSE) and not self.match(TokenType.FI) and not self.match(TokenType.EOF):
+            and_or_list = self.parse_and_or_list()
+            then_part.and_or_lists.append(and_or_list)
+            
+            # Handle separators but stop at 'else' or 'fi'
+            while self.match(TokenType.SEMICOLON, TokenType.NEWLINE):
+                self.advance()
+                if self.match(TokenType.ELSE) or self.match(TokenType.FI):
+                    break
+        
+        # Parse optional else part
+        else_part = None
+        if self.match(TokenType.ELSE):
+            self.advance()  # Consume 'else'
+            
+            # Skip newlines after else
+            while self.match(TokenType.NEWLINE):
+                self.advance()
+            
+            # Parse else_part (commands until 'fi')
+            else_part = CommandList()
+            while not self.match(TokenType.FI) and not self.match(TokenType.EOF):
+                and_or_list = self.parse_and_or_list()
+                else_part.and_or_lists.append(and_or_list)
+                
+                # Handle separators but stop at 'fi'
+                while self.match(TokenType.SEMICOLON, TokenType.NEWLINE):
+                    self.advance()
+                    if self.match(TokenType.FI):
+                        break
+        
+        # Consume 'fi'
+        self.expect(TokenType.FI)
+        
+        return IfStatement(condition, then_part, else_part)
 
 
 def parse(tokens: List[Token]) -> Union[CommandList, TopLevel]:

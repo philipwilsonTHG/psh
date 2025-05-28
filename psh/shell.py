@@ -7,7 +7,7 @@ import glob
 import pwd
 from .tokenizer import tokenize
 from .parser import parse, ParseError
-from .ast_nodes import Command, Pipeline, CommandList, AndOrList, Redirect, TopLevel, FunctionDef
+from .ast_nodes import Command, Pipeline, CommandList, AndOrList, Redirect, TopLevel, FunctionDef, IfStatement
 from .line_editor import LineEditor
 from .version import get_version_info
 from .aliases import AliasManager
@@ -48,7 +48,11 @@ class Shell:
             'return': self._builtin_return,
             'jobs': self._builtin_jobs,
             'fg': self._builtin_fg,
+            'test': self._builtin_test,
+            '[': self._builtin_test,
             'bg': self._builtin_bg,
+            'true': self._builtin_true,
+            'false': self._builtin_false,
         }
         # History setup
         self.history = []
@@ -732,9 +736,36 @@ class Shell:
                 self._collect_heredocs(item)
                 # Execute commands
                 last_exit = self.execute_command_list(item)
+            elif isinstance(item, IfStatement):
+                # Execute if statement
+                last_exit = self.execute_if_statement(item)
         
         self.last_exit_code = last_exit
         return last_exit
+    
+    def execute_if_statement(self, if_stmt: IfStatement) -> int:
+        """Execute an if/then/else/fi conditional statement."""
+        # Collect here documents for condition
+        self._collect_heredocs(if_stmt.condition)
+        
+        # Execute the condition and check its exit status
+        condition_exit = self.execute_command_list(if_stmt.condition)
+        
+        # In shell, condition is true if exit code is 0, false otherwise
+        if condition_exit == 0:
+            # Execute then part
+            if if_stmt.then_part.and_or_lists:
+                self._collect_heredocs(if_stmt.then_part)
+                return self.execute_command_list(if_stmt.then_part)
+            else:
+                return 0
+        else:
+            # Execute else part if it exists
+            if if_stmt.else_part and if_stmt.else_part.and_or_lists:
+                self._collect_heredocs(if_stmt.else_part)
+                return self.execute_command_list(if_stmt.else_part)
+            else:
+                return 0
     
     def _execute_function(self, func, args: list, command: Command) -> int:
         """Execute a function with given arguments."""
@@ -1577,6 +1608,104 @@ class Shell:
             os.killpg(job.pgid, signal.SIGCONT)
             print(f"[{job.job_id}]+ {job.command} &")
         return 0
+    
+    def _builtin_test(self, args):
+        """Implement test command for conditionals."""
+        if args[0] == '[':
+            # For [ command, last argument must be ]
+            if len(args) < 2 or args[-1] != ']':
+                return 2  # Syntax error
+            args = args[1:-1]  # Remove [ and ]
+        else:
+            args = args[1:]  # Remove 'test'
+        
+        if len(args) == 0:
+            return 1  # False
+        
+        if len(args) == 1:
+            # Single argument - true if non-empty string
+            return 0 if args[0] else 1
+        
+        if len(args) == 2:
+            # Unary operators
+            op, arg = args
+            if op == '-z':
+                # True if string is empty
+                return 0 if not arg else 1
+            elif op == '-n':
+                # True if string is non-empty
+                return 0 if arg else 1
+            elif op == '-f':
+                # True if file exists and is regular file
+                return 0 if os.path.isfile(arg) else 1
+            elif op == '-d':
+                # True if file exists and is directory
+                return 0 if os.path.isdir(arg) else 1
+            elif op == '-e':
+                # True if file exists
+                return 0 if os.path.exists(arg) else 1
+            elif op == '-r':
+                # True if file is readable
+                return 0 if os.path.isfile(arg) and os.access(arg, os.R_OK) else 1
+            elif op == '-w':
+                # True if file is writable
+                return 0 if os.path.isfile(arg) and os.access(arg, os.W_OK) else 1
+            elif op == '-x':
+                # True if file is executable
+                return 0 if os.path.isfile(arg) and os.access(arg, os.X_OK) else 1
+            else:
+                return 2  # Unknown operator
+        
+        if len(args) == 3:
+            # Binary operators
+            arg1, op, arg2 = args
+            if op == '=':
+                return 0 if arg1 == arg2 else 1
+            elif op == '!=':
+                return 0 if arg1 != arg2 else 1
+            elif op == '-eq':
+                try:
+                    return 0 if int(arg1) == int(arg2) else 1
+                except ValueError:
+                    return 2
+            elif op == '-ne':
+                try:
+                    return 0 if int(arg1) != int(arg2) else 1
+                except ValueError:
+                    return 2
+            elif op == '-lt':
+                try:
+                    return 0 if int(arg1) < int(arg2) else 1
+                except ValueError:
+                    return 2
+            elif op == '-le':
+                try:
+                    return 0 if int(arg1) <= int(arg2) else 1
+                except ValueError:
+                    return 2
+            elif op == '-gt':
+                try:
+                    return 0 if int(arg1) > int(arg2) else 1
+                except ValueError:
+                    return 2
+            elif op == '-ge':
+                try:
+                    return 0 if int(arg1) >= int(arg2) else 1
+                except ValueError:
+                    return 2
+            else:
+                return 2  # Unknown operator
+        
+        # More complex expressions not implemented yet
+        return 2
+    
+    def _builtin_true(self, args):
+        """Always return success (exit code 0)."""
+        return 0
+    
+    def _builtin_false(self, args):
+        """Always return failure (exit code 1)."""
+        return 1
     
     def _collect_heredocs(self, command_list: CommandList):
         """Collect here document content for all commands"""

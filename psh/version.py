@@ -2,10 +2,22 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.12.0"
+__version__ = "0.13.0"
 
 # Version history
 VERSION_HISTORY = """
+0.13.0 (2025-05-28) - Control structures (if/then/else/fi)
+  - Implemented full if/then/else/fi conditional statements
+  - Added IfStatement AST node for control structure representation
+  - Extended tokenizer with context-aware keyword recognition (if, then, else, fi)
+  - Enhanced parser to handle conditional statements with proper precedence
+  - Added execution logic for conditional branches based on exit status
+  - Implemented comprehensive test command ([) with string, numeric, and file operators
+  - Added true and false builtins for reliable condition testing
+  - Created 18 comprehensive tests covering all control structure scenarios
+  - Supports complex conditions with &&, ||, pipelines, and command substitution
+  - Full compatibility with bash-style conditional syntax and semantics
+
 0.12.0 (2025-05-28) - Shebang support and advanced script execution
   - Full shebang support for multi-interpreter execution (#!/bin/bash, #!/usr/bin/env python3)
   - Enhanced binary file detection with multi-factor analysis
