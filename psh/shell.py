@@ -8,7 +8,7 @@ import pwd
 import stat
 from .tokenizer import tokenize
 from .parser import parse, ParseError
-from .ast_nodes import Command, Pipeline, CommandList, AndOrList, Redirect, TopLevel, FunctionDef, IfStatement
+from .ast_nodes import Command, Pipeline, CommandList, AndOrList, Redirect, TopLevel, FunctionDef, IfStatement, WhileStatement
 from .line_editor import LineEditor
 from .version import get_version_info
 from .aliases import AliasManager
@@ -740,6 +740,9 @@ class Shell:
             elif isinstance(item, IfStatement):
                 # Execute if statement
                 last_exit = self.execute_if_statement(item)
+            elif isinstance(item, WhileStatement):
+                # Execute while statement
+                last_exit = self.execute_while_statement(item)
         
         self.last_exit_code = last_exit
         return last_exit
@@ -767,6 +770,33 @@ class Shell:
                 return self.execute_command_list(if_stmt.else_part)
             else:
                 return 0
+    
+    def execute_while_statement(self, while_stmt: WhileStatement) -> int:
+        """Execute a while/do/done loop statement."""
+        last_exit = 0
+        
+        while True:
+            # Collect here documents for condition
+            self._collect_heredocs(while_stmt.condition)
+            
+            # Execute the condition and check its exit status
+            condition_exit = self.execute_command_list(while_stmt.condition)
+            
+            # In shell, condition is true if exit code is 0, false otherwise
+            if condition_exit != 0:
+                # Condition is false, exit the loop
+                break
+                
+            # Condition is true, execute the body
+            if while_stmt.body.and_or_lists:
+                # Collect here documents for body
+                self._collect_heredocs(while_stmt.body)
+                # Execute body commands
+                last_exit = self.execute_command_list(while_stmt.body)
+                # Note: We continue the loop regardless of body exit status
+                # (unlike some shells that might break on certain exit codes)
+        
+        return last_exit
     
     def _execute_function(self, func, args: list, command: Command) -> int:
         """Execute a function with given arguments."""

@@ -34,6 +34,9 @@ class TokenType(Enum):
     THEN = auto()
     ELSE = auto()
     FI = auto()
+    WHILE = auto()
+    DO = auto()
+    DONE = auto()
 
 
 @dataclass
@@ -105,9 +108,16 @@ class Tokenizer:
                 TokenType.AND_AND, TokenType.OR_OR,
                 TokenType.PIPE, TokenType.LBRACE
             ]
-        elif word in ['then', 'else', 'fi']:
+        elif word in ['then', 'else', 'fi', 'do', 'done']:
             # Control structure keywords - generally always keywords unless they're echo args
             return True
+        elif word == 'while':
+            # 'while' is a keyword at command start positions (like 'if')
+            return last_token.type in [
+                TokenType.SEMICOLON, TokenType.NEWLINE, 
+                TokenType.AND_AND, TokenType.OR_OR,
+                TokenType.PIPE, TokenType.LBRACE
+            ]
         
         return False
     
@@ -353,6 +363,12 @@ class Tokenizer:
                     self.tokens.append(Token(TokenType.ELSE, word, start_pos))
                 elif word == 'fi' and self.is_keyword_context(word):
                     self.tokens.append(Token(TokenType.FI, word, start_pos))
+                elif word == 'while' and self.is_keyword_context(word):
+                    self.tokens.append(Token(TokenType.WHILE, word, start_pos))
+                elif word == 'do' and self.is_keyword_context(word):
+                    self.tokens.append(Token(TokenType.DO, word, start_pos))
+                elif word == 'done' and self.is_keyword_context(word):
+                    self.tokens.append(Token(TokenType.DONE, word, start_pos))
                 else:
                     # Not a keyword or not in keyword context, treat as regular word
                     self.tokens.append(Token(TokenType.WORD, word, start_pos))

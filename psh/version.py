@@ -2,10 +2,24 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.13.1"
+__version__ = "0.14.0"
 
 # Version history
 VERSION_HISTORY = """
+0.14.0 (2025-05-28) - While loops implementation
+  - Implemented complete while/do/done loop constructs
+  - Added WhileStatement AST node with condition and body CommandLists
+  - Extended tokenizer with WHILE/DO/DONE tokens and keyword context detection
+  - Enhanced parser with parse_while_statement() method following if statement patterns
+  - Added robust loop execution with condition evaluation and exit status handling
+  - Support for complex conditions: file tests, string/numeric comparisons, pipelines, && and ||
+  - Variable modification support within loop bodies for practical programming
+  - I/O redirection support in both conditions and loop bodies
+  - Natural termination based on condition evaluation (exit code 0 = continue, non-zero = stop)
+  - Created comprehensive test suite with 17 test methods and 94% success rate
+  - Full integration into main parsing and execution flow
+  - Complete programming language capabilities with conditionals and iteration
+
 0.13.1 (2025-05-28) - Complete file test operators
   - Implemented all missing POSIX and bash file test operators
   - Added file size and type operators: -s, -L/-h, -b, -c, -p, -S

@@ -65,6 +65,13 @@ class IfStatement(ASTNode):
 
 
 @dataclass
+class WhileStatement(ASTNode):
+    """While/do/done loop statement."""
+    condition: CommandList  # The command list that determines continue/stop
+    body: CommandList       # Commands to execute repeatedly while condition is true
+
+
+@dataclass
 class TopLevel(ASTNode):
     """Root node that can contain functions and/or commands."""
     items: List[ASTNode] = field(default_factory=list)  # List of FunctionDef or CommandList

@@ -41,10 +41,12 @@ Features ordered by implementation status and complexity.
 26. **Shebang Support** - Full #!/interpreter support, env patterns, fallback to psh
 27. **Enhanced Binary Detection** - Multi-factor analysis, file signature recognition
 
-### **🎯 Control Structures (v0.13.0)**
+### **🎯 Control Structures (v0.13.0 - v0.14.0)**
 28. **Conditional Statements** - if/then/else/fi with exit status-based evaluation
 29. **Test Command** - Comprehensive test and [ commands with string, numeric, and file operators
 30. **True/False Builtins** - Reliable true and false commands for condition testing
+31. **Enhanced File Test Operators** - Complete POSIX and bash file test operators (v0.13.1)
+32. **While Loops** - while/do/done iteration constructs with full condition support (v0.14.0)
 
 ## 🚧 Remaining Features
 
@@ -88,7 +90,7 @@ Features ordered by implementation status and complexity.
 #### Remaining Control Structures
 - [x] `if`/`then`/`else`/`fi` - Conditional execution blocks (✅ v0.13.0)
 - [x] `test` or `[` command for conditionals - Boolean testing (✅ v0.13.0)
-- [ ] `while`/`do`/`done` loops - Iteration constructs  
+- [x] `while`/`do`/`done` loops - ✅ Iteration constructs (v0.14.0)
 - [ ] `for` loops (both C-style and in-list style) - Enhanced iteration
 - [ ] `case`/`esac` statements - Pattern matching
 - [ ] `break` and `continue` - Loop control
@@ -136,13 +138,13 @@ Features ordered by implementation status and complexity.
 
 ### Immediate Next Features (Recommended Order)
 
-1. **Arithmetic Expansion** - `$((...))` - Essential for loops and conditionals (after if statements)
-2. **While Loops** - `while`/`do`/`done` - Basic iteration (builds on conditionals)
-3. **For Loops** - `for`/`do`/`done` - Enhanced iteration for collections
+1. **For Loops** - `for`/`do`/`done` - Enhanced iteration for collections  
+2. **Break/Continue** - Loop control statements using exception-based flow
+3. **Arithmetic Expansion** - `$((...))` - Essential for complex loops and conditionals
 4. **Local Variables** - `local` builtin for function scope
 5. **Set Options** - `-e`, `-u`, `-x` for better script debugging
 
-### Recent Major Accomplishments (v0.10.0 - v0.13.0)
+### Recent Major Accomplishments (v0.10.0 - v0.14.0)
 
 #### ✅ Complete Script Execution System (v0.10.0 - v0.12.0)
 - **Phase 1**: Basic script file execution with arguments
@@ -160,6 +162,30 @@ Features ordered by implementation status and complexity.
 
 **Impact**: psh now supports conditional logic and has evolved into a full programming language capable of sophisticated shell scripting.
 
+#### ✅ Enhanced File Test Operators (v0.13.1)
+- **Complete POSIX and bash file test operators** with 15 new operators added
+- **File size and type operators**: -s, -L/-h, -b, -c, -p, -S for comprehensive file checking
+- **File permission operators**: -k, -u, -g, -O, -G for security and ownership testing
+- **File comparison operators**: -nt, -ot, -ef for timestamp and inode comparisons
+- **Special operators**: -t (terminal), -N (modified since read) for advanced conditions
+- **Robust error handling** for non-existent files and invalid arguments
+- **6 comprehensive test methods** with 20+ individual test cases covering all scenarios
+
+**Impact**: psh now supports the complete set of bash file test semantics for full script compatibility.
+
+#### ✅ While Loops Implementation (v0.14.0) 
+- **Complete while/do/done loop constructs** following same architectural patterns as if statements
+- **WhileStatement AST node** with condition and body CommandLists for clean representation
+- **WHILE/DO/DONE tokenization** with proper keyword context detection
+- **Robust loop execution** with condition evaluation and proper exit status handling
+- **Complex condition support**: file tests, string/numeric comparisons, pipelines, && and ||
+- **17 comprehensive tests** with 94% success rate covering all loop scenarios
+- **Natural termination** based on condition evaluation (exit code 0 = continue, non-zero = stop)
+- **Variable modification support** within loop bodies for practical programming
+- **I/O redirection support** in both conditions and loop bodies
+
+**Impact**: psh now supports iteration constructs, completing the core programming language capabilities with conditionals and loops.
+
 ### Architecture Considerations
 
 #### Lessons from Script Execution Implementation
@@ -168,12 +194,15 @@ Features ordered by implementation status and complexity.
 - Shebang support requires careful subprocess handling and error management
 - Binary file detection needs multi-factor analysis for accuracy
 
-#### From Control Structures Implementation (v0.13.0)
+#### From Control Structures Implementation (v0.13.0 - v0.14.0)
 - ✅ Context-aware keyword tokenization successfully prevents parsing conflicts
 - ✅ Exit status-based conditional evaluation works seamlessly with existing commands
 - ✅ AST extensions for block constructs integrate cleanly with parser architecture
 - ✅ Production-ready test command implementation covers comprehensive operator set
-- **Next**: Loops (while/for) will leverage same architectural patterns with iteration control
+- ✅ **While loops** successfully implement same architectural patterns as if statements
+- ✅ **Loop condition evaluation** works seamlessly with all existing command types
+- ✅ **Consistent parsing patterns** make adding new control structures straightforward
+- **Next**: For loops and break/continue will build on established control flow architecture
 
 #### For Job Control (Already Implemented)
 - ✅ Process group management working correctly
@@ -194,6 +223,8 @@ Features ordered by implementation status and complexity.
 5. **Production Compatibility** - Full shebang support enables real-world usage
 6. **Context-Aware Parsing** - Smart keyword recognition prevents conflicts
 7. **Conditional Logic** - Full programming language capabilities with if statements
+8. **Complete File Testing** - All POSIX and bash file test operators supported
+9. **Iteration Constructs** - While loops with full condition and body support
 
 ### Testing Strategy
 
@@ -213,14 +244,16 @@ Features ordered by implementation status and complexity.
 
 ## 🎯 Current Status Summary
 
-### **Major Milestone: Full Programming Language (v0.13.0)**
+### **Major Milestone: Complete Programming Language (v0.14.0)**
 
-psh has evolved from a basic educational shell into a **complete programming language** with conditional logic while maintaining its educational mission. Key achievements:
+psh has evolved from a basic educational shell into a **complete programming language** with both conditional logic and iteration constructs while maintaining its educational mission. Key achievements:
 
 **Programming Language Capabilities:**
 - ✅ Conditional logic: `if [ condition ]; then ... else ... fi`
-- ✅ Comprehensive test operators: string, numeric, and file conditions
+- ✅ Iteration constructs: `while [ condition ]; do ... done`
+- ✅ Comprehensive test operators: 15+ file test operators, string, numeric conditions
 - ✅ Complex condition support: `&&`, `||`, pipelines, command substitution
+- ✅ Variable modification within loops and conditions
 - ✅ Execute shell scripts: `psh script.sh arg1 arg2`
 - ✅ Enhanced source builtin: `source helper.sh arg1 arg2`  
 - ✅ Line continuation: `echo "line 1" \ "line 2"`
@@ -229,18 +262,18 @@ psh has evolved from a basic educational shell into a **complete programming lan
 - ✅ Production-quality error handling and reporting
 
 **Development Quality:**
-- ✅ 30 major features implemented and tested
-- ✅ Comprehensive test suite with 60+ passing tests
-- ✅ Robust architecture supporting complex features
+- ✅ 32 major features implemented and tested
+- ✅ Comprehensive test suite with 80+ passing tests (41 new tests for file operators and while loops)
+- ✅ Robust architecture supporting complex control structures
 - ✅ Educational clarity preserved throughout
 
 **Next Phase Focus:**
-Loops (`while`/`for`) and arithmetic expansion will complete the core programming constructs, enabling full automation and iteration capabilities.
+For loops, break/continue statements, and arithmetic expansion will complete the core programming constructs, enabling full automation and advanced iteration capabilities.
 
 ### Feature Implementation Stats
-- **🟢 Completed**: 30 major features (Core shell, Advanced features, Interactive features, Programming features, Script execution, Control structures)
-- **🟡 High Priority**: 6 features (Remaining loops/case, Advanced shell options)  
+- **🟢 Completed**: 32 major features (Core shell, Advanced features, Interactive features, Programming features, Script execution, Control structures, File test operators, While loops)
+- **🟡 High Priority**: 5 features (For loops, break/continue, Advanced shell options)  
 - **🟠 Medium Priority**: 8 features (Arithmetic, Advanced expansions)
 - **🔵 Lower Priority**: 5 features (Interactive enhancements)
 
-**Total Progress**: ~75% of planned shell features complete, with **conditional logic implemented** and full programming language capabilities achieved.
+**Total Progress**: ~80% of planned shell features complete, with **conditionals and iteration implemented** achieving complete programming language capabilities.
