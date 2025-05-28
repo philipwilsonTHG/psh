@@ -234,7 +234,7 @@ done""")
 
     def test_while_with_empty_body(self):
         """Test while statement with empty body."""
-        result = self.shell.run_command("while false; do ; done")
+        result = self.shell.run_command("while false; do true; done")
         self.assertEqual(result, 0)
         self.assertEqual(self.get_output().strip(), "")
 

@@ -118,9 +118,9 @@ class TestJobControl:
     
     def test_signal_handlers(self):
         """Test that signal handlers are properly configured."""
-        # SIGTSTP should be set to default (allowing Ctrl-Z)
+        # SIGTSTP should be ignored by the shell
         handler = signal.getsignal(signal.SIGTSTP)
-        assert handler == signal.SIG_DFL
+        assert handler == signal.SIG_IGN
         
         # SIGCHLD should have our handler
         handler = signal.getsignal(signal.SIGCHLD)

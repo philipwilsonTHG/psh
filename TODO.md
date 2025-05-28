@@ -99,6 +99,10 @@ Features ordered by implementation status and complexity.
 - [x] `case`/`esac` statements - ✅ Pattern matching with wildcards, character classes, and fallthrough control (v0.17.0)
 - [ ] `for` loops (C-style) - Arithmetic-based iteration `for ((i=0; i<10; i++))`
 
+#### Missing Core Commands
+- [ ] **Colon Command (`:`)** - Null command for empty statements, always returns exit status 0
+- [ ] **Dot Command (`.`)** - Synonym for `source` builtin (already implemented as `source`)
+
 #### Advanced Shell Options  
 - [ ] `set` options:
   - [ ] `-e` (errexit) - Exit on error
@@ -143,10 +147,11 @@ Features ordered by implementation status and complexity.
 ### Immediate Next Features (Recommended Order)
 
 1. **Arithmetic Expansion** - `$((...))` - Essential for C-style for loops and complex conditionals
-2. **Case Statements** - `case`/`esac` - Pattern matching for multi-way branching
-3. **C-style For Loops** - `for ((i=0; i<10; i++))` - Arithmetic-based iteration
-4. **Local Variables** - `local` builtin for function scope
-5. **Set Options** - `-e`, `-u`, `-x` for better script debugging
+2. **C-style For Loops** - `for ((i=0; i<10; i++))` - Arithmetic-based iteration (requires arithmetic expansion)
+3. **Colon Command** - `:` - Null command for empty statements and command placeholders
+4. **AST Architecture Improvements** - Support for nested control structures and mixed statement types
+5. **Local Variables** - `local` builtin for function scope
+6. **Set Options** - `-e`, `-u`, `-x` for better script debugging
 
 ### Recent Major Accomplishments (v0.10.0 - v0.15.0)
 
@@ -340,3 +345,29 @@ Arithmetic expansion and C-style for loops will complete the core programming co
 - **🔵 Lower Priority**: 5 features (Interactive enhancements)
 
 **Total Progress**: ~89% of planned shell features complete, with **complete control structure suite** achieving full programming language status with conditionals, loops, loop control, and comprehensive pattern matching.
+
+## 🚨 Known Issues & Limitations
+
+### Architectural Limitations
+- **Nested Control Structures**: Control structures cannot be nested (e.g., `if` inside `for`, `while` inside `if`) due to current AST architecture limitations. This requires redesigning the CommandList structure to support mixed statement types.
+- **Multi-line Input Parsing**: Complex multi-line commands with nested structures fail to parse correctly. Single-line equivalents work fine.
+- **Pipeline Job Control Issues**: Some pipelines are incorrectly treated as background jobs instead of running in foreground.
+
+### Missing Core Commands  
+- **Colon Command (`:`)**: The null command (`:`) is not implemented. Currently using `true` as a workaround for empty command bodies.
+
+### Parser Edge Cases
+- **Empty Commands**: Consecutive semicolons (`;;`, `;;;`) are not handled gracefully in command parsing (though they work correctly in case statements).
+- **Complex Quoting**: Some edge cases with complex nested quoting and escaping may not parse correctly.
+
+### Workarounds in Use
+- Tests use single-line command syntax to avoid multi-line parsing issues
+- Nested control structure tests are skipped with clear documentation
+- Empty command tests use `true` instead of `:` command
+- Some pipeline tests are skipped due to job control issues
+
+### Future Improvements Needed
+1. **AST Architecture Redesign**: Modify CommandList to support Union types for mixed statements
+2. **Multi-line Parser Enhancement**: Improve newline and indentation handling
+3. **Job Control Refinement**: Fix pipeline classification between foreground/background
+4. **Core Command Completeness**: Implement missing POSIX commands like `:`

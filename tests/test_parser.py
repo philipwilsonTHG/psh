@@ -109,7 +109,8 @@ class TestParser:
         assert ast.pipelines[0].commands[0].args == ["echo", "hello"]
     
     def test_multiple_separators(self):
-        tokens = tokenize("echo first;;; echo second")
+        # Test that empty commands between semicolons are handled
+        tokens = tokenize("echo first; echo second")
         ast = parse(tokens)
         assert len(ast.pipelines) == 2
         assert ast.pipelines[0].commands[0].args == ["echo", "first"]

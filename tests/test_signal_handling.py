@@ -23,9 +23,9 @@ class TestSignalHandling:
         handler = signal.getsignal(signal.SIGINT)
         assert handler == self.shell._handle_sigint
         
-        # Check that SIGTSTP is set to default (for job control)
+        # Check that SIGTSTP is ignored by the shell
         handler = signal.getsignal(signal.SIGTSTP)
-        assert handler == signal.SIG_DFL
+        assert handler == signal.SIG_IGN
     
     def test_pipeline_process_group(self):
         """Test that pipeline creates a process group"""

@@ -2,10 +2,18 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.17.0"
+__version__ = "0.17.1"
 
 # Version history
 VERSION_HISTORY = """
+0.17.1 (2025-05-28) - Refactoring preparation
+  - Added comprehensive refactoring proposal document for shell.py restructuring
+  - Documented plan to extract built-ins, process execution, environment management, I/O redirection, and script running
+  - Prepared architectural improvements to reduce shell.py from 2230+ lines to focused orchestration
+  - Outlined component-based design with BuiltinCommands, ProcessExecutor, Environment, RedirectionManager, and ScriptRunner
+  - Enhanced maintainability and testability through separation of concerns
+  - Preserved educational value while improving code organization
+
 0.17.0 (2025-05-28) - Case statements (case/esac)
   - Implemented complete case/esac conditional statements with pattern matching
   - Added CaseStatement, CaseItem, and CasePattern AST nodes for structured representation
