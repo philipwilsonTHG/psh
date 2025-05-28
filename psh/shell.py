@@ -7,10 +7,18 @@ import glob
 import pwd
 from .tokenizer import tokenize
 from .parser import parse, ParseError
-from .ast_nodes import Command, Pipeline, CommandList, AndOrList, Redirect
+from .ast_nodes import Command, Pipeline, CommandList, AndOrList, Redirect, TopLevel, FunctionDef
 from .line_editor import LineEditor
 from .version import get_version_info
 from .aliases import AliasManager
+from .functions import FunctionManager
+
+
+class FunctionReturn(Exception):
+    """Exception used to implement return from functions."""
+    def __init__(self, exit_code):
+        self.exit_code = exit_code
+        super().__init__()
 
 
 class Shell:
@@ -33,6 +41,8 @@ class Shell:
             'version': self._builtin_version,
             'alias': self._builtin_alias,
             'unalias': self._builtin_unalias,
+            'declare': self._builtin_declare,
+            'return': self._builtin_return,
         }
         # History setup
         self.history = []
@@ -52,6 +62,10 @@ class Shell:
         
         # Alias management
         self.alias_manager = AliasManager()
+        
+        # Function management
+        self.function_manager = FunctionManager()
+        self.function_stack = []  # Track function call stack
         
         # Set up signal handlers
         signal.signal(signal.SIGINT, self._handle_sigint)
@@ -73,6 +87,12 @@ class Shell:
                         i = end + 1
                         continue
                 else:
+                    # Check for special variables first
+                    if text[i + 1] in '?$!#@*0123456789':
+                        var_name = text[i + 1]
+                        result.append(self._expand_variable('$' + var_name))
+                        i += 2
+                        continue
                     # $var syntax
                     j = i + 1
                     while j < len(text) and (text[j].isalnum() or text[j] == '_'):
@@ -119,8 +139,9 @@ class Shell:
         elif var_name == '0':
             return 'psh'  # Shell name
         elif var_name == '@':
-            # Expand to separate words
-            return ' '.join(f'"{param}"' for param in self.positional_params)
+            # When in a string context (like echo "$@"), don't add quotes
+            # The quotes are only added when $@ is unquoted
+            return ' '.join(self.positional_params)
         elif var_name == '*':
             # Expand to single word
             return ' '.join(self.positional_params)
@@ -234,6 +255,11 @@ class Shell:
                     args.extend(words)
                 # If output is empty, don't add anything
             else:
+                # Check if this is a STRING that might contain variables
+                if arg_type == 'STRING' and '$' in arg:
+                    # Expand variables within the string
+                    arg = self._expand_string_variables(arg)
+                
                 # Tilde expansion (only for unquoted words)
                 if arg.startswith('~') and arg_type == 'WORD':
                     arg = self._expand_tilde(arg)
@@ -381,6 +407,9 @@ class Shell:
         stdin_backup, stdout_backup, stderr_backup = self._setup_builtin_redirections(command)
         try:
             return self.builtins[args[0]](args)
+        except FunctionReturn:
+            # Re-raise FunctionReturn to propagate it up
+            raise
         finally:
             self._restore_builtin_redirections(stdin_backup, stdout_backup, stderr_backup)
     
@@ -454,9 +483,18 @@ class Shell:
         if assignment_result != -1:
             return assignment_result
         
+        # Check for function call BEFORE builtin check
+        func = self.function_manager.get_function(args[0])
+        if func:
+            return self._execute_function(func, args, command)
+        
         # Execute built-in or external command
         if args[0] in self.builtins:
-            return self._execute_builtin(args, command)
+            try:
+                return self._execute_builtin(args, command)
+            except FunctionReturn:
+                # Re-raise to propagate up to function execution
+                raise
         else:
             return self._execute_external(args, command)
     
@@ -509,7 +547,11 @@ class Shell:
     def execute_pipeline(self, pipeline: Pipeline):
         if len(pipeline.commands) == 1:
             # Simple command, no pipes
-            return self.execute_command(pipeline.commands[0])
+            try:
+                return self.execute_command(pipeline.commands[0])
+            except FunctionReturn:
+                # Propagate up
+                raise
         
         # Execute pipeline using fork and pipe
         num_commands = len(pipeline.commands)
@@ -579,33 +621,91 @@ class Shell:
         if not and_or_list.pipelines:
             return 0
         
-        # Execute first pipeline
-        exit_code = self.execute_pipeline(and_or_list.pipelines[0])
-        self.last_exit_code = exit_code
-        
-        # Process remaining pipelines with operators
-        for i, operator in enumerate(and_or_list.operators):
-            if operator == '&&':
-                # AND: execute next pipeline only if previous succeeded (exit code 0)
-                if exit_code != 0:
-                    continue  # Skip this pipeline
-            elif operator == '||':
-                # OR: execute next pipeline only if previous failed (non-zero exit code)
-                if exit_code == 0:
-                    continue  # Skip this pipeline
-            
-            # Execute the next pipeline
-            exit_code = self.execute_pipeline(and_or_list.pipelines[i + 1])
+        try:
+            # Execute first pipeline
+            exit_code = self.execute_pipeline(and_or_list.pipelines[0])
             self.last_exit_code = exit_code
-        
-        return exit_code
+            
+            # Process remaining pipelines with operators
+            for i, operator in enumerate(and_or_list.operators):
+                if operator == '&&':
+                    # AND: execute next pipeline only if previous succeeded (exit code 0)
+                    if exit_code != 0:
+                        continue  # Skip this pipeline
+                elif operator == '||':
+                    # OR: execute next pipeline only if previous failed (non-zero exit code)
+                    if exit_code == 0:
+                        continue  # Skip this pipeline
+                
+                # Execute the next pipeline
+                exit_code = self.execute_pipeline(and_or_list.pipelines[i + 1])
+                self.last_exit_code = exit_code
+            
+            return exit_code
+        except FunctionReturn:
+            # Propagate up
+            raise
     
     def execute_command_list(self, command_list: CommandList):
         exit_code = 0
-        for and_or_list in command_list.and_or_lists:
-            exit_code = self.execute_and_or_list(and_or_list)
-            self.last_exit_code = exit_code
+        try:
+            for and_or_list in command_list.and_or_lists:
+                exit_code = self.execute_and_or_list(and_or_list)
+                self.last_exit_code = exit_code
+        except FunctionReturn:
+            # Only catch FunctionReturn if we're in a function
+            if self.function_stack:
+                raise
+            # Otherwise it's an error
+            print("return: can only `return' from a function or sourced script", file=sys.stderr)
+            return 1
         return exit_code
+    
+    def execute_toplevel(self, toplevel: TopLevel):
+        """Execute a top-level script/input containing functions and commands."""
+        last_exit = 0
+        
+        for item in toplevel.items:
+            if isinstance(item, FunctionDef):
+                # Register the function
+                try:
+                    self.function_manager.define_function(item.name, item.body)
+                    last_exit = 0
+                except ValueError as e:
+                    print(f"psh: {e}", file=sys.stderr)
+                    last_exit = 1
+            elif isinstance(item, CommandList):
+                # Collect here documents if any
+                self._collect_heredocs(item)
+                # Execute commands
+                last_exit = self.execute_command_list(item)
+        
+        return last_exit
+    
+    def _execute_function(self, func, args: list, command: Command) -> int:
+        """Execute a function with given arguments."""
+        # Save current positional parameters
+        saved_params = self.positional_params
+        
+        # Set up function environment
+        self.positional_params = args[1:]  # args[0] is function name
+        self.function_stack.append(func.name)
+        
+        # Apply redirections for the function call
+        stdin_backup, stdout_backup, stderr_backup = self._setup_builtin_redirections(command)
+        
+        try:
+            # Execute function body
+            exit_code = self.execute_command_list(func.body)
+            return exit_code
+        except FunctionReturn as ret:
+            return ret.exit_code
+        finally:
+            # Restore redirections
+            self._restore_builtin_redirections(stdin_backup, stdout_backup, stderr_backup)
+            # Restore environment
+            self.function_stack.pop()
+            self.positional_params = saved_params
     
     def run_command(self, command_string: str, add_to_history=True):
         # Add to history if not empty and add_to_history is True
@@ -618,11 +718,15 @@ class Shell:
             tokens = self.alias_manager.expand_aliases(tokens)
             ast = parse(tokens)
             
-            # Collect here documents if any
-            self._collect_heredocs(ast)
-            
-            exit_code = self.execute_command_list(ast)
-            return exit_code
+            # Handle TopLevel AST node (functions + commands)
+            if isinstance(ast, TopLevel):
+                return self.execute_toplevel(ast)
+            else:
+                # Backward compatibility - CommandList
+                # Collect here documents if any
+                self._collect_heredocs(ast)
+                exit_code = self.execute_command_list(ast)
+                return exit_code
         except ParseError as e:
             print(f"psh: {e}", file=sys.stderr)
             self.last_exit_code = 1
@@ -758,11 +862,23 @@ class Shell:
             print("unset: not enough arguments", file=sys.stderr)
             return 1
         
-        for var in args[1:]:
-            # Remove from both shell variables and environment
-            self.variables.pop(var, None)
-            self.env.pop(var, None)
-        return 0
+        # Check for -f flag
+        if '-f' in args:
+            # Remove functions
+            exit_code = 0
+            for arg in args[1:]:
+                if arg != '-f':
+                    if not self.function_manager.undefine_function(arg):
+                        print(f"unset: {arg}: not a function", file=sys.stderr)
+                        exit_code = 1
+            return exit_code
+        else:
+            # Remove variables
+            for var in args[1:]:
+                # Remove from both shell variables and environment
+                self.variables.pop(var, None)
+                self.env.pop(var, None)
+            return 0
     
     def _builtin_source(self, args):
         if len(args) < 2:
@@ -948,6 +1064,59 @@ class Shell:
         
         return exit_code
     
+    def _builtin_declare(self, args):
+        """Declare variables and functions."""
+        if '-f' in args:
+            if len(args) == 2:  # declare -f
+                # List all functions
+                for name, func in self.function_manager.list_functions():
+                    self._print_function_definition(name, func)
+            else:  # declare -f name
+                for arg in args[2:]:
+                    func = self.function_manager.get_function(arg)
+                    if func:
+                        self._print_function_definition(arg, func)
+                    else:
+                        print(f"psh: declare: {arg}: not found", file=sys.stderr)
+                        return 1
+        else:
+            # For now, just list variables (like set with no args)
+            for var, value in sorted(self.variables.items()):
+                print(f"{var}={value}")
+        return 0
+    
+    def _print_function_definition(self, name, func):
+        """Print a function definition in a format that can be re-executed."""
+        print(f"{name} () {{")
+        # We need to pretty-print the function body
+        # For now, just indicate it's defined
+        print(f"    # function body")
+        print("}")
+    
+    def _builtin_return(self, args):
+        """Return from a function with optional exit code."""
+        if not self.function_stack:
+            print("return: can only `return' from a function or sourced script", file=sys.stderr)
+            return 1
+        
+        # Get return value
+        if len(args) > 1:
+            try:
+                exit_code = int(args[1])
+                # Ensure it's in valid range
+                if exit_code < 0 or exit_code > 255:
+                    print(f"return: {args[1]}: numeric argument required", file=sys.stderr)
+                    return 1
+            except ValueError:
+                print(f"return: {args[1]}: numeric argument required", file=sys.stderr)
+                return 1
+        else:
+            exit_code = 0
+        
+        # We can't actually "return" from the middle of execution in Python,
+        # so we'll use an exception for control flow
+        raise FunctionReturn(exit_code)
+    
     def _collect_heredocs(self, command_list: CommandList):
         """Collect here document content for all commands"""
         for and_or_list in command_list.and_or_lists:
@@ -1082,10 +1251,33 @@ class Shell:
             print(f"psh: {e}", file=sys.stderr)
             return 1
         
+        # Check for function call BEFORE builtin check
+        func = self.function_manager.get_function(args[0])
+        if func:
+            # Functions need special handling in child process
+            # We can't use the normal _execute_function because it expects Command object
+            # Save current positional parameters
+            saved_params = self.positional_params
+            self.positional_params = args[1:]
+            self.function_stack.append(func.name)
+            
+            try:
+                exit_code = self.execute_command_list(func.body)
+                return exit_code
+            except FunctionReturn as ret:
+                return ret.exit_code
+            finally:
+                self.function_stack.pop()
+                self.positional_params = saved_params
+        
         # Check for built-in commands
         if args[0] in self.builtins:
             try:
                 return self.builtins[args[0]](args)
+            except FunctionReturn:
+                # Should not happen in child process
+                print("return: can only `return' from a function or sourced script", file=sys.stderr)
+                return 1
             except Exception as e:
                 print(f"{args[0]}: {e}", file=sys.stderr)
                 return 1

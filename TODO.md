@@ -23,6 +23,7 @@ Features ordered by ease of implementation, from simplest to most complex.
 14. **Tilde Expansion** - ~ for home directory, ~user for user's home directory
 15. **Vi/Emacs Key Bindings** - Full command line editing with set -o vi/emacs, history search (Ctrl-R)
 16. **Aliases** - alias/unalias commands, recursive expansion prevention, trailing space support
+17. **Shell Functions** - Function definition (POSIX and bash syntax), invocation, parameters, return builtin, declare -f, unset -f
 
 ## 🚧 In Progress / Remaining Features
 
@@ -52,10 +53,12 @@ Features ordered by ease of implementation, from simplest to most complex.
 - [x] `unalias` command
 
 #### Shell Functions
-- [ ] Function definition syntax: `name() { commands; }`
-- [ ] Function invocation
-- [ ] Local variables in functions
-- [ ] Return values from functions
+- [x] Function definition syntax: `name() { commands; }` and `function name { commands; }`
+- [x] Function invocation with proper argument passing
+- [x] Function parameters ($1, $2, $@, $#) isolated from outer scope
+- [x] Return values from functions (return builtin)
+- [x] declare -f and unset -f for function management
+- [ ] Local variables in functions (local builtin)
 
 ### Very Hard Features (Multiple days)
 
@@ -116,7 +119,7 @@ Features ordered by ease of implementation, from simplest to most complex.
 1. **Job control basics** - Start with jobs tracking and notifications
 2. **Simple control structures** - Start with `if`/`then`/`else`
 3. **Basic arithmetic expansion** - `$((...))` 
-4. **Shell functions** - Function definition and invocation
+4. **Local variables in functions** - local builtin for function scope
 
 ### Architecture Considerations
 

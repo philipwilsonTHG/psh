@@ -1,6 +1,6 @@
-from typing import List, Optional
+from typing import List, Optional, Union
 from .tokenizer import Token, TokenType
-from .ast_nodes import Command, Pipeline, CommandList, AndOrList, Redirect
+from .ast_nodes import Command, Pipeline, CommandList, AndOrList, Redirect, FunctionDef, TopLevel
 
 
 class ParseError(Exception):
@@ -40,11 +40,35 @@ class Parser:
     def match(self, *token_types: TokenType) -> bool:
         return self.peek().type in token_types
     
-    def parse(self) -> CommandList:
-        command_list = self.parse_command_list()
-        if self.peek().type != TokenType.EOF:
-            raise ParseError("Unexpected tokens after command list", self.peek())
-        return command_list
+    def parse(self) -> Union[CommandList, TopLevel]:
+        """Parse input, returning TopLevel if functions present, CommandList otherwise."""
+        top_level = TopLevel()
+        
+        # Skip leading newlines
+        while self.match(TokenType.NEWLINE):
+            self.advance()
+        
+        while self.peek().type != TokenType.EOF:
+            if self._is_function_def():
+                func_def = self.parse_function_def()
+                top_level.items.append(func_def)
+            else:
+                # Parse command list until we hit a function or EOF
+                cmd_list = self._parse_command_list_until_function()
+                if cmd_list.and_or_lists:  # Not empty
+                    top_level.items.append(cmd_list)
+            
+            # Skip trailing separators
+            while self.match(TokenType.SEMICOLON, TokenType.NEWLINE):
+                self.advance()
+        
+        # For backward compatibility, return CommandList if no functions
+        if len(top_level.items) == 1 and isinstance(top_level.items[0], CommandList):
+            return top_level.items[0]
+        elif len(top_level.items) == 0:
+            return CommandList()
+        else:
+            return top_level
     
     def parse_command_list(self) -> CommandList:
         command_list = CommandList()
@@ -241,8 +265,129 @@ class Parser:
                 target=target_token.value,
                 fd=fd
             )
+    
+    def _is_function_def(self) -> bool:
+        """Check if current position starts a function definition."""
+        if not self.peek():
+            return False
+        
+        # Check for 'function' keyword
+        if self.peek().type == TokenType.FUNCTION:
+            return True
+        
+        # Check for name() pattern
+        if self.peek().type == TokenType.WORD:
+            # Need to peek ahead
+            saved_pos = self.current
+            self.advance()
+            
+            if self.match(TokenType.LPAREN):
+                self.advance()
+                result = self.match(TokenType.RPAREN)
+                self.current = saved_pos  # Restore position
+                return result
+            
+            self.current = saved_pos  # Restore position
+        
+        return False
+    
+    def parse_function_def(self) -> FunctionDef:
+        """Parse function definition."""
+        name = None
+        
+        # Handle 'function' keyword if present
+        if self.match(TokenType.FUNCTION):
+            self.advance()
+            if not self.match(TokenType.WORD):
+                raise ParseError("Expected function name after 'function'", self.peek())
+            name = self.advance().value
+            
+            # Optional parentheses
+            if self.match(TokenType.LPAREN):
+                self.advance()
+                self.expect(TokenType.RPAREN)
+        else:
+            # POSIX style: name()
+            if not self.match(TokenType.WORD):
+                raise ParseError("Expected function name", self.peek())
+            name = self.advance().value
+            self.expect(TokenType.LPAREN)
+            self.expect(TokenType.RPAREN)
+        
+        # Skip newlines before body
+        while self.match(TokenType.NEWLINE):
+            self.advance()
+        
+        # Parse body
+        body = self.parse_compound_command()
+        return FunctionDef(name, body)
+    
+    def parse_compound_command(self) -> CommandList:
+        """Parse a compound command { ... }"""
+        if not self.match(TokenType.LBRACE):
+            raise ParseError("Expected '{' to start compound command", self.peek())
+        
+        self.advance()  # consume {
+        
+        # Skip newlines after {
+        while self.match(TokenType.NEWLINE):
+            self.advance()
+        
+        # Parse the command list inside
+        command_list = CommandList()
+        
+        while not self.match(TokenType.RBRACE) and not self.match(TokenType.EOF):
+            and_or_list = self.parse_and_or_list()
+            command_list.and_or_lists.append(and_or_list)
+            
+            # Handle separators
+            while self.match(TokenType.SEMICOLON, TokenType.NEWLINE):
+                self.advance()
+            
+            # Check if we're at the closing brace
+            if self.match(TokenType.RBRACE):
+                break
+        
+        if not self.match(TokenType.RBRACE):
+            raise ParseError("Expected '}' to end compound command", self.peek())
+        
+        self.advance()  # consume }
+        
+        return command_list
+    
+    def _parse_command_list_until_function(self) -> CommandList:
+        """Parse commands until we hit a function definition or EOF."""
+        command_list = CommandList()
+        
+        # Skip leading newlines
+        while self.match(TokenType.NEWLINE):
+            self.advance()
+        
+        while not self.match(TokenType.EOF) and not self._is_function_def():
+            and_or_list = self.parse_and_or_list()
+            command_list.and_or_lists.append(and_or_list)
+            
+            # Check for separators
+            if self.match(TokenType.SEMICOLON, TokenType.NEWLINE):
+                # Peek ahead to see if a function follows
+                saved_pos = self.current
+                while self.match(TokenType.SEMICOLON, TokenType.NEWLINE):
+                    self.advance()
+                
+                if self._is_function_def() or self.match(TokenType.EOF):
+                    # Stop here, let main parse loop handle the function
+                    self.current = saved_pos
+                    break
+                
+                # Otherwise continue with more commands
+                continue
+            else:
+                # No separator, we're done
+                break
+        
+        return command_list
 
 
-def parse(tokens: List[Token]) -> CommandList:
+def parse(tokens: List[Token]) -> Union[CommandList, TopLevel]:
     parser = Parser(tokens)
     return parser.parse()

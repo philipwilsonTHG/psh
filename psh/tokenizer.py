@@ -25,6 +25,11 @@ class TokenType(Enum):
     VARIABLE = auto()
     COMMAND_SUB = auto()
     COMMAND_SUB_BACKTICK = auto()
+    LPAREN = auto()
+    RPAREN = auto()
+    LBRACE = auto()
+    RBRACE = auto()
+    FUNCTION = auto()
 
 
 @dataclass
@@ -60,7 +65,7 @@ class Tokenizer:
     
     def read_word(self) -> str:
         value = ''
-        while self.current_char() and self.current_char() not in ' \t\n|<>;&`':
+        while self.current_char() and self.current_char() not in ' \t\n|<>;&`(){}':
             if self.current_char() == '\\' and self.peek_char():
                 # Skip backslash and add the escaped character
                 self.advance()
@@ -289,9 +294,25 @@ class Tokenizer:
                 # Handle backtick command substitution
                 value = self.read_backtick_substitution()
                 self.tokens.append(Token(TokenType.COMMAND_SUB_BACKTICK, value, start_pos))
+            elif char == '(':
+                self.tokens.append(Token(TokenType.LPAREN, '(', start_pos))
+                self.advance()
+            elif char == ')':
+                self.tokens.append(Token(TokenType.RPAREN, ')', start_pos))
+                self.advance()
+            elif char == '{':
+                self.tokens.append(Token(TokenType.LBRACE, '{', start_pos))
+                self.advance()
+            elif char == '}':
+                self.tokens.append(Token(TokenType.RBRACE, '}', start_pos))
+                self.advance()
             else:
                 word = self.read_word()
-                self.tokens.append(Token(TokenType.WORD, word, start_pos))
+                # Check if word is 'function' keyword
+                if word == 'function':
+                    self.tokens.append(Token(TokenType.FUNCTION, word, start_pos))
+                else:
+                    self.tokens.append(Token(TokenType.WORD, word, start_pos))
         
         self.tokens.append(Token(TokenType.EOF, '', self.position))
         return self.tokens

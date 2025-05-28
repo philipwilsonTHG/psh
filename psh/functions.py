@@ -1,0 +1,75 @@
+#!/usr/bin/env python3
+"""Function management for Python Shell (psh)."""
+
+from typing import Dict, Optional, List, Tuple
+from .ast_nodes import CommandList
+
+
+class Function:
+    """Represents a shell function definition."""
+    def __init__(self, name: str, body: CommandList):
+        self.name = name
+        self.body = body
+        self.source_location = None  # Could add file:line info later
+
+
+class FunctionManager:
+    """Manages shell function definitions."""
+    
+    # Reserved words that cannot be used as function names
+    RESERVED_WORDS = {
+        'if', 'then', 'else', 'elif', 'fi',
+        'while', 'until', 'do', 'done',
+        'for', 'in', 'case', 'esac',
+        'function', 'return', 'break', 'continue',
+        'true', 'false', 'exit'
+    }
+    
+    def __init__(self):
+        self.functions: Dict[str, Function] = {}
+    
+    def define_function(self, name: str, body: CommandList) -> None:
+        """Define or redefine a function."""
+        if self._is_reserved_word(name):
+            raise ValueError(f"Cannot use reserved word '{name}' as function name")
+        
+        if self._is_invalid_name(name):
+            raise ValueError(f"Invalid function name '{name}'")
+        
+        self.functions[name] = Function(name, body)
+    
+    def get_function(self, name: str) -> Optional[Function]:
+        """Get a function by name."""
+        return self.functions.get(name)
+    
+    def undefine_function(self, name: str) -> bool:
+        """Remove a function. Returns True if removed, False if not found."""
+        return self.functions.pop(name, None) is not None
+    
+    def list_functions(self) -> List[Tuple[str, Function]]:
+        """List all defined functions."""
+        return sorted(self.functions.items())
+    
+    def clear_functions(self) -> None:
+        """Remove all function definitions."""
+        self.functions.clear()
+    
+    def _is_reserved_word(self, name: str) -> bool:
+        """Check if name is a reserved word."""
+        return name in self.RESERVED_WORDS
+    
+    def _is_invalid_name(self, name: str) -> bool:
+        """Check if name is invalid as a function name."""
+        if not name:
+            return True
+        
+        # Function names must start with letter or underscore
+        if not (name[0].isalpha() or name[0] == '_'):
+            return True
+        
+        # Rest can be letters, numbers, or underscores
+        for char in name[1:]:
+            if not (char.isalnum() or char == '_'):
+                return True
+        
+        return False

@@ -19,12 +19,16 @@ Key design principle: Each component is intentionally simple and readable for te
 ## Grammar
 
 ```
+top_level    → (function_def | command_list)*
+function_def → WORD '(' ')' compound_command
+             | 'function' WORD ['(' ')'] compound_command
+compound_command → '{' command_list '}'
 command_list → and_or_list (SEMICOLON and_or_list)* [SEMICOLON]
 and_or_list  → pipeline ((AND_AND | OR_OR) pipeline)*
 pipeline     → command (PIPE command)*
 command      → word+ redirect* [AMPERSAND]
 redirect     → REDIRECT_OP word
-word         → WORD | STRING | VARIABLE
+word         → WORD | STRING | VARIABLE | COMMAND_SUB
 ```
 
 ## Running the Project
@@ -65,7 +69,7 @@ Implemented:
 - Multiple commands (;)
 - Background execution (&)
 - Quoted strings and variable expansion
-- Built-ins: exit, cd, export, pwd, echo, unset, env, source, history, set, cat
+- Built-ins: exit, cd, export, pwd, echo, unset, env, source, history, set, declare, return
 - Wildcards/globbing (*, ?, [...])
 - Exit status tracking ($? variable)
 - Command history with persistence
@@ -85,9 +89,11 @@ Implemented:
 - Tilde expansion (~ and ~user)
 - Vi and Emacs key bindings (set -o vi/emacs)
 - Aliases (alias, unalias) with recursive expansion and trailing space support
+- Shell functions with both POSIX (name() {}) and bash (function name {}) syntax
+- Function management (declare -f, unset -f, return builtin)
+- Function parameters and special variables within functions
 
 Not implemented:
 - Job control (fg, bg, jobs commands)
 - Control structures (if, while, for)
-- Command substitution
-- Advanced expansions (brace, tilde, parameter)
+- Advanced expansions (brace expansion, advanced parameter expansion)

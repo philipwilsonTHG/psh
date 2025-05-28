@@ -47,3 +47,16 @@ class CommandList(ASTNode):
         for and_or_list in self.and_or_lists:
             pipelines.extend(and_or_list.pipelines)
         return pipelines
+
+
+@dataclass
+class FunctionDef(ASTNode):
+    """Function definition."""
+    name: str
+    body: CommandList
+
+
+@dataclass
+class TopLevel(ASTNode):
+    """Root node that can contain functions and/or commands."""
+    items: List[ASTNode] = field(default_factory=list)  # List of FunctionDef or CommandList
