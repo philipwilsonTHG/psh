@@ -50,6 +50,7 @@ Features ordered by implementation status and complexity.
 33. **For Loops** - for/in/do/done iteration with variable expansion and glob patterns (v0.15.0)
 34. **Break and Continue Statements** - Loop control statements for while and for loops (v0.16.0)
 35. **Case Statements** - case/esac pattern matching with fallthrough control (v0.17.0)
+36. **Arithmetic Expansion** - $((...)) with full bash-compatible arithmetic evaluation (v0.18.0)
 
 ## 🚧 Remaining Features
 
@@ -115,12 +116,17 @@ Features ordered by implementation status and complexity.
 ### Medium Priority Features
 
 #### Arithmetic Expansion
-- [ ] `$((...))` arithmetic evaluation
-- [ ] Basic operators (+, -, *, /, %, **)
-- [ ] Comparison operators (<, >, <=, >=, ==, !=)
-- [ ] Logical operators (&&, ||, !)
-- [ ] Variable references in arithmetic
-- [ ] C-style increment/decrement (++, --)
+- [x] `$((...))` arithmetic evaluation - ✅ Complete arithmetic subsystem with tokenizer, parser, and evaluator (v0.18.0)
+- [x] Basic operators (+, -, *, /, %, **) - ✅ All basic arithmetic operators implemented
+- [x] Comparison operators (<, >, <=, >=, ==, !=) - ✅ Full comparison operator support
+- [x] Logical operators (&&, ||, !) - ✅ Short-circuit logical operators
+- [x] Variable references in arithmetic - ✅ Variable expansion and assignment
+- [x] C-style increment/decrement (++, --) - ✅ Pre/post increment and decrement
+- [x] Bitwise operators (&, |, ^, ~, <<, >>) - ✅ Complete bitwise operation support
+- [x] Ternary operator (? :) - ✅ Conditional expressions
+- [x] Assignment operators (=, +=, -=, *=, /=, %=) - ✅ Compound assignments
+- [x] Comma operator - ✅ Sequential evaluation
+- [x] Hexadecimal (0xFF) and octal (077) number support - ✅ Multiple number bases
 
 #### Advanced Expansions
 - [ ] Brace expansion (`{a,b,c}`, `{1..10}`)
@@ -242,6 +248,21 @@ Features ordered by implementation status and complexity.
 
 **Impact**: psh achieves complete control structure capabilities with if/then/else/fi, while/do/done, for/in/do/done, and case/esac, providing a full programming language with sophisticated pattern matching and control flow that matches bash functionality.
 
+#### ✅ Arithmetic Expansion Implementation (v0.18.0)
+- **Complete $((...)) arithmetic expansion** with separate subsystem architecture for clean separation of concerns
+- **ArithmeticTokenizer** recognizing numbers (decimal/hex/octal), operators, variables, and parentheses
+- **ArithmeticParser** implementing recursive descent with proper operator precedence and associativity
+- **ArithmeticEvaluator** supporting all bash arithmetic features with shell variable integration
+- **Full operator support**: arithmetic (+,-,*,/,%,**), comparison (<,>,<=,>=,==,!=), logical (&&,||,!), bitwise (&,|,^,~,<<,>>)
+- **Advanced features**: ternary (?:), comma (,), assignments (=,+=,-=,*=,/=,%=), increment/decrement (++,--)
+- **Variable integration**: read/write shell variables, non-numeric strings evaluate to 0 (bash behavior)
+- **Number format support**: decimal (42), hexadecimal (0xFF), octal (077) with automatic base detection
+- **Error handling**: division by zero, syntax errors, with graceful fallback to 0
+- **35 comprehensive tests** covering tokenization, parsing, evaluation, and shell integration
+- **Educational architecture**: separate subsystem makes arithmetic evaluation independently studyable
+
+**Impact**: psh now supports full arithmetic evaluation enabling mathematical computations in shell scripts, test conditions, and paving the way for C-style for loops. The clean architecture demonstrates best practices for adding subsystems to interpreters.
+
 ### Architecture Considerations
 
 #### Lessons from Script Execution Implementation
@@ -309,7 +330,7 @@ Features ordered by implementation status and complexity.
 
 ## 🎯 Current Status Summary
 
-### **Major Milestone: Complete Programming Language with Pattern Matching and Core Commands (v0.17.3)**
+### **Major Milestone: Complete Programming Language with Pattern Matching and Arithmetic (v0.18.0)**
 
 psh has evolved from a basic educational shell into a **complete programming language** with full conditional logic, complete iteration capabilities, sophisticated loop control, and comprehensive pattern matching while maintaining its educational mission. Key achievements:
 
@@ -329,23 +350,25 @@ psh has evolved from a basic educational shell into a **complete programming lan
 - ✅ Multi-interpreter execution with proper fallback
 - ✅ Production-quality error handling and reporting
 - ✅ Core POSIX commands: colon (:) null command and dot (.) source synonym
+- ✅ Arithmetic expansion: $((...)) with full operator support, variables, and bash compatibility
 
 **Development Quality:**
-- ✅ 37 major features implemented and tested
-- ✅ Comprehensive test suite with 110+ passing tests (79 new tests across control structures, iteration, loop control, and pattern matching)
+- ✅ 48 major features implemented and tested
+- ✅ Comprehensive test suite with 145+ passing tests (114 new tests across control structures, iteration, loop control, pattern matching, and arithmetic)
 - ✅ Robust architecture supporting complete control structure suite with pattern matching
 - ✅ Educational clarity preserved throughout
 
 **Next Phase Focus:**
-Arithmetic expansion and C-style for loops will complete the core programming constructs, enabling mathematical computations and numeric iteration capabilities.
+C-style for loops `for ((i=0; i<10; i++))` will complete the iteration constructs, leveraging the newly implemented arithmetic expansion for initialization, condition testing, and increment operations.
 
 ### Feature Implementation Stats
-- **🟢 Completed**: 37 major features (Core shell, Advanced features, Interactive features, Programming features, Script execution, Control structures, File test operators, While loops, For loops, Break/continue statements, Case statements, Core POSIX commands)
-- **🟡 High Priority**: 2 features (C-style for loops, Advanced shell options)  
-- **🟠 Medium Priority**: 8 features (Arithmetic, Advanced expansions)
-- **🔵 Lower Priority**: 5 features (Interactive enhancements)
+- **🟢 Completed**: 48 major features (Core shell, Advanced features, Interactive features, Programming features, Script execution, Control structures, File test operators, While loops, For loops, Break/continue statements, Case statements, Core POSIX commands, Arithmetic expansion)
+- **🟡 High Priority**: 1 feature (C-style for loops)
+- **🟡 High Priority**: 1 feature group (Advanced shell options)  
+- **🟠 Medium Priority**: 2 feature groups (Advanced expansions)
+- **🔵 Lower Priority**: 1 feature group (Interactive enhancements)
 
-**Total Progress**: ~91% of planned shell features complete, with **complete control structure suite** achieving full programming language status with conditionals, loops, loop control, and comprehensive pattern matching.
+**Total Progress**: ~94% of planned shell features complete, with **complete arithmetic evaluation** enabling mathematical computations and paving the way for C-style for loops.
 
 ## 🚨 Known Issues & Limitations
 
@@ -354,17 +377,29 @@ Arithmetic expansion and C-style for loops will complete the core programming co
 - **Multi-line Input Parsing**: Complex multi-line commands with nested structures fail to parse correctly. Single-line equivalents work fine.
 - **Pipeline Job Control Issues**: Some pipelines are incorrectly treated as background jobs instead of running in foreground.
 
+### Tokenizer Issues (NEW - discovered during arithmetic expansion testing)
+- **Arithmetic Expansion in Assignments**: The tokenizer incorrectly breaks `c=$((a + b))` into separate tokens because `read_word()` stops at `(`. This should tokenize as `WORD='c='` followed by `ARITH_EXPANSION='$((a + b))'`.
+- **Stderr Redirection**: The tokenizer incorrectly tokenizes `>&2` as three separate tokens (`>`, `&`, `2`) instead of recognizing it as a redirect duplication operator. This causes parser failures with "Expected file name after redirection" errors.
+- **Arithmetic Inside Quotes**: Arithmetic expansion inside double quotes (e.g., `echo "Result: $((2 + 2))"`) is not being expanded because `_expand_string_variables()` only handles variable expansion, not arithmetic expansion.
 
 ### Parser Edge Cases
 - **Empty Commands**: Consecutive semicolons (`;;`, `;;;`) are not handled gracefully in command parsing (though they work correctly in case statements).
 - **Complex Quoting**: Some edge cases with complex nested quoting and escaping may not parse correctly.
+- **EOF Cascade Errors**: When early parsing fails (e.g., redirect errors), the parser continues looking for closing keywords (`fi`, `done`) but hits EOF, causing cascading "Expected FI/DONE, got EOF" errors.
 
 ### Workarounds in Use
 - Tests use single-line command syntax to avoid multi-line parsing issues
 - Nested control structure tests are skipped with clear documentation
 - Some pipeline tests are skipped due to job control issues
+- Avoid stderr redirection (`>&2`) in scripts; use `2>&1` or file redirection instead
+- Avoid arithmetic expansion inside quotes; use unquoted arithmetic or concatenation
 
 ### Future Improvements Needed
 1. **AST Architecture Redesign**: Modify CommandList to support Union types for mixed statements
 2. **Multi-line Parser Enhancement**: Improve newline and indentation handling
 3. **Job Control Refinement**: Fix pipeline classification between foreground/background
+4. **Tokenizer Fixes**:
+   - Fix `read_word()` to handle arithmetic expansion that starts within a word
+   - Add proper tokenization for redirect duplication operators (`>&`, `<&`)
+   - Enhance `_expand_string_variables()` to also handle arithmetic expansion inside strings
+5. **Parser Error Recovery**: Improve error handling to avoid cascade errors when early parsing fails

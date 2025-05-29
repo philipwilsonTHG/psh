@@ -25,6 +25,7 @@ class TokenType(Enum):
     VARIABLE = auto()
     COMMAND_SUB = auto()
     COMMAND_SUB_BACKTICK = auto()
+    ARITH_EXPANSION = auto()
     LPAREN = auto()
     RPAREN = auto()
     LBRACE = auto()
@@ -88,6 +89,10 @@ class Tokenizer:
                 if self.current_char():
                     value += self.current_char()
                     self.advance()
+            elif self.current_char() == '$' and self.peek_char() == '(' and self.peek_char(2) == '(':
+                # Handle arithmetic expansion within a word (e.g., c=$((a + b)))
+                arith_exp = self.read_arithmetic_expansion()
+                value += arith_exp
             else:
                 value += self.current_char()
                 self.advance()
@@ -207,6 +212,37 @@ class Tokenizer:
             raise SyntaxError(f"Unclosed backtick at position {self.position}")
         
         return f"`{command}`"
+    
+    def read_arithmetic_expansion(self) -> str:
+        """Read $((...)) arithmetic expansion"""
+        self.advance()  # Skip $
+        self.advance()  # Skip first (
+        self.advance()  # Skip second (
+        
+        expr = ''
+        paren_depth = 0  # Track parentheses balance within the expression
+        
+        while self.current_char() is not None:
+            char = self.current_char()
+            
+            # Check if we've found the closing ))
+            if char == ')' and paren_depth == 0 and self.peek_char() == ')':
+                # Found the closing ))
+                self.advance()  # Skip first )
+                self.advance()  # Skip second )
+                break
+            
+            if char == '(':
+                paren_depth += 1
+            elif char == ')':
+                paren_depth -= 1
+                if paren_depth < 0:
+                    raise SyntaxError(f"Unmatched ) in arithmetic expansion at position {self.position}")
+            
+            expr += char
+            self.advance()
+        
+        return f"$(({expr}))"
     
     def check_fd_redirect(self) -> bool:
         """Check if current position has a file descriptor redirect like 2>"""
@@ -333,6 +369,25 @@ class Tokenizer:
                     self.tokens.append(Token(TokenType.REDIRECT_APPEND, '>>', start_pos))
                     self.advance()
                     self.advance()
+                elif self.peek_char() == '&':
+                    # Handle >&N redirect duplication
+                    self.advance()  # Skip >
+                    self.advance()  # Skip &
+                    dup_target = ''
+                    while self.current_char() and self.current_char().isdigit():
+                        dup_target += self.current_char()
+                        self.advance()
+                    if dup_target:
+                        self.tokens.append(Token(TokenType.REDIRECT_DUP, f'>&{dup_target}', start_pos))
+                    else:
+                        # >&- means close the file descriptor
+                        if self.current_char() == '-':
+                            self.advance()
+                            self.tokens.append(Token(TokenType.REDIRECT_DUP, '>&-', start_pos))
+                        else:
+                            # Invalid syntax, treat as separate tokens
+                            self.position = start_pos + 1  # Reset to after >
+                            self.tokens.append(Token(TokenType.REDIRECT_OUT, '>', start_pos))
                 else:
                     self.tokens.append(Token(TokenType.REDIRECT_OUT, '>', start_pos))
                     self.advance()
@@ -341,9 +396,15 @@ class Tokenizer:
                 self.tokens.append(Token(TokenType.STRING, value, start_pos))
             elif char == '$':
                 if self.peek_char() == '(':
-                    # Handle $(...) command substitution
-                    value = self.read_command_substitution()
-                    self.tokens.append(Token(TokenType.COMMAND_SUB, value, start_pos))
+                    # Check if it's $(( for arithmetic or $( for command substitution
+                    if self.peek_char(2) == '(':
+                        # Handle $((...)) arithmetic expansion
+                        value = self.read_arithmetic_expansion()
+                        self.tokens.append(Token(TokenType.ARITH_EXPANSION, value, start_pos))
+                    else:
+                        # Handle $(...) command substitution
+                        value = self.read_command_substitution()
+                        self.tokens.append(Token(TokenType.COMMAND_SUB, value, start_pos))
                 else:
                     self.advance()
                     if self.current_char() == '{':

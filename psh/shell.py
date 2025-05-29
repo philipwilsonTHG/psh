@@ -120,12 +120,35 @@ class Shell:
             signal.signal(signal.SIGCHLD, self._handle_sigchld)  # Track child status
     
     def _expand_string_variables(self, text: str) -> str:
-        """Expand variables in a string (for here strings)"""
+        """Expand variables and arithmetic in a string (for here strings and quoted strings)"""
         result = []
         i = 0
         while i < len(text):
             if text[i] == '$' and i + 1 < len(text):
-                if text[i + 1] == '{':
+                if text[i + 1] == '(' and i + 2 < len(text) and text[i + 2] == '(':
+                    # $((...)) arithmetic expansion
+                    # Find the matching ))
+                    paren_count = 0
+                    j = i + 3  # Start after $((
+                    while j < len(text):
+                        if text[j] == '(':
+                            paren_count += 1
+                        elif text[j] == ')':
+                            if paren_count == 0 and j + 1 < len(text) and text[j + 1] == ')':
+                                # Found the closing ))
+                                arith_expr = text[i:j + 2]  # Include $((...)
+                                result.append(str(self._execute_arithmetic_expansion(arith_expr)))
+                                i = j + 2
+                                break
+                            else:
+                                paren_count -= 1
+                        j += 1
+                    else:
+                        # No matching )) found, treat as literal
+                        result.append(text[i])
+                        i += 1
+                    continue
+                elif text[i + 1] == '{':
                     # ${var} syntax
                     end = text.find('}', i + 2)
                     if end != -1:
@@ -282,6 +305,23 @@ class Shell:
             if os.path.exists(temp_output):
                 os.unlink(temp_output)
     
+    def _execute_arithmetic_expansion(self, expr: str) -> int:
+        """Execute arithmetic expansion and return result"""
+        # Remove $(( and ))
+        if expr.startswith('$((') and expr.endswith('))'):
+            arith_expr = expr[3:-2]
+        else:
+            return 0
+        
+        from .arithmetic import evaluate_arithmetic, ArithmeticError
+        
+        try:
+            result = evaluate_arithmetic(arith_expr, self)
+            return result
+        except ArithmeticError as e:
+            print(f"psh: arithmetic error: {e}", file=sys.stderr)
+            return 0
+    
     def _expand_arguments(self, command: Command) -> list:
         """Expand variables, command substitutions, tildes, and globs in command arguments"""
         args = []
@@ -301,6 +341,10 @@ class Shell:
                     words = output.split()
                     args.extend(words)
                 # If output is empty, don't add anything
+            elif arg_type == 'ARITH_EXPANSION':
+                # Arithmetic expansion
+                result = self._execute_arithmetic_expansion(arg)
+                args.append(str(result))
             else:
                 # Check if this is a STRING that might contain variables
                 if arg_type == 'STRING' and '$' in arg:
@@ -334,6 +378,18 @@ class Shell:
         var_name, var_value = args[0].split('=', 1)
         if len(args) == 1:
             # Pure assignment, no command
+            # Expand variables in the value first
+            if '$' in var_value:
+                var_value = self._expand_string_variables(var_value)
+            
+            # Expand arithmetic expansion in the value
+            if '$((' in var_value and '))' in var_value:
+                # Find and expand all arithmetic expansions
+                import re
+                def expand_arith(match):
+                    return str(self._execute_arithmetic_expansion(match.group(0)))
+                var_value = re.sub(r'\$\(\([^)]+\)\)', expand_arith, var_value)
+            
             # Expand tilde in the value
             if var_value.startswith('~'):
                 var_value = self._expand_tilde(var_value)
@@ -1138,17 +1194,59 @@ class Shell:
             # Add current line to buffer
             if not command_buffer:
                 command_start_line = input_source.get_line_number()
+            # Add line to buffer with proper spacing
+            if command_buffer and not command_buffer.endswith('\n'):
+                command_buffer += '\n'
             command_buffer += line
             
-            # Execute the complete command
+            # Try to parse and execute the command
             if command_buffer.strip():
-                exit_code = self._execute_buffered_command(
-                    command_buffer, input_source, command_start_line, add_to_history
-                )
-            
-            # Reset buffer for next command
-            command_buffer = ""
-            command_start_line = 0
+                # Check if command is complete by trying to parse it
+                try:
+                    from .tokenizer import tokenize
+                    from .parser import parse, ParseError
+                    tokens = tokenize(command_buffer)
+                    # Try parsing to see if command is complete
+                    parse(tokens)
+                    # If parsing succeeds, execute the command
+                    exit_code = self._execute_buffered_command(
+                        command_buffer.rstrip('\n'), input_source, command_start_line, add_to_history
+                    )
+                    # Reset buffer for next command
+                    command_buffer = ""
+                    command_start_line = 0
+                except ParseError as e:
+                    # Check if this is an incomplete command
+                    error_msg = str(e)
+                    incomplete_patterns = [
+                        ("Expected DO", "got EOF"),
+                        ("Expected DONE", "got EOF"),
+                        ("Expected FI", "got EOF"),
+                        ("Expected THEN", "got EOF"),
+                        ("Expected IN", "got EOF"),
+                        ("Expected ESAC", "got EOF"),
+                        ("Expected '}' to end compound command", None),  # Function bodies
+                        ("Expected RPAREN", "got EOF"),
+                    ]
+                    
+                    is_incomplete = False
+                    for expected, got in incomplete_patterns:
+                        if expected in error_msg:
+                            if got is None or got in error_msg:
+                                is_incomplete = True
+                                break
+                    
+                    if is_incomplete:
+                        # Command is incomplete, continue reading
+                        continue
+                    else:
+                        # It's a real parse error, report it and reset
+                        filename = input_source.name if hasattr(input_source, 'name') else 'stdin'
+                        print(f"{filename}:{command_start_line}: {e}", file=sys.stderr)
+                        command_buffer = ""
+                        command_start_line = 0
+                        exit_code = 1
+                        self.last_exit_code = 1
         
         return exit_code
     
@@ -1185,13 +1283,13 @@ class Shell:
                     return 1
         except ParseError as e:
             # Enhanced error message with location
-            location = input_source.get_location() if start_line == 0 else f"{input_source.get_name()}:{start_line}"
+            location = f"{input_source.name}:{start_line}" if start_line > 0 else "command"
             print(f"psh: {location}: {e.message}", file=sys.stderr)
             self.last_exit_code = 1
             return 1
         except Exception as e:
             # Enhanced error message with location  
-            location = input_source.get_location() if start_line == 0 else f"{input_source.get_name()}:{start_line}"
+            location = f"{input_source.name}:{start_line}" if start_line > 0 else "command"
             print(f"psh: {location}: unexpected error: {e}", file=sys.stderr)
             self.last_exit_code = 1
             return 1

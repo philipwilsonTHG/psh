@@ -2,10 +2,29 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.17.1"
+__version__ = "0.18.0"
 
 # Version history
 VERSION_HISTORY = """
+0.18.0 (2025-05-29) - Arithmetic expansion and multi-line parsing
+  - Implemented complete $((...)) arithmetic expansion with separate subsystem
+  - ArithmeticTokenizer supporting numbers (decimal/hex/octal), operators, variables, parentheses
+  - ArithmeticParser with recursive descent and proper operator precedence
+  - ArithmeticEvaluator supporting all bash arithmetic features
+  - Full operator support: +,-,*,/,%,** (arithmetic), <,>,<=,>=,==,!= (comparison), &&,||,! (logical), &,|,^,~,<<,>> (bitwise)
+  - Advanced features: ternary (?:), comma, assignments (=,+=,-=,*=,/=,%=), increment/decrement (++,--)
+  - Variable integration with shell variables, non-numeric strings evaluate to 0
+  - Fixed arithmetic expansion in assignments: c=$((a + b))
+  - Fixed stderr redirection tokenization: >&2 now tokenizes as single REDIRECT_DUP token
+  - Fixed arithmetic expansion inside double quotes
+  - Fixed variable expansion in assignments (a=$b now works correctly)
+  - Implemented multi-line control structure parsing for scripts
+  - While loops, if statements, functions, for loops, case statements can span multiple lines
+  - Smart incomplete command detection continues reading until syntactic completion
+  - Fixed all failing pytest tests related to parse error handling
+  - 35 comprehensive arithmetic tests added
+  - Complete Fibonacci calculator demonstrating arithmetic capabilities
+
 0.17.1 (2025-05-28) - Refactoring preparation
   - Added comprehensive refactoring proposal document for shell.py restructuring
   - Documented plan to extract built-ins, process execution, environment management, I/O redirection, and script running
