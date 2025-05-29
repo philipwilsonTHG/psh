@@ -65,6 +65,7 @@ class Shell:
             'bg': self._builtin_bg,
             'true': self._builtin_true,
             'false': self._builtin_false,
+            ':': self._builtin_colon,
         }
         # History setup
         self.history = []
@@ -2022,6 +2023,10 @@ class Shell:
     def _builtin_false(self, args):
         """Always return failure (exit code 1)."""
         return 1
+    
+    def _builtin_colon(self, args):
+        """Null command - does nothing and returns success (exit code 0)."""
+        return 0
     
     def _collect_heredocs(self, command_list: CommandList):
         """Collect here document content for all commands"""

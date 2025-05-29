@@ -6,7 +6,7 @@ Features ordered by implementation status and complexity.
 
 ### Core Shell Features
 1. **Basic Command Execution** - External commands, built-ins, exit status
-2. **Additional Built-in Commands** - pwd, echo, env, unset, source, exit, cd, export, history, set, declare, return, jobs, fg, bg, alias, unalias, version
+2. **Additional Built-in Commands** - pwd, echo, env, unset, source, exit, cd, export, history, set, declare, return, jobs, fg, bg, alias, unalias, version, true, false, :, .
 3. **I/O Redirection** - stdin (<), stdout (>, >>), stderr (2>, 2>>, 2>&1), here documents (<<, <<-), here strings (<<<)
 4. **Pipeline Execution** - Process pipes, exit status handling, signal management
 5. **Command History** - In-memory storage, history command, readline integration, persistence
@@ -100,8 +100,8 @@ Features ordered by implementation status and complexity.
 - [ ] `for` loops (C-style) - Arithmetic-based iteration `for ((i=0; i<10; i++))`
 
 #### Missing Core Commands
-- [ ] **Colon Command (`:`)** - Null command for empty statements, always returns exit status 0
-- [ ] **Dot Command (`.`)** - Synonym for `source` builtin (already implemented as `source`)
+- [x] **Colon Command (`:`)** - ✅ Null command for empty statements, always returns exit status 0 (v0.17.3)
+- [x] **Dot Command (`.`)** - ✅ Synonym for `source` builtin (already implemented as `source`)
 
 #### Advanced Shell Options  
 - [ ] `set` options:
@@ -309,7 +309,7 @@ Features ordered by implementation status and complexity.
 
 ## 🎯 Current Status Summary
 
-### **Major Milestone: Complete Programming Language with Pattern Matching (v0.17.0)**
+### **Major Milestone: Complete Programming Language with Pattern Matching and Core Commands (v0.17.3)**
 
 psh has evolved from a basic educational shell into a **complete programming language** with full conditional logic, complete iteration capabilities, sophisticated loop control, and comprehensive pattern matching while maintaining its educational mission. Key achievements:
 
@@ -328,9 +328,10 @@ psh has evolved from a basic educational shell into a **complete programming lan
 - ✅ Shebang support: `#!/bin/bash`, `#!/usr/bin/env python3`
 - ✅ Multi-interpreter execution with proper fallback
 - ✅ Production-quality error handling and reporting
+- ✅ Core POSIX commands: colon (:) null command and dot (.) source synonym
 
 **Development Quality:**
-- ✅ 35 major features implemented and tested
+- ✅ 37 major features implemented and tested
 - ✅ Comprehensive test suite with 110+ passing tests (79 new tests across control structures, iteration, loop control, and pattern matching)
 - ✅ Robust architecture supporting complete control structure suite with pattern matching
 - ✅ Educational clarity preserved throughout
@@ -339,12 +340,12 @@ psh has evolved from a basic educational shell into a **complete programming lan
 Arithmetic expansion and C-style for loops will complete the core programming constructs, enabling mathematical computations and numeric iteration capabilities.
 
 ### Feature Implementation Stats
-- **🟢 Completed**: 35 major features (Core shell, Advanced features, Interactive features, Programming features, Script execution, Control structures, File test operators, While loops, For loops, Break/continue statements, Case statements)
+- **🟢 Completed**: 37 major features (Core shell, Advanced features, Interactive features, Programming features, Script execution, Control structures, File test operators, While loops, For loops, Break/continue statements, Case statements, Core POSIX commands)
 - **🟡 High Priority**: 2 features (C-style for loops, Advanced shell options)  
 - **🟠 Medium Priority**: 8 features (Arithmetic, Advanced expansions)
 - **🔵 Lower Priority**: 5 features (Interactive enhancements)
 
-**Total Progress**: ~89% of planned shell features complete, with **complete control structure suite** achieving full programming language status with conditionals, loops, loop control, and comprehensive pattern matching.
+**Total Progress**: ~91% of planned shell features complete, with **complete control structure suite** achieving full programming language status with conditionals, loops, loop control, and comprehensive pattern matching.
 
 ## 🚨 Known Issues & Limitations
 
@@ -353,8 +354,6 @@ Arithmetic expansion and C-style for loops will complete the core programming co
 - **Multi-line Input Parsing**: Complex multi-line commands with nested structures fail to parse correctly. Single-line equivalents work fine.
 - **Pipeline Job Control Issues**: Some pipelines are incorrectly treated as background jobs instead of running in foreground.
 
-### Missing Core Commands  
-- **Colon Command (`:`)**: The null command (`:`) is not implemented. Currently using `true` as a workaround for empty command bodies.
 
 ### Parser Edge Cases
 - **Empty Commands**: Consecutive semicolons (`;;`, `;;;`) are not handled gracefully in command parsing (though they work correctly in case statements).
@@ -363,11 +362,9 @@ Arithmetic expansion and C-style for loops will complete the core programming co
 ### Workarounds in Use
 - Tests use single-line command syntax to avoid multi-line parsing issues
 - Nested control structure tests are skipped with clear documentation
-- Empty command tests use `true` instead of `:` command
 - Some pipeline tests are skipped due to job control issues
 
 ### Future Improvements Needed
 1. **AST Architecture Redesign**: Modify CommandList to support Union types for mixed statements
 2. **Multi-line Parser Enhancement**: Improve newline and indentation handling
 3. **Job Control Refinement**: Fix pipeline classification between foreground/background
-4. **Core Command Completeness**: Implement missing POSIX commands like `:`

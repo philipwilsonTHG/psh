@@ -162,3 +162,33 @@ class TestIntegration:
             assert "line 1" in output
             assert "line 2" in output
             assert "line 3" in output
+    
+    def test_colon_command(self):
+        """Test the colon (:) null command"""
+        # Test basic colon command
+        exit_code = self.shell.run_command(":")
+        assert exit_code == 0
+        
+        # Test with arguments (should be ignored)
+        exit_code = self.shell.run_command(": arg1 arg2 arg3")
+        assert exit_code == 0
+        
+        # Test in loops as empty body
+        with patch('sys.stdout', new=StringIO()) as mock_stdout:
+            exit_code = self.shell.run_command("for i in 1 2 3; do :; done")
+            assert exit_code == 0
+            # No output expected
+            assert mock_stdout.getvalue() == ""
+        
+        # Test in while loop as placeholder
+        with patch('sys.stdout', new=StringIO()) as mock_stdout:
+            exit_code = self.shell.run_command("while false; do echo should_not_run; done; :")
+            assert exit_code == 0
+            # Loop should not execute, just the colon at the end
+            assert mock_stdout.getvalue() == ""
+        
+        # Test in conditional as true command
+        with patch('sys.stdout', new=StringIO()) as mock_stdout:
+            exit_code = self.shell.run_command("if :; then echo yes; else echo no; fi")
+            assert exit_code == 0
+            assert mock_stdout.getvalue().strip() == "yes"

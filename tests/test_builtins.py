@@ -148,3 +148,24 @@ class TestBuiltins:
         with pytest.raises(SystemExit) as exc_info:
             self.shell._builtin_exit(['exit', '42'])
         assert exc_info.value.code == 42
+    
+    def test_colon(self):
+        # Test colon command always returns 0
+        exit_code = self.shell._builtin_colon([':'])
+        assert exit_code == 0
+        
+        # Test with arguments (they should be ignored)
+        exit_code = self.shell._builtin_colon([':', 'arg1', 'arg2'])
+        assert exit_code == 0
+        
+        # Test as null command in conditionals
+        with patch('sys.stdout', new=StringIO()) as mock_stdout:
+            result = self.shell.run_command("if :; then echo success; fi")
+            assert result == 0
+            assert mock_stdout.getvalue().strip() == "success"
+        
+        # Test exit status is set correctly
+        self.shell.run_command("false")
+        assert self.shell.last_exit_code == 1
+        self.shell.run_command(":")
+        assert self.shell.last_exit_code == 0
