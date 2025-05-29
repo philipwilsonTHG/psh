@@ -373,7 +373,7 @@ C-style for loops `for ((i=0; i<10; i++))` will complete the iteration construct
 ## 🚨 Known Issues & Limitations
 
 ### Architectural Limitations
-- **Nested Control Structures**: Control structures cannot be nested (e.g., `if` inside `for`, `while` inside `if`) due to current AST architecture limitations. This requires redesigning the CommandList structure to support mixed statement types.
+- ~~**Nested Control Structures**~~: ✅ FIXED in v0.19.0 - Control structures can now be nested to arbitrary depth with the new Statement-based architecture
 - **Multi-line Input Parsing**: Complex multi-line commands with nested structures fail to parse correctly. Single-line equivalents work fine.
 - **Pipeline Job Control Issues**: Some pipelines are incorrectly treated as background jobs instead of running in foreground.
 
@@ -395,7 +395,7 @@ C-style for loops `for ((i=0; i<10; i++))` will complete the iteration construct
 - Avoid arithmetic expansion inside quotes; use unquoted arithmetic or concatenation
 
 ### Future Improvements Needed
-1. **AST Architecture Redesign**: Modify CommandList to support Union types for mixed statements
+1. ~~**AST Architecture Redesign**~~: ✅ COMPLETED in v0.19.0 - Implemented Statement base class and StatementList with full nesting support
 2. **Multi-line Parser Enhancement**: Improve newline and indentation handling
 3. **Job Control Refinement**: Fix pipeline classification between foreground/background
 4. **Tokenizer Fixes**:

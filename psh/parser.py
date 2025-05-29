@@ -1,6 +1,6 @@
 from typing import List, Optional, Union
 from .tokenizer import Token, TokenType
-from .ast_nodes import Command, Pipeline, CommandList, AndOrList, Redirect, FunctionDef, TopLevel, IfStatement, WhileStatement, ForStatement, BreakStatement, ContinueStatement, CaseStatement, CaseItem, CasePattern
+from .ast_nodes import Command, Pipeline, CommandList, StatementList, AndOrList, Redirect, FunctionDef, TopLevel, IfStatement, WhileStatement, ForStatement, BreakStatement, ContinueStatement, CaseStatement, CaseItem, CasePattern
 
 
 class ParseError(Exception):
@@ -73,7 +73,7 @@ class Parser:
             else:
                 # Parse command list until we hit a function or EOF
                 cmd_list = self._parse_command_list_until_function()
-                if cmd_list.and_or_lists:  # Not empty
+                if cmd_list.statements:  # Not empty
                     top_level.items.append(cmd_list)
             
             # Skip trailing separators
@@ -86,7 +86,7 @@ class Parser:
         elif len(top_level.items) == 1 and isinstance(top_level.items[0], (BreakStatement, ContinueStatement)):
             # Wrap single break/continue in CommandList for backward compatibility
             cmd_list = CommandList()
-            cmd_list.and_or_lists.append(top_level.items[0])
+            cmd_list.statements.append(top_level.items[0])
             return cmd_list
         elif len(top_level.items) == 0:
             return CommandList()
@@ -103,11 +103,12 @@ class Parser:
         if self.match(TokenType.EOF):
             return command_list
         
-        # Parse first and_or_list
-        and_or_list = self.parse_and_or_list()
-        command_list.and_or_lists.append(and_or_list)
+        # Parse first statement (could be control structure or and_or_list)
+        statement = self.parse_statement()
+        if statement:
+            command_list.statements.append(statement)
         
-        # Parse additional and_or_lists separated by semicolons or newlines
+        # Parse additional statements separated by semicolons or newlines
         while self.match(TokenType.SEMICOLON, TokenType.NEWLINE):
             self.advance()
             
@@ -115,12 +116,52 @@ class Parser:
             while self.match(TokenType.SEMICOLON, TokenType.NEWLINE):
                 self.advance()
             
-            # Check if we've reached the end
-            if self.match(TokenType.EOF):
+            # Check if we've reached the end or a terminator
+            if self.match(TokenType.EOF, TokenType.FI, TokenType.DONE, TokenType.ELSE, 
+                          TokenType.ESAC, TokenType.RBRACE):
                 break
             
-            and_or_list = self.parse_and_or_list()
-            command_list.and_or_lists.append(and_or_list)
+            statement = self.parse_statement()
+            if statement:
+                command_list.statements.append(statement)
+        
+        return command_list
+    
+    def parse_statement(self):
+        """Parse a single statement (control structure or and_or_list)."""
+        # Check for control structures
+        if self.match(TokenType.IF):
+            return self.parse_if_statement()
+        elif self.match(TokenType.WHILE):
+            return self.parse_while_statement()
+        elif self.match(TokenType.FOR):
+            return self.parse_for_statement()
+        elif self.match(TokenType.CASE):
+            return self.parse_case_statement()
+        elif self._is_function_def():
+            return self.parse_function_def()
+        else:
+            # Parse regular and_or_list
+            return self.parse_and_or_list()
+    
+    def parse_command_list_until(self, *end_tokens: TokenType) -> CommandList:
+        """Parse a command list until one of the end tokens is encountered."""
+        command_list = CommandList()
+        
+        # Skip leading newlines
+        while self.match(TokenType.NEWLINE):
+            self.advance()
+        
+        while not self.match(*end_tokens) and not self.match(TokenType.EOF):
+            statement = self.parse_statement()
+            if statement:
+                command_list.statements.append(statement)
+            
+            # Handle separators but stop at end tokens
+            while self.match(TokenType.SEMICOLON, TokenType.NEWLINE):
+                self.advance()
+                if self.match(*end_tokens):
+                    break
         
         return command_list
     
@@ -368,19 +409,7 @@ class Parser:
             self.advance()
         
         # Parse the command list inside
-        command_list = CommandList()
-        
-        while not self.match(TokenType.RBRACE) and not self.match(TokenType.EOF):
-            and_or_list = self.parse_and_or_list()
-            command_list.and_or_lists.append(and_or_list)
-            
-            # Handle separators
-            while self.match(TokenType.SEMICOLON, TokenType.NEWLINE):
-                self.advance()
-            
-            # Check if we're at the closing brace
-            if self.match(TokenType.RBRACE):
-                break
+        command_list = self.parse_command_list_until(TokenType.RBRACE)
         
         if not self.match(TokenType.RBRACE):
             raise ParseError("Expected '}' to end compound command", self.peek())
@@ -397,9 +426,10 @@ class Parser:
         while self.match(TokenType.NEWLINE):
             self.advance()
         
-        while not self.match(TokenType.EOF) and not self._is_function_def() and not self.match(TokenType.IF) and not self.match(TokenType.WHILE) and not self.match(TokenType.FOR):
-            and_or_list = self.parse_and_or_list()
-            command_list.and_or_lists.append(and_or_list)
+        while not self.match(TokenType.EOF) and not self._is_function_def() and not self.match(TokenType.IF) and not self.match(TokenType.WHILE) and not self.match(TokenType.FOR) and not self.match(TokenType.CASE):
+            statement = self.parse_statement()
+            if statement:
+                command_list.statements.append(statement)
             
             # Check for separators
             if self.match(TokenType.SEMICOLON, TokenType.NEWLINE):
@@ -431,16 +461,7 @@ class Parser:
             self.advance()
         
         # Parse condition (command list until 'then')
-        condition = CommandList()
-        while not self.match(TokenType.THEN) and not self.match(TokenType.EOF):
-            and_or_list = self.parse_and_or_list()
-            condition.and_or_lists.append(and_or_list)
-            
-            # Handle separators but stop at 'then'
-            while self.match(TokenType.SEMICOLON, TokenType.NEWLINE):
-                self.advance()
-                if self.match(TokenType.THEN):
-                    break
+        condition = self.parse_command_list_until(TokenType.THEN)
         
         # Consume 'then'
         self.expect(TokenType.THEN)
@@ -450,16 +471,7 @@ class Parser:
             self.advance()
         
         # Parse then_part (commands until 'else' or 'fi')
-        then_part = CommandList()
-        while not self.match(TokenType.ELSE) and not self.match(TokenType.FI) and not self.match(TokenType.EOF):
-            and_or_list = self.parse_and_or_list()
-            then_part.and_or_lists.append(and_or_list)
-            
-            # Handle separators but stop at 'else' or 'fi'
-            while self.match(TokenType.SEMICOLON, TokenType.NEWLINE):
-                self.advance()
-                if self.match(TokenType.ELSE) or self.match(TokenType.FI):
-                    break
+        then_part = self.parse_command_list_until(TokenType.ELSE, TokenType.FI)
         
         # Parse optional else part
         else_part = None
@@ -471,16 +483,7 @@ class Parser:
                 self.advance()
             
             # Parse else_part (commands until 'fi')
-            else_part = CommandList()
-            while not self.match(TokenType.FI) and not self.match(TokenType.EOF):
-                and_or_list = self.parse_and_or_list()
-                else_part.and_or_lists.append(and_or_list)
-                
-                # Handle separators but stop at 'fi'
-                while self.match(TokenType.SEMICOLON, TokenType.NEWLINE):
-                    self.advance()
-                    if self.match(TokenType.FI):
-                        break
+            else_part = self.parse_command_list_until(TokenType.FI)
         
         # Consume 'fi'
         self.expect(TokenType.FI)
@@ -497,16 +500,7 @@ class Parser:
             self.advance()
         
         # Parse condition (command list until 'do')
-        condition = CommandList()
-        while not self.match(TokenType.DO) and not self.match(TokenType.EOF):
-            and_or_list = self.parse_and_or_list()
-            condition.and_or_lists.append(and_or_list)
-            
-            # Handle separators but stop at 'do'
-            while self.match(TokenType.SEMICOLON, TokenType.NEWLINE):
-                self.advance()
-                if self.match(TokenType.DO):
-                    break
+        condition = self.parse_command_list_until(TokenType.DO)
         
         # Consume 'do'
         self.expect(TokenType.DO)
@@ -516,16 +510,7 @@ class Parser:
             self.advance()
         
         # Parse body (commands until 'done')
-        body = CommandList()
-        while not self.match(TokenType.DONE) and not self.match(TokenType.EOF):
-            and_or_list = self.parse_and_or_list()
-            body.and_or_lists.append(and_or_list)
-            
-            # Handle separators but stop at 'done'
-            while self.match(TokenType.SEMICOLON, TokenType.NEWLINE):
-                self.advance()
-                if self.match(TokenType.DONE):
-                    break
+        body = self.parse_command_list_until(TokenType.DONE)
         
         # Consume 'done'
         self.expect(TokenType.DONE)
@@ -578,16 +563,7 @@ class Parser:
             self.advance()
         
         # Parse body (commands until 'done')
-        body = CommandList()
-        while not self.match(TokenType.DONE) and not self.match(TokenType.EOF):
-            and_or_list = self.parse_and_or_list()
-            body.and_or_lists.append(and_or_list)
-            
-            # Handle separators but stop at 'done'
-            while self.match(TokenType.SEMICOLON, TokenType.NEWLINE):
-                self.advance()
-                if self.match(TokenType.DONE):
-                    break
+        body = self.parse_command_list_until(TokenType.DONE)
         
         # Consume 'done'
         self.expect(TokenType.DONE)
@@ -663,18 +639,8 @@ class Parser:
             self.advance()
         
         # Parse commands until terminator
-        commands = CommandList()
-        while not self.match(TokenType.DOUBLE_SEMICOLON, TokenType.SEMICOLON_AMP, 
-                           TokenType.AMP_SEMICOLON, TokenType.ESAC) and not self.match(TokenType.EOF):
-            and_or_list = self.parse_and_or_list()
-            commands.and_or_lists.append(and_or_list)
-            
-            # Handle separators but stop at terminators
-            while self.match(TokenType.SEMICOLON, TokenType.NEWLINE):
-                self.advance()
-                if self.match(TokenType.DOUBLE_SEMICOLON, TokenType.SEMICOLON_AMP, 
-                            TokenType.AMP_SEMICOLON, TokenType.ESAC):
-                    break
+        commands = self.parse_command_list_until(TokenType.DOUBLE_SEMICOLON, TokenType.SEMICOLON_AMP, 
+                                                TokenType.AMP_SEMICOLON, TokenType.ESAC)
         
         # Parse terminator (default to ;; if at esac or EOF)
         terminator = ';;'

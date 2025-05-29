@@ -52,16 +52,16 @@ class TestBreakContinueSimple:
         
         # Test parsing
         ast = parse(tokenize("break"))
-        assert hasattr(ast, 'and_or_lists')
-        assert len(ast.and_or_lists) == 1
-        from psh.ast_nodes import BreakStatement
-        assert isinstance(ast.and_or_lists[0], BreakStatement)
+        from psh.ast_nodes import BreakStatement, StatementList
+        assert isinstance(ast, StatementList)
+        assert len(ast.statements) == 1
+        assert isinstance(ast.statements[0], BreakStatement)
         
         ast = parse(tokenize("continue"))
-        assert hasattr(ast, 'and_or_lists')
-        assert len(ast.and_or_lists) == 1
         from psh.ast_nodes import ContinueStatement
-        assert isinstance(ast.and_or_lists[0], ContinueStatement)
+        assert isinstance(ast, StatementList)
+        assert len(ast.statements) == 1
+        assert isinstance(ast.statements[0], ContinueStatement)
     
     def test_break_in_for_loop(self):
         """Test break statement in for loop."""

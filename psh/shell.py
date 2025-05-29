@@ -348,8 +348,14 @@ class Shell:
             else:
                 # Check if this is a STRING that might contain variables
                 if arg_type == 'STRING' and '$' in arg:
-                    # Expand variables within the string
-                    arg = self._expand_string_variables(arg)
+                    # Special handling for "$@"
+                    if arg == '$@':
+                        # "$@" expands to multiple arguments, each properly quoted
+                        args.extend(self.positional_params)
+                        continue
+                    else:
+                        # Expand variables within the string
+                        arg = self._expand_string_variables(arg)
                 
                 # Tilde expansion (only for unquoted words)
                 if arg.startswith('~') and arg_type == 'WORD':
@@ -700,14 +706,18 @@ class Shell:
             job.add_process(pid, cmd_str)
         
         # Give terminal control to the pipeline
-        if original_pgid is not None and not pipeline.commands[-1].background:
+        is_background = pipeline.commands[-1].background
+        
+        if not is_background:
+            # Foreground job
             self.foreground_pgid = pgid
             job.foreground = True
             self.job_manager.set_foreground_job(job)
-            try:
-                os.tcsetpgrp(0, pgid)
-            except:
-                pass
+            if original_pgid is not None:
+                try:
+                    os.tcsetpgrp(0, pgid)
+                except:
+                    pass
         else:
             # Background job
             job.foreground = False
@@ -719,14 +729,14 @@ class Shell:
             os.close(pipe_write)
         
         # Wait for all children and get exit status
-        if not pipeline.commands[-1].background:
+        if not is_background:
             # Foreground job - wait for it
             last_status = self.job_manager.wait_for_job(job)
             
             # Restore terminal control
+            self.foreground_pgid = None
+            self.job_manager.set_foreground_job(None)
             if original_pgid is not None:
-                self.foreground_pgid = None
-                self.job_manager.set_foreground_job(None)
                 try:
                     os.tcsetpgrp(0, original_pgid)
                 except:
@@ -775,16 +785,33 @@ class Shell:
     def execute_command_list(self, command_list: CommandList):
         exit_code = 0
         try:
-            for item in command_list.and_or_lists:
-                if isinstance(item, (BreakStatement, ContinueStatement)):
-                    # Handle control statements
-                    if isinstance(item, BreakStatement):
-                        exit_code = self.execute_break_statement(item)
-                    else:
-                        exit_code = self.execute_continue_statement(item)
-                else:
+            for item in command_list.statements:
+                if isinstance(item, BreakStatement):
+                    exit_code = self.execute_break_statement(item)
+                elif isinstance(item, ContinueStatement):
+                    exit_code = self.execute_continue_statement(item)
+                elif isinstance(item, IfStatement):
+                    exit_code = self.execute_if_statement(item)
+                elif isinstance(item, WhileStatement):
+                    exit_code = self.execute_while_statement(item)
+                elif isinstance(item, ForStatement):
+                    exit_code = self.execute_for_statement(item)
+                elif isinstance(item, CaseStatement):
+                    exit_code = self.execute_case_statement(item)
+                elif isinstance(item, FunctionDef):
+                    # Register the function
+                    try:
+                        self.function_manager.define_function(item.name, item.body)
+                        exit_code = 0
+                    except ValueError as e:
+                        print(f"psh: {e}", file=sys.stderr)
+                        exit_code = 1
+                elif isinstance(item, AndOrList):
                     # Handle regular and_or_list
                     exit_code = self.execute_and_or_list(item)
+                else:
+                    print(f"psh: unknown statement type: {type(item).__name__}", file=sys.stderr)
+                    exit_code = 1
                 self.last_exit_code = exit_code
         except FunctionReturn:
             # Only catch FunctionReturn if we're in a function
@@ -793,6 +820,9 @@ class Shell:
             # Otherwise it's an error
             print("return: can only `return' from a function or sourced script", file=sys.stderr)
             return 1
+        except (LoopBreak, LoopContinue) as e:
+            # Re-raise to be handled by enclosing loop
+            raise
         return exit_code
     
     def execute_toplevel(self, toplevel: TopLevel):
@@ -815,15 +845,23 @@ class Shell:
                     # Execute commands
                     last_exit = self.execute_command_list(item)
                 elif isinstance(item, IfStatement):
+                    # Collect here documents
+                    self._collect_heredocs(item)
                     # Execute if statement
                     last_exit = self.execute_if_statement(item)
                 elif isinstance(item, WhileStatement):
+                    # Collect here documents
+                    self._collect_heredocs(item)
                     # Execute while statement
                     last_exit = self.execute_while_statement(item)
                 elif isinstance(item, ForStatement):
+                    # Collect here documents
+                    self._collect_heredocs(item)
                     # Execute for statement
                     last_exit = self.execute_for_statement(item)
                 elif isinstance(item, CaseStatement):
+                    # Collect here documents
+                    self._collect_heredocs(item)
                     # Execute case statement
                     last_exit = self.execute_case_statement(item)
                 elif isinstance(item, BreakStatement):
@@ -843,24 +881,19 @@ class Shell:
     
     def execute_if_statement(self, if_stmt: IfStatement) -> int:
         """Execute an if/then/else/fi conditional statement."""
-        # Collect here documents for condition
-        self._collect_heredocs(if_stmt.condition)
-        
         # Execute the condition and check its exit status
         condition_exit = self.execute_command_list(if_stmt.condition)
         
         # In shell, condition is true if exit code is 0, false otherwise
         if condition_exit == 0:
             # Execute then part
-            if if_stmt.then_part.and_or_lists:
-                self._collect_heredocs(if_stmt.then_part)
+            if if_stmt.then_part.statements:
                 return self.execute_command_list(if_stmt.then_part)
             else:
                 return 0
         else:
             # Execute else part if it exists
-            if if_stmt.else_part and if_stmt.else_part.and_or_lists:
-                self._collect_heredocs(if_stmt.else_part)
+            if if_stmt.else_part and if_stmt.else_part.statements:
                 return self.execute_command_list(if_stmt.else_part)
             else:
                 return 0
@@ -870,9 +903,6 @@ class Shell:
         last_exit = 0
         
         while True:
-            # Collect here documents for condition
-            self._collect_heredocs(while_stmt.condition)
-            
             # Execute the condition and check its exit status
             condition_exit = self.execute_command_list(while_stmt.condition)
             
@@ -882,10 +912,8 @@ class Shell:
                 break
                 
             # Condition is true, execute the body
-            if while_stmt.body.and_or_lists:
+            if while_stmt.body.statements:
                 try:
-                    # Collect here documents for body
-                    self._collect_heredocs(while_stmt.body)
                     # Execute body commands
                     last_exit = self.execute_command_list(while_stmt.body)
                     # Note: We continue the loop regardless of body exit status
@@ -906,22 +934,26 @@ class Shell:
         # Expand the iterable list (handle variables, globs, etc.)
         expanded_items = []
         for item in for_stmt.iterable:
-            # Expand variables in the item
-            expanded_item = self._expand_string_variables(item)
-            
-            # Handle glob patterns
-            if '*' in expanded_item or '?' in expanded_item or '[' in expanded_item:
-                # Use glob to expand patterns
-                import glob
-                matches = glob.glob(expanded_item)
-                if matches:
-                    # Sort for consistent ordering
-                    expanded_items.extend(sorted(matches))
-                else:
-                    # No matches, use literal string
-                    expanded_items.append(expanded_item)
+            # Special handling for "$@" - it should expand to multiple items
+            if item == '$@':
+                expanded_items.extend(self.positional_params)
             else:
-                expanded_items.append(expanded_item)
+                # Expand variables in the item
+                expanded_item = self._expand_string_variables(item)
+                
+                # Handle glob patterns
+                if '*' in expanded_item or '?' in expanded_item or '[' in expanded_item:
+                    # Use glob to expand patterns
+                    import glob
+                    matches = glob.glob(expanded_item)
+                    if matches:
+                        # Sort for consistent ordering
+                        expanded_items.extend(sorted(matches))
+                    else:
+                        # No matches, use literal string
+                        expanded_items.append(expanded_item)
+                else:
+                    expanded_items.append(expanded_item)
         
         # If no items to iterate over, return successfully
         if not expanded_items:
@@ -938,10 +970,8 @@ class Shell:
                 self.variables[loop_var] = item
                 
                 # Execute the body
-                if for_stmt.body.and_or_lists:
+                if for_stmt.body.statements:
                     try:
-                        # Collect here documents for body
-                        self._collect_heredocs(for_stmt.body)
                         # Execute body commands
                         last_exit = self.execute_command_list(for_stmt.body)
                         # Continue regardless of body exit status
@@ -992,10 +1022,8 @@ class Shell:
             
             if matched:
                 # Execute commands for this case item
-                if item.commands.and_or_lists:
+                if item.commands.statements:
                     try:
-                        # Collect here documents for commands
-                        self._collect_heredocs(item.commands)
                         # Execute commands
                         last_exit = self.execute_command_list(item.commands)
                     except LoopBreak:
@@ -1241,7 +1269,7 @@ class Shell:
                         continue
                     else:
                         # It's a real parse error, report it and reset
-                        filename = input_source.name if hasattr(input_source, 'name') else 'stdin'
+                        filename = input_source.get_name() if hasattr(input_source, 'get_name') else 'stdin'
                         print(f"{filename}:{command_start_line}: {e}", file=sys.stderr)
                         command_buffer = ""
                         command_start_line = 0
@@ -1283,13 +1311,13 @@ class Shell:
                     return 1
         except ParseError as e:
             # Enhanced error message with location
-            location = f"{input_source.name}:{start_line}" if start_line > 0 else "command"
+            location = f"{input_source.get_name()}:{start_line}" if start_line > 0 else "command"
             print(f"psh: {location}: {e.message}", file=sys.stderr)
             self.last_exit_code = 1
             return 1
         except Exception as e:
             # Enhanced error message with location  
-            location = f"{input_source.name}:{start_line}" if start_line > 0 else "command"
+            location = f"{input_source.get_name()}:{start_line}" if start_line > 0 else "command"
             print(f"psh: {location}: unexpected error: {e}", file=sys.stderr)
             self.last_exit_code = 1
             return 1
@@ -2126,13 +2154,15 @@ class Shell:
         """Null command - does nothing and returns success (exit code 0)."""
         return 0
     
-    def _collect_heredocs(self, command_list: CommandList):
-        """Collect here document content for all commands"""
-        for item in command_list.and_or_lists:
-            # Skip control statements (they don't have heredocs)
-            if not hasattr(item, 'pipelines'):
-                continue
-            for pipeline in item.pipelines:
+    def _collect_heredocs(self, node):
+        """Collect here document content for all commands in a node"""
+        if isinstance(node, CommandList):
+            # Process all statements in the command list
+            for item in node.statements:
+                self._collect_heredocs(item)
+        elif isinstance(node, AndOrList):
+            # Process pipelines in and_or_list
+            for pipeline in node.pipelines:
                 for command in pipeline.commands:
                     for redirect in command.redirects:
                         if redirect.type in ('<<', '<<-'):
@@ -2156,6 +2186,24 @@ class Shell:
                             redirect.heredoc_content = '\n'.join(lines)
                             if lines:  # Add final newline if there was content
                                 redirect.heredoc_content += '\n'
+        elif isinstance(node, IfStatement):
+            # Recursively collect for if statement parts
+            self._collect_heredocs(node.condition)
+            self._collect_heredocs(node.then_part)
+            if node.else_part:
+                self._collect_heredocs(node.else_part)
+        elif isinstance(node, WhileStatement):
+            # Recursively collect for while statement parts
+            self._collect_heredocs(node.condition)
+            self._collect_heredocs(node.body)
+        elif isinstance(node, ForStatement):
+            # Recursively collect for for statement body
+            self._collect_heredocs(node.body)
+        elif isinstance(node, CaseStatement):
+            # Recursively collect for case items
+            for item in node.items:
+                self._collect_heredocs(item.commands)
+        # BreakStatement and ContinueStatement don't have heredocs
     
     def _add_to_history(self, command):
         """Add a command to history"""

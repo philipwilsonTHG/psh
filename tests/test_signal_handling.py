@@ -93,11 +93,11 @@ class TestSignalHandling:
         # Save initial state
         initial_pgid = self.shell.foreground_pgid
         
-        # Run a quick pipeline
-        self.shell.run_command("echo hello | cat > /dev/null")
+        # Run a quick pipeline (use /bin/echo to avoid builtin)
+        self.shell.run_command("/bin/echo hello | cat > /dev/null")
         
-        # foreground_pgid should be restored
-        assert self.shell.foreground_pgid == initial_pgid
+        # foreground_pgid should be restored to None after foreground job completes
+        assert self.shell.foreground_pgid is None
     
     def test_signal_in_pipeline(self):
         """Test signal handling in pipeline commands"""

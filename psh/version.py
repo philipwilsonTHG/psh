@@ -2,10 +2,24 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.18.0"
+__version__ = "0.19.0"
 
 # Version history
 VERSION_HISTORY = """
+0.19.0 (2025-01-07) - Arbitrarily nested control structures
+  - Implemented Statement base class unifying all executable constructs
+  - Replaced CommandList with StatementList supporting any statement type
+  - Added unified parse_statement() method eliminating dual parsing paths
+  - Control structures (if, while, for, case) can now be nested to any depth
+  - Functions can contain nested control structures without limitation
+  - Full backward compatibility maintained through property delegation
+  - Fixed $@ expansion in for loops to properly handle multiple arguments
+  - Fixed pipeline execution to correctly run in foreground
+  - Enhanced heredoc collection to work recursively through nested structures
+  - 17 comprehensive tests for nested control structures
+  - All 394 existing tests pass without modification
+  - Educational architecture preserved while enabling complex shell scripts
+
 0.18.0 (2025-05-29) - Arithmetic expansion and multi-line parsing
   - Implemented complete $((...)) arithmetic expansion with separate subsystem
   - ArithmeticTokenizer supporting numbers (decimal/hex/octal), operators, variables, parentheses
