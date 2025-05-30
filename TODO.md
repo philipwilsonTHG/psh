@@ -6,7 +6,7 @@ Features ordered by implementation status and complexity.
 
 ### Core Shell Features
 1. **Basic Command Execution** - External commands, built-ins, exit status
-2. **Additional Built-in Commands** - pwd, echo, env, unset, source, exit, cd, export, history, set, declare, return, jobs, fg, bg, alias, unalias, version, true, false, :, .
+2. **Additional Built-in Commands** - pwd, echo, env, unset, source, exit, cd, export, history, set, declare, return, jobs, fg, bg, alias, unalias, version, true, false, :, ., read
 3. **I/O Redirection** - stdin (<), stdout (>, >>), stderr (2>, 2>>, 2>&1), here documents (<<, <<-), here strings (<<<)
 4. **Pipeline Execution** - Process pipes, exit status handling, signal management
 5. **Command History** - In-memory storage, history command, readline integration, persistence
@@ -51,6 +51,7 @@ Features ordered by implementation status and complexity.
 34. **Break and Continue Statements** - Loop control statements for while and for loops (v0.16.0)
 35. **Case Statements** - case/esac pattern matching with fallthrough control (v0.17.0)
 36. **Arithmetic Expansion** - $((...)) with full bash-compatible arithmetic evaluation (v0.18.0)
+37. **Read Builtin** - Core POSIX functionality with IFS field splitting, raw mode, escape processing (v0.20.1)
 
 ## 🚧 Remaining Features
 
@@ -153,13 +154,13 @@ Features ordered by implementation status and complexity.
 ### Immediate Next Features (Recommended Order)
 
 1. **C-style For Loops** - `for ((i=0; i<10; i++))` - Arithmetic-based iteration (leverages v0.18.0 arithmetic expansion)
-2. **Local Variables** - `local` builtin for function scope
-3. **Set Options** - `-e`, `-u`, `-x` for better script debugging
-4. **Read Builtin** - Essential for user input and file processing
+2. **Enhanced Read Features** - `-p` prompt, `-s` silent, `-t` timeout, `-n` chars, `-d` delimiter
+3. **Local Variables** - `local` builtin for function scope
+4. **Set Options** - `-e`, `-u`, `-x` for better script debugging
 5. **Enhanced Parameter Expansion** - `${#var}`, `${var#pattern}`, `${var%pattern}`, etc.
 6. **Trap Command** - Signal handling for cleanup and error management
 
-### Recent Major Accomplishments (v0.10.0 - v0.15.0)
+### Recent Major Accomplishments (v0.10.0 - v0.20.1)
 
 #### ✅ Complete Script Execution System (v0.10.0 - v0.12.0)
 - **Phase 1**: Basic script file execution with arguments
@@ -263,6 +264,31 @@ Features ordered by implementation status and complexity.
 
 **Impact**: psh now supports full arithmetic evaluation enabling mathematical computations in shell scripts, test conditions, and paving the way for C-style for loops. The clean architecture demonstrates best practices for adding subsystems to interpreters.
 
+#### ✅ Modular Builtin Architecture (v0.20.0)
+- **Complete refactoring of all 24 builtins** into a modular architecture with base class and registry
+- **Abstract base class Builtin** provides consistent interface for all builtin commands
+- **Registry pattern with @builtin decorator** enables automatic registration and discovery
+- **Logical module organization**: core, environment, file_ops, flow_control, history, job_control, etc.
+- **394 lines removed from shell.py** improving maintainability and readability
+- **Job control bug fixes** for fg/bg commands properly handling Job objects
+- **Test refactoring** from direct method calls to run_command() for better integration
+- **Full backward compatibility** maintained with all existing functionality
+- **Educational architecture preserved** while enabling easier extension and maintenance
+
+**Impact**: The modular builtin architecture provides a clean foundation for adding new builtins and maintaining existing ones. The registry pattern makes it trivial to add new commands, and the logical organization helps developers quickly find and modify functionality.
+
+#### ✅ Read Builtin Implementation (v0.20.1)
+- **Core POSIX read functionality** with proper IFS field splitting and variable assignment
+- **Raw mode (-r)** preserves backslashes without escape processing
+- **Escape sequence processing** handles \n, \t, \\, and other standard sequences
+- **Line continuation support** with backslash-newline handling
+- **Single vs multiple variable handling** with appropriate field splitting behavior
+- **Default REPLY variable** when no variable names are specified
+- **Comprehensive test suite** with 17 tests covering all edge cases
+- **Proper EOF and signal handling** with correct exit codes
+
+**Impact**: The read builtin enables interactive scripts and file processing loops, essential for real-world shell scripting. This brings the total builtin count to 25, with a solid foundation for adding interactive features in future phases.
+
 ### Architecture Considerations
 
 #### Lessons from Script Execution Implementation
@@ -286,7 +312,7 @@ Features ordered by implementation status and complexity.
 - ✅ **Loop control mechanisms** provide clean early termination and continuation without side effects
 - ✅ **Case statements** successfully implement pattern matching with fnmatch integration and fallthrough control
 - ✅ **Complete control structure suite** provides full programming language capabilities
-- **Next**: Arithmetic expansion and C-style for loops will build on established control flow architecture
+- **Next**: C-style for loops will build on established arithmetic expansion
 
 #### For Job Control (Already Implemented)
 - ✅ Process group management working correctly
@@ -311,6 +337,8 @@ Features ordered by implementation status and complexity.
 9. **Complete Iteration** - Both while and for loops with full condition and variable support
 10. **Variable Scoping** - Proper isolation and restoration in loops and functions
 11. **Complete Loop Control** - Break and continue statements with exception-based flow control
+12. **Modular Builtin Architecture** - Registry pattern with logical organization for maintainability
+13. **Interactive Features** - Read builtin and job suspension notifications enhance user experience
 
 ### Testing Strategy
 
@@ -331,9 +359,9 @@ Features ordered by implementation status and complexity.
 
 ## 🎯 Current Status Summary
 
-### **Major Milestone: Complete Programming Language with Modular Architecture (v0.20.0)**
+### **Major Milestone: Complete Programming Language with Modular Architecture (v0.20.1)**
 
-psh has evolved from a basic educational shell into a **complete programming language** with full conditional logic, complete iteration capabilities, sophisticated loop control, comprehensive pattern matching, and a clean modular architecture while maintaining its educational mission. Key achievements:
+psh has evolved from a basic educational shell into a **complete programming language** with full conditional logic, complete iteration capabilities, sophisticated loop control, comprehensive pattern matching, arithmetic evaluation, user input capabilities, and a clean modular architecture while maintaining its educational mission. Key achievements:
 
 **Programming Language Capabilities:**
 - ✅ Complete control structures: `if/then/else/fi`, `while/do/done`, `for/in/do/done`, `case/esac`
@@ -352,11 +380,13 @@ psh has evolved from a basic educational shell into a **complete programming lan
 - ✅ Production-quality error handling and reporting
 - ✅ Core POSIX commands: colon (:) null command and dot (.) source synonym
 - ✅ Arithmetic expansion: $((...)) with full operator support, variables, and bash compatibility
-- ✅ Modular builtin architecture: All 24 builtins extracted with registry pattern and base class (v0.20.0)
+- ✅ Modular builtin architecture: All 25 builtins extracted with registry pattern and base class (v0.20.0)
+- ✅ Read builtin: Core POSIX functionality with IFS splitting, raw mode, escape processing (v0.20.1)
+- ✅ Job suspension notifications: Ctrl-Z shows "[job]+  Stopped" message like bash
 
 **Development Quality:**
-- ✅ 49 major features implemented and tested
-- ✅ Comprehensive test suite with 422 passing tests, 17 skipped, 1 xfailed
+- ✅ 50 major features implemented and tested
+- ✅ Comprehensive test suite with 439 passing tests, 17 skipped, 1 xfailed
 - ✅ Robust architecture supporting complete control structure suite with pattern matching
 - ✅ Clean modular design: shell.py reduced by 394 lines, builtins organized into logical modules
 - ✅ Educational clarity preserved throughout
@@ -366,13 +396,13 @@ psh has evolved from a basic educational shell into a **complete programming lan
 C-style for loops `for ((i=0; i<10; i++))` will complete the iteration constructs, leveraging the newly implemented arithmetic expansion for initialization, condition testing, and increment operations.
 
 ### Feature Implementation Stats
-- **🟢 Completed**: 49 major features (Core shell, Advanced features, Interactive features, Programming features, Script execution, Control structures, File test operators, While loops, For loops, Break/continue statements, Case statements, Core POSIX commands, Arithmetic expansion, Modular builtin architecture)
-- **🟡 High Priority**: 1 feature (C-style for loops)
+- **🟢 Completed**: 50 major features (Core shell, Advanced features, Interactive features, Programming features, Script execution, Control structures, File test operators, While loops, For loops, Break/continue statements, Case statements, Core POSIX commands, Arithmetic expansion, Modular builtin architecture, Read builtin)
+- **🟡 High Priority**: 1 feature (C-style for loops) + enhanced read features
 - **🟡 High Priority**: 1 feature group (Advanced shell options)  
 - **🟠 Medium Priority**: 2 feature groups (Advanced expansions)
 - **🔵 Lower Priority**: 1 feature group (Interactive enhancements)
 
-**Total Progress**: ~95% of planned shell features complete, with **modular builtin architecture** providing a clean foundation for future development.
+**Total Progress**: ~95% of planned shell features complete, with **read builtin and modular architecture** providing essential capabilities for interactive scripts and maintainable code.
 
 ## 🚨 Known Issues & Limitations
 
