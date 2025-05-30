@@ -10,6 +10,10 @@ from . import navigation
 from . import shell_state
 from . import environment
 from . import aliases
+from . import job_control
+from . import test_command
+from . import source_command
+from . import function_support
 
 # Re-export for convenience
 __all__ = ['registry', 'builtin', 'Builtin']

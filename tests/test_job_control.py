@@ -73,7 +73,7 @@ class TestJobControl:
     def test_jobs_builtin(self):
         """Test jobs built-in command."""
         # No jobs initially
-        exit_code = self.shell._builtin_jobs([])
+        exit_code = self.shell.run_command("jobs")
         assert exit_code == 0
         
         # Create some jobs
@@ -149,24 +149,24 @@ class TestJobControl:
     def test_fg_builtin_errors(self):
         """Test fg built-in error handling."""
         # No current job
-        exit_code = self.shell._builtin_fg(["fg"])
+        exit_code = self.shell.run_command("fg 2>&1")
         assert exit_code == 1
         
         # Invalid job spec
-        exit_code = self.shell._builtin_fg(["fg", "%99"])
+        exit_code = self.shell.run_command("fg %99 2>&1")
         assert exit_code == 1
         
-        exit_code = self.shell._builtin_fg(["fg", "invalid"])
+        exit_code = self.shell.run_command("fg invalid 2>&1")
         assert exit_code == 1
     
     def test_bg_builtin_errors(self):
         """Test bg built-in error handling."""
         # No current job
-        exit_code = self.shell._builtin_bg(["bg"])
+        exit_code = self.shell.run_command("bg 2>&1")
         assert exit_code == 1
         
         # Invalid job spec
-        exit_code = self.shell._builtin_bg(["bg", "%99"])
+        exit_code = self.shell.run_command("bg %99 2>&1")
         assert exit_code == 1
     
     def test_job_process_tracking(self):

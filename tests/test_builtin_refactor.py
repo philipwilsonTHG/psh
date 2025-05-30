@@ -28,8 +28,9 @@ class TestBuiltinRefactor:
         assert 'pwd' in names
         assert 'cd' in names
         assert ':' in names
-        # Should not include aliases in names()
-        assert '[' not in names  # This would be an alias for test when migrated
+        # '[' is now registered as a separate builtin
+        assert '[' in names
+        assert 'test' in names
     
     def test_echo_builtin(self, capsys):
         """Test echo builtin through new system."""
