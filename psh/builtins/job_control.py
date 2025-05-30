@@ -45,21 +45,16 @@ class FgBuiltin(Builtin):
         # Determine which job to foreground
         if len(args) > 1:
             job_spec = args[1]
-            job_id = shell.job_manager.parse_job_spec(job_spec)
-            if job_id is None:
+            job = shell.job_manager.parse_job_spec(job_spec)
+            if job is None:
                 print(f"fg: {job_spec}: no such job", file=sys.stderr)
                 return 1
         else:
             # No argument - use current job
-            if shell.job_manager.current_job is None:
+            job = shell.job_manager.current_job
+            if job is None:
                 print("fg: %+: no such job", file=sys.stderr)
                 return 1
-            job_id = shell.job_manager.current_job.job_id
-        
-        job = shell.job_manager.get_job(job_id)
-        if not job:
-            print(f"fg: %{job_id}: no such job", file=sys.stderr)
-            return 1
         
         # Print the command being resumed
         print(job.command)
@@ -117,21 +112,16 @@ class BgBuiltin(Builtin):
         # Determine which job to background
         if len(args) > 1:
             job_spec = args[1]
-            job_id = shell.job_manager.parse_job_spec(job_spec)
-            if job_id is None:
+            job = shell.job_manager.parse_job_spec(job_spec)
+            if job is None:
                 print(f"bg: {job_spec}: no such job", file=sys.stderr)
                 return 1
         else:
             # No argument - use current job
-            if shell.job_manager.current_job is None:
+            job = shell.job_manager.current_job
+            if job is None:
                 print("bg: %+: no such job", file=sys.stderr)
                 return 1
-            job_id = shell.job_manager.current_job.job_id
-        
-        job = shell.job_manager.get_job(job_id)
-        if not job:
-            print(f"bg: %{job_id}: no such job", file=sys.stderr)
-            return 1
         
         # Resume job in background
         if job.state == JobState.STOPPED:
