@@ -35,12 +35,13 @@ class LoopContinue(Exception):
 
 
 class Shell:
-    def __init__(self, args=None, script_name=None):
+    def __init__(self, args=None, script_name=None, debug_ast=False):
         self.env = os.environ.copy()
         self.variables = {}  # Shell variables (not exported to environment)
         self.positional_params = args if args else []  # $1, $2, etc.
         self.script_name = script_name or "psh"  # $0 value
         self.is_script_mode = script_name is not None and script_name != "psh"
+        self.debug_ast = debug_ast  # Whether to print AST before execution
         self.builtins = {
             'exit': self._builtin_exit,
             'cd': self._builtin_cd,
@@ -284,7 +285,7 @@ class Shell:
         
         try:
             # Create a temporary shell to execute the command with output redirected
-            temp_shell = Shell()
+            temp_shell = Shell(debug_ast=self.debug_ast)
             temp_shell.env = self.env.copy()
             temp_shell.variables = self.variables.copy()
             
@@ -1289,6 +1290,12 @@ class Shell:
             # Expand aliases
             tokens = self.alias_manager.expand_aliases(tokens)
             ast = parse(tokens)
+            
+            # Debug: Print AST if requested
+            if self.debug_ast:
+                print("=== AST Debug Output ===", file=sys.stderr)
+                print(self._format_ast(ast), file=sys.stderr)
+                print("======================", file=sys.stderr)
             
             # Add to history if requested (for interactive or testing)
             if add_to_history and command_string.strip():
@@ -2379,3 +2386,107 @@ class Shell:
         except Exception as e:
             print(f"{args[0]}: {e}", file=sys.stderr)
             return 1
+    
+    def _format_ast(self, node, indent=0):
+        """Format AST node for debugging output."""
+        spaces = "  " * indent
+        
+        if isinstance(node, TopLevel):
+            result = f"{spaces}TopLevel:\n"
+            for item in node.items:
+                result += self._format_ast(item, indent + 1)
+            return result
+        
+        elif isinstance(node, CommandList):
+            result = f"{spaces}CommandList:\n"
+            for stmt in node.statements:
+                result += self._format_ast(stmt, indent + 1)
+            return result
+        
+        elif isinstance(node, AndOrList):
+            result = f"{spaces}AndOrList:\n"
+            for i, pipeline in enumerate(node.pipelines):
+                if i < len(node.operators):
+                    result += f"{spaces}  Operator: {node.operators[i]}\n"
+                result += self._format_ast(pipeline, indent + 1)
+            return result
+        
+        elif isinstance(node, Pipeline):
+            result = f"{spaces}Pipeline:\n"
+            for cmd in node.commands:
+                result += self._format_ast(cmd, indent + 1)
+            return result
+        
+        elif isinstance(node, Command):
+            result = f"{spaces}Command: {' '.join(node.args)}"
+            if node.background:
+                result += " &"
+            result += "\n"
+            for redirect in node.redirects:
+                result += self._format_ast(redirect, indent + 1)
+            return result
+        
+        elif isinstance(node, Redirect):
+            result = f"{spaces}Redirect: "
+            if node.fd is not None:
+                result += f"{node.fd}"
+            result += f"{node.type} {node.target}"
+            if node.dup_fd is not None:
+                result += f" (dup fd {node.dup_fd})"
+            if node.heredoc_content:
+                result += f" (heredoc: {len(node.heredoc_content)} chars)"
+            result += "\n"
+            return result
+        
+        elif isinstance(node, FunctionDef):
+            result = f"{spaces}FunctionDef: {node.name}()\n"
+            result += self._format_ast(node.body, indent + 1)
+            return result
+        
+        elif isinstance(node, IfStatement):
+            result = f"{spaces}IfStatement:\n"
+            result += f"{spaces}  Condition:\n"
+            result += self._format_ast(node.condition, indent + 2)
+            result += f"{spaces}  Then:\n"
+            result += self._format_ast(node.then_part, indent + 2)
+            if node.else_part:
+                result += f"{spaces}  Else:\n"
+                result += self._format_ast(node.else_part, indent + 2)
+            return result
+        
+        elif isinstance(node, WhileStatement):
+            result = f"{spaces}WhileStatement:\n"
+            result += f"{spaces}  Condition:\n"
+            result += self._format_ast(node.condition, indent + 2)
+            result += f"{spaces}  Body:\n"
+            result += self._format_ast(node.body, indent + 2)
+            return result
+        
+        elif isinstance(node, ForStatement):
+            result = f"{spaces}ForStatement:\n"
+            result += f"{spaces}  Variable: {node.variable}\n"
+            result += f"{spaces}  Iterable: {node.iterable}\n"
+            result += f"{spaces}  Body:\n"
+            result += self._format_ast(node.body, indent + 2)
+            return result
+        
+        elif isinstance(node, CaseStatement):
+            result = f"{spaces}CaseStatement: {node.expr}\n"
+            for item in node.items:
+                result += self._format_ast(item, indent + 1)
+            return result
+        
+        elif isinstance(node, CaseItem):
+            patterns = " | ".join(p.pattern for p in node.patterns)
+            result = f"{spaces}CaseItem: {patterns}) terminator={node.terminator}\n"
+            result += self._format_ast(node.commands, indent + 1)
+            return result
+        
+        elif isinstance(node, BreakStatement):
+            return f"{spaces}BreakStatement\n"
+        
+        elif isinstance(node, ContinueStatement):
+            return f"{spaces}ContinueStatement\n"
+        
+        else:
+            return f"{spaces}{type(node).__name__}: {repr(node)}\n"

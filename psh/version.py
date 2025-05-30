@@ -2,10 +2,18 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.19.0"
+__version__ = "0.19.1"
 
 # Version history
 VERSION_HISTORY = """
+0.19.1 (2025-01-07) - AST debugging support
+  - Added --debug-ast command-line flag for debugging parsed commands
+  - Prints hierarchical AST structure to stderr before execution
+  - Works in both -c command mode and script execution mode
+  - Preserves debug flag in sub-shells for command substitution
+  - Comprehensive AST formatter shows all node types with proper indentation
+  - Useful for understanding parser behavior and troubleshooting parsing issues
+
 0.19.0 (2025-01-07) - Arbitrarily nested control structures
   - Implemented Statement base class unifying all executable constructs
   - Replaced CommandList with StatementList supporting any statement type
