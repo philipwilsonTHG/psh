@@ -2,10 +2,23 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.20.1"
+__version__ = "0.21.0"
 
 # Version history
 VERSION_HISTORY = """
+0.21.0 (2025-01-30) - Brace expansion implementation (Phase 1)
+  - Added bash-style brace expansion as pre-tokenization step
+  - Implemented list expansion: {a,b,c} → a b c
+  - Support for preamble/postscript: file{1,2,3}.txt → file1.txt file2.txt file3.txt
+  - Nested brace expansion: {a,b{1,2}} → a b1 b2
+  - Empty element support: {a,,c} → a  c
+  - Quote awareness: braces inside quotes are not expanded
+  - Escape handling: \{a,b\} is not expanded
+  - Memory limits to prevent excessive expansions (default 10,000 items)
+  - Graceful error handling with fallback to original string
+  - Comprehensive test suite with 22 tests covering all edge cases
+  - Foundation laid for Phase 2 sequence expansion ({1..10}, {a..z})
+
 0.20.1 (2025-01-30) - Read builtin implementation
   - Added read builtin with core POSIX functionality
   - Supports reading into variables with IFS-based field splitting

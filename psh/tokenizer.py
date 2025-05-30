@@ -476,5 +476,21 @@ class Tokenizer:
 
 
 def tokenize(input_string: str) -> List[Token]:
-    tokenizer = Tokenizer(input_string)
+    """Tokenize input string, with brace expansion preprocessing."""
+    from .brace_expansion import BraceExpander, BraceExpansionError
+    
+    try:
+        # Expand braces first
+        expander = BraceExpander()
+        expanded_string = expander.expand_line(input_string)
+    except BraceExpansionError as e:
+        # If brace expansion fails (e.g., too many items), 
+        # tokenize the original string to maintain backwards compatibility
+        # This allows the shell to still process the command, even if
+        # brace expansion is not performed
+        tokenizer = Tokenizer(input_string)
+        return tokenizer.tokenize()
+    
+    # Then run normal tokenization on expanded string
+    tokenizer = Tokenizer(expanded_string)
     return tokenizer.tokenize()
