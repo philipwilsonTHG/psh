@@ -146,28 +146,38 @@ class TestJobControl:
         # At minimum, the job_id counter should have incremented
         assert self.shell.job_manager.next_job_id > 1
     
-    def test_fg_builtin_errors(self):
+    def test_fg_builtin_errors(self, capsys):
         """Test fg built-in error handling."""
         # No current job
-        exit_code = self.shell.run_command("fg 2>&1")
+        exit_code = self.shell.run_command("fg")
         assert exit_code == 1
+        captured = capsys.readouterr()
+        assert "no current job" in captured.err
         
         # Invalid job spec
-        exit_code = self.shell.run_command("fg %99 2>&1")
+        exit_code = self.shell.run_command("fg %99")
         assert exit_code == 1
+        captured = capsys.readouterr()
+        assert "no such job" in captured.err
         
-        exit_code = self.shell.run_command("fg invalid 2>&1")
+        exit_code = self.shell.run_command("fg invalid")
         assert exit_code == 1
+        captured = capsys.readouterr()
+        assert "no such job" in captured.err
     
-    def test_bg_builtin_errors(self):
+    def test_bg_builtin_errors(self, capsys):
         """Test bg built-in error handling."""
         # No current job
-        exit_code = self.shell.run_command("bg 2>&1")
+        exit_code = self.shell.run_command("bg")
         assert exit_code == 1
+        captured = capsys.readouterr()
+        assert "no current job" in captured.err
         
         # Invalid job spec
-        exit_code = self.shell.run_command("bg %99 2>&1")
+        exit_code = self.shell.run_command("bg %99")
         assert exit_code == 1
+        captured = capsys.readouterr()
+        assert "no such job" in captured.err
     
     def test_job_process_tracking(self):
         """Test that jobs track their processes correctly."""

@@ -38,10 +38,6 @@ class FgBuiltin(Builtin):
     
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Execute the fg builtin."""
-        if not shell.job_manager.jobs:
-            print("fg: no current job", file=sys.stderr)
-            return 1
-        
         # Determine which job to foreground
         if len(args) > 1:
             job_spec = args[1]
@@ -51,6 +47,9 @@ class FgBuiltin(Builtin):
                 return 1
         else:
             # No argument - use current job
+            if not shell.job_manager.jobs:
+                print("fg: no current job", file=sys.stderr)
+                return 1
             job = shell.job_manager.current_job
             if job is None:
                 print("fg: %+: no such job", file=sys.stderr)
@@ -105,10 +104,6 @@ class BgBuiltin(Builtin):
     
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Execute the bg builtin."""
-        if not shell.job_manager.jobs:
-            print("bg: no current job", file=sys.stderr)
-            return 1
-        
         # Determine which job to background
         if len(args) > 1:
             job_spec = args[1]
@@ -118,6 +113,9 @@ class BgBuiltin(Builtin):
                 return 1
         else:
             # No argument - use current job
+            if not shell.job_manager.jobs:
+                print("bg: no current job", file=sys.stderr)
+                return 1
             job = shell.job_manager.current_job
             if job is None:
                 print("bg: %+: no such job", file=sys.stderr)
