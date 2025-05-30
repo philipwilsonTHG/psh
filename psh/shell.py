@@ -7,10 +7,11 @@ import glob
 import pwd
 import stat
 import fnmatch
+import fcntl
 from typing import List, Tuple
 from .tokenizer import tokenize
 from .parser import parse, ParseError
-from .ast_nodes import Command, Pipeline, CommandList, AndOrList, Redirect, TopLevel, FunctionDef, IfStatement, WhileStatement, ForStatement, BreakStatement, ContinueStatement, CaseStatement, CaseItem, CasePattern
+from .ast_nodes import Command, Pipeline, CommandList, AndOrList, Redirect, TopLevel, FunctionDef, IfStatement, WhileStatement, ForStatement, BreakStatement, ContinueStatement, CaseStatement, CaseItem, CasePattern, ProcessSubstitution
 from .line_editor import LineEditor
 from .version import get_version_info
 from .aliases import AliasManager
@@ -305,6 +306,22 @@ class Shell:
     def _expand_arguments(self, command: Command) -> list:
         """Expand variables, command substitutions, tildes, and globs in command arguments"""
         args = []
+        
+        # Check if we have process substitutions
+        has_proc_sub = any(command.arg_types[i] in ('PROCESS_SUB_IN', 'PROCESS_SUB_OUT') 
+                          for i in range(len(command.arg_types)))
+        
+        if has_proc_sub:
+            # Set up process substitutions first
+            fds, substituted_args, child_pids = self._setup_process_substitutions(command)
+            # Store for cleanup
+            self._process_sub_fds = fds
+            self._process_sub_pids = child_pids
+            # Update command args with substituted paths
+            command.args = substituted_args
+            # Update arg_types to treat substituted paths as words
+            command.arg_types = ['WORD'] * len(substituted_args)
+        
         for i, arg in enumerate(command.args):
             arg_type = command.arg_types[i] if i < len(command.arg_types) else 'WORD'
             
@@ -413,6 +430,68 @@ class Shell:
             if target and redirect.type in ('<', '>', '>>') and target.startswith('~'):
                 target = self._expand_tilde(target)
             
+            # Handle process substitution as redirect target
+            if target and target.startswith(('<(', '>(')) and target.endswith(')'):
+                # This is a process substitution used as a redirect target
+                # Set up the process substitution and get the fd path
+                if target.startswith('<('):
+                    direction = 'in'
+                    cmd_str = target[2:-1]
+                else:
+                    direction = 'out' 
+                    cmd_str = target[2:-1]
+                
+                # Create pipe
+                if direction == 'in':
+                    read_fd, write_fd = os.pipe()
+                    parent_fd = read_fd
+                    child_fd = write_fd
+                    child_stdout = child_fd
+                    child_stdin = 0
+                else:
+                    read_fd, write_fd = os.pipe()
+                    parent_fd = write_fd
+                    child_fd = read_fd
+                    child_stdout = 1
+                    child_stdin = child_fd
+                
+                # Clear close-on-exec flag
+                flags = fcntl.fcntl(parent_fd, fcntl.F_GETFD)
+                fcntl.fcntl(parent_fd, fcntl.F_SETFD, flags & ~fcntl.FD_CLOEXEC)
+                
+                # Fork child
+                pid = os.fork()
+                if pid == 0:  # Child
+                    os.close(parent_fd)
+                    if direction == 'in':
+                        os.dup2(child_stdout, 1)
+                    else:
+                        os.dup2(child_stdin, 0)
+                    os.close(child_fd)
+                    
+                    try:
+                        tokens = tokenize(cmd_str)
+                        ast = parse(tokens)
+                        temp_shell = Shell()
+                        temp_shell.env = self.env.copy()
+                        temp_shell.variables = self.variables.copy()
+                        exit_code = temp_shell.execute_command_list(ast)
+                        os._exit(exit_code)
+                    except Exception as e:
+                        print(f"psh: process substitution error: {e}", file=sys.stderr)
+                        os._exit(1)
+                else:  # Parent
+                    os.close(child_fd)
+                    # Store for cleanup
+                    if not hasattr(self, '_builtin_proc_sub_fds'):
+                        self._builtin_proc_sub_fds = []
+                    if not hasattr(self, '_builtin_proc_sub_pids'):
+                        self._builtin_proc_sub_pids = []
+                    self._builtin_proc_sub_fds.append(parent_fd)
+                    self._builtin_proc_sub_pids.append(pid)
+                    # Use the fd path as target
+                    target = f"/dev/fd/{parent_fd}"
+            
             if redirect.type == '<':
                 stdin_backup = sys.stdin
                 sys.stdin = open(target, 'r')
@@ -461,6 +540,23 @@ class Shell:
             if hasattr(sys.stderr, 'close') and sys.stderr != stderr_backup:
                 sys.stderr.close()
             sys.stderr = stderr_backup
+        
+        # Clean up process substitution fds and wait for children
+        if hasattr(self, '_builtin_proc_sub_fds'):
+            for fd in self._builtin_proc_sub_fds:
+                try:
+                    os.close(fd)
+                except:
+                    pass
+            del self._builtin_proc_sub_fds
+        
+        if hasattr(self, '_builtin_proc_sub_pids'):
+            for pid in self._builtin_proc_sub_pids:
+                try:
+                    os.waitpid(pid, 0)
+                except:
+                    pass
+            del self._builtin_proc_sub_pids
     
     def _execute_builtin(self, args: list, command: Command) -> int:
         """Execute a built-in command with proper redirection handling"""
@@ -667,6 +763,9 @@ class Shell:
                 # External command
                 result = self._execute_external(command_args, command)
         finally:
+            # Clean up process substitutions
+            self._cleanup_process_substitutions()
+            
             # Restore original variable values
             for var_name, original_value in saved_vars.items():
                 if original_value is None:
@@ -1780,6 +1879,68 @@ class Shell:
             if target and redirect.type in ('<', '>', '>>') and target.startswith('~'):
                 target = self._expand_tilde(target)
             
+            # Handle process substitution as redirect target
+            if target and target.startswith(('<(', '>(')) and target.endswith(')'):
+                # This is a process substitution used as a redirect target
+                # Set up the process substitution and get the fd path
+                if target.startswith('<('):
+                    direction = 'in'
+                    cmd_str = target[2:-1]
+                else:
+                    direction = 'out' 
+                    cmd_str = target[2:-1]
+                
+                # Create pipe
+                if direction == 'in':
+                    read_fd, write_fd = os.pipe()
+                    parent_fd = read_fd
+                    child_fd = write_fd
+                    child_stdout = child_fd
+                    child_stdin = 0
+                else:
+                    read_fd, write_fd = os.pipe()
+                    parent_fd = write_fd
+                    child_fd = read_fd
+                    child_stdout = 1
+                    child_stdin = child_fd
+                
+                # Clear close-on-exec flag
+                flags = fcntl.fcntl(parent_fd, fcntl.F_GETFD)
+                fcntl.fcntl(parent_fd, fcntl.F_SETFD, flags & ~fcntl.FD_CLOEXEC)
+                
+                # Fork child
+                pid = os.fork()
+                if pid == 0:  # Child
+                    os.close(parent_fd)
+                    if direction == 'in':
+                        os.dup2(child_stdout, 1)
+                    else:
+                        os.dup2(child_stdin, 0)
+                    os.close(child_fd)
+                    
+                    try:
+                        tokens = tokenize(cmd_str)
+                        ast = parse(tokens)
+                        temp_shell = Shell()
+                        temp_shell.env = self.env.copy()
+                        temp_shell.variables = self.variables.copy()
+                        exit_code = temp_shell.execute_command_list(ast)
+                        os._exit(exit_code)
+                    except Exception as e:
+                        print(f"psh: process substitution error: {e}", file=sys.stderr)
+                        os._exit(1)
+                else:  # Parent
+                    os.close(child_fd)
+                    # Store for cleanup
+                    if not hasattr(self, '_redirect_proc_sub_fds'):
+                        self._redirect_proc_sub_fds = []
+                    if not hasattr(self, '_redirect_proc_sub_pids'):
+                        self._redirect_proc_sub_pids = []
+                    self._redirect_proc_sub_fds.append(parent_fd)
+                    self._redirect_proc_sub_pids.append(pid)
+                    # Use the fd path as target
+                    target = f"/dev/fd/{parent_fd}"
+            
             if redirect.type == '<':
                 # Save current stdin
                 saved_fds.append((0, os.dup(0)))
@@ -1849,6 +2010,23 @@ class Shell:
             self.stdout = self._saved_stdout
             self.stderr = self._saved_stderr
             self.stdin = self._saved_stdin
+        
+        # Clean up process substitution fds and wait for children
+        if hasattr(self, '_redirect_proc_sub_fds'):
+            for fd in self._redirect_proc_sub_fds:
+                try:
+                    os.close(fd)
+                except:
+                    pass
+            del self._redirect_proc_sub_fds
+        
+        if hasattr(self, '_redirect_proc_sub_pids'):
+            for pid in self._redirect_proc_sub_pids:
+                try:
+                    os.waitpid(pid, 0)
+                except:
+                    pass
+            del self._redirect_proc_sub_pids
     
     def _setup_child_redirections(self, command: Command):
         """Set up redirections in child process (after fork) using dup2"""
@@ -2081,3 +2259,111 @@ class Shell:
                 result.append(f"  [{i:3d}] {str(token)}")
         
         return "\n".join(result)
+    
+    def _setup_process_substitutions(self, command: Command) -> Tuple[List[int], List[str], List[int]]:
+        """Set up process substitutions and return (fds, paths, child_pids)."""
+        fds_to_keep = []
+        substituted_args = []
+        child_pids = []
+        
+        for i, arg in enumerate(command.args):
+            arg_type = command.arg_types[i] if i < len(command.arg_types) else 'WORD'
+            
+            if arg_type in ('PROCESS_SUB_IN', 'PROCESS_SUB_OUT'):
+                # Extract command from <(cmd) or >(cmd)
+                if arg.startswith('<('):
+                    direction = 'in'
+                    cmd_str = arg[2:-1]  # Remove <( and )
+                elif arg.startswith('>('):
+                    direction = 'out'
+                    cmd_str = arg[2:-1]  # Remove >( and )
+                else:
+                    # Should not happen
+                    substituted_args.append(arg)
+                    continue
+                
+                # Create pipe
+                if direction == 'in':
+                    # For <(cmd), parent reads from pipe, child writes to it
+                    read_fd, write_fd = os.pipe()
+                    parent_fd = read_fd
+                    child_fd = write_fd
+                    child_stdout = child_fd
+                    child_stdin = 0
+                else:
+                    # For >(cmd), parent writes to pipe, child reads from it
+                    read_fd, write_fd = os.pipe()
+                    parent_fd = write_fd
+                    child_fd = read_fd
+                    child_stdout = 1
+                    child_stdin = child_fd
+                
+                # Clear close-on-exec flag for parent_fd so it survives exec
+                flags = fcntl.fcntl(parent_fd, fcntl.F_GETFD)
+                fcntl.fcntl(parent_fd, fcntl.F_SETFD, flags & ~fcntl.FD_CLOEXEC)
+                
+                # Fork child for process substitution
+                pid = os.fork()
+                if pid == 0:  # Child
+                    # Close parent's end of pipe
+                    os.close(parent_fd)
+                    
+                    # Set up child's stdio
+                    if direction == 'in':
+                        os.dup2(child_stdout, 1)
+                    else:
+                        os.dup2(child_stdin, 0)
+                    
+                    # Close the pipe fd we duplicated
+                    os.close(child_fd)
+                    
+                    # Execute the substitution command
+                    try:
+                        # Parse and execute the command string
+                        tokens = tokenize(cmd_str)
+                        ast = parse(tokens)
+                        # Create a new shell instance to avoid state pollution
+                        temp_shell = Shell()
+                        temp_shell.env = self.env.copy()
+                        temp_shell.variables = self.variables.copy()
+                        exit_code = temp_shell.execute_command_list(ast)
+                        os._exit(exit_code)
+                    except Exception as e:
+                        print(f"psh: process substitution error: {e}", file=sys.stderr)
+                        os._exit(1)
+                
+                else:  # Parent
+                    # Close child's end of pipe
+                    os.close(child_fd)
+                    
+                    # Keep track of what we need to clean up
+                    fds_to_keep.append(parent_fd)
+                    child_pids.append(pid)
+                    
+                    # Create path for this fd
+                    # On Linux/macOS, we can use /dev/fd/N
+                    fd_path = f"/dev/fd/{parent_fd}"
+                    substituted_args.append(fd_path)
+            else:
+                # Not a process substitution, keep as-is
+                substituted_args.append(arg)
+        
+        return fds_to_keep, substituted_args, child_pids
+    
+    def _cleanup_process_substitutions(self):
+        """Clean up process substitution file descriptors and wait for children."""
+        if hasattr(self, '_process_sub_fds'):
+            for fd in self._process_sub_fds:
+                try:
+                    os.close(fd)
+                except:
+                    pass
+            del self._process_sub_fds
+        
+        if hasattr(self, '_process_sub_pids'):
+            for pid in self._process_sub_pids:
+                try:
+                    os.waitpid(pid, 0)
+                except:
+                    pass
+            del self._process_sub_pids

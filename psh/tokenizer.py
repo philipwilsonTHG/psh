@@ -47,6 +47,8 @@ class TokenType(Enum):
     DOUBLE_SEMICOLON = auto()  # ;;
     SEMICOLON_AMP = auto()     # ;&
     AMP_SEMICOLON = auto()     # ;;&
+    PROCESS_SUB_IN = auto()    # <(...)
+    PROCESS_SUB_OUT = auto()   # >(...)
 
 
 @dataclass
@@ -245,6 +247,38 @@ class Tokenizer:
         
         return f"$(({expr}))"
     
+    def read_process_substitution(self, direction: str) -> str:
+        """Read <(...) or >(...) process substitution"""
+        # Skip < or >
+        self.advance()
+        # Skip (
+        self.advance()
+        
+        paren_count = 1
+        content = []
+        
+        while self.current_char() is not None and paren_count > 0:
+            char = self.current_char()
+            
+            if char == '(':
+                paren_count += 1
+            elif char == ')':
+                paren_count -= 1
+                if paren_count == 0:
+                    break
+            
+            content.append(char)
+            self.advance()
+        
+        if paren_count != 0:
+            raise SyntaxError(f"Unclosed process substitution at position {self.position}")
+        
+        # Skip closing )
+        self.advance()
+        
+        command = ''.join(content)
+        return f"{('<' if direction == 'in' else '>')}({command})"
+    
     def check_fd_redirect(self) -> bool:
         """Check if current position has a file descriptor redirect like 2>"""
         if not self.current_char() or not self.current_char().isdigit():
@@ -347,7 +381,11 @@ class Tokenizer:
                     self.tokens.append(Token(TokenType.AMPERSAND, '&', start_pos))
                     self.advance()
             elif char == '<':
-                if self.peek_char() == '<':
+                if self.peek_char() == '(':
+                    # Process substitution <(...)
+                    value = self.read_process_substitution('in')
+                    self.tokens.append(Token(TokenType.PROCESS_SUB_IN, value, start_pos))
+                elif self.peek_char() == '<':
                     # Check for <<, <<-, or <<<
                     self.advance()  # Skip first <
                     if self.peek_char() == '<':
@@ -366,7 +404,11 @@ class Tokenizer:
                     self.tokens.append(Token(TokenType.REDIRECT_IN, '<', start_pos))
                     self.advance()
             elif char == '>':
-                if self.peek_char() == '>':
+                if self.peek_char() == '(':
+                    # Process substitution >(...)
+                    value = self.read_process_substitution('out')
+                    self.tokens.append(Token(TokenType.PROCESS_SUB_OUT, value, start_pos))
+                elif self.peek_char() == '>':
                     self.tokens.append(Token(TokenType.REDIRECT_APPEND, '>>', start_pos))
                     self.advance()
                     self.advance()

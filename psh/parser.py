@@ -1,6 +1,6 @@
 from typing import List, Optional, Union
 from .tokenizer import Token, TokenType
-from .ast_nodes import Command, Pipeline, CommandList, StatementList, AndOrList, Redirect, FunctionDef, TopLevel, IfStatement, WhileStatement, ForStatement, BreakStatement, ContinueStatement, CaseStatement, CaseItem, CasePattern
+from .ast_nodes import Command, Pipeline, CommandList, StatementList, AndOrList, Redirect, FunctionDef, TopLevel, IfStatement, WhileStatement, ForStatement, BreakStatement, ContinueStatement, CaseStatement, CaseItem, CasePattern, ProcessSubstitution
 
 
 class ParseError(Exception):
@@ -213,7 +213,8 @@ class Parser:
         # Check if we have at least one word-like token
         if not self.match(TokenType.WORD, TokenType.STRING, TokenType.VARIABLE,
                          TokenType.COMMAND_SUB, TokenType.COMMAND_SUB_BACKTICK,
-                         TokenType.ARITH_EXPANSION):
+                         TokenType.ARITH_EXPANSION, TokenType.PROCESS_SUB_IN,
+                         TokenType.PROCESS_SUB_OUT):
             raise ParseError("Expected command", self.peek())
         
         # Peek at the first token to check if it's a variable assignment
@@ -226,7 +227,8 @@ class Parser:
         # Parse command arguments and redirections
         while self.match(TokenType.WORD, TokenType.STRING, TokenType.VARIABLE,
                          TokenType.COMMAND_SUB, TokenType.COMMAND_SUB_BACKTICK,
-                         TokenType.ARITH_EXPANSION,
+                         TokenType.ARITH_EXPANSION, TokenType.PROCESS_SUB_IN,
+                         TokenType.PROCESS_SUB_OUT,
                          TokenType.REDIRECT_IN, TokenType.REDIRECT_OUT, 
                          TokenType.REDIRECT_APPEND, TokenType.HEREDOC,
                          TokenType.HEREDOC_STRIP, TokenType.HERE_STRING,
@@ -259,6 +261,12 @@ class Parser:
                 elif token.type == TokenType.ARITH_EXPANSION:
                     command.args.append(token.value)
                     command.arg_types.append('ARITH_EXPANSION')
+                elif token.type == TokenType.PROCESS_SUB_IN:
+                    command.args.append(token.value)
+                    command.arg_types.append('PROCESS_SUB_IN')
+                elif token.type == TokenType.PROCESS_SUB_OUT:
+                    command.args.append(token.value)
+                    command.arg_types.append('PROCESS_SUB_OUT')
                 else:
                     command.args.append(token.value)
                     command.arg_types.append('WORD')
@@ -337,7 +345,7 @@ class Parser:
             )
         else:
             # Regular redirection - the next token should be the target file
-            if not self.match(TokenType.WORD, TokenType.STRING):
+            if not self.match(TokenType.WORD, TokenType.STRING, TokenType.PROCESS_SUB_IN, TokenType.PROCESS_SUB_OUT):
                 raise ParseError("Expected file name after redirection", self.peek())
             
             target_token = self.advance()

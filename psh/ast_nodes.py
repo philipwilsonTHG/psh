@@ -22,6 +22,17 @@ class Redirect(ASTNode):
 
 
 @dataclass
+class ProcessSubstitution(ASTNode):
+    """Represents a process substitution <(...) or >(...)."""
+    direction: str  # 'in' or 'out'
+    command: str    # Command to execute
+    
+    def __str__(self):
+        symbol = '<' if self.direction == 'in' else '>'
+        return f"{symbol}({self.command})"
+
+
+@dataclass
 class Command(ASTNode):
     args: List[str] = field(default_factory=list)
     arg_types: List[str] = field(default_factory=list)  # Track if arg was quoted
