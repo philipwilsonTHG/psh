@@ -79,6 +79,7 @@ class IfStatement(Statement):
     condition: StatementList  # The command list that determines truth/false
     then_part: StatementList  # Commands to execute if condition is true
     else_part: Optional[StatementList] = None  # Commands to execute if condition is false
+    redirects: List[Redirect] = field(default_factory=list)  # Redirections for the entire if statement
 
 
 @dataclass
@@ -86,6 +87,7 @@ class WhileStatement(Statement):
     """While/do/done loop statement."""
     condition: StatementList  # The command list that determines continue/stop
     body: StatementList       # Commands to execute repeatedly while condition is true
+    redirects: List[Redirect] = field(default_factory=list)  # Redirections for the entire while loop
 
 
 @dataclass
@@ -94,6 +96,7 @@ class ForStatement(Statement):
     variable: str           # The loop variable name (e.g., "i", "file")
     iterable: List[str]     # List of items to iterate over (after expansion)
     body: StatementList       # Commands to execute for each iteration
+    redirects: List[Redirect] = field(default_factory=list)  # Redirections for the entire for loop
 
 
 @dataclass
@@ -127,6 +130,7 @@ class CaseStatement(Statement):
     """Case/esac statement."""
     expr: str  # The expression to match against
     items: List[CaseItem] = field(default_factory=list)
+    redirects: List[Redirect] = field(default_factory=list)  # Redirections for the entire case statement
 
 
 @dataclass

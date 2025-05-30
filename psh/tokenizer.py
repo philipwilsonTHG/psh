@@ -130,7 +130,8 @@ class Tokenizer:
             return last_token.type in [
                 TokenType.SEMICOLON, TokenType.NEWLINE, 
                 TokenType.AND_AND, TokenType.OR_OR,
-                TokenType.PIPE, TokenType.LBRACE, TokenType.THEN, TokenType.ELSE
+                TokenType.PIPE, TokenType.LBRACE, TokenType.THEN, TokenType.ELSE,
+                TokenType.DO  # Allow nested loops after 'do'
             ]
         
         return False

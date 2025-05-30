@@ -270,6 +270,15 @@ class Parser:
         
         return command
     
+    def parse_redirects(self) -> List[Redirect]:
+        """Parse zero or more redirections."""
+        redirects = []
+        while self.match(TokenType.REDIRECT_IN, TokenType.REDIRECT_OUT, TokenType.REDIRECT_APPEND,
+                         TokenType.HEREDOC, TokenType.HEREDOC_STRIP, TokenType.HERE_STRING,
+                         TokenType.REDIRECT_ERR, TokenType.REDIRECT_ERR_APPEND, TokenType.REDIRECT_DUP):
+            redirects.append(self.parse_redirect())
+        return redirects
+    
     def parse_redirect(self) -> Redirect:
         redirect_token = self.advance()
         
@@ -495,7 +504,10 @@ class Parser:
         # Consume 'fi'
         self.expect(TokenType.FI)
         
-        return IfStatement(condition, then_part, else_part)
+        # Parse optional redirections after 'fi'
+        redirects = self.parse_redirects()
+        
+        return IfStatement(condition, then_part, else_part, redirects)
     
     def parse_while_statement(self) -> WhileStatement:
         """Parse while/do/done loop statement."""
@@ -522,7 +534,10 @@ class Parser:
         # Consume 'done'
         self.expect(TokenType.DONE)
         
-        return WhileStatement(condition, body)
+        # Parse optional redirections after 'done'
+        redirects = self.parse_redirects()
+        
+        return WhileStatement(condition, body, redirects)
     
     def parse_for_statement(self) -> ForStatement:
         """Parse for/in/do/done loop statement."""
@@ -576,7 +591,10 @@ class Parser:
         # Consume 'done'
         self.expect(TokenType.DONE)
         
-        return ForStatement(variable, iterable, body)
+        # Parse optional redirections after 'done'
+        redirects = self.parse_redirects()
+        
+        return ForStatement(variable, iterable, body, redirects)
     
     def parse_break_statement(self) -> BreakStatement:
         """Parse break statement."""
@@ -626,7 +644,10 @@ class Parser:
         # Consume 'esac'
         self.expect(TokenType.ESAC)
         
-        return CaseStatement(expr, items)
+        # Parse optional redirections after 'esac'
+        redirects = self.parse_redirects()
+        
+        return CaseStatement(expr, items, redirects)
     
     def parse_case_item(self) -> CaseItem:
         """Parse a single case item: patterns) commands terminator"""

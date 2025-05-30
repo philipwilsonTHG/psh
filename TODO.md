@@ -444,6 +444,8 @@ C-style for loops `for ((i=0; i<10; i++))` will complete the iteration construct
 - ~~**Nested Control Structures**~~: ✅ FIXED in v0.19.0 - Control structures can now be nested to arbitrary depth with the new Statement-based architecture
 - **Multi-line Input Parsing**: Complex multi-line commands with nested structures fail to parse correctly. Single-line equivalents work fine.
 - **Pipeline Job Control Issues**: Some pipelines are incorrectly treated as background jobs instead of running in foreground.
+- **For Loop Variable Persistence**: Loop variables are incorrectly restored to their previous value after the loop completes. In bash, they retain their last iteration value.
+- **Builtin Redirections**: Builtins that use Python's `print()` function (like echo, pwd) don't respect file descriptor redirections. They need to be updated to use `os.write()` directly to file descriptors for proper redirection support.
 
 ### Tokenizer Issues
 - **Arithmetic Expansion in Assignments**: The tokenizer incorrectly breaks `c=$((a + b))` into separate tokens because `read_word()` stops at `(`. This should tokenize as `WORD='c='` followed by `ARITH_EXPANSION='$((a + b))'`.
@@ -456,6 +458,8 @@ C-style for loops `for ((i=0; i<10; i++))` will complete the iteration construct
 - **Complex Quoting**: Some edge cases with complex nested quoting and escaping may not parse correctly.
 - **EOF Cascade Errors**: When early parsing fails (e.g., redirect errors), the parser continues looking for closing keywords (`fi`, `done`) but hits EOF, causing cascading "Expected FI/DONE, got EOF" errors.
 - ~~**Command Substitution in For Loops**~~: ✅ FIXED in v0.19.3 - Command substitution `$(...)` and backticks are now properly parsed and executed in for loop iterables. The parser accepts COMMAND_SUB tokens and the executor expands them with word splitting.
+- **Break/Continue Parsing**: The parser returns break/continue as statements, but some tests expect them as and_or_lists, indicating a mismatch between parser output and test expectations.
+- **Break/Continue with Operators**: Using break/continue after && or || operators (e.g., `echo "test" && break`) causes parse errors.
 
 ### Workarounds in Use
 - Tests use single-line command syntax to avoid multi-line parsing issues
@@ -465,6 +469,8 @@ C-style for loops `for ((i=0; i<10; i++))` will complete the iteration construct
 - Avoid arithmetic expansion inside quotes; use unquoted arithmetic or concatenation
 - ~~Use explicit lists in for loops instead of command substitution~~ - No longer needed after v0.19.3
 - Avoid quoted values in variable assignments before commands; use `VAR=value` without quotes or set the variable on a separate line
+- Don't rely on loop variables persisting after the loop; save to a different variable if needed
+- Avoid using break/continue after && or || operators; use if statements instead
 
 ### Future Improvements Needed
 1. ~~**AST Architecture Redesign**~~: ✅ COMPLETED in v0.19.0 - Implemented Statement base class and StatementList with full nesting support
@@ -477,46 +483,68 @@ C-style for loops `for ((i=0; i<10; i++))` will complete the iteration construct
    - Fix tokenization of `VAR="value with spaces"` to keep the assignment as a single token
 5. **Parser Error Recovery**: Improve error handling to avoid cascade errors when early parsing fails
 6. ~~**For Loop Enhancement**~~: ✅ COMPLETED in v0.19.3 - parse_for_statement() now accepts COMMAND_SUB tokens and executor properly expands them
+7. **For Loop Variable Scoping**: Fix execute_for_statement to preserve loop variable value after loop completion (match bash behavior)
+8. **Break/Continue Parser Integration**: Allow break/continue statements in and_or_lists for use after operators
+9. **Fix Builtin Redirections**: Update all builtins that use `print()` to use `os.write()` directly to file descriptors. This includes:
+   - echo, pwd (in io.py)
+   - env, set, declare, alias (output commands)
+   - history, jobs (listing commands)
+   - Any other builtin that produces output
 
 ## 📋 Test Suite Skip Status
 
-### Currently Skipped Tests (17 total)
+### Currently Skipped Tests (22 total as of v0.22.0)
 Analysis of skipped tests reveals they fall into several categories:
 
-#### Tests that CAN be unskipped or rewritten (11 tests):
-1. **CI-only skips (3 tests)** - Already work locally:
+#### Tests that CAN be fixed or rewritten (14 tests):
+1. **CI-only skips (2 tests)** - Already work locally:
    - `test_stderr_redirect.py:75, 100` - Stderr redirection tests (skip only on GitHub Actions)
    - `test_command_substitution.py:179` - Command substitution in pipeline (skip only on GitHub Actions)
 
-2. **Background process test (1 test)**:
-   - `test_variables.py:111` - `$!` variable test - Actually works, just needs file-based output verification
+2. **Minor implementation fixes needed (5 tests)**:
+   - `test_variables.py:111` - `$!` variable test - Implementation exists, might need minor fixes
+   - `test_variable_assignment_command.py:99` - VAR="value with spaces" tokenizer issue (documented)
+   - `test_tilde_expansion.py:124` - Escaped tilde handling (tokenizer removes backslashes too early)
+   - `test_break_continue.py:86, 111` - For loop variable persistence issue (fixable)
 
 3. **Pytest capture conflicts (7 tests)** - Need rewriting to use file output:
    - `test_glob.py:192` - Glob expansion in pipeline
    - `test_heredoc.py:105, 133` - Heredoc with external commands and pipelines
    - `test_nested_control_structures.py:342, 382, 422` - Nested control structures with pipelines
    - `test_pipeline.py:77` - Built-in commands in pipelines
+   - `test_builtin_refactor.py:119` - Built-in commands in pipelines
 
-#### Tests that MUST remain skipped (4 tests):
-1. **Unimplemented features (3 tests)**:
-   - `test_nested_control_structures.py:232` - Requires `read` builtin (not implemented)
+#### Tests that need architectural changes (8 tests):
+1. **Parser/AST changes needed (3 tests)**:
+   - `test_break_continue.py:369` - Parser returns statements, not and_or_lists for break/continue
+   - `test_break_continue.py:395` - Break after && operator causes parse errors
+   - `test_break_continue.py:425` - For loop variable restoration issue
+
+2. **Complex features not implemented (5 tests)**:
+   - `test_nested_control_structures.py:232` - Requires `read` builtin (✅ implemented in v0.20.1 - can be unskipped)
    - `test_glob.py:224` - Requires escaped glob pattern support (not implemented)
    - `test_command_substitution.py:160` - Complex backtick escape sequences (needs tokenizer work)
-
-2. **Complex implementation (1 test)**:
    - `test_heredoc.py:118` - Multiple redirections with heredocs (needs special handling)
+   - `test_builtin_phase2.py` - Unknown status (file not examined)
 
 ### Test Improvement Recommendations
 1. **Immediate actions**:
    - Remove `skipif` decorators for CI-only tests when running locally
-   - Fix `test_variables.py:111` - the `$!` test already works
+   - Fix `test_variables.py:111` - the `$!` test might already work
+   - Unskip `test_nested_control_structures.py:232` - read builtin was implemented in v0.20.1
+   - Enable 11 break/continue tests from `test_break_continue.py.disabled` (✅ Done - 11 now pass, 5 skipped)
 
 2. **Test rewriting needed**:
    - Convert pytest capture tests to use file-based output verification
    - Create helper functions for testing pipeline output
    - Use script files for complex multi-line heredoc tests
 
-3. **Keep skipped until features implemented**:
-   - `read` builtin tests
+3. **Implementation fixes needed**:
+   - Fix for loop variable persistence (should retain last value after loop)
+   - Fix tokenizer for VAR="value with spaces" assignments
+   - Enhance parser to handle break/continue after && or || operators
+
+4. **Keep skipped until features implemented**:
    - Escaped glob pattern tests
    - Complex escape sequence tests
+   - Multiple redirections with heredocs

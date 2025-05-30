@@ -2,10 +2,22 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.22.0"
+__version__ = "0.23.0"
 
 # Version history
 VERSION_HISTORY = """
+0.23.0 (2025-01-30) - Control structure redirections and test suite improvements
+  - Implemented redirections on control structures (while, for, if, case)
+  - Extended AST nodes to support redirects field on all control structures
+  - Enhanced parser to parse redirections after done/fi/esac keywords
+  - Added _apply_redirections() and _restore_redirections() for proper fd management
+  - Fixed tokenizer to allow nested loops by recognizing keywords after DO
+  - Enabled 11 break/continue tests from previously disabled test file
+  - Added comprehensive while read pattern support (while read < file)
+  - Created architectural documentation for control structure redirections
+  - Improved test suite with 18 skipped tests reduced to 7 xfailed tests
+  - Note: Builtins using print() don't yet respect file descriptor redirections
+
 0.22.0 (2025-01-30) - Brace expansion Phase 2: Sequence expansion
   - Implemented numeric sequence expansion: {1..10} → 1 2 3 4 5 6 7 8 9 10
   - Reverse sequences supported: {10..1} → 10 9 8 7 6 5 4 3 2 1

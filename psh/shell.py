@@ -7,6 +7,7 @@ import glob
 import pwd
 import stat
 import fnmatch
+from typing import List, Tuple
 from .tokenizer import tokenize
 from .parser import parse, ParseError
 from .ast_nodes import Command, Pipeline, CommandList, AndOrList, Redirect, TopLevel, FunctionDef, IfStatement, WhileStatement, ForStatement, BreakStatement, ContinueStatement, CaseStatement, CaseItem, CasePattern
@@ -963,127 +964,160 @@ class Shell:
     
     def execute_if_statement(self, if_stmt: IfStatement) -> int:
         """Execute an if/then/else/fi conditional statement."""
-        # Execute the condition and check its exit status
-        condition_exit = self.execute_command_list(if_stmt.condition)
-        
-        # In shell, condition is true if exit code is 0, false otherwise
-        if condition_exit == 0:
-            # Execute then part
-            if if_stmt.then_part.statements:
-                return self.execute_command_list(if_stmt.then_part)
-            else:
-                return 0
+        # Apply redirections if present
+        if if_stmt.redirects:
+            saved_fds = self._apply_redirections(if_stmt.redirects)
         else:
-            # Execute else part if it exists
-            if if_stmt.else_part and if_stmt.else_part.statements:
-                return self.execute_command_list(if_stmt.else_part)
+            saved_fds = None
+        
+        try:
+            # Execute the condition and check its exit status
+            condition_exit = self.execute_command_list(if_stmt.condition)
+            
+            # In shell, condition is true if exit code is 0, false otherwise
+            if condition_exit == 0:
+                # Execute then part
+                if if_stmt.then_part.statements:
+                    return self.execute_command_list(if_stmt.then_part)
+                else:
+                    return 0
             else:
-                return 0
+                # Execute else part if it exists
+                if if_stmt.else_part and if_stmt.else_part.statements:
+                    return self.execute_command_list(if_stmt.else_part)
+                else:
+                    return 0
+        finally:
+            # Restore file descriptors
+            if saved_fds:
+                self._restore_redirections(saved_fds)
     
     def execute_while_statement(self, while_stmt: WhileStatement) -> int:
         """Execute a while/do/done loop statement."""
-        last_exit = 0
-        
-        while True:
-            # Execute the condition and check its exit status
-            condition_exit = self.execute_command_list(while_stmt.condition)
-            
-            # In shell, condition is true if exit code is 0, false otherwise
-            if condition_exit != 0:
-                # Condition is false, exit the loop
-                break
-                
-            # Condition is true, execute the body
-            if while_stmt.body.statements:
-                try:
-                    # Execute body commands
-                    last_exit = self.execute_command_list(while_stmt.body)
-                    # Note: We continue the loop regardless of body exit status
-                except LoopBreak:
-                    # Break out of the loop
-                    break
-                except LoopContinue:
-                    # Continue to next iteration
-                    continue
-                # (unlike some shells that might break on certain exit codes)
-        
-        return last_exit
-    
-    def execute_for_statement(self, for_stmt: ForStatement) -> int:
-        """Execute a for/in/do/done loop statement."""
-        last_exit = 0
-        
-        # Expand the iterable list (handle variables, globs, command substitution, etc.)
-        expanded_items = []
-        for item in for_stmt.iterable:
-            # Special handling for "$@" - it should expand to multiple items
-            if item == '$@':
-                expanded_items.extend(self.positional_params)
-            elif item.startswith('$(') and item.endswith(')'):
-                # Command substitution with $()
-                output = self._execute_command_substitution(item)
-                if output:
-                    # Split on whitespace (word splitting)
-                    expanded_items.extend(output.split())
-            elif item.startswith('`') and item.endswith('`'):
-                # Command substitution with backticks
-                output = self._execute_command_substitution(item)
-                if output:
-                    # Split on whitespace (word splitting)
-                    expanded_items.extend(output.split())
-            else:
-                # Expand variables in the item
-                expanded_item = self._expand_string_variables(item)
-                
-                # Handle glob patterns
-                if '*' in expanded_item or '?' in expanded_item or '[' in expanded_item:
-                    # Use glob to expand patterns
-                    import glob
-                    matches = glob.glob(expanded_item)
-                    if matches:
-                        # Sort for consistent ordering
-                        expanded_items.extend(sorted(matches))
-                    else:
-                        # No matches, use literal string
-                        expanded_items.append(expanded_item)
-                else:
-                    expanded_items.append(expanded_item)
-        
-        # If no items to iterate over, return successfully
-        if not expanded_items:
-            return 0
-        
-        # Save the current value of the loop variable (if it exists)
-        loop_var = for_stmt.variable
-        saved_value = self.variables.get(loop_var)
+        # Apply redirections if present
+        if while_stmt.redirects:
+            saved_fds = self._apply_redirections(while_stmt.redirects)
+        else:
+            saved_fds = None
         
         try:
-            # Iterate over each item
-            for item in expanded_items:
-                # Set the loop variable to the current item
-                self.variables[loop_var] = item
+            last_exit = 0
+            
+            while True:
+                # Execute the condition and check its exit status
+                condition_exit = self.execute_command_list(while_stmt.condition)
                 
-                # Execute the body
-                if for_stmt.body.statements:
+                # In shell, condition is true if exit code is 0, false otherwise
+                if condition_exit != 0:
+                    # Condition is false, exit the loop
+                    break
+                    
+                # Condition is true, execute the body
+                if while_stmt.body.statements:
                     try:
                         # Execute body commands
-                        last_exit = self.execute_command_list(for_stmt.body)
-                        # Continue regardless of body exit status
+                        last_exit = self.execute_command_list(while_stmt.body)
+                        # Note: We continue the loop regardless of body exit status
                     except LoopBreak:
                         # Break out of the loop
                         break
                     except LoopContinue:
                         # Continue to next iteration
                         continue
+                    # (unlike some shells that might break on certain exit codes)
+            
+            return last_exit
         finally:
-            # Restore the previous value of the loop variable
-            if saved_value is not None:
-                self.variables[loop_var] = saved_value
-            else:
-                # Variable didn't exist before, remove it
-                self.variables.pop(loop_var, None)
+            # Restore file descriptors
+            if saved_fds:
+                self._restore_redirections(saved_fds)
+    
+    def execute_for_statement(self, for_stmt: ForStatement) -> int:
+        """Execute a for/in/do/done loop statement."""
+        # Apply redirections if present
+        if for_stmt.redirects:
+            saved_fds = self._apply_redirections(for_stmt.redirects)
+        else:
+            saved_fds = None
         
-        return last_exit
+        try:
+            last_exit = 0
+            
+            # Expand the iterable list (handle variables, globs, command substitution, etc.)
+            expanded_items = []
+            for item in for_stmt.iterable:
+                # Special handling for "$@" - it should expand to multiple items
+                if item == '$@':
+                    expanded_items.extend(self.positional_params)
+                elif item.startswith('$(') and item.endswith(')'):
+                    # Command substitution with $()
+                    output = self._execute_command_substitution(item)
+                    if output:
+                        # Split on whitespace (word splitting)
+                        expanded_items.extend(output.split())
+                elif item.startswith('`') and item.endswith('`'):
+                    # Command substitution with backticks
+                    output = self._execute_command_substitution(item)
+                    if output:
+                        # Split on whitespace (word splitting)
+                        expanded_items.extend(output.split())
+                else:
+                    # Expand variables in the item
+                    expanded_item = self._expand_string_variables(item)
+                    
+                    # Handle glob patterns
+                    if '*' in expanded_item or '?' in expanded_item or '[' in expanded_item:
+                        # Use glob to expand patterns
+                        import glob
+                        matches = glob.glob(expanded_item)
+                        if matches:
+                            # Sort for consistent ordering
+                            expanded_items.extend(sorted(matches))
+                        else:
+                            # No matches, use literal string
+                            expanded_items.append(expanded_item)
+                    else:
+                        expanded_items.append(expanded_item)
+            
+            # If no items to iterate over, return successfully
+            if not expanded_items:
+                return 0
+            
+            # Save the current value of the loop variable (if it exists)
+            loop_var = for_stmt.variable
+            saved_value = self.variables.get(loop_var)
+            
+            try:
+                # Iterate over each item
+                for item in expanded_items:
+                    # Set the loop variable to the current item
+                    self.variables[loop_var] = item
+                    
+                    # Execute the body
+                    if for_stmt.body.statements:
+                        try:
+                            # Execute body commands
+                            last_exit = self.execute_command_list(for_stmt.body)
+                            # Continue regardless of body exit status
+                        except LoopBreak:
+                            # Break out of the loop
+                            break
+                        except LoopContinue:
+                            # Continue to next iteration
+                            continue
+            finally:
+                # Restore the previous value of the loop variable
+                if saved_value is not None:
+                    self.variables[loop_var] = saved_value
+                else:
+                    # Variable didn't exist before, remove it
+                    self.variables.pop(loop_var, None)
+            
+            return last_exit
+        finally:
+            # Restore file descriptors
+            if saved_fds:
+                self._restore_redirections(saved_fds)
     
     def execute_break_statement(self, break_stmt: BreakStatement) -> int:
         """Execute a break statement."""
@@ -1095,56 +1129,67 @@ class Shell:
     
     def execute_case_statement(self, case_stmt: CaseStatement) -> int:
         """Execute a case/esac statement."""
-        # Expand the case expression
-        expr = self._expand_string_variables(case_stmt.expr)
+        # Apply redirections if present
+        if case_stmt.redirects:
+            saved_fds = self._apply_redirections(case_stmt.redirects)
+        else:
+            saved_fds = None
         
-        last_exit = 0
-        fallthrough = False
-        
-        # Iterate through case items
-        for i, item in enumerate(case_stmt.items):
-            # Check if expression matches any pattern in this item
-            matched = fallthrough  # Start with fallthrough state
+        try:
+            # Expand the case expression
+            expr = self._expand_string_variables(case_stmt.expr)
             
-            if not fallthrough:
-                # Only check patterns if not falling through
-                for pattern in item.patterns:
-                    pattern_str = self._expand_string_variables(pattern.pattern)
-                    if fnmatch.fnmatch(expr, pattern_str):
-                        matched = True
-                        break
+            last_exit = 0
+            fallthrough = False
             
-            if matched:
-                # Execute commands for this case item
-                if item.commands.statements:
-                    try:
-                        # Execute commands
-                        last_exit = self.execute_command_list(item.commands)
-                    except LoopBreak:
-                        # Break can be used in case statements to exit loops
-                        raise
-                    except LoopContinue:
-                        # Continue can be used in case statements to continue loops
-                        raise
+            # Iterate through case items
+            for i, item in enumerate(case_stmt.items):
+                # Check if expression matches any pattern in this item
+                matched = fallthrough  # Start with fallthrough state
                 
-                # Handle fallthrough based on terminator
-                if item.terminator == ';;':
-                    # Standard terminator - stop after this case
-                    break
-                elif item.terminator == ';&':
-                    # Fallthrough to next case unconditionally
-                    fallthrough = True
-                elif item.terminator == ';;&':
-                    # Continue pattern matching (reset fallthrough)
-                    fallthrough = False
+                if not fallthrough:
+                    # Only check patterns if not falling through
+                    for pattern in item.patterns:
+                        pattern_str = self._expand_string_variables(pattern.pattern)
+                        if fnmatch.fnmatch(expr, pattern_str):
+                            matched = True
+                            break
+                
+                if matched:
+                    # Execute commands for this case item
+                    if item.commands.statements:
+                        try:
+                            # Execute commands
+                            last_exit = self.execute_command_list(item.commands)
+                        except LoopBreak:
+                            # Break can be used in case statements to exit loops
+                            raise
+                        except LoopContinue:
+                            # Continue can be used in case statements to continue loops
+                            raise
+                    
+                    # Handle fallthrough based on terminator
+                    if item.terminator == ';;':
+                        # Standard terminator - stop after this case
+                        break
+                    elif item.terminator == ';&':
+                        # Fallthrough to next case unconditionally
+                        fallthrough = True
+                    elif item.terminator == ';;&':
+                        # Continue pattern matching (reset fallthrough)
+                        fallthrough = False
+                    else:
+                        # Default to standard behavior
+                        break
                 else:
-                    # Default to standard behavior
-                    break
-            else:
-                # Reset fallthrough if no match
-                fallthrough = False
-        
-        return last_exit
+                    # Reset fallthrough if no match
+                    fallthrough = False
+            
+            return last_exit
+        finally:
+            # Restore file descriptors
+            if saved_fds:
+                self._restore_redirections(saved_fds)
     
     def _execute_function(self, func, args: list, command: Command) -> int:
         """Execute a function with given arguments."""
@@ -1719,6 +1764,91 @@ class Shell:
                         job.foreground = False
             except OSError:
                 break
+    
+    def _apply_redirections(self, redirects: List[Redirect]) -> List[Tuple[int, int]]:
+        """Apply redirections and return list of (fd, saved_fd) for restoration."""
+        saved_fds = []
+        
+        # Save current Python file objects
+        self._saved_stdout = self.stdout
+        self._saved_stderr = self.stderr
+        self._saved_stdin = self.stdin
+        
+        for redirect in redirects:
+            # Expand tilde in target for file redirections
+            target = redirect.target
+            if target and redirect.type in ('<', '>', '>>') and target.startswith('~'):
+                target = self._expand_tilde(target)
+            
+            if redirect.type == '<':
+                # Save current stdin
+                saved_fds.append((0, os.dup(0)))
+                fd = os.open(target, os.O_RDONLY)
+                os.dup2(fd, 0)
+                os.close(fd)
+            elif redirect.type in ('<<', '<<-'):
+                # Save current stdin
+                saved_fds.append((0, os.dup(0)))
+                # Create a pipe for heredoc
+                r, w = os.pipe()
+                # Write heredoc content to pipe
+                os.write(w, (redirect.heredoc_content or '').encode())
+                os.close(w)
+                # Redirect stdin to read end
+                os.dup2(r, 0)
+                os.close(r)
+            elif redirect.type == '<<<':
+                # Save current stdin
+                saved_fds.append((0, os.dup(0)))
+                # Create a pipe for here string
+                r, w = os.pipe()
+                # Write here string content with newline
+                content = redirect.target + '\n'
+                os.write(w, content.encode())
+                os.close(w)
+                # Redirect stdin to read end
+                os.dup2(r, 0)
+                os.close(r)
+            elif redirect.type == '>':
+                target_fd = redirect.fd if redirect.fd is not None else 1
+                # Save current fd
+                saved_fds.append((target_fd, os.dup(target_fd)))
+                fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)
+                os.dup2(fd, target_fd)
+                os.close(fd)
+            elif redirect.type == '>>':
+                target_fd = redirect.fd if redirect.fd is not None else 1
+                # Save current fd
+                saved_fds.append((target_fd, os.dup(target_fd)))
+                fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o644)
+                os.dup2(fd, target_fd)
+                os.close(fd)
+            elif redirect.type == '>&':
+                # Handle fd duplication like 2>&1
+                if redirect.fd is not None and redirect.dup_fd is not None:
+                    # Save current fd
+                    saved_fds.append((redirect.fd, os.dup(redirect.fd)))
+                    os.dup2(redirect.dup_fd, redirect.fd)
+        
+        # Note: We don't create new Python file objects here because:
+        # 1. It can interfere with pytest's output capture
+        # 2. External commands will inherit the redirected file descriptors
+        # 3. Builtins should use os.write() directly to fd 1/2 for proper redirection
+        
+        return saved_fds
+    
+    def _restore_redirections(self, saved_fds: List[Tuple[int, int]]):
+        """Restore file descriptors from saved list."""
+        # Restore file descriptors
+        for fd, saved_fd in saved_fds:
+            os.dup2(saved_fd, fd)
+            os.close(saved_fd)
+        
+        # Restore Python file objects
+        if hasattr(self, '_saved_stdout'):
+            self.stdout = self._saved_stdout
+            self.stderr = self._saved_stderr
+            self.stdin = self._saved_stdin
     
     def _setup_child_redirections(self, command: Command):
         """Set up redirections in child process (after fork) using dup2"""
