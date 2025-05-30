@@ -933,12 +933,24 @@ class Shell:
         """Execute a for/in/do/done loop statement."""
         last_exit = 0
         
-        # Expand the iterable list (handle variables, globs, etc.)
+        # Expand the iterable list (handle variables, globs, command substitution, etc.)
         expanded_items = []
         for item in for_stmt.iterable:
             # Special handling for "$@" - it should expand to multiple items
             if item == '$@':
                 expanded_items.extend(self.positional_params)
+            elif item.startswith('$(') and item.endswith(')'):
+                # Command substitution with $()
+                output = self._execute_command_substitution(item)
+                if output:
+                    # Split on whitespace (word splitting)
+                    expanded_items.extend(output.split())
+            elif item.startswith('`') and item.endswith('`'):
+                # Command substitution with backticks
+                output = self._execute_command_substitution(item)
+                if output:
+                    # Split on whitespace (word splitting)
+                    expanded_items.extend(output.split())
             else:
                 # Expand variables in the item
                 expanded_item = self._expand_string_variables(item)

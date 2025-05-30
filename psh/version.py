@@ -2,10 +2,19 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.19.2"
+__version__ = "0.19.3"
 
 # Version history
 VERSION_HISTORY = """
+0.19.3 (2025-01-07) - Command substitution in for loops
+  - Fixed parser to accept COMMAND_SUB and COMMAND_SUB_BACKTICK tokens in for loop iterables
+  - Updated execute_for_statement() to properly expand command substitutions with word splitting
+  - Command substitution results are split on whitespace and iterated over
+  - Works with both $(...) and `...` syntax
+  - Mixed iterables supported: for x in a $(cmd) b
+  - Comprehensive test suite added with 8 test cases
+  - Fixed examples/nested_control_demo.sh which previously had parsing errors
+
 0.19.2 (2025-01-07) - Token debugging support
   - Added --debug-tokens command-line flag for debugging tokenization
   - Prints token list with type and value before parsing

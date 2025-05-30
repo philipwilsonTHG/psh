@@ -544,8 +544,9 @@ class Parser:
         # Parse iterable list (words until 'do' or ';')
         iterable = []
         while not self.match(TokenType.DO) and not self.match(TokenType.SEMICOLON) and not self.match(TokenType.NEWLINE) and not self.match(TokenType.EOF):
-            # Accept WORD, STRING, or VARIABLE tokens in the iterable list
-            if self.match(TokenType.WORD, TokenType.STRING, TokenType.VARIABLE):
+            # Accept WORD, STRING, VARIABLE, and command substitution tokens in the iterable list
+            if self.match(TokenType.WORD, TokenType.STRING, TokenType.VARIABLE, 
+                         TokenType.COMMAND_SUB, TokenType.COMMAND_SUB_BACKTICK):
                 token = self.advance()
                 iterable.append(token.value)
             else:

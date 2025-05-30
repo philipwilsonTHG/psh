@@ -386,7 +386,7 @@ C-style for loops `for ((i=0; i<10; i++))` will complete the iteration construct
 - **Empty Commands**: Consecutive semicolons (`;;`, `;;;`) are not handled gracefully in command parsing (though they work correctly in case statements).
 - **Complex Quoting**: Some edge cases with complex nested quoting and escaping may not parse correctly.
 - **EOF Cascade Errors**: When early parsing fails (e.g., redirect errors), the parser continues looking for closing keywords (`fi`, `done`) but hits EOF, causing cascading "Expected FI/DONE, got EOF" errors.
-- **Command Substitution in For Loops**: Command substitution like `$(seq 1 5)` is not properly parsed in for loop iterables. The parser expects DO after seeing COMMAND_SUB token, causing "Expected DO, got COMMAND_SUB" errors. This prevents constructs like `for i in $(seq 1 5); do ... done`.
+- ~~**Command Substitution in For Loops**~~: ✅ FIXED in v0.19.3 - Command substitution `$(...)` and backticks are now properly parsed and executed in for loop iterables. The parser accepts COMMAND_SUB tokens and the executor expands them with word splitting.
 
 ### Workarounds in Use
 - Tests use single-line command syntax to avoid multi-line parsing issues
@@ -394,7 +394,7 @@ C-style for loops `for ((i=0; i<10; i++))` will complete the iteration construct
 - Some pipeline tests are skipped due to job control issues
 - Avoid stderr redirection (`>&2`) in scripts; use `2>&1` or file redirection instead
 - Avoid arithmetic expansion inside quotes; use unquoted arithmetic or concatenation
-- Use explicit lists in for loops instead of command substitution (e.g., `for i in 1 2 3` instead of `for i in $(seq 1 3)`)
+- ~~Use explicit lists in for loops instead of command substitution~~ - No longer needed after v0.19.3
 
 ### Future Improvements Needed
 1. ~~**AST Architecture Redesign**~~: ✅ COMPLETED in v0.19.0 - Implemented Statement base class and StatementList with full nesting support
@@ -405,4 +405,4 @@ C-style for loops `for ((i=0; i<10; i++))` will complete the iteration construct
    - Add proper tokenization for redirect duplication operators (`>&`, `<&`)
    - Enhance `_expand_string_variables()` to also handle arithmetic expansion inside strings
 5. **Parser Error Recovery**: Improve error handling to avoid cascade errors when early parsing fails
-6. **For Loop Enhancement**: Update parse_for_statement() to accept COMMAND_SUB tokens in the iterable list, enabling `for i in $(command)` syntax
+6. ~~**For Loop Enhancement**~~: ✅ COMPLETED in v0.19.3 - parse_for_statement() now accepts COMMAND_SUB tokens and executor properly expands them
