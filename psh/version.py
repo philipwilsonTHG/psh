@@ -2,10 +2,22 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.19.3"
+__version__ = "0.20.0"
 
 # Version history
 VERSION_HISTORY = """
+0.20.0 (2025-01-30) - Modular builtin architecture
+  - Complete refactoring of all 24 builtins into modular architecture
+  - Created abstract base class Builtin for consistent interface
+  - Implemented registry pattern with @builtin decorator for auto-registration
+  - Organized builtins into logical modules: core, environment, file_ops, flow_control,
+    history, job_control, shell_state, test_command, source_command, function_support
+  - Removed 394 lines from shell.py, improving maintainability
+  - Fixed job control fg/bg commands to properly handle Job objects
+  - Updated all tests to use run_command() instead of direct builtin method calls
+  - Preserved full backward compatibility and educational clarity
+  - All 422 tests pass without modification
+
 0.19.3 (2025-01-07) - Command substitution in for loops
   - Fixed parser to accept COMMAND_SUB and COMMAND_SUB_BACKTICK tokens in for loop iterables
   - Updated execute_for_statement() to properly expand command substitutions with word splitting
