@@ -411,10 +411,11 @@ C-style for loops `for ((i=0; i<10; i++))` will complete the iteration construct
 - **Multi-line Input Parsing**: Complex multi-line commands with nested structures fail to parse correctly. Single-line equivalents work fine.
 - **Pipeline Job Control Issues**: Some pipelines are incorrectly treated as background jobs instead of running in foreground.
 
-### Tokenizer Issues (NEW - discovered during arithmetic expansion testing)
+### Tokenizer Issues
 - **Arithmetic Expansion in Assignments**: The tokenizer incorrectly breaks `c=$((a + b))` into separate tokens because `read_word()` stops at `(`. This should tokenize as `WORD='c='` followed by `ARITH_EXPANSION='$((a + b))'`.
 - **Stderr Redirection**: The tokenizer incorrectly tokenizes `>&2` as three separate tokens (`>`, `&`, `2`) instead of recognizing it as a redirect duplication operator. This causes parser failures with "Expected file name after redirection" errors.
 - **Arithmetic Inside Quotes**: Arithmetic expansion inside double quotes (e.g., `echo "Result: $((2 + 2))"`) is not being expanded because `_expand_string_variables()` only handles variable expansion, not arithmetic expansion.
+- **Variable Assignment with Quoted Values** (NEW - discovered v0.20.1): The tokenizer doesn't handle `VAR="value with spaces"` correctly when it appears before a command. For example, `MSG="hello world" echo $MSG` fails with "world": command not found" because the quoted value is split incorrectly.
 
 ### Parser Edge Cases
 - **Empty Commands**: Consecutive semicolons (`;;`, `;;;`) are not handled gracefully in command parsing (though they work correctly in case statements).
@@ -429,6 +430,7 @@ C-style for loops `for ((i=0; i<10; i++))` will complete the iteration construct
 - Avoid stderr redirection (`>&2`) in scripts; use `2>&1` or file redirection instead
 - Avoid arithmetic expansion inside quotes; use unquoted arithmetic or concatenation
 - ~~Use explicit lists in for loops instead of command substitution~~ - No longer needed after v0.19.3
+- Avoid quoted values in variable assignments before commands; use `VAR=value` without quotes or set the variable on a separate line
 
 ### Future Improvements Needed
 1. ~~**AST Architecture Redesign**~~: ✅ COMPLETED in v0.19.0 - Implemented Statement base class and StatementList with full nesting support
@@ -438,6 +440,7 @@ C-style for loops `for ((i=0; i<10; i++))` will complete the iteration construct
    - Fix `read_word()` to handle arithmetic expansion that starts within a word
    - Add proper tokenization for redirect duplication operators (`>&`, `<&`)
    - Enhance `_expand_string_variables()` to also handle arithmetic expansion inside strings
+   - Fix tokenization of `VAR="value with spaces"` to keep the assignment as a single token
 5. **Parser Error Recovery**: Improve error handling to avoid cascade errors when early parsing fails
 6. ~~**For Loop Enhancement**~~: ✅ COMPLETED in v0.19.3 - parse_for_statement() now accepts COMMAND_SUB tokens and executor properly expands them
 
