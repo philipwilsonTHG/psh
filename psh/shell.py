@@ -15,6 +15,7 @@ from .version import get_version_info
 from .aliases import AliasManager
 from .functions import FunctionManager
 from .job_control import JobManager, JobState
+from .builtins import registry as builtin_registry
 
 
 class FunctionReturn(Exception):
@@ -43,12 +44,28 @@ class Shell:
         self.is_script_mode = script_name is not None and script_name != "psh"
         self.debug_ast = debug_ast  # Whether to print AST before execution
         self.debug_tokens = debug_tokens  # Whether to print tokens before parsing
+        
+        # For backward compatibility with redirections
+        self.stdout = sys.stdout
+        self.stderr = sys.stderr
+        self.stdin = sys.stdin
+        
+        # Use new builtin registry for migrated builtins
+        self.builtin_registry = builtin_registry
+        
+        # Keep old builtins dict for non-migrated builtins
         self.builtins = {
-            'exit': self._builtin_exit,
-            'cd': self._builtin_cd,
+            # These have been migrated to new system:
+            # 'exit': handled by registry
+            # 'cd': handled by registry
+            # 'pwd': handled by registry
+            # 'echo': handled by registry
+            # 'true': handled by registry
+            # 'false': handled by registry
+            # ':': handled by registry
+            
+            # These still need migration:
             'export': self._builtin_export,
-            'pwd': self._builtin_pwd,
-            'echo': self._builtin_echo,
             'env': self._builtin_env,
             'unset': self._builtin_unset,
             'source': self._builtin_source,
@@ -65,9 +82,6 @@ class Shell:
             'test': self._builtin_test,
             '[': self._builtin_test,
             'bg': self._builtin_bg,
-            'true': self._builtin_true,
-            'false': self._builtin_false,
-            ':': self._builtin_colon,
         }
         # History setup
         self.history = []
@@ -471,14 +485,35 @@ class Shell:
     
     def _execute_builtin(self, args: list, command: Command) -> int:
         """Execute a built-in command with proper redirection handling"""
-        stdin_backup, stdout_backup, stderr_backup = self._setup_builtin_redirections(command)
-        try:
-            return self.builtins[args[0]](args)
-        except FunctionReturn:
-            # Re-raise FunctionReturn to propagate it up
-            raise
-        finally:
-            self._restore_builtin_redirections(stdin_backup, stdout_backup, stderr_backup)
+        # Check new registry first
+        builtin = self.builtin_registry.get(args[0])
+        if builtin:
+            stdin_backup, stdout_backup, stderr_backup = self._setup_builtin_redirections(command)
+            try:
+                # Update sys streams for builtins that might use them
+                self.stdout = sys.stdout
+                self.stderr = sys.stderr
+                self.stdin = sys.stdin
+                return builtin.execute(args, self)
+            except FunctionReturn:
+                # Re-raise FunctionReturn to propagate it up
+                raise
+            finally:
+                self._restore_builtin_redirections(stdin_backup, stdout_backup, stderr_backup)
+        
+        # Fall back to old builtins
+        if args[0] in self.builtins:
+            stdin_backup, stdout_backup, stderr_backup = self._setup_builtin_redirections(command)
+            try:
+                return self.builtins[args[0]](args)
+            except FunctionReturn:
+                # Re-raise FunctionReturn to propagate it up
+                raise
+            finally:
+                self._restore_builtin_redirections(stdin_backup, stdout_backup, stderr_backup)
+        
+        # Not a builtin
+        return -1
     
     def _execute_external(self, args: list, command: Command) -> int:
         """Execute an external command with proper redirection and process handling"""
@@ -585,8 +620,8 @@ class Shell:
         if func:
             return self._execute_function(func, args, command)
         
-        # Execute built-in or external command
-        if args[0] in self.builtins:
+        # Check if it's a builtin (new registry or old dict)
+        if self.builtin_registry.has(args[0]) or args[0] in self.builtins:
             try:
                 return self._execute_builtin(args, command)
             except FunctionReturn:
@@ -2384,8 +2419,19 @@ class Shell:
                 self.function_stack.pop()
                 self.positional_params = saved_params
         
-        # Check for built-in commands
-        if args[0] in self.builtins:
+        # Check for built-in commands (new registry first, then old dict)
+        builtin = self.builtin_registry.get(args[0])
+        if builtin:
+            try:
+                return builtin.execute(args, self)
+            except FunctionReturn:
+                # Should not happen in child process
+                print("return: can only `return' from a function or sourced script", file=sys.stderr)
+                return 1
+            except Exception as e:
+                print(f"{args[0]}: {e}", file=sys.stderr)
+                return 1
+        elif args[0] in self.builtins:
             try:
                 return self.builtins[args[0]](args)
             except FunctionReturn:
