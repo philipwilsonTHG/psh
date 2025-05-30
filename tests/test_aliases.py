@@ -133,7 +133,7 @@ class TestAliasBuiltins:
         self.shell.alias_manager.define_alias('ll', 'ls -l')
         self.shell.alias_manager.define_alias('la', 'ls -a')
         
-        result = self.shell._builtin_alias(['alias'])
+        result = self.shell.run_command('alias')
         assert result == 0
         
         captured = capsys.readouterr()
@@ -142,12 +142,12 @@ class TestAliasBuiltins:
     
     def test_alias_define(self):
         """Test defining an alias."""
-        result = self.shell._builtin_alias(['alias', 'll=ls -l'])
+        result = self.shell.run_command('alias ll="ls -l"')
         assert result == 0
         assert self.shell.alias_manager.get_alias('ll') == 'ls -l'
         
         # Test with quotes
-        result = self.shell._builtin_alias(['alias', "la='ls -a'"])
+        result = self.shell.run_command("alias la='ls -a'")
         assert result == 0
         assert self.shell.alias_manager.get_alias('la') == 'ls -a'
     
@@ -155,7 +155,7 @@ class TestAliasBuiltins:
         """Test showing a specific alias."""
         self.shell.alias_manager.define_alias('ll', 'ls -l')
         
-        result = self.shell._builtin_alias(['alias', 'll'])
+        result = self.shell.run_command('alias ll')
         assert result == 0
         
         captured = capsys.readouterr()
@@ -163,7 +163,7 @@ class TestAliasBuiltins:
     
     def test_alias_not_found(self, capsys):
         """Test showing non-existent alias."""
-        result = self.shell._builtin_alias(['alias', 'nonexistent'])
+        result = self.shell.run_command('alias nonexistent')
         assert result == 1
         
         captured = capsys.readouterr()
@@ -174,7 +174,7 @@ class TestAliasBuiltins:
         self.shell.alias_manager.define_alias('ll', 'ls -l')
         self.shell.alias_manager.define_alias('la', 'ls -a')
         
-        result = self.shell._builtin_unalias(['unalias', 'll'])
+        result = self.shell.run_command('unalias ll')
         assert result == 0
         assert self.shell.alias_manager.get_alias('ll') is None
         assert self.shell.alias_manager.get_alias('la') == 'ls -a'
@@ -184,13 +184,13 @@ class TestAliasBuiltins:
         self.shell.alias_manager.define_alias('ll', 'ls -l')
         self.shell.alias_manager.define_alias('la', 'ls -a')
         
-        result = self.shell._builtin_unalias(['unalias', '-a'])
+        result = self.shell.run_command('unalias -a')
         assert result == 0
         assert len(self.shell.alias_manager.list_aliases()) == 0
     
     def test_unalias_not_found(self, capsys):
         """Test removing non-existent alias."""
-        result = self.shell._builtin_unalias(['unalias', 'nonexistent'])
+        result = self.shell.run_command('unalias nonexistent')
         assert result == 1
         
         captured = capsys.readouterr()
@@ -198,7 +198,7 @@ class TestAliasBuiltins:
     
     def test_unalias_no_args(self, capsys):
         """Test unalias with no arguments shows usage."""
-        result = self.shell._builtin_unalias(['unalias'])
+        result = self.shell.run_command('unalias')
         assert result == 1
         
         captured = capsys.readouterr()

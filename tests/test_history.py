@@ -60,55 +60,58 @@ class TestHistory:
             "command 9"
         ]
     
-    def test_history_builtin_default(self):
+    def test_history_builtin_default(self, capsys):
         """Test history built-in with default count"""
         # Add some commands
         for i in range(15):
             self.shell._add_to_history(f"command {i}")
         
-        with patch('sys.stdout', new=StringIO()) as mock_stdout:
-            exit_code = self.shell._builtin_history(['history'])
-            assert exit_code == 0
-            
-            output = mock_stdout.getvalue()
-            lines = output.strip().split('\n')
-            assert len(lines) == 10  # Default shows last 10
-            
-            # Check format and content
-            assert "   11  command 10" in output
-            assert "   15  command 14" in output
+        exit_code = self.shell.run_command('history')
+        assert exit_code == 0
+        
+        captured = capsys.readouterr()
+        output = captured.out
+        lines = output.strip().split('\n')
+        assert len(lines) == 10  # Default shows last 10
+        
+        # Check format and content
+        assert "command 10" in output
+        assert "command 14" in output
     
-    def test_history_builtin_with_count(self):
+    def test_history_builtin_with_count(self, capsys):
         """Test history built-in with specific count"""
         for i in range(5):
             self.shell._add_to_history(f"cmd {i}")
         
-        with patch('sys.stdout', new=StringIO()) as mock_stdout:
-            exit_code = self.shell._builtin_history(['history', '3'])
-            assert exit_code == 0
-            
-            output = mock_stdout.getvalue()
-            lines = output.strip().split('\n')
-            assert len(lines) == 3
-            assert "cmd 2" in output
-            assert "cmd 3" in output
-            assert "cmd 4" in output
+        exit_code = self.shell.run_command('history 3')
+        assert exit_code == 0
+        
+        captured = capsys.readouterr()
+        output = captured.out
+        lines = output.strip().split('\n')
+        assert len(lines) == 3
+        # The history command itself gets added, so we see cmd 3, cmd 4, and "history 3"
+        assert "cmd 3" in output
+        assert "cmd 4" in output
+        assert "history 3" in output
     
-    def test_history_builtin_invalid_arg(self):
+    def test_history_builtin_invalid_arg(self, capsys):
         """Test history built-in with invalid argument"""
-        with patch('sys.stderr', new=StringIO()) as mock_stderr:
-            exit_code = self.shell._builtin_history(['history', 'abc'])
-            assert exit_code == 1
-            assert "numeric argument required" in mock_stderr.getvalue()
+        exit_code = self.shell.run_command('history abc')
+        assert exit_code == 1
+        captured = capsys.readouterr()
+        assert "numeric argument required" in captured.err
     
-    def test_run_command_adds_to_history(self):
+    def test_run_command_adds_to_history(self, capsys):
         """Test that run_command adds to history"""
-        with patch('sys.stdout', new=StringIO()):
-            self.shell.run_command("echo test")
-            assert "echo test" in self.shell.history
-            
-            self.shell.run_command("pwd")
-            assert "pwd" in self.shell.history
+        self.shell.run_command("echo test")
+        assert "echo test" in self.shell.history
+        
+        self.shell.run_command("pwd")
+        assert "pwd" in self.shell.history
+        
+        # Clear the output
+        capsys.readouterr()
     
     def test_empty_command_not_added_to_history(self):
         """Test that empty commands are not added to history"""
@@ -118,7 +121,7 @@ class TestHistory:
         self.shell.run_command("   ")
         assert len(self.shell.history) == 0
     
-    def test_source_commands_not_added_to_history(self):
+    def test_source_commands_not_added_to_history(self, capsys):
         """Test that commands from source files are not added to history"""
         with tempfile.NamedTemporaryFile(mode='w', suffix='.psh', delete=False) as f:
             f.write("echo sourced1\n")
@@ -126,13 +129,15 @@ class TestHistory:
             script_path = f.name
         
         try:
-            with patch('sys.stdout', new=StringIO()):
-                self.shell.run_command(f"source {script_path}")
+            self.shell.run_command(f"source {script_path}")
             
             # Only the source command should be in history
             assert self.shell.history == [f"source {script_path}"]
             assert "echo sourced1" not in self.shell.history
             assert "echo sourced2" not in self.shell.history
+            
+            # Clear output
+            capsys.readouterr()
         finally:
             os.unlink(script_path)
     

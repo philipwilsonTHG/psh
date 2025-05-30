@@ -261,20 +261,20 @@ class TestSetCommand:
     
     def test_set_vi_mode(self, shell):
         """Test setting vi mode."""
-        result = shell._builtin_set(['set', '-o', 'vi'])
+        result = shell.run_command('set -o vi')
         assert result == 0
         assert shell.edit_mode == 'vi'
     
     def test_set_emacs_mode(self, shell):
         """Test setting emacs mode."""
         shell.edit_mode = 'vi'  # Start in vi mode
-        result = shell._builtin_set(['set', '-o', 'emacs'])
+        result = shell.run_command('set -o emacs')
         assert result == 0
         assert shell.edit_mode == 'emacs'
     
     def test_set_invalid_mode(self, shell, capsys):
         """Test setting invalid mode."""
-        result = shell._builtin_set(['set', '-o', 'invalid'])
+        result = shell.run_command('set -o invalid')
         assert result == 1
         captured = capsys.readouterr()
         assert 'invalid option' in captured.err
@@ -282,7 +282,7 @@ class TestSetCommand:
     def test_show_options(self, shell, capsys):
         """Test showing current options."""
         shell.edit_mode = 'vi'
-        result = shell._builtin_set(['set', '-o'])
+        result = shell.run_command('set -o')
         assert result == 0
         captured = capsys.readouterr()
         assert 'edit_mode vi' in captured.out
@@ -290,7 +290,7 @@ class TestSetCommand:
     def test_unset_vi_mode(self, shell, capsys):
         """Test unsetting vi mode (switches to emacs)."""
         shell.edit_mode = 'vi'
-        result = shell._builtin_set(['set', '+o', 'vi'])
+        result = shell.run_command('set +o vi')
         assert result == 0
         assert shell.edit_mode == 'emacs'
         captured = capsys.readouterr()
