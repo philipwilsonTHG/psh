@@ -1,7 +1,14 @@
 """Brace expansion implementation for psh.
 
 Implements bash-style brace expansion as a pre-tokenization step.
-Handles {a,b,c} list expansion and {1..10} sequence expansion.
+Supports:
+- List expansion: {a,b,c} → a b c
+- Numeric sequences: {1..10} → 1 2 3 4 5 6 7 8 9 10
+- Character sequences: {a..z} → a b c ... z
+- Sequences with increment: {1..10..2} → 1 3 5 7 9
+- Zero-padded sequences: {01..10} → 01 02 03 04 05 06 07 08 09 10
+- Nested expansions: {{1..3},{a..c}} → 1 2 3 a b c
+- Preamble/postscript: file{1..3}.txt → file1.txt file2.txt file3.txt
 """
 
 from typing import List, Tuple, Optional
@@ -154,12 +161,19 @@ class BraceExpander:
         suffix = text[end:]
         
         # Determine brace type and expand
-        if '..' in brace_content:
-            # Sequence expansion (Phase 2 - return unexpanded for now)
-            return [text]
-        else:
-            # List expansion
+        # Check if it's a list (has comma at top level) or pure sequence
+        if self._has_top_level_comma(brace_content):
+            # List expansion (may contain nested sequences)
             expanded = self._expand_list(brace_content)
+        elif '..' in brace_content:
+            # Pure sequence expansion
+            expanded = self._expand_sequence(brace_content)
+            if expanded is None:
+                # Invalid sequence, return unexpanded
+                return [text]
+        else:
+            # No comma and no .., not a valid brace expression
+            return [text]
         
         # Combine with prefix/suffix
         return [prefix + item + suffix for item in expanded]
@@ -207,7 +221,14 @@ class BraceExpander:
             if item == '':
                 expanded_items.append('')
             else:
-                expanded_items.extend(self._expand_braces(item))
+                # Check if this item contains a sequence
+                if '..' in item and '{' in item and '}' in item:
+                    # This might be a nested sequence like {1..3}
+                    expanded = self._expand_braces(item)
+                    expanded_items.extend(expanded)
+                else:
+                    # Regular item or already expanded
+                    expanded_items.extend(self._expand_braces(item))
         
         return expanded_items
     
@@ -319,6 +340,27 @@ class BraceExpander:
         
         return False
     
+    def _has_top_level_comma(self, content: str) -> bool:
+        """Check if content has a comma at top level (not inside nested braces)."""
+        depth = 0
+        escaped = False
+        
+        for char in content:
+            if escaped:
+                escaped = False
+                continue
+                
+            if char == '\\':
+                escaped = True
+            elif char == '{':
+                depth += 1
+            elif char == '}':
+                depth -= 1
+            elif char == ',' and depth == 0:
+                return True
+        
+        return False
+    
     def _split_respecting_quotes(self, line: str) -> List[Tuple[str, bool]]:
         """Split line into segments, tracking which are inside quotes.
         
@@ -387,3 +429,162 @@ class BraceExpander:
                            in_single_quotes or in_double_quotes))
         
         return segments
+    
+    def _expand_sequence(self, content: str) -> Optional[List[str]]:
+        """Expand sequence like 1..10 or a..z.
+        
+        Returns None if the sequence is invalid.
+        """
+        # Parse the sequence
+        parts = content.split('..')
+        if len(parts) < 2 or len(parts) > 3:
+            return None
+        
+        start = parts[0]
+        end = parts[1]
+        increment = parts[2] if len(parts) == 3 else '1'
+        
+        # Try numeric sequence first
+        numeric_result = self._try_numeric_sequence(start, end, increment)
+        if numeric_result is not None:
+            return numeric_result
+        
+        # Try character sequence
+        char_result = self._try_char_sequence(start, end, increment)
+        if char_result is not None:
+            return char_result
+        
+        # Invalid sequence
+        return None
+    
+    def _try_numeric_sequence(self, start: str, end: str, increment: str) -> Optional[List[str]]:
+        """Try to expand as numeric sequence.
+        
+        Returns None if not valid numeric sequence.
+        """
+        try:
+            # Parse numbers
+            start_num = int(start)
+            end_num = int(end)
+            inc_num = int(increment)
+            
+            # Handle increment of 0
+            if inc_num == 0:
+                inc_num = 1
+            
+            # Determine direction
+            if start_num <= end_num:
+                inc_num = abs(inc_num)
+            else:
+                inc_num = -abs(inc_num)
+            
+            # Determine padding
+            padding = self._determine_numeric_padding(start, end)
+            
+            # Generate sequence
+            result = []
+            current = start_num
+            while (inc_num > 0 and current <= end_num) or (inc_num < 0 and current >= end_num):
+                if padding < 0:
+                    # Special case: -3..03 style
+                    # Negative numbers don't get padded, positive do
+                    if current < 0:
+                        result.append(str(current))
+                    else:
+                        result.append(str(current).zfill(-padding))
+                elif padding > 0:
+                    # Handle padding based on whether range crosses zero
+                    if start_num < 0 and end_num >= 0:
+                        # Range crosses zero - bash uses special padding
+                        # Negative numbers get one less padding digit than positive
+                        if current < 0:
+                            result.append('-' + str(abs(current)).zfill(padding))
+                        else:
+                            # Zero and positive get extra digit
+                            result.append(str(current).zfill(padding + 1))
+                    else:
+                        # Normal padding
+                        if current < 0:
+                            result.append('-' + str(abs(current)).zfill(padding))
+                        else:
+                            result.append(str(current).zfill(padding))
+                else:
+                    result.append(str(current))
+                current += inc_num
+            
+            return result
+            
+        except ValueError:
+            return None
+    
+    def _try_char_sequence(self, start: str, end: str, increment: str) -> Optional[List[str]]:
+        """Try to expand as character sequence.
+        
+        Returns None if not valid character sequence.
+        """
+        # Must be single characters
+        if len(start) != 1 or len(end) != 1:
+            return None
+        
+        # Must be ASCII letters
+        start_ord = ord(start)
+        end_ord = ord(end)
+        
+        # For character sequences, we accept any ASCII character between bounds
+        # but start and end must be letters for the sequence to be valid
+        if not ((start.isalpha() and end.isalpha()) or 
+                (start.isdigit() and end.isdigit())):
+            # Special case: allow cross-case sequences like A..z
+            if not (start.isalpha() and end.isalpha()):
+                return None
+        
+        try:
+            inc_num = int(increment)
+            if inc_num == 0:
+                inc_num = 1
+        except ValueError:
+            return None
+        
+        # Determine direction
+        if start_ord <= end_ord:
+            inc_num = abs(inc_num)
+        else:
+            inc_num = -abs(inc_num)
+        
+        # Generate sequence
+        result = []
+        current = start_ord
+        while (inc_num > 0 and current <= end_ord) or (inc_num < 0 and current >= end_ord):
+            result.append(chr(current))
+            current += inc_num
+        
+        return result
+    
+    def _determine_numeric_padding(self, start: str, end: str) -> int:
+        """Determine zero-padding width for numeric sequence.
+        
+        Returns 0 if no padding needed.
+        """
+        # Remove sign for padding calculation
+        start_digits = start.lstrip('-+')
+        end_digits = end.lstrip('-+')
+        
+        # Check if either has leading zeros
+        has_start_padding = len(start_digits) > 1 and start_digits.startswith('0')
+        has_end_padding = len(end_digits) > 1 and end_digits.startswith('0')
+        
+        if not (has_start_padding or has_end_padding):
+            return 0
+        
+        # For single digit negative padded number like -3 with end 03,
+        # we don't pad the negative numbers
+        start_val = int(start)
+        end_val = int(end)
+        
+        # If start is negative without padding and end has padding
+        if start_val < 0 and not has_start_padding and has_end_padding:
+            # Return 0 to indicate special handling
+            return -len(end_digits)  # Negative indicates special case
+        
+        # Padding is the max length
+        return max(len(start_digits), len(end_digits))

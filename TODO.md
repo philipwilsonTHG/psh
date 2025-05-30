@@ -52,6 +52,7 @@ Features ordered by implementation status and complexity.
 35. **Case Statements** - case/esac pattern matching with fallthrough control (v0.17.0)
 36. **Arithmetic Expansion** - $((...)) with full bash-compatible arithmetic evaluation (v0.18.0)
 37. **Read Builtin** - Core POSIX functionality with IFS field splitting, raw mode, escape processing (v0.20.1)
+38. **Brace Expansion** - Complete bash-style {a,b,c} list and {1..10} sequence expansion (v0.21.0-v0.22.0)
 
 ## 🚧 Remaining Features
 
@@ -130,8 +131,9 @@ Features ordered by implementation status and complexity.
 - [x] Hexadecimal (0xFF) and octal (077) number support - ✅ Multiple number bases
 
 #### Advanced Expansions
-- [x] Brace expansion - ✅ Phase 1: List expansion `{a,b,c}` with nesting and quote awareness (v0.21.0)
-  - [ ] Phase 2: Sequence expansion `{1..10}`, `{a..z}`, `{10..1..2}`
+- [x] Brace expansion - ✅ Complete implementation with list and sequence expansion (v0.21.0-v0.22.0)
+  - [x] Phase 1: List expansion `{a,b,c}` with nesting and quote awareness (v0.21.0)
+  - [x] Phase 2: Sequence expansion `{1..10}`, `{a..z}`, `{10..1..2}` (v0.22.0)
 - [ ] Advanced parameter expansion:
   - [ ] `${var#pattern}` - Remove shortest prefix
   - [ ] `${var##pattern}` - Remove longest prefix
@@ -161,7 +163,7 @@ Features ordered by implementation status and complexity.
 5. **Enhanced Parameter Expansion** - `${#var}`, `${var#pattern}`, `${var%pattern}`, etc.
 6. **Trap Command** - Signal handling for cleanup and error management
 
-### Recent Major Accomplishments (v0.10.0 - v0.21.0)
+### Recent Major Accomplishments (v0.10.0 - v0.22.0)
 
 #### ✅ Complete Script Execution System (v0.10.0 - v0.12.0)
 - **Phase 1**: Basic script file execution with arguments
@@ -305,6 +307,21 @@ Features ordered by implementation status and complexity.
 
 **Impact**: Brace expansion enables powerful file manipulation patterns and reduces repetitive typing. The pre-tokenization approach ensures correct bash semantics while maintaining clean separation of concerns in the codebase.
 
+#### ✅ Brace Expansion Phase 2: Sequence Expansion (v0.22.0)
+- **Complete sequence expansion**: numeric `{1..10}`, character `{a..z}`, with increment `{1..20..2}`
+- **Numeric sequences**: forward/reverse, negative numbers, automatic direction detection
+- **Character sequences**: ASCII ordering, cross-case support ({X..c} includes non-letters)
+- **Zero-padded sequences**: {01..10} → 01 02 03 04 05 06 07 08 09 10
+- **Special cross-zero padding**: {-05..05} uses different padding for negative/positive
+- **Increment support**: optional third parameter, sign ignored, 0 treated as 1
+- **Invalid sequence handling**: graceful fallback for mixed types, floats, invalid chars
+- **Mixed expansions**: {{1..3},{a..c}} → 1 2 3 a b c combining lists and sequences
+- **Memory safety**: sequence expansions respect same limits as list expansions
+- **Full bash compatibility**: matches bash behavior for all edge cases
+- **10 additional tests**: comprehensive coverage of sequences, padding, increments
+
+**Impact**: Complete brace expansion implementation enables powerful iteration patterns in shell commands. Users can now generate file sequences (backup{001..100}.tar), create test data (test_{a..z}.txt), and perform bulk operations with minimal typing. The implementation demonstrates clean subsystem design with clear separation between list and sequence expansion logic.
+
 ### Architecture Considerations
 
 #### Lessons from Script Execution Implementation
@@ -375,7 +392,7 @@ Features ordered by implementation status and complexity.
 
 ## 🎯 Current Status Summary
 
-### **Major Milestone: Complete Programming Language with Modular Architecture and Brace Expansion (v0.21.0)**
+### **Major Milestone: Complete Programming Language with Full Brace Expansion (v0.22.0)**
 
 psh has evolved from a basic educational shell into a **complete programming language** with full conditional logic, complete iteration capabilities, sophisticated loop control, comprehensive pattern matching, arithmetic evaluation, user input capabilities, and a clean modular architecture while maintaining its educational mission. Key achievements:
 
@@ -399,11 +416,11 @@ psh has evolved from a basic educational shell into a **complete programming lan
 - ✅ Modular builtin architecture: All 25 builtins extracted with registry pattern and base class (v0.20.0)
 - ✅ Read builtin: Core POSIX functionality with IFS splitting, raw mode, escape processing (v0.20.1)
 - ✅ Job suspension notifications: Ctrl-Z shows "[job]+  Stopped" message like bash
-- ✅ Brace expansion: List expansion {a,b,c} with nesting, quotes, and escape handling (v0.21.0)
+- ✅ Brace expansion: Complete implementation with list {a,b,c} and sequence {1..10} expansion (v0.21.0-v0.22.0)
 
 **Development Quality:**
-- ✅ 51 major features implemented and tested
-- ✅ Comprehensive test suite with 439 passing tests, 17 skipped, 1 xfailed
+- ✅ 52 major features implemented and tested
+- ✅ Comprehensive test suite with 485 passing tests, 18 skipped, 1 xfailed
 - ✅ Robust architecture supporting complete control structure suite with pattern matching
 - ✅ Clean modular design: shell.py reduced by 394 lines, builtins organized into logical modules
 - ✅ Educational clarity preserved throughout
@@ -413,7 +430,7 @@ psh has evolved from a basic educational shell into a **complete programming lan
 C-style for loops `for ((i=0; i<10; i++))` will complete the iteration constructs, leveraging the newly implemented arithmetic expansion for initialization, condition testing, and increment operations.
 
 ### Feature Implementation Stats
-- **🟢 Completed**: 51 major features (Core shell, Advanced features, Interactive features, Programming features, Script execution, Control structures, File test operators, While loops, For loops, Break/continue statements, Case statements, Core POSIX commands, Arithmetic expansion, Modular builtin architecture, Read builtin, Brace expansion Phase 1)
+- **🟢 Completed**: 52 major features (Core shell, Advanced features, Interactive features, Programming features, Script execution, Control structures, File test operators, While loops, For loops, Break/continue statements, Case statements, Core POSIX commands, Arithmetic expansion, Modular builtin architecture, Read builtin, Brace expansion complete)
 - **🟡 High Priority**: 1 feature (C-style for loops) + enhanced read features
 - **🟡 High Priority**: 1 feature group (Advanced shell options)  
 - **🟠 Medium Priority**: 2 feature groups (Advanced expansions)

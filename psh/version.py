@@ -6,6 +6,20 @@ __version__ = "0.22.0"
 
 # Version history
 VERSION_HISTORY = """
+0.22.0 (2025-01-30) - Brace expansion Phase 2: Sequence expansion
+  - Implemented numeric sequence expansion: {1..10} → 1 2 3 4 5 6 7 8 9 10
+  - Reverse sequences supported: {10..1} → 10 9 8 7 6 5 4 3 2 1
+  - Character sequences: {a..z}, {A..Z} with ASCII ordering
+  - Sequences with increment: {1..10..2} → 1 3 5 7 9
+  - Zero-padded sequences: {01..10} → 01 02 03 04 05 06 07 08 09 10
+  - Special padding behavior for ranges crossing zero: {-05..05}
+  - Cross-case character sequences: {X..c} includes all ASCII between
+  - Invalid sequences gracefully fall back to unexpanded form
+  - Mixed list and sequence expansions: {{1..3},{a..c}} → 1 2 3 a b c
+  - Memory limits apply to sequence expansions for safety
+  - Complete bash-compatible brace expansion implementation
+  - 10 new tests added, all 27 brace expansion tests passing
+
 0.21.0 (2025-01-30) - Brace expansion implementation (Phase 1)
   - Added bash-style brace expansion as pre-tokenization step
   - Implemented list expansion: {a,b,c} → a b c
@@ -13,7 +27,7 @@ VERSION_HISTORY = """
   - Nested brace expansion: {a,b{1,2}} → a b1 b2
   - Empty element support: {a,,c} → a  c
   - Quote awareness: braces inside quotes are not expanded
-  - Escape handling: \{a,b\} is not expanded
+  - Escape handling: \\{a,b\\} is not expanded
   - Memory limits to prevent excessive expansions (default 10,000 items)
   - Graceful error handling with fallback to original string
   - Comprehensive test suite with 22 tests covering all edge cases

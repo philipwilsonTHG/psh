@@ -400,21 +400,24 @@ While not recommended, an alternative would be to expand braces after tokenizati
 
 ## Implementation Phases
 
-### Phase 1: Basic List Expansion
-- Simple comma-separated lists: `{a,b,c}`
-- With preamble/postscript: `file{1,2,3}.txt`
-- Nested lists: `{a,b{1,2}}`
+### Phase 1: Basic List Expansion ✅ (Completed v0.21.0)
+- Simple comma-separated lists: `{a,b,c}` ✅
+- With preamble/postscript: `file{1,2,3}.txt` ✅
+- Nested lists: `{a,b{1,2}}` ✅
+- Empty elements: `{a,,c}` ✅
+- Complex nesting: `{a,b}{c,d}{e,f}` ✅
+- Memory limits and safety checks ✅
 
-### Phase 2: Sequence Expansion  
-- Numeric sequences: `{1..10}`, `{10..1}`
-- Zero-padded sequences: `{01..10}`
-- Character sequences: `{a..z}`, `{Z..A}`
+### Phase 2: Sequence Expansion ✅ (Completed v0.22.0)
+- Numeric sequences: `{1..10}`, `{10..1}` ✅
+- Zero-padded sequences: `{01..10}` ✅
+- Character sequences: `{a..z}`, `{Z..A}` ✅
+- Increment sequences: `{1..10..2}` ✅
+- Special cross-zero padding behavior ✅
+- Negative number sequences with proper padding ✅
 
-### Phase 3: Advanced Features
-- Increment sequences: `{1..10..2}` (bash 4.0+)
-- Empty elements: `{a,,c}`
-- Complex nesting: `{a,b}{c,d}{e,f}`
-- Memory limits and safety checks
+### Phase 3: Advanced Features (Future)
+- Additional edge cases and optimizations as needed
 
 ## Conclusion
 
