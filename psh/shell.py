@@ -1368,6 +1368,9 @@ class Shell:
                 # Check for completed background jobs
                 self.job_manager.notify_completed_jobs()
                 
+                # Check for stopped jobs (from Ctrl-Z)
+                self.job_manager.notify_stopped_jobs()
+                
                 # Create prompt with exit status
                 if self.last_exit_code == 0:
                     prompt = 'psh$ '
@@ -1621,9 +1624,8 @@ class Shell:
                     
                     # Check if entire job is stopped
                     if job.state == JobState.STOPPED and job.foreground:
-                        # Stopped foreground job
-                        # Format similar to bash - stopped jobs are marked with +
-                        print(f"\n[{job.job_id}]+  Stopped                 {job.command}")
+                        # Stopped foreground job - mark as not notified so it will be shown
+                        job.notified = False
                         
                         # Return control to shell
                         try:

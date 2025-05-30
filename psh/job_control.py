@@ -193,6 +193,15 @@ class JobManager:
         for job_id in completed:
             self.remove_job(job_id)
     
+    def notify_stopped_jobs(self):
+        """Print notifications for newly stopped jobs."""
+        for job_id, job in list(self.jobs.items()):
+            if job.state == JobState.STOPPED and not job.notified:
+                # Mark with + if it's the current job
+                marker = '+' if job == self.current_job else '-' if job == self.previous_job else ' '
+                print(f"[{job.job_id}]{marker}  Stopped                 {job.command}")
+                job.notified = True
+    
     def list_jobs(self) -> List[str]:
         """Get formatted list of all jobs."""
         lines = []

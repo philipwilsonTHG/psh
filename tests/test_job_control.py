@@ -207,16 +207,19 @@ class TestJobControl:
         job = self.shell.job_manager.create_job(6000, "emacs file.txt")
         job.add_process(6001, "emacs")
         job.foreground = True
+        # Set as current job
+        self.shell.job_manager.set_foreground_job(job)
         
         # Simulate the job being stopped (as would happen with SIGTSTP)
         job.processes[0].stopped = True
         job.update_state()
         assert job.state == JobState.STOPPED
         
-        # Simulate what happens in _handle_sigchld when a foreground job stops
-        if job.state == JobState.STOPPED and job.foreground:
-            print(f"\n[{job.job_id}]+  Stopped                 {job.command}")
-            job.foreground = False
+        # Mark as not notified (as would happen in signal handler)
+        job.notified = False
+        
+        # Call notify_stopped_jobs (as happens in interactive loop)
+        self.shell.job_manager.notify_stopped_jobs()
         
         # Check the output
         captured = capsys.readouterr()
