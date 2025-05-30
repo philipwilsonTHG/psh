@@ -19,31 +19,56 @@ Key design principle: Each component is intentionally simple and readable for te
 ## Grammar
 
 ```
-top_level    → (statement)*
-statement    → function_def | if_stmt | while_stmt | for_stmt | case_stmt | break_stmt | continue_stmt | command_list
+# Top-level structure
+top_level    → statement*
+statement    → function_def | if_stmt | while_stmt | for_stmt | case_stmt 
+             | break_stmt | continue_stmt | command_list
 
+# Function definitions
 function_def → WORD '(' ')' compound_command
              | 'function' WORD ['(' ')'] compound_command
 compound_command → '{' command_list '}'
 
+# Control structures
 if_stmt      → 'if' command_list 'then' command_list ['else' command_list] 'fi'
 while_stmt   → 'while' command_list 'do' command_list 'done'
 for_stmt     → 'for' WORD 'in' word_list 'do' command_list 'done'
-case_stmt    → 'case' word 'in' case_items 'esac'
-case_items   → case_item*
+case_stmt    → 'case' word 'in' case_item* 'esac'
 case_item    → pattern_list ')' command_list [';;' | ';&' | ';;&']
 pattern_list → pattern ('|' pattern)*
 pattern      → WORD | STRING | VARIABLE
+
+# Loop control
 break_stmt   → 'break'
 continue_stmt → 'continue'
 
-command_list → and_or_list (SEMICOLON and_or_list)* [SEMICOLON]
-and_or_list  → (pipeline | break_stmt | continue_stmt) ((AND_AND | OR_OR) pipeline)*
-pipeline     → command (PIPE command)*
-command      → word+ redirect* [AMPERSAND]
-redirect     → REDIRECT_OP word
-word         → WORD | STRING | VARIABLE | COMMAND_SUB
+# Command lists and pipelines
+command_list → and_or_list (';' and_or_list)* [';']
+and_or_list  → pipeline (('&&' | '||') pipeline)*
+             | break_stmt | continue_stmt
+pipeline     → command ('|' command)*
+
+# Commands and arguments
+command      → word+ redirect* ['&']
+word         → WORD | STRING | VARIABLE | COMMAND_SUB | COMMAND_SUB_BACKTICK | ARITH_EXPANSION
 word_list    → word+
+
+# Redirections
+redirect     → [fd] redirect_op target
+             | [fd] '>&' fd
+redirect_op  → '<' | '>' | '>>' | '2>' | '2>>' | '<<' | '<<-' | '<<<'
+fd           → NUMBER
+target       → word
+
+# Token types for expansions
+COMMAND_SUB         → '$(' command_list ')'
+COMMAND_SUB_BACKTICK → '`' command_list '`'
+ARITH_EXPANSION     → '$((' arithmetic_expr '))'
+VARIABLE            → '$' (NAME | '{' NAME '}' | SPECIAL_VAR)
+SPECIAL_VAR         → '?' | '$' | '!' | '#' | '@' | '*' | [0-9]+
+STRING              → '"' (CHAR | VARIABLE | COMMAND_SUB | ARITH_EXPANSION)* '"'
+                    | "'" CHAR* "'"
+WORD                → (CHAR | ESCAPE_SEQUENCE)+
 ```
 
 ## Running the Project
@@ -58,12 +83,18 @@ python3 -m psh
 # Execute single command
 python3 -m psh -c "ls -la"
 
+# Debug modes
+python3 -m psh --debug-ast      # Show parsed AST before execution
+python3 -m psh --debug-tokens    # Show tokenized output before parsing
+python3 -m psh --debug-ast --debug-tokens -c "echo test"  # Both debug modes
+
 # Install psh locally (in development mode)
 pip install -e .
 
 # After installation, run directly
 psh
 psh -c "echo hello"
+psh --help   # Show usage and options
 
 # Run tests
 python -m pytest tests/
@@ -79,17 +110,16 @@ python -m pytest tests/
 ## Current Implementation Status
 
 Implemented:
-- Basic command execution
+- Basic command execution with external commands and built-ins
 - I/O redirections (<, >, >>, 2>, 2>>, 2>&1, <<<)
-- Multiple commands (;)
-- Background execution (&)
-- Quoted strings and variable expansion
-- Built-ins: exit, cd, export, pwd, echo, unset, env, source, history, set, declare, return, jobs, fg, bg, alias, unalias, test, [, true, false
+- Multiple commands (;) and background execution (&)
+- Quoted strings (single and double) with proper variable expansion
+- Built-ins: exit, cd, export, pwd, echo, unset, env, source, ., history, set, declare, return, jobs, fg, bg, alias, unalias, test, [, true, false, :
 - Wildcards/globbing (*, ?, [...])
 - Exit status tracking ($? variable)
-- Command history with persistence
+- Command history with persistence (~/.psh_history)
 - Pipeline execution with proper process groups
-- Signal handling (SIGINT, SIGTSTP)
+- Signal handling (SIGINT, SIGTSTP, SIGCHLD)
 - Shell variables (separate from environment)
 - Positional parameters ($1, $2, etc.)
 - Special variables ($$, $!, $#, $@, $*, $0)
@@ -97,7 +127,8 @@ Implemented:
 - Basic parameter expansion (${var}, ${var:-default})
 - Here documents (<< and <<-) and here strings (<<<)
 - Stderr redirection (2>, 2>>, 2>&1)
-- Command substitution ($(...) and `...`)
+- Command substitution ($(...) and `...`) with proper nesting
+- Arithmetic expansion ($((...))) with full operator support
 - Tab completion for files and directories
 - Comments (# at word boundaries)
 - Conditional execution (&& and || operators with short-circuit evaluation)
@@ -111,7 +142,7 @@ Implemented:
 - Job specifications (%1, %+, %-, %string)
 - Process group management and terminal control
 - Control structures: if/then/else/fi conditional statements
-- Test command ([) with comprehensive string, numeric, and file operators (15+ file test operators)
+- Test command ([) with comprehensive string, numeric, and file operators (20+ file test operators)
 - Loop constructs: while/do/done and for/in/do/done loops
 - Loop control: break and continue statements
 - Case statements (case/esac) with pattern matching and fallthrough control
@@ -119,11 +150,18 @@ Implemented:
 - Multiple patterns per case item (pattern1|pattern2|pattern3)
 - Advanced case terminators: ;; (stop), ;& (fallthrough), ;;& (continue matching)
 - Script file execution with arguments and shebang support
+- Multi-line command support with line continuation (\)
+- Nested control structures to arbitrary depth
+- Command substitution in for loop iterables
 
 Not implemented:
-- Arithmetic expansion ($((...)))
 - C-style for loops (for ((i=0; i<10; i++)))
-- Advanced expansions (brace expansion, advanced parameter expansion)
-- Local variables in functions
-- Advanced shell options (set -e, -u, -x)
+- Advanced expansions (brace expansion, advanced parameter expansion beyond ${var:-default})
+- Local variables in functions (local builtin)
+- Advanced shell options (set -e, -u, -x, -o pipefail)
 - Trap command for signal handling
+- Read builtin
+- Escaped glob patterns
+- Process substitution (<(...), >(...))
+- Array variables
+- Select statement

@@ -319,6 +319,7 @@ Features ordered by implementation status and complexity.
 - ✅ **Compatibility Tests** - Cross-interpreter script execution
 - ✅ **Edge Case Testing** - Error conditions and boundary cases
 - ✅ **Performance Testing** - Large script handling and recursive features
+- 🔄 **Test Suite Health** - 15 skipped tests: 11 can be fixed/rewritten, 4 await feature implementation
 
 ### Learning Resources
 
@@ -354,9 +355,10 @@ psh has evolved from a basic educational shell into a **complete programming lan
 
 **Development Quality:**
 - ✅ 48 major features implemented and tested
-- ✅ Comprehensive test suite with 145+ passing tests (114 new tests across control structures, iteration, loop control, pattern matching, and arithmetic)
+- ✅ Comprehensive test suite with 402 passing tests, 16 skipped, 1 xfailed
 - ✅ Robust architecture supporting complete control structure suite with pattern matching
 - ✅ Educational clarity preserved throughout
+- 🔄 Test suite health: 11 of 16 skipped tests can be fixed/rewritten, 4 await feature implementation
 
 **Next Phase Focus:**
 C-style for loops `for ((i=0; i<10; i++))` will complete the iteration constructs, leveraging the newly implemented arithmetic expansion for initialization, condition testing, and increment operations.
@@ -406,3 +408,46 @@ C-style for loops `for ((i=0; i<10; i++))` will complete the iteration construct
    - Enhance `_expand_string_variables()` to also handle arithmetic expansion inside strings
 5. **Parser Error Recovery**: Improve error handling to avoid cascade errors when early parsing fails
 6. ~~**For Loop Enhancement**~~: ✅ COMPLETED in v0.19.3 - parse_for_statement() now accepts COMMAND_SUB tokens and executor properly expands them
+
+## 📋 Test Suite Skip Status
+
+### Currently Skipped Tests (15 total)
+Analysis of skipped tests reveals they fall into several categories:
+
+#### Tests that CAN be unskipped or rewritten (11 tests):
+1. **CI-only skips (3 tests)** - Already work locally:
+   - `test_stderr_redirect.py:75, 100` - Stderr redirection tests (skip only on GitHub Actions)
+   - `test_command_substitution.py:179` - Command substitution in pipeline (skip only on GitHub Actions)
+
+2. **Background process test (1 test)**:
+   - `test_variables.py:111` - `$!` variable test - Actually works, just needs file-based output verification
+
+3. **Pytest capture conflicts (7 tests)** - Need rewriting to use file output:
+   - `test_glob.py:192` - Glob expansion in pipeline
+   - `test_heredoc.py:105, 133` - Heredoc with external commands and pipelines
+   - `test_nested_control_structures.py:342, 382, 422` - Nested control structures with pipelines
+   - `test_pipeline.py:77` - Built-in commands in pipelines
+
+#### Tests that MUST remain skipped (4 tests):
+1. **Unimplemented features (3 tests)**:
+   - `test_nested_control_structures.py:232` - Requires `read` builtin (not implemented)
+   - `test_glob.py:224` - Requires escaped glob pattern support (not implemented)
+   - `test_command_substitution.py:160` - Complex backtick escape sequences (needs tokenizer work)
+
+2. **Complex implementation (1 test)**:
+   - `test_heredoc.py:118` - Multiple redirections with heredocs (needs special handling)
+
+### Test Improvement Recommendations
+1. **Immediate actions**:
+   - Remove `skipif` decorators for CI-only tests when running locally
+   - Fix `test_variables.py:111` - the `$!` test already works
+
+2. **Test rewriting needed**:
+   - Convert pytest capture tests to use file-based output verification
+   - Create helper functions for testing pipeline output
+   - Use script files for complex multi-line heredoc tests
+
+3. **Keep skipped until features implemented**:
+   - `read` builtin tests
+   - Escaped glob pattern tests
+   - Complex escape sequence tests
