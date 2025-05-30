@@ -14,6 +14,7 @@ from . import job_control
 from . import test_command
 from . import source_command
 from . import function_support
+from . import read_builtin
 
 # Re-export for convenience
 __all__ = ['registry', 'builtin', 'Builtin']
