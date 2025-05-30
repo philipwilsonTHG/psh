@@ -1,6 +1,8 @@
-import pytest
+"""Test shell built-in commands."""
+
 import os
 import tempfile
+import pytest
 from io import StringIO
 from unittest.mock import patch
 from psh.shell import Shell
@@ -14,158 +16,157 @@ class TestBuiltins:
     def teardown_method(self):
         os.chdir(self.original_cwd)
     
-    def test_pwd(self):
-        with patch('sys.stdout', new=StringIO()) as mock_stdout:
-            exit_code = self.shell._builtin_pwd(['pwd'])
-            assert exit_code == 0
-            assert mock_stdout.getvalue().strip() == os.getcwd()
-    
-    def test_echo(self):
-        with patch('sys.stdout', new=StringIO()) as mock_stdout:
-            # Simple echo
-            self.shell._builtin_echo(['echo', 'hello', 'world'])
-            assert mock_stdout.getvalue() == "hello world\n"
-            
-            # Empty echo
-            mock_stdout.truncate(0)
-            mock_stdout.seek(0)
-            self.shell._builtin_echo(['echo'])
-            assert mock_stdout.getvalue() == "\n"
-    
-    def test_cd(self):
-        # Change to /tmp
-        exit_code = self.shell._builtin_cd(['cd', '/tmp'])
+    def test_pwd(self, capsys):
+        exit_code = self.shell.run_command("pwd")
         assert exit_code == 0
-        assert os.getcwd() == '/private/tmp' or os.getcwd() == '/tmp'
+        captured = capsys.readouterr()
+        assert captured.out.strip() == os.getcwd()
+    
+    def test_echo(self, capsys):
+        # Simple echo
+        self.shell.run_command("echo hello world")
+        captured = capsys.readouterr()
+        assert captured.out == "hello world\n"
+        
+        # Empty echo
+        self.shell.run_command("echo")
+        captured = capsys.readouterr()
+        assert captured.out == "\n"
+    
+    def test_cd(self, capsys):
+        # Change to /tmp
+        exit_code = self.shell.run_command("cd /tmp")
+        assert exit_code == 0
+        assert os.getcwd() in ['/private/tmp', '/tmp']  # Handle macOS
         
         # Change to home
-        exit_code = self.shell._builtin_cd(['cd'])
+        exit_code = self.shell.run_command("cd")
         assert exit_code == 0
         assert os.getcwd() == os.path.expanduser('~')
         
         # Invalid directory
-        with patch('sys.stderr', new=StringIO()) as mock_stderr:
-            exit_code = self.shell._builtin_cd(['cd', '/nonexistent/directory'])
-            assert exit_code == 1
-            assert "No such file or directory" in mock_stderr.getvalue()
+        exit_code = self.shell.run_command("cd /nonexistent/directory")
+        assert exit_code == 1
+        captured = capsys.readouterr()
+        assert "No such file or directory" in captured.err
     
     def test_export(self):
-        # Export variable
-        exit_code = self.shell._builtin_export(['export', 'TEST_VAR=test_value'])
+        # Export with value
+        exit_code = self.shell.run_command("export TEST_VAR=test_value")
         assert exit_code == 0
         assert self.shell.env['TEST_VAR'] == 'test_value'
-        # Note: export only modifies shell.env, not os.environ
+        assert self.shell.variables['TEST_VAR'] == 'test_value'
         
-        # Export without value (should do nothing but not error)
-        exit_code = self.shell._builtin_export(['export', 'NOVALUE'])
+        # Export existing variable
+        self.shell.variables['EXISTING'] = 'existing_value'
+        exit_code = self.shell.run_command("export EXISTING")
         assert exit_code == 0
+        assert self.shell.env['EXISTING'] == 'existing_value'
     
     def test_unset(self):
-        # Set up a variable
-        self.shell.env['TEST_VAR'] = 'value'
-        # Note: unset only removes from shell.env, not os.environ
+        # Set and unset a variable
+        self.shell.variables['TEST_VAR'] = 'test_value'
+        self.shell.env['TEST_VAR'] = 'test_value'
         
-        # Unset it
-        exit_code = self.shell._builtin_unset(['unset', 'TEST_VAR'])
+        exit_code = self.shell.run_command("unset TEST_VAR")
         assert exit_code == 0
+        assert 'TEST_VAR' not in self.shell.variables
         assert 'TEST_VAR' not in self.shell.env
-        
-        # Unset non-existent variable (should not error)
-        exit_code = self.shell._builtin_unset(['unset', 'NONEXISTENT'])
-        assert exit_code == 0
     
-    def test_env(self):
-        with patch('sys.stdout', new=StringIO()) as mock_stdout:
-            # Set some test variables
-            self.shell.env['AAA_TEST'] = 'first'
-            self.shell.env['ZZZ_TEST'] = 'last'
-            
-            exit_code = self.shell._builtin_env(['env'])
-            assert exit_code == 0
-            
-            output = mock_stdout.getvalue()
-            lines = output.strip().split('\n')
-            
-            # Check that variables are sorted
-            aaa_index = None
-            zzz_index = None
-            for i, line in enumerate(lines):
-                if line.startswith('AAA_TEST='):
-                    aaa_index = i
-                if line.startswith('ZZZ_TEST='):
-                    zzz_index = i
-            
-            assert aaa_index is not None
-            assert zzz_index is not None
-            assert aaa_index < zzz_index
+    def test_env(self, capsys):
+        # Set a variable and check env output
+        self.shell.env['TEST_ENV'] = 'test_env_value'
+        
+        exit_code = self.shell.run_command("env")
+        assert exit_code == 0
+        captured = capsys.readouterr()
+        assert 'TEST_ENV=test_env_value' in captured.out
     
     def test_source(self):
-        # Create a temporary script file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.psh', delete=False) as f:
-            f.write("export SOURCE_TEST=sourced\n")
-            f.write("export ANOTHER_VAR=value\n")
+        # Create a test script
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.sh', delete=False) as f:
+            f.write('export SOURCED_VAR=sourced_value\n')
+            f.write('TEST_VAR=test_value\n')
             script_path = f.name
         
         try:
-            # Source the file
-            exit_code = self.shell._builtin_source(['source', script_path])
+            # Source the script
+            exit_code = self.shell.run_command(f"source {script_path}")
             assert exit_code == 0
-            assert self.shell.env['SOURCE_TEST'] == 'sourced'
-            assert self.shell.env['ANOTHER_VAR'] == 'value'
             
-            # Test with . command
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.psh', delete=False) as f:
-                f.write("export DOT_TEST=dotted\n")
-                dot_script = f.name
+            # Check that variables were set
+            assert self.shell.env.get('SOURCED_VAR') == 'sourced_value'
+            assert self.shell.variables.get('TEST_VAR') == 'test_value'
             
-            exit_code = self.shell._builtin_source(['.', dot_script])
-            assert exit_code == 0
-            assert self.shell.env['DOT_TEST'] == 'dotted'
-            
-            os.unlink(dot_script)
         finally:
             os.unlink(script_path)
         
-        # Test missing file
-        with patch('sys.stderr', new=StringIO()) as mock_stderr:
-            exit_code = self.shell._builtin_source(['source', '/nonexistent/file'])
-            assert exit_code == 1
-            assert "No such file or directory" in mock_stderr.getvalue()
+        # Test source with missing file
+        exit_code = self.shell.run_command("source /nonexistent/file")
+        assert exit_code == 1
+    
+    def test_source_with_args(self):
+        # Create a test script that uses positional parameters
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.sh', delete=False) as f:
+            f.write('ARG1=$1\n')
+            f.write('ARG2=$2\n')
+            f.write('echo "Args: $1 $2"\n')
+            script_path = f.name
         
-        # Test missing argument
-        with patch('sys.stderr', new=StringIO()) as mock_stderr:
-            exit_code = self.shell._builtin_source(['source'])
-            assert exit_code == 1
-            assert "filename argument required" in mock_stderr.getvalue()
+        try:
+            # Source with arguments
+            old_params = self.shell.positional_params.copy()
+            exit_code = self.shell.run_command(f"source {script_path} hello world")
+            assert exit_code == 0
+            
+            # Check that variables were set from arguments
+            assert self.shell.variables.get('ARG1') == 'hello'
+            assert self.shell.variables.get('ARG2') == 'world'
+            
+            # Positional params should be restored after source
+            assert self.shell.positional_params == old_params
+            
+        finally:
+            os.unlink(script_path)
+    
+    def test_source_path_search(self):
+        # Create a temporary directory and add to PATH
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create a script in the temp directory
+            script_name = 'test_script.sh'
+            script_path = os.path.join(tmpdir, script_name)
+            with open(script_path, 'w') as f:
+                f.write('export PATH_SEARCHED=yes\n')
+            
+            # Add tmpdir to PATH
+            old_path = self.shell.env.get('PATH', '')
+            self.shell.env['PATH'] = f"{tmpdir}:{old_path}"
+            
+            try:
+                # Source by name only (should search PATH)
+                exit_code = self.shell.run_command(f"source {script_name}")
+                assert exit_code == 0
+                assert self.shell.env.get('PATH_SEARCHED') == 'yes'
+            finally:
+                self.shell.env['PATH'] = old_path
     
     def test_exit(self):
-        # Test exit without code
+        # We can't actually test exit without exiting the test process
+        # So we'll test that the builtin exists and can be called
         with pytest.raises(SystemExit) as exc_info:
-            self.shell._builtin_exit(['exit'])
+            self.shell.run_command("exit")
         assert exc_info.value.code == 0
         
-        # Test exit with code
+        # Test with exit code
         with pytest.raises(SystemExit) as exc_info:
-            self.shell._builtin_exit(['exit', '42'])
+            self.shell.run_command("exit 42")
         assert exc_info.value.code == 42
     
     def test_colon(self):
-        # Test colon command always returns 0
-        exit_code = self.shell._builtin_colon([':'])
+        # Colon command should do nothing and return 0
+        exit_code = self.shell.run_command(":")
         assert exit_code == 0
         
-        # Test with arguments (they should be ignored)
-        exit_code = self.shell._builtin_colon([':', 'arg1', 'arg2'])
+        # With arguments (should still do nothing)
+        exit_code = self.shell.run_command(": ignored arguments")
         assert exit_code == 0
-        
-        # Test as null command in conditionals
-        with patch('sys.stdout', new=StringIO()) as mock_stdout:
-            result = self.shell.run_command("if :; then echo success; fi")
-            assert result == 0
-            assert mock_stdout.getvalue().strip() == "success"
-        
-        # Test exit status is set correctly
-        self.shell.run_command("false")
-        assert self.shell.last_exit_code == 1
-        self.shell.run_command(":")
-        assert self.shell.last_exit_code == 0

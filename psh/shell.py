@@ -17,23 +17,19 @@ from .functions import FunctionManager
 from .job_control import JobManager, JobState
 from .builtins import registry as builtin_registry
 
-
 class FunctionReturn(Exception):
     """Exception used to implement return from functions."""
     def __init__(self, exit_code):
         self.exit_code = exit_code
         super().__init__()
 
-
 class LoopBreak(Exception):
     """Exception used to implement break statement."""
     pass
 
-
 class LoopContinue(Exception):
     """Exception used to implement continue statement."""
     pass
-
 
 class Shell:
     def __init__(self, args=None, script_name=None, debug_ast=False, debug_tokens=False):
@@ -63,18 +59,18 @@ class Shell:
             # 'true': handled by registry
             # 'false': handled by registry
             # ':': handled by registry
+            # 'env': handled by registry
+            # 'export': handled by registry
+            # 'set': handled by registry
+            # 'unset': handled by registry
+            # 'history': handled by registry
+            # 'version': handled by registry
+            # 'alias': handled by registry
+            # 'unalias': handled by registry
             
             # These still need migration:
-            'export': self._builtin_export,
-            'env': self._builtin_env,
-            'unset': self._builtin_unset,
             'source': self._builtin_source,
             '.': self._builtin_source,
-            'history': self._builtin_history,
-            'set': self._builtin_set,
-            'version': self._builtin_version,
-            'alias': self._builtin_alias,
-            'unalias': self._builtin_unalias,
             'declare': self._builtin_declare,
             'return': self._builtin_return,
             'jobs': self._builtin_jobs,
@@ -1438,107 +1434,6 @@ class Shell:
         self._save_history()
     
     # Built-in commands
-    def _builtin_exit(self, args):
-        # Save history before exiting
-        self._save_history()
-        
-        if len(args) > 1:
-            try:
-                exit_code = int(args[1])
-            except ValueError:
-                print(f"exit: {args[1]}: numeric argument required", file=sys.stderr)
-                exit_code = 2
-        else:
-            exit_code = 0
-        sys.exit(exit_code)
-    
-    def _builtin_cd(self, args):
-        if len(args) > 1:
-            path = args[1]
-        else:
-            path = os.environ.get('HOME', '/')
-        
-        try:
-            os.chdir(path)
-            return 0
-        except FileNotFoundError:
-            print(f"cd: {path}: No such file or directory", file=sys.stderr)
-            return 1
-        except NotADirectoryError:
-            print(f"cd: {path}: Not a directory", file=sys.stderr)
-            return 1
-        except PermissionError:
-            print(f"cd: {path}: Permission denied", file=sys.stderr)
-            return 1
-        except Exception as e:
-            print(f"cd: {e}", file=sys.stderr)
-            return 1
-    
-    def _builtin_export(self, args):
-        if len(args) == 1:
-            # No arguments, print all exported variables
-            for key, value in sorted(self.env.items()):
-                print(f'export {key}="{value}"')
-        else:
-            for arg in args[1:]:
-                if '=' in arg:
-                    # Variable assignment
-                    key, value = arg.split('=', 1)
-                    self.env[key] = value
-                    self.variables[key] = value
-                else:
-                    # Export existing variable
-                    if arg in self.variables:
-                        self.env[arg] = self.variables[arg]
-        return 0
-    
-    def _builtin_pwd(self, args):
-        print(os.getcwd())
-        return 0
-    
-    def _builtin_echo(self, args):
-        # Simple echo implementation
-        if len(args) > 1:
-            print(' '.join(args[1:]))
-        else:
-            print()
-        return 0
-    
-    def _builtin_env(self, args):
-        if len(args) == 1:
-            # No arguments, print all environment variables
-            for key, value in sorted(self.env.items()):
-                print(f"{key}={value}")
-        else:
-            # Run command with modified environment (simplified)
-            # For now, just print error
-            print("env: running commands not yet implemented", file=sys.stderr)
-            return 1
-        return 0
-    
-    def _builtin_unset(self, args):
-        if len(args) < 2:
-            print("unset: not enough arguments", file=sys.stderr)
-            return 1
-        
-        # Check for -f flag
-        if '-f' in args:
-            # Remove functions
-            exit_code = 0
-            for arg in args[1:]:
-                if arg != '-f':
-                    if not self.function_manager.undefine_function(arg):
-                        print(f"unset: {arg}: not a function", file=sys.stderr)
-                        exit_code = 1
-            return exit_code
-        else:
-            # Remove variables
-            for var in args[1:]:
-                # Remove from both shell variables and environment
-                self.variables.pop(var, None)
-                self.env.pop(var, None)
-            return 0
-    
     def _builtin_source(self, args):
         """Enhanced source builtin with PATH search and argument support."""
         if len(args) < 2:
@@ -1712,169 +1607,6 @@ class Shell:
         except Exception as e:
             print(f"psh: {interpreter}: {e}", file=sys.stderr)
             return 1
-    
-    def _builtin_history(self, args):
-        # Simple history implementation
-        if len(args) > 1:
-            try:
-                count = int(args[1])
-                start = max(0, len(self.history) - count)
-                history_slice = self.history[start:]
-            except ValueError:
-                print(f"history: {args[1]}: numeric argument required", file=sys.stderr)
-                return 1
-        else:
-            # Default to showing last 10 commands (bash behavior)
-            count = 10
-            start = max(0, len(self.history) - count)
-            history_slice = self.history[start:]
-        
-        # Print with line numbers
-        start_num = len(self.history) - len(history_slice) + 1
-        for i, cmd in enumerate(history_slice):
-            print(f"{start_num + i:5d}  {cmd}")
-        return 0
-    
-    def _builtin_set(self, args):
-        if len(args) == 1:
-            # No arguments, display all variables
-            # Show shell variables
-            for var, value in sorted(self.variables.items()):
-                print(f"{var}={value}")
-            # Also show set options
-            print(f"edit_mode={self.edit_mode}")
-        elif len(args) >= 3 and args[1] == '-o':
-            # Set option: set -o vi or set -o emacs
-            option = args[2].lower()
-            if option in ('vi', 'emacs'):
-                self.edit_mode = option
-                print(f"Edit mode set to {option}")
-            else:
-                print(f"psh: set: invalid option: {option}", file=sys.stderr)
-                print("Valid options: vi, emacs", file=sys.stderr)
-                return 1
-        elif args[1] == '-o' and len(args) == 2:
-            # Show current options
-            print(f"edit_mode {self.edit_mode}")
-        elif args[1] == '+o' and len(args) >= 3:
-            # Unset option (for compatibility, we just set to emacs)
-            option = args[2].lower()
-            if option == 'vi':
-                self.edit_mode = 'emacs'
-                print("Edit mode set to emacs")
-        else:
-            # Set positional parameters
-            self.positional_params = args[1:]
-        return 0
-    
-    def _builtin_version(self, args):
-        """Display version information"""
-        if len(args) > 1 and args[1] == '--short':
-            # Just print version number
-            from .version import __version__
-            print(__version__)
-        else:
-            # Full version info
-            print(get_version_info())
-        return 0
-    
-    def _builtin_alias(self, args):
-        """Define or display aliases"""
-        if len(args) == 1:
-            # No arguments - list all aliases
-            for name, value in sorted(self.alias_manager.list_aliases()):
-                # Escape single quotes in value for display
-                escaped_value = value.replace("'", "'\"'\"'")
-                print(f"alias {name}='{escaped_value}'")
-            return 0
-        
-        exit_code = 0
-        
-        # Process each argument
-        i = 1
-        while i < len(args):
-            arg = args[i]
-            
-            if '=' in arg:
-                # This looks like an assignment
-                equals_pos = arg.index('=')
-                name = arg[:equals_pos]
-                value_start = arg[equals_pos + 1:]
-                
-                # Check if value starts with a quote
-                if value_start and value_start[0] in ("'", '"'):
-                    quote_char = value_start[0]
-                    # Need to find the closing quote, which might be in later args
-                    value_parts = [value_start[1:]]  # Remove opening quote
-                    
-                    # Look for closing quote
-                    found_close = False
-                    j = i
-                    
-                    # Check if closing quote is in the same arg
-                    if value_start[1:].endswith(quote_char):
-                        value = value_start[1:-1]
-                        found_close = True
-                    else:
-                        # Look in subsequent args
-                        j = i + 1
-                        while j < len(args):
-                            if args[j].endswith(quote_char):
-                                value_parts.append(args[j][:-1])  # Remove closing quote
-                                found_close = True
-                                break
-                            else:
-                                value_parts.append(args[j])
-                            j += 1
-                        
-                        if found_close:
-                            value = ' '.join(value_parts)
-                            i = j  # Skip the args we consumed
-                        else:
-                            # No closing quote found
-                            value = value_start
-                else:
-                    # No quotes, just use the value as is
-                    value = value_start
-                
-                try:
-                    self.alias_manager.define_alias(name, value)
-                except ValueError as e:
-                    print(f"psh: alias: {e}", file=sys.stderr)
-                    exit_code = 1
-            else:
-                # Show specific alias
-                value = self.alias_manager.get_alias(arg)
-                if value is not None:
-                    # Escape single quotes in value for display
-                    escaped_value = value.replace("'", "'\"'\"'")
-                    print(f"alias {arg}='{escaped_value}'")
-                else:
-                    print(f"psh: alias: {arg}: not found", file=sys.stderr)
-                    exit_code = 1
-            
-            i += 1
-        
-        return exit_code
-    
-    def _builtin_unalias(self, args):
-        """Remove aliases"""
-        if len(args) == 1:
-            print("unalias: usage: unalias [-a] name [name ...]", file=sys.stderr)
-            return 1
-        
-        if args[1] == '-a':
-            # Remove all aliases
-            self.alias_manager.clear_aliases()
-            return 0
-        
-        exit_code = 0
-        for name in args[1:]:
-            if not self.alias_manager.undefine_alias(name):
-                print(f"psh: unalias: {name}: not found", file=sys.stderr)
-                exit_code = 1
-        
-        return exit_code
     
     def _builtin_declare(self, args):
         """Declare variables and functions."""
@@ -2203,18 +1935,6 @@ class Shell:
         
         # More complex expressions not implemented yet
         return 2
-    
-    def _builtin_true(self, args):
-        """Always return success (exit code 0)."""
-        return 0
-    
-    def _builtin_false(self, args):
-        """Always return failure (exit code 1)."""
-        return 1
-    
-    def _builtin_colon(self, args):
-        """Null command - does nothing and returns success (exit code 0)."""
-        return 0
     
     def _collect_heredocs(self, node):
         """Collect here document content for all commands in a node"""
