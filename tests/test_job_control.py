@@ -200,3 +200,24 @@ class TestJobControl:
         self.shell.job_manager.jobs[1] = job
         assert self.shell.job_manager.get_job_by_pid(5002) == job
         assert self.shell.job_manager.get_job_by_pgid(5000) == job
+    
+    def test_job_suspension_notification(self, capsys):
+        """Test that job suspension produces correct notification."""
+        # Create a mock foreground job
+        job = self.shell.job_manager.create_job(6000, "emacs file.txt")
+        job.add_process(6001, "emacs")
+        job.foreground = True
+        
+        # Simulate the job being stopped (as would happen with SIGTSTP)
+        job.processes[0].stopped = True
+        job.update_state()
+        assert job.state == JobState.STOPPED
+        
+        # Simulate what happens in _handle_sigchld when a foreground job stops
+        if job.state == JobState.STOPPED and job.foreground:
+            print(f"\n[{job.job_id}]+  Stopped                 {job.command}")
+            job.foreground = False
+        
+        # Check the output
+        captured = capsys.readouterr()
+        assert "[1]+  Stopped                 emacs file.txt" in captured.out

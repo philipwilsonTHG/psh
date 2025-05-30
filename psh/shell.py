@@ -1622,12 +1622,15 @@ class Shell:
                     # Check if entire job is stopped
                     if job.state == JobState.STOPPED and job.foreground:
                         # Stopped foreground job
+                        # Format similar to bash - stopped jobs are marked with +
                         print(f"\n[{job.job_id}]+  Stopped                 {job.command}")
+                        
                         # Return control to shell
                         try:
                             os.tcsetpgrp(0, os.getpgrp())
                         except OSError:
                             pass
+                        
                         self.job_manager.set_foreground_job(None)
                         job.foreground = False
             except OSError:
