@@ -100,7 +100,7 @@ Features ordered by implementation status and complexity.
 - [x] `case`/`esac` statements - ✅ Pattern matching with wildcards, character classes, and fallthrough control (v0.17.0)
 - [ ] `for` loops (C-style) - Arithmetic-based iteration `for ((i=0; i<10; i++))`
 
-#### Missing Core Commands
+#### Core Commands (All Implemented)
 - [x] **Colon Command (`:`)** - ✅ Null command for empty statements, always returns exit status 0 (v0.17.3)
 - [x] **Dot Command (`.`)** - ✅ Synonym for `source` builtin (already implemented as `source`)
 
@@ -152,12 +152,12 @@ Features ordered by implementation status and complexity.
 
 ### Immediate Next Features (Recommended Order)
 
-1. **Arithmetic Expansion** - `$((...))` - Essential for C-style for loops and complex conditionals
-2. **C-style For Loops** - `for ((i=0; i<10; i++))` - Arithmetic-based iteration (requires arithmetic expansion)
-3. **Colon Command** - `:` - Null command for empty statements and command placeholders
-4. **AST Architecture Improvements** - Support for nested control structures and mixed statement types
-5. **Local Variables** - `local` builtin for function scope
-6. **Set Options** - `-e`, `-u`, `-x` for better script debugging
+1. **C-style For Loops** - `for ((i=0; i<10; i++))` - Arithmetic-based iteration (leverages v0.18.0 arithmetic expansion)
+2. **Local Variables** - `local` builtin for function scope
+3. **Set Options** - `-e`, `-u`, `-x` for better script debugging
+4. **Read Builtin** - Essential for user input and file processing
+5. **Enhanced Parameter Expansion** - `${#var}`, `${var#pattern}`, `${var%pattern}`, etc.
+6. **Trap Command** - Signal handling for cleanup and error management
 
 ### Recent Major Accomplishments (v0.10.0 - v0.15.0)
 
@@ -331,9 +331,9 @@ Features ordered by implementation status and complexity.
 
 ## 🎯 Current Status Summary
 
-### **Major Milestone: Complete Programming Language with Pattern Matching and Arithmetic (v0.18.0)**
+### **Major Milestone: Complete Programming Language with Modular Architecture (v0.20.0)**
 
-psh has evolved from a basic educational shell into a **complete programming language** with full conditional logic, complete iteration capabilities, sophisticated loop control, and comprehensive pattern matching while maintaining its educational mission. Key achievements:
+psh has evolved from a basic educational shell into a **complete programming language** with full conditional logic, complete iteration capabilities, sophisticated loop control, comprehensive pattern matching, and a clean modular architecture while maintaining its educational mission. Key achievements:
 
 **Programming Language Capabilities:**
 - ✅ Complete control structures: `if/then/else/fi`, `while/do/done`, `for/in/do/done`, `case/esac`
@@ -352,25 +352,27 @@ psh has evolved from a basic educational shell into a **complete programming lan
 - ✅ Production-quality error handling and reporting
 - ✅ Core POSIX commands: colon (:) null command and dot (.) source synonym
 - ✅ Arithmetic expansion: $((...)) with full operator support, variables, and bash compatibility
+- ✅ Modular builtin architecture: All 24 builtins extracted with registry pattern and base class (v0.20.0)
 
 **Development Quality:**
-- ✅ 48 major features implemented and tested
-- ✅ Comprehensive test suite with 402 passing tests, 16 skipped, 1 xfailed
+- ✅ 49 major features implemented and tested
+- ✅ Comprehensive test suite with 422 passing tests, 17 skipped, 1 xfailed
 - ✅ Robust architecture supporting complete control structure suite with pattern matching
+- ✅ Clean modular design: shell.py reduced by 394 lines, builtins organized into logical modules
 - ✅ Educational clarity preserved throughout
-- 🔄 Test suite health: 11 of 16 skipped tests can be fixed/rewritten, 4 await feature implementation
+- 🔄 Test suite health: 11 of 17 skipped tests can be fixed/rewritten, 4 await feature implementation
 
 **Next Phase Focus:**
 C-style for loops `for ((i=0; i<10; i++))` will complete the iteration constructs, leveraging the newly implemented arithmetic expansion for initialization, condition testing, and increment operations.
 
 ### Feature Implementation Stats
-- **🟢 Completed**: 48 major features (Core shell, Advanced features, Interactive features, Programming features, Script execution, Control structures, File test operators, While loops, For loops, Break/continue statements, Case statements, Core POSIX commands, Arithmetic expansion)
+- **🟢 Completed**: 49 major features (Core shell, Advanced features, Interactive features, Programming features, Script execution, Control structures, File test operators, While loops, For loops, Break/continue statements, Case statements, Core POSIX commands, Arithmetic expansion, Modular builtin architecture)
 - **🟡 High Priority**: 1 feature (C-style for loops)
 - **🟡 High Priority**: 1 feature group (Advanced shell options)  
 - **🟠 Medium Priority**: 2 feature groups (Advanced expansions)
 - **🔵 Lower Priority**: 1 feature group (Interactive enhancements)
 
-**Total Progress**: ~94% of planned shell features complete, with **complete arithmetic evaluation** enabling mathematical computations and paving the way for C-style for loops.
+**Total Progress**: ~95% of planned shell features complete, with **modular builtin architecture** providing a clean foundation for future development.
 
 ## 🚨 Known Issues & Limitations
 
@@ -411,7 +413,7 @@ C-style for loops `for ((i=0; i<10; i++))` will complete the iteration construct
 
 ## 📋 Test Suite Skip Status
 
-### Currently Skipped Tests (15 total)
+### Currently Skipped Tests (17 total)
 Analysis of skipped tests reveals they fall into several categories:
 
 #### Tests that CAN be unskipped or rewritten (11 tests):
