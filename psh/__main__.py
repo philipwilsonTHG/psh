@@ -9,16 +9,21 @@ def main():
     """Main entry point for psh command."""
     # Check for debug flags first
     debug_ast = False
+    debug_tokens = False
     args = sys.argv[1:]
     
     # Extract debug flags
     if "--debug-ast" in args:
         debug_ast = True
         args.remove("--debug-ast")
-        # Update sys.argv to remove the flag
-        sys.argv = [sys.argv[0]] + args
+    if "--debug-tokens" in args:
+        debug_tokens = True
+        args.remove("--debug-tokens")
     
-    shell = Shell(debug_ast=debug_ast)
+    # Update sys.argv to remove the flags
+    sys.argv = [sys.argv[0]] + args
+    
+    shell = Shell(debug_ast=debug_ast, debug_tokens=debug_tokens)
     
     if len(sys.argv) > 1:
         if sys.argv[1] == "-c" and len(sys.argv) > 2:
@@ -43,6 +48,7 @@ def main():
             print("  -h, --help       Show this help message and exit")
             print("  -V, --version    Show version information and exit")
             print("  --debug-ast      Print AST before execution (debugging)")
+            print("  --debug-tokens   Print tokens before parsing (debugging)")
             print("\nArguments:")
             print("  script           Script file to execute")
             print("  args             Arguments passed to script or command")

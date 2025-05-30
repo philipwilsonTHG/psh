@@ -35,13 +35,14 @@ class LoopContinue(Exception):
 
 
 class Shell:
-    def __init__(self, args=None, script_name=None, debug_ast=False):
+    def __init__(self, args=None, script_name=None, debug_ast=False, debug_tokens=False):
         self.env = os.environ.copy()
         self.variables = {}  # Shell variables (not exported to environment)
         self.positional_params = args if args else []  # $1, $2, etc.
         self.script_name = script_name or "psh"  # $0 value
         self.is_script_mode = script_name is not None and script_name != "psh"
         self.debug_ast = debug_ast  # Whether to print AST before execution
+        self.debug_tokens = debug_tokens  # Whether to print tokens before parsing
         self.builtins = {
             'exit': self._builtin_exit,
             'cd': self._builtin_cd,
@@ -285,7 +286,7 @@ class Shell:
         
         try:
             # Create a temporary shell to execute the command with output redirected
-            temp_shell = Shell(debug_ast=self.debug_ast)
+            temp_shell = Shell(debug_ast=self.debug_ast, debug_tokens=self.debug_tokens)
             temp_shell.env = self.env.copy()
             temp_shell.variables = self.variables.copy()
             
@@ -1287,6 +1288,13 @@ class Shell:
         
         try:
             tokens = tokenize(command_string)
+            
+            # Debug: Print tokens if requested
+            if self.debug_tokens:
+                print("=== Token Debug Output ===", file=sys.stderr)
+                print(self._format_tokens(tokens), file=sys.stderr)
+                print("========================", file=sys.stderr)
+            
             # Expand aliases
             tokens = self.alias_manager.expand_aliases(tokens)
             ast = parse(tokens)
@@ -2490,3 +2498,17 @@ class Shell:
         
         else:
             return f"{spaces}{type(node).__name__}: {repr(node)}\n"
+    
+    def _format_tokens(self, tokens):
+        """Format token list for debugging output."""
+        from .tokenizer import Token
+        
+        result = []
+        for i, token in enumerate(tokens):
+            if isinstance(token, Token):
+                result.append(f"  [{i:3d}] {token.type.name:20s} '{token.value}'")
+            else:
+                # Handle legacy token format if any
+                result.append(f"  [{i:3d}] {str(token)}")
+        
+        return "\n".join(result)

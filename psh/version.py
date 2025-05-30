@@ -2,10 +2,19 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.19.1"
+__version__ = "0.19.2"
 
 # Version history
 VERSION_HISTORY = """
+0.19.2 (2025-01-07) - Token debugging support
+  - Added --debug-tokens command-line flag for debugging tokenization
+  - Prints token list with type and value before parsing
+  - Shows token index, type name, and value in formatted output
+  - Works with --debug-ast flag to show both tokens and AST
+  - Preserves debug flags in sub-shells for command substitution
+  - Useful for understanding tokenizer behavior and troubleshooting lexical issues
+  - Token types shown include: WORD, STRING, VARIABLE, PIPE, REDIRECT_*, keywords, etc.
+
 0.19.1 (2025-01-07) - AST debugging support
   - Added --debug-ast command-line flag for debugging parsed commands
   - Prints hierarchical AST structure to stderr before execution
