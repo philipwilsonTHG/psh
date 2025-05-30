@@ -359,30 +359,45 @@ class Shell:
         if not args or '=' not in args[0] or args[0].startswith('='):
             return -1
         
-        # This is a variable assignment
-        var_name, var_value = args[0].split('=', 1)
-        if len(args) == 1:
-            # Pure assignment, no command
-            # Expand variables in the value first
-            if '$' in var_value:
-                var_value = self._expand_string_variables(var_value)
-            
-            # Expand arithmetic expansion in the value
-            if '$((' in var_value and '))' in var_value:
-                # Find and expand all arithmetic expansions
-                import re
-                def expand_arith(match):
-                    return str(self._execute_arithmetic_expansion(match.group(0)))
-                var_value = re.sub(r'\$\(\([^)]+\)\)', expand_arith, var_value)
-            
-            # Expand tilde in the value
-            if var_value.startswith('~'):
-                var_value = self._expand_tilde(var_value)
-            self.variables[var_name] = var_value
+        # Check if all leading arguments are variable assignments
+        assignments = []
+        command_start = 0
+        
+        for i, arg in enumerate(args):
+            if '=' in arg and not arg.startswith('='):
+                # This looks like a variable assignment
+                assignments.append(arg)
+                command_start = i + 1
+            else:
+                # Not an assignment, this is where the command starts
+                break
+        
+        if not assignments:
+            return -1
+        
+        if command_start >= len(args):
+            # Only assignments, no command
+            for assignment in assignments:
+                var_name, var_value = assignment.split('=', 1)
+                # Expand variables in the value first
+                if '$' in var_value:
+                    var_value = self._expand_string_variables(var_value)
+                
+                # Expand arithmetic expansion in the value
+                if '$((' in var_value and '))' in var_value:
+                    # Find and expand all arithmetic expansions
+                    import re
+                    def expand_arith(match):
+                        return str(self._execute_arithmetic_expansion(match.group(0)))
+                    var_value = re.sub(r'\$\(\([^)]+\)\)', expand_arith, var_value)
+                
+                # Expand tilde in the value
+                if var_value.startswith('~'):
+                    var_value = self._expand_tilde(var_value)
+                self.variables[var_name] = var_value
             return 0
         else:
-            # Assignment followed by command - set temporarily
-            # This is more complex, skip for now
+            # Assignments followed by command - not handled here
             return -1
     
     def _setup_builtin_redirections(self, command: Command):
@@ -573,25 +588,92 @@ class Shell:
         if not args:
             return 0
         
-        # Check for variable assignments
-        assignment_result = self._handle_variable_assignment(args)
-        if assignment_result != -1:
-            return assignment_result
+        # Separate variable assignments from command
+        assignments = []
+        command_args = []
+        in_command = False
         
-        # Check for function call BEFORE builtin check
-        func = self.function_manager.get_function(args[0])
-        if func:
-            return self._execute_function(func, args, command)
+        for arg in args:
+            if not in_command and '=' in arg and not arg.startswith('='):
+                # This is a variable assignment
+                assignments.append(arg)
+            else:
+                # This is part of the command
+                in_command = True
+                command_args.append(arg)
         
-        # Check if it's a builtin (new registry or old dict)
-        if self.builtin_registry.has(args[0]) or args[0] in self.builtins:
-            try:
-                return self._execute_builtin(args, command)
-            except FunctionReturn:
-                # Re-raise to propagate up to function execution
-                raise
-        else:
-            return self._execute_external(args, command)
+        # If only assignments, handle them
+        if not command_args:
+            for assignment in assignments:
+                var_name, var_value = assignment.split('=', 1)
+                # Expand variables in the value first
+                if '$' in var_value:
+                    var_value = self._expand_string_variables(var_value)
+                
+                # Expand arithmetic expansion in the value
+                if '$((' in var_value and '))' in var_value:
+                    # Find and expand all arithmetic expansions
+                    import re
+                    def expand_arith(match):
+                        return str(self._execute_arithmetic_expansion(match.group(0)))
+                    var_value = re.sub(r'\$\(\([^)]+\)\)', expand_arith, var_value)
+                
+                # Expand tilde in the value
+                if var_value.startswith('~'):
+                    var_value = self._expand_tilde(var_value)
+                self.variables[var_name] = var_value
+            return 0
+        
+        # Save current values of variables that will be assigned
+        saved_vars = {}
+        for assignment in assignments:
+            var_name = assignment.split('=', 1)[0]
+            if var_name in self.variables:
+                saved_vars[var_name] = self.variables[var_name]
+            else:
+                saved_vars[var_name] = None
+        
+        # Apply temporary assignments
+        temp_env_vars = {}
+        for assignment in assignments:
+            var_name, var_value = assignment.split('=', 1)
+            # Expand variables in the value
+            if '$' in var_value:
+                var_value = self._expand_string_variables(var_value)
+            # Expand arithmetic expansion
+            if '$((' in var_value and '))' in var_value:
+                import re
+                def expand_arith(match):
+                    return str(self._execute_arithmetic_expansion(match.group(0)))
+                var_value = re.sub(r'\$\(\([^)]+\)\)', expand_arith, var_value)
+            # Expand tilde
+            if var_value.startswith('~'):
+                var_value = self._expand_tilde(var_value)
+            self.variables[var_name] = var_value
+            # Also temporarily set in environment for external commands
+            temp_env_vars[var_name] = var_value
+        
+        # Execute the command with temporary variables
+        try:
+            # Check for function call BEFORE builtin check
+            func = self.function_manager.get_function(command_args[0])
+            if func:
+                result = self._execute_function(func, command_args, command)
+            elif self.builtin_registry.has(command_args[0]) or command_args[0] in self.builtins:
+                # Execute builtin with command_args instead of args
+                result = self._execute_builtin(command_args, command)
+            else:
+                # External command
+                result = self._execute_external(command_args, command)
+        finally:
+            # Restore original variable values
+            for var_name, original_value in saved_vars.items():
+                if original_value is None:
+                    self.variables.pop(var_name, None)
+                else:
+                    self.variables[var_name] = original_value
+        
+        return result
     
     def _setup_child_process(self, pgid, command_index, num_commands, pipes):
         """Set up a child process in a pipeline"""

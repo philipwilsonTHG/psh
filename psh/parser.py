@@ -210,11 +210,18 @@ class Parser:
     def parse_command(self) -> Command:
         command = Command()
         
-        # A command must have at least one word
+        # Check if we have at least one word-like token
         if not self.match(TokenType.WORD, TokenType.STRING, TokenType.VARIABLE,
                          TokenType.COMMAND_SUB, TokenType.COMMAND_SUB_BACKTICK,
                          TokenType.ARITH_EXPANSION):
             raise ParseError("Expected command", self.peek())
+        
+        # Peek at the first token to check if it's a variable assignment
+        first_token = self.peek()
+        if first_token.type == TokenType.WORD and '=' in first_token.value and not first_token.value.startswith('='):
+            # This looks like a variable assignment
+            # Parse it as a command anyway - the shell will handle it
+            pass
         
         # Parse command arguments and redirections
         while self.match(TokenType.WORD, TokenType.STRING, TokenType.VARIABLE,
