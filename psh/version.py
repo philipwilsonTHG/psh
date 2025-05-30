@@ -2,10 +2,20 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.20.0"
+__version__ = "0.20.1"
 
 # Version history
 VERSION_HISTORY = """
+0.20.1 (2025-01-30) - Read builtin implementation
+  - Added read builtin with core POSIX functionality
+  - Supports reading into variables with IFS-based field splitting
+  - Raw mode (-r) preserves backslashes without escape processing
+  - Handles escape sequences (\n, \t, \\, etc.) and line continuation
+  - Proper handling of single vs multiple variable assignments
+  - Default to REPLY variable when no variable names specified
+  - Comprehensive test suite with 17 tests covering all features
+  - Documentation and examples for future enhancements
+
 0.20.0 (2025-01-30) - Modular builtin architecture
   - Complete refactoring of all 24 builtins into modular architecture
   - Created abstract base class Builtin for consistent interface
