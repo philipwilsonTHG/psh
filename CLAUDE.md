@@ -50,7 +50,7 @@ pipeline     → command ('|' command)*
 
 # Commands and arguments
 command      → word+ redirect* ['&']
-word         → WORD | STRING | VARIABLE | COMMAND_SUB | COMMAND_SUB_BACKTICK | ARITH_EXPANSION
+word         → WORD | STRING | VARIABLE | COMMAND_SUB | COMMAND_SUB_BACKTICK | ARITH_EXPANSION | PROCESS_SUB_IN | PROCESS_SUB_OUT
 word_list    → word+
 
 # Redirections
@@ -64,6 +64,8 @@ target       → word
 COMMAND_SUB         → '$(' command_list ')'
 COMMAND_SUB_BACKTICK → '`' command_list '`'
 ARITH_EXPANSION     → '$((' arithmetic_expr '))'
+PROCESS_SUB_IN      → '<(' command_list ')'
+PROCESS_SUB_OUT     → '>(' command_list ')'
 VARIABLE            → '$' (NAME | '{' NAME '}' | SPECIAL_VAR)
 SPECIAL_VAR         → '?' | '$' | '!' | '#' | '@' | '*' | [0-9]+
 STRING              → '"' (CHAR | VARIABLE | COMMAND_SUB | ARITH_EXPANSION)* '"'
@@ -153,15 +155,16 @@ Implemented:
 - Multi-line command support with line continuation (\)
 - Nested control structures to arbitrary depth
 - Command substitution in for loop iterables
+- Brace expansion: Complete {a,b,c} list and {1..10} sequence expansion
+- Process substitution: <(...) for readable and >(...) for writable file descriptors
 
 Not implemented:
 - C-style for loops (for ((i=0; i<10; i++)))
-- Advanced expansions (brace expansion, advanced parameter expansion beyond ${var:-default})
+- Advanced parameter expansion beyond ${var:-default} (${var#pattern}, ${var%pattern}, etc.)
 - Local variables in functions (local builtin)
 - Advanced shell options (set -e, -u, -x, -o pipefail)
 - Trap command for signal handling
-- Read builtin
+- Advanced read builtin features (-p prompt, -s silent, -t timeout, -n chars, -d delimiter)
 - Escaped glob patterns
-- Process substitution (<(...), >(...))
 - Array variables
 - Select statement

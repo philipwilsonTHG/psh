@@ -53,6 +53,7 @@ Features ordered by implementation status and complexity.
 36. **Arithmetic Expansion** - $((...)) with full bash-compatible arithmetic evaluation (v0.18.0)
 37. **Read Builtin** - Core POSIX functionality with IFS field splitting, raw mode, escape processing (v0.20.1)
 38. **Brace Expansion** - Complete bash-style {a,b,c} list and {1..10} sequence expansion (v0.21.0-v0.22.0)
+39. **Process Substitution** - <(...) and >(...) for treating command output as files (v0.24.0)
 
 ## 🚧 Remaining Features
 
@@ -141,7 +142,6 @@ Features ordered by implementation status and complexity.
   - [ ] `${var%%pattern}` - Remove longest suffix
   - [ ] `${var/pattern/replacement}` - Pattern substitution
   - [ ] `${#var}` - String length
-- [ ] Process substitution (`<(...)`, `>(...)`)
 
 ### Lower Priority Features
 
@@ -322,6 +322,19 @@ Features ordered by implementation status and complexity.
 
 **Impact**: Complete brace expansion implementation enables powerful iteration patterns in shell commands. Users can now generate file sequences (backup{001..100}.tar), create test data (test_{a..z}.txt), and perform bulk operations with minimal typing. The implementation demonstrates clean subsystem design with clear separation between list and sequence expansion logic.
 
+#### ✅ Process Substitution Implementation (v0.24.0)
+- **Complete <(...) and >(...) syntax** for treating command output as files
+- **PROCESS_SUB_IN and PROCESS_SUB_OUT tokens** with proper parenthesis balancing in tokenizer
+- **ProcessSubstitution AST node** cleanly integrates with existing word and redirect parsing
+- **Pipe-based execution** creates readable/writable file descriptors accessible via /dev/fd/N
+- **Support in multiple contexts**: command arguments, redirect targets, pipelines
+- **Robust process management**: proper cleanup, signal handling, and zombie prevention
+- **Educational demo script** showing low-level mechanics of process substitution
+- **15 comprehensive tests** covering basic usage, multiple substitutions, error cases
+- **Common use cases enabled**: diff <(ls dir1) <(ls dir2), tee >(log1) >(log2), paste <(cmd1) <(cmd2)
+
+**Impact**: Process substitution completes the major bash expansion features, enabling sophisticated command composition patterns. Users can now compare command outputs directly, split data streams to multiple processors, and treat any command's output as a file. The implementation leverages existing pipe infrastructure while maintaining clean separation of concerns.
+
 ### Architecture Considerations
 
 #### Lessons from Script Execution Implementation
@@ -392,7 +405,7 @@ Features ordered by implementation status and complexity.
 
 ## 🎯 Current Status Summary
 
-### **Major Milestone: Complete Programming Language with Full Brace Expansion (v0.22.0)**
+### **Major Milestone: Complete Programming Language with Process Substitution (v0.24.0)**
 
 psh has evolved from a basic educational shell into a **complete programming language** with full conditional logic, complete iteration capabilities, sophisticated loop control, comprehensive pattern matching, arithmetic evaluation, user input capabilities, and a clean modular architecture while maintaining its educational mission. Key achievements:
 
@@ -417,10 +430,11 @@ psh has evolved from a basic educational shell into a **complete programming lan
 - ✅ Read builtin: Core POSIX functionality with IFS splitting, raw mode, escape processing (v0.20.1)
 - ✅ Job suspension notifications: Ctrl-Z shows "[job]+  Stopped" message like bash
 - ✅ Brace expansion: Complete implementation with list {a,b,c} and sequence {1..10} expansion (v0.21.0-v0.22.0)
+- ✅ Process substitution: <(...) and >(...) for treating command output as files (v0.24.0)
 
 **Development Quality:**
-- ✅ 52 major features implemented and tested
-- ✅ Comprehensive test suite with 485 passing tests, 18 skipped, 1 xfailed
+- ✅ 53 major features implemented and tested
+- ✅ Comprehensive test suite with 500+ passing tests, 22 skipped, 1 xfailed
 - ✅ Robust architecture supporting complete control structure suite with pattern matching
 - ✅ Clean modular design: shell.py reduced by 394 lines, builtins organized into logical modules
 - ✅ Educational clarity preserved throughout
@@ -430,13 +444,13 @@ psh has evolved from a basic educational shell into a **complete programming lan
 C-style for loops `for ((i=0; i<10; i++))` will complete the iteration constructs, leveraging the newly implemented arithmetic expansion for initialization, condition testing, and increment operations.
 
 ### Feature Implementation Stats
-- **🟢 Completed**: 52 major features (Core shell, Advanced features, Interactive features, Programming features, Script execution, Control structures, File test operators, While loops, For loops, Break/continue statements, Case statements, Core POSIX commands, Arithmetic expansion, Modular builtin architecture, Read builtin, Brace expansion complete)
+- **🟢 Completed**: 53 major features (Core shell, Advanced features, Interactive features, Programming features, Script execution, Control structures, File test operators, While loops, For loops, Break/continue statements, Case statements, Core POSIX commands, Arithmetic expansion, Modular builtin architecture, Read builtin, Brace expansion complete, Process substitution)
 - **🟡 High Priority**: 1 feature (C-style for loops) + enhanced read features
 - **🟡 High Priority**: 1 feature group (Advanced shell options)  
-- **🟠 Medium Priority**: 2 feature groups (Advanced expansions)
+- **🟠 Medium Priority**: 1 feature group (Advanced parameter expansions)
 - **🔵 Lower Priority**: 1 feature group (Interactive enhancements)
 
-**Total Progress**: ~95% of planned shell features complete, with **read builtin and modular architecture** providing essential capabilities for interactive scripts and maintainable code.
+**Total Progress**: ~96% of planned shell features complete, with **process substitution** completing the major bash expansion features and enabling sophisticated command composition patterns.
 
 ## 🚨 Known Issues & Limitations
 
