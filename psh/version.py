@@ -2,10 +2,35 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.23.0"
+__version__ = "0.25.0"
 
 # Version history
 VERSION_HISTORY = """
+0.25.0 (2025-01-31) - RC file support (~/.pshrc)
+  - Added ~/.pshrc file support for automatic shell initialization
+  - RC file loaded only for interactive shells (not scripts or -c commands)
+  - Added --norc flag to skip RC file loading
+  - Added --rcfile FILE to specify alternative RC file location
+  - Security checks prevent loading world-writable or untrusted RC files
+  - RC file errors show warnings but don't prevent shell startup
+  - Proper $0 preservation during RC file execution
+  - Sources RC file in current shell context preserving aliases, functions, variables
+  - Created comprehensive test suite with 10 tests covering all scenarios
+  - Added example .pshrc file with common aliases, functions, and settings
+  - Full documentation in docs/pshrc_implementation_plan.md
+
+0.24.0 (2025-01-30) - Process substitution <(...) and >(...)
+  - Implemented complete process substitution syntax for treating command output as files
+  - Added PROCESS_SUB_IN and PROCESS_SUB_OUT tokens with proper parenthesis balancing
+  - Created ProcessSubstitution AST node integrating with word and redirect parsing
+  - Pipe-based execution creates readable/writable file descriptors via /dev/fd/N
+  - Support in multiple contexts: command arguments, redirect targets, pipelines
+  - Robust process management with proper cleanup and zombie prevention
+  - Common use cases: diff <(ls dir1) <(ls dir2), tee >(log1) >(log2)
+  - Educational demo script showing low-level process substitution mechanics
+  - 15 comprehensive tests covering basic usage, multiple substitutions, error cases
+  - Completes major bash expansion features alongside brace and arithmetic expansion
+
 0.23.0 (2025-01-30) - Control structure redirections and test suite improvements
   - Implemented redirections on control structures (while, for, if, case)
   - Extended AST nodes to support redirects field on all control structures

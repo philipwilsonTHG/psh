@@ -54,6 +54,7 @@ Features ordered by implementation status and complexity.
 37. **Read Builtin** - Core POSIX functionality with IFS field splitting, raw mode, escape processing (v0.20.1)
 38. **Brace Expansion** - Complete bash-style {a,b,c} list and {1..10} sequence expansion (v0.21.0-v0.22.0)
 39. **Process Substitution** - <(...) and >(...) for treating command output as files (v0.24.0)
+40. **RC File Support** - ~/.pshrc automatic initialization for interactive shells (v0.25.0)
 
 ## 🚧 Remaining Features
 
@@ -335,6 +336,21 @@ Features ordered by implementation status and complexity.
 
 **Impact**: Process substitution completes the major bash expansion features, enabling sophisticated command composition patterns. Users can now compare command outputs directly, split data streams to multiple processors, and treat any command's output as a file. The implementation leverages existing pipe infrastructure while maintaining clean separation of concerns.
 
+#### ✅ RC File Support Implementation (v0.25.0)
+- **~/.pshrc automatic loading** for interactive shells with proper isatty() detection
+- **--norc flag** to skip RC file loading for clean environment testing
+- **--rcfile FILE option** to specify alternative initialization file
+- **Security checks** preventing loading of world-writable or untrusted files
+- **Graceful error handling** showing warnings without preventing shell startup
+- **Proper $0 preservation** during RC file execution and restoration after
+- **Full shell context** allowing aliases, functions, exports, and variables
+- **Force interactive mode** for testing with _force_interactive attribute
+- **Comprehensive test suite** with 10 tests covering all scenarios
+- **Example .pshrc file** demonstrating common aliases, functions, and customizations
+- **Complete documentation** in docs/pshrc_implementation_plan.md
+
+**Impact**: RC file support enables users to customize their shell environment with personal aliases, functions, and settings that persist across sessions. The implementation follows bash conventions while maintaining security through permission checks. Users can now create productivity-enhancing shortcuts and maintain consistent environments across different machines by sharing their .pshrc files.
+
 ### Architecture Considerations
 
 #### Lessons from Script Execution Implementation
@@ -405,7 +421,7 @@ Features ordered by implementation status and complexity.
 
 ## 🎯 Current Status Summary
 
-### **Major Milestone: Complete Programming Language with Process Substitution (v0.24.0)**
+### **Major Milestone: Complete Programming Language with RC File Support (v0.25.0)**
 
 psh has evolved from a basic educational shell into a **complete programming language** with full conditional logic, complete iteration capabilities, sophisticated loop control, comprehensive pattern matching, arithmetic evaluation, user input capabilities, and a clean modular architecture while maintaining its educational mission. Key achievements:
 
@@ -431,10 +447,11 @@ psh has evolved from a basic educational shell into a **complete programming lan
 - ✅ Job suspension notifications: Ctrl-Z shows "[job]+  Stopped" message like bash
 - ✅ Brace expansion: Complete implementation with list {a,b,c} and sequence {1..10} expansion (v0.21.0-v0.22.0)
 - ✅ Process substitution: <(...) and >(...) for treating command output as files (v0.24.0)
+- ✅ RC file support: ~/.pshrc automatic initialization with security checks (v0.25.0)
 
 **Development Quality:**
-- ✅ 53 major features implemented and tested
-- ✅ Comprehensive test suite with 500+ passing tests, 22 skipped, 1 xfailed
+- ✅ 54 major features implemented and tested
+- ✅ Comprehensive test suite with 510+ passing tests, 22 skipped, 1 xfailed
 - ✅ Robust architecture supporting complete control structure suite with pattern matching
 - ✅ Clean modular design: shell.py reduced by 394 lines, builtins organized into logical modules
 - ✅ Educational clarity preserved throughout
@@ -444,13 +461,13 @@ psh has evolved from a basic educational shell into a **complete programming lan
 C-style for loops `for ((i=0; i<10; i++))` will complete the iteration constructs, leveraging the newly implemented arithmetic expansion for initialization, condition testing, and increment operations.
 
 ### Feature Implementation Stats
-- **🟢 Completed**: 53 major features (Core shell, Advanced features, Interactive features, Programming features, Script execution, Control structures, File test operators, While loops, For loops, Break/continue statements, Case statements, Core POSIX commands, Arithmetic expansion, Modular builtin architecture, Read builtin, Brace expansion complete, Process substitution)
+- **🟢 Completed**: 54 major features (Core shell, Advanced features, Interactive features, Programming features, Script execution, Control structures, File test operators, While loops, For loops, Break/continue statements, Case statements, Core POSIX commands, Arithmetic expansion, Modular builtin architecture, Read builtin, Brace expansion complete, Process substitution, RC file support)
 - **🟡 High Priority**: 1 feature (C-style for loops) + enhanced read features
 - **🟡 High Priority**: 1 feature group (Advanced shell options)  
 - **🟠 Medium Priority**: 1 feature group (Advanced parameter expansions)
 - **🔵 Lower Priority**: 1 feature group (Interactive enhancements)
 
-**Total Progress**: ~96% of planned shell features complete, with **process substitution** completing the major bash expansion features and enabling sophisticated command composition patterns.
+**Total Progress**: ~97% of planned shell features complete, with **RC file support** enabling persistent user customization and productivity enhancements through automatic shell initialization.
 
 ## 🚨 Known Issues & Limitations
 

@@ -90,6 +90,10 @@ python3 -m psh --debug-ast      # Show parsed AST before execution
 python3 -m psh --debug-tokens    # Show tokenized output before parsing
 python3 -m psh --debug-ast --debug-tokens -c "echo test"  # Both debug modes
 
+# RC file options
+python3 -m psh --norc           # Skip ~/.pshrc loading
+python3 -m psh --rcfile custom_rc  # Use custom RC file instead of ~/.pshrc
+
 # Install psh locally (in development mode)
 pip install -e .
 
@@ -157,6 +161,7 @@ Implemented:
 - Command substitution in for loop iterables
 - Brace expansion: Complete {a,b,c} list and {1..10} sequence expansion
 - Process substitution: <(...) for readable and >(...) for writable file descriptors
+- RC file support: ~/.pshrc automatic initialization with --norc and --rcfile options
 
 Not implemented:
 - C-style for loops (for ((i=0; i<10; i++)))

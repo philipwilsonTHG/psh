@@ -10,6 +10,8 @@ def main():
     # Check for debug flags first
     debug_ast = False
     debug_tokens = False
+    norc = False
+    rcfile = None
     args = sys.argv[1:]
     
     # Extract debug flags
@@ -20,10 +22,30 @@ def main():
         debug_tokens = True
         args.remove("--debug-tokens")
     
+    # Extract RC file flags
+    if "--norc" in args:
+        norc = True
+        args.remove("--norc")
+    
+    # Handle --rcfile
+    for i, arg in enumerate(args):
+        if arg == "--rcfile":
+            if i + 1 < len(args):
+                rcfile = args[i + 1]
+                args = args[:i] + args[i+2:]  # Remove both --rcfile and its argument
+                break
+            else:
+                print("psh: --rcfile requires an argument", file=sys.stderr)
+                sys.exit(2)
+        elif arg.startswith("--rcfile="):
+            rcfile = arg[9:]  # Remove "--rcfile=" prefix
+            args.remove(arg)
+            break
+    
     # Update sys.argv to remove the flags
     sys.argv = [sys.argv[0]] + args
     
-    shell = Shell(debug_ast=debug_ast, debug_tokens=debug_tokens)
+    shell = Shell(debug_ast=debug_ast, debug_tokens=debug_tokens, norc=norc, rcfile=rcfile)
     
     if len(sys.argv) > 1:
         if sys.argv[1] == "-c" and len(sys.argv) > 2:
@@ -47,6 +69,8 @@ def main():
             print("  -c command       Execute command and exit")
             print("  -h, --help       Show this help message and exit")
             print("  -V, --version    Show version information and exit")
+            print("  --norc           Do not read ~/.pshrc on startup")
+            print("  --rcfile FILE    Read FILE instead of ~/.pshrc")
             print("  --debug-ast      Print AST before execution (debugging)")
             print("  --debug-tokens   Print tokens before parsing (debugging)")
             print("\nArguments:")

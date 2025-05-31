@@ -29,7 +29,7 @@ class LoopContinue(Exception):
     pass
 
 class Shell:
-    def __init__(self, args=None, script_name=None, debug_ast=False, debug_tokens=False):
+    def __init__(self, args=None, script_name=None, debug_ast=False, debug_tokens=False, norc=False, rcfile=None):
         self.env = os.environ.copy()
         self.variables = {}  # Shell variables (not exported to environment)
         self.positional_params = args if args else []  # $1, $2, etc.
@@ -37,6 +37,8 @@ class Shell:
         self.is_script_mode = script_name is not None and script_name != "psh"
         self.debug_ast = debug_ast  # Whether to print AST before execution
         self.debug_tokens = debug_tokens  # Whether to print tokens before parsing
+        self.norc = norc  # Whether to skip RC file loading
+        self.rcfile = rcfile  # Alternative RC file to load
         
         # For backward compatibility with redirections
         self.stdout = sys.stdout
@@ -99,6 +101,12 @@ class Shell:
             signal.signal(signal.SIGTTOU, signal.SIG_IGN)  # Ignore terminal output stops
             signal.signal(signal.SIGTTIN, signal.SIG_IGN)  # Ignore terminal input stops
             signal.signal(signal.SIGCHLD, self._handle_sigchld)  # Track child status
+        
+        # Load RC file for interactive shells
+        # Allow force_interactive for testing purposes
+        is_interactive = getattr(self, '_force_interactive', sys.stdin.isatty())
+        if not self.is_script_mode and is_interactive and not self.norc:
+            self._load_rc_file()
     
     def _expand_string_variables(self, text: str) -> str:
         """Expand variables and arithmetic in a string (for here strings and quoted strings)"""
@@ -1827,6 +1835,52 @@ class Shell:
         except Exception:
             # Silently ignore history file errors
             pass
+    
+    def _load_rc_file(self):
+        """Load ~/.pshrc or alternative RC file if it exists."""
+        # Determine which RC file to load
+        if self.rcfile:
+            rc_file = os.path.expanduser(self.rcfile)
+        else:
+            rc_file = os.path.expanduser("~/.pshrc")
+        
+        # Check if file exists and is readable
+        if os.path.isfile(rc_file) and os.access(rc_file, os.R_OK):
+            # Check security before loading
+            if not self._is_safe_rc_file(rc_file):
+                print(f"psh: warning: {rc_file} has unsafe permissions, skipping", file=sys.stderr)
+                return
+            
+            try:
+                # Store current $0
+                old_script_name = self.variables.get('0', self.script_name)
+                self.variables['0'] = rc_file
+                
+                # Source the file without adding to history
+                from .input_sources import FileInput
+                with FileInput(rc_file) as input_source:
+                    self._execute_from_source(input_source, add_to_history=False)
+                
+                # Restore $0
+                self.variables['0'] = old_script_name
+                
+            except Exception as e:
+                # Print warning but continue shell startup
+                print(f"psh: warning: error loading {rc_file}: {e}", file=sys.stderr)
+    
+    def _is_safe_rc_file(self, filepath):
+        """Check if RC file has safe permissions."""
+        try:
+            stat_info = os.stat(filepath)
+            # Check if file is owned by user or root
+            if stat_info.st_uid not in (os.getuid(), 0):
+                return False
+            # Check if file is world-writable
+            if stat_info.st_mode & 0o002:
+                return False
+            return True
+        except OSError:
+            return False
     
     def _handle_sigint(self, signum, frame):
         """Handle Ctrl-C (SIGINT)"""
