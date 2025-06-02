@@ -2,10 +2,26 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.25.0"
+__version__ = "0.26.0"
 
 # Version history
 VERSION_HISTORY = """
+0.26.0 (2025-02-06) - Interactive multi-line commands and prompt customization
+  - Implemented interactive multi-line command support with automatic continuation detection
+  - Added PS1 (primary) and PS2 (continuation) prompt variables with full customization
+  - Comprehensive prompt expansion with escape sequences (\\u, \\h, \\w, \\t, etc.)
+  - ANSI color support in prompts using \\[ and \\] for non-printing sequences
+  - Multi-line detection reuses existing parser logic for incomplete commands
+  - Automatic PS2 prompt shown for incomplete control structures (if/then, while/do, etc.)
+  - Ctrl-C properly cancels multi-line input and returns to primary prompt
+  - Multi-line state preserved across line continuations with proper buffer management
+  - Created MultiLineInputHandler layer above LineEditor for state coordination
+  - Added PromptExpander class for bash-compatible prompt escape sequence expansion
+  - Support for all common prompt sequences: user, host, path, time, date, shell info
+  - Example colored prompts documented in CLAUDE.md for user customization
+  - Comprehensive test suite covering multi-line detection and prompt expansion
+  - Enhanced interactive shell experience matching bash behavior
+
 0.25.0 (2025-01-31) - RC file support (~/.pshrc)
   - Added ~/.pshrc file support for automatic shell initialization
   - RC file loaded only for interactive shells (not scripts or -c commands)

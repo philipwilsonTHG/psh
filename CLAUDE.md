@@ -106,6 +106,45 @@ psh --help   # Show usage and options
 python -m pytest tests/
 ```
 
+## Prompt Customization
+
+PSH supports customizable prompts through PS1 (primary) and PS2 (continuation) variables:
+
+```bash
+# Default prompts
+PS1='\u@\h:\w\$ '  # username@hostname:path$ 
+PS2='> '            # Continuation prompt
+
+# Colored prompt examples
+export PS1='\[\e[32m\]\u@\h\[\e[0m\]:\[\e[34m\]\w\[\e[0m\]\$ '  # Green user@host, blue path
+export PS1='\[\e[1;35m\][\t]\[\e[0m\] \u@\h:\w\$ '  # Bold magenta time
+
+# Two-line prompt
+export PS1='\[\e[33m\]┌─[\u@\h:\w]\[\e[0m\]\n\[\e[33m\]└─\$\[\e[0m\] '
+
+# Root-aware prompt (red for root, green for user)
+export PS1='\[\e[$(($(id -u)==0?31:32))m\]\u@\h\[\e[0m\]:\w\$ '
+
+# Continuation prompt with color
+export PS2='\[\e[33m\]... \[\e[0m\]'
+```
+
+Multi-line commands are automatically detected and PS2 is shown for continuations:
+
+```bash
+$ if [ -f /etc/passwd ]; then
+... echo "Password file exists"
+... fi
+Password file exists
+
+$ for i in {1..3}; do
+... echo "Number: $i"
+... done
+Number: 1
+Number: 2
+Number: 3
+```
+
 ## Development Notes
 
 - Test dependencies: pytest (install with `pip install -r requirements-dev.txt`)
@@ -162,6 +201,21 @@ Implemented:
 - Brace expansion: Complete {a,b,c} list and {1..10} sequence expansion
 - Process substitution: <(...) for readable and >(...) for writable file descriptors
 - RC file support: ~/.pshrc automatic initialization with --norc and --rcfile options
+- Interactive multi-line command support with PS2 continuation prompts
+- Prompt expansion (PS1/PS2) with escape sequences:
+  - \u (username), \h (hostname), \w (working directory), \W (directory basename)
+  - \t (time 24h), \T (time 12h), \@ (time am/pm), \A (time 24h short)
+  - \d (date), \s (shell name), \v/\V (version), \$ ($ or # for root)
+  - \! (history number), \# (command number)
+  - \n (newline), \r (carriage return), \a (bell), \e (escape)
+  - \nnn (octal character), \\ (literal backslash)
+  - \[ and \] for non-printing sequences (ANSI color codes)
+  - Full ANSI color support for customizable colored prompts
+- Enhanced multi-line command detection:
+  - Automatic detection of incomplete control structures
+  - Proper handling of operators at end of line (|, &&, ||)
+  - Detection of unclosed expansions and quotes
+  - Support for escaped heredoc delimiters
 
 Not implemented:
 - C-style for loops (for ((i=0; i<10; i++)))

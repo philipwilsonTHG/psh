@@ -13,6 +13,7 @@ from .tokenizer import tokenize
 from .parser import parse, ParseError
 from .ast_nodes import Command, Pipeline, CommandList, AndOrList, Redirect, TopLevel, FunctionDef, IfStatement, WhileStatement, ForStatement, BreakStatement, ContinueStatement, CaseStatement, CaseItem, CasePattern, ProcessSubstitution
 from .line_editor import LineEditor
+from .multiline_handler import MultiLineInputHandler
 from .version import get_version_info
 from .aliases import AliasManager
 from .functions import FunctionManager
@@ -32,6 +33,11 @@ class Shell:
     def __init__(self, args=None, script_name=None, debug_ast=False, debug_tokens=False, norc=False, rcfile=None):
         self.env = os.environ.copy()
         self.variables = {}  # Shell variables (not exported to environment)
+        
+        # Default prompt variables
+        self.variables['PS1'] = 'psh$ '  # Primary prompt
+        self.variables['PS2'] = '> '     # Continuation prompt
+        
         self.positional_params = args if args else []  # $1, $2, etc.
         self.script_name = script_name or "psh"  # $0 value
         self.is_script_mode = script_name is not None and script_name != "psh"
@@ -58,6 +64,9 @@ class Shell:
         # Command history navigation
         self.history_index = -1
         self.current_line = ""
+        
+        # Command counters for prompt expansion
+        self.command_number = 0  # Number of commands executed in this session
         
         self.last_exit_code = 0
         self.last_bg_pid = None
@@ -1553,6 +1562,9 @@ class Shell:
             if add_to_history and command_string.strip():
                 self._add_to_history(command_string.strip())
             
+            # Increment command number for successful parse
+            self.command_number += 1
+            
             # Handle TopLevel AST node (functions + commands)
             if isinstance(ast, TopLevel):
                 return self.execute_toplevel(ast)
@@ -1597,6 +1609,9 @@ class Shell:
         # Set up tab completion with current edit mode
         line_editor = LineEditor(self.history, edit_mode=self.edit_mode)
         
+        # Set up multi-line input handler
+        multi_line_handler = MultiLineInputHandler(line_editor, self)
+        
         while True:
             try:
                 # Check for completed background jobs
@@ -1605,14 +1620,8 @@ class Shell:
                 # Check for stopped jobs (from Ctrl-Z)
                 self.job_manager.notify_stopped_jobs()
                 
-                # Create prompt with exit status
-                if self.last_exit_code == 0:
-                    prompt = 'psh$ '
-                else:
-                    prompt = f'psh[{self.last_exit_code}]$ '
-                
-                # Use our custom input handler for tab completion
-                command = line_editor.read_line(prompt)
+                # Read command (possibly multi-line)
+                command = multi_line_handler.read_command()
                 
                 if command is None:  # EOF (Ctrl-D)
                     print()  # New line before exit
@@ -1622,8 +1631,9 @@ class Shell:
                     self.run_command(command)
                     
             except KeyboardInterrupt:
-                # Ctrl-C pressed, just print newline and continue
-                print()
+                # Ctrl-C pressed, cancel multi-line input and continue
+                multi_line_handler.reset()
+                print("^C")
                 self.last_exit_code = 130  # 128 + SIGINT(2)
                 continue
             except EOFError:
