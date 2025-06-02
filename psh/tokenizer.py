@@ -56,6 +56,7 @@ class Token:
     type: TokenType
     value: str
     position: int
+    quote_type: Optional[str] = None  # Track the quote character used (' or " or None)
 
 
 class Tokenizer:
@@ -86,10 +87,17 @@ class Tokenizer:
         value = ''
         while self.current_char() and self.current_char() not in ' \t\n|<>;&`(){}':
             if self.current_char() == '\\' and self.peek_char():
-                # Skip backslash and add the escaped character
-                self.advance()
+                # Handle escape sequences
+                self.advance()  # Skip backslash
                 if self.current_char():
-                    value += self.current_char()
+                    # For $, keep it escaped to prevent variable expansion
+                    if self.current_char() == '$':
+                        value += '\\$'
+                    elif self.current_char() == '\\':
+                        # Escaped backslash becomes single backslash
+                        value += '\\'
+                    else:
+                        value += self.current_char()
                     self.advance()
             elif self.current_char() == '$' and self.peek_char() == '(' and self.peek_char(2) == '(':
                 # Handle arithmetic expansion within a word (e.g., c=$((a + b)))
@@ -141,14 +149,22 @@ class Tokenizer:
     def read_quoted_string(self, quote_char: str) -> str:
         self.advance()  # Skip opening quote
         value = ''
-        while self.current_char() and self.current_char() != quote_char:
-            if self.current_char() == '\\' and self.peek_char() == quote_char:
-                self.advance()  # Skip backslash
+        
+        # Single quotes: no escape sequences allowed, everything is literal
+        if quote_char == "'":
+            while self.current_char() and self.current_char() != quote_char:
                 value += self.current_char()
                 self.advance()
-            else:
-                value += self.current_char()
-                self.advance()
+        else:
+            # Double quotes: allow escaping of quote char and other special chars
+            while self.current_char() and self.current_char() != quote_char:
+                if self.current_char() == '\\' and self.peek_char() == quote_char:
+                    self.advance()  # Skip backslash
+                    value += self.current_char()
+                    self.advance()
+                else:
+                    value += self.current_char()
+                    self.advance()
         
         if self.current_char() == quote_char:
             self.advance()  # Skip closing quote
@@ -436,7 +452,7 @@ class Tokenizer:
                     self.advance()
             elif char in '"\'':
                 value = self.read_quoted_string(char)
-                self.tokens.append(Token(TokenType.STRING, value, start_pos))
+                self.tokens.append(Token(TokenType.STRING, value, start_pos, quote_type=char))
             elif char == '$':
                 if self.peek_char() == '(':
                     # Check if it's $(( for arithmetic or $( for command substitution

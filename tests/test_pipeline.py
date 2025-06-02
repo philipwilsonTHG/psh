@@ -132,8 +132,8 @@ class TestPipeline:
         with open(output_file, 'r') as f:
             output = f.read()
         
-        # Note: our echo doesn't support -e, so it outputs literally
-        assert "-e line1\\nline2\\nline3" in output
+        # Echo now supports -e for escape sequences
+        assert "line1\nline2\nline3" in output
         
         os.unlink(output_file)
         os.unlink("/tmp/temp_lines.txt")

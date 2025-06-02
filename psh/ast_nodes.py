@@ -36,6 +36,7 @@ class ProcessSubstitution(ASTNode):
 class Command(ASTNode):
     args: List[str] = field(default_factory=list)
     arg_types: List[str] = field(default_factory=list)  # Track if arg was quoted
+    quote_types: List[Optional[str]] = field(default_factory=list)  # Track quote character used (' or " or None)
     redirects: List[Redirect] = field(default_factory=list)
     background: bool = False
 

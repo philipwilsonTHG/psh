@@ -249,27 +249,35 @@ class Parser:
                     # For now, just prepend $ to indicate it's a variable
                     command.args.append(f"${token.value}")
                     command.arg_types.append('VARIABLE')
+                    command.quote_types.append(None)
                 elif token.type == TokenType.STRING:
                     command.args.append(token.value)
                     command.arg_types.append('STRING')
+                    command.quote_types.append(token.quote_type)
                 elif token.type == TokenType.COMMAND_SUB:
                     command.args.append(token.value)
                     command.arg_types.append('COMMAND_SUB')
+                    command.quote_types.append(None)
                 elif token.type == TokenType.COMMAND_SUB_BACKTICK:
                     command.args.append(token.value)
                     command.arg_types.append('COMMAND_SUB_BACKTICK')
+                    command.quote_types.append(None)
                 elif token.type == TokenType.ARITH_EXPANSION:
                     command.args.append(token.value)
                     command.arg_types.append('ARITH_EXPANSION')
+                    command.quote_types.append(None)
                 elif token.type == TokenType.PROCESS_SUB_IN:
                     command.args.append(token.value)
                     command.arg_types.append('PROCESS_SUB_IN')
+                    command.quote_types.append(None)
                 elif token.type == TokenType.PROCESS_SUB_OUT:
                     command.args.append(token.value)
                     command.arg_types.append('PROCESS_SUB_OUT')
+                    command.quote_types.append(None)
                 else:
                     command.args.append(token.value)
                     command.arg_types.append('WORD')
+                    command.quote_types.append(None)
         
         # Check for background execution
         if self.match(TokenType.AMPERSAND):

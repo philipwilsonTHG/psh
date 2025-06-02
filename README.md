@@ -8,22 +8,26 @@ Python Shell (psh) is a POSIX-style shell written entirely in Python. It uses a 
 
 ## Features
 
-### Currently Implemented
+### Core Shell Features
 
 - ✅ **Command Execution**
-  - Basic command execution with arguments
+  - External command execution with arguments
   - Multiple commands (`;` separator)
   - Background processes (`&`)
+  - Script execution with shebang support
   
 - ✅ **I/O Redirection**
   - Input redirection (`<`)
   - Output redirection (`>`, `>>`)
   - Stderr redirection (`2>`, `2>>`, `2>&1`)
   - Here documents (`<<`, `<<-`)
+  - Here strings (`<<<`)
+  - File descriptor manipulation
 
 - ✅ **Pipes and Pipelines**
   - Full pipeline support (`cmd1 | cmd2 | cmd3`)
   - Proper process group management
+  - Signal propagation
   
 - ✅ **Variable Expansion**
   - Environment variables (`$VAR`)
@@ -37,47 +41,72 @@ Python Shell (psh) is a POSIX-style shell written entirely in Python. It uses a 
   - Legacy syntax: `` `command` ``
   - Nested substitution support
   
+- ✅ **Arithmetic Expansion**
+  - Full arithmetic evaluation: `$((expression))`
+  - All standard operators: `+`, `-`, `*`, `/`, `%`, `**`
+  - Comparison operators: `<`, `>`, `<=`, `>=`, `==`, `!=`
+  - Logical operators: `&&`, `||`, `!`
+  - Bitwise operators: `&`, `|`, `^`, `~`, `<<`, `>>`
+  - Assignment operators: `=`, `+=`, `-=`, etc.
+  
+- ✅ **Brace Expansion**
+  - List expansion: `{a,b,c}`
+  - Sequence expansion: `{1..10}`, `{a..z}`
+  - Nested expansions: `{a,b}{1,2}`
+  
+- ✅ **Process Substitution**
+  - Input process substitution: `<(command)`
+  - Output process substitution: `>(command)`
+  
 - ✅ **Pattern Matching**
   - Wildcards/globbing (`*`, `?`, `[...]`)
+  - Character classes (`[a-z]`, `[!abc]`)
   - Quote handling to prevent expansion
 
-- ✅ **Comments**
-  - Hash (`#`) starts a comment at word boundaries
-  - Everything after `#` is ignored
-  - Preserved in quotes and when escaped (`\#`)
+### Programming Constructs
+
+- ✅ **Control Structures**
+  - `if`/`then`/`else`/`fi` conditional statements
+  - `while`/`do`/`done` loops
+  - `for`/`in`/`do`/`done` loops
+  - `case`/`esac` pattern matching
+  - `break` and `continue` statements
+  
+- ✅ **Functions**
+  - POSIX syntax: `name() { commands; }`
+  - Bash syntax: `function name { commands; }`
+  - Function parameters and local scope
+  - `return` builtin
+  - `declare -f` to list functions
+  - `unset -f` to remove functions
+  
+- ✅ **Test Command**
+  - `[` builtin with full operator support
+  - String comparisons: `=`, `!=`, `-z`, `-n`
+  - Numeric comparisons: `-eq`, `-ne`, `-lt`, `-le`, `-gt`, `-ge`
+  - File tests: `-e`, `-f`, `-d`, `-r`, `-w`, `-x`, `-s`, etc.
+  - Logical operators: `-a`, `-o`, `!`
+
+### Interactive Features
+
+- ✅ **Line Editing**
+  - Vi and Emacs key bindings (`set -o vi/emacs`)
+  - Command history with persistence (`~/.psh_history`)
+  - History navigation with arrow keys
+  - Multi-line command editing
   
 - ✅ **Tab Completion**
   - File and directory completion
   - Handles spaces and special characters
   - Shows multiple matches when ambiguous
-  - Hidden file support (when explicitly requested)
-  - Path navigation with `/` preservation
+  - Hidden file support
   
-- ✅ **Built-in Commands**
-  - `cd` - Change directory
-  - `exit` - Exit shell
-  - `export` - Export variables
-  - `pwd` - Print working directory
-  - `echo` - Print arguments
-  - `env` - Display environment
-  - `unset` - Remove variables
-  - `source` - Execute commands from file
-  - `history` - Command history
-  - `set` - Set positional parameters
-  - `cat` - Concatenate files
-  - `version` - Display shell version
-  - `alias`/`unalias` - Manage command aliases
-  - `declare` - Declare variables and functions
-  - `return` - Return from function
-  - `jobs` - List active jobs
-  - `fg` - Bring job to foreground
-  - `bg` - Resume job in background
-  
-- ✅ **Interactive Features**
-  - Command history with persistence
-  - Exit status in prompt
-  - Signal handling (Ctrl-C, Ctrl-Z)
-  - Vi and Emacs key bindings (`set -o vi/emacs`)
+- ✅ **Prompt Customization**
+  - PS1 (primary) and PS2 (continuation) prompts
+  - Escape sequences: `\u`, `\h`, `\w`, `\t`, `\$`, etc.
+  - Command (`\#`) and history (`\!`) numbers
+  - ANSI color support with `\[` and `\]`
+  - Multi-line command detection
   
 - ✅ **Job Control**
   - Background job execution (`&`)
@@ -85,36 +114,26 @@ Python Shell (psh) is a POSIX-style shell written entirely in Python. It uses a 
   - Job management (`jobs`, `fg`, `bg`)
   - Job specifications (`%1`, `%+`, `%-`, `%string`)
   - Process group management
-  - Background job completion notifications
-  
-- ✅ **Functions**
-  - POSIX syntax: `name() { commands; }`
-  - Bash syntax: `function name { commands; }`
-  - Function parameters and local scope
-  - `declare -f` to list functions
-  - `unset -f` to remove functions
-  - `return` builtin
-  
-- ✅ **Aliases**
-  - Command aliases with `alias` builtin
-  - Recursive alias expansion
-  - Trailing space for continued expansion
-  - `unalias` to remove aliases
-  
-- ✅ **Conditional Execution**
-  - AND operator (`&&`) - run if previous succeeded
-  - OR operator (`||`) - run if previous failed
-  - Short-circuit evaluation
-  
-- ✅ **Additional Features**
-  - Tilde expansion (`~`, `~user`)
-  - Here strings (`<<<`)
-  - Command line editing with history navigation
+  - Background job notifications
 
-### Not Yet Implemented
+### Built-in Commands
 
-- ❌ Control structures (`if`, `while`, `for`)
-- ❌ Advanced expansions (arithmetic, brace)
+- **Core**: `exit`, `cd`, `pwd`, `echo`, `true`, `false`, `:`
+- **Variables**: `export`, `unset`, `set`, `declare`, `env`
+- **Job Control**: `jobs`, `fg`, `bg`
+- **Functions**: `return`, `source`, `.`
+- **Aliases**: `alias`, `unalias`
+- **Test**: `test`, `[`
+- **History**: `history`
+
+### Additional Features
+
+- ✅ **Comments** - `#` at word boundaries
+- ✅ **Aliases** - Command aliases with recursive expansion
+- ✅ **RC File** - `~/.pshrc` startup configuration
+- ✅ **Tilde Expansion** - `~` and `~user`
+- ✅ **Conditional Execution** - `&&` and `||` operators
+- ✅ **Signal Handling** - SIGINT, SIGTSTP, SIGCHLD
 
 ## Installation
 
@@ -123,7 +142,10 @@ Python Shell (psh) is a POSIX-style shell written entirely in Python. It uses a 
 git clone https://github.com/yourusername/psh.git
 cd psh
 
-# Install development dependencies (for testing)
+# Install in development mode
+pip install -e .
+
+# Install test dependencies
 pip install -r requirements-dev.txt
 ```
 
@@ -132,128 +154,206 @@ pip install -r requirements-dev.txt
 ### Interactive Mode
 
 ```bash
-python3 simple_shell.py
+# Run directly
+psh
+
+# With options
+psh --norc              # Skip ~/.pshrc
+psh --rcfile custom_rc  # Use custom RC file
 ```
 
-### Execute Single Command
+### Execute Commands
 
 ```bash
-python3 simple_shell.py "ls -la | grep python"
-```
+# Single command
+psh -c "echo hello world"
 
-### Execute Command with -c Flag
+# Script file
+psh script.sh
 
-```bash
-python3 simple_shell.py -c "echo hello world"
+# With debugging
+psh --debug-ast -c "echo test"      # Show parsed AST
+psh --debug-tokens -c "echo test"   # Show tokens
 ```
 
 ## Examples
 
+### Basic Usage
+
 ```bash
-# Basic commands
-$ ls -la
-$ cd /usr/local
-$ pwd
-
-# I/O redirection
-$ echo "Hello, World!" > output.txt
-$ cat < input.txt
-$ ls /nonexistent 2> errors.txt
-$ command > output.txt 2>&1
-
-# Pipelines
+# Commands and pipelines
 $ ls -la | grep python | wc -l
-$ cat file.txt | sort | uniq
+$ find . -name "*.py" | xargs grep "TODO"
 
-# Variables
-$ export PATH=/usr/local/bin:$PATH
-$ echo "Home is $HOME"
-$ echo "Exit status: $?"
+# Variables and expansions
+$ name="World"
+$ echo "Hello, ${name}!"
+$ echo "Current directory: $(pwd)"
+$ echo "2 + 2 = $((2 + 2))"
 
-# Command substitution
-$ echo "Today is $(date)"
-$ files=`ls *.txt`
+# Control structures
+$ if [ -f /etc/passwd ]; then
+>   echo "Password file exists"
+> fi
 
-# Wildcards
-$ ls *.py
-$ rm temp?.txt
-$ cat [abc]*.log
+$ for file in *.txt; do
+>   echo "Processing $file"
+> done
 
-# Here documents
-$ cat << EOF
-Line 1
-Line 2
-EOF
+# Functions
+$ greet() {
+>   echo "Hello, $1!"
+> }
+$ greet "Python Shell"
+```
+
+### Advanced Features
+
+```bash
+# Process substitution
+$ diff <(ls dir1) <(ls dir2)
+$ tee >(wc -l) >(grep error) < logfile
+
+# Brace expansion
+$ echo {1..5}
+$ mkdir -p project/{src,tests,docs}
+$ cp file.{txt,bak}
+
+# Case statements
+$ case "$input" in
+>   start) echo "Starting..." ;;
+>   stop)  echo "Stopping..." ;;
+>   *)     echo "Unknown" ;;
+> esac
+
+# Job control
+$ long_command &
+[1] 12345
+$ jobs
+[1]+ Running    long_command
+$ fg %1
+```
+
+### Prompt Customization
+
+```bash
+# Colored prompt with git branch
+export PS1='\[\e[32m\]\u@\h\[\e[0m\]:\[\e[34m\]\w\[\e[0m\]\$ '
+
+# Two-line prompt with time
+export PS1='\[\e[33m\][\t]\[\e[0m\] \u@\h:\w\n\$ '
+
+# Show command and history numbers
+export PS1='[\!:\#] \$ '
+
+# Continuation prompt
+export PS2='\[\e[33m\]... \[\e[0m\]'
+```
+
+## Grammar
+
+The shell implements a comprehensive grammar supporting modern shell features:
+
+```
+# Top-level structure
+program      → statement*
+statement    → function_def | control_structure | command_list
+
+# Function definitions
+function_def → WORD '(' ')' compound_command
+             | 'function' WORD ['(' ')'] compound_command
+
+# Control structures
+control_structure → if_stmt | while_stmt | for_stmt | case_stmt
+if_stmt      → 'if' command_list 'then' command_list 
+               ['elif' command_list 'then' command_list]* 
+               ['else' command_list] 'fi'
+while_stmt   → 'while' command_list 'do' command_list 'done'
+for_stmt     → 'for' WORD 'in' word_list 'do' command_list 'done'
+case_stmt    → 'case' word 'in' case_item* 'esac'
+case_item    → pattern_list ')' command_list terminator
+terminator   → ';;' | ';&' | ';;&'
+
+# Commands
+command_list → and_or_list (';' and_or_list)* [';']
+and_or_list  → pipeline (('&&' | '||') pipeline)*
+pipeline     → command ('|' command)*
+command      → simple_command | compound_command
+simple_command → word* redirect*
+compound_command → '{' command_list '}'
+
+# Words and expansions
+word         → WORD | STRING | expansion
+expansion    → variable | command_sub | arith_exp | brace_exp | proc_sub
+variable     → '$' (NAME | '{' NAME [':' '-' word] '}' | special_var)
+command_sub  → '$(' command_list ')' | '`' command_list '`'
+arith_exp    → '$((' arithmetic_expression '))'
+brace_exp    → '{' brace_list '}' | '{' range '}'
+proc_sub     → '<(' command_list ')' | '>(' command_list ')'
+
+# Redirections
+redirect     → [fd] redirect_op target
+redirect_op  → '<' | '>' | '>>' | '2>' | '2>>' | '>&' | '<<' | '<<-' | '<<<'
 ```
 
 ## Architecture
 
 The shell follows a classic three-phase interpreter architecture:
 
-1. **Tokenization** (`tokenizer.py`)
-   - Converts input strings into tokens
-   - Handles operators, quotes, and special characters
+1. **Tokenization** (`psh/tokenizer.py`)
+   - Lexical analysis
+   - Token recognition
+   - Quote and escape handling
    
-2. **Parsing** (`parser.py`)
-   - Builds an Abstract Syntax Tree (AST)
-   - Uses recursive descent parsing
-   - One function per grammar rule
+2. **Parsing** (`psh/parser.py`)
+   - Recursive descent parser
+   - AST construction
+   - Syntax validation
    
-3. **Execution** (`simple_shell.py`)
-   - Interprets the AST
-   - Manages processes and I/O
-   - Implements built-in commands
-
-## Grammar
-
-```
-command_list → pipeline (SEMICOLON pipeline)* [SEMICOLON]
-pipeline     → command (PIPE command)*
-command      → word+ redirect* [AMPERSAND]
-redirect     → REDIRECT_OP word
-word         → WORD | STRING | VARIABLE | COMMAND_SUB
-```
+3. **Execution** (`psh/shell.py`)
+   - AST interpretation
+   - Process management
+   - Built-in implementation
 
 ## Testing
-
-Run the test suite:
 
 ```bash
 # Run all tests
 python -m pytest tests/
 
-# Run specific test file
+# Run specific test categories
 python -m pytest tests/test_parser.py -v
+python -m pytest tests/test_control_structures.py -v
+python -m pytest tests/test_multiline.py -v
 
 # Run with coverage
-python -m pytest tests/ --cov=.
+python -m pytest tests/ --cov=psh --cov-report=html
 ```
 
-## Development
-
-### Project Structure
+## Project Structure
 
 ```
 psh/
-├── simple_shell.py      # Main shell implementation
-├── tokenizer.py         # Lexical analysis
-├── parser.py           # Syntax analysis
-├── ast_nodes.py        # AST node definitions
-├── tests/              # Test suite
-│   ├── test_tokenizer.py
-│   ├── test_parser.py
-│   └── ...
-└── docs/               # Documentation
-    └── command_substitution_strategy.md
+├── psh/
+│   ├── __init__.py
+│   ├── shell.py           # Main shell implementation
+│   ├── tokenizer.py       # Lexical analysis
+│   ├── parser.py          # Syntax analysis
+│   ├── ast_nodes.py       # AST definitions
+│   ├── multiline_handler.py # Multi-line input handling
+│   ├── prompt.py          # Prompt expansion
+│   ├── line_editor.py     # Line editing (vi/emacs)
+│   ├── tab_completion.py  # Tab completion
+│   ├── job_control.py     # Job management
+│   ├── functions.py       # Function management
+│   ├── aliases.py         # Alias management
+│   ├── arithmetic.py      # Arithmetic evaluation
+│   ├── brace_expansion.py # Brace expansion
+│   └── builtins/          # Built-in commands
+├── tests/                 # Comprehensive test suite
+├── docs/                  # Documentation
+└── examples/              # Example scripts
 ```
-
-### Adding New Features
-
-1. Update the tokenizer if new tokens are needed
-2. Extend the parser to handle new syntax
-3. Implement execution logic in the shell
-4. Add comprehensive tests
-5. Update documentation
 
 ## Contributing
 
@@ -263,6 +363,7 @@ This is an educational project designed to be clear and understandable. When con
 - Add comments explaining complex logic
 - Include tests for new features
 - Update documentation
+- Follow existing code patterns
 
 ## License
 

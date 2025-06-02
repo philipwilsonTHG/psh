@@ -46,6 +46,9 @@ class Shell:
         self.norc = norc  # Whether to skip RC file loading
         self.rcfile = rcfile  # Alternative RC file to load
         
+        # Flag to track if we're in a forked child process
+        self._in_forked_child = False
+        
         # For backward compatibility with redirections
         self.stdout = sys.stdout
         self.stderr = sys.stderr
@@ -338,14 +341,36 @@ class Shell:
             command.args = substituted_args
             # Update arg_types to treat substituted paths as words
             command.arg_types = ['WORD'] * len(substituted_args)
+            # Update quote_types as well
+            command.quote_types = [None] * len(substituted_args)
         
         for i, arg in enumerate(command.args):
             arg_type = command.arg_types[i] if i < len(command.arg_types) else 'WORD'
+            quote_type = command.quote_types[i] if i < len(command.quote_types) else None
             
-            if arg.startswith('$') and not (arg.startswith('$(') or arg.startswith('`')):
-                # Variable expansion
+            if arg_type == 'STRING':
+                # Handle quoted strings
+                if quote_type == '"' and '$' in arg:
+                    # Double-quoted string with variables - expand them
+                    # Special handling for "$@"
+                    if arg == '$@':
+                        # "$@" expands to multiple arguments, each properly quoted
+                        args.extend(self.positional_params)
+                        continue
+                    else:
+                        # Expand variables within the string
+                        arg = self._expand_string_variables(arg)
+                        args.append(arg)
+                else:
+                    # Single-quoted string or no variables - no expansion
+                    args.append(arg)
+            elif arg.startswith('$') and not (arg.startswith('$(') or arg.startswith('`')):
+                # Variable expansion for unquoted variables
                 expanded = self._expand_variable(arg)
                 args.append(expanded)
+            elif '\\$' in arg and arg_type == 'WORD':
+                # Escaped dollar sign in word - replace with literal $
+                args.append(arg.replace('\\$', '$'))
             elif arg_type in ('COMMAND_SUB', 'COMMAND_SUB_BACKTICK'):
                 # Command substitution
                 output = self._execute_command_substitution(arg)
@@ -360,17 +385,7 @@ class Shell:
                 result = self._execute_arithmetic_expansion(arg)
                 args.append(str(result))
             else:
-                # Check if this is a STRING that might contain variables
-                if arg_type == 'STRING' and '$' in arg:
-                    # Special handling for "$@"
-                    if arg == '$@':
-                        # "$@" expands to multiple arguments, each properly quoted
-                        args.extend(self.positional_params)
-                        continue
-                    else:
-                        # Expand variables within the string
-                        arg = self._expand_string_variables(arg)
-                
+                # Handle regular words
                 # Tilde expansion (only for unquoted words)
                 if arg.startswith('~') and arg_type == 'WORD':
                     arg = self._expand_tilde(arg)
@@ -618,6 +633,8 @@ class Shell:
         pid = os.fork()
         
         if pid == 0:  # Child process
+            # Set flag to indicate we're in a forked child
+            self._in_forked_child = True
             # Create new process group
             os.setpgid(0, 0)
             
@@ -883,6 +900,8 @@ class Shell:
             pid = os.fork()
             
             if pid == 0:  # Child process
+                # Set flag to indicate we're in a forked child
+                self._in_forked_child = True
                 pgid = self._setup_child_process(pgid, i, num_commands, pipes)
                 exit_code = self._execute_in_child(command)
                 os._exit(exit_code)

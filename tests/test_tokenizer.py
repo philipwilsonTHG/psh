@@ -155,7 +155,7 @@ class TestTokenizer:
         # Escaped special characters
         tokens = tokenize(r"echo \$HOME")
         assert tokens[1].type == TokenType.WORD
-        assert tokens[1].value == "$HOME"
+        assert tokens[1].value == r"\$HOME"
         
         # Escaped glob characters
         tokens = tokenize(r"echo \*.txt")
