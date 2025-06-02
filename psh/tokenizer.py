@@ -399,10 +399,16 @@ class Tokenizer:
                     self.tokens.append(Token(TokenType.AMPERSAND, '&', start_pos))
                     self.advance()
             elif char == '!':
-                # For now, just tokenize ! as EXCLAMATION
-                # Future: could check for != here
-                self.tokens.append(Token(TokenType.EXCLAMATION, '!', start_pos))
-                self.advance()
+                # Check if this is part of != operator
+                if self.peek_char() == '=':
+                    # This is !=, treat it as a WORD token
+                    self.advance()  # Skip !
+                    self.advance()  # Skip =
+                    self.tokens.append(Token(TokenType.WORD, '!=', start_pos))
+                else:
+                    # Stand-alone !, used for pipeline negation
+                    self.tokens.append(Token(TokenType.EXCLAMATION, '!', start_pos))
+                    self.advance()
             elif char == '<':
                 if self.peek_char() == '(':
                     # Process substitution <(...)

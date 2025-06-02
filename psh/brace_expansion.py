@@ -56,31 +56,50 @@ class BraceExpander:
         This method handles the complexity of expanding braces while
         preserving the structure of the command line.
         """
-        # We need to handle whitespace properly while still allowing
-        # brace expressions that span across special characters
-        # Split on whitespace only
-        parts = []
-        current = []
+        # Split segment into words based on whitespace
+        # We need to preserve the exact whitespace between words
+        words = []
+        current_word = []
+        current_space = []
+        in_word = False
         
         for char in segment:
             if char in ' \t\n':
-                if current:
-                    # Expand the accumulated part
-                    text = ''.join(current)
-                    expanded = self._expand_braces(text)
-                    parts.append(' '.join(expanded))
-                    current = []
-                parts.append(char)
+                if in_word:
+                    # End of word
+                    words.append((''.join(current_word), 'word'))
+                    current_word = []
+                    in_word = False
+                current_space.append(char)
             else:
-                current.append(char)
+                if current_space:
+                    # End of whitespace
+                    words.append((''.join(current_space), 'space'))
+                    current_space = []
+                current_word.append(char)
+                in_word = True
         
         # Don't forget the last part
-        if current:
-            text = ''.join(current)
-            expanded = self._expand_braces(text)
-            parts.append(' '.join(expanded))
+        if current_word:
+            words.append((''.join(current_word), 'word'))
+        elif current_space:
+            words.append((''.join(current_space), 'space'))
         
-        return ''.join(parts)
+        # Process each word
+        result = []
+        for text, word_type in words:
+            if word_type == 'space':
+                result.append(text)
+            else:
+                # Expand braces in this word
+                expanded = self._expand_braces(text)
+                if len(expanded) == 1:
+                    result.append(expanded[0])
+                else:
+                    # Multiple expansions - join with spaces
+                    result.append(' '.join(expanded))
+        
+        return ''.join(result)
     
     def _expand_braces(self, text: str) -> List[str]:
         """Expand all brace expressions in text, returning list of results.
