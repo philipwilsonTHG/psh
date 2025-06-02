@@ -40,6 +40,7 @@ Python Shell (psh) is a POSIX-style shell written entirely in Python. It uses a 
   - Modern syntax: `$(command)`
   - Legacy syntax: `` `command` ``
   - Nested substitution support
+  - Works within double-quoted strings
   
 - ✅ **Arithmetic Expansion**
   - Full arithmetic evaluation: `$((expression))`
@@ -53,6 +54,7 @@ Python Shell (psh) is a POSIX-style shell written entirely in Python. It uses a 
   - List expansion: `{a,b,c}`
   - Sequence expansion: `{1..10}`, `{a..z}`
   - Nested expansions: `{a,b}{1,2}`
+  - Proper handling of escaped braces and special characters
   
 - ✅ **Process Substitution**
   - Input process substitution: `<(command)`
@@ -66,11 +68,11 @@ Python Shell (psh) is a POSIX-style shell written entirely in Python. It uses a 
 ### Programming Constructs
 
 - ✅ **Control Structures**
-  - `if`/`then`/`else`/`fi` conditional statements
+  - `if`/`then`/`else`/`elif`/`fi` conditional statements with command substitution
   - `while`/`do`/`done` loops
-  - `for`/`in`/`do`/`done` loops
-  - `case`/`esac` pattern matching
-  - `break` and `continue` statements
+  - `for`/`in`/`do`/`done` loops with brace and glob expansion
+  - `case`/`esac` pattern matching with command substitution
+  - `break` and `continue` statements with multi-level support (`break 2`)
   
 - ✅ **Functions**
   - POSIX syntax: `name() { commands; }`
@@ -200,6 +202,16 @@ $ for file in *.txt; do
 >   echo "Processing $file"
 > done
 
+# Multi-level break/continue
+$ for i in 1 2 3; do
+>   for j in a b c; do
+>     if [ "$i$j" = "2b" ]; then
+>       break 2  # Break out of both loops
+>     fi
+>     echo "$i$j"
+>   done
+> done
+
 # Functions
 $ greet() {
 >   echo "Hello, $1!"
@@ -219,11 +231,11 @@ $ echo {1..5}
 $ mkdir -p project/{src,tests,docs}
 $ cp file.{txt,bak}
 
-# Case statements
-$ case "$input" in
->   start) echo "Starting..." ;;
->   stop)  echo "Stopping..." ;;
->   *)     echo "Unknown" ;;
+# Case statements with command substitution
+$ case $(uname) in
+>   Linux)  echo "Running on Linux" ;;
+>   Darwin) echo "Running on macOS" ;;
+>   *)      echo "Unknown OS" ;;
 > esac
 
 # Job control
@@ -354,6 +366,18 @@ psh/
 ├── docs/                  # Documentation
 └── examples/              # Example scripts
 ```
+
+## Known Limitations
+
+While PSH implements most shell features, there are some architectural limitations:
+
+- **Control structures in pipelines**: Control structures (while, for, if, case) cannot be used as part of pipelines. For example, `echo "data" | while read line; do echo $line; done` will not parse. Use the control structure to wrap the pipeline instead.
+- **C-style for loops**: Not implemented - use traditional `for var in list` syntax
+- **Local variables**: Functions share the global variable scope
+- **Advanced parameter expansion**: Only `${var}` and `${var:-default}` are supported
+- **Arrays**: Not implemented - use space-separated strings instead
+
+See TODO.md for a complete list of unimplemented features.
 
 ## Contributing
 

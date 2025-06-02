@@ -33,14 +33,15 @@ compound_command → '{' command_list '}'
 if_stmt      → 'if' command_list 'then' command_list ['else' command_list] 'fi'
 while_stmt   → 'while' command_list 'do' command_list 'done'
 for_stmt     → 'for' WORD 'in' word_list 'do' command_list 'done'
-case_stmt    → 'case' word 'in' case_item* 'esac'
+case_stmt    → 'case' expr 'in' case_item* 'esac'
+expr         → WORD | STRING | VARIABLE | COMMAND_SUB | COMMAND_SUB_BACKTICK
 case_item    → pattern_list ')' command_list [';;' | ';&' | ';;&']
 pattern_list → pattern ('|' pattern)*
 pattern      → WORD | STRING | VARIABLE
 
 # Loop control
-break_stmt   → 'break'
-continue_stmt → 'continue'
+break_stmt   → 'break' [NUMBER]
+continue_stmt → 'continue' [NUMBER]
 
 # Command lists and pipelines
 command_list → and_or_list (';' and_or_list)* [';']
@@ -172,7 +173,7 @@ Implemented:
 - Basic parameter expansion (${var}, ${var:-default})
 - Here documents (<< and <<-) and here strings (<<<)
 - Stderr redirection (2>, 2>>, 2>&1)
-- Command substitution ($(...) and `...`) with proper nesting
+- Command substitution ($(...) and `...`) with proper nesting, including within double quotes
 - Arithmetic expansion ($((...))) with full operator support
 - Tab completion for files and directories
 - Comments (# at word boundaries)
@@ -189,7 +190,7 @@ Implemented:
 - Control structures: if/then/else/fi conditional statements
 - Test command ([) with comprehensive string, numeric, and file operators (20+ file test operators)
 - Loop constructs: while/do/done and for/in/do/done loops
-- Loop control: break and continue statements
+- Loop control: break and continue statements with multi-level support (break 2, continue 3)
 - Case statements (case/esac) with pattern matching and fallthrough control
 - Pattern matching: wildcards (*), character classes ([abc], [a-z]), single character (?)
 - Multiple patterns per case item (pattern1|pattern2|pattern3)
@@ -198,7 +199,7 @@ Implemented:
 - Multi-line command support with line continuation (\)
 - Nested control structures to arbitrary depth
 - Command substitution in for loop iterables
-- Brace expansion: Complete {a,b,c} list and {1..10} sequence expansion
+- Brace expansion: Complete {a,b,c} list and {1..10} sequence expansion with proper escape handling
 - Process substitution: <(...) for readable and >(...) for writable file descriptors
 - RC file support: ~/.pshrc automatic initialization with --norc and --rcfile options
 - Interactive multi-line command support with PS2 continuation prompts
@@ -227,3 +228,4 @@ Not implemented:
 - Escaped glob patterns
 - Array variables
 - Select statement
+- Control structures in pipelines (architectural limitation - see TODO.md)
