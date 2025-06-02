@@ -91,7 +91,12 @@ class Tokenizer:
     
     def read_word(self) -> str:
         value = ''
-        while self.current_char() and self.current_char() not in ' \t\n|<>;&`(){}[]':
+        # Inside [[ ]], we need to stop at ] to avoid consuming ]]
+        stop_chars = ' \t\n|<>;&`(){}'
+        if self.in_double_brackets > 0:
+            stop_chars += ']'
+        
+        while self.current_char() and self.current_char() not in stop_chars:
             if self.current_char() == '\\' and self.peek_char():
                 # Handle escape sequences
                 self.advance()  # Skip backslash
@@ -109,10 +114,162 @@ class Tokenizer:
                 # Handle arithmetic expansion within a word (e.g., c=$((a + b)))
                 arith_exp = self.read_arithmetic_expansion()
                 value += arith_exp
+            elif self.current_char() == '[':
+                # Check if this looks like a bracket expression pattern
+                # We need to be careful not to consume [[ ]] operators
+                if self.in_double_brackets > 0:
+                    # Inside [[ ]], don't treat [ as bracket pattern
+                    value += self.current_char()
+                    self.advance()
+                else:
+                    # Outside [[ ]], check if this could be a valid bracket pattern
+                    # Look ahead to see if there's a closing ] before any ]] sequence
+                    saved_pos = self.position
+                    found_closing = False
+                    temp_pos = self.position + 1
+                    
+                    while temp_pos < len(self.input):
+                        if temp_pos >= len(self.input):
+                            break
+                        if self.input[temp_pos] == ']':
+                            # Found a ], this could be a bracket pattern close
+                            found_closing = True
+                            break
+                        elif self.input[temp_pos] in ' \t\n|<>;&`(){}':
+                            # Hit a delimiter, stop looking
+                            break
+                        temp_pos += 1
+                    
+                    if found_closing:
+                        # Valid bracket pattern, read it
+                        value += self.current_char()
+                        self.advance()
+                        # Read until closing ]
+                        while self.current_char() and self.current_char() != ']':
+                            if self.current_char() == '\\' and self.peek_char():
+                                value += self.current_char()
+                                self.advance()
+                                if self.current_char():
+                                    value += self.current_char()
+                                    self.advance()
+                            else:
+                                value += self.current_char()
+                                self.advance()
+                        if self.current_char() == ']':
+                            value += self.current_char()
+                            self.advance()
+                    else:
+                        # No valid bracket pattern, just a [ character
+                        value += self.current_char()
+                        self.advance()
             else:
                 value += self.current_char()
                 self.advance()
         return value
+    
+    def read_pattern_word(self) -> str:
+        """Read a word that may contain pattern characters like [abc] or [a-z]."""
+        value = ''
+        
+        # If we start with [, read the whole bracket expression
+        if self.current_char() == '[':
+            # Special handling when inside [[ ]]
+            if self.in_double_brackets > 0:
+                # Inside [[ ]], just read [ as a single character
+                value += self.current_char()
+                self.advance()
+            else:
+                # Outside [[ ]], try to read as bracket pattern
+                value += self.current_char()
+                self.advance()
+                
+                # Read until we find the closing ] or hit whitespace
+                while self.current_char() and self.current_char() != ']' and self.current_char() not in ' \t\n':
+                    if self.current_char() == '\\' and self.peek_char():
+                        # Handle escape sequences
+                        value += self.current_char()
+                        self.advance()
+                        if self.current_char():
+                            value += self.current_char()
+                            self.advance()
+                    else:
+                        value += self.current_char()
+                        self.advance()
+                
+                # Include the closing ] only if we found it without hitting whitespace
+                if self.current_char() == ']':
+                    value += self.current_char()
+                    self.advance()
+        
+        # Continue reading the rest of the word (e.g., .txt after [12])
+        # Inside [[ ]], we need to stop at ] to avoid consuming ]]
+        stop_chars = ' \t\n|<>;&`(){}'
+        if self.in_double_brackets > 0:
+            stop_chars += ']'
+            
+        while self.current_char() and self.current_char() not in stop_chars:
+            if self.current_char() == '\\' and self.peek_char():
+                # Handle escape sequences
+                self.advance()  # Skip backslash
+                if self.current_char():
+                    value += self.current_char()
+                    self.advance()
+            elif self.current_char() == '[':
+                # Another bracket expression in the same word
+                value += self.current_char()
+                self.advance()
+                while self.current_char() and self.current_char() != ']':
+                    if self.current_char() == '\\' and self.peek_char():
+                        value += self.current_char()
+                        self.advance()
+                        if self.current_char():
+                            value += self.current_char()
+                            self.advance()
+                    else:
+                        value += self.current_char()
+                        self.advance()
+                if self.current_char() == ']':
+                    value += self.current_char()
+                    self.advance()
+            else:
+                value += self.current_char()
+                self.advance()
+        
+        return value
+    
+    def is_command_position(self) -> bool:
+        """Check if we're at a position where a command is expected."""
+        if not self.tokens:
+            return True  # Start of input
+        
+        # Look at the last non-whitespace token
+        last_token = self.tokens[-1]
+        
+        # Commands come after these tokens
+        if last_token.type in (TokenType.SEMICOLON, TokenType.PIPE, TokenType.LPAREN,
+                               TokenType.LBRACE, TokenType.AND_AND, TokenType.OR_OR,
+                               TokenType.AMPERSAND):
+            return True
+        
+        # After keywords that expect commands
+        if last_token.type == TokenType.WORD and last_token.value in ('if', 'elif', 'while', 'then', 'else', 'do'):
+            return True
+        
+        # Also check for keyword tokens
+        if last_token.type in (TokenType.IF, TokenType.ELIF, TokenType.WHILE, 
+                               TokenType.THEN, TokenType.ELSE, TokenType.DO):
+            return True
+        
+        # After keywords that DON'T expect commands (these are followed by expressions/patterns)
+        if last_token.type == TokenType.WORD and last_token.value in ('case', 'in'):
+            return False
+        
+        # Check for pattern context in case statements
+        # If we see "case $var in", the next position is for patterns, not commands
+        if len(self.tokens) >= 2 and self.tokens[-2].type == TokenType.WORD and self.tokens[-2].value == 'in':
+            return False
+        
+        return False
     
     def is_keyword_context(self, word: str) -> bool:
         """Check if we're in a position where this word should be a keyword."""
@@ -521,16 +678,16 @@ class Tokenizer:
                 self.tokens.append(Token(TokenType.RBRACE, '}', start_pos))
                 self.advance()
             elif char == '[':
-                if self.peek_char() == '[' and self.in_double_brackets == 0:
-                    # Only treat [[ as special if we're not already inside [[]]
+                if self.peek_char() == '[' and self.in_double_brackets == 0 and self.is_command_position():
+                    # Only treat [[ as special if we're not already inside [[]] and at command position
                     self.tokens.append(Token(TokenType.DOUBLE_LBRACKET, '[[', start_pos))
                     self.advance()
                     self.advance()
                     self.in_double_brackets += 1
                 else:
-                    # Inside [[ ]], [ is just a single character token
-                    self.tokens.append(Token(TokenType.WORD, '[', start_pos))
-                    self.advance()
+                    # Not [[ or not at command position - read as part of word/pattern
+                    word = self.read_pattern_word()
+                    self.tokens.append(Token(TokenType.WORD, word, start_pos))
             elif char == ']':
                 if self.peek_char() == ']' and self.in_double_brackets > 0:
                     self.tokens.append(Token(TokenType.DOUBLE_RBRACKET, ']]', start_pos))
@@ -538,7 +695,8 @@ class Tokenizer:
                     self.advance()
                     self.in_double_brackets -= 1
                 else:
-                    # Regular ] is just a single character token
+                    # Regular ] should have been consumed as part of a pattern
+                    # If we get here, it's a standalone ]
                     self.tokens.append(Token(TokenType.WORD, ']', start_pos))
                     self.advance()
             elif char == '=' and self.peek_char() == '~' and self.in_double_brackets > 0:
@@ -546,41 +704,48 @@ class Tokenizer:
                 self.advance()
                 self.advance()
             else:
-                word = self.read_word()
-                # Check for keywords based on word and context
-                if word == 'function' and self.is_keyword_context(word):
-                    self.tokens.append(Token(TokenType.FUNCTION, word, start_pos))
-                elif word == 'if' and self.is_keyword_context(word):
-                    self.tokens.append(Token(TokenType.IF, word, start_pos))
-                elif word == 'then' and self.is_keyword_context(word):
-                    self.tokens.append(Token(TokenType.THEN, word, start_pos))
-                elif word == 'else' and self.is_keyword_context(word):
-                    self.tokens.append(Token(TokenType.ELSE, word, start_pos))
-                elif word == 'elif' and self.is_keyword_context(word):
-                    self.tokens.append(Token(TokenType.ELIF, word, start_pos))
-                elif word == 'fi' and self.is_keyword_context(word):
-                    self.tokens.append(Token(TokenType.FI, word, start_pos))
-                elif word == 'while' and self.is_keyword_context(word):
-                    self.tokens.append(Token(TokenType.WHILE, word, start_pos))
-                elif word == 'do' and self.is_keyword_context(word):
-                    self.tokens.append(Token(TokenType.DO, word, start_pos))
-                elif word == 'done' and self.is_keyword_context(word):
-                    self.tokens.append(Token(TokenType.DONE, word, start_pos))
-                elif word == 'for' and self.is_keyword_context(word):
-                    self.tokens.append(Token(TokenType.FOR, word, start_pos))
-                elif word == 'in' and self.is_keyword_context(word):
-                    self.tokens.append(Token(TokenType.IN, word, start_pos))
-                elif word == 'break' and self.is_keyword_context(word):
-                    self.tokens.append(Token(TokenType.BREAK, word, start_pos))
-                elif word == 'continue' and self.is_keyword_context(word):
-                    self.tokens.append(Token(TokenType.CONTINUE, word, start_pos))
-                elif word == 'case' and self.is_keyword_context(word):
-                    self.tokens.append(Token(TokenType.CASE, word, start_pos))
-                elif word == 'esac' and self.is_keyword_context(word):
-                    self.tokens.append(Token(TokenType.ESAC, word, start_pos))
+                # Special check for [[ before reading word
+                if char == '[' and self.peek_char() == '[' and self.in_double_brackets == 0 and self.is_command_position():
+                    self.tokens.append(Token(TokenType.DOUBLE_LBRACKET, '[[', start_pos))
+                    self.advance()
+                    self.advance()
+                    self.in_double_brackets += 1
                 else:
-                    # Not a keyword or not in keyword context, treat as regular word
-                    self.tokens.append(Token(TokenType.WORD, word, start_pos))
+                    word = self.read_word()
+                    # Check for keywords based on word and context
+                    if word == 'function' and self.is_keyword_context(word):
+                        self.tokens.append(Token(TokenType.FUNCTION, word, start_pos))
+                    elif word == 'if' and self.is_keyword_context(word):
+                        self.tokens.append(Token(TokenType.IF, word, start_pos))
+                    elif word == 'then' and self.is_keyword_context(word):
+                        self.tokens.append(Token(TokenType.THEN, word, start_pos))
+                    elif word == 'else' and self.is_keyword_context(word):
+                        self.tokens.append(Token(TokenType.ELSE, word, start_pos))
+                    elif word == 'elif' and self.is_keyword_context(word):
+                        self.tokens.append(Token(TokenType.ELIF, word, start_pos))
+                    elif word == 'fi' and self.is_keyword_context(word):
+                        self.tokens.append(Token(TokenType.FI, word, start_pos))
+                    elif word == 'while' and self.is_keyword_context(word):
+                        self.tokens.append(Token(TokenType.WHILE, word, start_pos))
+                    elif word == 'do' and self.is_keyword_context(word):
+                        self.tokens.append(Token(TokenType.DO, word, start_pos))
+                    elif word == 'done' and self.is_keyword_context(word):
+                        self.tokens.append(Token(TokenType.DONE, word, start_pos))
+                    elif word == 'for' and self.is_keyword_context(word):
+                        self.tokens.append(Token(TokenType.FOR, word, start_pos))
+                    elif word == 'in' and self.is_keyword_context(word):
+                        self.tokens.append(Token(TokenType.IN, word, start_pos))
+                    elif word == 'break' and self.is_keyword_context(word):
+                        self.tokens.append(Token(TokenType.BREAK, word, start_pos))
+                    elif word == 'continue' and self.is_keyword_context(word):
+                        self.tokens.append(Token(TokenType.CONTINUE, word, start_pos))
+                    elif word == 'case' and self.is_keyword_context(word):
+                        self.tokens.append(Token(TokenType.CASE, word, start_pos))
+                    elif word == 'esac' and self.is_keyword_context(word):
+                        self.tokens.append(Token(TokenType.ESAC, word, start_pos))
+                    else:
+                        # Not a keyword or not in keyword context, treat as regular word
+                        self.tokens.append(Token(TokenType.WORD, word, start_pos))
         
         self.tokens.append(Token(TokenType.EOF, '', self.position))
         return self.tokens
