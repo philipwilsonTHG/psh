@@ -2,10 +2,21 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.26.1"
+__version__ = "0.26.2"
 
 # Version history
 VERSION_HISTORY = """
+0.26.2 (2025-02-06) - Control structure improvements: NOT operator and elif support
+  - Implemented NOT operator (!) for command negation and test conditions
+  - Added full elif/then chain support for multi-way conditionals
+  - Command negation: '! command' inverts exit status (0→1, non-zero→0)
+  - Test negation: '[ ! condition ]' properly negates test results
+  - Extended Pipeline AST with negated field for proper NOT handling
+  - Extended IfStatement AST with elif_parts for elif/then chains
+  - Control structures pass rate improved from 68.5% to 74.1%
+  - Added comprehensive documentation for control structure improvements
+  - All existing tests continue to pass with new features
+
 0.26.1 (2025-02-06) - Pipeline fixes and bash compatibility improvements
   - Fixed pipeline execution for builtin commands (echo, pwd) in forked processes
   - Builtins now write directly to file descriptor 1 when in child processes

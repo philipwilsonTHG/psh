@@ -869,7 +869,11 @@ class Shell:
         if len(pipeline.commands) == 1:
             # Simple command, no pipes
             try:
-                return self.execute_command(pipeline.commands[0])
+                exit_status = self.execute_command(pipeline.commands[0])
+                # Apply negation if needed
+                if pipeline.negated:
+                    exit_status = 0 if exit_status != 0 else 1
+                return exit_status
             except FunctionReturn:
                 # Propagate up
                 raise
@@ -967,6 +971,10 @@ class Shell:
             # Background job - don't wait
             last_status = 0
             self.last_bg_pid = pids[-1] if pids else None
+        
+        # Apply negation if needed
+        if pipeline.negated:
+            last_status = 0 if last_status != 0 else 1
         
         return last_status
     
@@ -1116,12 +1124,22 @@ class Shell:
                     return self.execute_command_list(if_stmt.then_part)
                 else:
                     return 0
+            
+            # Check elif conditions
+            for elif_condition, elif_then in if_stmt.elif_parts:
+                condition_exit = self.execute_command_list(elif_condition)
+                if condition_exit == 0:
+                    # This elif condition is true
+                    if elif_then.statements:
+                        return self.execute_command_list(elif_then)
+                    else:
+                        return 0
+            
+            # All conditions false - execute else part if it exists
+            if if_stmt.else_part and if_stmt.else_part.statements:
+                return self.execute_command_list(if_stmt.else_part)
             else:
-                # Execute else part if it exists
-                if if_stmt.else_part and if_stmt.else_part.statements:
-                    return self.execute_command_list(if_stmt.else_part)
-                else:
-                    return 0
+                return 0
         finally:
             # Restore file descriptors
             if saved_fds:
@@ -1812,6 +1830,10 @@ class Shell:
             # Recursively collect for if statement parts
             self._collect_heredocs(node.condition)
             self._collect_heredocs(node.then_part)
+            # Collect from elif parts
+            for elif_condition, elif_then in node.elif_parts:
+                self._collect_heredocs(elif_condition)
+                self._collect_heredocs(elif_then)
             if node.else_part:
                 self._collect_heredocs(node.else_part)
         elif isinstance(node, WhileStatement):
@@ -2287,6 +2309,14 @@ class Shell:
             result += self._format_ast(node.condition, indent + 2)
             result += f"{spaces}  Then:\n"
             result += self._format_ast(node.then_part, indent + 2)
+            
+            # Format elif parts
+            for i, (elif_cond, elif_then) in enumerate(node.elif_parts):
+                result += f"{spaces}  Elif {i+1} Condition:\n"
+                result += self._format_ast(elif_cond, indent + 2)
+                result += f"{spaces}  Elif {i+1} Then:\n"
+                result += self._format_ast(elif_then, indent + 2)
+            
             if node.else_part:
                 result += f"{spaces}  Else:\n"
                 result += self._format_ast(node.else_part, indent + 2)

@@ -35,6 +35,7 @@ class TokenType(Enum):
     THEN = auto()
     ELSE = auto()
     FI = auto()
+    ELIF = auto()
     WHILE = auto()
     DO = auto()
     DONE = auto()
@@ -49,6 +50,7 @@ class TokenType(Enum):
     AMP_SEMICOLON = auto()     # ;;&
     PROCESS_SUB_IN = auto()    # <(...)
     PROCESS_SUB_OUT = auto()   # >(...)
+    EXCLAMATION = auto()       # !
 
 
 @dataclass
@@ -132,7 +134,7 @@ class Tokenizer:
                 TokenType.AND_AND, TokenType.OR_OR,
                 TokenType.PIPE, TokenType.LBRACE
             ]
-        elif word in ['then', 'else', 'fi', 'do', 'done', 'in', 'break', 'continue', 'esac']:
+        elif word in ['then', 'else', 'elif', 'fi', 'do', 'done', 'in', 'break', 'continue', 'esac']:
             # Control structure keywords - generally always keywords unless they're echo args
             return True
         elif word in ['while', 'for']:
@@ -396,6 +398,11 @@ class Tokenizer:
                 else:
                     self.tokens.append(Token(TokenType.AMPERSAND, '&', start_pos))
                     self.advance()
+            elif char == '!':
+                # For now, just tokenize ! as EXCLAMATION
+                # Future: could check for != here
+                self.tokens.append(Token(TokenType.EXCLAMATION, '!', start_pos))
+                self.advance()
             elif char == '<':
                 if self.peek_char() == '(':
                     # Process substitution <(...)
@@ -506,6 +513,8 @@ class Tokenizer:
                     self.tokens.append(Token(TokenType.THEN, word, start_pos))
                 elif word == 'else' and self.is_keyword_context(word):
                     self.tokens.append(Token(TokenType.ELSE, word, start_pos))
+                elif word == 'elif' and self.is_keyword_context(word):
+                    self.tokens.append(Token(TokenType.ELIF, word, start_pos))
                 elif word == 'fi' and self.is_keyword_context(word):
                     self.tokens.append(Token(TokenType.FI, word, start_pos))
                 elif word == 'while' and self.is_keyword_context(word):

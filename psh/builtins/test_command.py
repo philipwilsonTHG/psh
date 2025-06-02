@@ -30,6 +30,28 @@ class TestBuiltin(Builtin):
         if len(args) == 0:
             return 1  # False
         
+        # Check for leading ! (negation)
+        negate = False
+        if args[0] == '!':
+            negate = True
+            args = args[1:]  # Remove the !
+            if len(args) == 0:
+                return 1  # ! with no args is false
+        
+        # Evaluate the expression
+        result = self._evaluate_expression(args)
+        
+        # Apply negation if needed
+        if negate:
+            result = 0 if result != 0 else 1
+        
+        return result
+    
+    def _evaluate_expression(self, args: List[str]) -> int:
+        """Evaluate test expression without negation."""
+        if len(args) == 0:
+            return 1  # False
+        
         if len(args) == 1:
             # Single argument - true if non-empty string
             return 0 if args[0] else 1

@@ -195,6 +195,11 @@ class Parser:
     def parse_pipeline(self) -> Pipeline:
         pipeline = Pipeline()
         
+        # Check for leading ! (negation)
+        if self.match(TokenType.EXCLAMATION):
+            pipeline.negated = True
+            self.advance()  # Skip !
+        
         # Parse first command
         command = self.parse_command()
         pipeline.commands.append(command)
@@ -502,8 +507,32 @@ class Parser:
         while self.match(TokenType.NEWLINE):
             self.advance()
         
-        # Parse then_part (commands until 'else' or 'fi')
-        then_part = self.parse_command_list_until(TokenType.ELSE, TokenType.FI)
+        # Parse then_part (commands until 'elif', 'else' or 'fi')
+        then_part = self.parse_command_list_until(TokenType.ELIF, TokenType.ELSE, TokenType.FI)
+        
+        # Parse elif clauses
+        elif_parts = []
+        while self.match(TokenType.ELIF):
+            self.advance()  # Consume 'elif'
+            
+            # Skip newlines after elif
+            while self.match(TokenType.NEWLINE):
+                self.advance()
+            
+            # Parse elif condition
+            elif_condition = self.parse_command_list_until(TokenType.THEN)
+            
+            # Consume 'then'
+            self.expect(TokenType.THEN)
+            
+            # Skip newlines after then
+            while self.match(TokenType.NEWLINE):
+                self.advance()
+            
+            # Parse elif then_part
+            elif_then = self.parse_command_list_until(TokenType.ELIF, TokenType.ELSE, TokenType.FI)
+            
+            elif_parts.append((elif_condition, elif_then))
         
         # Parse optional else part
         else_part = None
@@ -523,7 +552,10 @@ class Parser:
         # Parse optional redirections after 'fi'
         redirects = self.parse_redirects()
         
-        return IfStatement(condition, then_part, else_part, redirects)
+        # Create IfStatement with elif_parts
+        if_stmt = IfStatement(condition, then_part, else_part=else_part, redirects=redirects)
+        if_stmt.elif_parts = elif_parts
+        return if_stmt
     
     def parse_while_statement(self) -> WhileStatement:
         """Parse while/do/done loop statement."""

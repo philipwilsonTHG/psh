@@ -44,6 +44,7 @@ class Command(ASTNode):
 @dataclass
 class Pipeline(ASTNode):
     commands: List[Command] = field(default_factory=list)
+    negated: bool = False  # True if pipeline is prefixed with !
 
 
 @dataclass
@@ -90,7 +91,8 @@ class IfStatement(Statement):
     """If/then/else/fi conditional statement."""
     condition: StatementList  # The command list that determines truth/false
     then_part: StatementList  # Commands to execute if condition is true
-    else_part: Optional[StatementList] = None  # Commands to execute if condition is false
+    elif_parts: List[Tuple[StatementList, StatementList]] = field(default_factory=list)  # List of (condition, then_part) tuples
+    else_part: Optional[StatementList] = None  # Commands to execute if all conditions are false
     redirects: List[Redirect] = field(default_factory=list)  # Redirections for the entire if statement
 
 
