@@ -23,11 +23,15 @@ from .builtins.function_support import FunctionReturn
 
 class LoopBreak(Exception):
     """Exception used to implement break statement."""
-    pass
+    def __init__(self, level=1):
+        self.level = level
+        super().__init__()
 
 class LoopContinue(Exception):
     """Exception used to implement continue statement."""
-    pass
+    def __init__(self, level=1):
+        self.level = level
+        super().__init__()
 
 class Shell:
     def __init__(self, args=None, script_name=None, debug_ast=False, debug_tokens=False, norc=False, rcfile=None):
@@ -149,6 +153,30 @@ class Shell:
                         result.append(text[i])
                         i += 1
                     continue
+                elif text[i + 1] == '(':
+                    # $(...) command substitution
+                    # Find the matching )
+                    paren_count = 1
+                    j = i + 2  # Start after $(
+                    while j < len(text) and paren_count > 0:
+                        if text[j] == '(':
+                            paren_count += 1
+                        elif text[j] == ')':
+                            paren_count -= 1
+                        j += 1
+                    if paren_count == 0:
+                        # Found matching ), execute command substitution
+                        cmd_sub = text[i:j]  # Include $(...)
+                        output = self._execute_command_substitution(cmd_sub)
+                        # In double quotes, preserve the output as-is (no word splitting)
+                        result.append(output)
+                        i = j
+                        continue
+                    else:
+                        # No matching ) found, treat as literal
+                        result.append(text[i])
+                        i += 1
+                    continue
                 elif text[i + 1] == '{':
                     # ${var} syntax
                     end = text.find('}', i + 2)
@@ -173,6 +201,23 @@ class Shell:
                         result.append(self._expand_variable('$' + var_name))
                         i = j
                         continue
+            elif text[i] == '`':
+                # Backtick command substitution
+                j = i + 1
+                while j < len(text) and text[j] != '`':
+                    # Skip escaped backticks
+                    if text[j] == '\\' and j + 1 < len(text) and text[j + 1] == '`':
+                        j += 2
+                    else:
+                        j += 1
+                if j < len(text) and text[j] == '`':
+                    # Found matching backtick
+                    cmd_sub = '`' + text[i + 1:j] + '`'
+                    output = self._execute_command_substitution(cmd_sub)
+                    # In double quotes, preserve the output as-is (no word splitting)
+                    result.append(output)
+                    i = j + 1
+                    continue
             result.append(text[i])
             i += 1
         return ''.join(result)
@@ -1171,12 +1216,20 @@ class Shell:
                         # Execute body commands
                         last_exit = self.execute_command_list(while_stmt.body)
                         # Note: We continue the loop regardless of body exit status
-                    except LoopBreak:
-                        # Break out of the loop
-                        break
-                    except LoopContinue:
-                        # Continue to next iteration
-                        continue
+                    except LoopBreak as e:
+                        if e.level > 1:
+                            # Break out of multiple levels - decrement and re-raise
+                            raise LoopBreak(level=e.level - 1)
+                        else:
+                            # Break out of this loop
+                            break
+                    except LoopContinue as e:
+                        if e.level > 1:
+                            # Continue out of multiple levels - decrement and re-raise
+                            raise LoopContinue(level=e.level - 1)
+                        else:
+                            # Continue to next iteration of this loop
+                            continue
                     # (unlike some shells that might break on certain exit codes)
             
             return last_exit
@@ -1252,12 +1305,20 @@ class Shell:
                             # Execute body commands
                             last_exit = self.execute_command_list(for_stmt.body)
                             # Continue regardless of body exit status
-                        except LoopBreak:
-                            # Break out of the loop
-                            break
-                        except LoopContinue:
-                            # Continue to next iteration
-                            continue
+                        except LoopBreak as e:
+                            if e.level > 1:
+                                # Break out of multiple levels - decrement and re-raise
+                                raise LoopBreak(level=e.level - 1)
+                            else:
+                                # Break out of this loop
+                                break
+                        except LoopContinue as e:
+                            if e.level > 1:
+                                # Continue out of multiple levels - decrement and re-raise
+                                raise LoopContinue(level=e.level - 1)
+                            else:
+                                # Continue to next iteration of this loop
+                                continue
             finally:
                 # Restore the previous value of the loop variable
                 if saved_value is not None:
@@ -1274,11 +1335,11 @@ class Shell:
     
     def execute_break_statement(self, break_stmt: BreakStatement) -> int:
         """Execute a break statement."""
-        raise LoopBreak()
+        raise LoopBreak(level=break_stmt.level)
     
     def execute_continue_statement(self, continue_stmt: ContinueStatement) -> int:
         """Execute a continue statement."""
-        raise LoopContinue()
+        raise LoopContinue(level=continue_stmt.level)
     
     def execute_case_statement(self, case_stmt: CaseStatement) -> int:
         """Execute a case/esac statement."""
@@ -2351,10 +2412,10 @@ class Shell:
             return result
         
         elif isinstance(node, BreakStatement):
-            return f"{spaces}BreakStatement\n"
+            return f"{spaces}BreakStatement(level={node.level})\n"
         
         elif isinstance(node, ContinueStatement):
-            return f"{spaces}ContinueStatement\n"
+            return f"{spaces}ContinueStatement(level={node.level})\n"
         
         else:
             return f"{spaces}{type(node).__name__}: {repr(node)}\n"

@@ -28,7 +28,7 @@ Features ordered by implementation status and complexity.
 ### Programming Features
 16. **Shell Functions** - Function definition (POSIX and bash syntax), invocation, parameters, return builtin, declare -f, unset -f
 17. **Job Control** - Background processes (&), job tracking, jobs/fg/bg commands, Ctrl-Z suspension, process group management
-18. **Control Structures** - if/then/else/fi conditional statements with full bash compatibility
+18. **Control Structures** - if/then/else/fi conditional statements with full bash compatibility, multi-level break/continue support
 
 ### **🎯 Script Execution (v0.10.0 - v0.12.0)**
 19. **Script File Execution** - Execute psh scripts with `psh script.sh`
@@ -52,7 +52,7 @@ Features ordered by implementation status and complexity.
 35. **Case Statements** - case/esac pattern matching with fallthrough control (v0.17.0)
 36. **Arithmetic Expansion** - $((...)) with full bash-compatible arithmetic evaluation (v0.18.0)
 37. **Read Builtin** - Core POSIX functionality with IFS field splitting, raw mode, escape processing (v0.20.1)
-38. **Brace Expansion** - Complete bash-style {a,b,c} list and {1..10} sequence expansion (v0.21.0-v0.22.0)
+38. **Brace Expansion** - Complete bash-style {a,b,c} list and {1..10} sequence expansion, with shell metacharacter awareness (v0.21.0-v0.22.0, enhanced v0.26.3)
 39. **Process Substitution** - <(...) and >(...) for treating command output as files (v0.24.0)
 40. **RC File Support** - ~/.pshrc automatic initialization for interactive shells (v0.25.0)
 
@@ -351,6 +351,16 @@ Features ordered by implementation status and complexity.
 
 **Impact**: RC file support enables users to customize their shell environment with personal aliases, functions, and settings that persist across sessions. The implementation follows bash conventions while maintaining security through permission checks. Users can now create productivity-enhancing shortcuts and maintain consistent environments across different machines by sharing their .pshrc files.
 
+#### ✅ Enhanced Command Substitution and Break/Continue (v0.26.3)
+- **Command substitution in double-quoted strings** now properly expands $(command) and `command` within "..." strings
+- **Multi-level break/continue support** with `break 2`, `continue 3` for escaping nested loops
+- **Improved brace expansion** with shell metacharacter awareness, fixing issues with `{1..5};` patterns
+- **Case statement command substitution** support for `case $(command) in ...` patterns
+- **Control structures test suite** improved from 74.1% to 83.3% pass rate
+- **Architectural limitations documented** for control structures in pipelines
+
+**Impact**: These enhancements improve bash compatibility and fix several edge cases in command substitution and loop control. The multi-level break/continue feature enables more sophisticated loop control patterns, while the command substitution fixes ensure consistent behavior across all contexts.
+
 ### Architecture Considerations
 
 #### Lessons from Script Execution Implementation
@@ -477,6 +487,7 @@ C-style for loops `for ((i=0; i<10; i++))` will complete the iteration construct
 - **Pipeline Job Control Issues**: Some pipelines are incorrectly treated as background jobs instead of running in foreground.
 - **For Loop Variable Persistence**: Loop variables are incorrectly restored to their previous value after the loop completes. In bash, they retain their last iteration value.
 - **Builtin Redirections**: Builtins that use Python's `print()` function (like echo, pwd) don't respect file descriptor redirections. They need to be updated to use `os.write()` directly to file descriptors for proper redirection support.
+- **Control Structures in Pipelines**: Control structures (while, for, if, case) cannot be used as part of pipelines. For example, `echo "data" | while read line; do echo $line; done` fails to parse. This is a fundamental parser architecture limitation where pipelines expect Command objects, not control structures. Workaround: Use the control structure to wrap the entire pipeline instead.
 
 ### Tokenizer Issues
 - **Arithmetic Expansion in Assignments**: The tokenizer incorrectly breaks `c=$((a + b))` into separate tokens because `read_word()` stops at `(`. This should tokenize as `WORD='c='` followed by `ARITH_EXPANSION='$((a + b))'`.

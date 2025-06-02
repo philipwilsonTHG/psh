@@ -647,12 +647,42 @@ class Parser:
     def parse_break_statement(self) -> BreakStatement:
         """Parse break statement."""
         self.expect(TokenType.BREAK)
-        return BreakStatement()
+        
+        # Check for optional level argument
+        level = 1
+        if self.match(TokenType.WORD):
+            level_token = self.peek()
+            # Check if it's a number
+            try:
+                level = int(level_token.value)
+                if level < 1:
+                    level = 1  # Minimum level is 1
+                self.advance()  # Consume the level
+            except ValueError:
+                # Not a number, leave it for next parsing
+                pass
+        
+        return BreakStatement(level=level)
     
     def parse_continue_statement(self) -> ContinueStatement:
         """Parse continue statement."""
         self.expect(TokenType.CONTINUE)
-        return ContinueStatement()
+        
+        # Check for optional level argument
+        level = 1
+        if self.match(TokenType.WORD):
+            level_token = self.peek()
+            # Check if it's a number
+            try:
+                level = int(level_token.value)
+                if level < 1:
+                    level = 1  # Minimum level is 1
+                self.advance()  # Consume the level
+            except ValueError:
+                # Not a number, leave it for next parsing
+                pass
+        
+        return ContinueStatement(level=level)
     
     def parse_case_statement(self) -> CaseStatement:
         """Parse case/esac statement."""
@@ -660,7 +690,8 @@ class Parser:
         self.expect(TokenType.CASE)
         
         # Parse expression (word to match against)
-        if not self.match(TokenType.WORD, TokenType.STRING, TokenType.VARIABLE):
+        if not self.match(TokenType.WORD, TokenType.STRING, TokenType.VARIABLE,
+                         TokenType.COMMAND_SUB, TokenType.COMMAND_SUB_BACKTICK):
             raise ParseError("Expected expression after 'case'", self.peek())
         token = self.advance()
         if token.type == TokenType.VARIABLE:

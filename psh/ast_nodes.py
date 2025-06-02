@@ -116,13 +116,13 @@ class ForStatement(Statement):
 @dataclass
 class BreakStatement(Statement):
     """Break statement to exit loops."""
-    pass
+    level: int = 1  # Number of loops to break out of (default 1)
 
 
 @dataclass
 class ContinueStatement(Statement):
     """Continue statement to skip to next iteration."""
-    pass
+    level: int = 1  # Number of loops to continue to (default 1)
 
 
 @dataclass

@@ -56,43 +56,47 @@ class BraceExpander:
         This method handles the complexity of expanding braces while
         preserving the structure of the command line.
         """
-        # Split segment into words based on whitespace
-        # We need to preserve the exact whitespace between words
-        words = []
-        current_word = []
-        current_space = []
-        in_word = False
+        # We need to split the segment into tokens, but we must be careful
+        # to keep brace expressions with their attached content (like {a,b}>out.txt)
+        # together for proper expansion.
         
-        for char in segment:
+        tokens = []
+        current_token = []
+        i = 0
+        
+        while i < len(segment):
+            if i < len(segment) - 1 and segment[i] == '\\':
+                # Escaped character - include both backslash and next char
+                current_token.append(segment[i])
+                current_token.append(segment[i + 1])
+                i += 2
+                continue
+            
+            char = segment[i]
+            
+            # Check if we're at a word boundary (space or start of segment)
             if char in ' \t\n':
-                if in_word:
-                    # End of word
-                    words.append((''.join(current_word), 'word'))
-                    current_word = []
-                    in_word = False
-                current_space.append(char)
+                if current_token:
+                    tokens.append(''.join(current_token))
+                    current_token = []
+                tokens.append(char)
             else:
-                if current_space:
-                    # End of whitespace
-                    words.append((''.join(current_space), 'space'))
-                    current_space = []
-                current_word.append(char)
-                in_word = True
+                current_token.append(char)
+            
+            i += 1
         
-        # Don't forget the last part
-        if current_word:
-            words.append((''.join(current_word), 'word'))
-        elif current_space:
-            words.append((''.join(current_space), 'space'))
+        # Don't forget the last token
+        if current_token:
+            tokens.append(''.join(current_token))
         
-        # Process each word
+        # Now process each token
         result = []
-        for text, word_type in words:
-            if word_type == 'space':
-                result.append(text)
+        for token in tokens:
+            if token in ' \t\n':
+                result.append(token)
             else:
-                # Expand braces in this word
-                expanded = self._expand_braces(text)
+                # Expand braces in this token
+                expanded = self._expand_braces(token)
                 if len(expanded) == 1:
                     result.append(expanded[0])
                 else:
