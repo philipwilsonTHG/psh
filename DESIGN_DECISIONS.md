@@ -45,3 +45,15 @@
 - **POSIX Compliance**: How strictly to follow POSIX
 - **Bash Extensions**: Which bash-specific features to include
 - **Teaching Focus**: Simplifications for clarity vs completeness
+
+## 9. Token Processing Architecture (v0.27.1)
+- **Token Position Tracking**: Added end_position to Token dataclass for adjacency detection
+- **Two-Phase Processing**: Tokenization followed by context-aware transformation
+- **TokenTransformer**: Validates token usage based on parser context (e.g., ;; only in case)
+- **Composite Arguments**: Parser concatenates adjacent tokens into single arguments
+
+## 10. Compatibility Testing Framework (v0.27.1)
+- **Comparison Runner**: Executes commands in both bash and psh, comparing outputs
+- **Configurable Bash Path**: Uses /opt/homebrew/bin/bash for consistency
+- **Stderr Normalization**: Handles path and error message differences between shells
+- **Temporary Directory Isolation**: Each test runs in its own clean directory

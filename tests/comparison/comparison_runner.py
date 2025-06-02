@@ -39,7 +39,7 @@ class TestResult:
 class ComparisonTestRunner:
     """Runs commands in both bash and psh and compares outputs."""
     
-    def __init__(self, psh_path: str = None, bash_path: str = "/bin/bash"):
+    def __init__(self, psh_path: str = None, bash_path: str = "/opt/homebrew/bin/bash"):
         """Initialize the test runner.
         
         Args:
@@ -214,17 +214,23 @@ class ComparisonTestRunner:
     
     def _normalize_stderr(self, stderr: str) -> str:
         """Normalize stderr to ignore insignificant differences."""
+        import re
+        
         # Remove shell name prefixes that might differ
         lines = stderr.splitlines()
         normalized = []
         
         for line in lines:
-            # Normalize shell name in error messages
-            line = line.replace('bash:', 'shell:')
-            line = line.replace('psh:', 'shell:')
+            # Normalize shell executable paths in error messages
+            # This handles cases like "/opt/homebrew/bin/bash:" or "/bin/bash:"
+            line = re.sub(r'^/[^:]+/bash:', 'shell:', line)
+            line = re.sub(r'^/[^:]+/psh:', 'shell:', line)
+            
+            # Also handle simple shell names
+            line = re.sub(r'^bash:', 'shell:', line)
+            line = re.sub(r'^psh:', 'shell:', line)
             
             # Normalize line numbers in error messages
-            import re
             line = re.sub(r'line \d+:', 'line N:', line)
             
             normalized.append(line)

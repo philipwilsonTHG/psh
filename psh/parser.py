@@ -220,6 +220,10 @@ class Parser:
     def parse_command(self) -> Command:
         command = Command()
         
+        # Check for unexpected tokens that shouldn't appear here
+        if self.match(TokenType.DOUBLE_SEMICOLON, TokenType.SEMICOLON_AMP, TokenType.AMP_SEMICOLON):
+            raise ParseError(f"Syntax error near unexpected token '{self.peek().value}'", self.peek())
+        
         # Check if we have at least one word-like token
         if not self.match(TokenType.WORD, TokenType.STRING, TokenType.VARIABLE,
                          TokenType.COMMAND_SUB, TokenType.COMMAND_SUB_BACKTICK,
@@ -253,41 +257,11 @@ class Parser:
                 redirect = self.parse_redirect()
                 command.redirects.append(redirect)
             else:
-                # It's an argument
-                token = self.advance()
-                if token.type == TokenType.VARIABLE:
-                    # For now, just prepend $ to indicate it's a variable
-                    command.args.append(f"${token.value}")
-                    command.arg_types.append('VARIABLE')
-                    command.quote_types.append(None)
-                elif token.type == TokenType.STRING:
-                    command.args.append(token.value)
-                    command.arg_types.append('STRING')
-                    command.quote_types.append(token.quote_type)
-                elif token.type == TokenType.COMMAND_SUB:
-                    command.args.append(token.value)
-                    command.arg_types.append('COMMAND_SUB')
-                    command.quote_types.append(None)
-                elif token.type == TokenType.COMMAND_SUB_BACKTICK:
-                    command.args.append(token.value)
-                    command.arg_types.append('COMMAND_SUB_BACKTICK')
-                    command.quote_types.append(None)
-                elif token.type == TokenType.ARITH_EXPANSION:
-                    command.args.append(token.value)
-                    command.arg_types.append('ARITH_EXPANSION')
-                    command.quote_types.append(None)
-                elif token.type == TokenType.PROCESS_SUB_IN:
-                    command.args.append(token.value)
-                    command.arg_types.append('PROCESS_SUB_IN')
-                    command.quote_types.append(None)
-                elif token.type == TokenType.PROCESS_SUB_OUT:
-                    command.args.append(token.value)
-                    command.arg_types.append('PROCESS_SUB_OUT')
-                    command.quote_types.append(None)
-                else:
-                    command.args.append(token.value)
-                    command.arg_types.append('WORD')
-                    command.quote_types.append(None)
+                # Parse a potentially composite argument
+                arg_value, arg_type, quote_type = self.parse_composite_argument()
+                command.args.append(arg_value)
+                command.arg_types.append(arg_type)
+                command.quote_types.append(quote_type)
         
         # Check for background execution
         if self.match(TokenType.AMPERSAND):
@@ -295,6 +269,68 @@ class Parser:
             command.background = True
         
         return command
+    
+    def parse_composite_argument(self) -> tuple[str, str, Optional[str]]:
+        """Parse a potentially composite argument (concatenated tokens).
+        
+        Returns: (value, type, quote_type)
+        """
+        # Word-like token types that can be concatenated
+        word_like_types = {
+            TokenType.WORD, TokenType.STRING, TokenType.VARIABLE,
+            TokenType.COMMAND_SUB, TokenType.COMMAND_SUB_BACKTICK,
+            TokenType.ARITH_EXPANSION, TokenType.PROCESS_SUB_IN,
+            TokenType.PROCESS_SUB_OUT
+        }
+        
+        parts = []
+        first_token = None
+        last_end_pos = None
+        
+        while self.match(*word_like_types):
+            token = self.peek()
+            
+            # Check if this token is adjacent to the previous one
+            if last_end_pos is not None and token.position != last_end_pos:
+                # Not adjacent, stop here
+                break
+            
+            # Consume the token
+            token = self.advance()
+            if first_token is None:
+                first_token = token
+            
+            # Add token value to parts
+            if token.type == TokenType.VARIABLE:
+                parts.append(f"${token.value}")
+            else:
+                parts.append(token.value)
+            
+            last_end_pos = token.end_position
+        
+        # If we only have one part, return its original type
+        if len(parts) == 1:
+            token = first_token
+            if token.type == TokenType.VARIABLE:
+                return f"${token.value}", 'VARIABLE', None
+            elif token.type == TokenType.STRING:
+                return token.value, 'STRING', token.quote_type
+            elif token.type == TokenType.COMMAND_SUB:
+                return token.value, 'COMMAND_SUB', None
+            elif token.type == TokenType.COMMAND_SUB_BACKTICK:
+                return token.value, 'COMMAND_SUB_BACKTICK', None
+            elif token.type == TokenType.ARITH_EXPANSION:
+                return token.value, 'ARITH_EXPANSION', None
+            elif token.type == TokenType.PROCESS_SUB_IN:
+                return token.value, 'PROCESS_SUB_IN', None
+            elif token.type == TokenType.PROCESS_SUB_OUT:
+                return token.value, 'PROCESS_SUB_OUT', None
+            else:
+                return token.value, 'WORD', None
+        
+        # Multiple parts - concatenate them
+        # The type becomes COMPOSITE and we lose quote information
+        return ''.join(parts), 'COMPOSITE', None
     
     def parse_redirects(self) -> List[Redirect]:
         """Parse zero or more redirections."""

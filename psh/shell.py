@@ -416,6 +416,17 @@ class Shell:
             elif '\\$' in arg and arg_type == 'WORD':
                 # Escaped dollar sign in word - replace with literal $
                 args.append(arg.replace('\\$', '$'))
+            elif arg_type == 'COMPOSITE':
+                # Composite argument - already concatenated in parser
+                # Just perform glob expansion if it contains wildcards
+                if any(c in arg for c in ['*', '?', '[']):
+                    matches = glob.glob(arg)
+                    if matches:
+                        args.extend(sorted(matches))
+                    else:
+                        args.append(arg)
+                else:
+                    args.append(arg)
             elif arg_type in ('COMMAND_SUB', 'COMMAND_SUB_BACKTICK'):
                 # Command substitution
                 output = self._execute_command_substitution(arg)

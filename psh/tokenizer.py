@@ -61,6 +61,7 @@ class Token:
     type: TokenType
     value: str
     position: int
+    end_position: int = 0  # Position after the last character of the token
     quote_type: Optional[str] = None  # Track the quote character used (' or " or None)
 
 
@@ -88,6 +89,10 @@ class Tokenizer:
     def skip_whitespace(self) -> None:
         while self.current_char() and self.current_char() in ' \t':
             self.advance()
+    
+    def create_token(self, token_type: TokenType, value: str, start_pos: int, quote_type: Optional[str] = None) -> Token:
+        """Create a token with proper end position."""
+        return Token(token_type, value, start_pos, self.position, quote_type)
     
     def read_word(self) -> str:
         value = ''
@@ -634,7 +639,7 @@ class Tokenizer:
                     self.advance()
             elif char in '"\'':
                 value = self.read_quoted_string(char)
-                self.tokens.append(Token(TokenType.STRING, value, start_pos, quote_type=char))
+                self.tokens.append(self.create_token(TokenType.STRING, value, start_pos, quote_type=char))
             elif char == '$':
                 if self.peek_char() == '(':
                     # Check if it's $(( for arithmetic or $( for command substitution
@@ -687,7 +692,7 @@ class Tokenizer:
                 else:
                     # Not [[ or not at command position - read as part of word/pattern
                     word = self.read_pattern_word()
-                    self.tokens.append(Token(TokenType.WORD, word, start_pos))
+                    self.tokens.append(self.create_token(TokenType.WORD, word, start_pos))
             elif char == ']':
                 if self.peek_char() == ']' and self.in_double_brackets > 0:
                     self.tokens.append(Token(TokenType.DOUBLE_RBRACKET, ']]', start_pos))
@@ -745,15 +750,16 @@ class Tokenizer:
                         self.tokens.append(Token(TokenType.ESAC, word, start_pos))
                     else:
                         # Not a keyword or not in keyword context, treat as regular word
-                        self.tokens.append(Token(TokenType.WORD, word, start_pos))
+                        self.tokens.append(self.create_token(TokenType.WORD, word, start_pos))
         
         self.tokens.append(Token(TokenType.EOF, '', self.position))
         return self.tokens
 
 
 def tokenize(input_string: str) -> List[Token]:
-    """Tokenize input string, with brace expansion preprocessing."""
+    """Tokenize input string, with brace expansion preprocessing and token transformation."""
     from .brace_expansion import BraceExpander, BraceExpansionError
+    from .token_transformer import TokenTransformer
     
     try:
         # Expand braces first
@@ -765,8 +771,12 @@ def tokenize(input_string: str) -> List[Token]:
         # This allows the shell to still process the command, even if
         # brace expansion is not performed
         tokenizer = Tokenizer(input_string)
-        return tokenizer.tokenize()
+        tokens = tokenizer.tokenize()
+    else:
+        # Run normal tokenization on expanded string
+        tokenizer = Tokenizer(expanded_string)
+        tokens = tokenizer.tokenize()
     
-    # Then run normal tokenization on expanded string
-    tokenizer = Tokenizer(expanded_string)
-    return tokenizer.tokenize()
+    # Apply token transformations
+    transformer = TokenTransformer()
+    return transformer.transform(tokens)

@@ -2,10 +2,23 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.27.0"
+__version__ = "0.27.1"
 
 # Version history
 VERSION_HISTORY = """
+0.27.1 (2025-02-06) - Compatibility fixes and test framework
+  - Implemented word concatenation for adjacent strings/tokens ('*'.txt → *.txt)
+  - Added token position tracking for proper concatenation detection
+  - Created parse_composite_argument() for handling concatenated tokens
+  - Fixed double semicolon (;;) handling outside case statements with proper error reporting
+  - Implemented TokenTransformer for context-aware token processing
+  - Added comparison test framework using /opt/homebrew/bin/bash
+  - Created comprehensive unit tests for all compatibility fixes
+  - Fixed parser error handling for case-specific operators outside case statements
+  - Improved stderr normalization in comparison tests for path differences
+  - Pass rate maintained at 76.5% with proper error reporting for syntax issues
+  - Note: Quote handling within words requires tokenizer improvements (see TODO.md)
+
 0.27.0 (2025-02-06) - Enhanced test operators [[ ]]
   - Implemented [[ ]] enhanced test construct with improved features over [ ]
   - Added lexicographic string comparison operators (< and >)

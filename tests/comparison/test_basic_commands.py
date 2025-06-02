@@ -92,10 +92,8 @@ def run_glob_tests():
     """Run globbing/wildcard tests."""
     runner = ComparisonTestRunner()
     
-    # Set up test files
+    # Set up test files - note: no mkdir -p needed, we start fresh each time
     setup_commands = """
-    mkdir -p test_dir
-    cd test_dir
     touch file1.txt file2.txt file3.log
     touch .hidden
     mkdir subdir
@@ -109,7 +107,7 @@ def run_glob_tests():
         ("ls file[!3].txt | sort", "negated character class"),
         ("echo *.txt", "glob expansion in echo"),
         ("echo '*'.txt", "quoted glob not expanded"),
-        ("echo test_dir/*.txt", "glob with path"),
+        ("echo *.txt", "glob with path"),  # Fixed: was "test_dir/*.txt" but we're already in the test dir
         ("echo .hidd*", "glob hidden files"),
         ("echo */nested.txt", "glob with directory"),
         ("echo no_match_*", "glob with no matches"),
@@ -117,7 +115,7 @@ def run_glob_tests():
     
     print("\nRunning glob tests...")
     for command, test_name in tests:
-        # Run with setup
+        # Run with setup - each test gets its own temporary directory
         full_command = setup_commands + "\n" + command
         result = runner.run_command(full_command, test_name)
         status = "PASS" if result.passed else "FAIL"

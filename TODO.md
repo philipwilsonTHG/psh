@@ -494,10 +494,12 @@ C-style for loops `for ((i=0; i<10; i++))` will complete the iteration construct
 - **Stderr Redirection**: The tokenizer incorrectly tokenizes `>&2` as three separate tokens (`>`, `&`, `2`) instead of recognizing it as a redirect duplication operator. This causes parser failures with "Expected file name after redirection" errors.
 - **Arithmetic Inside Quotes**: Arithmetic expansion inside double quotes (e.g., `echo "Result: $((2 + 2))"`) is not being expanded because `_expand_string_variables()` only handles variable expansion, not arithmetic expansion.
 - **Variable Assignment with Quoted Values** (NEW - discovered v0.20.1): The tokenizer doesn't handle `VAR="value with spaces"` correctly when it appears before a command. For example, `MSG="hello world" echo $MSG` fails with "world": command not found" because the quoted value is split incorrectly.
+- **Quote Handling in Words** (NEW - v0.27.1): The tokenizer includes quotes as part of word values when they appear within words. For example, `a'b'c` is tokenized as a single WORD with value `a'b'c` instead of properly concatenating the unquoted parts. This affects commands like `echo a'b'c` which outputs `a'b'c` instead of `abc`.
 
 ### Parser Edge Cases
 - **Empty Commands**: Consecutive semicolons (`;;`, `;;;`) are not handled gracefully in command parsing (though they work correctly in case statements).
 - **Complex Quoting**: Some edge cases with complex nested quoting and escaping may not parse correctly.
+- **Empty Command Between Semicolons** (v0.27.1): PSH allows empty commands between semicolons (e.g., `echo hello; ; echo world`) while bash reports this as a syntax error. The parser should detect and report empty commands as errors.
 - **EOF Cascade Errors**: When early parsing fails (e.g., redirect errors), the parser continues looking for closing keywords (`fi`, `done`) but hits EOF, causing cascading "Expected FI/DONE, got EOF" errors.
 - ~~**Command Substitution in For Loops**~~: ✅ FIXED in v0.19.3 - Command substitution `$(...)` and backticks are now properly parsed and executed in for loop iterables. The parser accepts COMMAND_SUB tokens and the executor expands them with word splitting.
 - **Break/Continue Parsing**: The parser returns break/continue as statements, but some tests expect them as and_or_lists, indicating a mismatch between parser output and test expectations.
