@@ -1,6 +1,6 @@
 from typing import List, Optional, Union
 from .tokenizer import Token, TokenType
-from .ast_nodes import Command, Pipeline, CommandList, StatementList, AndOrList, Redirect, FunctionDef, TopLevel, IfStatement, WhileStatement, ForStatement, BreakStatement, ContinueStatement, CaseStatement, CaseItem, CasePattern, ProcessSubstitution
+from .ast_nodes import Command, Pipeline, CommandList, StatementList, AndOrList, Redirect, FunctionDef, TopLevel, IfStatement, WhileStatement, ForStatement, BreakStatement, ContinueStatement, CaseStatement, CaseItem, CasePattern, ProcessSubstitution, EnhancedTestStatement, TestExpression, BinaryTestExpression, UnaryTestExpression, CompoundTestExpression, NegatedTestExpression
 
 
 class ParseError(Exception):
@@ -70,6 +70,9 @@ class Parser:
             elif self.match(TokenType.CONTINUE):
                 continue_stmt = self.parse_continue_statement()
                 top_level.items.append(continue_stmt)
+            elif self.match(TokenType.DOUBLE_LBRACKET):
+                enhanced_test_stmt = self.parse_enhanced_test_statement()
+                top_level.items.append(enhanced_test_stmt)
             else:
                 # Parse command list until we hit a function or EOF
                 cmd_list = self._parse_command_list_until_function()
@@ -138,6 +141,8 @@ class Parser:
             return self.parse_for_statement()
         elif self.match(TokenType.CASE):
             return self.parse_case_statement()
+        elif self.match(TokenType.DOUBLE_LBRACKET):
+            return self.parse_enhanced_test_statement()
         elif self._is_function_def():
             return self.parse_function_def()
         else:
@@ -463,7 +468,7 @@ class Parser:
         while self.match(TokenType.NEWLINE):
             self.advance()
         
-        while not self.match(TokenType.EOF) and not self._is_function_def() and not self.match(TokenType.IF) and not self.match(TokenType.WHILE) and not self.match(TokenType.FOR) and not self.match(TokenType.CASE):
+        while not self.match(TokenType.EOF) and not self._is_function_def() and not self.match(TokenType.IF) and not self.match(TokenType.WHILE) and not self.match(TokenType.FOR) and not self.match(TokenType.CASE) and not self.match(TokenType.DOUBLE_LBRACKET):
             statement = self.parse_statement()
             if statement:
                 command_list.statements.append(statement)
@@ -771,6 +776,169 @@ class Parser:
             return f"${token.value}"
         else:
             return token.value
+    
+    def parse_enhanced_test_statement(self) -> EnhancedTestStatement:
+        """Parse [[ ... ]] enhanced test statement."""
+        # Consume [[
+        self.expect(TokenType.DOUBLE_LBRACKET)
+        
+        # Skip newlines after [[
+        while self.match(TokenType.NEWLINE):
+            self.advance()
+        
+        # Parse the test expression
+        expression = self.parse_test_expression()
+        
+        # Skip newlines before ]]
+        while self.match(TokenType.NEWLINE):
+            self.advance()
+        
+        # Consume ]]
+        self.expect(TokenType.DOUBLE_RBRACKET)
+        
+        # Parse optional redirects
+        redirects = self.parse_redirects()
+        
+        return EnhancedTestStatement(expression, redirects)
+    
+    def parse_test_expression(self) -> TestExpression:
+        """Parse a test expression with || and && precedence."""
+        return self.parse_test_or_expression()
+    
+    def parse_test_or_expression(self) -> TestExpression:
+        """Parse test expression with || operator."""
+        left = self.parse_test_and_expression()
+        
+        while self.match(TokenType.OR_OR):
+            self.advance()
+            # Skip newlines after ||
+            while self.match(TokenType.NEWLINE):
+                self.advance()
+            right = self.parse_test_and_expression()
+            left = CompoundTestExpression(left, '||', right)
+        
+        return left
+    
+    def parse_test_and_expression(self) -> TestExpression:
+        """Parse test expression with && operator."""
+        left = self.parse_test_unary_expression()
+        
+        while self.match(TokenType.AND_AND):
+            self.advance()
+            # Skip newlines after &&
+            while self.match(TokenType.NEWLINE):
+                self.advance()
+            right = self.parse_test_unary_expression()
+            left = CompoundTestExpression(left, '&&', right)
+        
+        return left
+    
+    def parse_test_unary_expression(self) -> TestExpression:
+        """Parse unary test expression (possibly negated)."""
+        # Check for negation
+        if self.match(TokenType.EXCLAMATION):
+            self.advance()
+            # Skip newlines after !
+            while self.match(TokenType.NEWLINE):
+                self.advance()
+            expr = self.parse_test_unary_expression()
+            return NegatedTestExpression(expr)
+        
+        return self.parse_test_primary_expression()
+    
+    def parse_test_primary_expression(self) -> TestExpression:
+        """Parse primary test expression (unary or binary)."""
+        # Skip leading newlines
+        while self.match(TokenType.NEWLINE):
+            self.advance()
+        
+        # Check if we're at the end (empty test)
+        if self.match(TokenType.DOUBLE_RBRACKET):
+            # Empty test - treat as false
+            return UnaryTestExpression('-n', '')
+        
+        # Check for parentheses
+        if self.match(TokenType.LPAREN):
+            self.advance()
+            expr = self.parse_test_expression()
+            self.expect(TokenType.RPAREN)
+            return expr
+        
+        # Check for unary operators
+        if self.match(TokenType.WORD) and self._is_unary_test_operator(self.peek().value):
+            operator = self.advance().value
+            # Skip newlines after operator
+            while self.match(TokenType.NEWLINE):
+                self.advance()
+            operand = self._parse_test_operand()
+            return UnaryTestExpression(operator, operand)
+        
+        # Otherwise, it's a binary expression or just a value
+        left = self._parse_test_operand()
+        
+        # Skip newlines after left operand
+        while self.match(TokenType.NEWLINE):
+            self.advance()
+        
+        # Check for binary operators
+        if self.match(TokenType.WORD, TokenType.REGEX_MATCH):
+            token = self.peek()
+            if token.type == TokenType.REGEX_MATCH or self._is_binary_test_operator(token.value):
+                operator = self.advance().value
+                # Skip newlines after operator
+                while self.match(TokenType.NEWLINE):
+                    self.advance()
+                
+                # For regex match operator, set flag to concatenate words
+                if operator == '=~':
+                    self._in_regex_rhs = True
+                
+                right = self._parse_test_operand()
+                
+                # Reset flag
+                if operator == '=~':
+                    self._in_regex_rhs = False
+                
+                return BinaryTestExpression(left, operator, right)
+        
+        # Just a single value (non-empty test)
+        return UnaryTestExpression('-n', left)
+    
+    def _parse_test_operand(self) -> str:
+        """Parse a test operand (word, string, variable, etc.)."""
+        if self.match(TokenType.WORD, TokenType.STRING, TokenType.VARIABLE, 
+                      TokenType.COMMAND_SUB, TokenType.COMMAND_SUB_BACKTICK,
+                      TokenType.ARITH_EXPANSION):
+            token = self.advance()
+            if token.type == TokenType.VARIABLE:
+                result = f"${token.value}"
+            else:
+                result = token.value
+            
+            # For regex patterns on the right side of =~, concatenate consecutive words
+            # to handle patterns like [0-9]+ which get tokenized as multiple words
+            if hasattr(self, '_in_regex_rhs') and self._in_regex_rhs:
+                while self.match(TokenType.WORD) and not self._is_binary_test_operator(self.peek().value):
+                    result += self.advance().value
+            
+            return result
+        else:
+            raise ParseError("Expected test operand", self.peek())
+    
+    def _is_unary_test_operator(self, value: str) -> bool:
+        """Check if a word is a unary test operator."""
+        return value in [
+            '-a', '-b', '-c', '-d', '-e', '-f', '-g', '-h', '-k', '-p',
+            '-r', '-s', '-t', '-u', '-w', '-x', '-G', '-L', '-N', '-O',
+            '-S', '-z', '-n', '-o'
+        ]
+    
+    def _is_binary_test_operator(self, value: str) -> bool:
+        """Check if a word is a binary test operator."""
+        return value in [
+            '=', '==', '!=', '<', '>', '-eq', '-ne', '-lt', '-le', '-gt', '-ge',
+            '-nt', '-ot', '-ef'
+        ]
 
 
 def parse(tokens: List[Token]) -> Union[CommandList, TopLevel]:

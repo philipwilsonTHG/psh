@@ -80,9 +80,16 @@ class MultiLineInputHandler:
             return False
         
         # Check for operators at end of line that require continuation
+        # But only if we're not inside [[ ]]
         stripped = command.strip()
         if stripped.endswith(('|', '||', '&&')):
-            return False
+            # Count [[ and ]] to see if we're inside
+            double_lbracket_count = command.count('[[')
+            double_rbracket_count = command.count(']]')
+            if double_lbracket_count == double_rbracket_count:
+                # Not inside [[ ]], so operators mean continuation
+                return False
+            # Inside [[ ]], let the parser decide
         
         # Try to tokenize and parse
         try:
@@ -120,7 +127,9 @@ class MultiLineInputHandler:
                 "Expected ESAC",
                 "Expected closing",
                 "Unexpected EOF",
-                "Expected '}'"
+                "Expected '}'",
+                "Expected DOUBLE_RBRACKET",  # For incomplete [[ ]]
+                "Expected test operand"       # For [[ ... && at end of line
             ]
             
             for pattern in incomplete_patterns:

@@ -217,6 +217,12 @@ Implemented:
   - Proper handling of operators at end of line (|, &&, ||)
   - Detection of unclosed expansions and quotes
   - Support for escaped heredoc delimiters
+- Enhanced test operators [[ ]] (v0.27.0):
+  - Lexicographic string comparison (< and >)
+  - Regular expression matching (=~)
+  - No word splitting (safer variable handling)
+  - Compound expressions with && and ||
+  - All existing test operators from [ command
 
 Not implemented:
 - C-style for loops (for ((i=0; i<10; i++)))

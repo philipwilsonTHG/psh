@@ -151,3 +151,45 @@ class CaseStatement(Statement):
 class TopLevel(ASTNode):
     """Root node that can contain functions and/or commands."""
     items: List[Union[Statement, StatementList]] = field(default_factory=list)  # List of Statement or StatementList
+
+
+# Enhanced test expressions for [[ ]]
+class TestExpression(ASTNode):
+    """Base class for test expressions."""
+    pass
+
+
+@dataclass
+class BinaryTestExpression(TestExpression):
+    """Binary test expression like STRING1 < STRING2."""
+    left: str
+    operator: str  # =, !=, <, >, =~, -eq, -ne, etc.
+    right: str
+
+
+@dataclass
+class UnaryTestExpression(TestExpression):
+    """Unary test expression like -f FILE."""
+    operator: str  # -f, -d, -z, -n, etc.
+    operand: str
+
+
+@dataclass
+class CompoundTestExpression(TestExpression):
+    """Compound test expression with && or ||."""
+    left: TestExpression
+    operator: str  # && or ||
+    right: TestExpression
+
+
+@dataclass
+class NegatedTestExpression(TestExpression):
+    """Negated test expression with !."""
+    expression: TestExpression
+
+
+@dataclass
+class EnhancedTestStatement(Statement):
+    """Enhanced test construct [[ ... ]]."""
+    expression: TestExpression  # The test expression to evaluate
+    redirects: List[Redirect] = field(default_factory=list)

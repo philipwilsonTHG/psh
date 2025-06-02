@@ -11,7 +11,7 @@ import fcntl
 from typing import List, Tuple
 from .tokenizer import tokenize
 from .parser import parse, ParseError
-from .ast_nodes import Command, Pipeline, CommandList, AndOrList, Redirect, TopLevel, FunctionDef, IfStatement, WhileStatement, ForStatement, BreakStatement, ContinueStatement, CaseStatement, CaseItem, CasePattern, ProcessSubstitution
+from .ast_nodes import Command, Pipeline, CommandList, AndOrList, Redirect, TopLevel, FunctionDef, IfStatement, WhileStatement, ForStatement, BreakStatement, ContinueStatement, CaseStatement, CaseItem, CasePattern, ProcessSubstitution, EnhancedTestStatement, TestExpression, BinaryTestExpression, UnaryTestExpression, CompoundTestExpression, NegatedTestExpression
 from .line_editor import LineEditor
 from .multiline_handler import MultiLineInputHandler
 from .version import get_version_info
@@ -1069,6 +1069,8 @@ class Shell:
                     exit_code = self.execute_for_statement(item)
                 elif isinstance(item, CaseStatement):
                     exit_code = self.execute_case_statement(item)
+                elif isinstance(item, EnhancedTestStatement):
+                    exit_code = self.execute_enhanced_test_statement(item)
                 elif isinstance(item, FunctionDef):
                     # Register the function
                     try:
@@ -1141,6 +1143,9 @@ class Shell:
                 elif isinstance(item, ContinueStatement):
                     # Execute continue statement (this will raise LoopContinue)  
                     last_exit = self.execute_continue_statement(item)
+                elif isinstance(item, EnhancedTestStatement):
+                    # Execute enhanced test statement
+                    last_exit = self.execute_enhanced_test_statement(item)
         except (LoopBreak, LoopContinue) as e:
             # Break/continue outside of loops is an error
             stmt_name = "break" if isinstance(e, LoopBreak) else "continue"
@@ -1405,6 +1410,158 @@ class Shell:
             if saved_fds:
                 self._restore_redirections(saved_fds)
     
+    def execute_enhanced_test_statement(self, test_stmt: EnhancedTestStatement) -> int:
+        """Execute an enhanced test statement [[...]]."""
+        # Apply redirections if present
+        if test_stmt.redirects:
+            saved_fds = self._apply_redirections(test_stmt.redirects)
+        else:
+            saved_fds = None
+        
+        try:
+            result = self._evaluate_test_expression(test_stmt.expression)
+            # DEBUG
+            # print(f"DEBUG: Enhanced test result={result}, returning {0 if result else 1}", file=sys.stderr)
+            return 0 if result else 1
+        except Exception as e:
+            print(f"psh: [[: {e}", file=sys.stderr)
+            return 2  # Syntax error
+        finally:
+            # Restore file descriptors
+            if saved_fds:
+                self._restore_redirections(saved_fds)
+    
+    def _evaluate_test_expression(self, expr: TestExpression) -> bool:
+        """Evaluate a test expression to boolean."""
+        if isinstance(expr, BinaryTestExpression):
+            return self._evaluate_binary_test(expr)
+        elif isinstance(expr, UnaryTestExpression):
+            return self._evaluate_unary_test(expr)
+        elif isinstance(expr, CompoundTestExpression):
+            return self._evaluate_compound_test(expr)
+        elif isinstance(expr, NegatedTestExpression):
+            return not self._evaluate_test_expression(expr.expression)
+        else:
+            raise ValueError(f"Unknown test expression type: {type(expr).__name__}")
+    
+    def _evaluate_binary_test(self, expr: BinaryTestExpression) -> bool:
+        """Evaluate binary test expression."""
+        # Expand variables in operands
+        left = self._expand_string_variables(expr.left)
+        right = self._expand_string_variables(expr.right)
+        
+        # Handle different operators
+        if expr.operator == '=':
+            return left == right
+        elif expr.operator == '==':
+            return left == right
+        elif expr.operator == '!=':
+            return left != right
+        elif expr.operator == '<':
+            # Lexicographic comparison
+            return left < right
+        elif expr.operator == '>':
+            # Lexicographic comparison
+            return left > right
+        elif expr.operator == '=~':
+            # Regex matching
+            import re
+            try:
+                pattern = re.compile(right)
+                return bool(pattern.search(left))
+            except re.error as e:
+                raise ValueError(f"invalid regex: {e}")
+        elif expr.operator == '-eq':
+            return self._to_int(left) == self._to_int(right)
+        elif expr.operator == '-ne':
+            return self._to_int(left) != self._to_int(right)
+        elif expr.operator == '-lt':
+            return self._to_int(left) < self._to_int(right)
+        elif expr.operator == '-le':
+            return self._to_int(left) <= self._to_int(right)
+        elif expr.operator == '-gt':
+            return self._to_int(left) > self._to_int(right)
+        elif expr.operator == '-ge':
+            return self._to_int(left) >= self._to_int(right)
+        elif expr.operator == '-nt':
+            # File newer than
+            return self._file_newer_than(left, right)
+        elif expr.operator == '-ot':
+            # File older than
+            return self._file_older_than(left, right)
+        elif expr.operator == '-ef':
+            # Files are the same
+            return self._files_same(left, right)
+        else:
+            raise ValueError(f"unknown binary operator: {expr.operator}")
+    
+    def _evaluate_unary_test(self, expr: UnaryTestExpression) -> bool:
+        """Evaluate unary test expression."""
+        # Expand variables in operand
+        operand = self._expand_string_variables(expr.operand)
+        
+        # Import test command's unary operators
+        from .builtins.test_command import TestBuiltin
+        test_cmd = TestBuiltin()
+        
+        # Reuse the existing unary operator implementation
+        # Note: _evaluate_unary returns 0 for true, 1 for false (shell convention)
+        # We need to convert to boolean
+        result = test_cmd._evaluate_unary(expr.operator, operand)
+        return result == 0
+    
+    def _evaluate_compound_test(self, expr: CompoundTestExpression) -> bool:
+        """Evaluate compound test expression with && or ||."""
+        left_result = self._evaluate_test_expression(expr.left)
+        
+        if expr.operator == '&&':
+            # Short-circuit AND
+            if not left_result:
+                return False
+            return self._evaluate_test_expression(expr.right)
+        elif expr.operator == '||':
+            # Short-circuit OR
+            if left_result:
+                return True
+            return self._evaluate_test_expression(expr.right)
+        else:
+            raise ValueError(f"unknown compound operator: {expr.operator}")
+    
+    def _to_int(self, value: str) -> int:
+        """Convert string to integer for numeric comparisons."""
+        try:
+            return int(value)
+        except ValueError:
+            raise ValueError(f"integer expression expected: {value}")
+    
+    def _file_newer_than(self, file1: str, file2: str) -> bool:
+        """Check if file1 is newer than file2."""
+        try:
+            stat1 = os.stat(file1)
+            stat2 = os.stat(file2)
+            return stat1.st_mtime > stat2.st_mtime
+        except FileNotFoundError:
+            return False
+    
+    def _file_older_than(self, file1: str, file2: str) -> bool:
+        """Check if file1 is older than file2."""
+        try:
+            stat1 = os.stat(file1)
+            stat2 = os.stat(file2)
+            return stat1.st_mtime < stat2.st_mtime
+        except FileNotFoundError:
+            return False
+    
+    def _files_same(self, file1: str, file2: str) -> bool:
+        """Check if two files are the same (same inode)."""
+        try:
+            stat1 = os.stat(file1)
+            stat2 = os.stat(file2)
+            return (stat1.st_dev == stat2.st_dev and 
+                    stat1.st_ino == stat2.st_ino)
+        except FileNotFoundError:
+            return False
+    
     def _execute_function(self, func, args: list, command: Command) -> int:
         """Execute a function with given arguments."""
         # Save current positional parameters
@@ -1608,6 +1765,8 @@ class Shell:
                         ("Expected ESAC", "got EOF"),
                         ("Expected '}' to end compound command", None),  # Function bodies
                         ("Expected RPAREN", "got EOF"),
+                        ("Expected DOUBLE_RBRACKET", None),  # For incomplete [[ ]]
+                        ("Expected test operand", None),      # For [[ ... && at end
                     ]
                     
                     is_incomplete = False

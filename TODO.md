@@ -80,16 +80,16 @@ Features ordered by implementation status and complexity.
   - [x] `FILE1 -nt FILE2` (newer than) - ✅ Check if FILE1 is newer than FILE2
   - [x] `FILE1 -ot FILE2` (older than) - ✅ Check if FILE1 is older than FILE2  
   - [x] `FILE1 -ef FILE2` (same file) - ✅ Check if FILE1 and FILE2 refer to same file
-- [ ] **Enhanced String Test Operators**
+- [x] **Enhanced String Test Operators** - ✅ Implemented in [[ ]] (v0.27.0)
   - [x] `-z` (zero length), `-n` (non-zero length) - ✅ Implemented
-  - [ ] `STRING1 < STRING2` - Lexicographic string comparison (in [[ ]])
-  - [ ] `STRING1 > STRING2` - Lexicographic string comparison (in [[ ]])
-  - [ ] `STRING =~ REGEX` - Pattern matching with regular expressions (in [[ ]])
-- [ ] **Compound Test Expressions**
-  - [ ] `! EXPR` - Logical negation
+  - [x] `STRING1 < STRING2` - ✅ Lexicographic string comparison (in [[ ]])
+  - [x] `STRING1 > STRING2` - ✅ Lexicographic string comparison (in [[ ]])
+  - [x] `STRING =~ REGEX` - ✅ Pattern matching with regular expressions (in [[ ]])
+- [x] **Compound Test Expressions** - ✅ Implemented in [[ ]] (v0.27.0)
+  - [x] `! EXPR` - ✅ Logical negation
   - [ ] `EXPR1 -a EXPR2` - Logical AND (deprecated, use && in [[ ]])
   - [ ] `EXPR1 -o EXPR2` - Logical OR (deprecated, use || in [[ ]])
-  - [ ] `[[ ]]` command - Enhanced test with pattern matching and logical operators
+  - [x] `[[ ]]` command - ✅ Enhanced test with pattern matching and logical operators
 - [ ] **Test Command Error Handling**
   - [x] Proper error codes (0=true, 1=false, 2=syntax error) - ✅ Implemented
   - [ ] Detailed error messages for invalid operators/syntax
@@ -502,6 +502,9 @@ C-style for loops `for ((i=0; i<10; i++))` will complete the iteration construct
 - ~~**Command Substitution in For Loops**~~: ✅ FIXED in v0.19.3 - Command substitution `$(...)` and backticks are now properly parsed and executed in for loop iterables. The parser accepts COMMAND_SUB tokens and the executor expands them with word splitting.
 - **Break/Continue Parsing**: The parser returns break/continue as statements, but some tests expect them as and_or_lists, indicating a mismatch between parser output and test expectations.
 - **Break/Continue with Operators**: Using break/continue after && or || operators (e.g., `echo "test" && break`) causes parse errors.
+- **Enhanced Test [[ ]] in Pipelines** (NEW - v0.27.0): The `[[ ]]` construct is parsed as a statement, not a command, so it cannot be used directly in pipelines or with && and || operators outside of control structures. For example, `[[ test ]] && echo ok` won't parse, but `if [[ test ]]; then echo ok; fi` works correctly.
+- **Enhanced Test [[ ]] with Brace Expansion**: Complex regex patterns containing `{}` quantifiers (e.g., `[a-z]{2,4}`) may be incorrectly processed by brace expansion before reaching the test expression parser.
+- **Enhanced Test [[ ]] Multiline**: Multiline `[[ ]]` expressions work in interactive mode but require explicit line continuation (`\`) in non-interactive mode due to how the input system processes lines.
 
 ### Workarounds in Use
 - Tests use single-line command syntax to avoid multi-line parsing issues

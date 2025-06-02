@@ -2,10 +2,24 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.26.2"
+__version__ = "0.27.0"
 
 # Version history
 VERSION_HISTORY = """
+0.27.0 (2025-02-06) - Enhanced test operators [[ ]]
+  - Implemented [[ ]] enhanced test construct with improved features over [ ]
+  - Added lexicographic string comparison operators (< and >)
+  - Added regular expression matching operator (=~) with Python regex engine
+  - No word splitting inside [[ ]] for safer variable handling
+  - Support for compound expressions with && and || operators
+  - Logical negation with ! operator
+  - All existing test operators from [ ] work in [[ ]]
+  - Context-aware tokenization (< and > are operators inside [[]], not redirections)
+  - New AST nodes for test expressions with proper precedence handling
+  - Pattern concatenation for complex regex patterns
+  - Comprehensive test suite with 15 test methods
+  - Note: [[ ]] is parsed as a statement, not usable in pipelines (see TODO.md)
+
 0.26.2 (2025-02-06) - Control structure improvements: NOT operator and elif support
   - Implemented NOT operator (!) for command negation and test conditions
   - Added full elif/then chain support for multi-way conditionals

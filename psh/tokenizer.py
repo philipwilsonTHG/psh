@@ -51,6 +51,9 @@ class TokenType(Enum):
     PROCESS_SUB_IN = auto()    # <(...)
     PROCESS_SUB_OUT = auto()   # >(...)
     EXCLAMATION = auto()       # !
+    DOUBLE_LBRACKET = auto()   # [[
+    DOUBLE_RBRACKET = auto()   # ]]
+    REGEX_MATCH = auto()       # =~
 
 
 @dataclass
@@ -66,6 +69,7 @@ class Tokenizer:
         self.input = input_string
         self.position = 0
         self.tokens: List[Token] = []
+        self.in_double_brackets = 0  # Track nesting level of [[ ]]
     
     def current_char(self) -> Optional[str]:
         if self.position >= len(self.input):
@@ -87,7 +91,7 @@ class Tokenizer:
     
     def read_word(self) -> str:
         value = ''
-        while self.current_char() and self.current_char() not in ' \t\n|<>;&`(){}':
+        while self.current_char() and self.current_char() not in ' \t\n|<>;&`(){}[]':
             if self.current_char() == '\\' and self.peek_char():
                 # Handle escape sequences
                 self.advance()  # Skip backslash
@@ -410,7 +414,11 @@ class Tokenizer:
                     self.tokens.append(Token(TokenType.EXCLAMATION, '!', start_pos))
                     self.advance()
             elif char == '<':
-                if self.peek_char() == '(':
+                # Inside [[ ]], < is a comparison operator
+                if self.in_double_brackets > 0:
+                    self.tokens.append(Token(TokenType.WORD, '<', start_pos))
+                    self.advance()
+                elif self.peek_char() == '(':
                     # Process substitution <(...)
                     value = self.read_process_substitution('in')
                     self.tokens.append(Token(TokenType.PROCESS_SUB_IN, value, start_pos))
@@ -433,7 +441,11 @@ class Tokenizer:
                     self.tokens.append(Token(TokenType.REDIRECT_IN, '<', start_pos))
                     self.advance()
             elif char == '>':
-                if self.peek_char() == '(':
+                # Inside [[ ]], > is a comparison operator
+                if self.in_double_brackets > 0:
+                    self.tokens.append(Token(TokenType.WORD, '>', start_pos))
+                    self.advance()
+                elif self.peek_char() == '(':
                     # Process substitution >(...)
                     value = self.read_process_substitution('out')
                     self.tokens.append(Token(TokenType.PROCESS_SUB_OUT, value, start_pos))
@@ -507,6 +519,31 @@ class Tokenizer:
                 self.advance()
             elif char == '}':
                 self.tokens.append(Token(TokenType.RBRACE, '}', start_pos))
+                self.advance()
+            elif char == '[':
+                if self.peek_char() == '[' and self.in_double_brackets == 0:
+                    # Only treat [[ as special if we're not already inside [[]]
+                    self.tokens.append(Token(TokenType.DOUBLE_LBRACKET, '[[', start_pos))
+                    self.advance()
+                    self.advance()
+                    self.in_double_brackets += 1
+                else:
+                    # Inside [[ ]], [ is just a single character token
+                    self.tokens.append(Token(TokenType.WORD, '[', start_pos))
+                    self.advance()
+            elif char == ']':
+                if self.peek_char() == ']' and self.in_double_brackets > 0:
+                    self.tokens.append(Token(TokenType.DOUBLE_RBRACKET, ']]', start_pos))
+                    self.advance()
+                    self.advance()
+                    self.in_double_brackets -= 1
+                else:
+                    # Regular ] is just a single character token
+                    self.tokens.append(Token(TokenType.WORD, ']', start_pos))
+                    self.advance()
+            elif char == '=' and self.peek_char() == '~' and self.in_double_brackets > 0:
+                self.tokens.append(Token(TokenType.REGEX_MATCH, '=~', start_pos))
+                self.advance()
                 self.advance()
             else:
                 word = self.read_word()
