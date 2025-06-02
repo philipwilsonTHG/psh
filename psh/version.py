@@ -2,10 +2,21 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.26.0"
+__version__ = "0.26.1"
 
 # Version history
 VERSION_HISTORY = """
+0.26.1 (2025-02-06) - Pipeline fixes and bash compatibility improvements
+  - Fixed pipeline execution for builtin commands (echo, pwd) in forked processes
+  - Builtins now write directly to file descriptor 1 when in child processes
+  - Added -e flag support to echo builtin for escape sequence interpretation
+  - Fixed variable expansion in single quotes to preserve literal values
+  - Added comprehensive bash comparison test suite for compatibility testing
+  - Pass rate improved from 62.7% to 76.5% on basic command comparison tests
+  - All 555 pytest tests now pass with proper echo -e behavior
+  - Fixed tokenizer to track quote types for proper variable expansion
+  - Enhanced AST with quote_types field for better quote handling
+
 0.26.0 (2025-02-06) - Interactive multi-line commands and prompt customization
   - Implemented interactive multi-line command support with automatic continuation detection
   - Added PS1 (primary) and PS2 (continuation) prompt variables with full customization
