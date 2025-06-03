@@ -27,6 +27,7 @@ from .core.state import ShellState
 from .utils.ast_formatter import ASTFormatter
 from .utils.token_formatter import TokenFormatter
 from .expansion.manager import ExpansionManager
+from .io_redirect.manager import IOManager
 
 class Shell:
     def __init__(self, args=None, script_name=None, debug_ast=False, debug_tokens=False, norc=False, rcfile=None):
@@ -57,6 +58,9 @@ class Shell:
         
         # Expansion management
         self.expansion_manager = ExpansionManager(self)
+        
+        # I/O redirection management
+        self.io_manager = IOManager(self)
         
         # Ensure shell is in its own process group for job control
         shell_pgid = os.getpid()
@@ -111,7 +115,8 @@ class Shell:
     def __setattr__(self, name, value):
         """Delegate attribute setting to state for compatibility."""
         if name in ('state', '_state_properties', 'builtin_registry', 'builtins', 
-                   'alias_manager', 'function_manager', 'job_manager', 'expansion_manager'):
+                   'alias_manager', 'function_manager', 'job_manager', 'expansion_manager',
+                   'io_manager'):
             super().__setattr__(name, value)
         elif hasattr(self, '_state_properties') and name in self._state_properties:
             setattr(self.state, name, value)
@@ -1810,58 +1815,7 @@ class Shell:
     
     def _collect_heredocs(self, node):
         """Collect here document content for all commands in a node"""
-        if isinstance(node, CommandList):
-            # Process all statements in the command list
-            for item in node.statements:
-                self._collect_heredocs(item)
-        elif isinstance(node, AndOrList):
-            # Process pipelines in and_or_list
-            for pipeline in node.pipelines:
-                for command in pipeline.commands:
-                    for redirect in command.redirects:
-                        if redirect.type in ('<<', '<<-'):
-                            # Collect here document content
-                            lines = []
-                            delimiter = redirect.target
-                            
-                            # Read lines until we find the delimiter
-                            while True:
-                                try:
-                                    line = input()
-                                    if line.strip() == delimiter:
-                                        break
-                                    if redirect.type == '<<-':
-                                        # Strip leading tabs
-                                        line = line.lstrip('\t')
-                                    lines.append(line)
-                                except EOFError:
-                                    break
-                            
-                            redirect.heredoc_content = '\n'.join(lines)
-                            if lines:  # Add final newline if there was content
-                                redirect.heredoc_content += '\n'
-        elif isinstance(node, IfStatement):
-            # Recursively collect for if statement parts
-            self._collect_heredocs(node.condition)
-            self._collect_heredocs(node.then_part)
-            # Collect from elif parts
-            for elif_condition, elif_then in node.elif_parts:
-                self._collect_heredocs(elif_condition)
-                self._collect_heredocs(elif_then)
-            if node.else_part:
-                self._collect_heredocs(node.else_part)
-        elif isinstance(node, WhileStatement):
-            # Recursively collect for while statement parts
-            self._collect_heredocs(node.condition)
-            self._collect_heredocs(node.body)
-        elif isinstance(node, ForStatement):
-            # Recursively collect for for statement body
-            self._collect_heredocs(node.body)
-        elif isinstance(node, CaseStatement):
-            # Recursively collect for case items
-            for item in node.items:
-                self._collect_heredocs(item.commands)
-        # BreakStatement and ContinueStatement don't have heredocs
+        self.io_manager.collect_heredocs(node)
     
     def _add_to_history(self, command):
         """Add a command to history"""
@@ -1985,167 +1939,11 @@ class Shell:
     
     def _apply_redirections(self, redirects: List[Redirect]) -> List[Tuple[int, int]]:
         """Apply redirections and return list of (fd, saved_fd) for restoration."""
-        saved_fds = []
-        
-        # Save current Python file objects
-        self._saved_stdout = self.stdout
-        self._saved_stderr = self.stderr
-        self._saved_stdin = self.stdin
-        
-        for redirect in redirects:
-            # Expand tilde in target for file redirections
-            target = redirect.target
-            if target and redirect.type in ('<', '>', '>>') and target.startswith('~'):
-                target = self._expand_tilde(target)
-            
-            # Handle process substitution as redirect target
-            if target and target.startswith(('<(', '>(')) and target.endswith(')'):
-                # This is a process substitution used as a redirect target
-                # Set up the process substitution and get the fd path
-                if target.startswith('<('):
-                    direction = 'in'
-                    cmd_str = target[2:-1]
-                else:
-                    direction = 'out' 
-                    cmd_str = target[2:-1]
-                
-                # Create pipe
-                if direction == 'in':
-                    read_fd, write_fd = os.pipe()
-                    parent_fd = read_fd
-                    child_fd = write_fd
-                    child_stdout = child_fd
-                    child_stdin = 0
-                else:
-                    read_fd, write_fd = os.pipe()
-                    parent_fd = write_fd
-                    child_fd = read_fd
-                    child_stdout = 1
-                    child_stdin = child_fd
-                
-                # Clear close-on-exec flag
-                flags = fcntl.fcntl(parent_fd, fcntl.F_GETFD)
-                fcntl.fcntl(parent_fd, fcntl.F_SETFD, flags & ~fcntl.FD_CLOEXEC)
-                
-                # Fork child
-                pid = os.fork()
-                if pid == 0:  # Child
-                    os.close(parent_fd)
-                    if direction == 'in':
-                        os.dup2(child_stdout, 1)
-                    else:
-                        os.dup2(child_stdin, 0)
-                    os.close(child_fd)
-                    
-                    try:
-                        tokens = tokenize(cmd_str)
-                        ast = parse(tokens)
-                        temp_shell = Shell()
-                        temp_shell.env = self.env.copy()
-                        temp_shell.variables = self.variables.copy()
-                        exit_code = temp_shell.execute_command_list(ast)
-                        os._exit(exit_code)
-                    except Exception as e:
-                        print(f"psh: process substitution error: {e}", file=sys.stderr)
-                        os._exit(1)
-                else:  # Parent
-                    os.close(child_fd)
-                    # Store for cleanup
-                    if not hasattr(self, '_redirect_proc_sub_fds'):
-                        self._redirect_proc_sub_fds = []
-                    if not hasattr(self, '_redirect_proc_sub_pids'):
-                        self._redirect_proc_sub_pids = []
-                    self._redirect_proc_sub_fds.append(parent_fd)
-                    self._redirect_proc_sub_pids.append(pid)
-                    # Use the fd path as target
-                    target = f"/dev/fd/{parent_fd}"
-            
-            if redirect.type == '<':
-                # Save current stdin
-                saved_fds.append((0, os.dup(0)))
-                fd = os.open(target, os.O_RDONLY)
-                os.dup2(fd, 0)
-                os.close(fd)
-            elif redirect.type in ('<<', '<<-'):
-                # Save current stdin
-                saved_fds.append((0, os.dup(0)))
-                # Create a pipe for heredoc
-                r, w = os.pipe()
-                # Write heredoc content to pipe
-                os.write(w, (redirect.heredoc_content or '').encode())
-                os.close(w)
-                # Redirect stdin to read end
-                os.dup2(r, 0)
-                os.close(r)
-            elif redirect.type == '<<<':
-                # Save current stdin
-                saved_fds.append((0, os.dup(0)))
-                # Create a pipe for here string
-                r, w = os.pipe()
-                # Write here string content with newline
-                content = redirect.target + '\n'
-                os.write(w, content.encode())
-                os.close(w)
-                # Redirect stdin to read end
-                os.dup2(r, 0)
-                os.close(r)
-            elif redirect.type == '>':
-                target_fd = redirect.fd if redirect.fd is not None else 1
-                # Save current fd
-                saved_fds.append((target_fd, os.dup(target_fd)))
-                fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)
-                os.dup2(fd, target_fd)
-                os.close(fd)
-            elif redirect.type == '>>':
-                target_fd = redirect.fd if redirect.fd is not None else 1
-                # Save current fd
-                saved_fds.append((target_fd, os.dup(target_fd)))
-                fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o644)
-                os.dup2(fd, target_fd)
-                os.close(fd)
-            elif redirect.type == '>&':
-                # Handle fd duplication like 2>&1
-                if redirect.fd is not None and redirect.dup_fd is not None:
-                    # Save current fd
-                    saved_fds.append((redirect.fd, os.dup(redirect.fd)))
-                    os.dup2(redirect.dup_fd, redirect.fd)
-        
-        # Note: We don't create new Python file objects here because:
-        # 1. It can interfere with pytest's output capture
-        # 2. External commands will inherit the redirected file descriptors
-        # 3. Builtins should use os.write() directly to fd 1/2 for proper redirection
-        
-        return saved_fds
+        return self.io_manager.apply_redirections(redirects)
     
     def _restore_redirections(self, saved_fds: List[Tuple[int, int]]):
         """Restore file descriptors from saved list."""
-        # Restore file descriptors
-        for fd, saved_fd in saved_fds:
-            os.dup2(saved_fd, fd)
-            os.close(saved_fd)
-        
-        # Restore Python file objects
-        if hasattr(self, '_saved_stdout'):
-            self.stdout = self._saved_stdout
-            self.stderr = self._saved_stderr
-            self.stdin = self._saved_stdin
-        
-        # Clean up process substitution fds and wait for children
-        if hasattr(self, '_redirect_proc_sub_fds'):
-            for fd in self._redirect_proc_sub_fds:
-                try:
-                    os.close(fd)
-                except:
-                    pass
-            del self._redirect_proc_sub_fds
-        
-        if hasattr(self, '_redirect_proc_sub_pids'):
-            for pid in self._redirect_proc_sub_pids:
-                try:
-                    os.waitpid(pid, 0)
-                except:
-                    pass
-            del self._redirect_proc_sub_pids
+        self.io_manager.restore_redirections(saved_fds)
     
     def _setup_child_redirections(self, command: Command):
         """Set up redirections in child process (after fork) using dup2"""
@@ -2271,108 +2069,8 @@ class Shell:
     
     def _setup_process_substitutions(self, command: Command) -> Tuple[List[int], List[str], List[int]]:
         """Set up process substitutions and return (fds, paths, child_pids)."""
-        fds_to_keep = []
-        substituted_args = []
-        child_pids = []
-        
-        for i, arg in enumerate(command.args):
-            arg_type = command.arg_types[i] if i < len(command.arg_types) else 'WORD'
-            
-            if arg_type in ('PROCESS_SUB_IN', 'PROCESS_SUB_OUT'):
-                # Extract command from <(cmd) or >(cmd)
-                if arg.startswith('<('):
-                    direction = 'in'
-                    cmd_str = arg[2:-1]  # Remove <( and )
-                elif arg.startswith('>('):
-                    direction = 'out'
-                    cmd_str = arg[2:-1]  # Remove >( and )
-                else:
-                    # Should not happen
-                    substituted_args.append(arg)
-                    continue
-                
-                # Create pipe
-                if direction == 'in':
-                    # For <(cmd), parent reads from pipe, child writes to it
-                    read_fd, write_fd = os.pipe()
-                    parent_fd = read_fd
-                    child_fd = write_fd
-                    child_stdout = child_fd
-                    child_stdin = 0
-                else:
-                    # For >(cmd), parent writes to pipe, child reads from it
-                    read_fd, write_fd = os.pipe()
-                    parent_fd = write_fd
-                    child_fd = read_fd
-                    child_stdout = 1
-                    child_stdin = child_fd
-                
-                # Clear close-on-exec flag for parent_fd so it survives exec
-                flags = fcntl.fcntl(parent_fd, fcntl.F_GETFD)
-                fcntl.fcntl(parent_fd, fcntl.F_SETFD, flags & ~fcntl.FD_CLOEXEC)
-                
-                # Fork child for process substitution
-                pid = os.fork()
-                if pid == 0:  # Child
-                    # Close parent's end of pipe
-                    os.close(parent_fd)
-                    
-                    # Set up child's stdio
-                    if direction == 'in':
-                        os.dup2(child_stdout, 1)
-                    else:
-                        os.dup2(child_stdin, 0)
-                    
-                    # Close the pipe fd we duplicated
-                    os.close(child_fd)
-                    
-                    # Execute the substitution command
-                    try:
-                        # Parse and execute the command string
-                        tokens = tokenize(cmd_str)
-                        ast = parse(tokens)
-                        # Create a new shell instance to avoid state pollution
-                        temp_shell = Shell()
-                        temp_shell.env = self.env.copy()
-                        temp_shell.variables = self.variables.copy()
-                        exit_code = temp_shell.execute_command_list(ast)
-                        os._exit(exit_code)
-                    except Exception as e:
-                        print(f"psh: process substitution error: {e}", file=sys.stderr)
-                        os._exit(1)
-                
-                else:  # Parent
-                    # Close child's end of pipe
-                    os.close(child_fd)
-                    
-                    # Keep track of what we need to clean up
-                    fds_to_keep.append(parent_fd)
-                    child_pids.append(pid)
-                    
-                    # Create path for this fd
-                    # On Linux/macOS, we can use /dev/fd/N
-                    fd_path = f"/dev/fd/{parent_fd}"
-                    substituted_args.append(fd_path)
-            else:
-                # Not a process substitution, keep as-is
-                substituted_args.append(arg)
-        
-        return fds_to_keep, substituted_args, child_pids
+        return self.io_manager.setup_process_substitutions(command)
     
     def _cleanup_process_substitutions(self):
         """Clean up process substitution file descriptors and wait for children."""
-        if hasattr(self, '_process_sub_fds'):
-            for fd in self._process_sub_fds:
-                try:
-                    os.close(fd)
-                except:
-                    pass
-            del self._process_sub_fds
-        
-        if hasattr(self, '_process_sub_pids'):
-            for pid in self._process_sub_pids:
-                try:
-                    os.waitpid(pid, 0)
-                except:
-                    pass
-            del self._process_sub_pids
+        self.io_manager.cleanup_process_substitutions()
