@@ -158,152 +158,13 @@ class Shell:
             # Assignments followed by command - not handled here
             return -1
     
-    def _setup_builtin_redirections(self, command: Command):
-        """Set up redirections for built-in commands. Returns tuple of backup objects."""
-        stdout_backup = None
-        stderr_backup = None
-        stdin_backup = None
-        
-        for redirect in command.redirects:
-            # Expand tilde in target for file redirections
-            target = redirect.target
-            if target and redirect.type in ('<', '>', '>>') and target.startswith('~'):
-                target = self.expansion_manager.expand_tilde(target)
-            
-            # Handle process substitution as redirect target
-            if target and target.startswith(('<(', '>(')) and target.endswith(')'):
-                # This is a process substitution used as a redirect target
-                # Set up the process substitution and get the fd path
-                if target.startswith('<('):
-                    direction = 'in'
-                    cmd_str = target[2:-1]
-                else:
-                    direction = 'out' 
-                    cmd_str = target[2:-1]
-                
-                # Create pipe
-                if direction == 'in':
-                    read_fd, write_fd = os.pipe()
-                    parent_fd = read_fd
-                    child_fd = write_fd
-                    child_stdout = child_fd
-                    child_stdin = 0
-                else:
-                    read_fd, write_fd = os.pipe()
-                    parent_fd = write_fd
-                    child_fd = read_fd
-                    child_stdout = 1
-                    child_stdin = child_fd
-                
-                # Clear close-on-exec flag
-                flags = fcntl.fcntl(parent_fd, fcntl.F_GETFD)
-                fcntl.fcntl(parent_fd, fcntl.F_SETFD, flags & ~fcntl.FD_CLOEXEC)
-                
-                # Fork child
-                pid = os.fork()
-                if pid == 0:  # Child
-                    os.close(parent_fd)
-                    if direction == 'in':
-                        os.dup2(child_stdout, 1)
-                    else:
-                        os.dup2(child_stdin, 0)
-                    os.close(child_fd)
-                    
-                    try:
-                        tokens = tokenize(cmd_str)
-                        ast = parse(tokens)
-                        temp_shell = Shell()
-                        temp_shell.env = self.env.copy()
-                        temp_shell.variables = self.variables.copy()
-                        exit_code = temp_shell.execute_command_list(ast)
-                        os._exit(exit_code)
-                    except Exception as e:
-                        print(f"psh: process substitution error: {e}", file=sys.stderr)
-                        os._exit(1)
-                else:  # Parent
-                    os.close(child_fd)
-                    # Store for cleanup
-                    if not hasattr(self, '_builtin_proc_sub_fds'):
-                        self._builtin_proc_sub_fds = []
-                    if not hasattr(self, '_builtin_proc_sub_pids'):
-                        self._builtin_proc_sub_pids = []
-                    self._builtin_proc_sub_fds.append(parent_fd)
-                    self._builtin_proc_sub_pids.append(pid)
-                    # Use the fd path as target
-                    target = f"/dev/fd/{parent_fd}"
-            
-            if redirect.type == '<':
-                stdin_backup = sys.stdin
-                sys.stdin = open(target, 'r')
-            elif redirect.type in ('<<', '<<-'):
-                stdin_backup = sys.stdin
-                # Create a StringIO object from heredoc content
-                import io
-                sys.stdin = io.StringIO(redirect.heredoc_content or '')
-            elif redirect.type == '<<<':
-                stdin_backup = sys.stdin
-                # For here string, add a newline to the content
-                import io
-                content = redirect.target + '\n'
-                sys.stdin = io.StringIO(content)
-            elif redirect.type == '>' and redirect.fd == 2:
-                stderr_backup = sys.stderr
-                sys.stderr = open(target, 'w')
-            elif redirect.type == '>>' and redirect.fd == 2:
-                stderr_backup = sys.stderr
-                sys.stderr = open(target, 'a')
-            elif redirect.type == '>' and (redirect.fd is None or redirect.fd == 1):
-                stdout_backup = sys.stdout
-                sys.stdout = open(target, 'w')
-            elif redirect.type == '>>' and (redirect.fd is None or redirect.fd == 1):
-                stdout_backup = sys.stdout
-                sys.stdout = open(target, 'a')
-            elif redirect.type == '>&':
-                # Handle fd duplication like 2>&1
-                if redirect.fd == 2 and redirect.dup_fd == 1:
-                    stderr_backup = sys.stderr
-                    sys.stderr = sys.stdout
-        
-        return stdin_backup, stdout_backup, stderr_backup
-    
-    def _restore_builtin_redirections(self, stdin_backup, stdout_backup, stderr_backup):
-        """Restore original stdin/stdout/stderr after built-in execution"""
-        if stdin_backup:
-            if hasattr(sys.stdin, 'close') and sys.stdin != stdin_backup:
-                sys.stdin.close()
-            sys.stdin = stdin_backup
-        if stdout_backup:
-            if hasattr(sys.stdout, 'close') and sys.stdout != stdout_backup:
-                sys.stdout.close()
-            sys.stdout = stdout_backup
-        if stderr_backup:
-            if hasattr(sys.stderr, 'close') and sys.stderr != stderr_backup:
-                sys.stderr.close()
-            sys.stderr = stderr_backup
-        
-        # Clean up process substitution fds and wait for children
-        if hasattr(self, '_builtin_proc_sub_fds'):
-            for fd in self._builtin_proc_sub_fds:
-                try:
-                    os.close(fd)
-                except:
-                    pass
-            del self._builtin_proc_sub_fds
-        
-        if hasattr(self, '_builtin_proc_sub_pids'):
-            for pid in self._builtin_proc_sub_pids:
-                try:
-                    os.waitpid(pid, 0)
-                except:
-                    pass
-            del self._builtin_proc_sub_pids
     
     def _execute_builtin(self, args: list, command: Command) -> int:
         """Execute a built-in command with proper redirection handling"""
         # Check new registry first
         builtin = self.builtin_registry.get(args[0])
         if builtin:
-            stdin_backup, stdout_backup, stderr_backup = self._setup_builtin_redirections(command)
+            stdin_backup, stdout_backup, stderr_backup = self.io_manager.setup_builtin_redirections(command)
             try:
                 # Update sys streams for builtins that might use them
                 self.stdout = sys.stdout
@@ -314,18 +175,18 @@ class Shell:
                 # Re-raise FunctionReturn to propagate it up
                 raise
             finally:
-                self._restore_builtin_redirections(stdin_backup, stdout_backup, stderr_backup)
+                self.io_manager.restore_builtin_redirections(stdin_backup, stdout_backup, stderr_backup)
         
         # Fall back to old builtins
         if args[0] in self.builtins:
-            stdin_backup, stdout_backup, stderr_backup = self._setup_builtin_redirections(command)
+            stdin_backup, stdout_backup, stderr_backup = self.io_manager.setup_builtin_redirections(command)
             try:
                 return self.builtins[args[0]](args)
             except FunctionReturn:
                 # Re-raise FunctionReturn to propagate it up
                 raise
             finally:
-                self._restore_builtin_redirections(stdin_backup, stdout_backup, stderr_backup)
+                self.io_manager.restore_builtin_redirections(stdin_backup, stdout_backup, stderr_backup)
         
         # Not a builtin
         return -1
@@ -354,7 +215,7 @@ class Shell:
             signal.signal(signal.SIGCHLD, signal.SIG_DFL)
             
             # Set up redirections
-            self._setup_child_redirections(command)
+            self.io_manager.setup_child_redirections(command)
             
             # Execute the command
             try:
@@ -509,7 +370,7 @@ class Shell:
                 result = self._execute_external(command_args, command)
         finally:
             # Clean up process substitutions
-            self._cleanup_process_substitutions()
+            self.io_manager.cleanup_process_substitutions()
             
             # Restore original variable values
             for var_name, original_value in saved_vars.items():
@@ -751,27 +612,27 @@ class Shell:
                         last_exit = 1
                 elif isinstance(item, CommandList):
                     # Collect here documents if any
-                    self._collect_heredocs(item)
+                    self.io_manager.collect_heredocs(item)
                     # Execute commands
                     last_exit = self.execute_command_list(item)
                 elif isinstance(item, IfStatement):
                     # Collect here documents
-                    self._collect_heredocs(item)
+                    self.io_manager.collect_heredocs(item)
                     # Execute if statement
                     last_exit = self.executor_manager.control_flow_executor.execute_if(item)
                 elif isinstance(item, WhileStatement):
                     # Collect here documents
-                    self._collect_heredocs(item)
+                    self.io_manager.collect_heredocs(item)
                     # Execute while statement
                     last_exit = self.executor_manager.control_flow_executor.execute_while(item)
                 elif isinstance(item, ForStatement):
                     # Collect here documents
-                    self._collect_heredocs(item)
+                    self.io_manager.collect_heredocs(item)
                     # Execute for statement
                     last_exit = self.executor_manager.control_flow_executor.execute_for(item)
                 elif isinstance(item, CaseStatement):
                     # Collect here documents
-                    self._collect_heredocs(item)
+                    self.io_manager.collect_heredocs(item)
                     # Execute case statement
                     last_exit = self.executor_manager.control_flow_executor.execute_case(item)
                 elif isinstance(item, BreakStatement):
@@ -797,7 +658,7 @@ class Shell:
         """Execute an enhanced test statement [[...]]."""
         # Apply redirections if present
         if test_stmt.redirects:
-            saved_fds = self._apply_redirections(test_stmt.redirects)
+            saved_fds = self.io_manager.apply_redirections(test_stmt.redirects)
         else:
             saved_fds = None
         
@@ -812,7 +673,7 @@ class Shell:
         finally:
             # Restore file descriptors
             if saved_fds:
-                self._restore_redirections(saved_fds)
+                self.io_manager.restore_redirections(saved_fds)
     
     def _evaluate_test_expression(self, expr: TestExpression) -> bool:
         """Evaluate a test expression to boolean."""
@@ -955,7 +816,7 @@ class Shell:
         self.function_stack.append(func.name)
         
         # Apply redirections for the function call
-        stdin_backup, stdout_backup, stderr_backup = self._setup_builtin_redirections(command)
+        stdin_backup, stdout_backup, stderr_backup = self.io_manager.setup_builtin_redirections(command)
         
         try:
             # Execute function body
@@ -965,7 +826,7 @@ class Shell:
             return ret.exit_code
         finally:
             # Restore redirections
-            self._restore_builtin_redirections(stdin_backup, stdout_backup, stderr_backup)
+            self.io_manager.restore_builtin_redirections(stdin_backup, stdout_backup, stderr_backup)
             # Restore environment
             self.function_stack.pop()
             self.positional_params = saved_params
@@ -979,9 +840,6 @@ class Shell:
         """Execute a script file with optional arguments."""
         return self.script_manager.run_script(script_path, script_args)
     
-    def _execute_from_source(self, input_source, add_to_history=True) -> int:
-        """Execute commands from an input source with enhanced processing."""
-        return self.script_manager.execute_from_source(input_source, add_to_history)
     
     def _execute_buffered_command(self, command_string: str, input_source, start_line: int, add_to_history: bool) -> int:
         """Execute a buffered command with enhanced error reporting."""
@@ -1024,7 +882,7 @@ class Shell:
                 # Backward compatibility - CommandList
                 try:
                     # Collect here documents if any
-                    self._collect_heredocs(ast)
+                    self.io_manager.collect_heredocs(ast)
                     exit_code = self.execute_command_list(ast)
                     return exit_code
                 except (LoopBreak, LoopContinue) as e:
@@ -1051,7 +909,7 @@ class Shell:
         
         # Use the unified execution system for consistency
         input_source = StringInput(command_string, "<command>")
-        return self._execute_from_source(input_source, add_to_history)
+        return self.script_manager.execute_from_source(input_source, add_to_history)
     
     def interactive_loop(self):
         """Run the interactive shell loop."""
@@ -1060,9 +918,6 @@ class Shell:
     # Built-in commands have been moved to the builtins module
     
     
-    def _collect_heredocs(self, node):
-        """Collect here document content for all commands in a node"""
-        self.io_manager.collect_heredocs(node)
     
     
     
@@ -1089,7 +944,7 @@ class Shell:
                 # Source the file without adding to history
                 from .input_sources import FileInput
                 with FileInput(rc_file) as input_source:
-                    self._execute_from_source(input_source, add_to_history=False)
+                    self.script_manager.execute_from_source(input_source, add_to_history=False)
                 
                 # Restore $0
                 self.variables['0'] = old_script_name
@@ -1113,59 +968,7 @@ class Shell:
             return False
     
     
-    def _apply_redirections(self, redirects: List[Redirect]) -> List[Tuple[int, int]]:
-        """Apply redirections and return list of (fd, saved_fd) for restoration."""
-        return self.io_manager.apply_redirections(redirects)
     
-    def _restore_redirections(self, saved_fds: List[Tuple[int, int]]):
-        """Restore file descriptors from saved list."""
-        self.io_manager.restore_redirections(saved_fds)
-    
-    def _setup_child_redirections(self, command: Command):
-        """Set up redirections in child process (after fork) using dup2"""
-        for redirect in command.redirects:
-            # Expand tilde in target for file redirections
-            target = redirect.target
-            if target and redirect.type in ('<', '>', '>>') and target.startswith('~'):
-                target = self.expansion_manager.expand_tilde(target)
-            
-            if redirect.type == '<':
-                fd = os.open(target, os.O_RDONLY)
-                os.dup2(fd, 0)
-                os.close(fd)
-            elif redirect.type in ('<<', '<<-'):
-                # Create a pipe for heredoc
-                r, w = os.pipe()
-                # Write heredoc content to pipe
-                os.write(w, (redirect.heredoc_content or '').encode())
-                os.close(w)
-                # Redirect stdin to read end
-                os.dup2(r, 0)
-                os.close(r)
-            elif redirect.type == '<<<':
-                # Create a pipe for here string
-                r, w = os.pipe()
-                # Write here string content with newline
-                content = redirect.target + '\n'
-                os.write(w, content.encode())
-                os.close(w)
-                # Redirect stdin to read end
-                os.dup2(r, 0)
-                os.close(r)
-            elif redirect.type == '>':
-                fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)
-                target_fd = redirect.fd if redirect.fd is not None else 1
-                os.dup2(fd, target_fd)
-                os.close(fd)
-            elif redirect.type == '>>':
-                fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o644)
-                target_fd = redirect.fd if redirect.fd is not None else 1
-                os.dup2(fd, target_fd)
-                os.close(fd)
-            elif redirect.type == '>&':
-                # Handle fd duplication like 2>&1
-                if redirect.fd is not None and redirect.dup_fd is not None:
-                    os.dup2(redirect.dup_fd, redirect.fd)
     
     def _execute_in_child(self, command: Command):
         """Execute a command in a child process (after fork)"""
@@ -1177,7 +980,7 @@ class Shell:
         
         # Set up redirections
         try:
-            self._setup_child_redirections(command)
+            self.io_manager.setup_child_redirections(command)
         except Exception as e:
             print(f"psh: {e}", file=sys.stderr)
             return 1
@@ -1236,13 +1039,6 @@ class Shell:
             return 1
     
     
-    def _setup_process_substitutions(self, command: Command) -> Tuple[List[int], List[str], List[int]]:
-        """Set up process substitutions and return (fds, paths, child_pids)."""
-        return self.io_manager.setup_process_substitutions(command)
-    
-    def _cleanup_process_substitutions(self):
-        """Clean up process substitution file descriptors and wait for children."""
-        self.io_manager.cleanup_process_substitutions()
     
     # Compatibility methods for tests (Phase 7 temporary)
     def _add_to_history(self, command: str) -> None:

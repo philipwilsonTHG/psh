@@ -48,20 +48,199 @@ class IOManager:
         """Restore file descriptors from saved list."""
         self.file_redirector.restore_redirections(saved_fds)
     
-    def setup_builtin_redirections(self, command: Command) -> Tuple[Optional[int], Optional[int], Optional[int]]:
-        """Set up redirections for builtin commands, returning saved stdin/stdout/stderr."""
-        # For now, delegate to shell's existing method
-        return self.shell._setup_builtin_redirections(command)
+    def setup_builtin_redirections(self, command: Command) -> Tuple:
+        """Set up redirections for built-in commands. Returns tuple of backup objects."""
+        import io
+        import fcntl
+        from ..tokenizer import tokenize
+        from ..parser import parse
+        
+        stdout_backup = None
+        stderr_backup = None
+        stdin_backup = None
+        
+        for redirect in command.redirects:
+            # Expand tilde in target for file redirections
+            target = redirect.target
+            if target and redirect.type in ('<', '>', '>>') and target.startswith('~'):
+                target = self.shell.expansion_manager.expand_tilde(target)
+            
+            # Handle process substitution as redirect target
+            if target and target.startswith(('<(', '>(')) and target.endswith(')'):
+                # This is a process substitution used as a redirect target
+                # Set up the process substitution and get the fd path
+                if target.startswith('<('):
+                    direction = 'in'
+                    cmd_str = target[2:-1]
+                else:
+                    direction = 'out' 
+                    cmd_str = target[2:-1]
+                
+                # Create pipe
+                if direction == 'in':
+                    read_fd, write_fd = os.pipe()
+                    parent_fd = read_fd
+                    child_fd = write_fd
+                    child_stdout = child_fd
+                    child_stdin = 0
+                else:
+                    read_fd, write_fd = os.pipe()
+                    parent_fd = write_fd
+                    child_fd = read_fd
+                    child_stdout = 1
+                    child_stdin = child_fd
+                
+                # Clear close-on-exec flag
+                flags = fcntl.fcntl(parent_fd, fcntl.F_GETFD)
+                fcntl.fcntl(parent_fd, fcntl.F_SETFD, flags & ~fcntl.FD_CLOEXEC)
+                
+                # Fork child
+                pid = os.fork()
+                if pid == 0:  # Child
+                    os.close(parent_fd)
+                    if direction == 'in':
+                        os.dup2(child_stdout, 1)
+                    else:
+                        os.dup2(child_stdin, 0)
+                    os.close(child_fd)
+                    
+                    try:
+                        tokens = tokenize(cmd_str)
+                        ast = parse(tokens)
+                        # Import here to avoid circular dependency
+                        from ..shell import Shell
+                        temp_shell = Shell()
+                        temp_shell.env = self.shell.env.copy()
+                        temp_shell.variables = self.shell.variables.copy()
+                        exit_code = temp_shell.execute_command_list(ast)
+                        os._exit(exit_code)
+                    except Exception as e:
+                        print(f"psh: process substitution error: {e}", file=sys.stderr)
+                        os._exit(1)
+                else:  # Parent
+                    os.close(child_fd)
+                    # Store for cleanup
+                    if not hasattr(self.shell, '_builtin_proc_sub_fds'):
+                        self.shell._builtin_proc_sub_fds = []
+                    if not hasattr(self.shell, '_builtin_proc_sub_pids'):
+                        self.shell._builtin_proc_sub_pids = []
+                    self.shell._builtin_proc_sub_fds.append(parent_fd)
+                    self.shell._builtin_proc_sub_pids.append(pid)
+                    # Use the fd path as target
+                    target = f"/dev/fd/{parent_fd}"
+            
+            if redirect.type == '<':
+                stdin_backup = sys.stdin
+                sys.stdin = open(target, 'r')
+            elif redirect.type in ('<<', '<<-'):
+                stdin_backup = sys.stdin
+                # Create a StringIO object from heredoc content
+                sys.stdin = io.StringIO(redirect.heredoc_content or '')
+            elif redirect.type == '<<<':
+                stdin_backup = sys.stdin
+                # For here string, add a newline to the content
+                content = redirect.target + '\n'
+                sys.stdin = io.StringIO(content)
+            elif redirect.type == '>' and redirect.fd == 2:
+                stderr_backup = sys.stderr
+                sys.stderr = open(target, 'w')
+            elif redirect.type == '>>' and redirect.fd == 2:
+                stderr_backup = sys.stderr
+                sys.stderr = open(target, 'a')
+            elif redirect.type == '>' and (redirect.fd is None or redirect.fd == 1):
+                stdout_backup = sys.stdout
+                sys.stdout = open(target, 'w')
+            elif redirect.type == '>>' and (redirect.fd is None or redirect.fd == 1):
+                stdout_backup = sys.stdout
+                sys.stdout = open(target, 'a')
+            elif redirect.type == '>&':
+                # Handle fd duplication like 2>&1
+                if redirect.fd == 2 and redirect.dup_fd == 1:
+                    stderr_backup = sys.stderr
+                    sys.stderr = sys.stdout
+        
+        return stdin_backup, stdout_backup, stderr_backup
     
     def restore_builtin_redirections(self, stdin_backup, stdout_backup, stderr_backup):
-        """Restore stdin/stdout/stderr for builtin commands."""
-        # For now, delegate to shell's existing method
-        self.shell._restore_builtin_redirections(stdin_backup, stdout_backup, stderr_backup)
+        """Restore original stdin/stdout/stderr after built-in execution"""
+        # Restore in reverse order
+        if stderr_backup is not None:
+            if hasattr(sys.stderr, 'close') and sys.stderr != stderr_backup:
+                sys.stderr.close()
+            sys.stderr = stderr_backup
+        
+        if stdout_backup is not None:
+            if hasattr(sys.stdout, 'close') and sys.stdout != stdout_backup:
+                sys.stdout.close()
+            sys.stdout = stdout_backup
+            
+        if stdin_backup is not None:
+            if hasattr(sys.stdin, 'close') and sys.stdin != stdin_backup:
+                sys.stdin.close()
+            sys.stdin = stdin_backup
+        
+        # Clean up process substitution resources if any
+        if hasattr(self.shell, '_builtin_proc_sub_fds'):
+            for fd in self.shell._builtin_proc_sub_fds:
+                try:
+                    os.close(fd)
+                except:
+                    pass
+            self.shell._builtin_proc_sub_fds = []
+        
+        if hasattr(self.shell, '_builtin_proc_sub_pids'):
+            for pid in self.shell._builtin_proc_sub_pids:
+                try:
+                    os.waitpid(pid, 0)
+                except:
+                    pass
+            self.shell._builtin_proc_sub_pids = []
     
     def setup_child_redirections(self, command: Command):
-        """Set up redirections in a child process."""
-        # For now, delegate to shell's existing method
-        self.shell._setup_child_redirections(command)
+        """Set up redirections in child process (after fork) using dup2"""
+        for redirect in command.redirects:
+            # Expand tilde in target for file redirections
+            target = redirect.target
+            if target and redirect.type in ('<', '>', '>>') and target.startswith('~'):
+                target = self.shell.expansion_manager.expand_tilde(target)
+            
+            if redirect.type == '<':
+                fd = os.open(target, os.O_RDONLY)
+                os.dup2(fd, 0)
+                os.close(fd)
+            elif redirect.type in ('<<', '<<-'):
+                # Create a pipe for heredoc
+                r, w = os.pipe()
+                # Write heredoc content to pipe
+                os.write(w, (redirect.heredoc_content or '').encode())
+                os.close(w)
+                # Redirect stdin to read end
+                os.dup2(r, 0)
+                os.close(r)
+            elif redirect.type == '<<<':
+                # Create a pipe for here string
+                r, w = os.pipe()
+                # Write here string content with newline
+                content = redirect.target + '\n'
+                os.write(w, content.encode())
+                os.close(w)
+                # Redirect stdin to read end
+                os.dup2(r, 0)
+                os.close(r)
+            elif redirect.type == '>':
+                fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)
+                target_fd = redirect.fd if redirect.fd is not None else 1
+                os.dup2(fd, target_fd)
+                os.close(fd)
+            elif redirect.type == '>>':
+                fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o644)
+                target_fd = redirect.fd if redirect.fd is not None else 1
+                os.dup2(fd, target_fd)
+                os.close(fd)
+            elif redirect.type == '>&':
+                # Handle fd duplication like 2>&1
+                if redirect.fd is not None and redirect.dup_fd is not None:
+                    os.dup2(redirect.dup_fd, redirect.fd)
     
     def collect_heredocs(self, node):
         """Collect here document content for all commands in a node."""

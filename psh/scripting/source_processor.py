@@ -147,7 +147,7 @@ class SourceProcessor(ScriptComponent):
                 # Backward compatibility - CommandList
                 try:
                     # Collect here documents if any
-                    self.shell._collect_heredocs(ast)
+                    self.shell.io_manager.collect_heredocs(ast)
                     exit_code = self.shell.execute_command_list(ast)
                     return exit_code
                 except Exception as e:
