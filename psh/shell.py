@@ -30,6 +30,7 @@ from .expansion.manager import ExpansionManager
 from .io_redirect.manager import IOManager
 from .executor.base import ExecutorManager
 from .scripting.base import ScriptManager
+from .interactive.base import InteractiveManager
 
 class Shell:
     def __init__(self, args=None, script_name=None, debug_ast=False, debug_tokens=False, norc=False, rcfile=None):
@@ -45,9 +46,6 @@ class Shell:
         
         # All builtins are now handled by the registry
         self.builtins = {}
-        
-        # Load history
-        self._load_history()
         
         # Alias management
         self.alias_manager = AliasManager()
@@ -70,31 +68,11 @@ class Shell:
         # Script handling management
         self.script_manager = ScriptManager(self)
         
-        # Ensure shell is in its own process group for job control
-        shell_pgid = os.getpid()
-        try:
-            os.setpgid(0, shell_pgid)
-            # Make shell the foreground process group
-            os.tcsetpgrp(0, shell_pgid)
-        except OSError:
-            # Not a terminal or already set
-            pass
+        # Interactive features management
+        self.interactive_manager = InteractiveManager(self)
         
-        # Set up signal handlers based on mode
-        if self.is_script_mode:
-            # Script mode: simpler signal handling
-            signal.signal(signal.SIGINT, signal.SIG_DFL)  # Default SIGINT behavior
-            signal.signal(signal.SIGTSTP, signal.SIG_DFL)  # Default SIGTSTP behavior
-            signal.signal(signal.SIGTTOU, signal.SIG_IGN)  # Still ignore terminal output stops
-            signal.signal(signal.SIGTTIN, signal.SIG_IGN)  # Still ignore terminal input stops
-            signal.signal(signal.SIGCHLD, signal.SIG_DFL)  # Default child handling
-        else:
-            # Interactive mode: full signal handling
-            signal.signal(signal.SIGINT, self._handle_sigint)
-            signal.signal(signal.SIGTSTP, signal.SIG_IGN)  # Shell ignores SIGTSTP
-            signal.signal(signal.SIGTTOU, signal.SIG_IGN)  # Ignore terminal output stops
-            signal.signal(signal.SIGTTIN, signal.SIG_IGN)  # Ignore terminal input stops
-            signal.signal(signal.SIGCHLD, self._handle_sigchld)  # Track child status
+        # Load history
+        self._load_history()
         
         # Load RC file for interactive shells
         # Allow force_interactive for testing purposes
@@ -124,7 +102,7 @@ class Shell:
         """Delegate attribute setting to state for compatibility."""
         if name in ('state', '_state_properties', 'builtin_registry', 'builtins', 
                    'alias_manager', 'function_manager', 'job_manager', 'expansion_manager',
-                   'io_manager', 'executor_manager', 'script_manager'):
+                   'io_manager', 'executor_manager', 'script_manager', 'interactive_manager'):
             super().__setattr__(name, value)
         elif hasattr(self, '_state_properties') and name in self._state_properties:
             setattr(self.state, name, value)
@@ -1229,50 +1207,8 @@ class Shell:
         return self._execute_from_source(input_source, add_to_history)
     
     def interactive_loop(self):
-        # Set up readline for better line editing
-        readline.parse_and_bind('tab: complete')
-        readline.set_completer_delims(' \t\n;|&<>')
-        
-        # Set up tab completion with current edit mode
-        line_editor = LineEditor(self.history, edit_mode=self.edit_mode)
-        
-        # Set up multi-line input handler
-        multi_line_handler = MultiLineInputHandler(line_editor, self)
-        
-        while True:
-            try:
-                # Check for completed background jobs
-                self.job_manager.notify_completed_jobs()
-                
-                # Check for stopped jobs (from Ctrl-Z)
-                self.job_manager.notify_stopped_jobs()
-                
-                # Read command (possibly multi-line)
-                command = multi_line_handler.read_command()
-                
-                if command is None:  # EOF (Ctrl-D)
-                    print()  # New line before exit
-                    break
-                
-                if command.strip():
-                    self.run_command(command)
-                    
-            except KeyboardInterrupt:
-                # Ctrl-C pressed, cancel multi-line input and continue
-                multi_line_handler.reset()
-                print("^C")
-                self.last_exit_code = 130  # 128 + SIGINT(2)
-                continue
-            except EOFError:
-                # Ctrl-D pressed
-                print()
-                break
-            except Exception as e:
-                print(f"psh: {e}", file=sys.stderr)
-                self.last_exit_code = 1
-        
-        # Save history on exit
-        self._save_history()
+        """Run the interactive shell loop."""
+        return self.interactive_manager.run_interactive_loop()
     
     # Built-in commands have been moved to the builtins module
     
@@ -1294,41 +1230,15 @@ class Shell:
     
     def _add_to_history(self, command):
         """Add a command to history"""
-        # Don't add duplicates of the immediately previous command
-        if not self.history or self.history[-1] != command:
-            self.history.append(command)
-            readline.add_history(command)
-            # Trim history if it exceeds max size
-            if len(self.history) > self.max_history_size:
-                self.history = self.history[-self.max_history_size:]
+        self.interactive_manager.history_manager.add_to_history(command)
     
     def _load_history(self):
         """Load command history from file"""
-        try:
-            if os.path.exists(self.history_file):
-                with open(self.history_file, 'r') as f:
-                    for line in f:
-                        line = line.rstrip('\n')
-                        if line:
-                            self.history.append(line)
-                            readline.add_history(line)
-                # Trim to max size
-                if len(self.history) > self.max_history_size:
-                    self.history = self.history[-self.max_history_size:]
-        except Exception:
-            # Silently ignore history file errors
-            pass
+        self.interactive_manager.load_history()
     
     def _save_history(self):
         """Save command history to file"""
-        try:
-            with open(self.history_file, 'w') as f:
-                # Save only the last max_history_size commands
-                for cmd in self.history[-self.max_history_size:]:
-                    f.write(cmd + '\n')
-        except Exception:
-            # Silently ignore history file errors
-            pass
+        self.interactive_manager.save_history()
     
     def _load_rc_file(self):
         """Load ~/.pshrc or alternative RC file if it exists."""
@@ -1377,40 +1287,12 @@ class Shell:
             return False
     
     def _handle_sigint(self, signum, frame):
-        """Handle Ctrl-C (SIGINT)"""
-        # Just print a newline - the command loop will handle the rest
-        print()
-        # The signal will be delivered to the foreground process group
-        # which is set in execute_pipeline
+        """Handle Ctrl-C (SIGINT) - delegated to SignalManager for compatibility."""
+        self.interactive_manager.signal_manager._handle_sigint(signum, frame)
     
     def _handle_sigchld(self, signum, frame):
-        """Handle child process state changes."""
-        while True:
-            try:
-                pid, status = os.waitpid(-1, os.WNOHANG)
-                if pid == 0:
-                    break
-                
-                job = self.job_manager.get_job_by_pid(pid)
-                if job:
-                    job.update_process_status(pid, status)
-                    job.update_state()
-                    
-                    # Check if entire job is stopped
-                    if job.state == JobState.STOPPED and job.foreground:
-                        # Stopped foreground job - mark as not notified so it will be shown
-                        job.notified = False
-                        
-                        # Return control to shell
-                        try:
-                            os.tcsetpgrp(0, os.getpgrp())
-                        except OSError:
-                            pass
-                        
-                        self.job_manager.set_foreground_job(None)
-                        job.foreground = False
-            except OSError:
-                break
+        """Handle child process state changes - delegated to SignalManager for compatibility."""
+        self.interactive_manager.signal_manager._handle_sigchld(signum, frame)
     
     def _apply_redirections(self, redirects: List[Redirect]) -> List[Tuple[int, int]]:
         """Apply redirections and return list of (fd, saved_fd) for restoration."""
