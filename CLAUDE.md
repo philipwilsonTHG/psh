@@ -8,13 +8,81 @@ Python Shell (psh) is an educational Unix shell implementation designed for teac
 
 ## Architecture
 
-The shell follows a three-phase architecture:
+The shell follows a component-based architecture with clear separation of concerns:
 
-1. **Tokenization** (`tokenizer.py`): Converts input strings into tokens, handling operators, quotes, and variables
-2. **Parsing** (`parser.py`): Builds an AST using recursive descent, with one function per grammar rule
-3. **Execution** (`shell.py`): Interprets the AST, executing commands and managing I/O
+### Core Pipeline
+1. **Tokenization** (`tokenizer.py`): Converts input strings into tokens
+2. **Parsing** (`parser.py`): Builds an AST using recursive descent
+3. **Execution** (component-based): Interprets the AST through specialized managers
 
-Key design principle: Each component is intentionally simple and readable for teaching purposes.
+### Component Organization
+
+#### Main Orchestrator
+- **`shell.py`** (~417 lines): Central orchestrator that coordinates all components
+  - Initializes and manages component lifecycle
+  - Provides unified API for command execution
+  - Delegates actual work to specialized managers
+
+#### Core Components
+- **`core/`**: Shared state and exceptions
+  - `state.py`: Centralized shell state (variables, environment, settings)
+  - `exceptions.py`: Shell-specific exceptions (LoopBreak, LoopContinue)
+
+#### Execution System (`executor/`)
+- **`base.py`**: Base classes and ExecutorManager
+- **`command.py`**: Single command execution (builtins, functions, external)
+- **`pipeline.py`**: Pipeline execution with job control
+- **`control_flow.py`**: Control structures (if, while, for, case)
+- **`statement.py`**: Statement lists and logical operators (&&, ||)
+
+#### Expansion System (`expansion/`)
+- **`manager.py`**: Orchestrates all expansions in correct order
+- **`variable.py`**: Variable and parameter expansion
+- **`command_sub.py`**: Command substitution ($(...) and `...`)
+- **`tilde.py`**: Tilde expansion (~ and ~user)
+- **`glob.py`**: Pathname expansion (wildcards)
+
+#### I/O Redirection (`io_redirect/`)
+- **`manager.py`**: Manages all I/O redirections
+- **`file_redirect.py`**: File redirections (<, >, >>, 2>, etc.)
+- **`heredoc.py`**: Here documents and here strings
+- **`process_sub.py`**: Process substitution (<(...), >(...))
+
+#### Interactive Features (`interactive/`)
+- **`base.py`**: Interactive manager and base classes
+- **`repl_loop.py`**: Read-Eval-Print Loop implementation
+- **`prompt_manager.py`**: PS1/PS2 prompt expansion
+- **`history_manager.py`**: Command history management
+- **`completion_manager.py`**: Tab completion
+- **`signal_manager.py`**: Signal handling (SIGINT, SIGCHLD, etc.)
+
+#### Script Handling (`scripting/`)
+- **`base.py`**: Script manager and base classes
+- **`script_executor.py`**: Script file execution
+- **`script_validator.py`**: Script validation and security checks
+- **`shebang_handler.py`**: Shebang (#!) processing
+- **`source_processor.py`**: Source command implementation
+
+#### Other Components
+- **`builtins/`**: Built-in commands organized by category
+  - `registry.py`: Central builtin registry
+  - `core.py`: Core builtins (exit, :, true, false)
+  - `navigation.py`: Directory navigation (cd, pwd)
+  - `environment.py`: Environment management (export, unset, env)
+  - `io.py`: I/O builtins (echo, read, printf)
+  - `job_control.py`: Job control (jobs, fg, bg)
+  - `aliases.py`: Alias management
+  - `test_command.py`: Test/[ command implementation
+- **`utils/`**: Utility modules
+  - `ast_formatter.py`: AST pretty-printing
+  - `token_formatter.py`: Token formatting
+  - `file_tests.py`: File test utilities
+
+Key design principles:
+- Each component has a single, well-defined responsibility
+- Components communicate through well-defined interfaces
+- State is centralized in ShellState for consistency
+- Educational clarity is maintained throughout
 
 ## Grammar
 

@@ -6,6 +6,8 @@ An educational Unix shell implementation in Python, designed to teach shell inte
 
 Python Shell (psh) is a POSIX-style shell written entirely in Python. It uses a hand-written recursive descent parser for clarity and educational value, making it easy to understand how shells parse and execute commands.
 
+The shell features a modern component-based architecture where each subsystem (execution, expansion, I/O, etc.) is cleanly separated into its own module. This makes the codebase easy to understand, test, and extend. See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed documentation.
+
 ## Features
 
 ### Core Shell Features
