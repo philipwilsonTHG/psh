@@ -2,10 +2,28 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.27.1"
+__version__ = "0.28.0"
 
 # Version history
 VERSION_HISTORY = """
+0.28.0 (2025-02-07) - Complete architectural refactoring to component-based design
+  - Transformed shell.py from 2,712-line monolith to 417-line orchestrator (85% reduction)
+  - Created component-based architecture with clear separation of concerns
+  - Organized code into logical subsystems: executor/, expansion/, io_redirect/, interactive/, scripting/
+  - Centralized state management in core/state.py for consistency
+  - Extracted execution logic into specialized executors (command, pipeline, control flow, statement)
+  - Created ExpansionManager to orchestrate all shell expansions in correct order
+  - Extracted I/O redirection into IOManager with specialized handlers
+  - Separated interactive features (REPL, prompt, history, completion) into InteractiveManager
+  - Moved script handling (execution, validation, shebang, source) to ScriptManager
+  - Each component now has single responsibility with well-defined interfaces
+  - Improved testability - components can be tested in isolation
+  - Enhanced extensibility - new features can be added without modifying core
+  - Added comprehensive architecture documentation (ARCHITECTURE.md)
+  - Created detailed component interaction documentation
+  - All 555+ tests continue to pass with no functionality regression
+  - Educational value preserved while significantly improving maintainability
+
 0.27.1 (2025-02-06) - Compatibility fixes and test framework
   - Implemented word concatenation for adjacent strings/tokens ('*'.txt → *.txt)
   - Added token position tracking for proper concatenation detection
