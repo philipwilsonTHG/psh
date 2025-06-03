@@ -28,6 +28,8 @@ from .utils.ast_formatter import ASTFormatter
 from .utils.token_formatter import TokenFormatter
 from .expansion.manager import ExpansionManager
 from .io_redirect.manager import IOManager
+from .executor.base import ExecutorManager
+from .scripting.base import ScriptManager
 
 class Shell:
     def __init__(self, args=None, script_name=None, debug_ast=False, debug_tokens=False, norc=False, rcfile=None):
@@ -61,6 +63,12 @@ class Shell:
         
         # I/O redirection management
         self.io_manager = IOManager(self)
+        
+        # Executor management
+        self.executor_manager = ExecutorManager(self)
+        
+        # Script handling management
+        self.script_manager = ScriptManager(self)
         
         # Ensure shell is in its own process group for job control
         shell_pgid = os.getpid()
@@ -116,7 +124,7 @@ class Shell:
         """Delegate attribute setting to state for compatibility."""
         if name in ('state', '_state_properties', 'builtin_registry', 'builtins', 
                    'alias_manager', 'function_manager', 'job_manager', 'expansion_manager',
-                   'io_manager'):
+                   'io_manager', 'executor_manager', 'script_manager'):
             super().__setattr__(name, value)
         elif hasattr(self, '_state_properties') and name in self._state_properties:
             setattr(self.state, name, value)
@@ -557,6 +565,9 @@ class Shell:
                 # Expand variables in here string content
                 redirect.target = self._expand_string_variables(redirect.target)
         
+        # For now, keep the existing implementation but gradually move to executor
+        # This allows us to test incrementally
+        
         # Expand arguments (variables, command substitutions, globs)
         args = self._expand_arguments(command)
         
@@ -824,50 +835,24 @@ class Shell:
     
     def execute_and_or_list(self, and_or_list: AndOrList):
         """Execute pipelines with && and || operators, implementing short-circuit evaluation"""
-        if not and_or_list.pipelines:
-            return 0
-        
-        try:
-            # Execute first pipeline
-            exit_code = self.execute_pipeline(and_or_list.pipelines[0])
-            self.last_exit_code = exit_code
-            
-            # Process remaining pipelines with operators
-            for i, operator in enumerate(and_or_list.operators):
-                if operator == '&&':
-                    # AND: execute next pipeline only if previous succeeded (exit code 0)
-                    if exit_code != 0:
-                        continue  # Skip this pipeline
-                elif operator == '||':
-                    # OR: execute next pipeline only if previous failed (non-zero exit code)
-                    if exit_code == 0:
-                        continue  # Skip this pipeline
-                
-                # Execute the next pipeline
-                exit_code = self.execute_pipeline(and_or_list.pipelines[i + 1])
-                self.last_exit_code = exit_code
-            
-            return exit_code
-        except FunctionReturn:
-            # Propagate up
-            raise
+        return self.executor_manager.statement_executor.execute_and_or_list(and_or_list)
     
     def execute_command_list(self, command_list: CommandList):
         exit_code = 0
         try:
             for item in command_list.statements:
                 if isinstance(item, BreakStatement):
-                    exit_code = self.execute_break_statement(item)
+                    exit_code = self.executor_manager.control_flow_executor.execute(item)
                 elif isinstance(item, ContinueStatement):
-                    exit_code = self.execute_continue_statement(item)
+                    exit_code = self.executor_manager.control_flow_executor.execute(item)
                 elif isinstance(item, IfStatement):
-                    exit_code = self.execute_if_statement(item)
+                    exit_code = self.executor_manager.control_flow_executor.execute_if(item)
                 elif isinstance(item, WhileStatement):
-                    exit_code = self.execute_while_statement(item)
+                    exit_code = self.executor_manager.control_flow_executor.execute_while(item)
                 elif isinstance(item, ForStatement):
-                    exit_code = self.execute_for_statement(item)
+                    exit_code = self.executor_manager.control_flow_executor.execute_for(item)
                 elif isinstance(item, CaseStatement):
-                    exit_code = self.execute_case_statement(item)
+                    exit_code = self.executor_manager.control_flow_executor.execute_case(item)
                 elif isinstance(item, EnhancedTestStatement):
                     exit_code = self.execute_enhanced_test_statement(item)
                 elif isinstance(item, FunctionDef):
@@ -880,7 +865,7 @@ class Shell:
                         exit_code = 1
                 elif isinstance(item, AndOrList):
                     # Handle regular and_or_list
-                    exit_code = self.execute_and_or_list(item)
+                    exit_code = self.executor_manager.statement_executor.execute_and_or_list(item)
                 else:
                     print(f"psh: unknown statement type: {type(item).__name__}", file=sys.stderr)
                     exit_code = 1
@@ -956,258 +941,27 @@ class Shell:
     
     def execute_if_statement(self, if_stmt: IfStatement) -> int:
         """Execute an if/then/else/fi conditional statement."""
-        # Apply redirections if present
-        if if_stmt.redirects:
-            saved_fds = self._apply_redirections(if_stmt.redirects)
-        else:
-            saved_fds = None
-        
-        try:
-            # Execute the condition and check its exit status
-            condition_exit = self.execute_command_list(if_stmt.condition)
-            
-            # In shell, condition is true if exit code is 0, false otherwise
-            if condition_exit == 0:
-                # Execute then part
-                if if_stmt.then_part.statements:
-                    return self.execute_command_list(if_stmt.then_part)
-                else:
-                    return 0
-            
-            # Check elif conditions
-            for elif_condition, elif_then in if_stmt.elif_parts:
-                condition_exit = self.execute_command_list(elif_condition)
-                if condition_exit == 0:
-                    # This elif condition is true
-                    if elif_then.statements:
-                        return self.execute_command_list(elif_then)
-                    else:
-                        return 0
-            
-            # All conditions false - execute else part if it exists
-            if if_stmt.else_part and if_stmt.else_part.statements:
-                return self.execute_command_list(if_stmt.else_part)
-            else:
-                return 0
-        finally:
-            # Restore file descriptors
-            if saved_fds:
-                self._restore_redirections(saved_fds)
+        return self.executor_manager.control_flow_executor.execute_if(if_stmt)
     
     def execute_while_statement(self, while_stmt: WhileStatement) -> int:
         """Execute a while/do/done loop statement."""
-        # Apply redirections if present
-        if while_stmt.redirects:
-            saved_fds = self._apply_redirections(while_stmt.redirects)
-        else:
-            saved_fds = None
-        
-        try:
-            last_exit = 0
-            
-            while True:
-                # Execute the condition and check its exit status
-                condition_exit = self.execute_command_list(while_stmt.condition)
-                
-                # In shell, condition is true if exit code is 0, false otherwise
-                if condition_exit != 0:
-                    # Condition is false, exit the loop
-                    break
-                    
-                # Condition is true, execute the body
-                if while_stmt.body.statements:
-                    try:
-                        # Execute body commands
-                        last_exit = self.execute_command_list(while_stmt.body)
-                        # Note: We continue the loop regardless of body exit status
-                    except LoopBreak as e:
-                        if e.level > 1:
-                            # Break out of multiple levels - decrement and re-raise
-                            raise LoopBreak(level=e.level - 1)
-                        else:
-                            # Break out of this loop
-                            break
-                    except LoopContinue as e:
-                        if e.level > 1:
-                            # Continue out of multiple levels - decrement and re-raise
-                            raise LoopContinue(level=e.level - 1)
-                        else:
-                            # Continue to next iteration of this loop
-                            continue
-                    # (unlike some shells that might break on certain exit codes)
-            
-            return last_exit
-        finally:
-            # Restore file descriptors
-            if saved_fds:
-                self._restore_redirections(saved_fds)
+        return self.executor_manager.control_flow_executor.execute_while(while_stmt)
     
     def execute_for_statement(self, for_stmt: ForStatement) -> int:
         """Execute a for/in/do/done loop statement."""
-        # Apply redirections if present
-        if for_stmt.redirects:
-            saved_fds = self._apply_redirections(for_stmt.redirects)
-        else:
-            saved_fds = None
-        
-        try:
-            last_exit = 0
-            
-            # Expand the iterable list (handle variables, globs, command substitution, etc.)
-            expanded_items = []
-            for item in for_stmt.iterable:
-                # Special handling for "$@" - it should expand to multiple items
-                if item == '$@':
-                    expanded_items.extend(self.positional_params)
-                elif item.startswith('$(') and item.endswith(')'):
-                    # Command substitution with $()
-                    output = self._execute_command_substitution(item)
-                    if output:
-                        # Split on whitespace (word splitting)
-                        expanded_items.extend(output.split())
-                elif item.startswith('`') and item.endswith('`'):
-                    # Command substitution with backticks
-                    output = self._execute_command_substitution(item)
-                    if output:
-                        # Split on whitespace (word splitting)
-                        expanded_items.extend(output.split())
-                else:
-                    # Expand variables in the item
-                    expanded_item = self._expand_string_variables(item)
-                    
-                    # Handle glob patterns
-                    if '*' in expanded_item or '?' in expanded_item or '[' in expanded_item:
-                        # Use glob to expand patterns
-                        import glob
-                        matches = glob.glob(expanded_item)
-                        if matches:
-                            # Sort for consistent ordering
-                            expanded_items.extend(sorted(matches))
-                        else:
-                            # No matches, use literal string
-                            expanded_items.append(expanded_item)
-                    else:
-                        expanded_items.append(expanded_item)
-            
-            # If no items to iterate over, return successfully
-            if not expanded_items:
-                return 0
-            
-            # Save the current value of the loop variable (if it exists)
-            loop_var = for_stmt.variable
-            saved_value = self.variables.get(loop_var)
-            
-            try:
-                # Iterate over each item
-                for item in expanded_items:
-                    # Set the loop variable to the current item
-                    self.variables[loop_var] = item
-                    
-                    # Execute the body
-                    if for_stmt.body.statements:
-                        try:
-                            # Execute body commands
-                            last_exit = self.execute_command_list(for_stmt.body)
-                            # Continue regardless of body exit status
-                        except LoopBreak as e:
-                            if e.level > 1:
-                                # Break out of multiple levels - decrement and re-raise
-                                raise LoopBreak(level=e.level - 1)
-                            else:
-                                # Break out of this loop
-                                break
-                        except LoopContinue as e:
-                            if e.level > 1:
-                                # Continue out of multiple levels - decrement and re-raise
-                                raise LoopContinue(level=e.level - 1)
-                            else:
-                                # Continue to next iteration of this loop
-                                continue
-            finally:
-                # Restore the previous value of the loop variable
-                if saved_value is not None:
-                    self.variables[loop_var] = saved_value
-                else:
-                    # Variable didn't exist before, remove it
-                    self.variables.pop(loop_var, None)
-            
-            return last_exit
-        finally:
-            # Restore file descriptors
-            if saved_fds:
-                self._restore_redirections(saved_fds)
+        return self.executor_manager.control_flow_executor.execute_for(for_stmt)
     
     def execute_break_statement(self, break_stmt: BreakStatement) -> int:
         """Execute a break statement."""
-        raise LoopBreak(level=break_stmt.level)
+        return self.executor_manager.control_flow_executor.execute(break_stmt)
     
     def execute_continue_statement(self, continue_stmt: ContinueStatement) -> int:
         """Execute a continue statement."""
-        raise LoopContinue(level=continue_stmt.level)
+        return self.executor_manager.control_flow_executor.execute(continue_stmt)
     
     def execute_case_statement(self, case_stmt: CaseStatement) -> int:
         """Execute a case/esac statement."""
-        # Apply redirections if present
-        if case_stmt.redirects:
-            saved_fds = self._apply_redirections(case_stmt.redirects)
-        else:
-            saved_fds = None
-        
-        try:
-            # Expand the case expression
-            expr = self._expand_string_variables(case_stmt.expr)
-            
-            last_exit = 0
-            fallthrough = False
-            
-            # Iterate through case items
-            for i, item in enumerate(case_stmt.items):
-                # Check if expression matches any pattern in this item
-                matched = fallthrough  # Start with fallthrough state
-                
-                if not fallthrough:
-                    # Only check patterns if not falling through
-                    for pattern in item.patterns:
-                        pattern_str = self._expand_string_variables(pattern.pattern)
-                        if fnmatch.fnmatch(expr, pattern_str):
-                            matched = True
-                            break
-                
-                if matched:
-                    # Execute commands for this case item
-                    if item.commands.statements:
-                        try:
-                            # Execute commands
-                            last_exit = self.execute_command_list(item.commands)
-                        except LoopBreak:
-                            # Break can be used in case statements to exit loops
-                            raise
-                        except LoopContinue:
-                            # Continue can be used in case statements to continue loops
-                            raise
-                    
-                    # Handle fallthrough based on terminator
-                    if item.terminator == ';;':
-                        # Standard terminator - stop after this case
-                        break
-                    elif item.terminator == ';&':
-                        # Fallthrough to next case unconditionally
-                        fallthrough = True
-                    elif item.terminator == ';;&':
-                        # Continue pattern matching (reset fallthrough)
-                        fallthrough = False
-                    else:
-                        # Default to standard behavior
-                        break
-                else:
-                    # Reset fallthrough if no match
-                    fallthrough = False
-            
-            return last_exit
-        finally:
-            # Restore file descriptors
-            if saved_fds:
-                self._restore_redirections(saved_fds)
+        return self.executor_manager.control_flow_executor.execute_case(case_stmt)
     
     def execute_enhanced_test_statement(self, test_stmt: EnhancedTestStatement) -> int:
         """Execute an enhanced test statement [[...]]."""
@@ -1392,202 +1146,19 @@ class Shell:
     
     def _is_binary_file(self, file_path: str) -> bool:
         """Check if file is binary by looking for null bytes and other indicators."""
-        try:
-            with open(file_path, 'rb') as f:
-                # Read first 1024 bytes for analysis
-                chunk = f.read(1024)
-                
-                if not chunk:
-                    return False  # Empty file is not binary
-                
-                # Check for null bytes (strong indicator of binary)
-                if b'\0' in chunk:
-                    return True
-                
-                # Check for very high ratio of non-printable characters
-                printable_chars = 0
-                for byte in chunk:
-                    # Count ASCII printable chars (32-126) plus common whitespace
-                    if 32 <= byte <= 126 or byte in (9, 10, 13):  # tab, newline, carriage return
-                        printable_chars += 1
-                
-                # If less than 70% printable characters, consider it binary
-                if len(chunk) > 0 and (printable_chars / len(chunk)) < 0.70:
-                    return True
-                
-                # Check for common binary file signatures
-                binary_signatures = [
-                    b'\x7fELF',      # ELF executable
-                    b'MZ',           # DOS/Windows executable
-                    b'\xca\xfe\xba\xbe',  # Java class file
-                    b'\x89PNG',      # PNG image
-                    b'\xff\xd8\xff', # JPEG image
-                    b'GIF8',         # GIF image
-                    b'%PDF',         # PDF file
-                ]
-                
-                for sig in binary_signatures:
-                    if chunk.startswith(sig):
-                        return True
-                
-                return False
-                
-        except:
-            return True  # If we can't read it, assume binary
+        return self.script_manager.script_validator.is_binary_file(file_path)
     
     def _validate_script_file(self, script_path: str) -> int:
-        """Validate script file and return appropriate exit code.
-        
-        Returns:
-            0 if file is valid
-            126 if permission denied
-            127 if file not found
-        """
-        if not os.path.exists(script_path):
-            print(f"psh: {script_path}: No such file or directory", file=sys.stderr)
-            return 127
-        
-        if os.path.isdir(script_path):
-            print(f"psh: {script_path}: Is a directory", file=sys.stderr)
-            return 126
-        
-        if not os.access(script_path, os.R_OK):
-            print(f"psh: {script_path}: Permission denied", file=sys.stderr)
-            return 126
-        
-        if self._is_binary_file(script_path):
-            print(f"psh: {script_path}: cannot execute binary file", file=sys.stderr)
-            return 126
-        
-        return 0
+        """Validate script file and return appropriate exit code."""
+        return self.script_manager.script_validator.validate_script_file(script_path)
     
     def run_script(self, script_path: str, script_args: list = None) -> int:
         """Execute a script file with optional arguments."""
-        if script_args is None:
-            script_args = []
-            
-        # Validate the script file first
-        validation_result = self._validate_script_file(script_path)
-        if validation_result != 0:
-            return validation_result
-        
-        # Check for shebang and execute with appropriate interpreter
-        if self._should_execute_with_shebang(script_path):
-            return self._execute_with_shebang(script_path, script_args)
-        
-        # Save current script state
-        old_script_name = self.script_name
-        old_script_mode = self.is_script_mode
-        old_positional = self.positional_params.copy()
-        
-        self.script_name = script_path
-        self.is_script_mode = True
-        self.positional_params = script_args
-        
-        try:
-            from .input_sources import FileInput
-            with FileInput(script_path) as input_source:
-                return self._execute_from_source(input_source)
-        except Exception as e:
-            print(f"psh: {script_path}: {e}", file=sys.stderr)
-            return 1
-        finally:
-            self.script_name = old_script_name
-            self.is_script_mode = old_script_mode
-            self.positional_params = old_positional
+        return self.script_manager.run_script(script_path, script_args)
     
     def _execute_from_source(self, input_source, add_to_history=True) -> int:
         """Execute commands from an input source with enhanced processing."""
-        exit_code = 0
-        command_buffer = ""
-        command_start_line = 0
-        
-        while True:
-            line = input_source.read_line()
-            if line is None:  # EOF
-                # Execute any remaining command in buffer
-                if command_buffer.strip():
-                    exit_code = self._execute_buffered_command(
-                        command_buffer, input_source, command_start_line, add_to_history
-                    )
-                break
-            
-            # Skip empty lines when no command is being built
-            if not command_buffer and not line.strip():
-                continue
-            
-            # Skip comment lines when no command is being built
-            if not command_buffer and line.strip().startswith('#'):
-                continue
-            
-            # Handle line continuation (backslash at end)
-            if line.endswith('\\'):
-                # Remove the backslash and add to buffer
-                if not command_buffer:
-                    command_start_line = input_source.get_line_number()
-                command_buffer += line[:-1] + ' '
-                continue
-            
-            # Add current line to buffer
-            if not command_buffer:
-                command_start_line = input_source.get_line_number()
-            # Add line to buffer with proper spacing
-            if command_buffer and not command_buffer.endswith('\n'):
-                command_buffer += '\n'
-            command_buffer += line
-            
-            # Try to parse and execute the command
-            if command_buffer.strip():
-                # Check if command is complete by trying to parse it
-                try:
-                    from .tokenizer import tokenize
-                    from .parser import parse, ParseError
-                    tokens = tokenize(command_buffer)
-                    # Try parsing to see if command is complete
-                    parse(tokens)
-                    # If parsing succeeds, execute the command
-                    exit_code = self._execute_buffered_command(
-                        command_buffer.rstrip('\n'), input_source, command_start_line, add_to_history
-                    )
-                    # Reset buffer for next command
-                    command_buffer = ""
-                    command_start_line = 0
-                except ParseError as e:
-                    # Check if this is an incomplete command
-                    error_msg = str(e)
-                    incomplete_patterns = [
-                        ("Expected DO", "got EOF"),
-                        ("Expected DONE", "got EOF"),
-                        ("Expected FI", "got EOF"),
-                        ("Expected THEN", "got EOF"),
-                        ("Expected IN", "got EOF"),
-                        ("Expected ESAC", "got EOF"),
-                        ("Expected '}' to end compound command", None),  # Function bodies
-                        ("Expected RPAREN", "got EOF"),
-                        ("Expected DOUBLE_RBRACKET", None),  # For incomplete [[ ]]
-                        ("Expected test operand", None),      # For [[ ... && at end
-                    ]
-                    
-                    is_incomplete = False
-                    for expected, got in incomplete_patterns:
-                        if expected in error_msg:
-                            if got is None or got in error_msg:
-                                is_incomplete = True
-                                break
-                    
-                    if is_incomplete:
-                        # Command is incomplete, continue reading
-                        continue
-                    else:
-                        # It's a real parse error, report it and reset
-                        filename = input_source.get_name() if hasattr(input_source, 'get_name') else 'stdin'
-                        print(f"{filename}:{command_start_line}: {e}", file=sys.stderr)
-                        command_buffer = ""
-                        command_start_line = 0
-                        exit_code = 1
-                        self.last_exit_code = 1
-        
-        return exit_code
+        return self.script_manager.execute_from_source(input_source, add_to_history)
     
     def _execute_buffered_command(self, command_string: str, input_source, start_line: int, add_to_history: bool) -> int:
         """Execute a buffered command with enhanced error reporting."""
@@ -1706,112 +1277,16 @@ class Shell:
     # Built-in commands have been moved to the builtins module
     
     def _parse_shebang(self, script_path: str) -> tuple:
-        """Parse shebang line from script file.
-        
-        Returns:
-            tuple: (has_shebang, interpreter_path, interpreter_args)
-        """
-        try:
-            with open(script_path, 'rb') as f:
-                # Read first line, max 1024 bytes
-                first_line = f.readline(1024)
-                
-                # Check for shebang
-                if not first_line.startswith(b'#!'):
-                    return (False, None, [])
-                
-                # Decode shebang line
-                try:
-                    shebang_line = first_line[2:].decode('utf-8', errors='ignore').strip()
-                except UnicodeDecodeError:
-                    return (False, None, [])
-                
-                if not shebang_line:
-                    return (False, None, [])
-                
-                # Parse interpreter and arguments
-                parts = shebang_line.split()
-                if not parts:
-                    return (False, None, [])
-                
-                interpreter = parts[0]
-                interpreter_args = parts[1:] if len(parts) > 1 else []
-                
-                return (True, interpreter, interpreter_args)
-                
-        except (IOError, OSError):
-            return (False, None, [])
+        """Parse shebang line from script file."""
+        return self.script_manager.shebang_handler.parse_shebang(script_path)
     
     def _should_execute_with_shebang(self, script_path: str) -> bool:
         """Determine if script should be executed with its shebang interpreter."""
-        has_shebang, interpreter, interpreter_args = self._parse_shebang(script_path)
-        
-        if not has_shebang:
-            return False
-        
-        # If interpreter is psh or our script name, use psh directly
-        if interpreter.endswith('/psh') or interpreter == 'psh':
-            return False
-        
-        # Handle /usr/bin/env pattern - check the actual interpreter
-        if interpreter.endswith('/env') or interpreter == 'env':
-            # Get the actual interpreter from interpreter_args
-            if not interpreter_args:
-                return False
-            actual_interpreter = interpreter_args[0]
-            if actual_interpreter.endswith('/psh') or actual_interpreter == 'psh':
-                return False
-        
-        # Check if interpreter exists and is executable
-        if interpreter.startswith('/'):
-            # Absolute path
-            return os.path.exists(interpreter) and os.access(interpreter, os.X_OK)
-        else:
-            # Search in PATH
-            path_dirs = self.env.get('PATH', '').split(':')
-            for path_dir in path_dirs:
-                if path_dir:
-                    full_path = os.path.join(path_dir, interpreter)
-                    if os.path.exists(full_path) and os.access(full_path, os.X_OK):
-                        return True
-            return False
+        return self.script_manager.shebang_handler.should_execute_with_shebang(script_path)
     
     def _execute_with_shebang(self, script_path: str, script_args: list) -> int:
         """Execute script using its shebang interpreter."""
-        has_shebang, interpreter, interpreter_args = self._parse_shebang(script_path)
-        
-        if not has_shebang:
-            return 1
-        
-        # Build command line for interpreter
-        cmd_args = []
-        
-        # Add interpreter
-        cmd_args.append(interpreter)
-        
-        # Add interpreter arguments
-        cmd_args.extend(interpreter_args)
-        
-        # Add script path
-        cmd_args.append(script_path)
-        
-        # Add script arguments
-        cmd_args.extend(script_args)
-        
-        try:
-            # Execute the interpreter
-            import subprocess
-            result = subprocess.run(cmd_args, env=self.env)
-            return result.returncode
-        except FileNotFoundError:
-            print(f"psh: {interpreter}: No such file or directory", file=sys.stderr)
-            return 127
-        except PermissionError:
-            print(f"psh: {interpreter}: Permission denied", file=sys.stderr)
-            return 126
-        except Exception as e:
-            print(f"psh: {interpreter}: {e}", file=sys.stderr)
-            return 1
+        return self.script_manager.shebang_handler.execute_with_shebang(script_path, script_args)
     
     def _collect_heredocs(self, node):
         """Collect here document content for all commands in a node"""
