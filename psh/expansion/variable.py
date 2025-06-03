@@ -81,7 +81,7 @@ class VariableExpander:
                             if paren_count == 0 and j + 1 < len(text) and text[j + 1] == ')':
                                 # Found the closing ))
                                 arith_expr = text[i:j + 2]  # Include $((...)
-                                result.append(str(self.shell._execute_arithmetic_expansion(arith_expr)))
+                                result.append(str(self.shell.expansion_manager.execute_arithmetic_expansion(arith_expr)))
                                 i = j + 2
                                 break
                             else:

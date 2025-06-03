@@ -38,12 +38,11 @@ class SignalManager(InteractiveComponent):
     def _setup_interactive_mode_handlers(self):
         """Set up full signal handling for interactive mode."""
         # Store original handlers for restoration
-        # Use shell's methods for backward compatibility with tests
-        self._original_handlers[signal.SIGINT] = signal.signal(signal.SIGINT, self.shell._handle_sigint)
+        self._original_handlers[signal.SIGINT] = signal.signal(signal.SIGINT, self._handle_sigint)
         self._original_handlers[signal.SIGTSTP] = signal.signal(signal.SIGTSTP, signal.SIG_IGN)
         self._original_handlers[signal.SIGTTOU] = signal.signal(signal.SIGTTOU, signal.SIG_IGN)
         self._original_handlers[signal.SIGTTIN] = signal.signal(signal.SIGTTIN, signal.SIG_IGN)
-        self._original_handlers[signal.SIGCHLD] = signal.signal(signal.SIGCHLD, self.shell._handle_sigchld)
+        self._original_handlers[signal.SIGCHLD] = signal.signal(signal.SIGCHLD, self._handle_sigchld)
         
     def restore_default_handlers(self):
         """Restore default signal handlers."""

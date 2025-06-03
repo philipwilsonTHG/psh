@@ -72,7 +72,7 @@ class Shell:
         self.interactive_manager = InteractiveManager(self)
         
         # Load history
-        self._load_history()
+        self.interactive_manager.load_history()
         
         # Load RC file for interactive shells
         # Allow force_interactive for testing purposes
@@ -109,130 +109,8 @@ class Shell:
         else:
             super().__setattr__(name, value)
     
-    def _expand_string_variables(self, text: str) -> str:
-        """Expand variables and arithmetic in a string (for here strings and quoted strings)"""
-        return self.expansion_manager.expand_string_variables(text)
     
-    def _expand_variable(self, var_expr: str) -> str:
-        """Expand a variable expression starting with $"""
-        return self.expansion_manager.expand_variable(var_expr)
     
-    def _expand_tilde(self, path: str) -> str:
-        """Expand tilde in paths like ~ and ~user"""
-        return self.expansion_manager.expand_tilde(path)
-    
-    def _execute_command_substitution(self, cmd_sub: str) -> str:
-        """Execute command substitution and return output"""
-        return self.expansion_manager.execute_command_substitution(cmd_sub)
-    
-    def _execute_arithmetic_expansion(self, expr: str) -> int:
-        """Execute arithmetic expansion and return result"""
-        # Remove $(( and ))
-        if expr.startswith('$((') and expr.endswith('))'):
-            arith_expr = expr[3:-2]
-        else:
-            return 0
-        
-        from .arithmetic import evaluate_arithmetic, ArithmeticError
-        
-        try:
-            result = evaluate_arithmetic(arith_expr, self)
-            return result
-        except ArithmeticError as e:
-            print(f"psh: arithmetic error: {e}", file=sys.stderr)
-            return 0
-    
-    def _expand_arguments(self, command: Command) -> list:
-        """Expand variables, command substitutions, tildes, and globs in command arguments"""
-        args = []
-        
-        # Check if we have process substitutions
-        has_proc_sub = any(command.arg_types[i] in ('PROCESS_SUB_IN', 'PROCESS_SUB_OUT') 
-                          for i in range(len(command.arg_types)))
-        
-        if has_proc_sub:
-            # Set up process substitutions first
-            fds, substituted_args, child_pids = self._setup_process_substitutions(command)
-            # Store for cleanup
-            self._process_sub_fds = fds
-            self._process_sub_pids = child_pids
-            # Update command args with substituted paths
-            command.args = substituted_args
-            # Update arg_types to treat substituted paths as words
-            command.arg_types = ['WORD'] * len(substituted_args)
-            # Update quote_types as well
-            command.quote_types = [None] * len(substituted_args)
-        
-        for i, arg in enumerate(command.args):
-            arg_type = command.arg_types[i] if i < len(command.arg_types) else 'WORD'
-            quote_type = command.quote_types[i] if i < len(command.quote_types) else None
-            
-            if arg_type == 'STRING':
-                # Handle quoted strings
-                if quote_type == '"' and '$' in arg:
-                    # Double-quoted string with variables - expand them
-                    # Special handling for "$@"
-                    if arg == '$@':
-                        # "$@" expands to multiple arguments, each properly quoted
-                        args.extend(self.positional_params)
-                        continue
-                    else:
-                        # Expand variables within the string
-                        arg = self._expand_string_variables(arg)
-                        args.append(arg)
-                else:
-                    # Single-quoted string or no variables - no expansion
-                    args.append(arg)
-            elif arg.startswith('$') and not (arg.startswith('$(') or arg.startswith('`')):
-                # Variable expansion for unquoted variables
-                expanded = self._expand_variable(arg)
-                args.append(expanded)
-            elif '\\$' in arg and arg_type == 'WORD':
-                # Escaped dollar sign in word - replace with literal $
-                args.append(arg.replace('\\$', '$'))
-            elif arg_type == 'COMPOSITE':
-                # Composite argument - already concatenated in parser
-                # Just perform glob expansion if it contains wildcards
-                if any(c in arg for c in ['*', '?', '[']):
-                    matches = glob.glob(arg)
-                    if matches:
-                        args.extend(sorted(matches))
-                    else:
-                        args.append(arg)
-                else:
-                    args.append(arg)
-            elif arg_type in ('COMMAND_SUB', 'COMMAND_SUB_BACKTICK'):
-                # Command substitution
-                output = self._execute_command_substitution(arg)
-                # POSIX: apply word splitting to unquoted command substitution
-                if output:
-                    # Split on whitespace
-                    words = output.split()
-                    args.extend(words)
-                # If output is empty, don't add anything
-            elif arg_type == 'ARITH_EXPANSION':
-                # Arithmetic expansion
-                result = self._execute_arithmetic_expansion(arg)
-                args.append(str(result))
-            else:
-                # Handle regular words
-                # Tilde expansion (only for unquoted words)
-                if arg.startswith('~') and arg_type == 'WORD':
-                    arg = self._expand_tilde(arg)
-                
-                # Check if the argument contains glob characters and wasn't quoted
-                if any(c in arg for c in ['*', '?', '[']) and arg_type != 'STRING':
-                    # Perform glob expansion
-                    matches = glob.glob(arg)
-                    if matches:
-                        # Sort matches for consistent output
-                        args.extend(sorted(matches))
-                    else:
-                        # No matches, use literal argument (bash behavior)
-                        args.append(arg)
-                else:
-                    args.append(arg)
-        return args
     
     def _handle_variable_assignment(self, args: list) -> int:
         """Handle variable assignment if present. Returns 0 if handled, -1 if not an assignment"""
@@ -261,19 +139,19 @@ class Shell:
                 var_name, var_value = assignment.split('=', 1)
                 # Expand variables in the value first
                 if '$' in var_value:
-                    var_value = self._expand_string_variables(var_value)
+                    var_value = self.expansion_manager.expand_string_variables(var_value)
                 
                 # Expand arithmetic expansion in the value
                 if '$((' in var_value and '))' in var_value:
                     # Find and expand all arithmetic expansions
                     import re
                     def expand_arith(match):
-                        return str(self._execute_arithmetic_expansion(match.group(0)))
+                        return str(self.expansion_manager.execute_arithmetic_expansion(match.group(0)))
                     var_value = re.sub(r'\$\(\([^)]+\)\)', expand_arith, var_value)
                 
                 # Expand tilde in the value
                 if var_value.startswith('~'):
-                    var_value = self._expand_tilde(var_value)
+                    var_value = self.expansion_manager.expand_tilde(var_value)
                 self.variables[var_name] = var_value
             return 0
         else:
@@ -290,7 +168,7 @@ class Shell:
             # Expand tilde in target for file redirections
             target = redirect.target
             if target and redirect.type in ('<', '>', '>>') and target.startswith('~'):
-                target = self._expand_tilde(target)
+                target = self.expansion_manager.expand_tilde(target)
             
             # Handle process substitution as redirect target
             if target and target.startswith(('<(', '>(')) and target.endswith(')'):
@@ -541,13 +419,13 @@ class Shell:
         for redirect in command.redirects:
             if redirect.type == '<<<':
                 # Expand variables in here string content
-                redirect.target = self._expand_string_variables(redirect.target)
+                redirect.target = self.expansion_manager.expand_string_variables(redirect.target)
         
         # For now, keep the existing implementation but gradually move to executor
         # This allows us to test incrementally
         
         # Expand arguments (variables, command substitutions, globs)
-        args = self._expand_arguments(command)
+        args = self.expansion_manager.expand_arguments(command)
         
         if not args:
             return 0
@@ -572,19 +450,19 @@ class Shell:
                 var_name, var_value = assignment.split('=', 1)
                 # Expand variables in the value first
                 if '$' in var_value:
-                    var_value = self._expand_string_variables(var_value)
+                    var_value = self.expansion_manager.expand_string_variables(var_value)
                 
                 # Expand arithmetic expansion in the value
                 if '$((' in var_value and '))' in var_value:
                     # Find and expand all arithmetic expansions
                     import re
                     def expand_arith(match):
-                        return str(self._execute_arithmetic_expansion(match.group(0)))
+                        return str(self.expansion_manager.execute_arithmetic_expansion(match.group(0)))
                     var_value = re.sub(r'\$\(\([^)]+\)\)', expand_arith, var_value)
                 
                 # Expand tilde in the value
                 if var_value.startswith('~'):
-                    var_value = self._expand_tilde(var_value)
+                    var_value = self.expansion_manager.expand_tilde(var_value)
                 self.variables[var_name] = var_value
             return 0
         
@@ -603,16 +481,16 @@ class Shell:
             var_name, var_value = assignment.split('=', 1)
             # Expand variables in the value
             if '$' in var_value:
-                var_value = self._expand_string_variables(var_value)
+                var_value = self.expansion_manager.expand_string_variables(var_value)
             # Expand arithmetic expansion
             if '$((' in var_value and '))' in var_value:
                 import re
                 def expand_arith(match):
-                    return str(self._execute_arithmetic_expansion(match.group(0)))
+                    return str(self.expansion_manager.execute_arithmetic_expansion(match.group(0)))
                 var_value = re.sub(r'\$\(\([^)]+\)\)', expand_arith, var_value)
             # Expand tilde
             if var_value.startswith('~'):
-                var_value = self._expand_tilde(var_value)
+                var_value = self.expansion_manager.expand_tilde(var_value)
             self.variables[var_name] = var_value
             # Also temporarily set in environment for external commands
             temp_env_vars[var_name] = var_value
@@ -811,9 +689,6 @@ class Shell:
         
         return last_status
     
-    def execute_and_or_list(self, and_or_list: AndOrList):
-        """Execute pipelines with && and || operators, implementing short-circuit evaluation"""
-        return self.executor_manager.statement_executor.execute_and_or_list(and_or_list)
     
     def execute_command_list(self, command_list: CommandList):
         exit_code = 0
@@ -832,7 +707,7 @@ class Shell:
                 elif isinstance(item, CaseStatement):
                     exit_code = self.executor_manager.control_flow_executor.execute_case(item)
                 elif isinstance(item, EnhancedTestStatement):
-                    exit_code = self.execute_enhanced_test_statement(item)
+                    exit_code = self.executor_manager.control_flow_executor.execute_enhanced_test(item)
                 elif isinstance(item, FunctionDef):
                     # Register the function
                     try:
@@ -883,31 +758,31 @@ class Shell:
                     # Collect here documents
                     self._collect_heredocs(item)
                     # Execute if statement
-                    last_exit = self.execute_if_statement(item)
+                    last_exit = self.executor_manager.control_flow_executor.execute_if(item)
                 elif isinstance(item, WhileStatement):
                     # Collect here documents
                     self._collect_heredocs(item)
                     # Execute while statement
-                    last_exit = self.execute_while_statement(item)
+                    last_exit = self.executor_manager.control_flow_executor.execute_while(item)
                 elif isinstance(item, ForStatement):
                     # Collect here documents
                     self._collect_heredocs(item)
                     # Execute for statement
-                    last_exit = self.execute_for_statement(item)
+                    last_exit = self.executor_manager.control_flow_executor.execute_for(item)
                 elif isinstance(item, CaseStatement):
                     # Collect here documents
                     self._collect_heredocs(item)
                     # Execute case statement
-                    last_exit = self.execute_case_statement(item)
+                    last_exit = self.executor_manager.control_flow_executor.execute_case(item)
                 elif isinstance(item, BreakStatement):
                     # Execute break statement (this will raise LoopBreak)
-                    last_exit = self.execute_break_statement(item)
+                    last_exit = self.executor_manager.control_flow_executor.execute(item)
                 elif isinstance(item, ContinueStatement):
                     # Execute continue statement (this will raise LoopContinue)  
-                    last_exit = self.execute_continue_statement(item)
+                    last_exit = self.executor_manager.control_flow_executor.execute(item)
                 elif isinstance(item, EnhancedTestStatement):
                     # Execute enhanced test statement
-                    last_exit = self.execute_enhanced_test_statement(item)
+                    last_exit = self.executor_manager.control_flow_executor.execute_enhanced_test(item)
         except (LoopBreak, LoopContinue) as e:
             # Break/continue outside of loops is an error
             stmt_name = "break" if isinstance(e, LoopBreak) else "continue"
@@ -917,29 +792,6 @@ class Shell:
         self.last_exit_code = last_exit
         return last_exit
     
-    def execute_if_statement(self, if_stmt: IfStatement) -> int:
-        """Execute an if/then/else/fi conditional statement."""
-        return self.executor_manager.control_flow_executor.execute_if(if_stmt)
-    
-    def execute_while_statement(self, while_stmt: WhileStatement) -> int:
-        """Execute a while/do/done loop statement."""
-        return self.executor_manager.control_flow_executor.execute_while(while_stmt)
-    
-    def execute_for_statement(self, for_stmt: ForStatement) -> int:
-        """Execute a for/in/do/done loop statement."""
-        return self.executor_manager.control_flow_executor.execute_for(for_stmt)
-    
-    def execute_break_statement(self, break_stmt: BreakStatement) -> int:
-        """Execute a break statement."""
-        return self.executor_manager.control_flow_executor.execute(break_stmt)
-    
-    def execute_continue_statement(self, continue_stmt: ContinueStatement) -> int:
-        """Execute a continue statement."""
-        return self.executor_manager.control_flow_executor.execute(continue_stmt)
-    
-    def execute_case_statement(self, case_stmt: CaseStatement) -> int:
-        """Execute a case/esac statement."""
-        return self.executor_manager.control_flow_executor.execute_case(case_stmt)
     
     def execute_enhanced_test_statement(self, test_stmt: EnhancedTestStatement) -> int:
         """Execute an enhanced test statement [[...]]."""
@@ -978,8 +830,8 @@ class Shell:
     def _evaluate_binary_test(self, expr: BinaryTestExpression) -> bool:
         """Evaluate binary test expression."""
         # Expand variables in operands
-        left = self._expand_string_variables(expr.left)
-        right = self._expand_string_variables(expr.right)
+        left = self.expansion_manager.expand_string_variables(expr.left)
+        right = self.expansion_manager.expand_string_variables(expr.right)
         
         # Handle different operators
         if expr.operator == '=':
@@ -1029,7 +881,7 @@ class Shell:
     def _evaluate_unary_test(self, expr: UnaryTestExpression) -> bool:
         """Evaluate unary test expression."""
         # Expand variables in operand
-        operand = self._expand_string_variables(expr.operand)
+        operand = self.expansion_manager.expand_string_variables(expr.operand)
         
         # Import test command's unary operators
         from .builtins.test_command import TestBuiltin
@@ -1122,13 +974,6 @@ class Shell:
         """Set positional parameters ($1, $2, etc.)."""
         self.positional_params = params.copy() if params else []
     
-    def _is_binary_file(self, file_path: str) -> bool:
-        """Check if file is binary by looking for null bytes and other indicators."""
-        return self.script_manager.script_validator.is_binary_file(file_path)
-    
-    def _validate_script_file(self, script_path: str) -> int:
-        """Validate script file and return appropriate exit code."""
-        return self.script_manager.script_validator.validate_script_file(script_path)
     
     def run_script(self, script_path: str, script_args: list = None) -> int:
         """Execute a script file with optional arguments."""
@@ -1150,7 +995,8 @@ class Shell:
             # Debug: Print tokens if requested
             if self.debug_tokens:
                 print("=== Token Debug Output ===", file=sys.stderr)
-                print(self._format_tokens(tokens), file=sys.stderr)
+                from .utils.token_formatter import TokenFormatter
+                print(TokenFormatter.format(tokens), file=sys.stderr)
                 print("========================", file=sys.stderr)
             
             # Expand aliases
@@ -1160,12 +1006,13 @@ class Shell:
             # Debug: Print AST if requested
             if self.debug_ast:
                 print("=== AST Debug Output ===", file=sys.stderr)
-                print(self._format_ast(ast), file=sys.stderr)
+                from .utils.ast_formatter import ASTFormatter
+                print(ASTFormatter.format(ast), file=sys.stderr)
                 print("======================", file=sys.stderr)
             
             # Add to history if requested (for interactive or testing)
             if add_to_history and command_string.strip():
-                self._add_to_history(command_string.strip())
+                self.interactive_manager.history_manager.add_to_history(command_string.strip())
             
             # Increment command number for successful parse
             self.command_number += 1
@@ -1212,33 +1059,12 @@ class Shell:
     
     # Built-in commands have been moved to the builtins module
     
-    def _parse_shebang(self, script_path: str) -> tuple:
-        """Parse shebang line from script file."""
-        return self.script_manager.shebang_handler.parse_shebang(script_path)
-    
-    def _should_execute_with_shebang(self, script_path: str) -> bool:
-        """Determine if script should be executed with its shebang interpreter."""
-        return self.script_manager.shebang_handler.should_execute_with_shebang(script_path)
-    
-    def _execute_with_shebang(self, script_path: str, script_args: list) -> int:
-        """Execute script using its shebang interpreter."""
-        return self.script_manager.shebang_handler.execute_with_shebang(script_path, script_args)
     
     def _collect_heredocs(self, node):
         """Collect here document content for all commands in a node"""
         self.io_manager.collect_heredocs(node)
     
-    def _add_to_history(self, command):
-        """Add a command to history"""
-        self.interactive_manager.history_manager.add_to_history(command)
     
-    def _load_history(self):
-        """Load command history from file"""
-        self.interactive_manager.load_history()
-    
-    def _save_history(self):
-        """Save command history to file"""
-        self.interactive_manager.save_history()
     
     def _load_rc_file(self):
         """Load ~/.pshrc or alternative RC file if it exists."""
@@ -1286,13 +1112,6 @@ class Shell:
         except OSError:
             return False
     
-    def _handle_sigint(self, signum, frame):
-        """Handle Ctrl-C (SIGINT) - delegated to SignalManager for compatibility."""
-        self.interactive_manager.signal_manager._handle_sigint(signum, frame)
-    
-    def _handle_sigchld(self, signum, frame):
-        """Handle child process state changes - delegated to SignalManager for compatibility."""
-        self.interactive_manager.signal_manager._handle_sigchld(signum, frame)
     
     def _apply_redirections(self, redirects: List[Redirect]) -> List[Tuple[int, int]]:
         """Apply redirections and return list of (fd, saved_fd) for restoration."""
@@ -1308,7 +1127,7 @@ class Shell:
             # Expand tilde in target for file redirections
             target = redirect.target
             if target and redirect.type in ('<', '>', '>>') and target.startswith('~'):
-                target = self._expand_tilde(target)
+                target = self.expansion_manager.expand_tilde(target)
             
             if redirect.type == '<':
                 fd = os.open(target, os.O_RDONLY)
@@ -1351,7 +1170,7 @@ class Shell:
     def _execute_in_child(self, command: Command):
         """Execute a command in a child process (after fork)"""
         # Expand arguments (reuse the same method as execute_command)
-        args = self._expand_arguments(command)
+        args = self.expansion_manager.expand_arguments(command)
         
         if not args:
             return 0
@@ -1416,13 +1235,6 @@ class Shell:
             print(f"{args[0]}: {e}", file=sys.stderr)
             return 1
     
-    def _format_ast(self, node, indent=0):
-        """Format AST node for debugging output."""
-        return ASTFormatter.format(node, indent)
-    
-    def _format_tokens(self, tokens):
-        """Format token list for debugging output."""
-        return TokenFormatter.format(tokens)
     
     def _setup_process_substitutions(self, command: Command) -> Tuple[List[int], List[str], List[int]]:
         """Set up process substitutions and return (fds, paths, child_pids)."""
@@ -1431,3 +1243,26 @@ class Shell:
     def _cleanup_process_substitutions(self):
         """Clean up process substitution file descriptors and wait for children."""
         self.io_manager.cleanup_process_substitutions()
+    
+    # Compatibility methods for tests (Phase 7 temporary)
+    def _add_to_history(self, command: str) -> None:
+        """Add command to history (compatibility wrapper)."""
+        self.interactive_manager.history_manager.add_to_history(command)
+    
+    def _load_history(self) -> None:
+        """Load history from file (compatibility wrapper)."""
+        self.interactive_manager.history_manager.load_from_file()
+    
+    def _save_history(self) -> None:
+        """Save history to file (compatibility wrapper)."""
+        self.interactive_manager.history_manager.save_to_file()
+    
+    @property
+    def _handle_sigint(self):
+        """Get signal handler (compatibility wrapper)."""
+        return self.interactive_manager.signal_manager._handle_sigint
+    
+    @property
+    def _handle_sigchld(self):
+        """Get signal handler (compatibility wrapper)."""
+        return self.interactive_manager.signal_manager._handle_sigchld

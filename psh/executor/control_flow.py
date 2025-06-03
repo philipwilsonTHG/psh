@@ -1,7 +1,7 @@
 """Control flow statement execution."""
 from typing import List
 from ..ast_nodes import (IfStatement, WhileStatement, ForStatement, 
-                         CaseStatement, BreakStatement, ContinueStatement)
+                         CaseStatement, BreakStatement, ContinueStatement, EnhancedTestStatement)
 from .base import ExecutorComponent
 from ..core.exceptions import LoopBreak, LoopContinue
 
@@ -24,6 +24,10 @@ class ControlFlowExecutor(ExecutorComponent):
             raise LoopContinue(node.level)
         else:
             raise ValueError(f"Unknown control flow node: {type(node)}")
+    
+    def execute_enhanced_test(self, node: EnhancedTestStatement) -> int:
+        """Execute enhanced test statement [[...]]."""
+        return self.shell.execute_enhanced_test_statement(node)
     
     def execute_if(self, node: IfStatement) -> int:
         """Execute if/then/else statement."""

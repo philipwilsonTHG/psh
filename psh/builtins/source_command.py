@@ -34,7 +34,7 @@ class SourceBuiltin(Builtin):
             return 1
         
         # Validate the script file
-        validation_result = shell._validate_script_file(script_path)
+        validation_result = shell.script_manager.script_validator.validate_script_file(script_path)
         if validation_result != 0:
             return validation_result
         
@@ -52,7 +52,7 @@ class SourceBuiltin(Builtin):
             from ..input_sources import FileInput
             with FileInput(script_path) as input_source:
                 # Execute with no history since it's sourced
-                return shell._execute_from_source(input_source, add_to_history=False)
+                return shell.script_manager.source_processor.execute_from_source(input_source, add_to_history=False)
         except Exception as e:
             print(f"source: {script_path}: {e}", file=sys.stderr)
             return 1

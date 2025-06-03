@@ -135,7 +135,7 @@ class SourceProcessor(ScriptComponent):
             
             # Add to history if requested (for interactive or testing)
             if add_to_history and command_string.strip():
-                self.shell._add_to_history(command_string.strip())
+                self.shell.interactive_manager.history_manager.add_to_history(command_string.strip())
             
             # Increment command number for successful parse
             self.state.command_number += 1
