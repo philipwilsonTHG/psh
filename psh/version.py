@@ -2,10 +2,19 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.28.0"
+__version__ = "0.28.1"
 
 # Version history
 VERSION_HISTORY = """
+0.28.1 (2025-02-07) - Bug fixes for debug flags and PS1 prompt handling
+  - Fixed --debug-ast error by updating to use ASTFormatter utility class
+  - Fixed --debug-tokens error by updating to use TokenFormatter utility class
+  - Fixed tokenizer quote handling to properly parse PS1 prompt strings with escape sequences
+  - Added special handling for PS1/PS2 variables to preserve prompt escape sequences
+  - Fixed test expectations for proper quote stripping behavior
+  - Documented known tokenizer issues with embedded variables and COMPOSITE arguments
+  - All 598 tests pass with improved compatibility
+
 0.28.0 (2025-02-07) - Complete architectural refactoring to component-based design
   - Transformed shell.py from 2,712-line monolith to 417-line orchestrator (85% reduction)
   - Created component-based architecture with clear separation of concerns
