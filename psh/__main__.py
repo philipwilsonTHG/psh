@@ -104,8 +104,17 @@ def main():
             exit_code = shell.run_script(script_path, script_args)
             sys.exit(exit_code)
     else:
-        # Interactive mode
-        shell.interactive_loop()
+        # Check if stdin is a terminal
+        if sys.stdin.isatty():
+            # Interactive mode
+            shell.interactive_loop()
+        else:
+            # Non-interactive mode - read all commands from stdin and execute as a script
+            script_content = sys.stdin.read()
+            if script_content.strip():
+                exit_code = shell.run_command(script_content, add_to_history=False)
+                sys.exit(exit_code)
+            sys.exit(0)
 
 
 if __name__ == "__main__":

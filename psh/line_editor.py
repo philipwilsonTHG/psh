@@ -82,6 +82,10 @@ class LineEditor:
             while True:
                 char = sys.stdin.read(1)
                 
+                # Handle EOF (empty string from read)
+                if not char:
+                    return None
+                
                 # Handle search mode input
                 if self.search_mode:
                     if self._handle_search_char(char):
