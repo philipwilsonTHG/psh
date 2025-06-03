@@ -21,42 +21,76 @@ from .job_control import JobManager, JobState
 from .builtins import registry as builtin_registry
 from .builtins.function_support import FunctionReturn
 
-# Import from new core modules
-from .core.exceptions import LoopBreak, LoopContinue
-from .core.state import ShellState
-from .utils.ast_formatter import ASTFormatter
-from .utils.token_formatter import TokenFormatter
-from .expansion.manager import ExpansionManager
+class LoopBreak(Exception):
+    """Exception used to implement break statement."""
+    def __init__(self, level=1):
+        self.level = level
+        super().__init__()
+
+class LoopContinue(Exception):
+    """Exception used to implement continue statement."""
+    def __init__(self, level=1):
+        self.level = level
+        super().__init__()
 
 class Shell:
     def __init__(self, args=None, script_name=None, debug_ast=False, debug_tokens=False, norc=False, rcfile=None):
-        # Initialize state
-        self.state = ShellState(args, script_name, debug_ast, 
-                              debug_tokens, norc, rcfile)
+        self.env = os.environ.copy()
+        self.variables = {}  # Shell variables (not exported to environment)
         
-        # Create backward compatibility properties
-        self._setup_compatibility_properties()
+        # Default prompt variables
+        self.variables['PS1'] = 'psh$ '  # Primary prompt
+        self.variables['PS2'] = '> '     # Continuation prompt
+        
+        self.positional_params = args if args else []  # $1, $2, etc.
+        self.script_name = script_name or "psh"  # $0 value
+        self.is_script_mode = script_name is not None and script_name != "psh"
+        self.debug_ast = debug_ast  # Whether to print AST before execution
+        self.debug_tokens = debug_tokens  # Whether to print tokens before parsing
+        self.norc = norc  # Whether to skip RC file loading
+        self.rcfile = rcfile  # Alternative RC file to load
+        
+        # Flag to track if we're in a forked child process
+        self._in_forked_child = False
+        
+        # For backward compatibility with redirections
+        self.stdout = sys.stdout
+        self.stderr = sys.stderr
+        self.stdin = sys.stdin
         
         # Use new builtin registry for migrated builtins
         self.builtin_registry = builtin_registry
         
         # All builtins are now handled by the registry
         self.builtins = {}
-        
-        # Load history
+        # History setup
+        self.history = []
+        self.history_file = os.path.expanduser("~/.psh_history")
+        self.max_history_size = 1000
         self._load_history()
+        # Command history navigation
+        self.history_index = -1
+        self.current_line = ""
+        
+        # Command counters for prompt expansion
+        self.command_number = 0  # Number of commands executed in this session
+        
+        self.last_exit_code = 0
+        self.last_bg_pid = None
+        self.foreground_pgid = None
+        
+        # Editor configuration
+        self.edit_mode = 'emacs'  # Default to emacs mode
         
         # Alias management
         self.alias_manager = AliasManager()
         
         # Function management
         self.function_manager = FunctionManager()
+        self.function_stack = []  # Track function call stack
         
         # Job control
         self.job_manager = JobManager()
-        
-        # Expansion management
-        self.expansion_manager = ExpansionManager(self)
         
         # Ensure shell is in its own process group for job control
         shell_pgid = os.getpid()
@@ -90,49 +124,232 @@ class Shell:
         if not self.is_script_mode and is_interactive and not self.norc:
             self._load_rc_file()
     
-    def _setup_compatibility_properties(self):
-        """Set up properties for backward compatibility."""
-        # These will be removed in later phases
-        self._state_properties = [
-            'env', 'variables', 'positional_params', 'script_name',
-            'is_script_mode', 'debug_ast', 'debug_tokens', 'norc', 'rcfile',
-            'last_exit_code', 'last_bg_pid', 'foreground_pgid', 'command_number',
-            'history', 'history_file', 'max_history_size', 'history_index',
-            'current_line', 'edit_mode', 'function_stack', '_in_forked_child',
-            'stdout', 'stderr', 'stdin'
-        ]
-    
-    def __getattr__(self, name):
-        """Delegate attribute access to state for compatibility."""
-        if hasattr(self.state, name):
-            return getattr(self.state, name)
-        raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
-    
-    def __setattr__(self, name, value):
-        """Delegate attribute setting to state for compatibility."""
-        if name in ('state', '_state_properties', 'builtin_registry', 'builtins', 
-                   'alias_manager', 'function_manager', 'job_manager', 'expansion_manager'):
-            super().__setattr__(name, value)
-        elif hasattr(self, '_state_properties') and name in self._state_properties:
-            setattr(self.state, name, value)
-        else:
-            super().__setattr__(name, value)
-    
     def _expand_string_variables(self, text: str) -> str:
         """Expand variables and arithmetic in a string (for here strings and quoted strings)"""
-        return self.expansion_manager.expand_string_variables(text)
+        result = []
+        i = 0
+        while i < len(text):
+            if text[i] == '$' and i + 1 < len(text):
+                if text[i + 1] == '(' and i + 2 < len(text) and text[i + 2] == '(':
+                    # $((...)) arithmetic expansion
+                    # Find the matching ))
+                    paren_count = 0
+                    j = i + 3  # Start after $((
+                    while j < len(text):
+                        if text[j] == '(':
+                            paren_count += 1
+                        elif text[j] == ')':
+                            if paren_count == 0 and j + 1 < len(text) and text[j + 1] == ')':
+                                # Found the closing ))
+                                arith_expr = text[i:j + 2]  # Include $((...)
+                                result.append(str(self._execute_arithmetic_expansion(arith_expr)))
+                                i = j + 2
+                                break
+                            else:
+                                paren_count -= 1
+                        j += 1
+                    else:
+                        # No matching )) found, treat as literal
+                        result.append(text[i])
+                        i += 1
+                    continue
+                elif text[i + 1] == '(':
+                    # $(...) command substitution
+                    # Find the matching )
+                    paren_count = 1
+                    j = i + 2  # Start after $(
+                    while j < len(text) and paren_count > 0:
+                        if text[j] == '(':
+                            paren_count += 1
+                        elif text[j] == ')':
+                            paren_count -= 1
+                        j += 1
+                    if paren_count == 0:
+                        # Found matching ), execute command substitution
+                        cmd_sub = text[i:j]  # Include $(...)
+                        output = self._execute_command_substitution(cmd_sub)
+                        # In double quotes, preserve the output as-is (no word splitting)
+                        result.append(output)
+                        i = j
+                        continue
+                    else:
+                        # No matching ) found, treat as literal
+                        result.append(text[i])
+                        i += 1
+                    continue
+                elif text[i + 1] == '{':
+                    # ${var} syntax
+                    end = text.find('}', i + 2)
+                    if end != -1:
+                        var_name = text[i + 2:end]
+                        result.append(self._expand_variable('$' + var_name))
+                        i = end + 1
+                        continue
+                else:
+                    # Check for special variables first
+                    if text[i + 1] in '?$!#@*0123456789':
+                        var_name = text[i + 1]
+                        result.append(self._expand_variable('$' + var_name))
+                        i += 2
+                        continue
+                    # $var syntax
+                    j = i + 1
+                    while j < len(text) and (text[j].isalnum() or text[j] == '_'):
+                        j += 1
+                    if j > i + 1:
+                        var_name = text[i + 1:j]
+                        result.append(self._expand_variable('$' + var_name))
+                        i = j
+                        continue
+            elif text[i] == '`':
+                # Backtick command substitution
+                j = i + 1
+                while j < len(text) and text[j] != '`':
+                    # Skip escaped backticks
+                    if text[j] == '\\' and j + 1 < len(text) and text[j + 1] == '`':
+                        j += 2
+                    else:
+                        j += 1
+                if j < len(text) and text[j] == '`':
+                    # Found matching backtick
+                    cmd_sub = '`' + text[i + 1:j] + '`'
+                    output = self._execute_command_substitution(cmd_sub)
+                    # In double quotes, preserve the output as-is (no word splitting)
+                    result.append(output)
+                    i = j + 1
+                    continue
+            result.append(text[i])
+            i += 1
+        return ''.join(result)
     
     def _expand_variable(self, var_expr: str) -> str:
         """Expand a variable expression starting with $"""
-        return self.expansion_manager.expand_variable(var_expr)
+        if not var_expr.startswith('$'):
+            return var_expr
+        
+        var_expr = var_expr[1:]  # Remove $
+        
+        # Handle ${var} syntax
+        if var_expr.startswith('{') and var_expr.endswith('}'):
+            var_content = var_expr[1:-1]
+            
+            # Handle ${var:-default} syntax
+            if ':-' in var_content:
+                var_name, default = var_content.split(':-', 1)
+                value = self.variables.get(var_name, self.env.get(var_name, ''))
+                return value if value else default
+            else:
+                var_name = var_content
+        else:
+            var_name = var_expr
+        
+        # Special variables
+        if var_name == '?':
+            return str(self.last_exit_code)
+        elif var_name == '$':
+            return str(os.getpid())
+        elif var_name == '!':
+            return str(self.last_bg_pid) if self.last_bg_pid else ''
+        elif var_name == '#':
+            return str(len(self.positional_params))
+        elif var_name == '0':
+            return self.script_name  # Shell or script name
+        elif var_name == '@':
+            # When in a string context (like echo "$@"), don't add quotes
+            # The quotes are only added when $@ is unquoted
+            return ' '.join(self.positional_params)
+        elif var_name == '*':
+            # Expand to single word
+            return ' '.join(self.positional_params)
+        elif var_name.isdigit():
+            # Positional parameter
+            index = int(var_name) - 1
+            if 0 <= index < len(self.positional_params):
+                return self.positional_params[index]
+            return ''
+        
+        # Regular variables - check shell variables first, then environment
+        return self.variables.get(var_name, self.env.get(var_name, ''))
     
     def _expand_tilde(self, path: str) -> str:
         """Expand tilde in paths like ~ and ~user"""
-        return self.expansion_manager.expand_tilde(path)
+        if not path.startswith('~'):
+            return path
+        
+        # Just ~ or ~/path
+        if path == '~' or path.startswith('~/'):
+            # Get home directory from HOME env var, fallback to pwd
+            home = os.environ.get('HOME')
+            if not home:
+                try:
+                    home = pwd.getpwuid(os.getuid()).pw_dir
+                except:
+                    home = '/'
+            
+            if path == '~':
+                return home
+            else:
+                return home + path[1:]  # Replace ~ with home
+        
+        # ~username or ~username/path
+        else:
+            # Find where username ends
+            slash_pos = path.find('/')
+            if slash_pos == -1:
+                username = path[1:]  # Everything after ~
+                rest = ''
+            else:
+                username = path[1:slash_pos]
+                rest = path[slash_pos:]
+            
+            # Look up user's home directory
+            try:
+                user_info = pwd.getpwnam(username)
+                return user_info.pw_dir + rest
+            except KeyError:
+                # User not found, return unchanged
+                return path
     
     def _execute_command_substitution(self, cmd_sub: str) -> str:
         """Execute command substitution and return output"""
-        return self.expansion_manager.execute_command_substitution(cmd_sub)
+        # Remove $(...) or `...`
+        if cmd_sub.startswith('$(') and cmd_sub.endswith(')'):
+            command = cmd_sub[2:-1]
+        elif cmd_sub.startswith('`') and cmd_sub.endswith('`'):
+            command = cmd_sub[1:-1]
+        else:
+            return ''
+        
+        # Use subprocess to capture output from both builtins and external commands
+        import subprocess
+        import tempfile
+        
+        # Create a temporary file to capture output
+        with tempfile.NamedTemporaryFile(mode='w+', delete=False) as tmpfile:
+            temp_output = tmpfile.name
+        
+        try:
+            # Create a temporary shell to execute the command with output redirected
+            temp_shell = Shell(debug_ast=self.debug_ast, debug_tokens=self.debug_tokens)
+            temp_shell.env = self.env.copy()
+            temp_shell.variables = self.variables.copy()
+            
+            # Execute the command with output redirected to temp file
+            temp_shell.run_command(f"{command} > {temp_output}", add_to_history=False)
+            
+            # Read the captured output
+            with open(temp_output, 'r') as f:
+                output = f.read()
+            
+            # Strip trailing newline (bash behavior)
+            if output.endswith('\n'):
+                output = output[:-1]
+            
+            return output
+        finally:
+            # Clean up temp file
+            if os.path.exists(temp_output):
+                os.unlink(temp_output)
     
     def _execute_arithmetic_expansion(self, expr: str) -> int:
         """Execute arithmetic expansion and return result"""
@@ -2263,11 +2480,129 @@ class Shell:
     
     def _format_ast(self, node, indent=0):
         """Format AST node for debugging output."""
-        return ASTFormatter.format(node, indent)
+        spaces = "  " * indent
+        
+        if isinstance(node, TopLevel):
+            result = f"{spaces}TopLevel:\n"
+            for item in node.items:
+                result += self._format_ast(item, indent + 1)
+            return result
+        
+        elif isinstance(node, CommandList):
+            result = f"{spaces}CommandList:\n"
+            for stmt in node.statements:
+                result += self._format_ast(stmt, indent + 1)
+            return result
+        
+        elif isinstance(node, AndOrList):
+            result = f"{spaces}AndOrList:\n"
+            for i, pipeline in enumerate(node.pipelines):
+                if i < len(node.operators):
+                    result += f"{spaces}  Operator: {node.operators[i]}\n"
+                result += self._format_ast(pipeline, indent + 1)
+            return result
+        
+        elif isinstance(node, Pipeline):
+            result = f"{spaces}Pipeline:\n"
+            for cmd in node.commands:
+                result += self._format_ast(cmd, indent + 1)
+            return result
+        
+        elif isinstance(node, Command):
+            result = f"{spaces}Command: {' '.join(node.args)}"
+            if node.background:
+                result += " &"
+            result += "\n"
+            for redirect in node.redirects:
+                result += self._format_ast(redirect, indent + 1)
+            return result
+        
+        elif isinstance(node, Redirect):
+            result = f"{spaces}Redirect: "
+            if node.fd is not None:
+                result += f"{node.fd}"
+            result += f"{node.type} {node.target}"
+            if node.dup_fd is not None:
+                result += f" (dup fd {node.dup_fd})"
+            if node.heredoc_content:
+                result += f" (heredoc: {len(node.heredoc_content)} chars)"
+            result += "\n"
+            return result
+        
+        elif isinstance(node, FunctionDef):
+            result = f"{spaces}FunctionDef: {node.name}()\n"
+            result += self._format_ast(node.body, indent + 1)
+            return result
+        
+        elif isinstance(node, IfStatement):
+            result = f"{spaces}IfStatement:\n"
+            result += f"{spaces}  Condition:\n"
+            result += self._format_ast(node.condition, indent + 2)
+            result += f"{spaces}  Then:\n"
+            result += self._format_ast(node.then_part, indent + 2)
+            
+            # Format elif parts
+            for i, (elif_cond, elif_then) in enumerate(node.elif_parts):
+                result += f"{spaces}  Elif {i+1} Condition:\n"
+                result += self._format_ast(elif_cond, indent + 2)
+                result += f"{spaces}  Elif {i+1} Then:\n"
+                result += self._format_ast(elif_then, indent + 2)
+            
+            if node.else_part:
+                result += f"{spaces}  Else:\n"
+                result += self._format_ast(node.else_part, indent + 2)
+            return result
+        
+        elif isinstance(node, WhileStatement):
+            result = f"{spaces}WhileStatement:\n"
+            result += f"{spaces}  Condition:\n"
+            result += self._format_ast(node.condition, indent + 2)
+            result += f"{spaces}  Body:\n"
+            result += self._format_ast(node.body, indent + 2)
+            return result
+        
+        elif isinstance(node, ForStatement):
+            result = f"{spaces}ForStatement:\n"
+            result += f"{spaces}  Variable: {node.variable}\n"
+            result += f"{spaces}  Iterable: {node.iterable}\n"
+            result += f"{spaces}  Body:\n"
+            result += self._format_ast(node.body, indent + 2)
+            return result
+        
+        elif isinstance(node, CaseStatement):
+            result = f"{spaces}CaseStatement: {node.expr}\n"
+            for item in node.items:
+                result += self._format_ast(item, indent + 1)
+            return result
+        
+        elif isinstance(node, CaseItem):
+            patterns = " | ".join(p.pattern for p in node.patterns)
+            result = f"{spaces}CaseItem: {patterns}) terminator={node.terminator}\n"
+            result += self._format_ast(node.commands, indent + 1)
+            return result
+        
+        elif isinstance(node, BreakStatement):
+            return f"{spaces}BreakStatement(level={node.level})\n"
+        
+        elif isinstance(node, ContinueStatement):
+            return f"{spaces}ContinueStatement(level={node.level})\n"
+        
+        else:
+            return f"{spaces}{type(node).__name__}: {repr(node)}\n"
     
     def _format_tokens(self, tokens):
         """Format token list for debugging output."""
-        return TokenFormatter.format(tokens)
+        from .tokenizer import Token
+        
+        result = []
+        for i, token in enumerate(tokens):
+            if isinstance(token, Token):
+                result.append(f"  [{i:3d}] {token.type.name:20s} '{token.value}'")
+            else:
+                # Handle legacy token format if any
+                result.append(f"  [{i:3d}] {str(token)}")
+        
+        return "\n".join(result)
     
     def _setup_process_substitutions(self, command: Command) -> Tuple[List[int], List[str], List[int]]:
         """Set up process substitutions and return (fds, paths, child_pids)."""
