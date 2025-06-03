@@ -97,7 +97,7 @@ class Tokenizer:
     def read_word(self) -> str:
         value = ''
         # Inside [[ ]], we need to stop at ] to avoid consuming ]]
-        stop_chars = ' \t\n|<>;&`(){}'
+        stop_chars = ' \t\n|<>;&`(){}\'"'
         if self.in_double_brackets > 0:
             stop_chars += ']'
         
@@ -318,7 +318,7 @@ class Tokenizer:
         self.advance()  # Skip opening quote
         value = ''
         
-        # Single quotes: no escape sequences allowed, everything is literal
+        # Single quotes: everything is literal (no escape processing)
         if quote_char == "'":
             while self.current_char() and self.current_char() != quote_char:
                 value += self.current_char()
@@ -326,9 +326,28 @@ class Tokenizer:
         else:
             # Double quotes: allow escaping of quote char and other special chars
             while self.current_char() and self.current_char() != quote_char:
-                if self.current_char() == '\\' and self.peek_char() == quote_char:
+                if self.current_char() == '\\' and self.peek_char():
+                    # Handle escape sequences
                     self.advance()  # Skip backslash
-                    value += self.current_char()
+                    escaped_char = self.current_char()
+                    if escaped_char == quote_char:
+                        # Escaped quote
+                        value += escaped_char
+                    elif escaped_char == '\\':
+                        # Escaped backslash
+                        value += '\\\\'  # Keep both backslashes
+                    elif escaped_char == 'n':
+                        # Newline
+                        value += '\\n'  # Keep as \n for later expansion
+                    elif escaped_char == 't':
+                        # Tab
+                        value += '\\t'  # Keep as \t for later expansion
+                    elif escaped_char == 'r':
+                        # Carriage return
+                        value += '\\r'  # Keep as \r for later expansion
+                    else:
+                        # Any other escaped character - keep the backslash
+                        value += '\\' + escaped_char
                     self.advance()
                 else:
                     value += self.current_char()

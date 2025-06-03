@@ -65,7 +65,12 @@ class CommandExecutor(ExecutorComponent):
             var_name, var_value = assignment.split('=', 1)
             
             # Expand variables in the value first
-            if '$' in var_value:
+            # Special case: Don't expand if this looks like a prompt string with escape sequences
+            # This is a heuristic since we've lost quote information in COMPOSITE arguments
+            is_likely_prompt = (var_name in ('PS1', 'PS2') and 
+                              any(seq in var_value for seq in ['\\u', '\\h', '\\w', '\\t', '\\!', '\\#', '\\$']))
+            
+            if '$' in var_value and not is_likely_prompt:
                 var_value = self.expansion_manager.expand_string_variables(var_value)
             
             # Expand arithmetic expansion in the value

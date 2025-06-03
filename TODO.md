@@ -495,6 +495,8 @@ C-style for loops `for ((i=0; i<10; i++))` will complete the iteration construct
 - **Arithmetic Inside Quotes**: Arithmetic expansion inside double quotes (e.g., `echo "Result: $((2 + 2))"`) is not being expanded because `_expand_string_variables()` only handles variable expansion, not arithmetic expansion.
 - **Variable Assignment with Quoted Values** (NEW - discovered v0.20.1): The tokenizer doesn't handle `VAR="value with spaces"` correctly when it appears before a command. For example, `MSG="hello world" echo $MSG` fails with "world": command not found" because the quoted value is split incorrectly.
 - **Quote Handling in Words** (NEW - v0.27.1): The tokenizer includes quotes as part of word values when they appear within words. For example, `a'b'c` is tokenized as a single WORD with value `a'b'c` instead of properly concatenating the unquoted parts. This affects commands like `echo a'b'c` which outputs `a'b'c` instead of `abc`.
+- **Variables Embedded in Words** (NEW - v0.28.0): The tokenizer reads `pre$x` as a literal WORD token instead of recognizing the embedded variable. This prevents proper variable expansion in concatenated strings like `pre$x'post'` which should expand to `pretestpost` but instead outputs `pre$xpost`.
+- **COMPOSITE Arguments Lose Quote Information** (NEW - v0.28.0): When the parser creates COMPOSITE arguments from adjacent tokens (e.g., `file'*'.txt`), it loses track of which parts were quoted. This causes incorrect glob expansion - `file'*'.txt` expands the `*` when it should remain literal.
 
 ### Parser Edge Cases
 - **Empty Commands**: Consecutive semicolons (`;;`, `;;;`) are not handled gracefully in command parsing (though they work correctly in case statements).

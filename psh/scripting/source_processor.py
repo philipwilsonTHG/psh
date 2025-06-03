@@ -120,7 +120,8 @@ class SourceProcessor(ScriptComponent):
             # Debug: Print tokens if requested
             if self.state.debug_tokens:
                 print("=== Token Debug Output ===", file=sys.stderr)
-                print(self.shell._format_tokens(tokens), file=sys.stderr)
+                from ..utils.token_formatter import TokenFormatter
+                print(TokenFormatter.format(tokens), file=sys.stderr)
                 print("========================", file=sys.stderr)
             
             # Expand aliases
@@ -130,7 +131,8 @@ class SourceProcessor(ScriptComponent):
             # Debug: Print AST if requested
             if self.state.debug_ast:
                 print("=== AST Debug Output ===", file=sys.stderr)
-                print(self.shell._format_ast(ast), file=sys.stderr)
+                from ..utils.ast_formatter import ASTFormatter
+                print(ASTFormatter.format(ast), file=sys.stderr)
                 print("======================", file=sys.stderr)
             
             # Add to history if requested (for interactive or testing)
