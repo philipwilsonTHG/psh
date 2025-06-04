@@ -164,7 +164,7 @@ The shell features a modern component-based architecture where each subsystem (e
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/psh.git
+git clone https://github.com/philipwilsonTHG/psh.git
 cd psh
 
 # Install in development mode
