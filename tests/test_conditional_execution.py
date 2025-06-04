@@ -2,7 +2,7 @@ import pytest
 import tempfile
 import os
 from psh.shell import Shell
-from psh.tokenizer import tokenize, TokenType
+from psh.state_machine_lexer import tokenize, TokenType
 from psh.parser import parse
 
 

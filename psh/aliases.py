@@ -2,7 +2,8 @@
 """Alias management for psh."""
 
 from typing import List, Dict, Set, Optional, Tuple
-from .tokenizer import Token, TokenType, tokenize
+from .tokenizer import Token, TokenType
+from .state_machine_lexer import tokenize
 
 
 class AliasManager:

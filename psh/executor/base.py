@@ -28,7 +28,7 @@ class ExecutorComponent(ABC):
     
     def is_builtin(self, command: str) -> bool:
         """Check if a command is a builtin."""
-        return command in self.builtin_registry.builtins
+        return self.builtin_registry.has(command)
     
     def is_function(self, command: str) -> bool:
         """Check if a command is a function."""

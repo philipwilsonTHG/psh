@@ -2,7 +2,7 @@ import pytest
 from io import StringIO
 from unittest.mock import patch
 from psh.shell import Shell
-from psh.tokenizer import tokenize
+from psh.state_machine_lexer import tokenize
 from psh.parser import parse
 from psh.ast_nodes import CaseStatement, CaseItem, CasePattern
 

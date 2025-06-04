@@ -229,7 +229,7 @@ class TestBraceExpansionIntegration:
     
     def test_tokenizer_integration(self):
         """Test that brace expansion works through the tokenizer."""
-        from psh.tokenizer import tokenize, TokenType
+        from psh.state_machine_lexer import tokenize, TokenType
         
         # Simple expansion
         tokens = tokenize("echo {a,b,c}")
@@ -248,7 +248,7 @@ class TestBraceExpansionIntegration:
     
     def test_tokenizer_quotes_preserved(self):
         """Test that quoted braces don't expand in tokenizer."""
-        from psh.tokenizer import tokenize, TokenType
+        from psh.state_machine_lexer import tokenize, TokenType
         
         tokens = tokenize('echo "{a,b,c}"')
         # Should have echo as WORD and {a,b,c} as STRING
@@ -262,7 +262,7 @@ class TestBraceExpansionIntegration:
     
     def test_tokenizer_with_operators(self):
         """Test brace expansion with shell operators."""
-        from psh.tokenizer import tokenize, TokenType
+        from psh.state_machine_lexer import tokenize, TokenType
         
         # With pipe
         tokens = tokenize("{cat,head} file.txt | grep pattern")
@@ -279,7 +279,7 @@ class TestBraceExpansionIntegration:
     
     def test_tokenizer_error_handling(self):
         """Test that tokenizer handles brace expansion errors gracefully."""
-        from psh.tokenizer import tokenize, TokenType
+        from psh.state_machine_lexer import tokenize, TokenType
         
         # Save original limit
         original_limit = BraceExpander.MAX_EXPANSION_ITEMS

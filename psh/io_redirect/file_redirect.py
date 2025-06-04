@@ -121,7 +121,7 @@ class FileRedirector:
         """
         # For now, delegate back to shell
         # This will be replaced when we extract process substitution
-        from ..tokenizer import tokenize
+        from ..state_machine_lexer import tokenize
         from ..parser import parse
         
         if target.startswith('<('):

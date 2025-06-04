@@ -1,7 +1,7 @@
 import os
 import sys
 from typing import List, Tuple
-from .tokenizer import tokenize
+from .state_machine_lexer import tokenize
 from .parser import parse, ParseError
 from .ast_nodes import Command, Pipeline, CommandList, AndOrList, TopLevel, FunctionDef, IfStatement, WhileStatement, ForStatement, BreakStatement, ContinueStatement, CaseStatement, EnhancedTestStatement, TestExpression, BinaryTestExpression, UnaryTestExpression, CompoundTestExpression, NegatedTestExpression
 from .aliases import AliasManager

@@ -1,5 +1,5 @@
 import pytest
-from psh.tokenizer import tokenize
+from psh.state_machine_lexer import tokenize
 from psh.parser import Parser, parse, ParseError
 from psh.ast_nodes import Command, Pipeline, CommandList, Redirect
 

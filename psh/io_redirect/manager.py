@@ -52,7 +52,7 @@ class IOManager:
         """Set up redirections for built-in commands. Returns tuple of backup objects."""
         import io
         import fcntl
-        from ..tokenizer import tokenize
+        from ..state_machine_lexer import tokenize
         from ..parser import parse
         
         stdout_backup = None

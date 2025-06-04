@@ -1,7 +1,7 @@
 import pytest
 from psh.shell import Shell
 from psh.parser import parse
-from psh.tokenizer import tokenize
+from psh.state_machine_lexer import tokenize
 
 
 class TestBreakContinue:

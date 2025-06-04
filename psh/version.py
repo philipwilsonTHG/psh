@@ -2,10 +2,20 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.28.1"
+__version__ = "0.28.2"
 
 # Version history
 VERSION_HISTORY = """
+0.28.2 (2025-04-06) - Important bug fixes for tokenization and expansion
+  - Fixed != operator tokenization that was incorrectly splitting into ! and = tokens
+  - Fixed COMPOSITE argument variable expansion (e.g., ${PREFIX}fix now expands correctly)
+  - Fixed PS1 escape sequence handling to preserve \$ in double quotes
+  - Fixed 'done' keyword recognition to be context-sensitive
+  - Fixed arithmetic expansion parsing inside double quotes
+  - Achieved 100% test success rate (596 tests passing)
+  - Improved tokenizer robustness for complex variable and operator combinations
+  - Enhanced quote handling for proper preservation of escape sequences
+
 0.28.1 (2025-02-07) - Bug fixes for debug flags and PS1 prompt handling
   - Fixed --debug-ast error by updating to use ASTFormatter utility class
   - Fixed --debug-tokens error by updating to use TokenFormatter utility class

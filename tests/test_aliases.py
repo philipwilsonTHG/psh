@@ -2,7 +2,7 @@
 import pytest
 from psh.shell import Shell
 from psh.aliases import AliasManager
-from psh.tokenizer import tokenize, Token, TokenType
+from psh.state_machine_lexer import tokenize, Token, TokenType
 
 
 class TestAliasManager:

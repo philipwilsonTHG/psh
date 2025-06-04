@@ -3,7 +3,7 @@
 
 import pytest
 from psh.shell import Shell
-from psh.tokenizer import tokenize
+from psh.state_machine_lexer import tokenize
 from psh.parser import parse, ParseError
 from psh.ast_nodes import TopLevel, FunctionDef, CommandList
 

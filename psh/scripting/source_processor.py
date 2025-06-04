@@ -2,7 +2,7 @@
 import sys
 from typing import Optional
 from .base import ScriptComponent
-from ..tokenizer import tokenize
+from ..state_machine_lexer import tokenize
 from ..parser import parse, ParseError
 from ..ast_nodes import TopLevel
 

@@ -16,6 +16,7 @@ class VariableExpander:
     
     def expand_variable(self, var_expr: str) -> str:
         """Expand a variable expression starting with $"""
+        
         if not var_expr.startswith('$'):
             return var_expr
         
@@ -61,10 +62,14 @@ class VariableExpander:
             return ''
         
         # Regular variables - check shell variables first, then environment
-        return self.state.variables.get(var_name, self.state.env.get(var_name, ''))
+        result = self.state.variables.get(var_name, self.state.env.get(var_name, ''))
+        
+        
+        return result
     
     def expand_string_variables(self, text: str) -> str:
         """Expand variables and arithmetic in a string (for here strings and quoted strings)"""
+        
         result = []
         i = 0
         while i < len(text):
@@ -80,7 +85,7 @@ class VariableExpander:
                         elif text[j] == ')':
                             if paren_count == 0 and j + 1 < len(text) and text[j + 1] == ')':
                                 # Found the closing ))
-                                arith_expr = text[i:j + 2]  # Include $((...)
+                                arith_expr = text[i:j + 2]  # Include $((...)))
                                 result.append(str(self.shell.expansion_manager.execute_arithmetic_expansion(arith_expr)))
                                 i = j + 2
                                 break
@@ -123,7 +128,8 @@ class VariableExpander:
                         j += 1
                     if brace_count == 0:
                         var_expr = text[i:j]  # Include ${...}
-                        result.append(self.expand_variable(var_expr))
+                        expanded = self.expand_variable(var_expr)
+                        result.append(expanded)
                         i = j
                         continue
                 else:

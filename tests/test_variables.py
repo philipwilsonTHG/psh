@@ -148,12 +148,11 @@ class TestVariables:
         captured = capsys.readouterr()
         assert captured.out.strip() == "test"
         
-        # Test concatenation - currently tokenizer splits this
-        # This is a known limitation
+        # Test concatenation - now works correctly
         shell.run_command('PREFIX=pre')
         shell.run_command('echo ${PREFIX}fix')
         captured = capsys.readouterr()
-        assert captured.out.strip() == "pre fix"  # Known issue: space added
+        assert captured.out.strip() == "prefix"  # Fixed: properly concatenated
     
     def test_shell_vs_environment_variables(self, shell, capsys):
         """Test that shell variables are separate from environment"""

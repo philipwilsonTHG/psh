@@ -9,7 +9,7 @@ from io import StringIO
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from psh.shell import Shell
-from psh.tokenizer import tokenize
+from psh.state_machine_lexer import tokenize
 from psh.parser import parse
 from psh.ast_nodes import ForStatement, CommandList, TopLevel
 
@@ -29,10 +29,17 @@ class TestForLoops(unittest.TestCase):
         return self.test_output.getvalue()
 
     def test_tokenize_for_keywords(self):
-        """Test that for/in/do/done keywords are tokenized correctly."""
-        tokens = tokenize("for in do done")
+        """Test that for/in/do/done keywords are tokenized correctly in context."""
+        # Test keywords in proper context
+        tokens = tokenize("for i in a; do echo; done")
         token_types = [token.type.name for token in tokens[:-1]]  # Exclude EOF
-        self.assertEqual(token_types, ['FOR', 'IN', 'DO', 'DONE'])
+        expected = ['FOR', 'WORD', 'IN', 'WORD', 'SEMICOLON', 'DO', 'WORD', 'SEMICOLON', 'DONE']
+        self.assertEqual(token_types, expected)
+        
+        # Test that 'do' and 'done' are NOT keywords when used as regular words
+        tokens = tokenize("echo do done")
+        token_types = [token.type.name for token in tokens[:-1]]
+        self.assertEqual(token_types, ['WORD', 'WORD', 'WORD'])
 
     def test_parse_simple_for_statement(self):
         """Test parsing a simple for statement."""

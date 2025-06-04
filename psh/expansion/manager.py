@@ -58,9 +58,12 @@ class ExpansionManager:
             # Update quote_types as well
             command.quote_types = [None] * len(substituted_args)
         
+        
         for i, arg in enumerate(command.args):
             arg_type = command.arg_types[i] if i < len(command.arg_types) else 'WORD'
             quote_type = command.quote_types[i] if i < len(command.quote_types) else None
+            
+            
             
             if arg_type == 'STRING':
                 # Handle quoted strings
@@ -78,22 +81,29 @@ class ExpansionManager:
                 else:
                     # Single-quoted string or no variables - no expansion
                     args.append(arg)
-            elif arg.startswith('$') and not (arg.startswith('$(') or arg.startswith('`')):
-                # Variable expansion for unquoted variables
+            elif arg_type == 'VARIABLE':
+                # Variable token from lexer (already includes $ prefix)
                 expanded = self.expand_variable(arg)
                 args.append(expanded)
-            elif '\\$' in arg and arg_type == 'WORD':
+            elif arg_type != 'COMPOSITE' and arg.startswith('$') and not (arg.startswith('$(') or arg.startswith('`')):
+                # Variable expansion for unquoted variables (but not COMPOSITE args)
+                expanded = self.expand_variable(arg)
+                args.append(expanded)
+            elif arg_type == 'WORD' and '\\$' in arg:
                 # Escaped dollar sign in word - replace with literal $
                 args.append(arg.replace('\\$', '$'))
             elif arg_type == 'COMPOSITE':
                 # Composite argument - already concatenated in parser
-                # Just perform glob expansion if it contains wildcards
-                if any(c in arg for c in ['*', '?', '[']):
-                    matches = glob.glob(arg)
-                    if matches:
-                        args.extend(sorted(matches))
-                    else:
-                        args.append(arg)
+                # IMPORTANT: We've lost quote information, so we can't safely
+                # perform glob expansion. In bash, file'*'.txt doesn't expand
+                # because the * was quoted. Since we can't tell which parts
+                # were quoted, we skip glob expansion for all COMPOSITE args.
+                # This is a known limitation documented in TODO.md
+                
+                # However, we still need to expand variables
+                if '$' in arg:
+                    expanded_arg = self.expand_string_variables(arg)
+                    args.append(expanded_arg)
                 else:
                     args.append(arg)
             elif arg_type in ('COMMAND_SUB', 'COMMAND_SUB_BACKTICK'):
@@ -111,6 +121,11 @@ class ExpansionManager:
                 args.append(str(result))
             else:
                 # Handle regular words
+                # Check for embedded variables in unquoted words
+                if arg_type == 'WORD' and '$' in arg:
+                    # Expand embedded variables
+                    arg = self.expand_string_variables(arg)
+                
                 # Tilde expansion (only for unquoted words)
                 if arg.startswith('~') and arg_type == 'WORD':
                     arg = self.expand_tilde(arg)

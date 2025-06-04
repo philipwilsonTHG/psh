@@ -20,6 +20,7 @@ class EchoBuiltin(Builtin):
     
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Echo arguments to stdout."""
+        
         # Check for -e flag
         interpret_escapes = False
         start_idx = 1
