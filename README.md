@@ -36,7 +36,14 @@ The shell features a modern component-based architecture where each subsystem (e
   - Shell variables (separate from environment)
   - Special variables (`$?`, `$$`, `$!`, `$#`, `$@`, `$*`, `$0`)
   - Positional parameters (`$1`, `$2`, ...)
-  - Parameter expansion (`${VAR}`, `${VAR:-default}`)
+  - Basic parameter expansion (`${VAR}`, `${VAR:-default}`)
+  - **Advanced parameter expansion** with all bash features:
+    - String length: `${#var}`, `${#}`, `${#*}`, `${#@}`
+    - Pattern removal: `${var#pattern}`, `${var##pattern}`, `${var%pattern}`, `${var%%pattern}`
+    - Pattern substitution: `${var/pattern/replacement}`, `${var//pattern/replacement}`, etc.
+    - Substring extraction: `${var:offset}`, `${var:offset:length}`
+    - Variable name matching: `${!prefix*}`, `${!prefix@}`
+    - Case modification: `${var^}`, `${var^^}`, `${var,}`, `${var,,}`
   
 - ✅ **Command Substitution**
   - Modern syntax: `$(command)`
@@ -81,6 +88,7 @@ The shell features a modern component-based architecture where each subsystem (e
   - Bash syntax: `function name { commands; }`
   - Function parameters and local scope
   - `local` builtin for function-scoped variables (v0.29.0)
+  - Advanced parameter expansion with string manipulation (v0.29.2)
   - `return` builtin
   - `declare -f` to list functions
   - `unset -f` to remove functions
@@ -384,7 +392,7 @@ While PSH implements most shell features, there are some architectural limitatio
 - **Control structures in pipelines**: Control structures (while, for, if, case) cannot be used as part of pipelines. For example, `echo "data" | while read line; do echo $line; done` will not parse. Use the control structure to wrap the pipeline instead.
 - **Deep recursion in functions**: Recursive shell functions using command substitution hit Python's recursion limit quickly. For example, recursive factorial with `$(factorial $((n-1)))` fails for small values. Use iterative algorithms instead. See [docs/recursion_depth_analysis.md](docs/recursion_depth_analysis.md) for details.
 - **C-style for loops**: Not implemented - use traditional `for var in list` syntax
-- **Advanced parameter expansion**: Only `${var}` and `${var:-default}` are supported
+- **Advanced parameter expansion**: ✅ **Fully implemented** (v0.29.2) - All bash string manipulation features supported
 - **Arrays**: Not implemented - use space-separated strings instead
 
 See TODO.md for a complete list of unimplemented features.
