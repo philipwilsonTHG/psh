@@ -2,11 +2,19 @@
 
 An educational Unix shell implementation in Python, designed to teach shell internals and compiler/interpreter concepts through a clean, readable codebase.
 
+**Current Version**: 0.29.2 (2025-04-06)
+
 ## Overview
 
 Python Shell (psh) is a POSIX-style shell written entirely in Python. It uses a hand-written recursive descent parser for clarity and educational value, making it easy to understand how shells parse and execute commands.
 
 The shell features a modern component-based architecture where each subsystem (execution, expansion, I/O, etc.) is cleanly separated into its own module. This makes the codebase easy to understand, test, and extend. See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed documentation.
+
+### Recent Major Features
+
+- **v0.29.2**: Complete advanced parameter expansion with all bash string manipulation features
+- **v0.29.0**: Local variable support with function-scoped variables
+- **v0.28.x**: Major architectural refactoring, state machine lexer, component-based design
 
 ## Features
 
@@ -58,6 +66,7 @@ The shell features a modern component-based architecture where each subsystem (e
   - Logical operators: `&&`, `||`, `!`
   - Bitwise operators: `&`, `|`, `^`, `~`, `<<`, `>>`
   - Assignment operators: `=`, `+=`, `-=`, etc.
+  - Command substitution within arithmetic: `$(($(cmd) * 2))`
   
 - ✅ **Brace Expansion**
   - List expansion: `{a,b,c}`
@@ -93,12 +102,14 @@ The shell features a modern component-based architecture where each subsystem (e
   - `declare -f` to list functions
   - `unset -f` to remove functions
   
-- ✅ **Test Command**
+- ✅ **Test Commands**
   - `[` builtin with full operator support
-  - String comparisons: `=`, `!=`, `-z`, `-n`
+  - `[[` enhanced test with pattern matching and regex
+  - String comparisons: `=`, `!=`, `-z`, `-n`, `<`, `>`
   - Numeric comparisons: `-eq`, `-ne`, `-lt`, `-le`, `-gt`, `-ge`
   - File tests: `-e`, `-f`, `-d`, `-r`, `-w`, `-x`, `-s`, etc.
-  - Logical operators: `-a`, `-o`, `!`
+  - Logical operators: `-a`, `-o`, `!` (in `[`), `&&`, `||` (in `[[`)
+  - Regular expression matching: `=~` (in `[[`)
 
 ### Interactive Features
 
@@ -188,10 +199,12 @@ psh script.sh
 # With debugging
 psh --debug-ast -c "echo test"      # Show parsed AST
 psh --debug-tokens -c "echo test"   # Show tokens
+psh --debug-scopes                  # Show variable scope operations
 
 # Debug options can be toggled at runtime:
 $ set -o debug-ast                  # Enable AST debugging
 $ set -o debug-tokens               # Enable token debugging
+$ set +o debug-ast                  # Disable AST debugging
 $ set -o                            # Show all options
 ```
 
@@ -235,6 +248,14 @@ $ greet() {
 >   echo "Hello, ${name}!"
 > }
 $ greet "Python Shell"
+
+# Advanced parameter expansion
+$ file="document.txt"
+$ echo ${file%.txt}      # Remove .txt suffix
+$ echo ${file/doc/text}  # Replace doc with text
+$ text="Hello World"
+$ echo ${text^^}         # Convert to uppercase
+$ echo ${text:6:5}       # Extract substring
 ```
 
 ### Advanced Features
@@ -262,6 +283,15 @@ $ long_command &
 $ jobs
 [1]+ Running    long_command
 $ fg %1
+
+# Enhanced test [[ ]]
+$ if [[ $name =~ ^[A-Z] ]]; then
+>   echo "Name starts with uppercase"
+> fi
+
+# Arithmetic with command substitution
+$ result=$(($(get_value) * 2 + 10))
+$ echo "Result: $result"
 ```
 
 ### Prompt Customization
@@ -328,22 +358,27 @@ redirect_op  → '<' | '>' | '>>' | '2>' | '2>>' | '>&' | '<<' | '<<-' | '<<<'
 
 ## Architecture
 
-The shell follows a classic three-phase interpreter architecture:
+The shell follows a modern component-based architecture with clear separation of concerns:
 
-1. **Tokenization** (`psh/tokenizer.py`)
-   - Lexical analysis
-   - Token recognition
-   - Quote and escape handling
+1. **Tokenization** (`psh/state_machine_lexer.py`)
+   - State machine-based lexer for robust tokenization
+   - Rich token support with metadata
+   - Context-aware keyword and operator recognition
    
 2. **Parsing** (`psh/parser.py`)
-   - Recursive descent parser
-   - AST construction
-   - Syntax validation
+   - Clean recursive descent parser
+   - Unified statement parsing for arbitrary nesting
+   - Enhanced AST with support for all shell constructs
    
-3. **Execution** (`psh/shell.py`)
-   - AST interpretation
-   - Process management
-   - Built-in implementation
+3. **Component-Based Execution**
+   - **Shell** (`psh/shell.py`): Main orchestrator (~417 lines)
+   - **Execution** (`psh/executor/`): Command, pipeline, control flow executors
+   - **Expansion** (`psh/expansion/`): Variable, parameter, command substitution
+   - **I/O** (`psh/io_redirect/`): File, heredoc, process substitution
+   - **Interactive** (`psh/interactive/`): REPL, prompt, history, completion
+   - **State** (`psh/core/`): Centralized state and scope management
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed component documentation.
 
 ## Testing
 
@@ -366,36 +401,73 @@ python -m pytest tests/ --cov=psh --cov-report=html
 psh/
 ├── psh/
 │   ├── __init__.py
-│   ├── shell.py           # Main shell implementation
-│   ├── tokenizer.py       # Lexical analysis
-│   ├── parser.py          # Syntax analysis
-│   ├── ast_nodes.py       # AST definitions
-│   ├── multiline_handler.py # Multi-line input handling
-│   ├── prompt.py          # Prompt expansion
-│   ├── line_editor.py     # Line editing (vi/emacs)
-│   ├── tab_completion.py  # Tab completion
-│   ├── job_control.py     # Job management
-│   ├── functions.py       # Function management
-│   ├── aliases.py         # Alias management
-│   ├── arithmetic.py      # Arithmetic evaluation
-│   ├── brace_expansion.py # Brace expansion
-│   └── builtins/          # Built-in commands
-├── tests/                 # Comprehensive test suite
-├── docs/                  # Documentation
-└── examples/              # Example scripts
+│   ├── shell.py              # Main orchestrator (~417 lines)
+│   ├── state_machine_lexer.py # State machine tokenizer
+│   ├── parser.py             # Recursive descent parser
+│   ├── ast_nodes.py          # AST node definitions
+│   ├── core/                 # Core state management
+│   │   ├── state.py          # Shell state
+│   │   ├── scope.py          # Variable scoping
+│   │   └── exceptions.py     # Shell exceptions
+│   ├── executor/             # Execution components
+│   │   ├── base.py           # Executor manager
+│   │   ├── command.py        # Command execution
+│   │   ├── pipeline.py       # Pipeline execution
+│   │   ├── control_flow.py   # Control structures
+│   │   └── statement.py      # Statement lists
+│   ├── expansion/            # Expansion subsystem
+│   │   ├── manager.py        # Expansion orchestration
+│   │   ├── variable.py       # Variable expansion
+│   │   ├── parameter_expansion.py # Advanced parameter expansion
+│   │   ├── command_sub.py    # Command substitution
+│   │   └── ...               # Other expanders
+│   ├── interactive/          # Interactive features
+│   │   ├── repl_loop.py      # REPL implementation
+│   │   ├── prompt_manager.py # Prompt expansion
+│   │   └── ...               # Other interactive components
+│   ├── builtins/             # Built-in commands
+│   │   ├── registry.py       # Builtin registry
+│   │   └── ...               # Categorized builtins
+│   └── ...                   # Other components
+├── tests/                    # Comprehensive test suite (680+ tests)
+├── docs/                     # Architecture and design docs
+└── examples/                 # Example scripts and demos
 ```
 
 ## Known Limitations
 
 While PSH implements most shell features, there are some architectural limitations:
 
-- **Control structures in pipelines**: Control structures (while, for, if, case) cannot be used as part of pipelines. For example, `echo "data" | while read line; do echo $line; done` will not parse. Use the control structure to wrap the pipeline instead.
-- **Deep recursion in functions**: Recursive shell functions using command substitution hit Python's recursion limit quickly. For example, recursive factorial with `$(factorial $((n-1)))` fails for small values. Use iterative algorithms instead. See [docs/recursion_depth_analysis.md](docs/recursion_depth_analysis.md) for details.
-- **C-style for loops**: Not implemented - use traditional `for var in list` syntax
-- **Advanced parameter expansion**: ✅ **Fully implemented** (v0.29.2) - All bash string manipulation features supported
-- **Arrays**: Not implemented - use space-separated strings instead
+- **Control structures in pipelines**: Control structures (while, for, if, case) cannot be used as part of pipelines due to the statement-based architecture. Use the control structure to wrap the pipeline instead.
+- **Deep recursion in functions**: Recursive shell functions using command substitution hit Python's recursion limit quickly. Use iterative algorithms instead. See [docs/recursion_depth_analysis.md](docs/recursion_depth_analysis.md) for details.
+- **C-style for loops**: Not yet implemented - planned for future release using existing arithmetic system
+- **Arrays**: Not implemented - use space-separated strings or multiple variables instead
+- **Composite argument quote handling**: Parser loses quote information when creating composite arguments
 
-See TODO.md for a complete list of unimplemented features.
+See [TODO.md](TODO.md) for a complete list of planned features.
+
+## Implementation Status
+
+PSH has achieved significant feature completeness with **680+ passing tests**:
+
+### ✅ Fully Implemented (v0.29.2)
+- All core shell features (execution, I/O, pipelines, variables)
+- Complete expansion system (variable, parameter, command, arithmetic, brace, process)
+- All control structures (if/elif/else, while, for, case, break/continue)
+- Shell functions with local variables and parameter isolation
+- Job control with process group management
+- Interactive features (line editing, completion, history, prompts)
+- Advanced parameter expansion with all bash string manipulation
+- Enhanced test operators `[[ ]]` with regex support
+- Arithmetic expansion with command substitution support
+
+### 🚧 Planned Features
+- C-style for loops: `for ((i=0; i<10; i++))`
+- Advanced shell options: `set -e`, `set -u`, `set -x`, `set -o pipefail`
+- Trap command for signal handling
+- Array variables and associative arrays
+- Select statement for menu generation
+- More read builtin options: `-t timeout`, `-n chars`, `-s silent`
 
 ## Contributing
 

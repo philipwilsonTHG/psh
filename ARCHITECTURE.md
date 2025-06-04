@@ -4,6 +4,14 @@
 
 Python Shell (psh) is designed with a clean, component-based architecture that separates concerns and makes the codebase easy to understand, test, and extend. The shell has been refactored from a monolithic design into a modular system where each component has a specific responsibility.
 
+**Current Version**: 0.29.2 (as of 2025-04-06)
+
+**Key Recent Additions**:
+- Local variable support with function scoping (v0.29.0)
+- Complete advanced parameter expansion (v0.29.2)
+- State machine-based lexer for robust tokenization (v0.28.5)
+- Arithmetic expansion with command substitution support (v0.28.9)
+
 ## Architecture Diagram
 
 ```
@@ -25,12 +33,14 @@ Python Shell (psh) is designed with a clean, component-based architecture that s
         ┌────────────────────┴────────────────────┐
         │                                         │
         ▼                                         ▼
-┌──────────────────┐                    ┌─────────────────────┐
-│   Tokenizer      │                    │   Parser            │
-│ (tokenizer.py)   │                    │ (parser.py)         │
-│                  │                    │                     │
-│ String → Tokens  │                    │ Tokens → AST        │
-└──────────────────┘                    └─────────────────────┘
+┌──────────────────────┐                ┌─────────────────────┐
+│  State Machine       │                │   Parser            │
+│  Lexer               │                │ (parser.py)         │
+│ (state_machine_      │                │                     │
+│  lexer.py)           │                │ Tokens → AST        │
+│                      │                │                     │
+│ String → RichTokens  │                └─────────────────────┘
+└──────────────────────┘                          │
         │                                         │
         └────────────────────┬────────────────────┘
                              │
@@ -61,9 +71,10 @@ Python Shell (psh) is designed with a clean, component-based architecture that s
                              ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                      Core State                                 │
-│                    (core/state.py)                              │
+│                 (core/state.py + core/scope.py)                 │
 │                                                                 │
 │  • Environment variables        • Shell variables               │
+│  • Variable scope stack         • Function-local variables      │
 │  • Positional parameters        • Function stack                │
 │  • Exit codes                   • Debug flags                   │
 │  • I/O streams                  • Job control state             │
@@ -84,8 +95,8 @@ The Shell class is the main entry point and orchestrator. It:
 
 ```python
 class Shell:
-    def __init__(self, ...):
-        # Initialize state
+    def __init__(self, parent_shell=None, ...):
+        # Initialize state with optional parent for subshell inheritance
         self.state = ShellState(...)
         
         # Initialize managers
@@ -100,6 +111,10 @@ class Shell:
         self.function_manager = FunctionManager()
         self.job_manager = JobManager(self)
         self.builtin_registry = BuiltinRegistry()
+        
+        # Inherit from parent shell if specified (for command/process substitution)
+        if parent_shell:
+            self._inherit_from_parent(parent_shell)
 ```
 
 ### 2. Core State Management
@@ -109,18 +124,54 @@ class Shell:
 #### ShellState (`core/state.py`)
 Centralized state management for the entire shell:
 - Environment variables (`env`)
-- Shell variables (`variables`)
+- Shell variables (managed through ScopeManager)
 - Positional parameters (`positional_params`)
 - Execution state (exit codes, process info)
 - Configuration (debug flags, RC file settings)
+- Integration with scope management for variable operations
+
+#### ScopeManager (`core/scope.py`)
+Variable scope management for function-local variables:
+- Stack-based scope tracking with `VariableScope` objects
+- Function-local variable support via `local` builtin
+- Proper scope inheritance (locals visible to nested functions)
+- Debug support with `--debug-scopes` flag
+- Methods: `push_scope()`, `pop_scope()`, `get_variable()`, `set_variable()`, `create_local()`
 
 #### Exceptions (`core/exceptions.py`)
 Shell-specific exceptions:
 - `LoopBreak`: For break statements
 - `LoopContinue`: For continue statements
 - `ShellError`: Base exception class
+- `FunctionReturn`: For return builtin (added for function support)
 
-### 3. Execution System
+### 3. Tokenization System
+
+**Files**: `state_machine_lexer.py`, `token_types.py`, `token_transformer.py`
+
+The tokenization system has been completely rewritten as a state machine lexer.
+
+#### StateMachineLexer (`state_machine_lexer.py`)
+State machine-based tokenizer that solves complex tokenization issues:
+- **State-based parsing**: Uses `LexerState` enum (NORMAL, IN_WORD, IN_SINGLE_QUOTE, etc.)
+- **Rich token support**: Produces `RichToken` objects with metadata about token parts
+- **Composite handling**: `TokenPart` dataclass tracks components of composite tokens
+- **Context awareness**: Different behavior inside `[[ ]]`, proper keyword recognition
+- **Quote preservation**: Maintains quote information for proper expansion
+- **Operator recognition**: Length-based lookup for efficient operator matching
+
+#### Token Types (`token_types.py`)
+Defines token types and base token classes:
+- `TokenType` enum with all token categories
+- `Token` dataclass for basic token representation
+- Shared between lexer and parser for consistency
+
+#### Token Transformer (`token_transformer.py`)
+Context-aware token processing:
+- Handles special cases like double semicolon (`;;`) outside case statements
+- Token stream transformations based on parsing context
+
+### 4. Execution System
 
 **Directory**: `executor/`
 
@@ -164,7 +215,7 @@ Handles statement lists and logical operators:
 - OR lists (`||` operator)
 - Top-level script execution
 
-### 4. Expansion System
+### 5. Expansion System
 
 **Directory**: `expansion/`
 
@@ -172,7 +223,7 @@ The expansion system handles all shell expansions in the correct order.
 
 #### ExpansionManager (`expansion/manager.py`)
 Orchestrates expansions in POSIX order:
-1. Brace expansion (handled by tokenizer)
+1. Brace expansion (handled by BraceExpander before tokenization)
 2. Tilde expansion
 3. Parameter/variable expansion
 4. Command substitution
@@ -183,11 +234,19 @@ Orchestrates expansions in POSIX order:
 
 #### Component Expanders
 - **VariableExpander** (`variable.py`): `$var`, `${var}`, special parameters
+- **ParameterExpansion** (`parameter_expansion.py`): Advanced parameter expansion features
+  - Length operations: `${#var}`, `${#}`, `${#*}`, `${#@}`
+  - Pattern removal: `${var#pattern}`, `${var##pattern}`, `${var%pattern}`, `${var%%pattern}`
+  - Pattern substitution: `${var/pattern/replacement}`, `${var//pattern/replacement}`
+  - Substring extraction: `${var:offset}`, `${var:offset:length}`
+  - Variable name matching: `${!prefix*}`, `${!prefix@}`
+  - Case modification: `${var^}`, `${var^^}`, `${var,}`, `${var,,}`
 - **CommandSubstitution** (`command_sub.py`): `$(...)` and `` `...` ``
 - **TildeExpander** (`tilde.py`): `~` and `~user`
 - **GlobExpander** (`glob.py`): `*`, `?`, `[...]` patterns
+- **BraceExpander** (`brace_expansion.py`): `{a,b,c}` lists and `{1..10}` sequences
 
-### 5. I/O Redirection System
+### 6. I/O Redirection System
 
 **Directory**: `io_redirect/`
 
@@ -204,7 +263,7 @@ Central manager for all I/O operations:
 - **HeredocHandler** (`heredoc.py`): `<<`, `<<-`, `<<<`
 - **ProcessSubstitutionHandler** (`process_sub.py`): `<(...)`, `>(...)`
 
-### 6. Interactive Features
+### 7. Interactive Features
 
 **Directory**: `interactive/`
 
@@ -225,7 +284,7 @@ Coordinates interactive components:
 - **CompletionManager** (`completion_manager.py`): Tab completion
 - **SignalManager** (`signal_manager.py`): SIGINT, SIGCHLD, etc.
 
-### 7. Script Handling
+### 8. Script Handling
 
 **Directory**: `scripting/`
 
@@ -243,7 +302,7 @@ Coordinates script-related operations:
 - **ShebangHandler** (`shebang_handler.py`): Processes `#!` lines
 - **SourceProcessor** (`source_processor.py`): Implements source/`.` command
 
-### 8. Built-in Commands
+### 9. Built-in Commands
 
 **Directory**: `builtins/`
 
@@ -258,15 +317,39 @@ Central registry for all built-ins:
 #### Built-in Categories
 - **Core** (`core.py`): `exit`, `:`, `true`, `false`
 - **Navigation** (`navigation.py`): `cd`, `pwd`
-- **Environment** (`environment.py`): `export`, `unset`, `env`, `set`
+- **Environment** (`environment.py`): `export`, `unset`, `env`, `set`, `local`
 - **I/O** (`io.py`): `echo`, `read`, `printf`
 - **Job Control** (`job_control.py`): `jobs`, `fg`, `bg`
 - **Aliases** (`aliases.py`): `alias`, `unalias`
 - **Functions** (`function_support.py`): `return`, function helpers
 - **Shell State** (`shell_state.py`): `set`, `declare`
 - **Test Command** (`test_command.py`): `test`, `[`
+- **Source Command** (`source_command.py`): `source`, `.`
+- **Read Builtin** (`read_builtin.py`): Advanced read functionality
 
-### 9. Other Components
+### 10. Parser and AST
+
+**Files**: `parser.py`, `ast_nodes.py`
+
+#### Parser (`parser.py`)
+Clean recursive descent parser with recent improvements:
+- **TokenGroups class**: Defines semantic groups (WORD_LIKE, REDIRECTS, CONTROL_KEYWORDS)
+- **Helper methods**: `skip_newlines()`, `skip_separators()`, `at_end()` for cleaner code
+- **Composite arguments**: `parse_composite_argument()` handles adjacent tokens
+- **Unified parsing**: Single `parse_statement()` method for all statement types
+- **Enhanced test support**: `[[ ]]` constructs with compound expressions
+- **Function parsing**: Both POSIX and bash syntax support
+- **Error messages**: Human-readable token names in errors
+
+#### AST Nodes (`ast_nodes.py`)
+Well-organized node hierarchy:
+- **Base classes**: `ASTNode`, `Statement` for type hierarchy
+- **Control structures**: `IfStatement`, `WhileStatement`, `ForStatement`, `CaseStatement`
+- **Enhanced nodes**: Support for `elif` chains, test expressions, composite arguments
+- **Statement lists**: `StatementList` allows arbitrary nesting of control structures
+- **Function definitions**: `FunctionDef` with both syntaxes supported
+
+### 11. Other Components
 
 #### JobManager (`job_control.py`)
 Manages background jobs:
@@ -286,6 +369,14 @@ Handles command aliases:
 - Alias definition and expansion
 - Recursive alias resolution
 - Trailing space handling
+
+#### ArithmeticEvaluator (`arithmetic.py`)
+Complete arithmetic expression evaluation:
+- Separate tokenizer, parser, and evaluator subsystem
+- Full operator support: arithmetic, comparison, logical, bitwise
+- Advanced features: ternary (?:), assignments (+=, -=), increment/decrement
+- Variable integration with shell variables
+- Command substitution support within arithmetic expressions
 
 ## Data Flow
 
@@ -384,6 +475,45 @@ The component architecture enables isolated testing:
 3. **Minimal Indirection**: Direct component access where possible
 4. **Efficient Algorithms**: O(1) lookups for builtins, functions, aliases
 
+## Recent Architectural Improvements
+
+### Version 0.29.x Series
+1. **Local Variable Support** (v0.29.0)
+   - Added `ScopeManager` for function-local variables
+   - Stack-based scope tracking with proper inheritance
+   - Integration with all variable operations
+
+2. **Advanced Parameter Expansion** (v0.29.2)
+   - Complete bash-compatible string manipulation
+   - Pattern matching with shell wildcards
+   - Unicode support throughout
+   - 98% test success rate
+
+### Version 0.28.x Series
+1. **State Machine Lexer** (v0.28.5-0.28.6)
+   - Replaced old tokenizer with state machine implementation
+   - Rich token support with metadata
+   - Better quote and expansion handling
+   - Improved error messages
+
+2. **Component Refactoring** (v0.28.0)
+   - Reduced shell.py from 2,712 to 417 lines (85% reduction)
+   - Created logical component organization
+   - Improved testability and maintainability
+   - Preserved educational value
+
+3. **Parser Improvements** (v0.28.7)
+   - 30% code reduction through refactoring
+   - TokenGroups for semantic token grouping
+   - Cleaner recursive descent patterns
+
+## Known Architectural Limitations
+
+1. **Composite Arguments**: Parser creates COMPOSITE type but loses quote information from RichTokens
+2. **Control Structures in Pipelines**: Not supported due to statement-based architecture
+3. **Deep Recursion**: Shell functions have recursion depth limitations
+4. **Built-in I/O**: Some builtins use print() which doesn't respect redirections
+
 ## Future Improvements
 
 1. **Plugin System**: Dynamic component loading
@@ -391,3 +521,5 @@ The component architecture enables isolated testing:
 3. **Remote Execution**: SSH-like capabilities
 4. **Advanced Debugging**: Step-through execution
 5. **Performance Monitoring**: Built-in profiling
+6. **RichToken Integration**: Full utilization of token metadata in parser
+7. **C-style For Loops**: Arithmetic-based iteration using existing arithmetic system
