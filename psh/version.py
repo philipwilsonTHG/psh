@@ -2,10 +2,20 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.29.2"
+__version__ = "0.29.3"
 
 # Version history
 VERSION_HISTORY = """
+0.29.3 (2025-04-06) - Documentation improvements
+  - Updated ARCHITECTURE.md to reflect current component-based design
+  - Added documentation for state machine lexer, scope management, and recent features
+  - Updated README.md with current version, implementation status, and examples
+  - Added examples for advanced parameter expansion and enhanced test operators
+  - Rewrote TODO.md with consistent formatting and clear organization
+  - Improved documentation of known limitations and architectural decisions
+  - Updated project structure diagram to show actual directory layout
+  - Added comprehensive implementation status section (680+ tests passing)
+
 0.29.2 (2025-04-06) - Advanced parameter expansion and pytest infrastructure fixes
   - Implemented comprehensive advanced parameter expansion with all bash features
   - Added string length operations: ${#var}, ${#}, ${#*}, ${#@}
