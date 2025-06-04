@@ -119,7 +119,7 @@ class ControlFlowExecutor(ExecutorComponent):
             
             # Save the current value of the loop variable (if it exists)
             loop_var = node.variable
-            saved_value = self.state.variables.get(loop_var)
+            saved_value = self.state.get_variable(loop_var, None)
             
             try:
                 for item in expanded_items:
@@ -141,10 +141,10 @@ class ControlFlowExecutor(ExecutorComponent):
             finally:
                 # Restore the previous value of the loop variable
                 if saved_value is not None:
-                    self.state.variables[loop_var] = saved_value
+                    self.state.set_variable(loop_var, saved_value)
                 else:
                     # Variable didn't exist before, remove it
-                    self.state.variables.pop(loop_var, None)
+                    self.state.scope_manager.unset_variable(loop_var)
             
             return last_status
         finally:

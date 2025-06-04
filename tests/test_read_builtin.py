@@ -8,8 +8,8 @@ from psh.shell import Shell
 class TestReadBuiltin:
     def setup_method(self):
         self.shell = Shell()
-        # Clear any existing variables
-        self.shell.variables = {}
+        # Clear any existing variables - start fresh with new shell instance
+        # (each Shell instance starts with a clean scope)
     
     def test_basic_read(self):
         """Test basic read functionality."""
@@ -20,7 +20,7 @@ class TestReadBuiltin:
         try:
             exit_code = self.shell.run_command("read var")
             assert exit_code == 0
-            assert self.shell.variables.get("var") == "hello world"
+            assert self.shell.state.get_variable("var") == "hello world"
         finally:
             sys.stdin = old_stdin
     
@@ -32,7 +32,7 @@ class TestReadBuiltin:
         try:
             exit_code = self.shell.run_command("read")
             assert exit_code == 0
-            assert self.shell.variables.get("REPLY") == "test input"
+            assert self.shell.state.get_variable("REPLY") == "test input"
         finally:
             sys.stdin = old_stdin
     
@@ -44,9 +44,9 @@ class TestReadBuiltin:
         try:
             exit_code = self.shell.run_command("read a b c")
             assert exit_code == 0
-            assert self.shell.variables.get("a") == "first"
-            assert self.shell.variables.get("b") == "second"
-            assert self.shell.variables.get("c") == "third"
+            assert self.shell.state.get_variable("a") == "first"
+            assert self.shell.state.get_variable("b") == "second"
+            assert self.shell.state.get_variable("c") == "third"
         finally:
             sys.stdin = old_stdin
     
@@ -58,10 +58,10 @@ class TestReadBuiltin:
         try:
             exit_code = self.shell.run_command("read a b c")
             assert exit_code == 0
-            assert self.shell.variables.get("a") == "one"
-            assert self.shell.variables.get("b") == "two"
+            assert self.shell.state.get_variable("a") == "one"
+            assert self.shell.state.get_variable("b") == "two"
             # Last variable gets all remaining fields
-            assert self.shell.variables.get("c") == "three four five"
+            assert self.shell.state.get_variable("c") == "three four five"
         finally:
             sys.stdin = old_stdin
     
@@ -73,10 +73,10 @@ class TestReadBuiltin:
         try:
             exit_code = self.shell.run_command("read a b c d")
             assert exit_code == 0
-            assert self.shell.variables.get("a") == "one"
-            assert self.shell.variables.get("b") == "two"
-            assert self.shell.variables.get("c") == ""
-            assert self.shell.variables.get("d") == ""
+            assert self.shell.state.get_variable("a") == "one"
+            assert self.shell.state.get_variable("b") == "two"
+            assert self.shell.state.get_variable("c") == ""
+            assert self.shell.state.get_variable("d") == ""
         finally:
             sys.stdin = old_stdin
     
@@ -100,7 +100,7 @@ class TestReadBuiltin:
             exit_code = self.shell.run_command("read -r var")
             assert exit_code == 0
             # In raw mode, backslashes are preserved
-            assert self.shell.variables.get("var") == "hello\\tworld\\n"
+            assert self.shell.state.get_variable("var") == "hello\\tworld\\n"
         finally:
             sys.stdin = old_stdin
     
@@ -114,7 +114,7 @@ class TestReadBuiltin:
             assert exit_code == 0
             # Without -r, escape sequences are processed
             # Note: trailing newline is trimmed as it's IFS whitespace
-            assert self.shell.variables.get("var") == "hello\tworld"
+            assert self.shell.state.get_variable("var") == "hello\tworld"
         finally:
             sys.stdin = old_stdin
     
@@ -127,7 +127,7 @@ class TestReadBuiltin:
             exit_code = self.shell.run_command("read var")
             assert exit_code == 0
             # Embedded newline is preserved
-            assert self.shell.variables.get("var") == "hello\nworld"
+            assert self.shell.state.get_variable("var") == "hello\nworld"
         finally:
             sys.stdin = old_stdin
     
@@ -138,16 +138,16 @@ class TestReadBuiltin:
         
         try:
             # Set IFS to colon
-            self.shell.variables["IFS"] = ":"
+            self.shell.state.set_variable("IFS", ":")
             exit_code = self.shell.run_command("read a b c")
             assert exit_code == 0
-            assert self.shell.variables.get("a") == "one"
-            assert self.shell.variables.get("b") == "two"
-            assert self.shell.variables.get("c") == "three"
+            assert self.shell.state.get_variable("a") == "one"
+            assert self.shell.state.get_variable("b") == "two"
+            assert self.shell.state.get_variable("c") == "three"
         finally:
             sys.stdin = old_stdin
             # Reset IFS
-            self.shell.variables.pop("IFS", None)
+            self.shell.state.scope_manager.unset_variable("IFS")
     
     def test_read_empty_ifs(self):
         """Test read with empty IFS (no field splitting)."""
@@ -156,15 +156,15 @@ class TestReadBuiltin:
         
         try:
             # Set IFS to empty string
-            self.shell.variables["IFS"] = ""
+            self.shell.state.set_variable("IFS", "")
             exit_code = self.shell.run_command("read var")
             assert exit_code == 0
             # With empty IFS, no splitting occurs and whitespace is preserved
-            assert self.shell.variables.get("var") == "  hello  world  "
+            assert self.shell.state.get_variable("var") == "  hello  world  "
         finally:
             sys.stdin = old_stdin
             # Reset IFS
-            self.shell.variables.pop("IFS", None)
+            self.shell.state.scope_manager.unset_variable("IFS")
     
     def test_read_leading_trailing_whitespace(self):
         """Test read trims leading/trailing IFS whitespace."""
@@ -175,7 +175,7 @@ class TestReadBuiltin:
             exit_code = self.shell.run_command("read var")
             assert exit_code == 0
             # Default IFS includes space, so leading/trailing spaces are trimmed
-            assert self.shell.variables.get("var") == "hello  world"
+            assert self.shell.state.get_variable("var") == "hello  world"
         finally:
             sys.stdin = old_stdin
     
@@ -186,15 +186,15 @@ class TestReadBuiltin:
         
         try:
             # Set IFS to tab only
-            self.shell.variables["IFS"] = "\t"
+            self.shell.state.set_variable("IFS", "\t")
             exit_code = self.shell.run_command("read a b c")
             assert exit_code == 0
-            assert self.shell.variables.get("a") == "col1"
-            assert self.shell.variables.get("b") == "col2"
-            assert self.shell.variables.get("c") == "col3"
+            assert self.shell.state.get_variable("a") == "col1"
+            assert self.shell.state.get_variable("b") == "col2"
+            assert self.shell.state.get_variable("c") == "col3"
         finally:
             sys.stdin = old_stdin
-            self.shell.variables.pop("IFS", None)
+            self.shell.state.scope_manager.unset_variable("IFS")
     
     def test_read_mixed_ifs_characters(self):
         """Test read with IFS containing both whitespace and non-whitespace."""
@@ -203,16 +203,16 @@ class TestReadBuiltin:
         
         try:
             # Set IFS to colon and space
-            self.shell.variables["IFS"] = ": "
+            self.shell.state.set_variable("IFS", ": ")
             exit_code = self.shell.run_command("read a b c d")
             assert exit_code == 0
-            assert self.shell.variables.get("a") == "one"
-            assert self.shell.variables.get("b") == "two"
-            assert self.shell.variables.get("c") == "three"
-            assert self.shell.variables.get("d") == "four"
+            assert self.shell.state.get_variable("a") == "one"
+            assert self.shell.state.get_variable("b") == "two"
+            assert self.shell.state.get_variable("c") == "three"
+            assert self.shell.state.get_variable("d") == "four"
         finally:
             sys.stdin = old_stdin
-            self.shell.variables.pop("IFS", None)
+            self.shell.state.scope_manager.unset_variable("IFS")
     
     def test_read_empty_input(self):
         """Test read with empty line (just newline)."""
@@ -222,7 +222,7 @@ class TestReadBuiltin:
         try:
             exit_code = self.shell.run_command("read var")
             assert exit_code == 0
-            assert self.shell.variables.get("var") == ""
+            assert self.shell.state.get_variable("var") == ""
         finally:
             sys.stdin = old_stdin
     
@@ -236,7 +236,7 @@ class TestReadBuiltin:
             # This should remove both the backslash and newline
             exit_code = self.shell.run_command("read var")
             assert exit_code == 0
-            assert self.shell.variables.get("var") == "hello"
+            assert self.shell.state.get_variable("var") == "hello"
         finally:
             sys.stdin = old_stdin
     
@@ -257,6 +257,6 @@ class TestReadBuiltin:
                 sys.stdin = StringIO(input_str + "\n")
                 exit_code = self.shell.run_command("read var")
                 assert exit_code == 0
-                assert self.shell.variables.get("var") == expected
+                assert self.shell.state.get_variable("var") == expected
         finally:
             sys.stdin = old_stdin

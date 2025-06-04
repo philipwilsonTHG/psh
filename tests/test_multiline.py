@@ -151,13 +151,13 @@ class TestMultiLineHandler:
     
     def test_get_prompt_ps1(self):
         """Test getting primary prompt (PS1)."""
-        self.shell.variables['PS1'] = 'test$ '
+        self.shell.state.set_variable('PS1', 'test$ ')
         prompt = self.handler._get_prompt()
         assert 'test$' in prompt  # May be expanded
     
     def test_get_prompt_ps2(self):
         """Test getting continuation prompt (PS2)."""
-        self.shell.variables['PS2'] = '... '
+        self.shell.state.set_variable('PS2', '... ')
         self.handler.buffer = ['if true; then']  # Non-empty buffer
         prompt = self.handler._get_prompt()
         assert prompt == '... '

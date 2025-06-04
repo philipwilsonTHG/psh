@@ -60,12 +60,12 @@ class ExportBuiltin(Builtin):
                 if '=' in arg:
                     # Variable assignment
                     key, value = arg.split('=', 1)
-                    shell.env[key] = value
-                    shell.variables[key] = value
+                    shell.state.export_variable(key, value)
                 else:
                     # Export existing variable
-                    if arg in shell.variables:
-                        shell.env[arg] = shell.variables[arg]
+                    value = shell.state.get_variable(arg)
+                    if value is not None:
+                        shell.state.export_variable(arg, value)
         return 0
     
     @property
@@ -90,7 +90,7 @@ class SetBuiltin(Builtin):
         """Set shell options and positional parameters."""
         if len(args) == 1:
             # No arguments, display all variables
-            for var, value in sorted(shell.variables.items()):
+            for var, value in sorted(shell.state.variables.items()):
                 print(f"{var}={value}", 
                       file=shell.stdout if hasattr(shell, 'stdout') else sys.stdout)
             # Also show set options
@@ -199,7 +199,7 @@ class UnsetBuiltin(Builtin):
             # Remove variables
             for var in args[1:]:
                 # Remove from both shell variables and environment
-                shell.variables.pop(var, None)
+                shell.state.scope_manager.unset_variable(var)
                 shell.env.pop(var, None)
             return 0
     

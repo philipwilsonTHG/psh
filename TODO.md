@@ -115,7 +115,7 @@ Features ordered by implementation status and complexity.
   - [ ] `-x` (xtrace) - Print commands before execution
   - [ ] `-o pipefail` - Pipeline fails if any command fails
 - [ ] `trap` command for signal handling
-- [ ] Local variables in functions (local builtin)
+- [x] Local variables in functions (local builtin) - ✅ Implemented in v0.29.0
 
 ### Medium Priority Features
 
@@ -159,7 +159,7 @@ Features ordered by implementation status and complexity.
 
 1. **C-style For Loops** - `for ((i=0; i<10; i++))` - Arithmetic-based iteration (leverages v0.18.0 arithmetic expansion)
 2. **Enhanced Read Features** - `-p` prompt, `-s` silent, `-t` timeout, `-n` chars, `-d` delimiter
-3. **Local Variables** - `local` builtin for function scope
+3. **Local Variables** - `local` builtin for function scope - **✅ IMPLEMENTED in v0.29.0**
 4. **Set Options** - `-e`, `-u`, `-x` for better script debugging
 5. **Enhanced Parameter Expansion** - `${#var}`, `${var#pattern}`, `${var%pattern}`, etc.
 6. **Trap Command** - Signal handling for cleanup and error management

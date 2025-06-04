@@ -22,10 +22,10 @@ from .scripting.base import ScriptManager
 from .interactive.base import InteractiveManager
 
 class Shell:
-    def __init__(self, args=None, script_name=None, debug_ast=False, debug_tokens=False, norc=False, rcfile=None, parent_shell=None):
+    def __init__(self, args=None, script_name=None, debug_ast=False, debug_tokens=False, debug_scopes=False, norc=False, rcfile=None, parent_shell=None):
         # Initialize state
         self.state = ShellState(args, script_name, debug_ast, 
-                              debug_tokens, norc, rcfile)
+                              debug_tokens, debug_scopes, norc, rcfile)
         
         # Create backward compatibility properties
         self._setup_compatibility_properties()
@@ -44,7 +44,9 @@ class Shell:
         # Inherit from parent shell if provided - MUST be done before creating other managers
         if parent_shell:
             self.env = parent_shell.env.copy()
-            self.variables = parent_shell.variables.copy()
+            # Copy global variables from parent's scope manager
+            for name, value in parent_shell.state.scope_manager.global_scope.variables.items():
+                self.state.scope_manager.global_scope.variables[name] = value
             self.function_manager = parent_shell.function_manager.copy()
             # Note: We don't copy aliases or jobs - those are shell-specific
         

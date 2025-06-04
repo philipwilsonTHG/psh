@@ -164,9 +164,8 @@ class FileRedirector:
                 from ..shell import Shell
                 tokens = tokenize(cmd_str)
                 ast = parse(tokens)
-                temp_shell = Shell()
-                temp_shell.env = self.state.env.copy()
-                temp_shell.variables = self.state.variables.copy()
+                # Create child shell with parent reference for proper inheritance
+                temp_shell = Shell(parent_shell=self.shell)
                 exit_code = temp_shell.execute_command_list(ast)
                 os._exit(exit_code)
             except Exception as e:

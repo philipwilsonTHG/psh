@@ -649,8 +649,8 @@ class ArithmeticEvaluator:
     
     def get_variable(self, name: str) -> int:
         """Get variable value, converting to integer"""
-        # Check shell variables first, then environment
-        value = self.shell.variables.get(name, self.shell.env.get(name, '0'))
+        # Use state's get_variable which handles scopes
+        value = self.shell.state.get_variable(name, '0')
         
         # Handle empty string as 0
         if not value:
@@ -665,8 +665,10 @@ class ArithmeticEvaluator:
     
     def set_variable(self, name: str, value: int) -> None:
         """Set variable value"""
-        # Set as shell variable (not exported to environment)
-        self.shell.variables[name] = str(value)
+        # Use state's set_variable which handles scopes
+        # When in a function and assigning to a local variable,
+        # this should update the local, not create a new global
+        self.shell.state.set_variable(name, str(value))
     
     def evaluate(self, node: ArithNode) -> int:
         """Evaluate an arithmetic AST node"""

@@ -171,7 +171,7 @@ class TestHereString:
     
     def test_here_string_with_variable(self, shell, capsys):
         """Test here string with variable expansion"""
-        shell.variables['NAME'] = 'World'
+        shell.state.set_variable('NAME', 'World')
         
         output_file = "/tmp/herestring_var_test.txt"
         shell.run_command(f"cat <<< \"Hello $NAME\" > {output_file}")

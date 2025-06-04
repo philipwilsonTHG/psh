@@ -172,10 +172,10 @@ class TestEnhancedTestOperators:
         shell = Shell()
         
         # Set some variables
-        shell.variables['VAR1'] = 'hello'
-        shell.variables['VAR2'] = 'world'
-        shell.variables['NUM1'] = '10'
-        shell.variables['NUM2'] = '20'
+        shell.state.set_variable('VAR1', 'hello')
+        shell.state.set_variable('VAR2', 'world')
+        shell.state.set_variable('NUM1', '10')
+        shell.state.set_variable('NUM2', '20')
         
         # String comparisons with variables
         assert shell.run_command('[[ $VAR1 = "hello" ]]', add_to_history=False) == 0
@@ -195,7 +195,7 @@ class TestEnhancedTestOperators:
         shell = Shell()
         
         # Set variable with spaces
-        shell.variables['VAR_WITH_SPACES'] = 'hello world'
+        shell.state.set_variable('VAR_WITH_SPACES', 'hello world')
         
         # This should work without quotes in [[ ]]
         assert shell.run_command('[[ -n $VAR_WITH_SPACES ]]', add_to_history=False) == 0
@@ -282,14 +282,14 @@ class TestEnhancedTestOperators:
         
         # With while loop
         shell = Shell()
-        shell.variables['count'] = '0'
+        shell.state.set_variable('count', '0')
         result = shell.run_command('''
             while [[ $count -lt 3 ]]; do
                 count=$((count + 1))
             done
             echo $count
         ''', add_to_history=False)
-        assert shell.variables['count'] == '3'
+        assert shell.state.get_variable('count') == '3'
         
         # Test that [[ ]] works in if conditions (which is the main use case)
         assert self.execute_command('if [[ "a" = "a" ]]; then true; fi') == 0

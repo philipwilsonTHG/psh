@@ -104,7 +104,7 @@ class CommandExecutor(ExecutorComponent):
             if var_value.startswith('~'):
                 var_value = self.expansion_manager.expand_tilde(var_value)
             
-            self.state.variables[var_name] = var_value
+            self.state.set_variable(var_name, var_value)
         return 0
     
     def _execute_with_assignments(self, assignments: List[str], command_args: List[str], 
@@ -116,8 +116,9 @@ class CommandExecutor(ExecutorComponent):
         saved_vars = {}
         for assignment in assignments:
             var_name = assignment.split('=', 1)[0]
-            if var_name in self.state.variables:
-                saved_vars[var_name] = self.state.variables[var_name]
+            current_value = self.state.get_variable(var_name, None)
+            if current_value is not None:
+                saved_vars[var_name] = current_value
             else:
                 saved_vars[var_name] = None
         
@@ -136,7 +137,7 @@ class CommandExecutor(ExecutorComponent):
             # Expand tilde
             if var_value.startswith('~'):
                 var_value = self.expansion_manager.expand_tilde(var_value)
-            self.state.variables[var_name] = var_value
+            self.state.set_variable(var_name, var_value)
             # Also temporarily set in environment for external commands
             temp_env_vars[var_name] = var_value
         
@@ -159,9 +160,10 @@ class CommandExecutor(ExecutorComponent):
             # Restore original variable values
             for var_name, original_value in saved_vars.items():
                 if original_value is None:
-                    self.state.variables.pop(var_name, None)
+                    # Variable didn't exist before, unset it
+                    self.state.scope_manager.unset_variable(var_name)
                 else:
-                    self.state.variables[var_name] = original_value
+                    self.state.set_variable(var_name, original_value)
         
         return result
     
@@ -169,6 +171,9 @@ class CommandExecutor(ExecutorComponent):
         """Execute a shell function."""
         # Save current positional parameters
         saved_params = self.state.positional_params
+        
+        # Push new variable scope for the function
+        self.state.scope_manager.push_scope(func.name)
         
         # Set up function environment
         self.state.positional_params = args[1:]  # args[0] is function name
@@ -186,6 +191,8 @@ class CommandExecutor(ExecutorComponent):
         finally:
             # Restore redirections
             self.io_manager.restore_builtin_redirections(stdin_backup, stdout_backup, stderr_backup)
+            # Pop variable scope (destroys local variables)
+            self.state.scope_manager.pop_scope()
             # Restore environment
             self.state.function_stack.pop()
             self.state.positional_params = saved_params
@@ -327,6 +334,10 @@ class CommandExecutor(ExecutorComponent):
             # We can't use the normal _execute_function because it expects Command object
             # Save current positional parameters
             saved_params = self.state.positional_params
+            
+            # Push new variable scope for the function
+            self.state.scope_manager.push_scope(func.name)
+            
             self.state.positional_params = args[1:]
             self.state.function_stack.append(func.name)
             
@@ -336,6 +347,8 @@ class CommandExecutor(ExecutorComponent):
             except FunctionReturn as ret:
                 return ret.exit_code
             finally:
+                # Pop variable scope (destroys local variables)
+                self.state.scope_manager.pop_scope()
                 self.state.function_stack.pop()
                 self.state.positional_params = saved_params
         

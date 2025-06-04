@@ -2,19 +2,27 @@
 import os
 import sys
 from typing import List, Dict, Optional, Any
+from .scope import ScopeManager
 
 class ShellState:
     """Container for shell state that can be shared across components."""
     
     def __init__(self, args=None, script_name=None, debug_ast=False, 
-                 debug_tokens=False, norc=False, rcfile=None):
+                 debug_tokens=False, debug_scopes=False, norc=False, rcfile=None):
         # Environment and variables
         self.env = os.environ.copy()
-        self.variables = {}  # Shell variables (not exported)
         
-        # Default prompt variables
-        self.variables['PS1'] = 'psh$ '
-        self.variables['PS2'] = '> '
+        # Initialize scope manager for variable scoping
+        self.scope_manager = ScopeManager()
+        if debug_scopes:
+            self.scope_manager.enable_debug(True)
+        
+        # For backward compatibility, keep self.variables as a property
+        # that delegates to scope_manager
+        
+        # Default prompt variables (set in global scope)
+        self.scope_manager.set_variable('PS1', 'psh$ ')
+        self.scope_manager.set_variable('PS2', '> ')
         
         # Positional parameters and script info
         self.positional_params = args if args else []
@@ -24,6 +32,7 @@ class ShellState:
         # Debug flags
         self.debug_ast = debug_ast
         self.debug_tokens = debug_tokens
+        self.debug_scopes = debug_scopes
         
         # RC file options
         self.norc = norc
@@ -56,17 +65,30 @@ class ShellState:
         self.stderr = sys.stderr
         self.stdin = sys.stdin
     
+    @property
+    def variables(self) -> Dict[str, str]:
+        """Backward compatibility: return all visible variables as dict."""
+        return self.scope_manager.get_all_variables()
+    
     def get_variable(self, name: str, default: str = '') -> str:
         """Get variable value, checking shell variables first, then environment."""
-        return self.variables.get(name, self.env.get(name, default))
+        # Check scope manager first (includes locals and globals)
+        result = self.scope_manager.get_variable(name)
+        if result is not None:
+            return result
+        # Fall back to environment
+        return self.env.get(name, default)
     
     def set_variable(self, name: str, value: str):
         """Set a shell variable."""
-        self.variables[name] = value
+        # Use scope manager (will set in global scope if not in function,
+        # or global scope if in function per bash behavior)
+        self.scope_manager.set_variable(name, value, local=False)
     
     def export_variable(self, name: str, value: str):
         """Export a variable to the environment."""
-        self.variables[name] = value
+        # Always set in global scope when exporting
+        self.scope_manager.global_scope.variables[name] = value
         self.env[name] = value
     
     def get_positional_param(self, index: int) -> str:

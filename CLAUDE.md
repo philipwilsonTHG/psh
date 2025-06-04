@@ -302,7 +302,7 @@ Implemented:
 Not implemented:
 - C-style for loops (for ((i=0; i<10; i++)))
 - Advanced parameter expansion beyond ${var:-default} (${var#pattern}, ${var%pattern}, etc.)
-- Local variables in functions (local builtin)
+- Local variables in functions (local builtin) - **Implementation planned, see docs/local_variables_implementation_plan.md**
 - Advanced shell options (set -e, -u, -x, -o pipefail)
 - Trap command for signal handling
 - Advanced read builtin features (-p prompt, -s silent, -t timeout, -n chars, -d delimiter)

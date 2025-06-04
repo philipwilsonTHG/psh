@@ -1,4 +1,4 @@
-"""Shell state related builtins (history, version)."""
+"""Shell state related builtins (history, version, local)."""
 
 import sys
 from typing import List, TYPE_CHECKING
@@ -83,3 +83,61 @@ class VersionBuiltin(Builtin):
     
     Display version information for Python Shell (psh).
     With --short, display only the version number."""
+
+
+@builtin
+class LocalBuiltin(Builtin):
+    """Create local variables within functions."""
+    
+    @property
+    def name(self) -> str:
+        return "local"
+    
+    def execute(self, args: List[str], shell: 'Shell') -> int:
+        """Create local variables in function scope."""
+        # Check if we're in a function
+        if not shell.state.scope_manager.is_in_function():
+            self.error("can only be used in a function", shell)
+            return 1
+        
+        # If no arguments, just return success (bash behavior)
+        if len(args) == 1:
+            return 0
+        
+        # Process each argument
+        for arg in args[1:]:
+            if '=' in arg:
+                # Variable with assignment: local var=value
+                var_name, var_value = arg.split('=', 1)
+                
+                # Expand variables in the value
+                if '$' in var_value:
+                    from ..expansion.variable import VariableExpander
+                    expander = VariableExpander(shell)
+                    var_value = expander.expand_string_variables(var_value)
+                
+                # Create local variable with value
+                shell.state.scope_manager.create_local(var_name, var_value)
+            else:
+                # Variable without assignment: local var
+                # Creates unset local variable (shadows global but has no value)
+                shell.state.scope_manager.create_local(arg, "")
+        
+        return 0
+    
+    @property
+    def help(self) -> str:
+        return """local: local [name[=value] ...]
+    
+    Create local variables within functions.
+    
+    When used inside a function, creates variables that are only
+    visible within that function. Without an assignment, the variable
+    is created but unset.
+    
+    Examples:
+        local var              # Create unset local variable
+        local var=value        # Create local with value
+        local x=1 y=2 z        # Multiple variables
+    
+    Note: Using 'local' outside a function is an error."""

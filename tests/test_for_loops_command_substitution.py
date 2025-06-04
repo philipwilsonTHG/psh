@@ -28,7 +28,7 @@ def test_command_substitution_with_variables(capsys):
     """Test command substitution that uses variables."""
     shell = Shell()
     # Set variable directly in shell
-    shell.variables['x'] = "1 2"
+    shell.state.set_variable('x', "1 2")
     shell.run_command('for i in $(echo $x 3); do echo "$i"; done')
     captured = capsys.readouterr()
     assert captured.out == "1\n2\n3\n"

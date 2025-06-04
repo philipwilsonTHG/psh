@@ -109,9 +109,8 @@ class IOManager:
                         ast = parse(tokens)
                         # Import here to avoid circular dependency
                         from ..shell import Shell
-                        temp_shell = Shell()
-                        temp_shell.env = self.shell.env.copy()
-                        temp_shell.variables = self.shell.variables.copy()
+                        # Create child shell with parent reference for proper inheritance
+                        temp_shell = Shell(parent_shell=self.shell)
                         exit_code = temp_shell.execute_command_list(ast)
                         os._exit(exit_code)
                     except Exception as e:

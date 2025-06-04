@@ -10,6 +10,7 @@ def main():
     # Check for debug flags first
     debug_ast = False
     debug_tokens = False
+    debug_scopes = False
     norc = False
     rcfile = None
     args = sys.argv[1:]
@@ -21,6 +22,9 @@ def main():
     if "--debug-tokens" in args:
         debug_tokens = True
         args.remove("--debug-tokens")
+    if "--debug-scopes" in args:
+        debug_scopes = True
+        args.remove("--debug-scopes")
     
     # Extract RC file flags
     if "--norc" in args:
@@ -45,7 +49,7 @@ def main():
     # Update sys.argv to remove the flags
     sys.argv = [sys.argv[0]] + args
     
-    shell = Shell(debug_ast=debug_ast, debug_tokens=debug_tokens, norc=norc, rcfile=rcfile)
+    shell = Shell(debug_ast=debug_ast, debug_tokens=debug_tokens, debug_scopes=debug_scopes, norc=norc, rcfile=rcfile)
     
     if len(sys.argv) > 1:
         if sys.argv[1] == "-c" and len(sys.argv) > 2:
@@ -73,6 +77,7 @@ def main():
             print("  --rcfile FILE    Read FILE instead of ~/.pshrc")
             print("  --debug-ast      Print AST before execution (debugging)")
             print("  --debug-tokens   Print tokens before parsing (debugging)")
+            print("  --debug-scopes   Print variable scope operations (debugging)")
             print("\nArguments:")
             print("  script           Script file to execute")
             print("  args             Arguments passed to script or command")

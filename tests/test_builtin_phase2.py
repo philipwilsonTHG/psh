@@ -74,10 +74,10 @@ class TestPhase2Builtins:
         # Test export with assignment
         shell.run_command("export TEST_EXPORT=value123")
         assert shell.env.get('TEST_EXPORT') == 'value123'
-        assert shell.variables.get('TEST_EXPORT') == 'value123'
+        assert shell.state.get_variable('TEST_EXPORT') == 'value123'
         
         # Test export existing variable
-        shell.variables['EXISTING_VAR'] = 'existing_value'
+        shell.state.set_variable('EXISTING_VAR', 'existing_value')
         shell.run_command("export EXISTING_VAR")
         assert shell.env.get('EXISTING_VAR') == 'existing_value'
         
@@ -95,7 +95,7 @@ class TestPhase2Builtins:
         assert shell.positional_params == ['arg1', 'arg2', 'arg3']
         
         # Test displaying variables
-        shell.variables['MY_VAR'] = 'my_value'
+        shell.state.set_variable('MY_VAR', 'my_value')
         shell.run_command("set")
         captured = capsys.readouterr()
         assert "MY_VAR=my_value" in captured.out
@@ -112,15 +112,15 @@ class TestPhase2Builtins:
         shell = Shell()
         
         # Set variables
-        shell.variables['VAR1'] = 'value1'
+        shell.state.set_variable('VAR1', 'value1')
         shell.env['VAR1'] = 'value1'
-        shell.variables['VAR2'] = 'value2'
+        shell.state.set_variable('VAR2', 'value2')
         
         # Unset VAR1
         shell.run_command("unset VAR1")
-        assert 'VAR1' not in shell.variables
+        assert not shell.state.scope_manager.has_variable('VAR1')
         assert 'VAR1' not in shell.env
-        assert 'VAR2' in shell.variables  # VAR2 should still exist
+        assert shell.state.scope_manager.has_variable('VAR2')  # VAR2 should still exist
         
         # Test unset with -f flag (functions)
         shell.function_manager.define_function('test_func', None)

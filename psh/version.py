@@ -2,10 +2,22 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.28.9"
+__version__ = "0.29.0"
 
 # Version history
 VERSION_HISTORY = """
+0.29.0 (2025-04-06) - Local variable support for shell functions
+  - Added 'local' builtin for creating function-scoped variables
+  - Implemented variable scope stack with proper scope inheritance
+  - Local variables are visible to nested function calls (bash behavior)
+  - Variables assigned in functions without 'local' modify global scope
+  - Added --debug-scopes flag to show variable scope operations
+  - Full support for: local var, local var=value, local x=1 y=2 z
+  - Proper cleanup of local variables when functions return
+  - Integration with arithmetic expansion and all variable operations
+  - Added comprehensive test suite with 13 tests
+  - Example: local count=10 creates a variable only visible in the function
+
 0.28.9 (2025-04-06) - Command substitution support in arithmetic expressions
   - Fixed arithmetic expansion to support command substitution like $(($(cmd) * 2))
   - Added pre-expansion of command substitutions before arithmetic evaluation

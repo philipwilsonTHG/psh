@@ -69,7 +69,7 @@ class ReadBuiltin(Builtin):
                     # Trim trailing whitespace
                     while line and line[-1] in ifs_whitespace:
                         line = line[:-1]
-                shell.variables[var_names[0]] = line
+                shell.state.set_variable(var_names[0], line)
             else:
                 # Multiple variables: split based on IFS
                 fields = self._split_with_ifs(line, ifs)
@@ -206,4 +206,4 @@ class ReadBuiltin(Builtin):
                 # No more fields - set to empty
                 value = ''
             
-            shell.variables[var_name] = value
+            shell.state.set_variable(var_name, value)
