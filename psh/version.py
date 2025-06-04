@@ -2,10 +2,17 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.28.3"
+__version__ = "0.28.4"
 
 # Version history
 VERSION_HISTORY = """
+0.28.4 (2025-04-06) - Critical bug fix for command substitution
+  - Fixed AttributeError: 'Shell' object has no attribute '_execute_command_substitution'
+  - Command substitution in for loops now works correctly: for x in $(cmd); do ...; done
+  - Fixed method calls in VariableExpander to use proper expansion manager API
+  - Added regression tests to prevent future breakage (4 new tests)
+  - All 612 tests now pass (up from 608)
+
 0.28.3 (2025-04-06) - Runtime debug toggle and test improvements
   - Added runtime debug toggle via set builtin (set -o debug-ast, set -o debug-tokens)
   - Debug options can now be enabled/disabled without restarting the shell

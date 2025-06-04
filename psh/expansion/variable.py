@@ -111,7 +111,7 @@ class VariableExpander:
                     if paren_count == 0:
                         # Found the matching )
                         cmd_sub = text[i:j]  # Include $(...)
-                        output = self.shell._execute_command_substitution(cmd_sub)
+                        output = self.shell.expansion_manager.command_sub.execute(cmd_sub)
                         # In string context, preserve the output as-is
                         result.append(output)
                         i = j
@@ -159,7 +159,7 @@ class VariableExpander:
                         j += 1
                 if j < len(text) and text[j] == '`':
                     cmd_sub = text[i:j + 1]  # Include `...`
-                    output = self.shell._execute_command_substitution(cmd_sub)
+                    output = self.shell.expansion_manager.command_sub.execute(cmd_sub)
                     result.append(output)
                     i = j + 1
                     continue
