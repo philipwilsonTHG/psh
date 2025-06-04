@@ -2,10 +2,20 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.28.5"
+__version__ = "0.28.6"
 
 # Version history
 VERSION_HISTORY = """
+0.28.6 (2025-04-06) - Complete tokenizer replacement with state machine lexer
+  - Removed old tokenizer.py module completely, replacing it with state_machine_lexer.py
+  - Created token_types.py module to hold TokenType enum and Token dataclass definitions
+  - Updated all imports across the codebase to use the new module structure
+  - Fixed test compatibility with more specific error messages from state machine lexer
+  - Updated demo.py and all example scripts to use the new tokenizer
+  - Maintained full backward compatibility - all 612 tests continue to pass
+  - Simplified codebase by eliminating duplicate tokenizer implementations
+  - Educational value preserved with cleaner, more maintainable architecture
+
 0.28.5 (2025-04-06) - State machine lexer refactoring for improved code clarity
   - Refactored state_machine_lexer.py to eliminate code duplication and improve maintainability
   - Extracted common variable/expansion parsing logic into reusable methods

@@ -15,8 +15,8 @@ from typing import List, Optional, Dict, Set, Tuple, Callable
 import re
 import string
 
-# Import existing TokenType and Token from tokenizer.py
-from .tokenizer import TokenType, Token
+# Import token types
+from .token_types import TokenType, Token
 
 # Constants for character sets
 VARIABLE_START_CHARS = set(string.ascii_letters + '_')

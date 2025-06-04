@@ -1,5 +1,5 @@
 from typing import List, Optional, Union
-from .tokenizer import Token, TokenType
+from .token_types import Token, TokenType
 from .ast_nodes import Command, Pipeline, CommandList, StatementList, AndOrList, Redirect, FunctionDef, TopLevel, IfStatement, WhileStatement, ForStatement, BreakStatement, ContinueStatement, CaseStatement, CaseItem, CasePattern, ProcessSubstitution, EnhancedTestStatement, TestExpression, BinaryTestExpression, UnaryTestExpression, CompoundTestExpression, NegatedTestExpression
 
 

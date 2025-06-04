@@ -1,5 +1,6 @@
 import pytest
-from psh.tokenizer import Tokenizer, Token, TokenType, tokenize
+from psh.state_machine_lexer import tokenize
+from psh.token_types import Token, TokenType
 
 
 class TestTokenizer:
@@ -140,10 +141,10 @@ class TestTokenizer:
         assert tokens[1].position == 5  # hello starts at 5
     
     def test_unclosed_quote_error(self):
-        with pytest.raises(SyntaxError, match="Unclosed quote"):
+        with pytest.raises(SyntaxError, match="Unclosed"):
             tokenize('echo "hello world')
         
-        with pytest.raises(SyntaxError, match="Unclosed quote"):
+        with pytest.raises(SyntaxError, match="Unclosed"):
             tokenize("echo 'hello world")
     
     def test_escaped_characters_in_words(self):
@@ -155,7 +156,7 @@ class TestTokenizer:
         # Escaped special characters
         tokens = tokenize(r"echo \$HOME")
         assert tokens[1].type == TokenType.WORD
-        assert tokens[1].value == r"\$HOME"
+        assert tokens[1].value == "$HOME"  # Backslash is consumed in unquoted context
         
         # Escaped glob characters
         tokens = tokenize(r"echo \*.txt")

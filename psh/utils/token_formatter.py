@@ -1,5 +1,5 @@
 """Token formatting utilities for debugging."""
-from ..tokenizer import Token
+from ..token_types import Token
 
 class TokenFormatter:
     """Formats token lists for debug output."""

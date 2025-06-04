@@ -1,7 +1,7 @@
 """Token transformer for context-aware token processing."""
 
 from typing import List
-from .tokenizer import Token, TokenType
+from .token_types import Token, TokenType
 
 
 class TokenTransformer:

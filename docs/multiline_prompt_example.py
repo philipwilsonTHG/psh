@@ -8,7 +8,8 @@ psh architecture without modifying the core LineEditor class.
 
 import re
 from typing import Optional, List
-from psh.tokenizer import tokenize, TokenizeError
+from psh.state_machine_lexer import tokenize
+from psh.token_types import TokenType
 from psh.parser import parse, ParseError
 
 
@@ -120,7 +121,7 @@ class MultiLineInputHandler:
             parse(tokens)
             return True
             
-        except TokenizeError as e:
+        except SyntaxError as e:
             # Unterminated string or other tokenization error
             if "Unterminated" in str(e):
                 return False
