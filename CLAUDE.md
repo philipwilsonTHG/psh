@@ -242,7 +242,7 @@ Implemented:
 - I/O redirections (<, >, >>, 2>, 2>>, 2>&1, <<<)
 - Multiple commands (;) and background execution (&)
 - Quoted strings (single and double) with proper variable expansion
-- Built-ins: exit, cd, export, pwd, echo, unset, env, source, ., history, set, declare, return, jobs, fg, bg, alias, unalias, test, [, true, false, :
+- Built-ins: exit, cd, export, pwd, echo (with -n, -e, -E flags), unset, env, source, ., history, set, declare, return, jobs, fg, bg, alias, unalias, test, [, true, false, :
 - Wildcards/globbing (*, ?, [...])
 - Exit status tracking ($? variable)
 - Command history with persistence (~/.psh_history)
@@ -323,6 +323,16 @@ Implemented:
   - Case modification: ${var^}, ${var^^}, ${var,}, ${var,,} with pattern support
   - Unicode support and comprehensive error handling
   - 41 comprehensive tests with 98% success rate
+
+- Echo builtin flags - ✅ **Implemented in v0.29.4**
+  - Added -n flag to suppress trailing newline
+  - Added -e flag to enable escape sequence interpretation
+  - Added -E flag to disable escape interpretation (default)
+  - Full escape sequence support: \n, \t, \r, \b, \f, \a, \v, \\, \e, \c
+  - Unicode escapes: \xhh, \uhhhh, \Uhhhhhhhh
+  - Octal escapes: \0nnn (bash-compatible format)
+  - Combined flags support (-ne, -en, etc.)
+  - Proper handling in pipelines and subprocesses
 
 Not implemented:
 - C-style for loops (for ((i=0; i<10; i++)))

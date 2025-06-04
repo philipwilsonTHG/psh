@@ -2,10 +2,29 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.29.3"
+__version__ = "0.29.4"
 
 # Version history
 VERSION_HISTORY = """
+0.29.4 (2025-06-04) - Echo builtin flags implementation
+  - Added -n flag to suppress trailing newline
+  - Added -e flag to enable interpretation of escape sequences
+  - Added -E flag to explicitly disable escape interpretation (default)
+  - Support for combined flags (-ne, -en, -neE, etc.)
+  - Support for -- to stop flag parsing
+  - Comprehensive escape sequence support with -e flag:
+    - Basic escapes: \\n, \\t, \\r, \\b, \\f, \\a, \\v, \\\\
+    - Terminator: \\c (suppress all further output)
+    - Escape character: \\e or \\E
+    - Hex sequences: \\xhh (1-2 hex digits)
+    - Unicode: \\uhhhh (4 digits), \\Uhhhhhhhh (8 digits)
+    - Octal: \\0nnn (bash-compatible format with 0 prefix)
+  - Fixed I/O redirection handling by using file objects instead of os.write
+  - Proper handling of echo in pipelines and subprocesses
+  - Added comprehensive test suite with 17 tests (15 passing, 2 skipped)
+  - Maintains full backward compatibility with existing echo usage
+  - Enhanced help text with detailed escape sequence documentation
+
 0.29.3 (2025-04-06) - Documentation improvements
   - Updated ARCHITECTURE.md to reflect current component-based design
   - Added documentation for state machine lexer, scope management, and recent features
