@@ -95,8 +95,15 @@ class TestVariableAssignmentCommand:
     
     def test_assignment_with_spaces_in_value(self):
         """Test assignment with spaces in quoted value."""
-        # Skip this test - tokenizer doesn't handle VAR="value with spaces" correctly yet
-        pytest.skip("Tokenizer issue with quoted values in assignments")
+        # This now works with the new state machine lexer
+        exit_code = self.shell.run_command('VAR="hello world"')
+        assert exit_code == 0
+        assert self.shell.variables.get("VAR") == "hello world"
+        
+        # Also test single quotes
+        exit_code = self.shell.run_command("MSG='multiple words here'")
+        assert exit_code == 0
+        assert self.shell.variables.get("MSG") == "multiple words here"
     
     def test_assignment_before_function(self):
         """Test variable assignment before function call."""

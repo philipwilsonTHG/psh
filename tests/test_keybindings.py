@@ -278,6 +278,7 @@ class TestSetCommand:
         assert result == 1
         captured = capsys.readouterr()
         assert 'invalid option' in captured.err
+        assert 'Valid options:' in captured.err
     
     def test_show_options(self, shell, capsys):
         """Test showing current options."""
@@ -285,7 +286,10 @@ class TestSetCommand:
         result = shell.run_command('set -o')
         assert result == 0
         captured = capsys.readouterr()
-        assert 'edit_mode vi' in captured.out
+        assert 'edit_mode            vi' in captured.out
+        # Also check that debug options are shown
+        assert 'debug-ast' in captured.out
+        assert 'debug-tokens' in captured.out
     
     def test_unset_vi_mode(self, shell, capsys):
         """Test unsetting vi mode (switches to emacs)."""

@@ -2,10 +2,20 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.28.2"
+__version__ = "0.28.3"
 
 # Version history
 VERSION_HISTORY = """
+0.28.3 (2025-04-06) - Runtime debug toggle and test improvements
+  - Added runtime debug toggle via set builtin (set -o debug-ast, set -o debug-tokens)
+  - Debug options can now be enabled/disabled without restarting the shell
+  - Fixed variable assignment with spaces in quoted values (VAR="hello world" now works)
+  - Unskipped test_assignment_with_spaces_in_value after fixing tokenizer
+  - Added comprehensive test suite for debug toggle functionality (11 new tests)
+  - Created detailed analysis of remaining skipped tests (23 skipped, 2 xfailed)
+  - All 608 tests now pass (up from 596 in v0.28.2)
+  - Updated documentation for runtime debug options
+
 0.28.2 (2025-04-06) - Important bug fixes for tokenization and expansion
   - Fixed != operator tokenization that was incorrectly splitting into ! and = tokens
   - Fixed COMPOSITE argument variable expansion (e.g., ${PREFIX}fix now expands correctly)

@@ -178,6 +178,11 @@ psh script.sh
 # With debugging
 psh --debug-ast -c "echo test"      # Show parsed AST
 psh --debug-tokens -c "echo test"   # Show tokens
+
+# Debug options can be toggled at runtime:
+$ set -o debug-ast                  # Enable AST debugging
+$ set -o debug-tokens               # Enable token debugging
+$ set -o                            # Show all options
 ```
 
 ## Examples

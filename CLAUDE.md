@@ -159,6 +159,13 @@ python3 -m psh --debug-ast      # Show parsed AST before execution
 python3 -m psh --debug-tokens    # Show tokenized output before parsing
 python3 -m psh --debug-ast --debug-tokens -c "echo test"  # Both debug modes
 
+# Debug options can also be toggled at runtime:
+set -o debug-ast        # Enable AST debug output
+set -o debug-tokens     # Enable token debug output
+set +o debug-ast        # Disable AST debug output
+set +o debug-tokens     # Disable token debug output
+set -o                  # Show current option settings
+
 # RC file options
 python3 -m psh --norc           # Skip ~/.pshrc loading
 python3 -m psh --rcfile custom_rc  # Use custom RC file instead of ~/.pshrc

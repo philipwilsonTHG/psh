@@ -100,28 +100,51 @@ class SetBuiltin(Builtin):
         
         # Handle -o option
         if len(args) >= 3 and args[1] == '-o':
-            option = args[2].lower()
+            option = args[2].lower().replace('_', '-')  # Allow debug_ast or debug-ast
+            
+            # Editor modes
             if option in ('vi', 'emacs'):
                 shell.edit_mode = option
                 print(f"Edit mode set to {option}", 
                       file=shell.stdout if hasattr(shell, 'stdout') else sys.stdout)
                 return 0
+            # Debug options
+            elif option == 'debug-ast':
+                shell.state.debug_ast = True
+                return 0
+            elif option == 'debug-tokens':
+                shell.state.debug_tokens = True
+                return 0
             else:
                 self.error(f"invalid option: {option}", shell)
-                print("Valid options: vi, emacs", file=shell.stderr if hasattr(shell, 'stderr') else sys.stderr)
+                print("Valid options: vi, emacs, debug-ast, debug-tokens", 
+                      file=shell.stderr if hasattr(shell, 'stderr') else sys.stderr)
                 return 1
         elif args[1] == '-o' and len(args) == 2:
             # Show current options
-            print(f"edit_mode {shell.edit_mode}", 
-                  file=shell.stdout if hasattr(shell, 'stdout') else sys.stdout)
+            stdout = shell.stdout if hasattr(shell, 'stdout') else sys.stdout
+            print(f"edit_mode            {shell.edit_mode}", file=stdout)
+            print(f"debug-ast            {'on' if shell.state.debug_ast else 'off'}", file=stdout)
+            print(f"debug-tokens         {'on' if shell.state.debug_tokens else 'off'}", file=stdout)
+            return 0
+        elif args[1] == '+o' and len(args) == 2:
+            # Show current options as set commands
+            stdout = shell.stdout if hasattr(shell, 'stdout') else sys.stdout
+            print(f"set {'+o' if shell.edit_mode == 'emacs' else '-o'} vi", file=stdout)
+            print(f"set {'-o' if shell.state.debug_ast else '+o'} debug-ast", file=stdout)
+            print(f"set {'-o' if shell.state.debug_tokens else '+o'} debug-tokens", file=stdout)
             return 0
         elif args[1] == '+o' and len(args) >= 3:
-            # Unset option (for compatibility, we just set to emacs)
-            option = args[2].lower()
+            # Unset option
+            option = args[2].lower().replace('_', '-')
             if option == 'vi':
                 shell.edit_mode = 'emacs'
                 print("Edit mode set to emacs", 
                       file=shell.stdout if hasattr(shell, 'stdout') else sys.stdout)
+            elif option == 'debug-ast':
+                shell.state.debug_ast = False
+            elif option == 'debug-tokens':
+                shell.state.debug_tokens = False
             return 0
         else:
             # Set positional parameters
@@ -130,15 +153,20 @@ class SetBuiltin(Builtin):
     
     @property
     def help(self) -> str:
-        return """set: set [-o option] [arg ...]
+        return """set: set [-o option] [+o option] [arg ...]
     
     Set shell options and positional parameters.
     With no arguments, print all shell variables.
     
     Options:
-      -o vi      Set vi editing mode
-      -o emacs   Set emacs editing mode (default)
-      +o vi      Unset vi mode (switch to emacs)
+      -o                Show current option settings
+      -o vi             Set vi editing mode
+      -o emacs          Set emacs editing mode (default)
+      -o debug-ast      Enable AST debug output
+      -o debug-tokens   Enable token debug output
+      +o vi             Unset vi mode (switch to emacs)
+      +o debug-ast      Disable AST debug output
+      +o debug-tokens   Disable token debug output
     
     With arguments, set positional parameters ($1, $2, etc.)."""
 
