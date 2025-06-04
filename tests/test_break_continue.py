@@ -35,7 +35,7 @@ class TestBreakContinue:
     def test_continue_in_while_loop(self):
         """Test continue statement in while loop."""
         shell = Shell()
-        shell.variables['i'] = '0'
+        shell.state.set_variable('i', '0')
         
         code = '''
         while [ $i -lt 5 ]; do
@@ -57,7 +57,7 @@ class TestBreakContinue:
         output = f.getvalue().strip()
         assert output == "1\n2\n4\n5"  # 3 is skipped
         assert result == 0
-        assert shell.variables['i'] == '5'
+        assert shell.state.get_variable('i') == '5'
     
     @pytest.mark.skip(reason="For loop variable persistence not implemented correctly")
     def test_break_in_for_loop(self):
@@ -84,7 +84,7 @@ class TestBreakContinue:
         assert output == "1\n2"
         assert result == 0
         # Loop variable should retain last value before break
-        assert shell.variables['i'] == '3'
+        assert shell.state.get_variable('i') == '3'
     
     @pytest.mark.skip(reason="For loop variable persistence not implemented correctly")
     def test_continue_in_for_loop(self):
@@ -171,7 +171,7 @@ class TestBreakContinue:
     def test_break_with_complex_condition(self):
         """Test break with complex conditional logic."""
         shell = Shell()
-        shell.variables['count'] = '0'
+        shell.state.set_variable('count', '0')
         
         code = '''
         for i in 1 2 3 4 5 6 7 8 9 10; do
@@ -401,7 +401,7 @@ class TestBreakContinue:
         shell = Shell()
         
         # Test that loop variable is properly restored after break
-        shell.variables['i'] = 'original'
+        shell.state.set_variable('i', 'original')
         
         code = '''
         for i in 1 2 3; do
@@ -428,4 +428,4 @@ class TestBreakContinue:
         # After the for loop, the variable should be restored to original value
         # or the last value in the loop depending on implementation
         # For now, let's just check it has some reasonable value
-        assert shell.variables['i'] in ['original', '2']
+        assert shell.state.get_variable('i') in ['original', '2']

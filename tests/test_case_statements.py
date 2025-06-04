@@ -55,7 +55,7 @@ def test_case_multiple_patterns():
 def test_case_pattern_matching():
     """Test case statement pattern matching execution."""
     shell = Shell()
-    shell.variables['test_var'] = 'hello'
+    shell.state.set_variable('test_var', 'hello')
     
     # Test exact match
     with patch('sys.stdout', new=StringIO()) as mock_stdout:
@@ -64,14 +64,14 @@ def test_case_pattern_matching():
         assert mock_stdout.getvalue().strip() == 'matched'
     
     # Test wildcard match
-    shell.variables['test_var'] = 'hello_world'
+    shell.state.set_variable('test_var', 'hello_world')
     with patch('sys.stdout', new=StringIO()) as mock_stdout:
         result = shell.run_command("case $test_var in hello*) echo 'wildcard' ;; esac")
         assert result == 0
         assert mock_stdout.getvalue().strip() == 'wildcard'
     
     # Test no match
-    shell.variables['test_var'] = 'goodbye'
+    shell.state.set_variable('test_var', 'goodbye')
     with patch('sys.stdout', new=StringIO()) as mock_stdout:
         result = shell.run_command("case $test_var in hello*) echo 'not matched' ;; esac")
         assert result == 0  # No match still returns 0
@@ -83,14 +83,14 @@ def test_case_character_classes():
     shell = Shell()
     
     # Test character class [abc]
-    shell.variables['test_var'] = 'a'
+    shell.state.set_variable('test_var', 'a')
     with patch('sys.stdout', new=StringIO()) as mock_stdout:
         result = shell.run_command("case $test_var in [abc]) echo 'in class' ;; esac")
         assert result == 0
         assert mock_stdout.getvalue().strip() == 'in class'
     
     # Test character range [a-z]
-    shell.variables['test_var'] = 'm'
+    shell.state.set_variable('test_var', 'm')
     with patch('sys.stdout', new=StringIO()) as mock_stdout:
         result = shell.run_command("case $test_var in [a-z]) echo 'lowercase' ;; esac")
         assert result == 0
@@ -102,14 +102,14 @@ def test_case_question_mark_wildcard():
     shell = Shell()
     
     # Test single character match
-    shell.variables['test_var'] = 'ab'
+    shell.state.set_variable('test_var', 'ab')
     with patch('sys.stdout', new=StringIO()) as mock_stdout:
         result = shell.run_command("case $test_var in a?) echo 'two chars' ;; esac")
         assert result == 0
         assert mock_stdout.getvalue().strip() == 'two chars'
     
     # Test no match (too many chars)
-    shell.variables['test_var'] = 'abc'
+    shell.state.set_variable('test_var', 'abc')
     with patch('sys.stdout', new=StringIO()) as mock_stdout:
         result = shell.run_command("case $test_var in a?) echo 'should not match' ;; esac")
         assert result == 0  # No match, but case still succeeds
@@ -120,7 +120,7 @@ def test_case_multiple_items():
     """Test case statement with multiple items and proper matching."""
     shell = Shell()
     
-    shell.variables['test_var'] = 'hello'
+    shell.state.set_variable('test_var', 'hello')
     with patch('sys.stdout', new=StringIO()) as mock_stdout:
         shell.run_command("case $test_var in hi) echo 'greeting1' ;; hello) echo 'greeting2' ;; bye) echo 'farewell' ;; esac")
         assert mock_stdout.getvalue().strip() == 'greeting2'
@@ -130,7 +130,7 @@ def test_case_default_pattern():
     """Test case statement with default (*) pattern."""
     shell = Shell()
     
-    shell.variables['test_var'] = 'unknown'
+    shell.state.set_variable('test_var', 'unknown')
     with patch('sys.stdout', new=StringIO()) as mock_stdout:
         shell.run_command("case $test_var in hello) echo 'greeting' ;; *) echo 'default' ;; esac")
         assert mock_stdout.getvalue().strip() == 'default'
@@ -139,7 +139,7 @@ def test_case_default_pattern():
 def test_case_empty_commands():
     """Test case statement with empty command sections."""
     shell = Shell()
-    shell.variables['test_var'] = 'test'
+    shell.state.set_variable('test_var', 'test')
     
     # Should not fail with empty commands
     result = shell.run_command("case $test_var in test) ;; other) echo 'other' ;; esac")
@@ -150,8 +150,8 @@ def test_case_variable_expansion():
     """Test variable expansion in case expressions and patterns."""
     shell = Shell()
     
-    shell.variables['pattern'] = 'test*'
-    shell.variables['value'] = 'testing'
+    shell.state.set_variable('pattern', 'test*')
+    shell.state.set_variable('value', 'testing')
     
     with patch('sys.stdout', new=StringIO()) as mock_stdout:
         shell.run_command("case $value in $pattern) echo 'matched pattern' ;; *) echo 'no match' ;; esac")
@@ -162,7 +162,7 @@ def test_case_quoted_patterns():
     """Test case statement with quoted patterns."""
     shell = Shell()
     
-    shell.variables['test_var'] = 'hello world'
+    shell.state.set_variable('test_var', 'hello world')
     
     with patch('sys.stdout', new=StringIO()) as mock_stdout:
         shell.run_command('case "$test_var" in "hello world") echo "exact match" ;; *) echo "no match" ;; esac')

@@ -65,9 +65,9 @@ class TestCompletionManager:
         cm = CompletionManager(shell)
         
         # Add some variables
-        shell.state.variables['TEST_VAR1'] = 'value1'
-        shell.state.variables['TEST_VAR2'] = 'value2'
-        shell.state.variables['OTHER_VAR'] = 'other'
+        shell.state.set_variable('TEST_VAR1', 'value1')
+        shell.state.set_variable('TEST_VAR2', 'value2')
+        shell.state.set_variable('OTHER_VAR', 'other')
         shell.state.env['TEST_ENV'] = 'env_value'
         
         # Complete variable names

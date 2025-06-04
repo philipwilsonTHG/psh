@@ -55,22 +55,22 @@ class TestBuiltins:
         exit_code = self.shell.run_command("export TEST_VAR=test_value")
         assert exit_code == 0
         assert self.shell.env['TEST_VAR'] == 'test_value'
-        assert self.shell.variables['TEST_VAR'] == 'test_value'
+        assert self.shell.state.get_variable('TEST_VAR') == 'test_value'
         
         # Export existing variable
-        self.shell.variables['EXISTING'] = 'existing_value'
+        self.shell.state.set_variable('EXISTING', 'existing_value')
         exit_code = self.shell.run_command("export EXISTING")
         assert exit_code == 0
         assert self.shell.env['EXISTING'] == 'existing_value'
     
     def test_unset(self):
         # Set and unset a variable
-        self.shell.variables['TEST_VAR'] = 'test_value'
+        self.shell.state.set_variable('TEST_VAR', 'test_value')
         self.shell.env['TEST_VAR'] = 'test_value'
         
         exit_code = self.shell.run_command("unset TEST_VAR")
         assert exit_code == 0
-        assert 'TEST_VAR' not in self.shell.variables
+        assert not self.shell.state.scope_manager.has_variable('TEST_VAR')
         assert 'TEST_VAR' not in self.shell.env
     
     def test_env(self, capsys):
@@ -96,7 +96,7 @@ class TestBuiltins:
             
             # Check that variables were set
             assert self.shell.env.get('SOURCED_VAR') == 'sourced_value'
-            assert self.shell.variables.get('TEST_VAR') == 'test_value'
+            assert self.shell.state.get_variable('TEST_VAR') == 'test_value'
             
         finally:
             os.unlink(script_path)
@@ -120,8 +120,8 @@ class TestBuiltins:
             assert exit_code == 0
             
             # Check that variables were set from arguments
-            assert self.shell.variables.get('ARG1') == 'hello'
-            assert self.shell.variables.get('ARG2') == 'world'
+            assert self.shell.state.get_variable('ARG1') == 'hello'
+            assert self.shell.state.get_variable('ARG2') == 'world'
             
             # Positional params should be restored after source
             assert self.shell.positional_params == old_params

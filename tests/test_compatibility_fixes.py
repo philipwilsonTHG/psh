@@ -29,7 +29,7 @@ class TestWordConcatenation:
     def test_concatenation_with_variables(self, capsys):
         """Test concatenation including variables."""
         shell = Shell()
-        shell.variables['x'] = 'test'
+        shell.state.set_variable('x', 'test')
         result = shell.run_command("echo pre$x'post'")
         captured = capsys.readouterr()
         # Known limitation: When adjacent tokens are concatenated into COMPOSITE arguments,

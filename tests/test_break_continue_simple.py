@@ -143,7 +143,7 @@ class TestBreakContinueSimple:
     def test_break_in_while_loop_simple(self):
         """Test break in a simple while loop."""
         shell = Shell()
-        shell.variables['done'] = 'false'
+        shell.state.set_variable('done', 'false')
         
         # Use a single-line command to avoid parsing issues
         code = 'while [ "$done" = "false" ]; do echo "looping"; break; echo "after break"; done'

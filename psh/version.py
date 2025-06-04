@@ -2,10 +2,21 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.29.0"
+__version__ = "0.29.1"
 
 # Version history
 VERSION_HISTORY = """
+0.29.1 (2025-04-06) - Fix test suite compatibility with variable scope changes
+  - Fixed all test failures caused by v0.29.0 variable scope implementation
+  - Updated tests to use state.set_variable() instead of direct shell.variables access
+  - Fixed 9 failing tests across 7 test files bringing total to 641 passing tests
+  - shell.variables is now a read-only property that returns current scope's variables
+  - All variable modifications must use state.set_variable() and state.get_variable()
+  - Updated test files: test_arithmetic.py, test_builtins.py, test_break_continue.py,
+    test_break_continue_simple.py, test_case_statements.py, test_compatibility_fixes.py,
+    test_completion_manager.py
+  - This ensures tests properly work with the new local variable scope system
+
 0.29.0 (2025-04-06) - Local variable support for shell functions
   - Added 'local' builtin for creating function-scoped variables
   - Implemented variable scope stack with proper scope inheritance

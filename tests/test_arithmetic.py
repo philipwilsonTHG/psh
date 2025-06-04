@@ -145,48 +145,48 @@ class TestArithmeticEvaluator:
         assert evaluate_arithmetic("16 >> 2", self.shell) == 4
     
     def test_variable_expansion(self):
-        self.shell.variables['x'] = '10'
+        self.shell.state.set_variable('x', '10')
         assert evaluate_arithmetic("x", self.shell) == 10
         assert evaluate_arithmetic("x + 5", self.shell) == 15
         assert evaluate_arithmetic("x * 2", self.shell) == 20
     
     def test_variable_assignment(self):
         evaluate_arithmetic("x = 10", self.shell)
-        assert self.shell.variables['x'] == '10'
+        assert self.shell.state.get_variable('x') == '10'
         
         evaluate_arithmetic("x += 5", self.shell)
-        assert self.shell.variables['x'] == '15'
+        assert self.shell.state.get_variable('x') == '15'
         
         evaluate_arithmetic("x *= 2", self.shell)
-        assert self.shell.variables['x'] == '30'
+        assert self.shell.state.get_variable('x') == '30'
     
     def test_increment_decrement(self):
-        self.shell.variables['x'] = '5'
+        self.shell.state.set_variable('x', '5')
         
         # Pre-increment
         assert evaluate_arithmetic("++x", self.shell) == 6
-        assert self.shell.variables['x'] == '6'
+        assert self.shell.state.get_variable('x') == '6'
         
         # Post-increment
         assert evaluate_arithmetic("x++", self.shell) == 6
-        assert self.shell.variables['x'] == '7'
+        assert self.shell.state.get_variable('x') == '7'
         
         # Pre-decrement
         assert evaluate_arithmetic("--x", self.shell) == 6
-        assert self.shell.variables['x'] == '6'
+        assert self.shell.state.get_variable('x') == '6'
         
         # Post-decrement
         assert evaluate_arithmetic("x--", self.shell) == 6
-        assert self.shell.variables['x'] == '5'
+        assert self.shell.state.get_variable('x') == '5'
     
     def test_ternary_operator(self):
         assert evaluate_arithmetic("1 ? 10 : 20", self.shell) == 10
         assert evaluate_arithmetic("0 ? 10 : 20", self.shell) == 20
         
-        self.shell.variables['x'] = '5'
+        self.shell.state.set_variable('x', '5')
         assert evaluate_arithmetic("x > 0 ? x : -x", self.shell) == 5
         
-        self.shell.variables['x'] = '-3'
+        self.shell.state.set_variable('x', '-3')
         assert evaluate_arithmetic("x > 0 ? x : -x", self.shell) == 3
     
     def test_comma_operator(self):
@@ -195,20 +195,20 @@ class TestArithmeticEvaluator:
         
         # With side effects
         evaluate_arithmetic("x = 10, y = 20", self.shell)
-        assert self.shell.variables['x'] == '10'
-        assert self.shell.variables['y'] == '20'
+        assert self.shell.state.get_variable('x') == '10'
+        assert self.shell.state.get_variable('y') == '20'
         
         assert evaluate_arithmetic("x = 5, x + 10", self.shell) == 15
     
     def test_complex_expressions(self):
         # Fibonacci-like calculation
-        self.shell.variables['a'] = '1'
-        self.shell.variables['b'] = '1'
+        self.shell.state.set_variable('a', '1')
+        self.shell.state.set_variable('b', '1')
         result = evaluate_arithmetic("c = a + b, a = b, b = c, c", self.shell)
         assert result == 2
-        assert self.shell.variables['a'] == '1'
-        assert self.shell.variables['b'] == '2'
-        assert self.shell.variables['c'] == '2'
+        assert self.shell.state.get_variable('a') == '1'
+        assert self.shell.state.get_variable('b') == '2'
+        assert self.shell.state.get_variable('c') == '2'
     
     def test_division_by_zero(self):
         with pytest.raises(ArithmeticError, match="Division by zero"):
@@ -223,7 +223,7 @@ class TestArithmeticEvaluator:
     
     def test_non_numeric_variables(self):
         # Non-numeric strings evaluate to 0
-        self.shell.variables['text'] = 'hello'
+        self.shell.state.set_variable('text', 'hello')
         assert evaluate_arithmetic("text", self.shell) == 0
         assert evaluate_arithmetic("text + 5", self.shell) == 5
 
@@ -252,7 +252,7 @@ class TestArithmeticIntegration:
             self.shell.run_command("echo $((x = 5 * 4))")
             assert mock_stdout.getvalue().strip() == "20"
         
-        assert self.shell.variables['x'] == '20'
+        assert self.shell.state.get_variable('x') == '20'
     
     def test_nested_arithmetic(self):
         with patch('sys.stdout', new=StringIO()) as mock_stdout:
@@ -300,5 +300,5 @@ class TestArithmeticIntegration:
             self.shell.run_command("echo $((x = 10, y = x + 5, x * y))")
             assert mock_stdout.getvalue().strip() == "150"  # 10 * 15
         
-        assert self.shell.variables['x'] == '10'
-        assert self.shell.variables['y'] == '15'
+        assert self.shell.state.get_variable('x') == '10'
+        assert self.shell.state.get_variable('y') == '15'
