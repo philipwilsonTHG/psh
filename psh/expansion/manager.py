@@ -82,8 +82,10 @@ class ExpansionManager:
                     # Single-quoted string or no variables - no expansion
                     args.append(arg)
             elif arg_type == 'VARIABLE':
-                # Variable token from lexer (already includes $ prefix)
-                expanded = self.expand_variable(arg)
+                # Variable token from lexer (includes braces but not $ prefix)
+                # Add $ prefix for expand_variable
+                var_expr = '$' + arg if not arg.startswith('$') else arg
+                expanded = self.expand_variable(var_expr)
                 args.append(expanded)
             elif arg_type != 'COMPOSITE' and arg.startswith('$') and not (arg.startswith('$(') or arg.startswith('`')):
                 # Variable expansion for unquoted variables (but not COMPOSITE args)

@@ -6,9 +6,6 @@ from psh.shell import Shell
 class TestLocalBuiltin:
     """Test local builtin functionality."""
     
-    @pytest.fixture
-    def shell(self):
-        return Shell()
     
     def test_local_outside_function_error(self, shell, capsys):
         """Using local outside a function should error."""

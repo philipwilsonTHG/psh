@@ -148,7 +148,11 @@ class SetBuiltin(Builtin):
             return 0
         else:
             # Set positional parameters
-            shell.positional_params = args[1:]
+            # Handle -- to separate options from arguments
+            if len(args) > 1 and args[1] == '--':
+                shell.positional_params = args[2:]
+            else:
+                shell.positional_params = args[1:]
             return 0
     
     @property

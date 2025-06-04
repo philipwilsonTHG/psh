@@ -110,9 +110,6 @@ class TestFunctionParsing:
 class TestFunctionExecution:
     """Test function execution."""
     
-    @pytest.fixture
-    def shell(self):
-        return Shell()
     
     def test_define_and_call_function(self, shell, capsys):
         """Test defining and calling a simple function."""

@@ -6,6 +6,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Python Shell (psh) is an educational Unix shell implementation designed for teaching shell internals and compiler/interpreter concepts. It uses a hand-written recursive descent parser for clarity and educational value.
 
+## Current Development Focus
+
+**Advanced Parameter Expansion** (Active Development)
+- Implementing comprehensive string manipulation features
+- See `docs/parameter_expansion_implementation_plan.md` for detailed implementation plan
+- Features include: length operations, pattern removal/substitution, substring extraction, variable name matching, and case modification
+
 ## Architecture
 
 The shell follows a component-based architecture with clear separation of concerns:
@@ -299,10 +306,15 @@ Implemented:
   - Compound expressions with && and ||
   - All existing test operators from [ command
 
+- Local variables in functions (local builtin) - ✅ **Implemented in v0.29.0**
+  - Function-scoped variables with proper isolation
+  - Variable scope stack with inheritance (locals visible to nested functions)
+  - Debug support with --debug-scopes flag
+  - Full test suite with comprehensive coverage
+
 Not implemented:
 - C-style for loops (for ((i=0; i<10; i++)))
 - Advanced parameter expansion beyond ${var:-default} (${var#pattern}, ${var%pattern}, etc.)
-- Local variables in functions (local builtin) - **Implementation planned, see docs/local_variables_implementation_plan.md**
 - Advanced shell options (set -e, -u, -x, -o pipefail)
 - Trap command for signal handling
 - Advanced read builtin features (-p prompt, -s silent, -t timeout, -n chars, -d delimiter)
@@ -310,3 +322,4 @@ Not implemented:
 - Array variables
 - Select statement
 - Control structures in pipelines (architectural limitation - see TODO.md)
+- Deep recursion in shell functions (architectural limitation - see docs/recursion_depth_analysis.md)

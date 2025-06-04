@@ -115,7 +115,13 @@ Features ordered by implementation status and complexity.
   - [ ] `-x` (xtrace) - Print commands before execution
   - [ ] `-o pipefail` - Pipeline fails if any command fails
 - [ ] `trap` command for signal handling
-- [x] Local variables in functions (local builtin) - ✅ Implemented in v0.29.0
+- [x] **Local variables in functions (local builtin)** - ✅ Implemented in v0.29.0
+  - [x] Function-scoped variables with `local` keyword
+  - [x] Variable scope stack with proper inheritance
+  - [x] Local variables visible to nested function calls
+  - [x] Variables without 'local' modify global scope
+  - [x] Comprehensive test suite with 13 tests
+  - [x] Debug support with --debug-scopes flag
 
 ### Medium Priority Features
 
@@ -136,13 +142,33 @@ Features ordered by implementation status and complexity.
 - [x] Brace expansion - ✅ Complete implementation with list and sequence expansion (v0.21.0-v0.22.0)
   - [x] Phase 1: List expansion `{a,b,c}` with nesting and quote awareness (v0.21.0)
   - [x] Phase 2: Sequence expansion `{1..10}`, `{a..z}`, `{10..1..2}` (v0.22.0)
-- [ ] Advanced parameter expansion:
-  - [ ] `${var#pattern}` - Remove shortest prefix
-  - [ ] `${var##pattern}` - Remove longest prefix
-  - [ ] `${var%pattern}` - Remove shortest suffix
-  - [ ] `${var%%pattern}` - Remove longest suffix
-  - [ ] `${var/pattern/replacement}` - Pattern substitution
-  - [ ] `${#var}` - String length
+- [ ] **Advanced parameter expansion** - 🚧 Implementation planned (see docs/parameter_expansion_implementation_plan.md)
+  - [ ] **Length operations**
+    - [ ] `${#var}` - String length of variable
+    - [ ] `${#}` - Number of positional parameters
+    - [ ] `${#*}` or `${#@}` - Length of positional parameters
+  - [ ] **Pattern removal**
+    - [ ] `${var#pattern}` - Remove shortest prefix match
+    - [ ] `${var##pattern}` - Remove longest prefix match
+    - [ ] `${var%pattern}` - Remove shortest suffix match
+    - [ ] `${var%%pattern}` - Remove longest suffix match
+  - [ ] **Pattern substitution**
+    - [ ] `${var/pattern/string}` - Replace first match
+    - [ ] `${var//pattern/string}` - Replace all matches
+    - [ ] `${var/#pattern/string}` - Replace prefix match
+    - [ ] `${var/%pattern/string}` - Replace suffix match
+  - [ ] **Substring extraction**
+    - [ ] `${var:offset}` - Extract from offset to end
+    - [ ] `${var:offset:length}` - Extract substring with length
+    - [ ] Support for negative offsets and lengths
+  - [ ] **Variable name matching**
+    - [ ] `${!prefix*}` - List variable names with prefix
+    - [ ] `${!prefix@}` - List variable names (quoted output)
+  - [ ] **Case modification**
+    - [ ] `${var^pattern}` - Uppercase first match
+    - [ ] `${var^^pattern}` - Uppercase all matches
+    - [ ] `${var,pattern}` - Lowercase first match
+    - [ ] `${var,,pattern}` - Lowercase all matches
 
 ### Lower Priority Features
 
@@ -157,12 +183,14 @@ Features ordered by implementation status and complexity.
 
 ### Immediate Next Features (Recommended Order)
 
-1. **C-style For Loops** - `for ((i=0; i<10; i++))` - Arithmetic-based iteration (leverages v0.18.0 arithmetic expansion)
-2. **Enhanced Read Features** - `-p` prompt, `-s` silent, `-t` timeout, `-n` chars, `-d` delimiter
-3. **Local Variables** - `local` builtin for function scope - **✅ IMPLEMENTED in v0.29.0**
+1. **Advanced Parameter Expansion** - 🚧 **ACTIVE DEVELOPMENT** - Comprehensive string manipulation features (see docs/parameter_expansion_implementation_plan.md)
+   - Length operations, pattern removal/substitution, substring extraction
+   - Variable name matching, case modification
+   - Enhanced error messages and comprehensive testing
+2. **C-style For Loops** - `for ((i=0; i<10; i++))` - Arithmetic-based iteration (leverages v0.18.0 arithmetic expansion)
+3. **Enhanced Read Features** - `-p` prompt, `-s` silent, `-t` timeout, `-n` chars, `-d` delimiter
 4. **Set Options** - `-e`, `-u`, `-x` for better script debugging
-5. **Enhanced Parameter Expansion** - `${#var}`, `${var#pattern}`, `${var%pattern}`, etc.
-6. **Trap Command** - Signal handling for cleanup and error management
+5. **Trap Command** - Signal handling for cleanup and error management
 
 ### Recent Major Accomplishments (v0.10.0 - v0.22.0)
 
@@ -471,17 +499,28 @@ psh has evolved from a basic educational shell into a **complete programming lan
 C-style for loops `for ((i=0; i<10; i++))` will complete the iteration constructs, leveraging the newly implemented arithmetic expansion for initialization, condition testing, and increment operations.
 
 ### Feature Implementation Stats
-- **🟢 Completed**: 54 major features (Core shell, Advanced features, Interactive features, Programming features, Script execution, Control structures, File test operators, While loops, For loops, Break/continue statements, Case statements, Core POSIX commands, Arithmetic expansion, Modular builtin architecture, Read builtin, Brace expansion complete, Process substitution, RC file support)
+- **🟢 Completed**: 55 major features (Core shell, Advanced features, Interactive features, Programming features, Script execution, Control structures, File test operators, While loops, For loops, Break/continue statements, Case statements, Core POSIX commands, Arithmetic expansion, Modular builtin architecture, Read builtin, Brace expansion complete, Process substitution, RC file support, Local variables)
+- **🚧 In Progress**: 1 major feature group (Advanced parameter expansion - active development)
 - **🟡 High Priority**: 1 feature (C-style for loops) + enhanced read features
 - **🟡 High Priority**: 1 feature group (Advanced shell options)  
-- **🟠 Medium Priority**: 1 feature group (Advanced parameter expansions)
 - **🔵 Lower Priority**: 1 feature group (Interactive enhancements)
 
-**Total Progress**: ~97% of planned shell features complete, with **RC file support** enabling persistent user customization and productivity enhancements through automatic shell initialization.
+**Total Progress**: ~97% of planned shell features complete, with **local variables (v0.29.0)** providing function-scoped variables and **advanced parameter expansion** under active development to add powerful string manipulation capabilities.
 
 ## 🚨 Known Issues & Limitations
 
 ### Architectural Limitations
+
+#### Recursion Depth in Shell Functions (NEW - v0.29.1)
+- **Issue**: Recursive shell functions using command substitution and arithmetic expansion hit Python's recursion limit very quickly
+- **Example**: `factorial(5)` with `$(factorial $((n-1)))` exceeds 1000 stack frames
+- **Root Cause**: Each command substitution creates a new subshell with full tokenization/parsing/execution cycle
+- **Impact**: Even simple recursive functions like factorial(4) can fail
+- **Workaround**: Use iterative algorithms instead of recursive ones
+- **Long-term Fix**: Would require optimizing command substitution to reuse parser state and reduce stack depth
+- **Documentation**: See docs/recursion_depth_analysis.md for detailed analysis
+
+### Other Architectural Limitations
 - ~~**Nested Control Structures**~~: ✅ FIXED in v0.19.0 - Control structures can now be nested to arbitrary depth with the new Statement-based architecture
 - **Multi-line Input Parsing**: Complex multi-line commands with nested structures fail to parse correctly. Single-line equivalents work fine.
 - **Pipeline Job Control Issues**: Some pipelines are incorrectly treated as background jobs instead of running in foreground.

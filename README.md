@@ -80,6 +80,7 @@ The shell features a modern component-based architecture where each subsystem (e
   - POSIX syntax: `name() { commands; }`
   - Bash syntax: `function name { commands; }`
   - Function parameters and local scope
+  - `local` builtin for function-scoped variables (v0.29.0)
   - `return` builtin
   - `declare -f` to list functions
   - `unset -f` to remove functions
@@ -123,12 +124,13 @@ The shell features a modern component-based architecture where each subsystem (e
 ### Built-in Commands
 
 - **Core**: `exit`, `cd`, `pwd`, `echo`, `true`, `false`, `:`
-- **Variables**: `export`, `unset`, `set`, `declare`, `env`
+- **Variables**: `export`, `unset`, `set`, `declare`, `env`, `local`
 - **Job Control**: `jobs`, `fg`, `bg`
 - **Functions**: `return`, `source`, `.`
 - **Aliases**: `alias`, `unalias`
-- **Test**: `test`, `[`
+- **Test**: `test`, `[`, `[[`
 - **History**: `history`
+- **I/O**: `read`
 
 ### Additional Features
 
@@ -219,9 +221,10 @@ $ for i in 1 2 3; do
 >   done
 > done
 
-# Functions
+# Functions with local variables
 $ greet() {
->   echo "Hello, $1!"
+>   local name=$1
+>   echo "Hello, ${name}!"
 > }
 $ greet "Python Shell"
 ```
@@ -379,8 +382,8 @@ psh/
 While PSH implements most shell features, there are some architectural limitations:
 
 - **Control structures in pipelines**: Control structures (while, for, if, case) cannot be used as part of pipelines. For example, `echo "data" | while read line; do echo $line; done` will not parse. Use the control structure to wrap the pipeline instead.
+- **Deep recursion in functions**: Recursive shell functions using command substitution hit Python's recursion limit quickly. For example, recursive factorial with `$(factorial $((n-1)))` fails for small values. Use iterative algorithms instead. See [docs/recursion_depth_analysis.md](docs/recursion_depth_analysis.md) for details.
 - **C-style for loops**: Not implemented - use traditional `for var in list` syntax
-- **Local variables**: Functions share the global variable scope
 - **Advanced parameter expansion**: Only `${var}` and `${var:-default}` are supported
 - **Arrays**: Not implemented - use space-separated strings instead
 

@@ -5,10 +5,6 @@ from psh.shell import Shell
 
 class TestVariables:
     
-    @pytest.fixture
-    def shell(self):
-        return Shell()
-    
     def test_simple_variable_assignment(self, shell, capsys):
         """Test simple variable assignment without export"""
         shell.run_command("FOO=bar")

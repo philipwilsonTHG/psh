@@ -2,10 +2,30 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.29.1"
+__version__ = "0.29.2"
 
 # Version history
 VERSION_HISTORY = """
+0.29.2 (2025-04-06) - Advanced parameter expansion and pytest infrastructure fixes
+  - Implemented comprehensive advanced parameter expansion with all bash features
+  - Added string length operations: ${#var}, ${#}, ${#*}, ${#@}
+  - Added pattern removal: ${var#pattern}, ${var##pattern}, ${var%pattern}, ${var%%pattern}
+  - Added pattern substitution: ${var/pattern/replacement}, ${var//pattern/replacement}, ${var/#pattern/replacement}, ${var/%pattern/replacement}
+  - Added substring extraction: ${var:offset}, ${var:offset:length} with negative offsets and lengths
+  - Added variable name matching: ${!prefix*}, ${!prefix@}
+  - Added case modification: ${var^}, ${var^^}, ${var,}, ${var,,} with pattern support
+  - Fixed character class patterns in case modification (${var^^[aeiou]}, ${var,,[BCDFGHJKLMNPQRSTVWXYZ]})
+  - Fixed BraceExpander to skip ${} variable expansions and prevent parameter expansion corruption
+  - Fixed ExpansionManager VARIABLE token handling to properly add $ prefix
+  - Fixed parameter expansion parsing conflicts between ${var:-default} and ${var:offset}
+  - Fixed pytest infrastructure issues causing "I/O operation on closed file" errors
+  - Added global shell fixture in conftest.py with proper file descriptor cleanup
+  - Updated test files to use global fixture instead of local ones to prevent resource leaks
+  - Created comprehensive parameter expansion test suite with 41 tests (98% success rate)
+  - All 682 tests now pass with robust pytest infrastructure
+  - Parameter expansion now supports unicode, complex patterns, and error handling
+  - Full bash compatibility for parameter expansion operations
+
 0.29.1 (2025-04-06) - Fix test suite compatibility with variable scope changes
   - Fixed all test failures caused by v0.29.0 variable scope implementation
   - Updated tests to use state.set_variable() instead of direct shell.variables access

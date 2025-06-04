@@ -1,7 +1,9 @@
 """Variable expansion implementation."""
 import os
+import sys
 from typing import TYPE_CHECKING
 from ..core.state import ShellState
+from .parameter_expansion import ParameterExpansion
 
 if TYPE_CHECKING:
     from ..shell import Shell
@@ -13,6 +15,7 @@ class VariableExpander:
     def __init__(self, shell: 'Shell'):
         self.shell = shell
         self.state = shell.state
+        self.param_expansion = ParameterExpansion(shell)
     
     def expand_variable(self, var_expr: str) -> str:
         """Expand a variable expression starting with $"""
@@ -25,6 +28,128 @@ class VariableExpander:
         # Handle ${var} syntax
         if var_expr.startswith('{') and var_expr.endswith('}'):
             var_content = var_expr[1:-1]
+            
+            # Check for advanced parameter expansion
+            try:
+                operator, var_name, operand = self.param_expansion.parse_expansion('${' + var_content + '}')
+                
+                if operator:
+                    # Handle advanced expansions
+                    # First get the variable value
+                    if var_name == '#':
+                        # Special case: ${#} is number of positional params
+                        return str(len(self.state.positional_params))
+                    elif var_name == '*':
+                        # ${#*} - length of all positional params as string
+                        if operator == '#':
+                            return str(len(' '.join(self.state.positional_params)))
+                        value = ' '.join(self.state.positional_params)
+                    elif var_name == '@':
+                        # ${#@} - length of all positional params as string
+                        if operator == '#':
+                            return str(len(' '.join(self.state.positional_params)))
+                        value = ' '.join(self.state.positional_params)
+                    elif var_name.isdigit():
+                        # Positional parameter
+                        index = int(var_name) - 1
+                        value = self.state.positional_params[index] if 0 <= index < len(self.state.positional_params) else ''
+                    else:
+                        # Regular variable
+                        value = self.state.variables.get(var_name, self.state.env.get(var_name, ''))
+                    
+                    # Apply the operation
+                    if operator == '#' and not operand:
+                        # Length operation (no operand means it's ${#var})
+                        return self.param_expansion.get_length(value)
+                    elif operator == '#' and operand:
+                        # Remove shortest prefix (single # with pattern)
+                        return self.param_expansion.remove_shortest_prefix(value, operand)
+                    elif operator == '##':
+                        # Remove longest prefix
+                        return self.param_expansion.remove_longest_prefix(value, operand)
+                    elif operator == '%%':
+                        # Remove longest suffix
+                        return self.param_expansion.remove_longest_suffix(value, operand)
+                    elif operator == '%':
+                        # Remove shortest suffix
+                        return self.param_expansion.remove_shortest_suffix(value, operand)
+                    elif operator == '//':
+                        # Replace all
+                        pattern, replacement = self._split_pattern_replacement(operand)
+                        if pattern is not None:
+                            return self.param_expansion.substitute_all(value, pattern, replacement)
+                        else:
+                            # Missing replacement
+                            print(f"psh: ${{var//}}: missing replacement string", file=sys.stderr)
+                            return value
+                    elif operator == '/':
+                        # Replace first
+                        pattern, replacement = self._split_pattern_replacement(operand)
+                        if pattern is not None:
+                            return self.param_expansion.substitute_first(value, pattern, replacement)
+                        else:
+                            # Missing replacement
+                            print(f"psh: ${{var/}}: missing replacement string", file=sys.stderr)
+                            return value
+                    elif operator == '/#':
+                        # Replace prefix
+                        pattern, replacement = self._split_pattern_replacement(operand)
+                        if pattern is not None:
+                            return self.param_expansion.substitute_prefix(value, pattern, replacement)
+                        else:
+                            print(f"psh: ${{var/#}}: missing replacement string", file=sys.stderr)
+                            return value
+                    elif operator == '/%':
+                        # Replace suffix
+                        pattern, replacement = self._split_pattern_replacement(operand)
+                        if pattern is not None:
+                            return self.param_expansion.substitute_suffix(value, pattern, replacement)
+                        else:
+                            print(f"psh: ${{var/%}}: missing replacement string", file=sys.stderr)
+                            return value
+                    elif operator == ':':
+                        # Substring extraction
+                        # Parse offset:length
+                        if ':' in operand:
+                            offset_str, length_str = operand.split(':', 1)
+                            try:
+                                offset = int(offset_str)
+                                length = int(length_str)
+                                return self.param_expansion.extract_substring(value, offset, length)
+                            except ValueError:
+                                print(f"psh: ${{var:{operand}}}: invalid offset or length", file=sys.stderr)
+                                return ''
+                        else:
+                            # Just offset
+                            try:
+                                offset = int(operand)
+                                return self.param_expansion.extract_substring(value, offset)
+                            except ValueError:
+                                print(f"psh: ${{var:{operand}}}: invalid offset", file=sys.stderr)
+                                return ''
+                    elif operator == '!*':
+                        # Variable name matching
+                        names = self.param_expansion.match_variable_names(operand, quoted=False)
+                        return ' '.join(names)
+                    elif operator == '!@':
+                        # Variable name matching (quoted)
+                        names = self.param_expansion.match_variable_names(operand, quoted=True)
+                        return ' '.join(names)
+                    elif operator == '^':
+                        # Uppercase first
+                        return self.param_expansion.uppercase_first(value, operand)
+                    elif operator == '^^':
+                        # Uppercase all
+                        return self.param_expansion.uppercase_all(value, operand)
+                    elif operator == ',':
+                        # Lowercase first
+                        return self.param_expansion.lowercase_first(value, operand)
+                    elif operator == ',,':
+                        # Lowercase all
+                        return self.param_expansion.lowercase_all(value, operand)
+            except Exception:
+                # If parsing fails, fall back to default behavior
+                pass
             
             # Handle ${var:-default} syntax
             if ':-' in var_content:
@@ -189,3 +314,24 @@ class VariableExpander:
             i += 1
         
         return ''.join(result)
+    
+    def _split_pattern_replacement(self, operand: str):
+        """Split pattern/replacement handling escaped slashes."""
+        i = 0
+        pattern_parts = []
+        
+        while i < len(operand):
+            if i + 1 < len(operand) and operand[i:i+2] == '\\/':
+                pattern_parts.append('\\/')
+                i += 2
+            elif operand[i] == '/':
+                # Found separator
+                pattern = ''.join(pattern_parts)
+                replacement = operand[i+1:] if i+1 < len(operand) else ''
+                return pattern, replacement
+            else:
+                pattern_parts.append(operand[i])
+                i += 1
+        
+        # No separator found
+        return None, None

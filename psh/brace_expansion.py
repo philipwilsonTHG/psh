@@ -277,6 +277,20 @@ class BraceExpander:
                 
             if char == '{':
                 if depth == 0:
+                    # Check if this is a variable expansion ${...}
+                    if i > 0 and text[i-1] == '$':
+                        # This is a variable expansion, not a brace expansion
+                        # Skip to the closing brace
+                        j = i + 1
+                        brace_depth = 1
+                        while j < len(text) and brace_depth > 0:
+                            if text[j] == '{':
+                                brace_depth += 1
+                            elif text[j] == '}':
+                                brace_depth -= 1
+                            j += 1
+                        i = j - 1  # Will be incremented by the loop
+                        continue
                     start = i
                 depth += 1
             elif char == '}':
