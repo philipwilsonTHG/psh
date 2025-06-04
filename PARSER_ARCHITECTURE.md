@@ -1,170 +1,212 @@
-# Parser Architecture Recommendations
+# PSH Parser Architecture
 
-## Recommended Approach: Hand-Written Recursive Descent
+## Overview
 
-### Why Recursive Descent for a Teaching Shell
-1. **Readable**: Each grammar rule maps directly to a function
-2. **Debuggable**: Easy to step through and understand parsing flow
-3. **Flexible**: Can add helpful error messages at each parsing stage
-4. **No Dependencies**: No external parser generator needed
+PSH uses a hand-written recursive descent parser for educational clarity and maintainability. The parser is implemented as a two-phase system: tokenization (lexical analysis) followed by parsing (syntax analysis).
 
-## Proposed Architecture
+## Architecture Components
 
-### 1. Tokenizer/Lexer
+### 1. Tokenization: State Machine Lexer (`state_machine_lexer.py`)
+
+The lexer uses a state machine approach to handle the complex tokenization requirements of shell syntax:
+
+```python
+class LexerState(Enum):
+    NORMAL = auto()
+    IN_WORD = auto()
+    IN_SINGLE_QUOTE = auto()
+    IN_DOUBLE_QUOTE = auto()
+    IN_VARIABLE = auto()
+    IN_COMMAND_SUB = auto()
+    IN_ARITHMETIC = auto()
+    IN_COMMENT = auto()
+    IN_BACKTICK = auto()
+    IN_BRACE_VAR = auto()  # Inside ${...}
+```
+
+Key features:
+- Preserves quote information for proper variable expansion
+- Handles embedded variables in words (e.g., `pre${var}post`)
+- Maintains context for operators and keywords
+- Provides rich token metadata including position information
+
+### 2. Token Types (`token_types.py`)
+
+The tokenizer produces tokens of the following types:
+
 ```python
 class TokenType(Enum):
-    WORD = "WORD"
-    PIPE = "PIPE"
-    REDIRECT_IN = "REDIRECT_IN"
-    REDIRECT_OUT = "REDIRECT_OUT"
-    REDIRECT_APPEND = "REDIRECT_APPEND"
-    SEMICOLON = "SEMICOLON"
-    AMPERSAND = "AMPERSAND"
-    NEWLINE = "NEWLINE"
-    EOF = "EOF"
-    STRING = "STRING"  # Quoted strings
-    VARIABLE = "VARIABLE"  # $VAR
-    BACKGROUND = "BACKGROUND"
+    # Basic tokens
+    WORD, PIPE, SEMICOLON, AMPERSAND, NEWLINE, EOF
+    
+    # Redirections
+    REDIRECT_IN, REDIRECT_OUT, REDIRECT_APPEND
+    REDIRECT_ERR, REDIRECT_ERR_APPEND, REDIRECT_DUP
+    HEREDOC, HEREDOC_STRIP, HERE_STRING
+    
+    # Quotes and expansions
+    STRING, VARIABLE
+    COMMAND_SUB, COMMAND_SUB_BACKTICK
+    ARITH_EXPANSION
+    PROCESS_SUB_IN, PROCESS_SUB_OUT
+    
+    # Control structures
+    IF, THEN, ELSE, ELIF, FI
+    WHILE, DO, DONE
+    FOR, IN
+    CASE, ESAC
+    BREAK, CONTINUE
+    FUNCTION
+    
+    # Operators
+    AND_AND, OR_OR  # && ||
+    DOUBLE_SEMICOLON, SEMICOLON_AMP, AMP_SEMICOLON  # ;; ;& ;;&
+    EXCLAMATION  # !
+    DOUBLE_LBRACKET, DOUBLE_RBRACKET  # [[ ]]
+    REGEX_MATCH  # =~
 ```
 
-### 2. Token Class
-```python
-@dataclass
-class Token:
-    type: TokenType
-    value: str
-    position: int  # For error reporting
-```
+### 3. Parser (`parser.py`)
 
-### 3. AST Node Structure
-```python
-# Base class
-class ASTNode:
-    pass
+The parser uses recursive descent with the following key methods:
 
-# Command node
+#### Token Management
+- `peek()`: Look at current token without consuming
+- `advance()`: Consume and return current token
+- `expect(token_type)`: Consume expected token or error
+- `match(*token_types)`: Check if current token matches
+
+#### Parsing Methods (Grammar Rules)
+- `parse()`: Top-level entry point
+- `parse_command_list()`: Commands separated by `;` or newline
+- `parse_and_or_list()`: Pipelines connected by `&&` or `||`
+- `parse_pipeline()`: Commands connected by `|`
+- `parse_command()`: Single command with args and redirects
+
+#### Control Structures
+- `parse_if_statement()`: If/then/elif/else/fi
+- `parse_while_statement()`: While loops
+- `parse_for_statement()`: For loops
+- `parse_case_statement()`: Case statements
+- `parse_function_def()`: Function definitions
+- `parse_enhanced_test_statement()`: [[ ]] tests
+
+### 4. AST Nodes (`ast_nodes.py`)
+
+The parser produces an Abstract Syntax Tree with these node types:
+
+```python
+# Base classes
+class ASTNode(ABC): pass
+class Statement(ASTNode): pass
+
+# Commands and execution
 @dataclass
 class Command(ASTNode):
     args: List[str]
+    arg_types: List[str]  # WORD, STRING, VARIABLE, etc.
+    quote_types: List[Optional[str]]  # Quote character used
     redirects: List[Redirect]
-    background: bool = False
+    background: bool
 
-# Pipeline node
 @dataclass
 class Pipeline(ASTNode):
     commands: List[Command]
+    negated: bool  # True if prefixed with !
 
-# Command list (semicolon-separated)
 @dataclass
-class CommandList(ASTNode):
+class AndOrList(Statement):
     pipelines: List[Pipeline]
+    operators: List[str]  # '&&' or '||' between pipelines
 
-# Redirection node
+# Control structures
 @dataclass
-class Redirect(ASTNode):
-    type: str  # '<', '>', '>>'
-    target: str
+class IfStatement(Statement):
+    condition: StatementList
+    then_part: StatementList
+    elif_parts: List[Tuple[StatementList, StatementList]]
+    else_part: Optional[StatementList]
+    redirects: List[Redirect]
+
+# Similar structures for WhileStatement, ForStatement, CaseStatement, etc.
 ```
 
-## Grammar (Simplified)
+## Grammar
+
+The parser implements the following grammar:
 
 ```
-command_list    → pipeline (SEMICOLON pipeline)* [SEMICOLON]
-pipeline        → command (PIPE command)*
-command         → word+ redirect* [AMPERSAND]
-redirect        → REDIRECT_OP word
-word            → WORD | STRING | VARIABLE
+# Top-level
+top_level    → statement*
+statement    → function_def | control_structure | command_list
+
+# Control structures
+if_stmt      → 'if' command_list 'then' command_list 
+               ('elif' command_list 'then' command_list)*
+               ['else' command_list] 'fi'
+while_stmt   → 'while' command_list 'do' command_list 'done'
+for_stmt     → 'for' WORD 'in' word_list 'do' command_list 'done'
+case_stmt    → 'case' expr 'in' case_item* 'esac'
+function_def → WORD '(' ')' compound_command
+             | 'function' WORD ['(' ')'] compound_command
+
+# Command execution
+command_list → and_or_list (separator and_or_list)* [separator]
+separator    → ';' | '\n'
+and_or_list  → pipeline (('&&' | '||') pipeline)*
+pipeline     → ['!'] command ('|' command)*
+command      → word+ redirect* ['&']
+
+# Expansions and words
+word         → WORD | STRING | VARIABLE | COMMAND_SUB 
+             | ARITH_EXPANSION | PROCESS_SUB_IN | PROCESS_SUB_OUT
+
+# Redirections
+redirect     → [fd] redirect_op target
+redirect_op  → '<' | '>' | '>>' | '2>' | '2>>' | '<<' | '<<-' | '<<<'
+             | '>&' | '2>&1'
 ```
 
-## Parser Structure
+## Key Design Features
 
-### 1. Tokenizer Class
-```python
-class Tokenizer:
-    def __init__(self, input_string):
-        self.input = input_string
-        self.position = 0
-        self.tokens = []
-    
-    def tokenize(self) -> List[Token]:
-        # Main tokenization loop
-        # Handle quotes, escapes, operators
-        pass
-```
+### 1. Composite Argument Handling
+The parser can handle concatenated tokens (e.g., `pre${var}post`) by detecting adjacent tokens and combining them into composite arguments.
 
-### 2. Parser Class
-```python
-class Parser:
-    def __init__(self, tokens):
-        self.tokens = tokens
-        self.current = 0
-    
-    def parse(self) -> CommandList:
-        return self.parse_command_list()
-    
-    def parse_command_list(self) -> CommandList:
-        # Parse semicolon-separated commands
-        pass
-    
-    def parse_pipeline(self) -> Pipeline:
-        # Parse pipe-separated commands
-        pass
-    
-    def parse_command(self) -> Command:
-        # Parse single command with args and redirects
-        pass
-```
+### 2. Context-Sensitive Parsing
+- Keywords are only recognized in command position
+- Special handling for regex patterns in `[[ ... =~ pattern ]]`
+- Different word terminators inside `[[ ]]` constructs
 
-## Key Design Decisions
+### 3. Error Recovery
+- Synchronization at statement boundaries (`;`, newline)
+- Human-readable error messages with position information
+- Graceful handling of unexpected tokens
 
-### 1. Two-Phase Parsing
-- **Phase 1**: Tokenize (handle quotes, escapes, split on operators)
-- **Phase 2**: Parse tokens into AST
-- This separation makes each phase simpler and more testable
+### 4. Heredoc Support
+The parser recognizes heredoc operators and delimiters, with actual content processing deferred to the executor phase.
 
-### 2. Error Recovery
-- Add synchronization points (semicolons, newlines)
-- Provide clear error messages with position info
-- Consider continuing parsing after errors for better diagnostics
+### 5. Backward Compatibility
+The AST maintains backward compatibility through properties that expose the structure in ways expected by older code.
 
-### 3. Lookahead Strategy
-- Use one-token lookahead for simplicity
-- Implement `peek()` and `consume()` methods
-- This handles most shell syntax without backtracking
+## Execution Flow
 
-### 4. Quote Handling
-- Process quotes during tokenization
-- Preserve quote information for proper variable expansion
-- Support single quotes (literal), double quotes (with expansion)
+1. **Input**: Shell command string
+2. **Tokenization**: `StateMachineLexer` produces list of tokens
+3. **Parsing**: `Parser` consumes tokens to build AST
+4. **Execution**: Executor traverses AST to run commands
 
-### 5. Operator Precedence
-- Pipes bind tighter than semicolons
-- Redirections bind to individual commands
-- Background & applies to entire pipeline
+## Testing Considerations
 
-## Implementation Tips
+The parser is extensively tested with:
+- Unit tests for individual parsing methods
+- Integration tests for complete commands
+- Edge cases: empty input, syntax errors, complex nesting
+- Comparison tests against bash behavior
 
-1. **Start Simple**: Begin with just command execution, then add features
-2. **Test-Driven**: Write parser tests for each grammar rule
-3. **Error Messages**: Include the problematic token and position
-4. **Debugging**: Add optional parse tree printing for visualization
+## Future Enhancements
 
-## Example Implementation Order
-
-1. Basic tokenizer (words and spaces)
-2. Simple command parser (command with arguments)
-3. Add pipes
-4. Add redirections
-5. Add semicolons and command lists
-6. Add quotes and escaping
-7. Add variables and expansion
-8. Add background execution
-
-## Testing Strategy
-
-Create test cases for:
-- Single commands: `ls -la`
-- Pipelines: `ls | grep foo`
-- Redirections: `echo hello > file.txt`
-- Complex: `cat < input.txt | sort | uniq > output.txt`
-- Edge cases: Empty input, unclosed quotes, invalid syntax
+Planned parser improvements:
+- C-style for loops: `for ((i=0; i<10; i++))`
+- Arithmetic expressions as first-class constructs
+- Array syntax support
+- Extended glob patterns
