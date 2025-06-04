@@ -22,7 +22,7 @@ from .scripting.base import ScriptManager
 from .interactive.base import InteractiveManager
 
 class Shell:
-    def __init__(self, args=None, script_name=None, debug_ast=False, debug_tokens=False, norc=False, rcfile=None):
+    def __init__(self, args=None, script_name=None, debug_ast=False, debug_tokens=False, norc=False, rcfile=None, parent_shell=None):
         # Initialize state
         self.state = ShellState(args, script_name, debug_ast, 
                               debug_tokens, norc, rcfile)
@@ -36,28 +36,24 @@ class Shell:
         # All builtins are now handled by the registry
         self.builtins = {}
         
-        # Alias management
+        # Initialize basic managers first
         self.alias_manager = AliasManager()
-        
-        # Function management
         self.function_manager = FunctionManager()
-        
-        # Job control
         self.job_manager = JobManager()
         
-        # Expansion management
+        # Inherit from parent shell if provided - MUST be done before creating other managers
+        if parent_shell:
+            self.env = parent_shell.env.copy()
+            self.variables = parent_shell.variables.copy()
+            self.function_manager = parent_shell.function_manager.copy()
+            # Note: We don't copy aliases or jobs - those are shell-specific
+        
+        # Now create managers that need references to the shell
+        # These will get the correct function_manager reference
         self.expansion_manager = ExpansionManager(self)
-        
-        # I/O redirection management
         self.io_manager = IOManager(self)
-        
-        # Executor management
         self.executor_manager = ExecutorManager(self)
-        
-        # Script handling management
         self.script_manager = ScriptManager(self)
-        
-        # Interactive features management
         self.interactive_manager = InteractiveManager(self)
         
         # Load history

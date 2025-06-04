@@ -54,6 +54,18 @@ class FunctionManager:
         """Remove all function definitions."""
         self.functions.clear()
     
+    def copy(self) -> 'FunctionManager':
+        """Create a shallow copy of all functions.
+        
+        Note: For now, we share AST nodes between instances since they're
+        immutable once created. If we need true isolation later, we can
+        implement deep copying.
+        """
+        new_manager = FunctionManager()
+        # Shallow copy is sufficient since we don't modify AST nodes
+        new_manager.functions = self.functions.copy()
+        return new_manager
+    
     def _is_reserved_word(self, name: str) -> bool:
         """Check if name is a reserved word."""
         return name in self.RESERVED_WORDS

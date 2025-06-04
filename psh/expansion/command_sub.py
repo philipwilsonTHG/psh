@@ -37,9 +37,11 @@ class CommandSubstitution:
             from ..shell import Shell
             
             # Create a temporary shell to execute the command with output redirected
-            temp_shell = Shell(debug_ast=self.state.debug_ast, debug_tokens=self.state.debug_tokens)
-            temp_shell.env = self.state.env.copy()
-            temp_shell.variables = self.state.variables.copy()
+            temp_shell = Shell(
+                debug_ast=self.state.debug_ast,
+                debug_tokens=self.state.debug_tokens,
+                parent_shell=self.shell
+            )
             
             # Execute the command with output redirected to temp file
             temp_shell.run_command(f"{command} > {temp_output}", add_to_history=False)

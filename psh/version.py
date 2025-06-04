@@ -2,10 +2,22 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.28.7"
+__version__ = "0.28.8"
 
 # Version history
 VERSION_HISTORY = """
+0.28.8 (2025-04-06) - Function inheritance in subshells for command and process substitution
+  - Fixed functions not being inherited by subshells created for command substitution $(...)
+  - Added parent_shell parameter to Shell constructor for inheritance of environment, variables, and functions
+  - Implemented FunctionManager.copy() method for shallow copying of function definitions
+  - Updated command substitution to pass parent shell reference, enabling function calls in $(...)
+  - Updated process substitution to pass parent shell reference, enabling functions in <(...) and >(...)
+  - Fixed critical initialization order bug where ExecutorManager got wrong function_manager reference
+  - Added comprehensive test suite for function inheritance (6 tests pass, 1 xfail for arithmetic limitation)
+  - Functions defined in parent shell are now available in all subshells (command/process substitution)
+  - Example: result=$(factorial 5) now works correctly when factorial is defined in parent shell
+  - Note: Arithmetic parser doesn't support command substitution $(($(cmd))) - separate issue
+
 0.28.7 (2025-04-06) - Parser refactoring for improved code clarity and maintainability
   - Refactored parser.py to improve code organization and reduce duplication by ~30%
   - Created TokenGroups class to define semantic groups of tokens for cleaner matching

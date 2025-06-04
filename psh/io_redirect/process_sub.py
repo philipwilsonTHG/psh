@@ -112,9 +112,7 @@ class ProcessSubstitutionHandler:
                 tokens = tokenize(cmd_str)
                 ast = parse(tokens)
                 # Create a new shell instance to avoid state pollution
-                temp_shell = Shell()
-                temp_shell.env = self.state.env.copy()
-                temp_shell.variables = self.state.variables.copy()
+                temp_shell = Shell(parent_shell=self.shell)
                 exit_code = temp_shell.execute_command_list(ast)
                 os._exit(exit_code)
             except Exception as e:
