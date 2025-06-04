@@ -171,6 +171,9 @@ class ExpansionManager:
         else:
             return 0
         
+        # Pre-expand command substitutions in the arithmetic expression
+        arith_expr = self._expand_command_subs_in_arithmetic(arith_expr)
+        
         from ..arithmetic import evaluate_arithmetic, ArithmeticError
         
         try:
@@ -180,3 +183,55 @@ class ExpansionManager:
             import sys
             print(f"psh: arithmetic error: {e}", file=sys.stderr)
             return 0
+        except Exception as e:
+            import sys
+            print(f"psh: unexpected arithmetic error: {e}", file=sys.stderr)
+            return 0
+    
+    def _expand_command_subs_in_arithmetic(self, expr: str) -> str:
+        """Expand command substitutions in arithmetic expression.
+        
+        This method finds all $(...) patterns in the arithmetic expression
+        and replaces them with their evaluated output before arithmetic
+        evaluation.
+        
+        Args:
+            expr: The arithmetic expression potentially containing $(...)
+            
+        Returns:
+            The expression with all command substitutions expanded
+        """
+        result = []
+        i = 0
+        
+        while i < len(expr):
+            if expr[i] == '$' and i + 1 < len(expr) and expr[i + 1] == '(':
+                # Found potential command substitution
+                # Find matching closing parenthesis
+                paren_count = 1
+                j = i + 2
+                
+                while j < len(expr) and paren_count > 0:
+                    if expr[j] == '(':
+                        paren_count += 1
+                    elif expr[j] == ')':
+                        paren_count -= 1
+                    j += 1
+                
+                if paren_count == 0:
+                    # Valid command substitution found
+                    cmd_sub_expr = expr[i:j]  # Include $(...) 
+                    
+                    # Execute command substitution
+                    output = self.command_sub.execute(cmd_sub_expr).strip()
+                    
+                    # Convert empty output to 0 (bash behavior)
+                    result.append(output if output else '0')
+                    i = j
+                    continue
+            
+            # Not a command substitution, copy character as-is
+            result.append(expr[i])
+            i += 1
+        
+        return ''.join(result)

@@ -75,10 +75,30 @@ class CommandExecutor(ExecutorComponent):
             
             # Expand arithmetic expansion in the value
             if '$((' in var_value and '))' in var_value:
-                # Find and expand all arithmetic expansions
-                def expand_arith(match):
-                    return str(self.expansion_manager.execute_arithmetic_expansion(match.group(0)))
-                var_value = re.sub(r'\$\(\([^)]+\)\)', expand_arith, var_value)
+                # Find and expand all arithmetic expansions using proper nesting
+                import re
+                result = []
+                i = 0
+                while i < len(var_value):
+                    if var_value[i:i+3] == '$((':
+                        # Find matching ))
+                        paren_count = 2
+                        j = i + 3
+                        while j < len(var_value) and paren_count > 0:
+                            if var_value[j] == '(':
+                                paren_count += 1
+                            elif var_value[j] == ')':
+                                paren_count -= 1
+                            j += 1
+                        if paren_count == 0:
+                            # Found complete arithmetic expression
+                            arith_expr = var_value[i:j]
+                            result.append(str(self.expansion_manager.execute_arithmetic_expansion(arith_expr)))
+                            i = j
+                            continue
+                    result.append(var_value[i])
+                    i += 1
+                var_value = ''.join(result)
             
             # Expand tilde in the value
             if var_value.startswith('~'):

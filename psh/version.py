@@ -2,10 +2,19 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.28.8"
+__version__ = "0.28.9"
 
 # Version history
 VERSION_HISTORY = """
+0.28.9 (2025-04-06) - Command substitution support in arithmetic expressions
+  - Fixed arithmetic expansion to support command substitution like $(($(cmd) * 2))
+  - Added pre-expansion of command substitutions before arithmetic evaluation
+  - Fixed tokenizer bug where arithmetic expansions with nested parentheses were split incorrectly
+  - Improved read_balanced_double_parens() to properly track parentheses depth
+  - Added comprehensive test suite for arithmetic command substitution (10 new tests)
+  - Example: result=$(($(get_number) * 2)) now works correctly
+  - This brings psh closer to full bash compatibility for arithmetic operations
+
 0.28.8 (2025-04-06) - Function inheritance in subshells for command and process substitution
   - Fixed functions not being inherited by subshells created for command substitution $(...)
   - Added parent_shell parameter to Shell constructor for inheritance of environment, variables, and functions

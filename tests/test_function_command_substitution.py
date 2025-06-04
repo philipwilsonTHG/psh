@@ -103,7 +103,6 @@ class TestFunctionCommandSubstitution:
         captured = capsys.readouterr()
         assert captured.out.strip() == 'Got: hello world'
     
-    @pytest.mark.xfail(reason="Arithmetic parser doesn't support command substitution - separate issue")
     def test_function_in_arithmetic_context(self, shell, capsys):
         """Test function output used in arithmetic expansion."""
         shell.run_command('''

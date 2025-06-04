@@ -842,33 +842,29 @@ class StateMachineLexer:
     def read_balanced_double_parens(self) -> str:
         """Read content until balanced double parentheses for arithmetic."""
         content = ""
-        depth = 2
+        depth = 0  # Track individual parens, not pairs
         found_closing = False
         
-        while self.current_char() and depth > 0:
+        while self.current_char():
             char = self.current_char()
-            if char == '(' and self.peek_char() == '(':
-                content += char
-                self.advance()
-                content += self.current_char()  # Add the second (
-                self.advance()
-                depth += 2
-            elif char == ')' and self.peek_char() == ')':
-                if depth == 2:
-                    # Found closing ))
-                    self.advance()  # Skip first )
-                    self.advance()  # Skip second )
-                    found_closing = True
-                    break
-                else:
-                    content += char
-                    self.advance()
-                    content += self.current_char()  # Add the second )
-                    self.advance()
-                    depth -= 2
-            else:
-                content += char
-                self.advance()
+            next_char = self.peek_char()
+            
+            # Check for )) when depth is exactly 2 (from initial $(( )
+            if char == ')' and next_char == ')' and depth == 0:
+                # This is the closing )) for the arithmetic expansion
+                self.advance()  # Skip first )
+                self.advance()  # Skip second )
+                found_closing = True
+                break
+            
+            # Track depth with individual parens
+            if char == '(':
+                depth += 1
+            elif char == ')':
+                depth -= 1
+                
+            content += char
+            self.advance()
         
         # Check if we found the closing )) or hit EOF
         if not found_closing:
