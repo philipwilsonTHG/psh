@@ -119,17 +119,32 @@ class MultiLineInputHandler:
             # Check for incomplete constructs
             error_msg = str(e)
             incomplete_patterns = [
+                # Updated patterns for human-readable error messages
+                "Expected 'do'",
+                "Expected 'done'", 
+                "Expected 'fi'",
+                "Expected 'else'",
+                "Expected 'then'",
+                "Expected 'esac'",
+                "Expected 'in'",
+                "Expected 'elif'",
+                "Expected '{'",
+                "Expected '}'",
+                "Expected ')'",
+                "Expected ']]'",
+                "Expected '('",
+                "Expected closing",
+                "Unexpected EOF",
+                "got end of input",
+                "Expected test operand",
+                # Old patterns for backward compatibility
                 "Expected DO",
                 "Expected DONE", 
                 "Expected FI",
                 "Expected ELSE",
                 "Expected THEN",
                 "Expected ESAC",
-                "Expected closing",
-                "Unexpected EOF",
-                "Expected '}'",
-                "Expected DOUBLE_RBRACKET",  # For incomplete [[ ]]
-                "Expected test operand"       # For [[ ... && at end of line
+                "Expected DOUBLE_RBRACKET",
             ]
             
             for pattern in incomplete_patterns:

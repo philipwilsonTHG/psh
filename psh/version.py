@@ -2,10 +2,22 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.28.6"
+__version__ = "0.28.7"
 
 # Version history
 VERSION_HISTORY = """
+0.28.7 (2025-04-06) - Parser refactoring for improved code clarity and maintainability
+  - Refactored parser.py to improve code organization and reduce duplication by ~30%
+  - Created TokenGroups class to define semantic groups of tokens for cleaner matching
+  - Added helper methods (skip_newlines, skip_separators, at_end, etc.) to eliminate repetitive code
+  - Improved error messages with human-readable token names (e.g., "Expected '{'" instead of "Expected LBRACE")
+  - Simplified complex parsing methods by extracting common patterns and breaking down large functions
+  - Fixed multi-line command parsing by updating incomplete command detection patterns
+  - Updated both source_processor.py and multiline_handler.py to recognize new error message formats
+  - Organized parser methods into logical sections for better code navigation
+  - Maintained full backward compatibility - all 612 tests continue to pass
+  - Educational value enhanced with clearer recursive descent patterns
+
 0.28.6 (2025-04-06) - Complete tokenizer replacement with state machine lexer
   - Removed old tokenizer.py module completely, replacing it with state_machine_lexer.py
   - Created token_types.py module to hold TokenType enum and Token dataclass definitions

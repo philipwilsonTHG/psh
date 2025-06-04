@@ -87,17 +87,50 @@ class SourceProcessor(ScriptComponent):
     def _is_incomplete_command(self, parse_error: ParseError) -> bool:
         """Check if a parse error indicates an incomplete command."""
         error_msg = str(parse_error)
+        
+        # Updated patterns to match the new human-readable error messages
         incomplete_patterns = [
+            # Control structure keywords
+            ("Expected 'do'", "got end of input"),
+            ("Expected 'done'", "got end of input"),
+            ("Expected 'fi'", "got end of input"),
+            ("Expected 'then'", "got end of input"),
+            ("Expected 'in'", "got end of input"),
+            ("Expected 'esac'", "got end of input"),
+            ("Expected 'else'", "got end of input"),
+            ("Expected 'elif'", "got end of input"),
+            
+            # Function and compound commands
+            ("Expected '{'", "got end of input"),
+            ("Expected '}'", "got end of input"),
+            ("Expected '}' to end compound command", None),
+            
+            # Parentheses and brackets
+            ("Expected ')'", "got end of input"),
+            ("Expected ']]'", "got end of input"),
+            ("Expected '('", "got end of input"),
+            ("Expected '[['", "got end of input"),
+            
+            # Test expressions
+            ("Expected test operand", "got end of input"),
+            ("Expected test operand", None),
+            
+            # Redirections
+            ("Expected delimiter after here document", "got end of input"),
+            ("Expected string after here string", "got end of input"),
+            
+            # Commands
+            ("Expected command", "got end of input"),
+            
+            # Old patterns for backward compatibility (in case some weren't updated)
             ("Expected DO", "got EOF"),
             ("Expected DONE", "got EOF"),
             ("Expected FI", "got EOF"),
             ("Expected THEN", "got EOF"),
             ("Expected IN", "got EOF"),
             ("Expected ESAC", "got EOF"),
-            ("Expected '}' to end compound command", None),  # Function bodies
             ("Expected RPAREN", "got EOF"),
-            ("Expected DOUBLE_RBRACKET", None),  # For incomplete [[ ]]
-            ("Expected test operand", None),      # For [[ ... && at end
+            ("Expected DOUBLE_RBRACKET", None),
         ]
         
         for expected, got in incomplete_patterns:
