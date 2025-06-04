@@ -128,7 +128,7 @@ class TestSingleQuoteHandling:
         # But 'hello\'world' is invalid and should raise an error
         with pytest.raises(SyntaxError) as exc_info:
             tokens = tokenize("echo 'hello\\'world'")
-        assert "Unclosed quote" in str(exc_info.value)
+        assert "Unclosed single quote" in str(exc_info.value)
 
 
 class TestShellIntegration:

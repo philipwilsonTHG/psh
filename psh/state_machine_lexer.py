@@ -11,11 +11,32 @@ This lexer uses a state machine approach to solve tokenization issues:
 
 from enum import Enum, auto
 from dataclasses import dataclass, field
-from typing import List, Optional, Dict, Set, Tuple
+from typing import List, Optional, Dict, Set, Tuple, Callable
 import re
+import string
 
 # Import existing TokenType and Token from tokenizer.py
 from .tokenizer import TokenType, Token
+
+# Constants for character sets
+VARIABLE_START_CHARS = set(string.ascii_letters + '_')
+VARIABLE_CHARS = set(string.ascii_letters + string.digits + '_')
+SPECIAL_VARIABLES = set('?$!#@*') | set(string.digits)
+VARIABLE_NAME_PATTERN = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
+
+# Escape sequences in different contexts
+DOUBLE_QUOTE_ESCAPES = {
+    '"': '"',
+    '\\': '\\',
+    '`': '`',
+    'n': '\n',
+    't': '\t',
+    'r': '\r',
+}
+
+# Terminal characters for word boundaries
+WORD_TERMINATORS = set(' \t\n|<>;&(){}\'"\n')
+WORD_TERMINATORS_IN_BRACKETS = set(' \t\n|<>;&(){}\'"\n')  # ] handled specially
 
 
 class LexerState(Enum):
@@ -28,13 +49,8 @@ class LexerState(Enum):
     IN_COMMAND_SUB = auto()
     IN_ARITHMETIC = auto()
     IN_COMMENT = auto()
-    IN_HEREDOC = auto()
     IN_BACKTICK = auto()
-    IN_PROCESS_SUB = auto()
     IN_BRACE_VAR = auto()  # Inside ${...}
-    AFTER_DOLLAR = auto()
-    AFTER_REDIRECT = auto()
-    IN_DOUBLE_BRACKETS = auto()  # Inside [[ ]]
 
 
 @dataclass
@@ -71,39 +87,41 @@ class RichToken(Token):
 class StateMachineLexer:
     """State machine-based lexer for shell tokenization."""
     
-    # Operator precedence for trie-based recognition
-    OPERATORS = {
-        # Four-character operators (check first)
-        '2>&1': TokenType.REDIRECT_DUP,
-        # Three-character operators
-        '<<<': TokenType.HERE_STRING,
-        '2>>': TokenType.REDIRECT_ERR_APPEND,
-        ';;&': TokenType.AMP_SEMICOLON,
-        '<<-': TokenType.HEREDOC_STRIP,
-        # Two-character operators
-        '[[': TokenType.DOUBLE_LBRACKET,
-        ']]': TokenType.DOUBLE_RBRACKET,
-        '<<': TokenType.HEREDOC,
-        '>>': TokenType.REDIRECT_APPEND,
-        '&&': TokenType.AND_AND,
-        '||': TokenType.OR_OR,
-        ';;': TokenType.DOUBLE_SEMICOLON,
-        ';&': TokenType.SEMICOLON_AMP,
-        '=~': TokenType.REGEX_MATCH,
-        '>&': TokenType.REDIRECT_DUP,
-        '2>': TokenType.REDIRECT_ERR,
-        # Single-character operators
-        '|': TokenType.PIPE,
-        '<': TokenType.REDIRECT_IN,
-        '>': TokenType.REDIRECT_OUT,
-        ';': TokenType.SEMICOLON,
-        '&': TokenType.AMPERSAND,
-        '(': TokenType.LPAREN,
-        ')': TokenType.RPAREN,
-        '{': TokenType.LBRACE,
-        '}': TokenType.RBRACE,
-        '!': TokenType.EXCLAMATION,
-        '\n': TokenType.NEWLINE,
+    # Operators organized by length for efficient lookup
+    OPERATORS_BY_LENGTH = {
+        4: {'2>&1': TokenType.REDIRECT_DUP},
+        3: {
+            '<<<': TokenType.HERE_STRING,
+            '2>>': TokenType.REDIRECT_ERR_APPEND,
+            ';;&': TokenType.AMP_SEMICOLON,
+            '<<-': TokenType.HEREDOC_STRIP,
+        },
+        2: {
+            '[[': TokenType.DOUBLE_LBRACKET,
+            ']]': TokenType.DOUBLE_RBRACKET,
+            '<<': TokenType.HEREDOC,
+            '>>': TokenType.REDIRECT_APPEND,
+            '&&': TokenType.AND_AND,
+            '||': TokenType.OR_OR,
+            ';;': TokenType.DOUBLE_SEMICOLON,
+            ';&': TokenType.SEMICOLON_AMP,
+            '=~': TokenType.REGEX_MATCH,
+            '>&': TokenType.REDIRECT_DUP,
+            '2>': TokenType.REDIRECT_ERR,
+        },
+        1: {
+            '|': TokenType.PIPE,
+            '<': TokenType.REDIRECT_IN,
+            '>': TokenType.REDIRECT_OUT,
+            ';': TokenType.SEMICOLON,
+            '&': TokenType.AMPERSAND,
+            '(': TokenType.LPAREN,
+            ')': TokenType.RPAREN,
+            '{': TokenType.LBRACE,
+            '}': TokenType.RBRACE,
+            '!': TokenType.EXCLAMATION,
+            '\n': TokenType.NEWLINE,
+        }
     }
     
     # Keywords that need context checking
@@ -121,7 +139,6 @@ class StateMachineLexer:
         self.position = 0
         self.tokens: List[Token] = []
         self.state = LexerState.NORMAL
-        self.state_stack: List[LexerState] = []
         
         # Context tracking
         self.in_double_brackets = 0
@@ -156,15 +173,137 @@ class StateMachineLexer:
         """Move position forward."""
         self.position = min(self.position + count, len(self.input))
     
-    def push_state(self, new_state: LexerState) -> None:
-        """Push current state and enter new state."""
-        self.state_stack.append(self.state)
-        self.state = new_state
     
-    def pop_state(self) -> None:
-        """Return to previous state."""
-        if self.state_stack:
-            self.state = self.state_stack.pop()
+    def parse_variable_or_expansion(self, quote_context: Optional[str] = None) -> TokenPart:
+        """
+        Parse a variable or expansion starting after the $.
+        
+        Args:
+            quote_context: The quote type if inside quotes ('"', "'", or None)
+            
+        Returns:
+            TokenPart representing the parsed variable or expansion
+        """
+        start_pos = self.position - 1  # Include the $ in position
+        
+        if self.current_char() == '(':
+            # Command substitution or arithmetic expansion
+            if self.peek_char() == '(':
+                # Arithmetic expansion $((
+                self.advance(2)  # Skip ((
+                content = self.read_balanced_double_parens()
+                return TokenPart(
+                    value='$((' + content + '))',
+                    quote_type=quote_context,
+                    is_expansion=True,
+                    start_pos=start_pos,
+                    end_pos=self.position
+                )
+            else:
+                # Command substitution $(
+                self.advance()  # Skip (
+                content = self.read_balanced_parens()
+                return TokenPart(
+                    value='$(' + content + ')',
+                    quote_type=quote_context,
+                    is_expansion=True,
+                    start_pos=start_pos,
+                    end_pos=self.position
+                )
+        elif self.current_char() == '{':
+            # Brace variable ${
+            self.advance()  # Skip {
+            var_content = self.read_until_char('}')
+            if self.current_char() == '}':
+                self.advance()  # Skip }
+                return TokenPart(
+                    value='{' + var_content + '}',
+                    quote_type=quote_context,
+                    is_variable=True,
+                    start_pos=start_pos,
+                    end_pos=self.position
+                )
+            else:
+                raise SyntaxError(self._format_error("Unclosed variable expansion", start_pos))
+        else:
+            # Simple variable
+            var_name = self.read_variable_name()
+            return TokenPart(
+                value=var_name,
+                quote_type=quote_context,
+                is_variable=True,
+                start_pos=start_pos,
+                end_pos=self.position
+            )
+    
+    def read_variable_name(self) -> str:
+        """Read a simple variable name (after $)."""
+        var_name = ""
+        
+        # Special single-character variables
+        if self.current_char() in SPECIAL_VARIABLES:
+            var_name = self.current_char()
+            self.advance()
+            return var_name
+        
+        # Regular variable names
+        while self.current_char() and (
+            self.current_char() in VARIABLE_CHARS or 
+            (not var_name and self.current_char() in VARIABLE_START_CHARS)
+        ):
+            var_name += self.current_char()
+            self.advance()
+        
+        return var_name
+    
+    def read_until_char(self, target: str, escape: bool = False) -> str:
+        """Read until a specific character is found."""
+        content = ""
+        while self.current_char() and self.current_char() != target:
+            if escape and self.current_char() == '\\' and self.peek_char():
+                self.advance()  # Skip backslash
+                if self.current_char():
+                    content += self.current_char()
+                    self.advance()
+            else:
+                content += self.current_char()
+                self.advance()
+        return content
+    
+    def handle_escape_sequence(self, quote_context: Optional[str] = None) -> str:
+        """
+        Handle escape sequences based on context.
+        
+        Args:
+            quote_context: Current quote context ('"', "'", or None)
+            
+        Returns:
+            The escaped character(s) to add to the output
+        """
+        if not self.peek_char():
+            return '\\'
+        
+        self.advance()  # Skip backslash
+        next_char = self.current_char()
+        
+        if quote_context == '"':
+            # In double quotes
+            if next_char in '"\\`':
+                return next_char
+            elif next_char == '$':
+                # Special case: \$ preserves the backslash in double quotes
+                return '\\$'
+            elif next_char in DOUBLE_QUOTE_ESCAPES:
+                return DOUBLE_QUOTE_ESCAPES[next_char]
+            else:
+                # Other characters keep the backslash
+                return '\\' + next_char
+        elif quote_context is None:
+            # Outside quotes - backslash escapes everything
+            return next_char
+        else:
+            # Single quotes - no escaping
+            return '\\' + next_char
     
     def emit_token(self, token_type: TokenType, value: str, start_pos: Optional[int] = None,
                    quote_type: Optional[str] = None) -> None:
@@ -209,41 +348,11 @@ class StateMachineLexer:
             self.handle_process_substitution()
             return
         
-        # Check for multi-character operators first
-        # Special handling for != (should be a single word token for test command)
-        if self.peek_string(2) == '!=':
-            self.emit_token(TokenType.WORD, '!=', self.position)
-            self.advance(2)
+        # Check for operators
+        operator = self._check_for_operator()
+        if operator:
+            self._handle_operator(operator)
             return
-            
-        for length in (4, 3, 2, 1):
-            op = self.peek_string(length)
-            if op in self.OPERATORS:
-                # Special handling for [[ and ]]
-                if op == '[[' and self.command_position:
-                    self.in_double_brackets += 1
-                    self.emit_token(self.OPERATORS[op], op, self.position)
-                    self.advance(length)
-                elif op == ']]' and self.in_double_brackets > 0:
-                    self.in_double_brackets -= 1
-                    self.emit_token(self.OPERATORS[op], op, self.position)
-                    self.advance(length)
-                elif op == '=~' and self.in_double_brackets > 0:
-                    # =~ is only an operator inside [[ ]]
-                    self.emit_token(self.OPERATORS[op], op, self.position)
-                    self.advance(length)
-                elif op == '=~' and self.in_double_brackets == 0:
-                    # Outside [[ ]], treat = and ~ as separate
-                    self.token_start = self.position
-                    self.state = LexerState.IN_WORD
-                elif op in ('<', '>') and self.in_double_brackets > 0:
-                    # Inside [[ ]], < and > are comparison operators, not redirections
-                    self.emit_token(TokenType.WORD, op, self.position)
-                    self.advance(length)
-                else:
-                    self.emit_token(self.OPERATORS[op], op, self.position)
-                    self.advance(length)
-                return
         
         # Handle quotes
         if char in '"\'':
@@ -258,7 +367,7 @@ class StateMachineLexer:
             return
         
         # Handle comments
-        if char == '#' and (self.position == 0 or self.input[self.position - 1] in ' \t\n;'):
+        if char == '#' and self._is_comment_start():
             self.state = LexerState.IN_COMMENT
             self.advance()
             return
@@ -273,6 +382,77 @@ class StateMachineLexer:
         # Start reading a word
         self.token_start = self.position
         self.state = LexerState.IN_WORD
+    
+    def _check_for_operator(self) -> Optional[Tuple[str, TokenType]]:
+        """Check if current position starts an operator."""
+        # Special handling for != (should be a single word token for test command)
+        if self.peek_string(2) == '!=':
+            return None  # Let it be handled as a word
+        
+        # Check operators from longest to shortest
+        for length in sorted(self.OPERATORS_BY_LENGTH.keys(), reverse=True):
+            if length > len(self.input) - self.position:
+                continue
+            
+            op = self.peek_string(length)
+            if op in self.OPERATORS_BY_LENGTH[length]:
+                return (op, self.OPERATORS_BY_LENGTH[length][op])
+        
+        return None
+    
+    def _handle_operator(self, operator: Tuple[str, TokenType]) -> None:
+        """Handle an operator token with special cases."""
+        op, token_type = operator
+        
+        # Special handling for [[ and ]]
+        if op == '[[' and self.command_position:
+            self.in_double_brackets += 1
+            self.emit_token(token_type, op, self.position)
+            self.advance(len(op))
+        elif op == ']]' and self.in_double_brackets > 0:
+            self.in_double_brackets -= 1
+            self.emit_token(token_type, op, self.position)
+            self.advance(len(op))
+        elif op == '=~':
+            if self.in_double_brackets > 0:
+                # =~ is only an operator inside [[ ]]
+                self.emit_token(token_type, op, self.position)
+                self.advance(len(op))
+            else:
+                # Outside [[ ]], treat as word
+                self.token_start = self.position
+                self.state = LexerState.IN_WORD
+        elif op in ('<', '>') and self.in_double_brackets > 0:
+            # Inside [[ ]], < and > are comparison operators, not redirections
+            self.emit_token(TokenType.WORD, op, self.position)
+            self.advance(len(op))
+        else:
+            self.emit_token(token_type, op, self.position)
+            self.advance(len(op))
+    
+    def _is_comment_start(self) -> bool:
+        """Check if # at current position starts a comment."""
+        return self.position == 0 or self.input[self.position - 1] in ' \t\n;'
+    
+    def _format_error(self, message: str, position: int) -> str:
+        """Format an error message with context from the input."""
+        # Extract a snippet around the error position
+        start = max(0, position - 20)
+        end = min(len(self.input), position + 20)
+        snippet = self.input[start:end]
+        
+        # Calculate where the error is in the snippet
+        error_pos = position - start
+        
+        # Build the error message
+        lines = [
+            message,
+            f"Position {position}:",
+            snippet,
+            " " * error_pos + "^"
+        ]
+        
+        return "\n".join(lines)
     
     def handle_dollar(self) -> None:
         """Handle $ character - variables, command sub, arithmetic."""
@@ -304,130 +484,10 @@ class StateMachineLexer:
     
     def handle_word_state(self) -> None:
         """Handle reading a word, which may contain embedded variables."""
-        parts: List[TokenPart] = []
-        word_start = self.position
-        current_value = ""
-        
-        while self.current_char():
-            char = self.current_char()
-            
-            # Check for word terminators
-            # Inside [[ ]], ] is part of patterns unless it's ]]
-            if self.in_double_brackets > 0:
-                if char in ' \t\n|<>;&(){}\'"\n':
-                    break
-                if char == ']' and self.peek_char() == ']':
-                    break  # Stop at ]]
-            else:
-                if char in ' \t\n|<>;&(){}\'"\n':
-                    break
-            
-            # Check for embedded variable or expansion
-            if char == '$':
-                # Save current word part if any
-                if current_value:
-                    parts.append(TokenPart(
-                        value=current_value,
-                        quote_type=None,
-                        is_variable=False,
-                        start_pos=word_start,
-                        end_pos=self.position
-                    ))
-                    current_value = ""
-                
-                # Check what follows the $
-                var_start = self.position
-                self.advance()  # Skip $
-                
-                if self.current_char() == '(':
-                    # Command substitution or arithmetic expansion
-                    if self.peek_char() == '(':
-                        # Arithmetic expansion $((...))
-                        self.advance(2)  # Skip ((
-                        arith_content = self.read_balanced_double_parens()
-                        parts.append(TokenPart(
-                            value='$((' + arith_content + '))',
-                            quote_type=None,
-                            is_expansion=True,
-                            start_pos=var_start,
-                            end_pos=self.position
-                        ))
-                    else:
-                        # Command substitution $(...)
-                        self.advance()  # Skip (
-                        cmd_content = self.read_balanced_parens()
-                        parts.append(TokenPart(
-                            value='$(' + cmd_content + ')',
-                            quote_type=None,
-                            is_expansion=True,
-                            start_pos=var_start,
-                            end_pos=self.position
-                        ))
-                    word_start = self.position
-                elif self.current_char() == '{':
-                    # ${var} format
-                    self.advance()  # Skip {
-                    var_name = '{'
-                    while self.current_char() and self.current_char() != '}':
-                        var_name += self.current_char()
-                        self.advance()
-                    if self.current_char() == '}':
-                        var_name += '}'
-                        self.advance()
-                    parts.append(TokenPart(
-                        value=var_name,
-                        quote_type=None,
-                        is_variable=True,
-                        start_pos=var_start,
-                        end_pos=self.position
-                    ))
-                    word_start = self.position
-                else:
-                    # $var format
-                    var_name = ''
-                    while self.current_char() and (self.current_char().isalnum() or self.current_char() in '_?$!#@*0123456789'):
-                        var_name += self.current_char()
-                        self.advance()
-                    parts.append(TokenPart(
-                        value=var_name,
-                        quote_type=None,
-                        is_variable=True,
-                        start_pos=var_start,
-                        end_pos=self.position
-                    ))
-                    word_start = self.position
-            
-            # Check for backslash escapes
-            elif char == '\\' and self.peek_char():
-                self.advance()  # Skip backslash
-                if self.current_char():
-                    # Add the escaped character directly
-                    current_value += self.current_char()
-                    self.advance()
-            
-            else:
-                current_value += char
-                self.advance()
-        
-        # Save final part if any
-        if current_value:
-            parts.append(TokenPart(
-                value=current_value,
-                quote_type=None,
-                is_variable=False,
-                start_pos=word_start,
-                end_pos=self.position
-            ))
+        parts = self._read_word_parts(quote_context=None)
         
         # Build complete word value
-        full_value = ""
-        for part in parts:
-            if part.is_variable:
-                full_value += '$' + part.value
-            elif part.is_expansion:
-                full_value += part.value
-            else:
-                full_value += part.value
+        full_value = self._build_token_value(parts)
         
         # Check if it's a keyword
         token_type = TokenType.WORD
@@ -441,134 +501,157 @@ class StateMachineLexer:
         self.emit_token(token_type, full_value, self.token_start)
         self.state = LexerState.NORMAL
     
+    def _read_word_parts(self, quote_context: Optional[str]) -> List[TokenPart]:
+        """Read parts of a word, handling embedded variables and expansions."""
+        parts: List[TokenPart] = []
+        word_start = self.position
+        current_value = ""
+        
+        while self.current_char():
+            char = self.current_char()
+            
+            # Check for word terminators
+            if self._is_word_terminator(char):
+                break
+            
+            # Check for embedded variable or expansion
+            if char == '$':
+                # Save current word part if any
+                if current_value:
+                    parts.append(TokenPart(
+                        value=current_value,
+                        quote_type=quote_context,
+                        is_variable=False,
+                        start_pos=word_start,
+                        end_pos=self.position
+                    ))
+                    current_value = ""
+                
+                # Parse the variable/expansion
+                self.advance()  # Skip $
+                part = self.parse_variable_or_expansion(quote_context)
+                parts.append(part)
+                word_start = self.position
+            
+            # Check for backslash escapes
+            elif char == '\\' and self.peek_char():
+                escaped = self.handle_escape_sequence(quote_context)
+                current_value += escaped
+                self.advance()  # handle_escape_sequence already advanced past backslash
+            
+            else:
+                current_value += char
+                self.advance()
+        
+        # Save final part if any
+        if current_value:
+            parts.append(TokenPart(
+                value=current_value,
+                quote_type=quote_context,
+                is_variable=False,
+                start_pos=word_start,
+                end_pos=self.position
+            ))
+        
+        return parts
+    
+    def _is_word_terminator(self, char: str) -> bool:
+        """Check if character terminates a word in current context."""
+        if self.in_double_brackets > 0:
+            if char in WORD_TERMINATORS_IN_BRACKETS:
+                return True
+            if char == ']' and self.peek_char() == ']':
+                return True
+        else:
+            return char in WORD_TERMINATORS
+        return False
+    
+    def _build_token_value(self, parts: List[TokenPart]) -> str:
+        """Build complete token value from parts."""
+        full_value = ""
+        for part in parts:
+            if part.is_variable:
+                full_value += '$' + part.value
+            elif part.is_expansion:
+                full_value += part.value
+            else:
+                full_value += part.value
+        return full_value
+    
     def handle_double_quote_state(self) -> None:
         """Handle reading inside double quotes with variable expansion."""
+        parts = self._read_quoted_parts('"')
+        
+        # Skip closing quote if present
+        quote_closed = False
+        if self.current_char() == '"':
+            self.advance()
+            quote_closed = True
+        
+        # Check if quote was closed
+        if not quote_closed:
+            raise SyntaxError(self._format_error("Unclosed double quote", self.token_start))
+        
+        # Build complete string value
+        full_value = self._build_token_value(parts)
+        
+        # Store parts for later use
+        self.current_parts = parts
+        
+        # Emit token
+        self.emit_token(TokenType.STRING, full_value, self.token_start, '"')
+        self.state = LexerState.NORMAL
+    
+    def _read_quoted_parts(self, quote_char: str) -> List[TokenPart]:
+        """Read parts inside quotes, handling expansions in double quotes."""
         parts: List[TokenPart] = []
         quote_start = self.position
         current_value = ""
         
-        while self.current_char() and self.current_char() != '"':
+        while self.current_char() and self.current_char() != quote_char:
             char = self.current_char()
             
-            if char == '$':
+            # Variable expansion only in double quotes
+            if quote_char == '"' and char == '$':
                 # Save current part if any
                 if current_value:
                     parts.append(TokenPart(
                         value=current_value,
-                        quote_type='"',
+                        quote_type=quote_char,
                         is_variable=False,
                         start_pos=quote_start,
                         end_pos=self.position
                     ))
                     current_value = ""
                 
-                # Handle variable/expansion
-                var_start = self.position
+                # Parse the variable/expansion
                 self.advance()  # Skip $
-                
-                if self.current_char() == '(':
-                    if self.peek_char() == '(':
-                        # Arithmetic expansion in quotes
-                        self.advance(2)  # Skip ((
-                        arith_content = self.read_balanced_double_parens()
-                        parts.append(TokenPart(
-                            value='$((' + arith_content + '))',
-                            quote_type='"',
-                            is_expansion=True,
-                            start_pos=var_start,
-                            end_pos=self.position
-                        ))
-                    else:
-                        # Command substitution in quotes
-                        self.advance()  # Skip (
-                        cmd_content = self.read_balanced_parens()
-                        parts.append(TokenPart(
-                            value='$(' + cmd_content + ')',
-                            quote_type='"',
-                            is_expansion=True,
-                            start_pos=var_start,
-                            end_pos=self.position
-                        ))
-                elif self.current_char() == '{':
-                    # ${var} in quotes
-                    self.advance()  # Skip {
-                    var_name = '{'
-                    while self.current_char() and self.current_char() != '}':
-                        var_name += self.current_char()
-                        self.advance()
-                    if self.current_char() == '}':
-                        var_name += '}'
-                        self.advance()
-                    parts.append(TokenPart(
-                        value=var_name,
-                        quote_type='"',
-                        is_variable=True,
-                        start_pos=var_start,
-                        end_pos=self.position
-                    ))
-                else:
-                    # $var in quotes
-                    var_name = ''
-                    while self.current_char() and (self.current_char().isalnum() or self.current_char() in '_?$!#@*0123456789'):
-                        var_name += self.current_char()
-                        self.advance()
-                    parts.append(TokenPart(
-                        value=var_name,
-                        quote_type='"',
-                        is_variable=True,
-                        start_pos=var_start,
-                        end_pos=self.position
-                    ))
+                part = self.parse_variable_or_expansion(quote_char)
+                parts.append(part)
                 quote_start = self.position
             
+            # Backslash escapes
             elif char == '\\' and self.peek_char():
-                # Handle escape sequences
-                self.advance()
-                next_char = self.current_char()
-                if next_char in '"\\`':
-                    # Standard escapes: these characters lose the backslash
-                    current_value += next_char
-                elif next_char == 'n':
-                    # \n becomes newline
-                    current_value += '\n'
-                elif next_char == '$':
-                    # Special case: preserve \$ in double quotes (bash compatibility)
-                    current_value += '\\$'
-                else:
-                    # Other characters keep the backslash
-                    current_value += '\\' + next_char
-                self.advance()
+                escaped = self.handle_escape_sequence(quote_char)
+                current_value += escaped
+                self.advance()  # handle_escape_sequence already advanced
             
-            elif char == '`':
-                # Backtick command substitution in quotes
+            # Backtick command substitution (only in double quotes)
+            elif quote_char == '"' and char == '`':
+                # Save current part if any
                 if current_value:
                     parts.append(TokenPart(
                         value=current_value,
-                        quote_type='"',
+                        quote_type=quote_char,
                         is_variable=False,
                         start_pos=quote_start,
                         end_pos=self.position
                     ))
                     current_value = ""
                 
-                backtick_start = self.position
-                self.advance()  # Skip `
-                backtick_content = ''
-                while self.current_char() and self.current_char() != '`':
-                    if self.current_char() == '\\' and self.peek_char() in '`$\\':
-                        self.advance()
-                    backtick_content += self.current_char()
-                    self.advance()
-                if self.current_char() == '`':
-                    self.advance()
-                    
-                parts.append(TokenPart(
-                    value='`' + backtick_content + '`',
-                    quote_type='"',
-                    is_expansion=True,
-                    start_pos=backtick_start,
-                    end_pos=self.position
-                ))
+                # Parse backtick substitution
+                backtick_part = self._parse_backtick_substitution(quote_char)
+                parts.append(backtick_part)
                 quote_start = self.position
             
             else:
@@ -579,38 +662,39 @@ class StateMachineLexer:
         if current_value:
             parts.append(TokenPart(
                 value=current_value,
-                quote_type='"',
+                quote_type=quote_char,
                 is_variable=False,
                 start_pos=quote_start,
                 end_pos=self.position
             ))
         
-        # Skip closing quote if present
-        quote_closed = False
-        if self.current_char() == '"':
-            self.advance()
-            quote_closed = True
+        return parts
+    
+    def _parse_backtick_substitution(self, quote_context: Optional[str]) -> TokenPart:
+        """Parse backtick command substitution."""
+        start_pos = self.position
+        self.advance()  # Skip opening `
         
-        # Check if quote was closed
-        if not quote_closed:
-            raise SyntaxError(f"Unclosed quote at position {self.token_start}")
+        content = ""
+        while self.current_char() and self.current_char() != '`':
+            if self.current_char() == '\\' and self.peek_char() in '`$\\':
+                self.advance()  # Skip backslash
+            if self.current_char():
+                content += self.current_char()
+                self.advance()
         
-        # Build complete string value
-        full_value = ""
-        for part in parts:
-            if part.is_variable:
-                full_value += '$' + part.value
-            elif part.is_expansion:
-                full_value += part.value
-            else:
-                full_value += part.value
+        if self.current_char() == '`':
+            self.advance()  # Skip closing `
+        else:
+            raise SyntaxError(self._format_error("Unclosed backtick command substitution", start_pos))
         
-        # Store parts for later use
-        self.current_parts = parts
-        
-        # Emit token
-        self.emit_token(TokenType.STRING, full_value, self.token_start, '"')
-        self.state = LexerState.NORMAL
+        return TokenPart(
+            value='`' + content + '`',
+            quote_type=quote_context,
+            is_expansion=True,
+            start_pos=start_pos,
+            end_pos=self.position
+        )
     
     def handle_single_quote_state(self) -> None:
         """Handle reading inside single quotes (no expansion)."""
@@ -628,7 +712,7 @@ class StateMachineLexer:
         
         # Check if quote was closed
         if not quote_closed:
-            raise SyntaxError(f"Unclosed quote at position {self.token_start}")
+            raise SyntaxError(self._format_error("Unclosed single quote", self.token_start))
         
         # Single quotes preserve everything literally
         self.current_parts = [TokenPart(
@@ -669,7 +753,7 @@ class StateMachineLexer:
         
         # Check if brace was closed
         if not brace_closed:
-            raise SyntaxError(f"Unclosed brace expansion at position {self.token_start}")
+            raise SyntaxError(self._format_error("Unclosed brace expansion", self.token_start))
         
         self.emit_token(TokenType.VARIABLE, '{' + var_content + '}', self.token_start)
         self.state = LexerState.NORMAL
@@ -707,7 +791,7 @@ class StateMachineLexer:
         
         # Check if backtick was closed
         if not backtick_closed:
-            raise SyntaxError(f"Unclosed backtick at position {self.token_start}")
+            raise SyntaxError(self._format_error("Unclosed backtick command substitution", self.token_start))
         
         # Include the backticks in the token value to match original tokenizer
         self.emit_token(TokenType.COMMAND_SUB_BACKTICK, '`' + value + '`', self.token_start)
@@ -751,7 +835,7 @@ class StateMachineLexer:
         
         # Check if we hit EOF with unbalanced parens
         if depth > 0:
-            raise SyntaxError(f"Unclosed parenthesis at position {self.token_start}")
+            raise SyntaxError(self._format_error("Unclosed parenthesis", self.token_start))
             
         return content
     
@@ -788,7 +872,7 @@ class StateMachineLexer:
         
         # Check if we found the closing )) or hit EOF
         if not found_closing:
-            raise SyntaxError(f"Unclosed arithmetic expansion at position {self.token_start}")
+            raise SyntaxError(self._format_error("Unclosed arithmetic expansion", self.token_start))
             
         return content
     
@@ -856,21 +940,19 @@ class StateMachineLexer:
                 self.handle_backtick_state()
             elif self.state == LexerState.IN_COMMENT:
                 self.handle_comment_state()
-            elif self.state == LexerState.IN_DOUBLE_BRACKETS:
-                self.handle_normal_state()  # Use normal handling but with context
             else:
                 # Shouldn't happen, but recover
                 self.advance()
         
         # Check for unclosed quotes or other incomplete states
         if self.state == LexerState.IN_SINGLE_QUOTE:
-            raise SyntaxError(f"Unclosed quote at position {self.token_start}")
+            raise SyntaxError(self._format_error("Unclosed single quote", self.token_start))
         elif self.state == LexerState.IN_DOUBLE_QUOTE:
-            raise SyntaxError(f"Unclosed quote at position {self.token_start}")
+            raise SyntaxError(self._format_error("Unclosed double quote", self.token_start))
         elif self.state == LexerState.IN_BACKTICK:
-            raise SyntaxError(f"Unclosed backtick at position {self.token_start}")
-        elif self.state in (LexerState.IN_COMMAND_SUB, LexerState.IN_ARITHMETIC, LexerState.IN_PROCESS_SUB):
-            raise SyntaxError(f"Unclosed expansion at position {self.token_start}")
+            raise SyntaxError(self._format_error("Unclosed backtick command substitution", self.token_start))
+        elif self.state in (LexerState.IN_COMMAND_SUB, LexerState.IN_ARITHMETIC):
+            raise SyntaxError(self._format_error("Unclosed expansion", self.token_start))
         
         # Add EOF token
         self.emit_token(TokenType.EOF, '', self.position)

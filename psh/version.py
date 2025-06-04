@@ -2,10 +2,22 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.28.4"
+__version__ = "0.28.5"
 
 # Version history
 VERSION_HISTORY = """
+0.28.5 (2025-04-06) - State machine lexer refactoring for improved code clarity
+  - Refactored state_machine_lexer.py to eliminate code duplication and improve maintainability
+  - Extracted common variable/expansion parsing logic into reusable methods
+  - Defined constants for character sets and escape sequences, removing magic strings
+  - Broke down large state handler methods (137+ lines) into focused sub-methods
+  - Improved error messages with contextual snippets showing error location
+  - Optimized operator recognition with length-based lookup structure
+  - Removed unused state stack functionality and lexer states
+  - Maintained full backward compatibility while improving code elegance
+  - All 612 tests continue to pass with refactored implementation
+  - Educational clarity preserved while significantly reducing complexity
+
 0.28.4 (2025-04-06) - Critical bug fix for command substitution
   - Fixed AttributeError: 'Shell' object has no attribute '_execute_command_substitution'
   - Command substitution in for loops now works correctly: for x in $(cmd); do ...; done
@@ -26,7 +38,7 @@ VERSION_HISTORY = """
 0.28.2 (2025-04-06) - Important bug fixes for tokenization and expansion
   - Fixed != operator tokenization that was incorrectly splitting into ! and = tokens
   - Fixed COMPOSITE argument variable expansion (e.g., ${PREFIX}fix now expands correctly)
-  - Fixed PS1 escape sequence handling to preserve \$ in double quotes
+  - Fixed PS1 escape sequence handling to preserve \\$ in double quotes
   - Fixed 'done' keyword recognition to be context-sensitive
   - Fixed arithmetic expansion parsing inside double quotes
   - Achieved 100% test success rate (596 tests passing)
