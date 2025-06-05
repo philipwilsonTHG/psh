@@ -4,7 +4,7 @@
 
 ## Overview
 
-PSH has achieved significant feature completeness with **730+ passing tests**. This document tracks remaining features, known issues, and development priorities.
+PSH has achieved significant feature completeness with **749 passing tests**. This document tracks remaining features, known issues, and development priorities.
 
 ## Remaining Features
 
@@ -74,27 +74,12 @@ PSH has achieved significant feature completeness with **730+ passing tests**. T
 
 ### Tokenizer Issues
 
-#### Variable Assignment with Spaces
-- **Problem**: `VAR="value with spaces" command` incorrectly tokenized
-- **Impact**: Assignment before command fails with quoted values
-- **Workaround**: Set variable on separate line
-
 #### Quote Handling in Words
 - **Problem**: Quotes within words included in token value
 - **Example**: `a'b'c` tokenizes as `a'b'c` instead of `abc`
 - **Impact**: Incorrect output for concatenated quoted strings
 
 ### Other Issues
-
-#### For Loop Variable Persistence
-- **Problem**: Loop variables incorrectly restored after loop
-- **Expected**: Variable should retain last iteration value
-- **Workaround**: Save to different variable if persistence needed
-
-#### Builtin I/O Redirection
-- **Problem**: Builtins using `print()` don't respect redirections
-- **Affected**: echo, pwd, env, set, declare, alias, history, jobs
-- **Fix needed**: Use `os.write()` to file descriptors
 
 ## Test Suite Status
 

@@ -153,8 +153,8 @@ class TestLocalBuiltin:
         assert lines[0] == "Loop: 1"
         assert lines[1] == "Loop: 2"
         assert lines[2] == "Loop: 3"
-        # Note: psh currently restores loop variable value (differs from bash)
-        assert lines[3] == "After loop: "
+        # Local variable persists with last loop value (bash behavior)
+        assert lines[3] == "After loop: 3"
         assert lines[4] == "Global i:"
     
     def test_function_modifies_global_without_local(self, shell, capsys):

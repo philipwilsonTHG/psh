@@ -2,10 +2,24 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.32.0"
+__version__ = "0.33.0"
 
 # Version history
 VERSION_HISTORY = """
+0.33.0 (2025-01-06) - History expansion and for loop variable persistence fix
+  - Added complete bash-compatible history expansion (!!, !n, !-n, !string, !?string?)
+  - History expansion preprocessor runs before tokenization
+  - Context-aware expansion respects quotes and parameter expansions
+  - Fixed for loop variable persistence to match bash behavior
+  - Loop variables now retain their last iteration value after the loop
+  - Removed incorrect TODO.md entries for already-working features:
+    - Variable assignment with spaces (e.g., VAR="hello world")
+    - Builtin I/O redirection (all builtins respect redirections)
+  - Updated test suite to expect correct bash behavior
+  - Added comprehensive history expansion tests
+  - Total tests increased to 749 (all passing)
+  - Documentation improvements and TODO.md cleanup
+
 0.32.0 (2025-06-06) - Arithmetic command syntax implementation
   - Added standalone arithmetic command syntax: ((expression))
   - Returns proper exit status: 0 for non-zero results, 1 for zero results

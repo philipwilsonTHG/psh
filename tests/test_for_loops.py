@@ -109,19 +109,24 @@ class TestForLoops(unittest.TestCase):
         # but the loop structure should work
         self.assertTrue(len(output.strip()) > 0)
 
-    def test_for_variable_scoping(self):
-        """Test that for loop variable is properly scoped."""
+    def test_for_variable_persistence(self):
+        """Test that for loop variable persists after loop with last value."""
         # Set initial variable value
         self.shell.run_command("i=initial")
         
-        # Use i in for loop
-        result = self.shell.run_command("for i in new_value; do echo $i; done")
+        # Use i in for loop with multiple values
+        result = self.shell.run_command("for i in first second last; do echo $i; done")
         self.assertEqual(result, 0)
-        self.assertIn("new_value", self.get_output())
+        output = self.get_output()
+        self.assertIn("first", output)
+        self.assertIn("second", output)
+        self.assertIn("last", output)
         
-        # Check that original value is restored
+        # Check that variable has the last iteration value (bash behavior)
+        self.test_output.truncate(0)
+        self.test_output.seek(0)
         self.shell.run_command("echo $i")
-        # Note: This test may need adjustment based on variable restoration implementation
+        self.assertEqual(self.get_output().strip(), "last")
 
     def test_for_with_multiple_commands_in_body(self):
         """Test for loop with multiple commands in the body."""
@@ -235,8 +240,8 @@ done""")
         self.assertEqual(result, 0)
         self.assertIn("nested", self.get_output())
 
-    def test_for_variable_does_not_leak(self):
-        """Test that for loop variable doesn't leak when it didn't exist before."""
+    def test_for_variable_persists_when_new(self):
+        """Test that for loop variable persists even when it didn't exist before."""
         # Make sure variable doesn't exist initially
         self.assertNotIn('loop_var', self.shell.variables)
         
@@ -244,8 +249,9 @@ done""")
         result = self.shell.run_command("for loop_var in test; do echo $loop_var; done")
         self.assertEqual(result, 0)
         
-        # Variable should be cleaned up
-        self.assertNotIn('loop_var', self.shell.variables)
+        # Variable should persist with last value (bash behavior)
+        self.assertIn('loop_var', self.shell.variables)
+        self.assertEqual(self.shell.variables['loop_var'], 'test')
 
     def test_for_with_no_glob_matches(self):
         """Test for loop with glob pattern that matches no files."""

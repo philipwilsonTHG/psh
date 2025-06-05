@@ -120,35 +120,24 @@ class ControlFlowExecutor(ExecutorComponent):
                 expanded_items.extend(expanded)
             
             last_status = 0
-            
-            # Save the current value of the loop variable (if it exists)
             loop_var = node.variable
-            saved_value = self.state.get_variable(loop_var, None)
             
-            try:
-                for item in expanded_items:
-                    try:
-                        # Set loop variable
-                        self.state.set_variable(loop_var, item)
-                        
-                        # Execute body
-                        last_status = self.shell.execute_command_list(node.body)
-                        
-                    except LoopBreak as e:
-                        if e.level > 1:
-                            raise LoopBreak(e.level - 1)
-                        break
-                    except LoopContinue as e:
-                        if e.level > 1:
-                            raise LoopContinue(e.level - 1)
-                        continue
-            finally:
-                # Restore the previous value of the loop variable
-                if saved_value is not None:
-                    self.state.set_variable(loop_var, saved_value)
-                else:
-                    # Variable didn't exist before, remove it
-                    self.state.scope_manager.unset_variable(loop_var)
+            for item in expanded_items:
+                try:
+                    # Set loop variable
+                    self.state.set_variable(loop_var, item)
+                    
+                    # Execute body
+                    last_status = self.shell.execute_command_list(node.body)
+                    
+                except LoopBreak as e:
+                    if e.level > 1:
+                        raise LoopBreak(e.level - 1)
+                    break
+                except LoopContinue as e:
+                    if e.level > 1:
+                        raise LoopContinue(e.level - 1)
+                    continue
             
             return last_status
         finally:
