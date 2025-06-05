@@ -2,7 +2,7 @@
 
 An educational Unix shell implementation in Python, designed to teach shell internals and compiler/interpreter concepts through a clean, readable codebase.  All source code and documentation (with the exception of this sentence) has been written by Claude Code using Sonnet 4 and Opus 4 models.
 
-**Current Version**: 0.29.2 (2025-04-06)
+**Current Version**: 0.30.0 (2025-06-06)
 
 ## Overview
 
@@ -12,6 +12,8 @@ The shell features a modern component-based architecture where each subsystem (e
 
 ### Recent Major Features
 
+- **v0.30.0**: Advanced read builtin with -p, -s, -t, -n, -d options for interactive input
+- **v0.29.4**: Echo builtin flags (-n, -e, -E) with full escape sequence support
 - **v0.29.2**: Complete advanced parameter expansion with all bash string manipulation features
 - **v0.29.0**: Local variable support with function-scoped variables
 - **v0.28.x**: Major architectural refactoring, state machine lexer, component-based design
@@ -142,14 +144,14 @@ The shell features a modern component-based architecture where each subsystem (e
 
 ### Built-in Commands
 
-- **Core**: `exit`, `cd`, `pwd`, `echo`, `true`, `false`, `:`
+- **Core**: `exit`, `cd`, `pwd`, `echo` (with -n, -e, -E flags), `true`, `false`, `:`
 - **Variables**: `export`, `unset`, `set`, `declare`, `env`, `local`
 - **Job Control**: `jobs`, `fg`, `bg`
 - **Functions**: `return`, `source`, `.`
 - **Aliases**: `alias`, `unalias`
 - **Test**: `test`, `[`, `[[`
 - **History**: `history`
-- **I/O**: `read`
+- **I/O**: `read` (with -r, -p, -s, -t, -n, -d options)
 
 ### Additional Features
 
@@ -248,6 +250,23 @@ $ greet() {
 >   echo "Hello, ${name}!"
 > }
 $ greet "Python Shell"
+
+# Advanced read builtin
+$ read -p "Enter your name: " name
+Enter your name: Alice
+$ echo "Hello, $name"
+Hello, Alice
+
+$ read -s -p "Password: " pass && echo
+Password: 
+$ echo "Password has ${#pass} characters"
+Password has 8 characters
+
+$ if read -t 5 -p "Quick! Answer in 5 seconds: " answer; then
+>   echo "You said: $answer"
+> else
+>   echo "Too slow!"
+> fi
 
 # Advanced parameter expansion
 $ file="document.txt"
@@ -448,9 +467,9 @@ See [TODO.md](TODO.md) for a complete list of planned features.
 
 ## Implementation Status
 
-PSH has achieved significant feature completeness with **680+ passing tests**:
+PSH has achieved significant feature completeness with **700+ passing tests**:
 
-### ✅ Fully Implemented (v0.29.2)
+### ✅ Fully Implemented (v0.30.0)
 - All core shell features (execution, I/O, pipelines, variables)
 - Complete expansion system (variable, parameter, command, arithmetic, brace, process)
 - All control structures (if/elif/else, while, for, case, break/continue)
@@ -460,6 +479,8 @@ PSH has achieved significant feature completeness with **680+ passing tests**:
 - Advanced parameter expansion with all bash string manipulation
 - Enhanced test operators `[[ ]]` with regex support
 - Arithmetic expansion with command substitution support
+- Advanced read builtin with interactive input options (-p, -s, -t, -n, -d)
+- Echo builtin with full escape sequence support (-n, -e, -E)
 
 ### 🚧 Planned Features
 - C-style for loops: `for ((i=0; i<10; i++))`

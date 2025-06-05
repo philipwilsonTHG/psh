@@ -1,10 +1,10 @@
 # Python Shell (psh) - TODO List
 
-**Current Version**: 0.29.2 (2025-04-06)
+**Current Version**: 0.30.0 (2025-06-06)
 
 ## Overview
 
-PSH has achieved significant feature completeness with **680+ passing tests**. This document tracks remaining features, known issues, and development priorities.
+PSH has achieved significant feature completeness with **700+ passing tests**. This document tracks remaining features, known issues, and development priorities.
 
 ## Remaining Features
 
@@ -16,16 +16,6 @@ PSH has achieved significant feature completeness with **680+ passing tests**. T
 - **Dependencies**: Leverages existing arithmetic expansion system (v0.28.9)
 - **Impact**: Completes the iteration construct family
 
-#### Enhanced Read Builtin
-- **Description**: Additional options for interactive input
-- **Status**: Basic functionality implemented (v0.20.1), advanced features in progress
-- **Implementation Plan**: See `docs/advanced_read_builtin_plan.md`
-- **Remaining**:
-  - `-p prompt`: Display prompt string
-  - `-s`: Silent mode (no echo)
-  - `-t timeout`: Timeout after N seconds
-  - `-n chars`: Read only N characters
-  - `-d delimiter`: Use custom delimiter instead of newline
 
 #### Shell Options (`set` command)
 - **Description**: Script debugging and error handling options
@@ -134,6 +124,18 @@ PSH has achieved significant feature completeness with **680+ passing tests**. T
 ## Implementation History
 
 ### Recent Releases
+
+#### v0.30.0 - Advanced Read Builtin Features
+- Implemented -p prompt, -s silent, -t timeout, -n chars, -d delimiter options
+- Proper terminal handling with termios for raw mode operations
+- Support for non-TTY inputs for better testability
+- All options can be combined (e.g., -sn 4 -p "PIN: ")
+- 29 comprehensive tests with full bash compatibility
+
+#### v0.29.4 - Echo Builtin Flags
+- Added -n, -e, -E flags with full escape sequence support
+- Unicode and octal escape sequences
+- Proper handling in pipelines and subprocesses
 
 #### v0.29.2 - Advanced Parameter Expansion
 - Complete bash-compatible string manipulation

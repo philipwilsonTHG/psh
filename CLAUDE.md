@@ -8,11 +8,6 @@ Python Shell (psh) is an educational Unix shell implementation designed for teac
 
 ## Current Development Focus
 
-**Enhanced Read Builtin** (Current Work)
-- Implementing advanced options: -p (prompt), -s (silent), -t (timeout), -n (chars), -d (delimiter)
-- Building on existing read implementation from v0.20.1
-- See `docs/advanced_read_builtin_plan.md` for implementation details
-
 **C-style For Loops** (Next Priority)
 - Implementing arithmetic-based iteration: `for ((i=0; i<10; i++))`
 - Leverages existing arithmetic expansion system from v0.18.0
@@ -247,7 +242,7 @@ Implemented:
 - I/O redirections (<, >, >>, 2>, 2>>, 2>&1, <<<)
 - Multiple commands (;) and background execution (&)
 - Quoted strings (single and double) with proper variable expansion
-- Built-ins: exit, cd, export, pwd, echo (with -n, -e, -E flags), unset, env, source, ., history, set, declare, return, jobs, fg, bg, alias, unalias, test, [, true, false, :
+- Built-ins: exit, cd, export, pwd, echo (with -n, -e, -E flags), read (with -r, -p, -s, -t, -n, -d options), unset, env, source, ., history, set, declare, return, jobs, fg, bg, alias, unalias, test, [, true, false, :
 - Wildcards/globbing (*, ?, [...])
 - Exit status tracking ($? variable)
 - Command history with persistence (~/.psh_history)
@@ -339,11 +334,22 @@ Implemented:
   - Combined flags support (-ne, -en, etc.)
   - Proper handling in pipelines and subprocesses
 
+- Advanced read builtin features - ✅ **Implemented in v0.30.0**
+  - Added -p prompt option to display custom prompts on stderr
+  - Added -s silent mode for password input (no character echo)
+  - Added -t timeout option with configurable timeout and exit code 142
+  - Added -n chars option to read exactly N characters
+  - Added -d delimiter option to use custom delimiter instead of newline
+  - Proper terminal handling with termios for raw mode operations
+  - Context manager ensures terminal state is always restored
+  - Support for non-TTY inputs (StringIO) for better testability
+  - All options can be combined (e.g., -sn 4 -p "PIN: " for 4-char password)
+  - 29 comprehensive tests with full bash compatibility
+
 Not implemented:
 - C-style for loops (for ((i=0; i<10; i++)))
 - Advanced shell options (set -e, -u, -x, -o pipefail)
 - Trap command for signal handling
-- Advanced read builtin features (-p prompt, -s silent, -t timeout, -n chars, -d delimiter)
 - Escaped glob patterns
 - Array variables
 - Select statement
