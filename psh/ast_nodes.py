@@ -114,6 +114,16 @@ class ForStatement(Statement):
 
 
 @dataclass
+class CStyleForStatement(Statement):
+    """C-style for loop: for ((init; condition; update))"""
+    init_expr: Optional[str] = None      # Initialization expression (can be empty)
+    condition_expr: Optional[str] = None # Condition expression (can be empty)  
+    update_expr: Optional[str] = None    # Update expression (can be empty)
+    body: StatementList = field(default_factory=lambda: StatementList())  # Loop body
+    redirects: List[Redirect] = field(default_factory=list)  # Redirections for the entire loop
+
+
+@dataclass
 class BreakStatement(Statement):
     """Break statement to exit loops."""
     level: int = 1  # Number of loops to break out of (default 1)

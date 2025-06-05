@@ -1,7 +1,9 @@
 """Control flow statement execution."""
+import sys
 from typing import List
 from ..ast_nodes import (IfStatement, WhileStatement, ForStatement, 
-                         CaseStatement, BreakStatement, ContinueStatement, EnhancedTestStatement)
+                         CStyleForStatement, CaseStatement, BreakStatement, 
+                         ContinueStatement, EnhancedTestStatement)
 from .base import ExecutorComponent
 from ..core.exceptions import LoopBreak, LoopContinue
 
@@ -16,6 +18,8 @@ class ControlFlowExecutor(ExecutorComponent):
             return self.execute_while(node)
         elif isinstance(node, ForStatement):
             return self.execute_for(node)
+        elif isinstance(node, CStyleForStatement):
+            return self.execute_c_style_for(node)
         elif isinstance(node, CaseStatement):
             return self.execute_case(node)
         elif isinstance(node, BreakStatement):
@@ -246,3 +250,55 @@ class ControlFlowExecutor(ExecutorComponent):
             if fnmatch.fnmatch(expr, pattern_str):
                 return True
         return False
+    
+    def execute_c_style_for(self, node: CStyleForStatement) -> int:
+        """Execute C-style for loop: for ((init; condition; update))"""
+        # Apply redirections if present
+        if node.redirects:
+            saved_fds = self.io_manager.apply_redirections(node.redirects)
+        else:
+            saved_fds = None
+        
+        try:
+            # Execute initialization expression
+            if node.init_expr:
+                self._evaluate_arithmetic(node.init_expr)
+            
+            last_status = 0
+            
+            while True:
+                try:
+                    # Check condition (empty means true, 0 means false)
+                    if node.condition_expr:
+                        result = self._evaluate_arithmetic(node.condition_expr)
+                        if result == 0:
+                            break
+                    
+                    # Execute body
+                    last_status = self.shell.execute_command_list(node.body)
+                    
+                    # Execute update expression (except when breaking)
+                    if node.update_expr:
+                        self._evaluate_arithmetic(node.update_expr)
+                        
+                except LoopBreak as e:
+                    if e.level > 1:
+                        raise LoopBreak(e.level - 1)
+                    break
+                except LoopContinue as e:
+                    if e.level > 1:
+                        raise LoopContinue(e.level - 1)
+                    # Execute update before continuing
+                    if node.update_expr:
+                        self._evaluate_arithmetic(node.update_expr)
+                    continue
+            
+            return last_status
+        finally:
+            if saved_fds:
+                self.io_manager.restore_redirections(saved_fds)
+    
+    def _evaluate_arithmetic(self, expr: str) -> int:
+        """Evaluate arithmetic expression using shell's arithmetic system."""
+        from ..arithmetic import evaluate_arithmetic
+        return evaluate_arithmetic(expr, self.shell)

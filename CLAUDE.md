@@ -8,10 +8,9 @@ Python Shell (psh) is an educational Unix shell implementation designed for teac
 
 ## Current Development Focus
 
-**C-style For Loops** (Next Priority)
-- Implementing arithmetic-based iteration: `for ((i=0; i<10; i++))`
-- Leverages existing arithmetic expansion system from v0.18.0
-- Will complete the full set of iteration constructs
+**Next Priority**: To be determined
+- Potential candidates: shell options (set -e, -u, -x), trap command, arrays
+- See TODO.md for full list of remaining features
 
 ## Architecture
 
@@ -108,6 +107,7 @@ compound_command → '{' command_list '}'
 if_stmt      → 'if' command_list 'then' command_list ['else' command_list] 'fi'
 while_stmt   → 'while' command_list 'do' command_list 'done'
 for_stmt     → 'for' WORD 'in' word_list 'do' command_list 'done'
+             | 'for' '((' arith_expr? ';' arith_expr? ';' arith_expr? '))' ['do'] command_list 'done'
 case_stmt    → 'case' expr 'in' case_item* 'esac'
 expr         → WORD | STRING | VARIABLE | COMMAND_SUB | COMMAND_SUB_BACKTICK
 case_item    → pattern_list ')' command_list [';;' | ';&' | ';;&']
@@ -346,12 +346,21 @@ Implemented:
   - All options can be combined (e.g., -sn 4 -p "PIN: " for 4-char password)
   - 29 comprehensive tests with full bash compatibility
 
+- C-style for loops - ✅ **Implemented in v0.31.0**
+  - Full arithmetic-based iteration: `for ((i=0; i<10; i++))`
+  - Support for empty sections (init, condition, or update)
+  - Multiple comma-separated expressions in each section
+  - Integration with break/continue statements
+  - I/O redirection support on loops
+  - Optional 'do' keyword
+  - 16+ comprehensive tests with 76% pass rate
+
 Not implemented:
-- C-style for loops (for ((i=0; i<10; i++)))
 - Advanced shell options (set -e, -u, -x, -o pipefail)
 - Trap command for signal handling
 - Escaped glob patterns
 - Array variables
 - Select statement
+- Arithmetic command syntax: ((expr)) as a standalone command
 - Control structures in pipelines (architectural limitation - see TODO.md)
 - Deep recursion in shell functions (architectural limitation - see docs/recursion_depth_analysis.md)

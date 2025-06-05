@@ -2,8 +2,8 @@
 import sys
 from ..ast_nodes import (CommandList, AndOrList, Pipeline, ASTNode, TopLevel,
                          FunctionDef, IfStatement, WhileStatement, ForStatement,
-                         BreakStatement, ContinueStatement, CaseStatement,
-                         EnhancedTestStatement)
+                         CStyleForStatement, BreakStatement, ContinueStatement, 
+                         CaseStatement, EnhancedTestStatement)
 from .base import ExecutorComponent
 from ..builtins.function_support import FunctionReturn
 from ..core.exceptions import LoopBreak, LoopContinue
@@ -37,6 +37,8 @@ class StatementExecutor(ExecutorComponent):
                     exit_code = self.shell.executor_manager.control_flow_executor.execute_while(item)
                 elif isinstance(item, ForStatement):
                     exit_code = self.shell.executor_manager.control_flow_executor.execute_for(item)
+                elif isinstance(item, CStyleForStatement):
+                    exit_code = self.shell.executor_manager.control_flow_executor.execute_c_style_for(item)
                 elif isinstance(item, CaseStatement):
                     exit_code = self.shell.executor_manager.control_flow_executor.execute_case(item)
                 elif isinstance(item, EnhancedTestStatement):
@@ -102,6 +104,11 @@ class StatementExecutor(ExecutorComponent):
                     self.io_manager.collect_heredocs(item)
                     # Execute for statement
                     last_exit = self.shell.executor_manager.control_flow_executor.execute_for(item)
+                elif isinstance(item, CStyleForStatement):
+                    # Collect here documents
+                    self.io_manager.collect_heredocs(item)
+                    # Execute C-style for statement
+                    last_exit = self.shell.executor_manager.control_flow_executor.execute_c_style_for(item)
                 elif isinstance(item, CaseStatement):
                     # Collect here documents
                     self.io_manager.collect_heredocs(item)

@@ -2,7 +2,7 @@
 
 An educational Unix shell implementation in Python, designed to teach shell internals and compiler/interpreter concepts through a clean, readable codebase.  All source code and documentation (with the exception of this sentence) has been written by Claude Code using Sonnet 4 and Opus 4 models.
 
-**Current Version**: 0.30.0 (2025-06-06)
+**Current Version**: 0.31.0 (2025-06-06)
 
 ## Overview
 
@@ -12,6 +12,7 @@ The shell features a modern component-based architecture where each subsystem (e
 
 ### Recent Major Features
 
+- **v0.31.0**: C-style for loops with arithmetic iteration `for ((i=0; i<10; i++))`
 - **v0.30.0**: Advanced read builtin with -p, -s, -t, -n, -d options for interactive input
 - **v0.29.4**: Echo builtin flags (-n, -e, -E) with full escape sequence support
 - **v0.29.2**: Complete advanced parameter expansion with all bash string manipulation features
@@ -91,6 +92,7 @@ The shell features a modern component-based architecture where each subsystem (e
   - `if`/`then`/`else`/`elif`/`fi` conditional statements with command substitution
   - `while`/`do`/`done` loops
   - `for`/`in`/`do`/`done` loops with brace and glob expansion
+  - **C-style for loops**: `for ((i=0; i<10; i++))` with arithmetic expressions (v0.31.0)
   - `case`/`esac` pattern matching with command substitution
   - `break` and `continue` statements with multi-level support (`break 2`)
   
@@ -234,6 +236,11 @@ $ for file in *.txt; do
 >   echo "Processing $file"
 > done
 
+# C-style for loops
+$ for ((i=0; i<5; i++)); do
+>   echo "Count: $i"
+> done
+
 # Multi-level break/continue
 $ for i in 1 2 3; do
 >   for j in a b c; do
@@ -349,6 +356,7 @@ if_stmt      → 'if' command_list 'then' command_list
                ['else' command_list] 'fi'
 while_stmt   → 'while' command_list 'do' command_list 'done'
 for_stmt     → 'for' WORD 'in' word_list 'do' command_list 'done'
+             | 'for' '((' [arith_expr] ';' [arith_expr] ';' [arith_expr] '))' ['do'] command_list 'done'
 case_stmt    → 'case' word 'in' case_item* 'esac'
 case_item    → pattern_list ')' command_list terminator
 terminator   → ';;' | ';&' | ';;&'
@@ -467,12 +475,12 @@ See [TODO.md](TODO.md) for a complete list of planned features.
 
 ## Implementation Status
 
-PSH has achieved significant feature completeness with **700+ passing tests**:
+PSH has achieved significant feature completeness with **720+ passing tests**:
 
-### ✅ Fully Implemented (v0.30.0)
+### ✅ Fully Implemented (v0.31.0)
 - All core shell features (execution, I/O, pipelines, variables)
 - Complete expansion system (variable, parameter, command, arithmetic, brace, process)
-- All control structures (if/elif/else, while, for, case, break/continue)
+- All control structures (if/elif/else, while, for, C-style for, case, break/continue)
 - Shell functions with local variables and parameter isolation
 - Job control with process group management
 - Interactive features (line editing, completion, history, prompts)
@@ -481,14 +489,14 @@ PSH has achieved significant feature completeness with **700+ passing tests**:
 - Arithmetic expansion with command substitution support
 - Advanced read builtin with interactive input options (-p, -s, -t, -n, -d)
 - Echo builtin with full escape sequence support (-n, -e, -E)
+- C-style for loops with arithmetic iteration
 
 ### 🚧 Planned Features
-- C-style for loops: `for ((i=0; i<10; i++))`
 - Advanced shell options: `set -e`, `set -u`, `set -x`, `set -o pipefail`
 - Trap command for signal handling
 - Array variables and associative arrays
 - Select statement for menu generation
-- More read builtin options: `-t timeout`, `-n chars`, `-s silent`
+- Arithmetic command syntax: `((expr))` as a standalone command
 
 ## Contributing
 

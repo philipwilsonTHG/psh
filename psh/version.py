@@ -2,10 +2,26 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.30.0"
+__version__ = "0.31.0"
 
 # Version history
 VERSION_HISTORY = """
+0.31.0 (2025-06-06) - C-style for loops implementation
+  - Added full C-style for loop support: for ((init; condition; update))
+  - Support for empty sections - any or all of init, condition, update can be omitted
+  - Multiple comma-separated expressions in init and update sections
+  - Integration with existing arithmetic expansion system
+  - Proper break/continue statement support with update execution
+  - I/O redirection support on entire loop
+  - Optional 'do' keyword (can omit for single commands)
+  - Parser enhancements to handle arithmetic expressions with redirects
+  - Added CStyleForStatement AST node
+  - Extended ControlFlowExecutor with execute_c_style_for method
+  - Fixed statement executor routing for C-style for statements
+  - Added 21 comprehensive tests covering various use cases
+  - Documentation updates in CLAUDE.md, README.md, and TODO.md
+  - Known limitation: ((expr)) arithmetic command syntax not implemented
+
 0.30.0 (2025-06-06) - Advanced read builtin features
   - Added -p prompt option to display custom prompts on stderr
   - Added -s silent mode for password input (no character echo)

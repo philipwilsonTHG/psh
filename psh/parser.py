@@ -3,10 +3,10 @@ from .token_types import Token, TokenType
 from .ast_nodes import (
     Command, Pipeline, CommandList, StatementList, AndOrList, Redirect, 
     FunctionDef, TopLevel, IfStatement, WhileStatement, ForStatement, 
-    BreakStatement, ContinueStatement, CaseStatement, CaseItem, CasePattern, 
-    ProcessSubstitution, EnhancedTestStatement, TestExpression, 
-    BinaryTestExpression, UnaryTestExpression, CompoundTestExpression, 
-    NegatedTestExpression, Statement
+    CStyleForStatement, BreakStatement, ContinueStatement, CaseStatement, 
+    CaseItem, CasePattern, ProcessSubstitution, EnhancedTestStatement, 
+    TestExpression, BinaryTestExpression, UnaryTestExpression, 
+    CompoundTestExpression, NegatedTestExpression, Statement
 )
 
 
@@ -489,11 +489,27 @@ class Parser:
         )
         return WhileStatement(condition, body, redirects)
     
-    def parse_for_statement(self) -> ForStatement:
-        """Parse for/in/do/done loop statement."""
+    def parse_for_statement(self) -> Union[ForStatement, CStyleForStatement]:
+        """Parse for loop (traditional or C-style)."""
         self.expect(TokenType.FOR)
         self.skip_newlines()
         
+        # Check if it's a C-style for loop by looking for ((
+        # We need to check for two consecutive LPAREN tokens
+        if self.peek().type == TokenType.LPAREN:
+            # Save position in case we need to backtrack
+            saved_pos = self.current
+            self.advance()  # consume first (
+            
+            if self.peek().type == TokenType.LPAREN:
+                # It's a C-style for loop
+                self.advance()  # consume second (
+                return self._parse_c_style_for()
+            else:
+                # Not C-style, backtrack
+                self.current = saved_pos
+        
+        # Traditional for loop
         # Variable name
         var_token = self.expect(TokenType.WORD)
         variable = var_token.value
@@ -532,6 +548,119 @@ class Parser:
                 break
         
         return iterable
+    
+    def _parse_c_style_for(self) -> CStyleForStatement:
+        """Parse C-style for loop: for ((init; condition; update))"""
+        # At this point, we've already consumed 'for (('
+        
+        # Parse initialization expression (until semicolon)
+        init_expr = self._parse_arithmetic_section(';')
+        if self.peek().type == TokenType.SEMICOLON:
+            self.advance()  # consume semicolon
+        
+        # Parse condition expression (until semicolon)
+        condition_expr = self._parse_arithmetic_section(';')
+        if self.peek().type == TokenType.SEMICOLON:
+            self.advance()  # consume semicolon
+        
+        # Parse update expression (until double rparen)
+        update_expr = self._parse_arithmetic_section_until_double_rparen()
+        
+        # Expect )) - two RPAREN tokens
+        self.expect(TokenType.RPAREN)
+        self.expect(TokenType.RPAREN)
+        
+        # Skip any separators after ))
+        self.skip_separators()
+        
+        # Skip optional DO
+        if self.peek().type == TokenType.DO:
+            self.advance()
+        
+        self.skip_newlines()
+        
+        # Parse loop body
+        body = self.parse_command_list_until(TokenType.DONE)
+        
+        self.expect(TokenType.DONE)
+        redirects = self.parse_redirects()
+        
+        return CStyleForStatement(init_expr, condition_expr, update_expr, body, redirects)
+    
+    def _parse_arithmetic_section(self, terminator: str) -> Optional[str]:
+        """Parse arithmetic expression section until terminator character."""
+        expr_parts = []
+        paren_depth = 0
+        
+        while not self.at_end():
+            token = self.peek()
+            
+            # Check for terminator at depth 0
+            if paren_depth == 0 and token.type == TokenType.SEMICOLON and terminator == ';':
+                break
+            
+            # Track parentheses depth
+            if token.type == TokenType.LPAREN:
+                paren_depth += 1
+            elif token.type == TokenType.RPAREN:
+                if paren_depth == 0:
+                    # This might be the end of the C-style for
+                    break
+                paren_depth -= 1
+            
+            # For operators that got tokenized as redirects, use their raw form
+            if token.type == TokenType.REDIRECT_IN:
+                expr_parts.append('<')
+            elif token.type == TokenType.REDIRECT_OUT:
+                expr_parts.append('>')
+            else:
+                expr_parts.append(token.value)
+                
+            # Add space between tokens if needed
+            if len(expr_parts) > 1 and expr_parts[-2][-1].isalnum() and token.value[0].isalnum():
+                expr_parts.insert(-1, ' ')
+                
+            self.advance()
+        
+        return ''.join(expr_parts).strip() if expr_parts else None
+    
+    def _parse_arithmetic_section_until_double_rparen(self) -> Optional[str]:
+        """Parse arithmetic expression until we find )) at depth 0."""
+        expr_parts = []
+        paren_depth = 0
+        
+        while not self.at_end():
+            token = self.peek()
+            
+            # Check for )) at depth 0
+            if paren_depth == 0 and token.type == TokenType.RPAREN:
+                # Peek ahead to see if next is also RPAREN
+                next_pos = self.current + 1
+                if next_pos < len(self.tokens) and self.tokens[next_pos].type == TokenType.RPAREN:
+                    # Found ))
+                    break
+            
+            # Track parentheses depth
+            if token.type == TokenType.LPAREN:
+                paren_depth += 1
+            elif token.type == TokenType.RPAREN:
+                paren_depth -= 1
+            
+            # For operators that got tokenized as redirects, use their raw form
+            if token.type == TokenType.REDIRECT_IN:
+                expr_parts.append('<')
+            elif token.type == TokenType.REDIRECT_OUT:
+                expr_parts.append('>')
+            else:
+                expr_parts.append(token.value)
+                
+            # Add space between tokens if needed
+            if len(expr_parts) > 1 and expr_parts[-2] and expr_parts[-2][-1].isalnum() and token.value and token.value[0].isalnum():
+                expr_parts.insert(-1, ' ')
+                
+            self.advance()
+        
+        return ''.join(expr_parts).strip() if expr_parts else None
     
     def _parse_loop_structure(self, start: TokenType, body_start: TokenType, 
                             body_end: TokenType) -> Tuple[StatementList, StatementList, List[Redirect]]:
