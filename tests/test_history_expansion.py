@@ -104,12 +104,14 @@ class TestHistoryExpansion:
             sys.stderr = old_stderr
     
     def test_no_expansion_in_quotes(self):
-        """Test that history expansion doesn't happen in certain contexts."""
-        # For now, we do simple expansion everywhere
-        # In the future, we might want to skip expansion in single quotes
+        """Test that history expansion doesn't happen in quotes."""
+        # History expansion should not happen in single quotes
         expanded = self.shell.history_expander.expand_history("echo '!!'")
-        # Currently, we expand everywhere - this is a known limitation
-        assert expanded == "echo 'cd /tmp'"
+        assert expanded == "echo '!!'"
+        
+        # History expansion should not happen in double quotes either
+        expanded = self.shell.history_expander.expand_history('echo "!!"')
+        assert expanded == 'echo "!!"'
     
     def test_empty_history(self):
         """Test expansion with empty history."""
