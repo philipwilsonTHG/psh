@@ -301,4 +301,7 @@ class ControlFlowExecutor(ExecutorComponent):
     def _evaluate_arithmetic(self, expr: str) -> int:
         """Evaluate arithmetic expression using shell's arithmetic system."""
         from ..arithmetic import evaluate_arithmetic
+        # Handle empty expressions
+        if not expr or not expr.strip():
+            return 1  # Empty expression is true in bash
         return evaluate_arithmetic(expr, self.shell)

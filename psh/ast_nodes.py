@@ -158,6 +158,13 @@ class CaseStatement(Statement):
 
 
 @dataclass
+class ArithmeticCommand(Statement):
+    """Arithmetic command ((expression))."""
+    expression: str
+    redirects: List[Redirect] = field(default_factory=list)
+
+
+@dataclass
 class TopLevel(ASTNode):
     """Root node that can contain functions and/or commands."""
     items: List[Union[Statement, StatementList]] = field(default_factory=list)  # List of Statement or StatementList

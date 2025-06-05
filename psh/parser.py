@@ -6,7 +6,7 @@ from .ast_nodes import (
     CStyleForStatement, BreakStatement, ContinueStatement, CaseStatement, 
     CaseItem, CasePattern, ProcessSubstitution, EnhancedTestStatement, 
     TestExpression, BinaryTestExpression, UnaryTestExpression, 
-    CompoundTestExpression, NegatedTestExpression, Statement
+    CompoundTestExpression, NegatedTestExpression, Statement, ArithmeticCommand
 )
 
 
@@ -42,7 +42,7 @@ class TokenGroups:
     CONTROL_KEYWORDS = {
         TokenType.IF, TokenType.WHILE, TokenType.FOR, 
         TokenType.CASE, TokenType.BREAK, TokenType.CONTINUE,
-        TokenType.DOUBLE_LBRACKET
+        TokenType.DOUBLE_LBRACKET, TokenType.DOUBLE_LPAREN
     }
     
     STATEMENT_SEPARATORS = {TokenType.SEMICOLON, TokenType.NEWLINE}
@@ -193,6 +193,8 @@ class Parser:
             return self.parse_continue_statement()
         elif token_type == TokenType.DOUBLE_LBRACKET:
             return self.parse_enhanced_test_statement()
+        elif token_type == TokenType.DOUBLE_LPAREN:
+            return self.parse_arithmetic_command()
         else:
             raise ParseError(f"Unexpected control structure token: {token_type.name}", self.peek())
     
@@ -226,6 +228,8 @@ class Parser:
             return self.parse_case_statement()
         elif self.match(TokenType.DOUBLE_LBRACKET):
             return self.parse_enhanced_test_statement()
+        elif self.match(TokenType.DOUBLE_LPAREN):
+            return self.parse_arithmetic_command()
         elif self._is_function_def():
             return self.parse_function_def()
         else:
@@ -494,10 +498,13 @@ class Parser:
         self.expect(TokenType.FOR)
         self.skip_newlines()
         
-        # Check if it's a C-style for loop by looking for ((
-        # We need to check for two consecutive LPAREN tokens
-        if self.peek().type == TokenType.LPAREN:
-            # Save position in case we need to backtrack
+        # Check if it's a C-style for loop by looking for (( or DOUBLE_LPAREN
+        if self.peek().type == TokenType.DOUBLE_LPAREN:
+            # It's a C-style for loop with DOUBLE_LPAREN token
+            self.advance()  # consume ((
+            return self._parse_c_style_for()
+        elif self.peek().type == TokenType.LPAREN:
+            # Check for two consecutive LPAREN tokens
             saved_pos = self.current
             self.advance()  # consume first (
             
@@ -557,6 +564,13 @@ class Parser:
         init_expr = self._parse_arithmetic_section(';')
         if self.peek().type == TokenType.SEMICOLON:
             self.advance()  # consume semicolon
+        elif self.peek().type == TokenType.DOUBLE_SEMICOLON:
+            # We have ;;, need to handle this specially
+            # Skip the ;; and add back a ; for the next section
+            self.advance()  # consume ;;
+            # Insert a semicolon token for the next parse
+            semicolon_token = Token(TokenType.SEMICOLON, ';', self.peek().position)
+            self.tokens.insert(self.current, semicolon_token)
         
         # Parse condition expression (until semicolon)
         condition_expr = self._parse_arithmetic_section(';')
@@ -596,8 +610,12 @@ class Parser:
             token = self.peek()
             
             # Check for terminator at depth 0
-            if paren_depth == 0 and token.type == TokenType.SEMICOLON and terminator == ';':
-                break
+            if paren_depth == 0 and terminator == ';':
+                if token.type == TokenType.SEMICOLON:
+                    break
+                elif token.type == TokenType.DOUBLE_SEMICOLON:
+                    # Found ;;, treat first ; as terminator
+                    break
             
             # Track parentheses depth
             if token.type == TokenType.LPAREN:
@@ -622,7 +640,7 @@ class Parser:
                 
             self.advance()
         
-        return ''.join(expr_parts).strip() if expr_parts else None
+        return ''.join(expr_parts).strip() if expr_parts else ""
     
     def _parse_arithmetic_section_until_double_rparen(self) -> Optional[str]:
         """Parse arithmetic expression until we find )) at depth 0."""
@@ -961,6 +979,56 @@ class Parser:
             '=', '==', '!=', '<', '>', '-eq', '-ne', '-lt', '-le', '-gt', '-ge',
             '-nt', '-ot', '-ef'
         }
+    
+    # === Arithmetic Command ===
+    
+    def parse_arithmetic_command(self) -> ArithmeticCommand:
+        """Parse arithmetic command: ((expression))"""
+        # Consume the (( token
+        self.expect(TokenType.DOUBLE_LPAREN)
+        
+        # Parse expression until ))
+        expr = self._parse_arithmetic_expression_until_double_rparen()
+        
+        # Expect ))
+        self.expect(TokenType.RPAREN)
+        self.expect(TokenType.RPAREN)
+        
+        # Parse any redirects (rare but allowed)
+        redirects = self.parse_redirects()
+        
+        return ArithmeticCommand(expr, redirects)
+    
+    def _parse_arithmetic_expression_until_double_rparen(self) -> str:
+        """Parse arithmetic expression until )) is found."""
+        expr = ""
+        paren_depth = 0
+        
+        while not self.at_end():
+            token = self.peek()
+            
+            # Check for )) at depth 0
+            if token.type == TokenType.RPAREN and paren_depth == 0:
+                # Look ahead for another )
+                if self.current + 1 < len(self.tokens) and self.tokens[self.current + 1].type == TokenType.RPAREN:
+                    break
+            
+            # Track parentheses depth
+            if token.type == TokenType.LPAREN:
+                paren_depth += 1
+            elif token.type == TokenType.RPAREN:
+                paren_depth -= 1
+            
+            expr += token.value
+            self.advance()
+            
+            # Add space between tokens if needed
+            if not self.at_end() and self.peek().type != TokenType.RPAREN:
+                next_token = self.peek()
+                if token.type == TokenType.WORD and next_token.type == TokenType.WORD:
+                    expr += " "
+        
+        return expr.strip()
     
     # === Redirections ===
     

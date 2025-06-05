@@ -8,8 +8,11 @@ Python Shell (psh) is an educational Unix shell implementation designed for teac
 
 ## Current Development Focus
 
-**Next Priority**: To be determined
-- Potential candidates: shell options (set -e, -u, -x), trap command, arrays
+**Next Priority**: Arithmetic command syntax `((expr))`
+- Standalone arithmetic evaluation returning exit status
+- Enables 5 currently xfailed C-style for loop tests
+- Required for full bash compatibility in conditions and loops
+- Implementation plan available in `docs/arithmetic_command_implementation_plan.md`
 - See TODO.md for full list of remaining features
 
 ## Architecture
@@ -361,6 +364,6 @@ Not implemented:
 - Escaped glob patterns
 - Array variables
 - Select statement
-- Arithmetic command syntax: ((expr)) as a standalone command
+- Arithmetic command syntax: ((expr)) as a standalone command (impacts 5 C-style for loop tests)
 - Control structures in pipelines (architectural limitation - see TODO.md)
 - Deep recursion in shell functions (architectural limitation - see docs/recursion_depth_analysis.md)

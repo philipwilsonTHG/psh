@@ -3,7 +3,7 @@ import sys
 from ..ast_nodes import (CommandList, AndOrList, Pipeline, ASTNode, TopLevel,
                          FunctionDef, IfStatement, WhileStatement, ForStatement,
                          CStyleForStatement, BreakStatement, ContinueStatement, 
-                         CaseStatement, EnhancedTestStatement)
+                         CaseStatement, EnhancedTestStatement, ArithmeticCommand)
 from .base import ExecutorComponent
 from ..builtins.function_support import FunctionReturn
 from ..core.exceptions import LoopBreak, LoopContinue
@@ -43,6 +43,8 @@ class StatementExecutor(ExecutorComponent):
                     exit_code = self.shell.executor_manager.control_flow_executor.execute_case(item)
                 elif isinstance(item, EnhancedTestStatement):
                     exit_code = self.shell.executor_manager.control_flow_executor.execute_enhanced_test(item)
+                elif isinstance(item, ArithmeticCommand):
+                    exit_code = self.shell.executor_manager.arithmetic_executor.execute(item)
                 elif isinstance(item, FunctionDef):
                     # Register the function
                     try:
@@ -89,6 +91,7 @@ class StatementExecutor(ExecutorComponent):
                     self.io_manager.collect_heredocs(item)
                     # Execute commands
                     last_exit = self.execute_command_list(item)
+                    # last_exit_code already updated by execute_command_list
                 elif isinstance(item, IfStatement):
                     # Collect here documents
                     self.io_manager.collect_heredocs(item)
@@ -123,6 +126,11 @@ class StatementExecutor(ExecutorComponent):
                 elif isinstance(item, EnhancedTestStatement):
                     # Execute enhanced test statement
                     last_exit = self.shell.executor_manager.control_flow_executor.execute_enhanced_test(item)
+                elif isinstance(item, ArithmeticCommand):
+                    # Execute arithmetic command
+                    last_exit = self.shell.executor_manager.arithmetic_executor.execute(item)
+                    # Update last_exit_code immediately for use by subsequent commands
+                    self.state.last_exit_code = last_exit
         except (LoopBreak, LoopContinue) as e:
             # Break/continue outside of loops is an error
             stmt_name = "break" if isinstance(e, LoopBreak) else "continue"

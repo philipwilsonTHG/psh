@@ -97,6 +97,7 @@ class StateMachineLexer:
             '<<-': TokenType.HEREDOC_STRIP,
         },
         2: {
+            '((': TokenType.DOUBLE_LPAREN,
             '[[': TokenType.DOUBLE_LBRACKET,
             ']]': TokenType.DOUBLE_RBRACKET,
             '<<': TokenType.HEREDOC,

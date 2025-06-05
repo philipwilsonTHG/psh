@@ -10,7 +10,17 @@ PSH has achieved significant feature completeness with **720+ passing tests**. T
 
 ### High Priority
 
-
+#### Arithmetic Command Syntax `((expr))` - **NEXT PRIORITY**
+- **Description**: Standalone arithmetic command `((expr))` 
+- **Status**: Not implemented - Implementation plan ready
+- **Impact**: Needed for full bash compatibility in conditions and loops
+- **Examples**: 
+  - `if ((x > 5)); then echo "big"; fi`
+  - `((i++))` as a standalone command
+  - `((x = y * 2))` for arithmetic assignments
+- **Note**: Currently only `$((expr))` expansion is supported
+- **Test impact**: 5 C-style for loop tests marked as xfail due to this limitation
+- **Implementation**: See `docs/arithmetic_command_implementation_plan.md`
 
 #### Shell Options (`set` command)
 - **Description**: Script debugging and error handling options
@@ -26,12 +36,6 @@ PSH has achieved significant feature completeness with **720+ passing tests**. T
 - **Status**: Not implemented
 - **Use cases**: Cleanup on exit, error handling, signal interception
 
-#### Arithmetic Command Syntax
-- **Description**: Standalone arithmetic command `((expr))` 
-- **Status**: Not implemented
-- **Impact**: Needed for full bash compatibility in conditions
-- **Example**: `if ((x > 5)); then echo "big"; fi`
-- **Note**: Currently only `$((expr))` expansion is supported
 
 ### Medium Priority
 

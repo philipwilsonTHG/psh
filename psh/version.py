@@ -2,10 +2,27 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.31.0"
+__version__ = "0.32.0"
 
 # Version history
 VERSION_HISTORY = """
+0.32.0 (2025-06-06) - Arithmetic command syntax implementation
+  - Added standalone arithmetic command syntax: ((expression))
+  - Returns proper exit status: 0 for non-zero results, 1 for zero results
+  - Full integration with control structures (if, while, for, case)
+  - Supports all arithmetic operations including assignments, comparisons, and logical operators
+  - Added ArithmeticCommand AST node and ArithmeticCommandExecutor
+  - Added DOUBLE_LPAREN token type for (( recognition
+  - Enhanced parser to handle arithmetic commands in statement contexts
+  - Fixed critical bug where last_exit_code wasn't updated between TopLevel items
+  - Fixed C-style for loop parser to handle DOUBLE_LPAREN token
+  - Fixed issue with ;; being tokenized as DOUBLE_SEMICOLON in empty for loops
+  - Enabled 5 previously xfailed C-style for loop tests
+  - Added comprehensive test suite with 10 new tests
+  - Full bash compatibility for arithmetic conditions in scripts
+  - Limitations: Cannot use ((expr)) directly in pipelines with && or ||
+  - Documentation in docs/arithmetic_command_implementation_summary.md
+
 0.31.0 (2025-06-06) - C-style for loops implementation
   - Added full C-style for loop support: for ((init; condition; update))
   - Support for empty sections - any or all of init, condition, update can be omitted

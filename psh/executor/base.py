@@ -47,11 +47,13 @@ class ExecutorManager:
         from .pipeline import PipelineExecutor
         from .control_flow import ControlFlowExecutor
         from .statement import StatementExecutor
+        from .arithmetic_command import ArithmeticCommandExecutor
         
         self.command_executor = CommandExecutor(shell)
         self.pipeline_executor = PipelineExecutor(shell)
         self.control_flow_executor = ControlFlowExecutor(shell)
         self.statement_executor = StatementExecutor(shell)
+        self.arithmetic_executor = ArithmeticCommandExecutor(shell)
     
     def execute(self, node: ASTNode) -> int:
         """Route execution to appropriate executor based on node type."""
