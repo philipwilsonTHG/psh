@@ -56,6 +56,19 @@ class SourceProcessor(ScriptComponent):
             
             # Try to parse and execute the command
             if command_buffer.strip():
+                # If command contains history expansion patterns, execute it directly
+                # History expansion will handle the actual expansion
+                import re
+                history_pattern = r'(?<![!])!(?:!|-?\d+|\?[^?]+\?|[^!?\s]+)'
+                if re.search(history_pattern, command_buffer):
+                    # Execute without parsing check
+                    exit_code = self._execute_buffered_command(
+                        command_buffer.rstrip('\n'), input_source, command_start_line, add_to_history
+                    )
+                    command_buffer = ""
+                    command_start_line = 0
+                    continue
+                
                 # Check if command is complete by trying to parse it
                 try:
                     tokens = tokenize(command_buffer)
@@ -148,6 +161,15 @@ class SourceProcessor(ScriptComponent):
             return 0
         
         try:
+            # Perform history expansion before tokenization
+            if hasattr(self.shell, 'history_expander'):
+                expanded_command = self.shell.history_expander.expand_history(command_string)
+                if expanded_command is None:
+                    # History expansion failed
+                    self.state.last_exit_code = 1
+                    return 1
+                command_string = expanded_command
+            
             tokens = tokenize(command_string)
             
             # Debug: Print tokens if requested

@@ -91,6 +91,13 @@ class MultiLineInputHandler:
                 return False
             # Inside [[ ]], let the parser decide
         
+        # If command contains history expansion patterns, consider it complete
+        # History expansion will handle the actual expansion
+        import re
+        history_pattern = r'(?<![!])!(?:!|-?\d+|\?[^?]+\?|[^!?\s]+)'
+        if re.search(history_pattern, command):
+            return True
+        
         # Try to tokenize and parse
         try:
             tokens = tokenize(command)

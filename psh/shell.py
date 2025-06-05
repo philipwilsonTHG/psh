@@ -58,6 +58,10 @@ class Shell:
         self.script_manager = ScriptManager(self)
         self.interactive_manager = InteractiveManager(self)
         
+        # Initialize history expander
+        from .history_expansion import HistoryExpander
+        self.history_expander = HistoryExpander(self)
+        
         # Load history
         self.interactive_manager.load_history()
         
@@ -89,7 +93,8 @@ class Shell:
         """Delegate attribute setting to state for compatibility."""
         if name in ('state', '_state_properties', 'builtin_registry', 'builtins', 
                    'alias_manager', 'function_manager', 'job_manager', 'expansion_manager',
-                   'io_manager', 'executor_manager', 'script_manager', 'interactive_manager'):
+                   'io_manager', 'executor_manager', 'script_manager', 'interactive_manager',
+                   'history_expander'):
             super().__setattr__(name, value)
         elif hasattr(self, '_state_properties') and name in self._state_properties:
             setattr(self.state, name, value)
