@@ -2,7 +2,7 @@
 
 An educational Unix shell implementation in Python, designed to teach shell internals and compiler/interpreter concepts through a clean, readable codebase.  All source code and documentation (with the exception of this sentence) has been written by Claude Code using Sonnet 4 and Opus 4 models.
 
-**Current Version**: 0.31.0 (2025-06-06)
+**Current Version**: 0.32.0 (2025-06-06)
 
 ## Overview
 
@@ -12,12 +12,12 @@ The shell features a modern component-based architecture where each subsystem (e
 
 ### Recent Major Features
 
+- **v0.32.0**: Arithmetic command syntax `((expr))` for standalone arithmetic evaluation
 - **v0.31.0**: C-style for loops with arithmetic iteration `for ((i=0; i<10; i++))`
 - **v0.30.0**: Advanced read builtin with -p, -s, -t, -n, -d options for interactive input
 - **v0.29.4**: Echo builtin flags (-n, -e, -E) with full escape sequence support
 - **v0.29.2**: Complete advanced parameter expansion with all bash string manipulation features
 - **v0.29.0**: Local variable support with function-scoped variables
-- **v0.28.x**: Major architectural refactoring, state machine lexer, component-based design
 
 ## Features
 
@@ -70,6 +70,7 @@ The shell features a modern component-based architecture where each subsystem (e
   - Bitwise operators: `&`, `|`, `^`, `~`, `<<`, `>>`
   - Assignment operators: `=`, `+=`, `-=`, etc.
   - Command substitution within arithmetic: `$(($(cmd) * 2))`
+  - **Arithmetic commands** (v0.32.0): `((expr))` for standalone evaluation
   
 - ✅ **Brace Expansion**
   - List expansion: `{a,b,c}`
@@ -240,6 +241,14 @@ $ for file in *.txt; do
 $ for ((i=0; i<5; i++)); do
 >   echo "Count: $i"
 > done
+
+# Arithmetic commands
+$ x=5
+$ ((x++))
+$ echo $x
+6
+$ if ((x > 5)); then echo "Greater than 5"; fi
+Greater than 5
 
 # Multi-level break/continue
 $ for i in 1 2 3; do
@@ -467,7 +476,7 @@ While PSH implements most shell features, there are some architectural limitatio
 
 - **Control structures in pipelines**: Control structures (while, for, if, case) cannot be used as part of pipelines due to the statement-based architecture. Use the control structure to wrap the pipeline instead.
 - **Deep recursion in functions**: Recursive shell functions using command substitution hit Python's recursion limit quickly. Use iterative algorithms instead. See [docs/recursion_depth_analysis.md](docs/recursion_depth_analysis.md) for details.
-- **C-style for loops**: Not yet implemented - planned for future release using existing arithmetic system
+- **Arithmetic commands in pipelines**: Arithmetic commands `((expr))` cannot be used directly with && or || operators due to parser limitations. Wrap in if statements for conditional logic.
 - **Arrays**: Not implemented - use space-separated strings or multiple variables instead
 - **Composite argument quote handling**: Parser loses quote information when creating composite arguments
 
@@ -475,9 +484,9 @@ See [TODO.md](TODO.md) for a complete list of planned features.
 
 ## Implementation Status
 
-PSH has achieved significant feature completeness with **720+ passing tests**:
+PSH has achieved significant feature completeness with **730+ passing tests**:
 
-### ✅ Fully Implemented (v0.31.0)
+### ✅ Fully Implemented (v0.32.0)
 - All core shell features (execution, I/O, pipelines, variables)
 - Complete expansion system (variable, parameter, command, arithmetic, brace, process)
 - All control structures (if/elif/else, while, for, C-style for, case, break/continue)
@@ -490,13 +499,13 @@ PSH has achieved significant feature completeness with **720+ passing tests**:
 - Advanced read builtin with interactive input options (-p, -s, -t, -n, -d)
 - Echo builtin with full escape sequence support (-n, -e, -E)
 - C-style for loops with arithmetic iteration
+- Arithmetic command syntax `((expr))` for standalone evaluation and conditionals
 
 ### 🚧 Planned Features
 - Advanced shell options: `set -e`, `set -u`, `set -x`, `set -o pipefail`
 - Trap command for signal handling
 - Array variables and associative arrays
 - Select statement for menu generation
-- Arithmetic command syntax: `((expr))` as a standalone command
 
 ## Contributing
 

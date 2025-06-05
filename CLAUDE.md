@@ -8,11 +8,12 @@ Python Shell (psh) is an educational Unix shell implementation designed for teac
 
 ## Current Development Focus
 
-**Next Priority**: Arithmetic command syntax `((expr))`
-- Standalone arithmetic evaluation returning exit status
-- Enables 5 currently xfailed C-style for loop tests
-- Required for full bash compatibility in conditions and loops
-- Implementation plan available in `docs/arithmetic_command_implementation_plan.md`
+**Next Priority**: Shell Options (`set` command)
+- Script debugging and error handling options
+- -e (errexit): Exit on command failure
+- -u (nounset): Error on undefined variables  
+- -x (xtrace): Print commands before execution
+- -o pipefail: Pipeline fails if any command fails
 - See TODO.md for full list of remaining features
 
 ## Architecture
@@ -358,12 +359,22 @@ Implemented:
   - Optional 'do' keyword
   - 16+ comprehensive tests with 76% pass rate
 
+- Arithmetic command syntax - ✅ **Implemented in v0.32.0**
+  - Standalone arithmetic evaluation: `((expression))`
+  - Exit status: 0 for non-zero results, 1 for zero (bash-compatible)
+  - Full operator support matching arithmetic expansion
+  - Enables conditional tests: `if ((x > 5)); then echo "big"; fi`
+  - Standalone increment/decrement: `((i++))`, `((count--))`
+  - Arithmetic assignments: `((x = y * 2))`
+  - All 5 previously failing C-style for loop tests now pass
+  - 10 comprehensive tests added for arithmetic commands
+  - Known limitation: Cannot be used directly in pipelines with && or ||
+
 Not implemented:
 - Advanced shell options (set -e, -u, -x, -o pipefail)
 - Trap command for signal handling
 - Escaped glob patterns
 - Array variables
 - Select statement
-- Arithmetic command syntax: ((expr)) as a standalone command (impacts 5 C-style for loop tests)
 - Control structures in pipelines (architectural limitation - see TODO.md)
 - Deep recursion in shell functions (architectural limitation - see docs/recursion_depth_analysis.md)

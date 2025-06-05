@@ -1,28 +1,16 @@
 # Python Shell (psh) - TODO List
 
-**Current Version**: 0.31.0 (2025-06-06)
+**Current Version**: 0.32.0 (2025-06-06)
 
 ## Overview
 
-PSH has achieved significant feature completeness with **720+ passing tests**. This document tracks remaining features, known issues, and development priorities.
+PSH has achieved significant feature completeness with **730+ passing tests**. This document tracks remaining features, known issues, and development priorities.
 
 ## Remaining Features
 
 ### High Priority
 
-#### Arithmetic Command Syntax `((expr))` - **NEXT PRIORITY**
-- **Description**: Standalone arithmetic command `((expr))` 
-- **Status**: Not implemented - Implementation plan ready
-- **Impact**: Needed for full bash compatibility in conditions and loops
-- **Examples**: 
-  - `if ((x > 5)); then echo "big"; fi`
-  - `((i++))` as a standalone command
-  - `((x = y * 2))` for arithmetic assignments
-- **Note**: Currently only `$((expr))` expansion is supported
-- **Test impact**: 5 C-style for loop tests marked as xfail due to this limitation
-- **Implementation**: See `docs/arithmetic_command_implementation_plan.md`
-
-#### Shell Options (`set` command)
+#### Shell Options (`set` command) - **NEXT PRIORITY**
 - **Description**: Script debugging and error handling options
 - **Status**: Not implemented
 - **Options**:
@@ -130,6 +118,17 @@ PSH has achieved significant feature completeness with **720+ passing tests**. T
 ## Implementation History
 
 ### Recent Releases
+
+#### v0.32.0 - Arithmetic Command Syntax
+- Implemented standalone arithmetic commands: `((expression))`
+- Exit status: 0 for non-zero results, 1 for zero (bash-compatible)
+- Full operator support matching arithmetic expansion
+- Enables conditional tests: `if ((x > 5)); then echo "big"; fi`
+- Standalone increment/decrement: `((i++))`, `((count--))`
+- Arithmetic assignments: `((x = y * 2))`
+- All 5 previously failing C-style for loop tests now pass
+- 10 comprehensive tests added for arithmetic commands
+- Known limitation: Cannot be used directly in pipelines with && or ||
 
 #### v0.31.0 - C-style For Loops
 - Implemented arithmetic-based iteration: `for ((i=0; i<10; i++))`
