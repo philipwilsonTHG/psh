@@ -37,9 +37,9 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/psh"
-Repository = "https://github.com/yourusername/psh"
-Issues = "https://github.com/yourusername/psh/issues"
+Homepage = "https://github.com/philipwilsonTHG/psh"
+Repository = "https://github.com/philipwilsonTHG/psh"
+Issues = "https://github.com/philipwilsonTHG/psh/issues"
 
 [project.scripts]
 psh = "psh.__main__:main"
