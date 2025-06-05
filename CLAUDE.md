@@ -370,11 +370,24 @@ Implemented:
   - 10 comprehensive tests added for arithmetic commands
   - Known limitation: Cannot be used directly in pipelines with && or ||
 
+- History expansion - ✅ **Implemented in v0.33.0**
+  - Complete bash-compatible history expansion (!!, !n, !-n, !string, !?string?)
+  - Context-aware expansion respects quotes and parameter expansions
+  - Fixed for loop variable persistence to match bash behavior
+
+- Select statement - ✅ **Implemented in v0.34.0**
+  - Interactive menu system: `select var in items; do ...; done`
+  - Displays numbered menu to stderr with PS3 prompt
+  - Sets selected item in variable and raw input in REPLY
+  - Multi-column layout for large lists
+  - Full integration with break/continue statements
+  - I/O redirection support on select loops
+  - 12 comprehensive tests (require pytest -s for stdin access)
+
 Not implemented:
 - Advanced shell options (set -e, -u, -x, -o pipefail)
 - Trap command for signal handling
 - Escaped glob patterns
 - Array variables
-- Select statement
 - Control structures in pipelines (architectural limitation - see TODO.md)
 - Deep recursion in shell functions (architectural limitation - see docs/recursion_depth_analysis.md)

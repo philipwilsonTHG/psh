@@ -1,10 +1,10 @@
 # Python Shell (psh) - TODO List
 
-**Current Version**: 0.32.0 (2025-06-06)
+**Current Version**: 0.34.0 (2025-01-06)
 
 ## Overview
 
-PSH has achieved significant feature completeness with **749 passing tests**. This document tracks remaining features, known issues, and development priorities.
+PSH has achieved significant feature completeness with **751 passing tests**. This document tracks remaining features, known issues, and development priorities.
 
 ## Remaining Features
 
@@ -35,10 +35,6 @@ PSH has achieved significant feature completeness with **749 passing tests**. Th
   - Associative arrays: `declare -A map`
   - Array operations: `${#arr[@]}`, `${arr[@]}`
 
-#### Select Statement
-- **Description**: Menu generation for user selection
-- **Status**: Not implemented
-- **Syntax**: `select item in list; do ...; done`
 
 ### Low Priority
 
@@ -46,7 +42,7 @@ PSH has achieved significant feature completeness with **749 passing tests**. Th
 - Tab completion for commands (beyond files/directories)
 - Programmable completion framework
 - Syntax highlighting in prompt
-- Custom prompt variables (PS3, PS4)
+- Custom prompt variables (PS4)
 
 ## Known Issues
 
@@ -83,26 +79,36 @@ PSH has achieved significant feature completeness with **749 passing tests**. Th
 
 ## Test Suite Status
 
-### Skipped Tests: 23 total
+### Skipped Tests: 26 total (down from 28 - fixed 2 in v0.33.0)
 
-#### Can Be Fixed (15 tests)
+#### Pytest Output Capture Issues (8 tests)
+- **Pipeline tests**: Builtins in pipelines don't work with pytest's output capture
+- **Workaround**: Tests pass with `pytest -s` or manual execution
+- **Not PSH bugs**: These are pytest infrastructure limitations
+
+#### Can Be Fixed (10 tests)
 - **CI-only failures** (3): Work locally, fail on GitHub Actions
 - **Minor fixes needed** (5): Known issues with straightforward solutions
-- **Test rewrite needed** (7): Pytest capture conflicts, need file-based verification
+- **Test rewrite needed** (2): Can use file-based verification instead
 
 #### Need Architectural Changes (8 tests)
-- **Parser changes** (3): Break/continue operator handling
-- **Not implemented** (5): Escaped globs, complex escapes
+- **Parser changes** (3): Break/continue operator handling  
+- **Not implemented** (5): Escaped globs, arrays, PS1 history numbers
 
 ### Test Recommendations
-1. Remove CI-only skip decorators when running locally
+1. Mark pipeline tests with custom pytest marker for clarity
 2. Convert capture-based tests to file output verification
-3. Fix for loop variable persistence
-4. Fix tokenizer for quoted variable assignments
+3. Document pytest limitations in affected test files
 
 ## Implementation History
 
 ### Recent Releases
+
+#### v0.33.0 - History Expansion and Bug Fixes
+- Implemented complete bash-compatible history expansion (!!, !n, !-n, !string, !?string?)
+- Fixed for loop variable persistence to match bash behavior
+- Removed incorrect TODO entries for already-working features
+- Updated test suite to 751 passing tests (fixed 2 previously skipped tests)
 
 #### v0.32.0 - Arithmetic Command Syntax
 - Implemented standalone arithmetic commands: `((expression))`

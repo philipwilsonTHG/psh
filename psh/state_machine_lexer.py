@@ -131,6 +131,7 @@ class StateMachineLexer:
         'while', 'do', 'done',
         'for', 'in',
         'case', 'esac',
+        'select',
         'function',
         'break', 'continue'
     }
@@ -882,6 +883,10 @@ class StateMachineLexer:
             if len(self.tokens) >= 2:
                 # After 'for variable'
                 if (self.tokens[-2].type == TokenType.FOR and 
+                    self.tokens[-1].type == TokenType.WORD):
+                    return True
+                # After 'select variable'
+                if (self.tokens[-2].type == TokenType.SELECT and 
                     self.tokens[-1].type == TokenType.WORD):
                     return True
                 # After 'case expr' 

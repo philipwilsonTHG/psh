@@ -61,6 +61,7 @@ class TokenType(Enum):
     CONTINUE = auto()
     CASE = auto()
     ESAC = auto()
+    SELECT = auto()
     
     # Case terminators
     DOUBLE_SEMICOLON = auto()  # ;;

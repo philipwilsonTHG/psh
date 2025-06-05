@@ -1,3 +1,9 @@
+# Release Notes for v0.34.0
+
+See [RELEASE_NOTES_0.34.0.md](RELEASE_NOTES_0.34.0.md) for details.
+
+---
+
 # Release Notes for v0.33.0
 
 See [RELEASE_NOTES_0.33.0.md](RELEASE_NOTES_0.33.0.md) for details.

@@ -250,18 +250,36 @@ Orchestrates expansions in POSIX order:
 
 **Directory**: `io_redirect/`
 
-Handles all forms of I/O redirection.
+Handles all forms of I/O redirection with proper builtin support.
 
 #### IOManager (`io_redirect/manager.py`)
 Central manager for all I/O operations:
 - Coordinates redirection handlers
 - Manages file descriptor manipulation
 - Handles cleanup
+- **Builtin I/O Support**: 
+  - `setup_builtin_redirections()` temporarily modifies `sys.stdout/stderr/stdin`
+  - `restore_builtin_redirections()` restores original streams
+  - Ensures all builtins respect redirections properly
 
 #### Redirection Handlers
 - **FileRedirector** (`file_redirect.py`): `<`, `>`, `>>`, `2>`, `2>&1`, etc.
 - **HeredocHandler** (`heredoc.py`): `<<`, `<<-`, `<<<`
 - **ProcessSubstitutionHandler** (`process_sub.py`): `<(...)`, `>(...)`
+
+#### Builtin I/O Pattern
+All builtins follow a consistent pattern for I/O handling:
+```python
+# In parent process
+if hasattr(shell, 'stdout'):
+    print(output, file=shell.stdout)
+else:
+    print(output)
+
+# In child process (pipelines)
+if shell._in_forked_child:
+    os.write(1, output.encode())  # Direct to file descriptor
+```
 
 ### 7. Interactive Features
 
@@ -512,7 +530,6 @@ The component architecture enables isolated testing:
 1. **Composite Arguments**: Parser creates COMPOSITE type but loses quote information from RichTokens
 2. **Control Structures in Pipelines**: Not supported due to statement-based architecture
 3. **Deep Recursion**: Shell functions have recursion depth limitations
-4. **Built-in I/O**: Some builtins use print() which doesn't respect redirections
 
 ## Future Improvements
 

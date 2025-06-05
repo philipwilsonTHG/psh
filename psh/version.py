@@ -2,10 +2,28 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.33.0"
+__version__ = "0.34.0"
 
 # Version history
 VERSION_HISTORY = """
+0.34.0 (2025-01-06) - Select statement implementation
+  - Added complete bash-compatible select statement for interactive menus
+  - Syntax: select var in items...; do commands; done
+  - Creates numbered menu displayed to stderr with PS3 prompt (default "#? ")
+  - Sets selected item in variable and raw input in REPLY variable
+  - Multi-column layout for large lists (automatic column calculation)
+  - Full integration with break/continue statements
+  - I/O redirection support for select loops
+  - Empty list handling (exits immediately)
+  - EOF (Ctrl+D) and interrupt (Ctrl+C) handling
+  - Variable and command substitution expansion in item lists
+  - Added SELECT token type and context-aware 'in' keyword handling
+  - Created SelectStatement AST node with proper parsing
+  - Implemented execute_select in control flow executor
+  - Added 12 comprehensive tests (marked skip due to stdin requirements)
+  - Created select_demo.sh example script
+  - Total tests: 751 (38 skipped including select tests, 3 xfailed)
+
 0.33.0 (2025-01-06) - History expansion and for loop variable persistence fix
   - Added complete bash-compatible history expansion (!!, !n, !-n, !string, !?string?)
   - History expansion preprocessor runs before tokenization

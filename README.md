@@ -2,7 +2,7 @@
 
 An educational Unix shell implementation in Python, designed to teach shell internals and compiler/interpreter concepts through a clean, readable codebase.  All source code and documentation (with the exception of this sentence) has been written by Claude Code using Sonnet 4 and Opus 4 models.
 
-**Current Version**: 0.32.0 (2025-06-06)
+**Current Version**: 0.34.0 (2025-01-06)
 
 ## Overview
 
@@ -12,12 +12,13 @@ The shell features a modern component-based architecture where each subsystem (e
 
 ### Recent Major Features
 
+- **v0.34.0**: Select statement for interactive menus `select var in items; do ...; done`
+- **v0.33.0**: History expansion (!!, !n, !-n, !string, !?string?) and for loop variable persistence fix
 - **v0.32.0**: Arithmetic command syntax `((expr))` for standalone arithmetic evaluation
 - **v0.31.0**: C-style for loops with arithmetic iteration `for ((i=0; i<10; i++))`
 - **v0.30.0**: Advanced read builtin with -p, -s, -t, -n, -d options for interactive input
 - **v0.29.4**: Echo builtin flags (-n, -e, -E) with full escape sequence support
 - **v0.29.2**: Complete advanced parameter expansion with all bash string manipulation features
-- **v0.29.0**: Local variable support with function-scoped variables
 
 ## Features
 
@@ -95,6 +96,7 @@ The shell features a modern component-based architecture where each subsystem (e
   - `for`/`in`/`do`/`done` loops with brace and glob expansion
   - **C-style for loops**: `for ((i=0; i<10; i++))` with arithmetic expressions (v0.31.0)
   - `case`/`esac` pattern matching with command substitution
+  - **`select`/`in`/`do`/`done` interactive menu system (v0.34.0)
   - `break` and `continue` statements with multi-level support (`break 2`)
   
 - ✅ **Functions**

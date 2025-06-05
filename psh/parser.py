@@ -4,7 +4,7 @@ from .ast_nodes import (
     Command, Pipeline, CommandList, StatementList, AndOrList, Redirect, 
     FunctionDef, TopLevel, IfStatement, WhileStatement, ForStatement, 
     CStyleForStatement, BreakStatement, ContinueStatement, CaseStatement, 
-    CaseItem, CasePattern, ProcessSubstitution, EnhancedTestStatement, 
+    CaseItem, CasePattern, SelectStatement, ProcessSubstitution, EnhancedTestStatement, 
     TestExpression, BinaryTestExpression, UnaryTestExpression, 
     CompoundTestExpression, NegatedTestExpression, Statement, ArithmeticCommand
 )
@@ -41,7 +41,7 @@ class TokenGroups:
     
     CONTROL_KEYWORDS = {
         TokenType.IF, TokenType.WHILE, TokenType.FOR, 
-        TokenType.CASE, TokenType.BREAK, TokenType.CONTINUE,
+        TokenType.CASE, TokenType.SELECT, TokenType.BREAK, TokenType.CONTINUE,
         TokenType.DOUBLE_LBRACKET, TokenType.DOUBLE_LPAREN
     }
     
@@ -187,6 +187,8 @@ class Parser:
             return self.parse_for_statement()
         elif token_type == TokenType.CASE:
             return self.parse_case_statement()
+        elif token_type == TokenType.SELECT:
+            return self.parse_select_statement()
         elif token_type == TokenType.BREAK:
             return self.parse_break_statement()
         elif token_type == TokenType.CONTINUE:
@@ -226,6 +228,8 @@ class Parser:
             return self.parse_for_statement()
         elif self.match(TokenType.CASE):
             return self.parse_case_statement()
+        elif self.match(TokenType.SELECT):
+            return self.parse_select_statement()
         elif self.match(TokenType.DOUBLE_LBRACKET):
             return self.parse_enhanced_test_statement()
         elif self.match(TokenType.DOUBLE_LPAREN):
@@ -764,6 +768,36 @@ class Parser:
         if token.type == TokenType.VARIABLE:
             return f"${token.value}"
         return token.value
+    
+    def parse_select_statement(self) -> SelectStatement:
+        """Parse select statement: select name in words; do commands done"""
+        self.expect(TokenType.SELECT)
+        self.skip_newlines()
+        
+        # Parse variable name
+        if not self.match(TokenType.WORD):
+            raise ParseError("Expected variable name after 'select'", self.peek())
+        variable = self.advance().value
+        
+        self.skip_newlines()
+        self.expect(TokenType.IN)
+        self.skip_newlines()
+        
+        # Parse word list (reuse existing method)
+        items = self._parse_for_iterable()
+        
+        # Parse do block
+        self.skip_separators()
+        self.expect(TokenType.DO)
+        self.skip_newlines()
+        
+        # Parse body
+        body = self.parse_command_list_until(TokenType.DONE)
+        
+        self.expect(TokenType.DONE)
+        redirects = self.parse_redirects()
+        
+        return SelectStatement(variable, items, body, redirects)
     
     def parse_break_statement(self) -> BreakStatement:
         """Parse break statement with optional level."""

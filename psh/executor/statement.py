@@ -3,7 +3,7 @@ import sys
 from ..ast_nodes import (CommandList, AndOrList, Pipeline, ASTNode, TopLevel,
                          FunctionDef, IfStatement, WhileStatement, ForStatement,
                          CStyleForStatement, BreakStatement, ContinueStatement, 
-                         CaseStatement, EnhancedTestStatement, ArithmeticCommand)
+                         CaseStatement, SelectStatement, EnhancedTestStatement, ArithmeticCommand)
 from .base import ExecutorComponent
 from ..builtins.function_support import FunctionReturn
 from ..core.exceptions import LoopBreak, LoopContinue
@@ -41,6 +41,8 @@ class StatementExecutor(ExecutorComponent):
                     exit_code = self.shell.executor_manager.control_flow_executor.execute_c_style_for(item)
                 elif isinstance(item, CaseStatement):
                     exit_code = self.shell.executor_manager.control_flow_executor.execute_case(item)
+                elif isinstance(item, SelectStatement):
+                    exit_code = self.shell.executor_manager.control_flow_executor.execute_select(item)
                 elif isinstance(item, EnhancedTestStatement):
                     exit_code = self.shell.executor_manager.control_flow_executor.execute_enhanced_test(item)
                 elif isinstance(item, ArithmeticCommand):
@@ -117,6 +119,11 @@ class StatementExecutor(ExecutorComponent):
                     self.io_manager.collect_heredocs(item)
                     # Execute case statement
                     last_exit = self.shell.executor_manager.control_flow_executor.execute_case(item)
+                elif isinstance(item, SelectStatement):
+                    # Collect here documents
+                    self.io_manager.collect_heredocs(item)
+                    # Execute select statement
+                    last_exit = self.shell.executor_manager.control_flow_executor.execute_select(item)
                 elif isinstance(item, BreakStatement):
                     # Execute break statement (this will raise LoopBreak)
                     last_exit = self.shell.executor_manager.control_flow_executor.execute(item)

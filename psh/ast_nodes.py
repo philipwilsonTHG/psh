@@ -158,6 +158,15 @@ class CaseStatement(Statement):
 
 
 @dataclass
+class SelectStatement(Statement):
+    """Select statement for interactive menus."""
+    variable: str  # The variable name to set with selection
+    items: List[str]  # List of items to display in menu (after expansion)
+    body: StatementList  # Commands to execute in loop
+    redirects: List[Redirect] = field(default_factory=list)  # Redirections for the entire select loop
+
+
+@dataclass
 class ArithmeticCommand(Statement):
     """Arithmetic command ((expression))."""
     expression: str

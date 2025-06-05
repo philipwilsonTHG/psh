@@ -2,8 +2,8 @@
 import sys
 from typing import List
 from ..ast_nodes import (IfStatement, WhileStatement, ForStatement, 
-                         CStyleForStatement, CaseStatement, BreakStatement, 
-                         ContinueStatement, EnhancedTestStatement)
+                         CStyleForStatement, CaseStatement, SelectStatement,
+                         BreakStatement, ContinueStatement, EnhancedTestStatement)
 from .base import ExecutorComponent
 from ..core.exceptions import LoopBreak, LoopContinue
 
@@ -22,6 +22,8 @@ class ControlFlowExecutor(ExecutorComponent):
             return self.execute_c_style_for(node)
         elif isinstance(node, CaseStatement):
             return self.execute_case(node)
+        elif isinstance(node, SelectStatement):
+            return self.execute_select(node)
         elif isinstance(node, BreakStatement):
             raise LoopBreak(node.level)
         elif isinstance(node, ContinueStatement):
@@ -294,3 +296,131 @@ class ControlFlowExecutor(ExecutorComponent):
         if not expr or not expr.strip():
             return 1  # Empty expression is true in bash
         return evaluate_arithmetic(expr, self.shell)
+    
+    def execute_select(self, node: SelectStatement) -> int:
+        """Execute a select statement."""
+        # Set up redirections
+        if node.redirects:
+            saved_fds = self.io_manager.apply_redirections(node.redirects)
+        else:
+            saved_fds = None
+        
+        try:
+            # Expand the word list
+            expanded_items = []
+            for item in node.items:
+                # Handle each item based on its type (similar to for loop)
+                expanded = self._expand_for_item(item)
+                expanded_items.extend(expanded)
+            
+            # Empty list - exit immediately
+            if not expanded_items:
+                return 0
+            
+            # Main select loop
+            return self._execute_select_loop(node.variable, expanded_items, node.body)
+        finally:
+            if saved_fds:
+                self.io_manager.restore_redirections(saved_fds)
+    
+    def _execute_select_loop(self, variable: str, items: List[str], body) -> int:
+        """Execute the select loop with menu display and input handling."""
+        exit_code = 0
+        
+        # Get PS3 prompt (default "#? " if not set)
+        ps3 = self.shell.state.get_variable("PS3", "#? ")
+        
+        try:
+            while True:
+                # Display menu to stderr
+                self._display_select_menu(items)
+                
+                # Show prompt and read input
+                try:
+                    sys.stderr.write(ps3)
+                    sys.stderr.flush()
+                    
+                    # Read input line
+                    if hasattr(self.shell, 'stdin') and self.shell.stdin:
+                        # Use shell's stdin if available (set by I/O redirection)
+                        reply = self.shell.stdin.readline()
+                    else:
+                        # Use sys.stdin as fallback
+                        if sys.stdin is None or sys.stdin.closed:
+                            raise EOFError
+                        try:
+                            reply = sys.stdin.readline()
+                        except (OSError, ValueError):
+                            # Handle case where stdin is not available in test environment
+                            raise EOFError
+                    
+                    if not reply:  # EOF
+                        raise EOFError
+                    reply = reply.rstrip('\n')
+                except (EOFError, KeyboardInterrupt):
+                    # Ctrl+D or Ctrl+C exits the loop
+                    sys.stderr.write("\n")
+                    break
+                
+                # Set REPLY variable
+                self.shell.state.set_variable("REPLY", reply)
+                
+                # Process selection
+                if reply.strip().isdigit():
+                    choice = int(reply.strip())
+                    if 1 <= choice <= len(items):
+                        # Valid selection
+                        selected = items[choice - 1]
+                        self.shell.state.set_variable(variable, selected)
+                    else:
+                        # Out of range
+                        self.shell.state.set_variable(variable, "")
+                else:
+                    # Non-numeric input
+                    self.shell.state.set_variable(variable, "")
+                
+                # Execute loop body
+                try:
+                    exit_code = self.shell.execute_command_list(body)
+                except LoopBreak as e:
+                    if e.level <= 1:
+                        break
+                    else:
+                        e.level -= 1
+                        raise
+                except LoopContinue as e:
+                    if e.level <= 1:
+                        continue
+                    else:
+                        e.level -= 1
+                        raise
+        
+        except KeyboardInterrupt:
+            sys.stderr.write("\n")
+            exit_code = 130
+        
+        return exit_code
+    
+    def _display_select_menu(self, items: List[str]) -> None:
+        """Display the select menu to stderr."""
+        # Calculate layout
+        num_items = len(items)
+        if num_items <= 9:
+            # Single column for small lists
+            for i, item in enumerate(items, 1):
+                sys.stderr.write(f"{i}) {item}\n")
+        else:
+            # Multi-column for larger lists
+            columns = 2 if num_items <= 20 else 3
+            rows = (num_items + columns - 1) // columns
+            
+            # Calculate column widths
+            col_width = max(len(f"{i}) {items[i-1]}") for i in range(1, num_items + 1)) + 3
+            
+            for row in range(rows):
+                for col in range(columns):
+                    idx = row + col * rows
+                    if idx < num_items:
+                        entry = f"{idx + 1}) {items[idx]}"
+                        sys.stderr.write(entry.ljust(col_width))
+                sys.stderr.write("\n")
