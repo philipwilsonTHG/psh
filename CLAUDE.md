@@ -8,6 +8,11 @@ Python Shell (psh) is an educational Unix shell implementation designed for teac
 
 ## Current Development Focus
 
+**Enhanced Read Builtin** (Current Work)
+- Implementing advanced options: -p (prompt), -s (silent), -t (timeout), -n (chars), -d (delimiter)
+- Building on existing read implementation from v0.20.1
+- See `docs/advanced_read_builtin_plan.md` for implementation details
+
 **C-style For Loops** (Next Priority)
 - Implementing arithmetic-based iteration: `for ((i=0; i<10; i++))`
 - Leverages existing arithmetic expansion system from v0.18.0

@@ -18,7 +18,8 @@ PSH has achieved significant feature completeness with **680+ passing tests**. T
 
 #### Enhanced Read Builtin
 - **Description**: Additional options for interactive input
-- **Status**: Basic functionality implemented (v0.20.1)
+- **Status**: Basic functionality implemented (v0.20.1), advanced features in progress
+- **Implementation Plan**: See `docs/advanced_read_builtin_plan.md`
 - **Remaining**:
   - `-p prompt`: Display prompt string
   - `-s`: Silent mode (no echo)

@@ -1,6 +1,11 @@
 """Read builtin command implementation."""
+import os
 import sys
-from typing import List, TYPE_CHECKING
+import select
+import termios
+import tty
+from contextlib import contextmanager
+from typing import List, Optional, Tuple, Dict, TYPE_CHECKING
 
 from .base import Builtin
 from .registry import builtin
@@ -20,38 +25,57 @@ class ReadBuiltin(Builtin):
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Execute the read builtin.
         
-        read [-r] [var...]
+        read [-r] [-p prompt] [-s] [-t timeout] [-n chars] [-d delim] [var...]
         
         Read a line from standard input and split it into fields.
+        Options:
+          -r: Raw mode (no backslash interpretation)
+          -p prompt: Display prompt on stderr
+          -s: Silent mode (no echo)
+          -t timeout: Timeout after N seconds
+          -n chars: Read only N characters
+          -d delim: Use custom delimiter instead of newline
         """
-        # Parse options
-        raw_mode = False
-        var_start_idx = 1
+        try:
+            options, var_names = self._parse_options(args)
+        except ValueError as e:
+            print(str(e), file=sys.stderr)
+            return 2
         
-        # Check for -r option
-        if len(args) > 1 and args[1] == '-r':
-            raw_mode = True
-            var_start_idx = 2
-        
-        # Get variable names (default to REPLY if none specified)
-        var_names = args[var_start_idx:] if var_start_idx < len(args) else ['REPLY']
+        # Display prompt if specified
+        if options['prompt']:
+            sys.stderr.write(options['prompt'])
+            sys.stderr.flush()
         
         try:
-            # Read a line from stdin
-            line = sys.stdin.readline()
+            # Read input based on options
+            if options['timeout'] is not None:
+                line = self._read_with_timeout(
+                    options['fd'], options['timeout'], options['delimiter'],
+                    options['max_chars'], options['silent']
+                )
+                if line is None:
+                    return 142  # Timeout exit code
+            elif options['silent'] or options['max_chars'] is not None:
+                line = self._read_special(
+                    options['fd'], options['delimiter'], 
+                    options['max_chars'], options['silent']
+                )
+            else:
+                line = self._read_normal(options['fd'], options['delimiter'])
             
             # Check for EOF
-            if not line:
+            if line is None:
                 return 1
             
             # Process backslash escapes unless in raw mode
-            # This must be done BEFORE stripping the newline so that
-            # backslash-newline line continuation works correctly
-            if not raw_mode:
+            # This must be done BEFORE stripping the delimiter so that
+            # backslash-delimiter line continuation works correctly
+            if not options['raw_mode']:
                 line = self._process_escapes(line)
             
-            # Remove trailing newline if present (after escape processing)
-            if line.endswith('\n'):
+            # Remove trailing delimiter if present (after escape processing)
+            if line.endswith(options['delimiter']):
                 line = line[:-1]
             
             # Get IFS value (default is space, tab, newline)
@@ -207,3 +231,256 @@ class ReadBuiltin(Builtin):
                 value = ''
             
             shell.state.set_variable(var_name, value)
+    
+    def _parse_options(self, args: List[str]) -> Tuple[Dict[str, any], List[str]]:
+        """Parse read command options.
+        
+        Returns:
+            Tuple of (options dict, variable names list)
+        """
+        options = {
+            'raw_mode': False,
+            'silent': False,
+            'prompt': None,
+            'timeout': None,
+            'max_chars': None,
+            'delimiter': '\n',
+            'fd': 0
+        }
+        
+        i = 1
+        while i < len(args):
+            if args[i] == '-r':
+                options['raw_mode'] = True
+            elif args[i] == '-s':
+                options['silent'] = True
+            elif args[i] == '-p':
+                if i + 1 < len(args):
+                    options['prompt'] = args[i + 1]
+                    i += 1
+                else:
+                    raise ValueError("read: -p: option requires an argument")
+            elif args[i] == '-t':
+                if i + 1 < len(args):
+                    try:
+                        options['timeout'] = float(args[i + 1])
+                        if options['timeout'] < 0:
+                            raise ValueError(f"read: {args[i + 1]}: invalid timeout specification")
+                    except ValueError:
+                        raise ValueError(f"read: {args[i + 1]}: invalid timeout specification")
+                    i += 1
+                else:
+                    raise ValueError("read: -t: option requires an argument")
+            elif args[i] == '-n':
+                if i + 1 < len(args):
+                    try:
+                        options['max_chars'] = int(args[i + 1])
+                        if options['max_chars'] <= 0:
+                            raise ValueError(f"read: {args[i + 1]}: invalid number")
+                    except ValueError:
+                        raise ValueError(f"read: {args[i + 1]}: invalid number")
+                    i += 1
+                else:
+                    raise ValueError("read: -n: option requires an argument")
+            elif args[i] == '-d':
+                if i + 1 < len(args):
+                    # Use first character of delimiter string, empty means null
+                    options['delimiter'] = args[i + 1][0] if args[i + 1] else '\0'
+                    i += 1
+                else:
+                    raise ValueError("read: -d: option requires an argument")
+            elif args[i].startswith('-'):
+                raise ValueError(f"read: {args[i]}: invalid option")
+            else:
+                break
+            i += 1
+        
+        var_names = args[i:] if i < len(args) else ['REPLY']
+        return options, var_names
+    
+    def _read_normal(self, fd: int, delimiter: str) -> Optional[str]:
+        """Read normally from file descriptor until delimiter."""
+        if delimiter == '\n':
+            # Use readline for newline delimiter (most common case)
+            line = sys.stdin.readline()
+            if not line:
+                return None
+            # Don't remove the newline yet - let the caller handle it
+            # after escape processing
+            return line
+        else:
+            # Read character by character for custom delimiter
+            chars = []
+            # Check if fd is a TTY
+            if os.isatty(fd):
+                while True:
+                    char = os.read(fd, 1).decode('utf-8', errors='replace')
+                    if not char:
+                        return None if not chars else ''.join(chars)
+                    if char == delimiter:
+                        return ''.join(chars)
+                    chars.append(char)
+            else:
+                # Non-TTY, use sys.stdin
+                while True:
+                    char = sys.stdin.read(1)
+                    if not char:
+                        return None if not chars else ''.join(chars)
+                    if char == delimiter:
+                        return ''.join(chars)
+                    chars.append(char)
+    
+    def _read_special(self, fd: int, delimiter: str, max_chars: Optional[int], 
+                      silent: bool) -> Optional[str]:
+        """Read with special modes (silent and/or character limit)."""
+        chars = []
+        
+        # Check if we're dealing with a TTY
+        is_tty = os.isatty(fd)
+        
+        # If we need raw terminal mode and have a TTY
+        if is_tty and (silent or max_chars is not None):
+            with self._terminal_raw_mode(fd, echo=not silent):
+                limit = max_chars if max_chars is not None else float('inf')
+                while len(chars) < limit:
+                    try:
+                        char = os.read(fd, 1).decode('utf-8', errors='replace')
+                    except OSError:
+                        break
+                    
+                    if not char:
+                        break
+                    
+                    if char == delimiter:
+                        break
+                    
+                    chars.append(char)
+                    
+                    # Echo character if not silent and in raw mode
+                    if not silent and max_chars is not None:
+                        sys.stdout.write(char)
+                        sys.stdout.flush()
+                
+                # Echo newline after silent input
+                if silent:
+                    sys.stdout.write('\n')
+                    sys.stdout.flush()
+        else:
+            # Non-TTY or no special handling needed
+            if max_chars is not None:
+                # Read up to max_chars
+                limit = max_chars
+                while len(chars) < limit:
+                    char = sys.stdin.read(1)
+                    if not char:
+                        break
+                    if char == delimiter:
+                        break
+                    chars.append(char)
+            else:
+                # Just read normally for silent mode on non-TTY
+                line = self._read_normal(fd, delimiter)
+                if line is None:
+                    return None
+                return line
+        
+        return ''.join(chars) if chars or delimiter != '\n' else None
+    
+    def _read_with_timeout(self, fd: int, timeout: float, delimiter: str,
+                          max_chars: Optional[int], silent: bool) -> Optional[str]:
+        """Read with timeout support."""
+        chars = []
+        remaining_timeout = timeout
+        is_tty = os.isatty(fd)
+        
+        if is_tty and (silent or max_chars is not None):
+            # Need raw mode for character-by-character reading
+            with self._terminal_raw_mode(fd, echo=not silent):
+                limit = max_chars if max_chars is not None else float('inf')
+                
+                while len(chars) < limit:
+                    import time
+                    start_time = time.time()
+                    
+                    # Use select to wait for input with timeout
+                    ready, _, _ = select.select([fd], [], [], remaining_timeout)
+                    if not ready:
+                        # Timeout
+                        if silent and chars:
+                            sys.stdout.write('\n')
+                            sys.stdout.flush()
+                        return None
+                    
+                    # Read one character
+                    try:
+                        char = os.read(fd, 1).decode('utf-8', errors='replace')
+                    except OSError:
+                        break
+                    
+                    if not char:
+                        break
+                    
+                    if char == delimiter:
+                        break
+                    
+                    chars.append(char)
+                    
+                    # Echo character if not silent
+                    if not silent and max_chars is not None:
+                        sys.stdout.write(char)
+                        sys.stdout.flush()
+                    
+                    # Update remaining timeout
+                    elapsed = time.time() - start_time
+                    remaining_timeout -= elapsed
+                    if remaining_timeout <= 0:
+                        if silent:
+                            sys.stdout.write('\n')
+                            sys.stdout.flush()
+                        return None
+                
+                # Echo newline after silent input
+                if silent:
+                    sys.stdout.write('\n')
+                    sys.stdout.flush()
+        else:
+            # Simple case or non-TTY: just wait for line with timeout
+            ready, _, _ = select.select([sys.stdin], [], [], timeout)
+            if not ready:
+                return None
+            
+            # For non-TTY with char limit
+            if max_chars is not None:
+                limit = max_chars
+                while len(chars) < limit:
+                    char = sys.stdin.read(1)
+                    if not char:
+                        break
+                    if char == delimiter:
+                        break
+                    chars.append(char)
+                return ''.join(chars) if chars else None
+            else:
+                return self._read_normal(fd, delimiter)
+        
+        return ''.join(chars) if chars else None
+    
+    @contextmanager
+    def _terminal_raw_mode(self, fd: int, echo: bool = True):
+        """Context manager for raw terminal mode."""
+        # Check if fd is a TTY
+        if not os.isatty(fd):
+            # Not a TTY, just yield without changing settings
+            yield
+            return
+            
+        old_settings = termios.tcgetattr(fd)
+        try:
+            tty.setraw(fd)
+            if not echo:
+                new_settings = termios.tcgetattr(fd)
+                new_settings[3] &= ~termios.ECHO
+                termios.tcsetattr(fd, termios.TCSADRAIN, new_settings)
+            yield
+        finally:
+            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)

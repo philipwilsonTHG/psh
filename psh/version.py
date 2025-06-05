@@ -2,10 +2,27 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.29.4"
+__version__ = "0.30.0"
 
 # Version history
 VERSION_HISTORY = """
+0.30.0 (2025-06-06) - Advanced read builtin features
+  - Added -p prompt option to display custom prompts on stderr
+  - Added -s silent mode for password input (no character echo)
+  - Added -t timeout option with configurable timeout and exit code 142
+  - Added -n chars option to read exactly N characters
+  - Added -d delimiter option to use custom delimiter instead of newline
+  - Implemented proper terminal handling with termios for raw mode operations
+  - Added context manager for safe terminal state restoration
+  - Support for non-TTY inputs (StringIO) for better testability
+  - All options can be combined (e.g., -sn 4 -p "PIN: " for 4-char password)
+  - Timeout implementation using select() for cross-platform compatibility
+  - Fixed backslash-newline line continuation handling
+  - Added comprehensive test suite with 29 tests (all passing)
+  - Full bash compatibility for all implemented read options
+  - Enhanced error handling with proper exit codes and messages
+  - Documentation in docs/advanced_read_builtin_plan.md
+
 0.29.4 (2025-06-04) - Echo builtin flags implementation
   - Added -n flag to suppress trailing newline
   - Added -e flag to enable interpretation of escape sequences
