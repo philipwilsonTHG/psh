@@ -312,7 +312,7 @@ class Shell:
                 except (LoopBreak, LoopContinue) as e:
                     # Break/continue outside of loops is an error
                     stmt_name = "break" if isinstance(e, LoopBreak) else "continue"
-                    print(f"{stmt_name}: only meaningful in a `for' or `while' loop", file=sys.stderr)
+                    print(f"{stmt_name}: only meaningful in a `for', `while', or `select' loop", file=sys.stderr)
                     return 1
         except ParseError as e:
             # Enhanced error message with location
