@@ -388,6 +388,240 @@ while true; do
 done
 ```
 
+### File Manager with Select Menu
+
+```bash
+#!/usr/bin/env psh
+# filemgr.sh - Interactive file manager using select
+
+# File operations menu
+file_operations() {
+    local file="$1"
+    local PS3="Operation for $file: "
+    
+    select operation in "View" "Edit" "Copy" "Move" "Delete" "Permissions" "Back"; do
+        case "$operation" in
+            "View")
+                if [ -f "$file" ]; then
+                    less "$file" 2>/dev/null || cat "$file"
+                else
+                    echo "Cannot view: $file is not a regular file"
+                fi
+                ;;
+            "Edit")
+                ${EDITOR:-vi} "$file"
+                ;;
+            "Copy")
+                read -p "Copy to: " dest
+                if [ -n "$dest" ]; then
+                    cp "$file" "$dest" && echo "Copied to $dest"
+                fi
+                ;;
+            "Move")
+                read -p "Move to: " dest
+                if [ -n "$dest" ]; then
+                    mv "$file" "$dest" && echo "Moved to $dest"
+                    break  # File no longer exists at original location
+                fi
+                ;;
+            "Delete")
+                read -p "Delete $file? (y/n): " confirm
+                if [ "$confirm" = "y" ]; then
+                    rm "$file" && echo "Deleted: $file"
+                    break  # File no longer exists
+                fi
+                ;;
+            "Permissions")
+                ls -l "$file"
+                read -p "New permissions (e.g., 644): " perms
+                if [[ "$perms" =~ ^[0-7]{3}$ ]]; then
+                    chmod "$perms" "$file" && echo "Permissions changed"
+                else
+                    echo "Invalid permissions format"
+                fi
+                ;;
+            "Back")
+                break
+                ;;
+            *)
+                [ -n "$REPLY" ] && echo "Invalid option: $REPLY"
+                ;;
+        esac
+    done
+}
+
+# Directory browser
+browse_directory() {
+    local dir="${1:-.}"
+    local PS3="Select file: "
+    
+    while true; do
+        echo
+        echo "Current directory: $(pwd)"
+        echo "===================="
+        
+        # Build file list with special entries
+        local files=(".." $(ls -A))
+        
+        select file in "${files[@]}" "Quit"; do
+            if [ "$file" = "Quit" ]; then
+                return 0
+            elif [ "$file" = ".." ]; then
+                cd ..
+                break  # Restart with new directory
+            elif [ -d "$file" ]; then
+                cd "$file"
+                break  # Restart with new directory
+            elif [ -f "$file" ]; then
+                file_operations "$file"
+                break  # Refresh file list
+            elif [ -n "$file" ]; then
+                echo "Unknown file type: $file"
+            else
+                [ -n "$REPLY" ] && echo "Invalid selection: $REPLY"
+            fi
+        done
+    done
+}
+
+# Main script
+echo "Interactive File Manager"
+echo "======================="
+browse_directory "$@"
+```
+
+### Service Manager with Select
+
+```bash
+#!/usr/bin/env psh
+# svcmgr.sh - Service management using select
+
+# Check if running as root
+check_root() {
+    if [ "$EUID" -ne 0 ]; then
+        echo "This script requires root privileges"
+        echo "Please run with sudo"
+        return 1
+    fi
+    return 0
+}
+
+# Service operations
+service_menu() {
+    local service="$1"
+    local PS3="Action for $service: "
+    
+    select action in "Status" "Start" "Stop" "Restart" "Enable" "Disable" "Logs" "Back"; do
+        case "$action" in
+            "Status")
+                systemctl status "$service"
+                ;;
+            "Start")
+                systemctl start "$service" && \
+                    echo "Started $service"
+                ;;
+            "Stop")
+                systemctl stop "$service" && \
+                    echo "Stopped $service"
+                ;;
+            "Restart")
+                systemctl restart "$service" && \
+                    echo "Restarted $service"
+                ;;
+            "Enable")
+                systemctl enable "$service" && \
+                    echo "Enabled $service"
+                ;;
+            "Disable")
+                systemctl disable "$service" && \
+                    echo "Disabled $service"
+                ;;
+            "Logs")
+                journalctl -u "$service" -n 20
+                ;;
+            "Back")
+                break
+                ;;
+            *)
+                [ -n "$REPLY" ] && echo "Invalid option: $REPLY"
+                ;;
+        esac
+        
+        [ "$action" != "Back" ] && read -p "Press Enter to continue..."
+    done
+}
+
+# Main menu
+main_menu() {
+    local PS3="Select service category: "
+    
+    select category in "System Services" "Network Services" "User Services" "All Services" "Search" "Exit"; do
+        case "$category" in
+            "System Services")
+                PS3="Select service: "
+                select svc in $(systemctl list-units --type=service --state=running | \
+                    awk '/system.*\.service/ {print $1}' | head -10) "Back"; do
+                    [ "$svc" = "Back" ] && break
+                    [ -n "$svc" ] && service_menu "$svc"
+                done
+                PS3="Select service category: "
+                ;;
+            "Network Services")
+                PS3="Select service: "
+                select svc in "sshd" "nginx" "apache2" "mysql" "postgresql" "Back"; do
+                    [ "$svc" = "Back" ] && break
+                    service_menu "$svc.service"
+                done
+                PS3="Select service category: "
+                ;;
+            "User Services")
+                PS3="Select service: "
+                select svc in $(systemctl list-units --type=service --user | \
+                    awk '{print $1}' | grep -v '^UNIT' | head -10) "Back"; do
+                    [ "$svc" = "Back" ] && break
+                    [ -n "$svc" ] && service_menu "$svc"
+                done
+                PS3="Select service category: "
+                ;;
+            "All Services")
+                PS3="Select service: "
+                select svc in $(systemctl list-unit-files --type=service | \
+                    awk '{print $1}' | grep -v '^UNIT' | head -20) "Back"; do
+                    [ "$svc" = "Back" ] && break
+                    [ -n "$svc" ] && service_menu "$svc"
+                done
+                PS3="Select service category: "
+                ;;
+            "Search")
+                read -p "Enter service name pattern: " pattern
+                PS3="Select service: "
+                select svc in $(systemctl list-unit-files --type=service | \
+                    grep "$pattern" | awk '{print $1}') "Back"; do
+                    [ "$svc" = "Back" ] && break
+                    [ -n "$svc" ] && service_menu "$svc"
+                done
+                PS3="Select service category: "
+                ;;
+            "Exit")
+                echo "Goodbye!"
+                exit 0
+                ;;
+            *)
+                [ -n "$REPLY" ] && echo "Invalid option: $REPLY"
+                ;;
+        esac
+    done
+}
+
+# Main script
+echo "Service Manager"
+echo "==============="
+
+if check_root; then
+    main_menu
+fi
+```
+
 ## Text Processing Scripts
 
 ### Log Analyzer

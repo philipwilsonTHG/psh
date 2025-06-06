@@ -172,6 +172,10 @@ done
 for ((init; condition; update)); do
     commands
 done
+
+select var in list; do
+    commands
+done
 ```
 
 ### Loop Control
@@ -340,6 +344,7 @@ Job specifications:
 ```bash
 PS1         # Primary prompt
 PS2         # Continuation prompt
+PS3         # Select prompt (default "#? ")
 
 Prompt escapes:
 \u          # Username

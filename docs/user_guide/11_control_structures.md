@@ -718,7 +718,482 @@ Outer loop: 3
   Inner loop: 1
 ```
 
-## 11.6 Enhanced Test Operators [[ ]]
+## 11.6 Select Statement (select/in/do/done)
+
+The select statement creates interactive menus, allowing users to choose from a list of options. It's particularly useful for creating user-friendly scripts that require input selection.
+
+### Basic Select Statement
+
+```bash
+# Simple menu
+psh$ select option in "Start" "Stop" "Restart" "Status" "Exit"; do
+>     case "$option" in
+>         "Start")   echo "Starting service..." ;;
+>         "Stop")    echo "Stopping service..." ;;
+>         "Restart") echo "Restarting service..." ;;
+>         "Status")  echo "Checking status..." ;;
+>         "Exit")    break ;;
+>         *)         echo "Invalid option" ;;
+>     esac
+> done
+1) Start
+2) Stop
+3) Restart
+4) Status
+5) Exit
+#? 3
+Restarting service...
+#? 5
+
+# Using variable in select
+psh$ fruits="apple banana orange grape"
+psh$ select fruit in $fruits; do
+>     echo "You selected: $fruit"
+>     break
+> done
+1) apple
+2) banana
+3) orange
+4) grape
+#? 2
+You selected: banana
+
+# Command substitution in select list
+psh$ select file in $(ls *.txt); do
+>     echo "Processing $file"
+>     cat "$file"
+>     break
+> done
+```
+
+### Using REPLY Variable
+
+The select statement sets two variables:
+- The chosen variable receives the selected item
+- REPLY contains the raw user input (the number entered)
+
+```bash
+# Using REPLY for numeric choices
+psh$ select item in "Option A" "Option B" "Option C"; do
+>     echo "You selected #$REPLY: $item"
+>     break
+> done
+1) Option A
+2) Option B
+3) Option C
+#? 2
+You selected #2: Option B
+
+# Handling invalid input
+psh$ select choice in "Yes" "No" "Maybe"; do
+>     if [ -z "$choice" ]; then
+>         echo "Invalid selection: $REPLY"
+>         continue
+>     fi
+>     echo "You chose: $choice"
+>     break
+> done
+1) Yes
+2) No
+3) Maybe
+#? 4
+Invalid selection: 4
+#? 1
+You chose: Yes
+```
+
+### Custom Prompt with PS3
+
+The PS3 variable controls the select prompt (default is "#? "):
+
+```bash
+# Custom select prompt
+psh$ PS3="Please enter your choice: "
+psh$ select option in "Create" "Edit" "Delete" "List" "Quit"; do
+>     case "$option" in
+>         "Create") echo "Creating new item..." ;;
+>         "Edit")   echo "Editing item..." ;;
+>         "Delete") echo "Deleting item..." ;;
+>         "List")   echo "Listing items..." ;;
+>         "Quit")   break ;;
+>     esac
+> done
+1) Create
+2) Edit
+3) Delete
+4) List
+5) Quit
+Please enter your choice: 2
+Editing item...
+Please enter your choice: 5
+
+# Numbered prompt
+psh$ PS3="Select option [1-3]: "
+psh$ select answer in "Yes" "No" "Cancel"; do
+>     echo "Answer: $answer"
+>     break
+> done
+1) Yes
+2) No
+3) Cancel
+Select option [1-3]: 1
+Answer: Yes
+```
+
+### Practical Select Examples
+
+```bash
+# File operation menu
+file_menu() {
+    local PS3="Choose file operation: "
+    local filename
+    
+    read -p "Enter filename: " filename
+    
+    select operation in "View" "Edit" "Copy" "Delete" "Permissions" "Back"; do
+        case "$operation" in
+            "View")
+                if [ -f "$filename" ]; then
+                    less "$filename"
+                else
+                    echo "File not found: $filename"
+                fi
+                ;;
+            "Edit")
+                ${EDITOR:-vi} "$filename"
+                ;;
+            "Copy")
+                read -p "Copy to: " destination
+                cp "$filename" "$destination"
+                echo "Copied to $destination"
+                ;;
+            "Delete")
+                read -p "Are you sure? (y/n): " confirm
+                if [ "$confirm" = "y" ]; then
+                    rm "$filename"
+                    echo "File deleted"
+                    break
+                fi
+                ;;
+            "Permissions")
+                ls -l "$filename"
+                read -p "New permissions (e.g., 644): " perms
+                chmod "$perms" "$filename"
+                ;;
+            "Back")
+                break
+                ;;
+            *)
+                echo "Invalid option: $REPLY"
+                ;;
+        esac
+    done
+}
+
+# System administration menu
+admin_menu() {
+    local PS3="Admin task: "
+    
+    select task in "Users" "Services" "Logs" "Network" "Disk" "Exit"; do
+        case "$task" in
+            "Users")
+                select user_op in "List" "Add" "Delete" "Back"; do
+                    case "$user_op" in
+                        "List")   cut -d: -f1 /etc/passwd | sort ;;
+                        "Add")    echo "Use: useradd username" ;;
+                        "Delete") echo "Use: userdel username" ;;
+                        "Back")   break ;;
+                    esac
+                done
+                ;;
+            "Services")
+                select svc_op in "List" "Start" "Stop" "Status" "Back"; do
+                    case "$svc_op" in
+                        "List")   systemctl list-units --type=service ;;
+                        "Start")  read -p "Service name: " svc
+                                 systemctl start "$svc" ;;
+                        "Stop")   read -p "Service name: " svc
+                                 systemctl stop "$svc" ;;
+                        "Status") read -p "Service name: " svc
+                                 systemctl status "$svc" ;;
+                        "Back")   break ;;
+                    esac
+                done
+                ;;
+            "Logs")
+                select log in /var/log/*.log; do
+                    tail -20 "$log"
+                    break
+                done
+                ;;
+            "Network")
+                select net_op in "Interfaces" "Connections" "DNS" "Back"; do
+                    case "$net_op" in
+                        "Interfaces") ip addr show ;;
+                        "Connections") netstat -tuln ;;
+                        "DNS")        cat /etc/resolv.conf ;;
+                        "Back")       break ;;
+                    esac
+                done
+                ;;
+            "Disk")
+                df -h
+                ;;
+            "Exit")
+                echo "Goodbye!"
+                break
+                ;;
+        esac
+    done
+}
+
+# Package manager wrapper
+package_menu() {
+    local PS3="Package operation: "
+    local pkg_manager
+    
+    # Detect package manager
+    if command -v apt >/dev/null; then
+        pkg_manager="apt"
+    elif command -v yum >/dev/null; then
+        pkg_manager="yum"
+    elif command -v pacman >/dev/null; then
+        pkg_manager="pacman"
+    else
+        echo "No supported package manager found"
+        return 1
+    fi
+    
+    echo "Using package manager: $pkg_manager"
+    
+    select operation in "Search" "Install" "Remove" "Update" "List" "Exit"; do
+        case "$operation" in
+            "Search")
+                read -p "Package name: " pkg
+                case "$pkg_manager" in
+                    apt)    apt search "$pkg" ;;
+                    yum)    yum search "$pkg" ;;
+                    pacman) pacman -Ss "$pkg" ;;
+                esac
+                ;;
+            "Install")
+                read -p "Package name: " pkg
+                case "$pkg_manager" in
+                    apt)    sudo apt install "$pkg" ;;
+                    yum)    sudo yum install "$pkg" ;;
+                    pacman) sudo pacman -S "$pkg" ;;
+                esac
+                ;;
+            "Remove")
+                read -p "Package name: " pkg
+                case "$pkg_manager" in
+                    apt)    sudo apt remove "$pkg" ;;
+                    yum)    sudo yum remove "$pkg" ;;
+                    pacman) sudo pacman -R "$pkg" ;;
+                esac
+                ;;
+            "Update")
+                case "$pkg_manager" in
+                    apt)    sudo apt update && sudo apt upgrade ;;
+                    yum)    sudo yum update ;;
+                    pacman) sudo pacman -Syu ;;
+                esac
+                ;;
+            "List")
+                case "$pkg_manager" in
+                    apt)    dpkg -l | less ;;
+                    yum)    yum list installed | less ;;
+                    pacman) pacman -Q | less ;;
+                esac
+                ;;
+            "Exit")
+                break
+                ;;
+            *)
+                echo "Invalid option"
+                ;;
+        esac
+        
+        echo
+        echo "Press Enter to continue..."
+        read
+    done
+}
+```
+
+### Advanced Select Patterns
+
+```bash
+# Dynamic menu generation
+dynamic_menu() {
+    local items=()
+    local item
+    
+    # Build menu dynamically
+    while IFS= read -r item; do
+        items+=("$item")
+    done < <(find . -name "*.conf" -type f)
+    
+    PS3="Select config file: "
+    select config in "${items[@]}" "Exit"; do
+        if [ "$config" = "Exit" ]; then
+            break
+        elif [ -n "$config" ]; then
+            echo "Editing: $config"
+            ${EDITOR:-vi} "$config"
+        else
+            echo "Invalid selection"
+        fi
+    done
+}
+
+# Multi-column display
+# Select automatically formats long lists into columns
+psh$ select country in $(cat countries.txt); do
+>     echo "Selected: $country"
+>     break
+> done
+1) Albania     6) Denmark    11) Greece     16) Lithuania
+2) Belgium     7) Estonia    12) Hungary    17) Malta
+3) Bulgaria    8) Finland    13) Ireland    18) Netherlands
+4) Croatia     9) France     14) Italy      19) Poland
+5) Cyprus     10) Germany    15) Latvia     20) Portugal
+#? 9
+Selected: France
+
+# Nested select menus
+main_menu() {
+    local PS3="Main menu: "
+    
+    select category in "Files" "System" "Network" "Exit"; do
+        case "$category" in
+            "Files")
+                PS3="File menu: "
+                select file_op in "Browse" "Search" "Recent" "Back"; do
+                    case "$file_op" in
+                        "Browse") ls -la | less ;;
+                        "Search") 
+                            read -p "Search pattern: " pattern
+                            find . -name "*$pattern*" 2>/dev/null
+                            ;;
+                        "Recent") find . -mtime -1 -type f ;;
+                        "Back")   break ;;
+                    esac
+                done
+                PS3="Main menu: "
+                ;;
+            "System")
+                PS3="System menu: "
+                select sys_op in "Memory" "CPU" "Disk" "Back"; do
+                    case "$sys_op" in
+                        "Memory") free -h ;;
+                        "CPU")    top -b -n 1 | head -20 ;;
+                        "Disk")   df -h ;;
+                        "Back")   break ;;
+                    esac
+                done
+                PS3="Main menu: "
+                ;;
+            "Network")
+                PS3="Network menu: "
+                select net_op in "Ping" "Traceroute" "Ports" "Back"; do
+                    case "$net_op" in
+                        "Ping")
+                            read -p "Host to ping: " host
+                            ping -c 4 "$host"
+                            ;;
+                        "Traceroute")
+                            read -p "Host to trace: " host
+                            traceroute "$host"
+                            ;;
+                        "Ports")
+                            netstat -tuln
+                            ;;
+                        "Back")
+                            break
+                            ;;
+                    esac
+                done
+                PS3="Main menu: "
+                ;;
+            "Exit")
+                echo "Goodbye!"
+                break
+                ;;
+            *)
+                echo "Invalid option: $REPLY"
+                ;;
+        esac
+    done
+}
+
+# Select with timeout
+timeout_menu() {
+    local PS3="Select quickly (10s timeout): "
+    local TMOUT=10  # 10 second timeout
+    
+    select option in "Option 1" "Option 2" "Option 3"; do
+        if [ -z "$option" ]; then
+            echo "Timeout or invalid selection"
+            break
+        fi
+        echo "You selected: $option"
+        break
+    done
+}
+```
+
+### Select with I/O Redirection
+
+```bash
+# Reading options from file
+psh$ select server in $(cat servers.txt); do
+>     echo "Connecting to $server..."
+>     ssh "$server"
+>     break
+> done
+
+# Redirecting select output
+psh$ select choice in "Save" "Discard" "Cancel"; do
+>     echo "User selected: $choice" >> decision.log
+>     break
+> done 2>/dev/null  # Hide menu from stderr
+
+# Select in a function with redirected input
+process_batch() {
+    local PS3="Process file: "
+    
+    # Read file list from stdin
+    local files=()
+    while IFS= read -r file; do
+        files+=("$file")
+    done
+    
+    select file in "${files[@]}" "Process All" "Exit"; do
+        case "$file" in
+            "Process All")
+                for f in "${files[@]}"; do
+                    echo "Processing: $f"
+                done
+                break
+                ;;
+            "Exit")
+                break
+                ;;
+            *)
+                if [ -n "$file" ]; then
+                    echo "Processing: $file"
+                fi
+                ;;
+        esac
+    done
+}
+
+# Usage
+find . -name "*.log" | process_batch
+```
+
+## 11.7 Enhanced Test Operators [[ ]]
 
 PSH supports enhanced test syntax with additional operators.
 
@@ -1368,8 +1843,9 @@ Control structures are essential for building complex shell scripts:
 3. **for/in/do/done**: Iterate over lists of items
 4. **for ((;;))**: C-style loops with arithmetic expressions
 5. **case/esac**: Pattern matching for multiple conditions
-6. **break/continue**: Control loop flow with optional levels
-7. **[[ ]]**: Enhanced test operators with regex and string comparison
+6. **select/in/do/done**: Interactive menu system for user choices
+7. **break/continue**: Control loop flow with optional levels
+8. **[[ ]]**: Enhanced test operators with regex and string comparison
 
 Key concepts:
 - All control structures use command exit status for decisions
@@ -1377,6 +1853,7 @@ Key concepts:
 - Nested structures enable complex program logic
 - Loop control statements provide fine-grained flow control
 - Pattern matching in case statements supports wildcards and ranges
+- Select statement provides interactive menu capabilities with PS3 prompt
 - Enhanced test operators provide more powerful condition testing
 
 Control structures enable you to automate complex tasks, handle various conditions, and build robust shell scripts for system administration and data processing.
