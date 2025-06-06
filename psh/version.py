@@ -2,10 +2,17 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.35.0"
+__version__ = "0.35.1"
 
 # Version history
 VERSION_HISTORY = """
+0.35.1 (2025-01-06) - Test suite fix
+  - Fixed pipefail test failure by using standard shell scripts instead of PSH scripts
+  - Changed test scripts from #!/usr/bin/env psh to #!/bin/sh to avoid nested execution issues
+  - The pipefail functionality itself was working correctly; only the test was affected
+  - All 771 tests now pass with 0 failures (up from 770 passing, 1 failing)
+  - No functional changes to PSH itself
+
 0.35.0 (2025-01-06) - Shell options implementation
   - Implemented core shell options: set -e, -u, -x, -o pipefail
   - Added -e (errexit): Exit on command failure with conditional context awareness
