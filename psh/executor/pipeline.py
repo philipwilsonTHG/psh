@@ -105,7 +105,17 @@ class PipelineExecutor(ExecutorComponent):
         # Wait for all children and get exit status
         if not is_background:
             # Foreground job - wait for it
-            last_status = self.job_manager.wait_for_job(job)
+            # Check if we need to collect all exit statuses for pipefail
+            if self.state.options.get('pipefail', False) and len(pipeline.commands) > 1:
+                # Collect all exit statuses
+                exit_statuses = self.job_manager.wait_for_job(job, collect_all_statuses=True)
+                
+                # Use OptionHandler to determine final exit code
+                from ..core.options import OptionHandler
+                last_status = OptionHandler.get_pipeline_exit_code(self.state, exit_statuses)
+            else:
+                # Normal behavior - just get last command's exit status
+                last_status = self.job_manager.wait_for_job(job)
             
             # Restore terminal control
             self.state.foreground_pgid = None

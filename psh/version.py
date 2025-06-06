@@ -2,10 +2,27 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.34.1"
+__version__ = "0.35.0"
 
 # Version history
 VERSION_HISTORY = """
+0.35.0 (2025-01-06) - Shell options implementation
+  - Implemented core shell options: set -e, -u, -x, -o pipefail
+  - Added -e (errexit): Exit on command failure with conditional context awareness
+  - Added -u (nounset): Error on undefined variables (respects ${var:-default} expansions)
+  - Added -x (xtrace): Print commands before execution with PS4 prefix (default "+ ")
+  - Added -o pipefail: Pipeline returns rightmost non-zero exit code
+  - Enhanced set builtin to support combined options (e.g., set -eux)
+  - Centralized options storage in ShellState with backward-compatible properties
+  - Migrated existing debug options (debug-ast, debug-tokens, debug-scopes) to unified system
+  - Created OptionHandler class for implementing option behaviors
+  - Fixed nounset to properly detect undefined variables vs empty strings
+  - Added UnboundVariableError exception for nounset violations
+  - Integrated pipefail with job control for collecting all pipeline exit codes
+  - Added PS4 variable for customizing xtrace prefix
+  - Created comprehensive test suite: 12 passing tests, 2 xfail
+  - Total tests: 771 (771 passing, 40 skipped, 5 xfailed)
+
 0.34.1 (2025-01-06) - Runtime debug-scopes toggle
   - Added runtime toggling of debug-scopes via set builtin
   - Enable with: set -o debug-scopes

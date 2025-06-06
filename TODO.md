@@ -1,25 +1,16 @@
 # Python Shell (psh) - TODO List
 
-**Current Version**: 0.34.0 (2025-01-06)
+**Current Version**: 0.35.0 (2025-01-06)
 
 ## Overview
 
-PSH has achieved significant feature completeness with **751 passing tests**. This document tracks remaining features, known issues, and development priorities.
+PSH has achieved significant feature completeness with **771 passing tests**. This document tracks remaining features, known issues, and development priorities.
 
 ## Remaining Features
 
 ### High Priority
 
-#### Shell Options (`set` command) - **NEXT PRIORITY**
-- **Description**: Script debugging and error handling options
-- **Status**: Not implemented
-- **Options**:
-  - `-e` (errexit): Exit on command failure
-  - `-u` (nounset): Error on undefined variables
-  - `-x` (xtrace): Print commands before execution
-  - `-o pipefail`: Pipeline fails if any command fails
-
-#### Trap Command
+#### Trap Command - **NEXT PRIORITY**
 - **Description**: Signal handling for cleanup and error management
 - **Status**: Not implemented
 - **Use cases**: Cleanup on exit, error handling, signal interception
@@ -103,6 +94,17 @@ PSH has achieved significant feature completeness with **751 passing tests**. Th
 ## Implementation History
 
 ### Recent Releases
+
+#### v0.35.0 - Shell Options Implementation
+- Implemented core shell options: `set -e`, `set -u`, `set -x`, `set -o pipefail`
+- Centralized options storage with backward-compatible debug option migration
+- Xtrace (-x): Print commands with PS4 prefix before execution
+- Nounset (-u): Error on undefined variable access (with parameter expansion exceptions)
+- Errexit (-e): Exit on command failure (with proper conditional context handling)
+- Pipefail: Pipeline returns rightmost non-zero exit code
+- Enhanced set builtin to handle combined options (e.g., `set -eux`)
+- Added comprehensive test suite: 12 passing tests, 2 xfail (subprocess isolation issues)
+- Total tests: 771 passing (with comprehensive option coverage)
 
 #### v0.33.0 - History Expansion and Bug Fixes
 - Implemented complete bash-compatible history expansion (!!, !n, !-n, !string, !?string?)

@@ -241,9 +241,18 @@ class JobManager:
                     return job
             return None
     
-    def wait_for_job(self, job: Job) -> int:
-        """Wait for a job to complete or stop."""
+    def wait_for_job(self, job: Job, collect_all_statuses: bool = False) -> int:
+        """Wait for a job to complete or stop.
+        
+        Args:
+            job: The job to wait for
+            collect_all_statuses: If True, collect exit codes from all processes
+            
+        Returns:
+            Exit status (or list of statuses if collect_all_statuses is True)
+        """
         exit_status = 0
+        all_exit_statuses = []
         
         while job.any_process_running():
             try:
@@ -253,33 +262,56 @@ class JobManager:
                 # Update process status
                 job.update_process_status(pid, status)
                 
-                # If this was the last process in the pipeline
+                # Extract exit status
+                proc_exit_status = 0
+                if os.WIFEXITED(status):
+                    proc_exit_status = os.WEXITSTATUS(status)
+                elif os.WIFSIGNALED(status):
+                    proc_exit_status = 128 + os.WTERMSIG(status)
+                elif os.WIFSTOPPED(status):
+                    proc_exit_status = 128 + os.WSTOPSIG(status)
+                
+                # Find which process this is
                 for i, proc in enumerate(job.processes):
-                    if proc.pid == pid and i == len(job.processes) - 1:
-                        # Use exit status of last process
-                        if os.WIFEXITED(status):
-                            exit_status = os.WEXITSTATUS(status)
-                        elif os.WIFSIGNALED(status):
-                            exit_status = 128 + os.WTERMSIG(status)
-                        elif os.WIFSTOPPED(status):
-                            exit_status = 128 + os.WSTOPSIG(status)
+                    if proc.pid == pid:
+                        if collect_all_statuses:
+                            # Store exit status at the correct index
+                            while len(all_exit_statuses) <= i:
+                                all_exit_statuses.append(0)
+                            all_exit_statuses[i] = proc_exit_status
+                        
+                        # If this was the last process in the pipeline
+                        if i == len(job.processes) - 1:
+                            exit_status = proc_exit_status
                 
             except OSError:
                 break
         
         # If processes were already reaped by SIGCHLD handler, get exit status from stored status
         if not job.any_process_running() and job.processes:
-            last_process = job.processes[-1]  # Last process in pipeline
-            if last_process.completed and last_process.status is not None:
-                status = last_process.status
-                if os.WIFEXITED(status):
-                    exit_status = os.WEXITSTATUS(status)
-                elif os.WIFSIGNALED(status):
-                    exit_status = 128 + os.WTERMSIG(status)
-                elif os.WIFSTOPPED(status):
-                    exit_status = 128 + os.WSTOPSIG(status)
+            for i, proc in enumerate(job.processes):
+                if proc.completed and proc.status is not None:
+                    status = proc.status
+                    proc_exit_status = 0
+                    if os.WIFEXITED(status):
+                        proc_exit_status = os.WEXITSTATUS(status)
+                    elif os.WIFSIGNALED(status):
+                        proc_exit_status = 128 + os.WTERMSIG(status)
+                    elif os.WIFSTOPPED(status):
+                        proc_exit_status = 128 + os.WSTOPSIG(status)
+                    
+                    if collect_all_statuses:
+                        while len(all_exit_statuses) <= i:
+                            all_exit_statuses.append(0)
+                        all_exit_statuses[i] = proc_exit_status
+                    
+                    # Last process determines default exit status
+                    if i == len(job.processes) - 1:
+                        exit_status = proc_exit_status
         
         # Update job state
         job.update_state()
         
+        if collect_all_statuses:
+            return all_exit_statuses
         return exit_status

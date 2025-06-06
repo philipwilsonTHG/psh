@@ -94,6 +94,17 @@ class StatementExecutor(ExecutorComponent):
                     # Execute commands
                     last_exit = self.execute_command_list(item)
                     # last_exit_code already updated by execute_command_list
+                    
+                    # Check errexit after non-control-flow commands
+                    if last_exit != 0 and self.state.options.get('errexit', False):
+                        from ..core.options import OptionHandler
+                        # Not in conditional context for top-level commands
+                        if OptionHandler.should_exit_on_error(self.state, in_conditional=False):
+                            if self.state.is_script_mode:
+                                sys.exit(last_exit)
+                            else:
+                                # In interactive mode, just print message
+                                print(f"psh: exit {last_exit} (errexit)", file=self.state.stderr)
                 elif isinstance(item, IfStatement):
                     # Collect here documents
                     self.io_manager.collect_heredocs(item)
@@ -152,9 +163,19 @@ class StatementExecutor(ExecutorComponent):
         if not and_or.pipelines:
             return 0
         
+        # Track if we're in a conditional context for errexit
+        in_conditional = len(and_or.operators) > 0
+        
         # Execute first pipeline
         status = self.shell.execute_pipeline(and_or.pipelines[0])
         self.state.last_exit_code = status
+        
+        # Check errexit after first command if not in conditional
+        if not in_conditional and status != 0 and self.state.options.get('errexit', False):
+            from ..core.options import OptionHandler
+            if OptionHandler.should_exit_on_error(self.state, in_conditional=False):
+                if self.state.is_script_mode:
+                    sys.exit(status)
         
         # Process remaining pipelines with operators
         for i in range(len(and_or.operators)):

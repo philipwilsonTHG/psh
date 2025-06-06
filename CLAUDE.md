@@ -8,12 +8,14 @@ Python Shell (psh) is an educational Unix shell implementation designed for teac
 
 ## Current Development Focus
 
-**Next Priority**: Shell Options (`set` command)
-- Script debugging and error handling options
-- -e (errexit): Exit on command failure
-- -u (nounset): Error on undefined variables  
-- -x (xtrace): Print commands before execution
-- -o pipefail: Pipeline fails if any command fails
+**Completed**: Shell Options (`set` command) - v0.35.0
+- ✓ Script debugging and error handling options implemented
+- ✓ -e (errexit): Exit on command failure
+- ✓ -u (nounset): Error on undefined variables  
+- ✓ -x (xtrace): Print commands before execution
+- ✓ -o pipefail: Pipeline fails if any command fails
+
+**Next Priority**: Trap command for signal handling
 - See TODO.md for full list of remaining features
 
 ## Architecture
@@ -35,8 +37,9 @@ The shell follows a component-based architecture with clear separation of concer
 
 #### Core Components
 - **`core/`**: Shared state and exceptions
-  - `state.py`: Centralized shell state (variables, environment, settings)
-  - `exceptions.py`: Shell-specific exceptions (LoopBreak, LoopContinue)
+  - `state.py`: Centralized shell state (variables, environment, settings, options)
+  - `exceptions.py`: Shell-specific exceptions (LoopBreak, LoopContinue, UnboundVariableError)
+  - `options.py`: Shell option handlers (errexit, nounset, xtrace, pipefail)
 
 #### Execution System (`executor/`)
 - **`base.py`**: Base classes and ExecutorManager
@@ -176,6 +179,13 @@ set -o debug-tokens     # Enable token debug output
 set +o debug-ast        # Disable AST debug output
 set +o debug-tokens     # Disable token debug output
 set -o                  # Show current option settings
+
+# Shell options for scripts:
+set -e                  # Exit on error (errexit)
+set -u                  # Error on undefined variables (nounset)
+set -x                  # Print commands before execution (xtrace)
+set -o pipefail         # Pipeline fails if any command fails
+set -eux -o pipefail    # Common combination for robust scripts
 
 # RC file options
 python3 -m psh --norc           # Skip ~/.pshrc loading
@@ -384,8 +394,17 @@ Implemented:
   - I/O redirection support on select loops
   - 12 comprehensive tests (require pytest -s for stdin access)
 
+- Shell options - ✅ **Implemented in v0.35.0**
+  - Script debugging and error handling options
+  - `-e` (errexit): Exit on command failure (with conditional context awareness)
+  - `-u` (nounset): Error on undefined variables (respects parameter expansion defaults)
+  - `-x` (xtrace): Print commands before execution with PS4 prefix
+  - `-o pipefail`: Pipeline fails if any command fails (returns rightmost non-zero exit)
+  - Combined options support: `set -eux -o pipefail`
+  - Centralized options storage with backward compatibility for debug options
+  - 12 passing tests, 2 xfail due to test environment issues
+
 Not implemented:
-- Advanced shell options (set -e, -u, -x, -o pipefail)
 - Trap command for signal handling
 - Escaped glob patterns
 - Array variables

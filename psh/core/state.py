@@ -74,6 +74,43 @@ class ShellState:
         self.stdout = sys.stdout
         self.stderr = sys.stderr
         self.stdin = sys.stdin
+        
+        # PS4 prompt for xtrace
+        self.scope_manager.set_variable('PS4', '+ ')
+    
+    # Backward-compatible properties for debug options
+    @property
+    def debug_ast(self):
+        """Backward compatibility for debug_ast attribute."""
+        return self.options.get('debug-ast', False)
+    
+    @debug_ast.setter
+    def debug_ast(self, value):
+        """Backward compatibility for debug_ast attribute."""
+        self.options['debug-ast'] = value
+    
+    @property
+    def debug_tokens(self):
+        """Backward compatibility for debug_tokens attribute."""
+        return self.options.get('debug-tokens', False)
+    
+    @debug_tokens.setter
+    def debug_tokens(self, value):
+        """Backward compatibility for debug_tokens attribute."""
+        self.options['debug-tokens'] = value
+    
+    @property
+    def debug_scopes(self):
+        """Backward compatibility for debug_scopes attribute."""
+        return self.options.get('debug-scopes', False)
+    
+    @debug_scopes.setter
+    def debug_scopes(self, value):
+        """Backward compatibility for debug_scopes attribute."""
+        self.options['debug-scopes'] = value
+        # Also update scope manager when this is set
+        if hasattr(self, 'scope_manager'):
+            self.scope_manager.enable_debug(value)
     
     @property
     def variables(self) -> Dict[str, str]:

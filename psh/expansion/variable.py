@@ -158,6 +158,15 @@ class VariableExpander:
                 return value if value else default
             else:
                 var_name = var_content
+                
+                # Check nounset for simple ${var} expansion
+                if self.state.options.get('nounset', False):
+                    from ..core.options import OptionHandler
+                    from ..core.exceptions import UnboundVariableError
+                    try:
+                        OptionHandler.check_unset_variable(self.state, var_name)
+                    except UnboundVariableError:
+                        raise UnboundVariableError(f"psh: ${{{var_name}}}: unbound variable")
         else:
             var_name = var_expr
         
@@ -189,6 +198,15 @@ class VariableExpander:
         # Regular variables - check shell variables first, then environment
         result = self.state.variables.get(var_name, self.state.env.get(var_name, ''))
         
+        # Check nounset option
+        if self.state.options.get('nounset', False):
+            from ..core.options import OptionHandler
+            from ..core.exceptions import UnboundVariableError
+            try:
+                OptionHandler.check_unset_variable(self.state, var_name)
+            except UnboundVariableError:
+                # Re-raise with proper formatting for variable expansion
+                raise UnboundVariableError(f"psh: ${var_name}: unbound variable")
         
         return result
     

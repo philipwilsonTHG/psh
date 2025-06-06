@@ -25,12 +25,6 @@ class CommandExecutor(ExecutorComponent):
         if not args:
             return 0
         
-        # Trace command execution if xtrace is enabled
-        if self.state.options.get('xtrace', False):
-            # Format the trace output with + prefix
-            trace_output = '+ ' + ' '.join(args)
-            print(trace_output, file=sys.stderr)
-        
         # Separate variable assignments from command
         assignments = []
         command_args = []
@@ -44,6 +38,12 @@ class CommandExecutor(ExecutorComponent):
                 # This is part of the command
                 in_command = True
                 command_args.append(arg)
+        
+        # Trace command execution if xtrace is enabled
+        if self.state.options.get('xtrace', False):
+            from ..core.options import OptionHandler
+            # Show the full command including assignments
+            OptionHandler.print_xtrace(self.state, args)
         
         # If only assignments, handle them
         if not command_args:

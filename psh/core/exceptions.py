@@ -11,3 +11,7 @@ class LoopContinue(Exception):
     def __init__(self, level=1):
         self.level = level
         super().__init__()
+
+class UnboundVariableError(Exception):
+    """Raised when accessing unset variable with nounset option."""
+    pass

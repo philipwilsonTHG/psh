@@ -2,7 +2,7 @@
 
 An educational Unix shell implementation in Python, designed to teach shell internals and compiler/interpreter concepts through a clean, readable codebase.  All source code and documentation (with the exception of this sentence) has been written by Claude Code using Sonnet 4 and Opus 4 models.
 
-**Current Version**: 0.34.1 (2025-01-06)
+**Current Version**: 0.35.0 (2025-01-06)
 
 ## Overview
 
@@ -12,6 +12,7 @@ The shell features a modern component-based architecture where each subsystem (e
 
 ### Recent Major Features
 
+- **v0.35.0**: Shell options `set -e`, `-u`, `-x`, `-o pipefail` for robust scripting
 - **v0.34.0**: Select statement for interactive menus `select var in items; do ...; done`
 - **v0.33.0**: History expansion (!!, !n, !-n, !string, !?string?) and for loop variable persistence fix
 - **v0.32.0**: Arithmetic command syntax `((expr))` for standalone arithmetic evaluation
@@ -213,6 +214,13 @@ $ set -o debug-ast                  # Enable AST debugging
 $ set -o debug-tokens               # Enable token debugging
 $ set +o debug-ast                  # Disable AST debugging
 $ set -o                            # Show all options
+
+# Shell options for scripts:
+$ set -e                            # Exit on error (errexit)
+$ set -u                            # Error on undefined variables (nounset)
+$ set -x                            # Print commands before execution (xtrace)
+$ set -o pipefail                   # Pipeline fails if any command fails
+$ set -eux -o pipefail              # Common combination for scripts
 ```
 
 ## Examples
@@ -486,9 +494,9 @@ See [TODO.md](TODO.md) for a complete list of planned features.
 
 ## Implementation Status
 
-PSH has achieved significant feature completeness with **730+ passing tests**:
+PSH has achieved significant feature completeness with **771 passing tests**:
 
-### ✅ Fully Implemented (v0.32.0)
+### ✅ Fully Implemented (v0.35.0)
 - All core shell features (execution, I/O, pipelines, variables)
 - Complete expansion system (variable, parameter, command, arithmetic, brace, process)
 - All control structures (if/elif/else, while, for, C-style for, case, break/continue)
