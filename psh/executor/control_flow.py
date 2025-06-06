@@ -37,6 +37,10 @@ class ControlFlowExecutor(ExecutorComponent):
     
     def execute_if(self, node: IfStatement) -> int:
         """Execute if/then/else statement."""
+        # Trace if statement if xtrace is enabled
+        if self.state.options.get('xtrace', False):
+            print('+ if ...', file=sys.stderr)
+        
         # Apply redirections if present
         if node.redirects:
             saved_fds = self.io_manager.apply_redirections(node.redirects)
@@ -69,6 +73,10 @@ class ControlFlowExecutor(ExecutorComponent):
     
     def execute_while(self, node: WhileStatement) -> int:
         """Execute while loop."""
+        # Trace while statement if xtrace is enabled
+        if self.state.options.get('xtrace', False):
+            print('+ while ...', file=sys.stderr)
+        
         # Apply redirections if present
         if node.redirects:
             saved_fds = self.io_manager.apply_redirections(node.redirects)
@@ -107,6 +115,10 @@ class ControlFlowExecutor(ExecutorComponent):
     
     def execute_for(self, node: ForStatement) -> int:
         """Execute for loop."""
+        # Trace for statement if xtrace is enabled
+        if self.state.options.get('xtrace', False):
+            print(f'+ for {node.variable} in ...', file=sys.stderr)
+        
         # Apply redirections if present
         if node.redirects:
             saved_fds = self.io_manager.apply_redirections(node.redirects)

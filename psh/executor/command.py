@@ -25,6 +25,12 @@ class CommandExecutor(ExecutorComponent):
         if not args:
             return 0
         
+        # Trace command execution if xtrace is enabled
+        if self.state.options.get('xtrace', False):
+            # Format the trace output with + prefix
+            trace_output = '+ ' + ' '.join(args)
+            print(trace_output, file=sys.stderr)
+        
         # Separate variable assignments from command
         assignments = []
         command_args = []
@@ -319,6 +325,12 @@ class CommandExecutor(ExecutorComponent):
         
         if not args:
             return 0
+        
+        # Trace command execution if xtrace is enabled
+        if self.state.options.get('xtrace', False):
+            # Format the trace output with + prefix
+            trace_output = '+ ' + ' '.join(args)
+            print(trace_output, file=sys.stderr)
         
         # Set up redirections
         try:

@@ -14,8 +14,6 @@ class ShellState:
         
         # Initialize scope manager for variable scoping
         self.scope_manager = ScopeManager()
-        if debug_scopes:
-            self.scope_manager.enable_debug(True)
         
         # For backward compatibility, keep self.variables as a property
         # that delegates to scope_manager
@@ -29,10 +27,22 @@ class ShellState:
         self.script_name = script_name or "psh"
         self.is_script_mode = script_name is not None and script_name != "psh"
         
-        # Debug flags
-        self.debug_ast = debug_ast
-        self.debug_tokens = debug_tokens
-        self.debug_scopes = debug_scopes
+        # Centralized shell options dictionary
+        self.options = {
+            # Debug options (existing)
+            'debug-ast': debug_ast,
+            'debug-tokens': debug_tokens,
+            'debug-scopes': debug_scopes,
+            # New shell options (to be implemented)
+            'errexit': False,      # -e: exit on error
+            'nounset': False,      # -u: error on undefined variables
+            'xtrace': False,       # -x: print commands before execution
+            'pipefail': False,     # -o pipefail: pipeline fails if any command fails
+        }
+        
+        # Enable debug mode on scope manager if debug-scopes is set
+        if self.options['debug-scopes']:
+            self.scope_manager.enable_debug(True)
         
         # RC file options
         self.norc = norc
@@ -116,3 +126,37 @@ class ShellState:
         elif name.isdigit():
             return self.get_positional_param(int(name))
         return ''
+    
+    # Backward-compatible properties for debug flags
+    @property
+    def debug_ast(self) -> bool:
+        """Get debug-ast option."""
+        return self.options.get('debug-ast', False)
+    
+    @debug_ast.setter
+    def debug_ast(self, value: bool):
+        """Set debug-ast option."""
+        self.options['debug-ast'] = value
+    
+    @property
+    def debug_tokens(self) -> bool:
+        """Get debug-tokens option."""
+        return self.options.get('debug-tokens', False)
+    
+    @debug_tokens.setter
+    def debug_tokens(self, value: bool):
+        """Set debug-tokens option."""
+        self.options['debug-tokens'] = value
+    
+    @property
+    def debug_scopes(self) -> bool:
+        """Get debug-scopes option."""
+        return self.options.get('debug-scopes', False)
+    
+    @debug_scopes.setter
+    def debug_scopes(self, value: bool):
+        """Set debug-scopes option."""
+        self.options['debug-scopes'] = value
+        # Also update scope manager
+        if hasattr(self, 'scope_manager'):
+            self.scope_manager.enable_debug(value)
