@@ -8,7 +8,15 @@ Python Shell (psh) is an educational Unix shell implementation designed for teac
 
 ## Current Development Focus
 
-**Completed**: Shell Options (`set` command) - v0.35.0
+**Completed**: Eval Builtin - v0.36.0
+- ✓ Dynamic command execution from strings implemented
+- ✓ Full shell processing: tokenization, parsing, expansions
+- ✓ Current context execution (variables/functions persist)
+- ✓ Comprehensive test suite with 17 tests covering all use cases
+- ✓ Security considerations and best practices documented
+- ✓ Example scripts and user guide updates included
+
+**Previous**: Shell Options (`set` command) - v0.35.0
 - ✓ Script debugging and error handling options implemented
 - ✓ -e (errexit): Exit on command failure
 - ✓ -u (nounset): Error on undefined variables  
@@ -16,6 +24,9 @@ Python Shell (psh) is an educational Unix shell implementation designed for teac
 - ✓ -o pipefail: Pipeline fails if any command fails
 
 **Next Priority**: Trap command for signal handling
+- Signal handling and cleanup on script interruption
+- Trap command syntax: `trap 'commands' SIGNAL`
+- Integration with existing signal management system
 - See TODO.md for full list of remaining features
 
 ## Architecture
