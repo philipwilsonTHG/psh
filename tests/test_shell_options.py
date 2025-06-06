@@ -215,13 +215,13 @@ echo "End"
         
         # Script that exits with 2
         with tempfile.NamedTemporaryFile(mode='w', suffix='.sh', delete=False) as f:
-            f.write('#!/usr/bin/env psh\nexit 2')
+            f.write('#!/bin/sh\nexit 2')
             exit2_path = f.name
         os.chmod(exit2_path, 0o755)
         
         # Script that exits with 3
         with tempfile.NamedTemporaryFile(mode='w', suffix='.sh', delete=False) as f:
-            f.write('#!/usr/bin/env psh\nexit 3')
+            f.write('#!/bin/sh\nexit 3')
             exit3_path = f.name
         os.chmod(exit3_path, 0o755)
         
