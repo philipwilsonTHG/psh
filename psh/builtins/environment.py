@@ -115,9 +115,13 @@ class SetBuiltin(Builtin):
             elif option == 'debug-tokens':
                 shell.state.debug_tokens = True
                 return 0
+            elif option == 'debug-scopes':
+                shell.state.debug_scopes = True
+                shell.state.scope_manager.enable_debug(True)
+                return 0
             else:
                 self.error(f"invalid option: {option}", shell)
-                print("Valid options: vi, emacs, debug-ast, debug-tokens", 
+                print("Valid options: vi, emacs, debug-ast, debug-tokens, debug-scopes", 
                       file=shell.stderr if hasattr(shell, 'stderr') else sys.stderr)
                 return 1
         elif args[1] == '-o' and len(args) == 2:
@@ -126,6 +130,7 @@ class SetBuiltin(Builtin):
             print(f"edit_mode            {shell.edit_mode}", file=stdout)
             print(f"debug-ast            {'on' if shell.state.debug_ast else 'off'}", file=stdout)
             print(f"debug-tokens         {'on' if shell.state.debug_tokens else 'off'}", file=stdout)
+            print(f"debug-scopes         {'on' if shell.state.debug_scopes else 'off'}", file=stdout)
             return 0
         elif args[1] == '+o' and len(args) == 2:
             # Show current options as set commands
@@ -133,6 +138,7 @@ class SetBuiltin(Builtin):
             print(f"set {'+o' if shell.edit_mode == 'emacs' else '-o'} vi", file=stdout)
             print(f"set {'-o' if shell.state.debug_ast else '+o'} debug-ast", file=stdout)
             print(f"set {'-o' if shell.state.debug_tokens else '+o'} debug-tokens", file=stdout)
+            print(f"set {'-o' if shell.state.debug_scopes else '+o'} debug-scopes", file=stdout)
             return 0
         elif args[1] == '+o' and len(args) >= 3:
             # Unset option
@@ -145,6 +151,9 @@ class SetBuiltin(Builtin):
                 shell.state.debug_ast = False
             elif option == 'debug-tokens':
                 shell.state.debug_tokens = False
+            elif option == 'debug-scopes':
+                shell.state.debug_scopes = False
+                shell.state.scope_manager.enable_debug(False)
             return 0
         else:
             # Set positional parameters
@@ -168,9 +177,11 @@ class SetBuiltin(Builtin):
       -o emacs          Set emacs editing mode (default)
       -o debug-ast      Enable AST debug output
       -o debug-tokens   Enable token debug output
+      -o debug-scopes   Enable variable scope debug output
       +o vi             Unset vi mode (switch to emacs)
       +o debug-ast      Disable AST debug output
       +o debug-tokens   Disable token debug output
+      +o debug-scopes   Disable variable scope debug output
     
     With arguments, set positional parameters ($1, $2, etc.)."""
 

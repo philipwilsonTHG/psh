@@ -2,7 +2,7 @@
 
 An educational Unix shell implementation in Python, designed to teach shell internals and compiler/interpreter concepts through a clean, readable codebase.  All source code and documentation (with the exception of this sentence) has been written by Claude Code using Sonnet 4 and Opus 4 models.
 
-**Current Version**: 0.34.0 (2025-01-06)
+**Current Version**: 0.34.1 (2025-01-06)
 
 ## Overview
 

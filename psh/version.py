@@ -2,10 +2,21 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.34.0"
+__version__ = "0.34.1"
 
 # Version history
 VERSION_HISTORY = """
+0.34.1 (2025-01-06) - Runtime debug-scopes toggle
+  - Added runtime toggling of debug-scopes via set builtin
+  - Enable with: set -o debug-scopes
+  - Disable with: set +o debug-scopes
+  - Shows all variable scope operations when enabled
+  - Tracks function scope push/pop, variable creation, and lookups
+  - Complements existing --debug-scopes command-line flag
+  - Added 10 comprehensive tests for the feature
+  - Created debug_scopes_demo.sh example script
+  - Total tests: 761 (759 passing, 40 skipped, 3 xfailed)
+
 0.34.0 (2025-01-06) - Select statement implementation
   - Added complete bash-compatible select statement for interactive menus
   - Syntax: select var in items...; do commands; done
