@@ -44,8 +44,9 @@ Issues = "https://github.com/philipwilsonTHG/psh/issues"
 [project.scripts]
 psh = "psh.__main__:main"
 
-[tool.setuptools]
-packages = ["psh"]
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["psh*"]
 
 [tool.setuptools.package-data]
 psh = ["*.md"]
