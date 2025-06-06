@@ -2,7 +2,7 @@
 
 An educational Unix shell implementation in Python, designed to teach shell internals and compiler/interpreter concepts through a clean, readable codebase.  **All source code and documentation (with the exception of this sentence) has been written by Claude Code using Sonnet 4 and Opus 4 models.**
 
-**Current Version**: 0.35.0 (2025-01-06)
+**Current Version**: 0.36.0 (2025-01-06)
 
 ## Overview
 
@@ -12,6 +12,7 @@ The shell features a modern component-based architecture where each subsystem (e
 
 ### Recent Major Features
 
+- **v0.36.0**: Eval builtin for dynamic command execution `eval "echo hello"`
 - **v0.35.0**: Shell options `set -e`, `-u`, `-x`, `-o pipefail` for robust scripting
 - **v0.34.0**: Select statement for interactive menus `select var in items; do ...; done`
 - **v0.33.0**: History expansion (!!, !n, !-n, !string, !?string?) and for loop variable persistence fix
@@ -158,6 +159,7 @@ The shell features a modern component-based architecture where each subsystem (e
 - **Test**: `test`, `[`, `[[`
 - **History**: `history`
 - **I/O**: `read` (with -r, -p, -s, -t, -n, -d options)
+- **Dynamic**: `eval` (execute arguments as commands)
 
 ### Additional Features
 
@@ -337,6 +339,24 @@ $ if [[ $name =~ ^[A-Z] ]]; then
 # Arithmetic with command substitution
 $ result=$(($(get_value) * 2 + 10))
 $ echo "Result: $result"
+
+# Dynamic command execution with eval
+$ cmd="echo"
+$ msg="Hello from eval"
+$ eval "$cmd '$msg'"
+Hello from eval
+
+# Function creation with eval
+$ eval "greet() { echo 'Hello, \$1!'; }"
+$ greet World
+Hello, World!
+
+# Dynamic variable assignment
+$ for i in 1 2 3; do
+>   eval "var_$i='Value $i'"
+> done
+$ echo $var_2
+Value 2
 ```
 
 ### Prompt Customization
@@ -475,7 +495,7 @@ psh/
 │   │   ├── registry.py       # Builtin registry
 │   │   └── ...               # Categorized builtins
 │   └── ...                   # Other components
-├── tests/                    # Comprehensive test suite (680+ tests)
+├── tests/                    # Comprehensive test suite (788+ tests)
 ├── docs/                     # Architecture and design docs
 └── examples/                 # Example scripts and demos
 ```
@@ -494,9 +514,9 @@ See [TODO.md](TODO.md) for a complete list of planned features.
 
 ## Implementation Status
 
-PSH has achieved significant feature completeness with **771 passing tests**:
+PSH has achieved significant feature completeness with **788 passing tests**:
 
-### ✅ Fully Implemented (v0.35.0)
+### ✅ Fully Implemented (v0.36.0)
 - All core shell features (execution, I/O, pipelines, variables)
 - Complete expansion system (variable, parameter, command, arithmetic, brace, process)
 - All control structures (if/elif/else, while, for, C-style for, case, break/continue)
@@ -510,12 +530,15 @@ PSH has achieved significant feature completeness with **771 passing tests**:
 - Echo builtin with full escape sequence support (-n, -e, -E)
 - C-style for loops with arithmetic iteration
 - Arithmetic command syntax `((expr))` for standalone evaluation and conditionals
+- Select statement for interactive menu generation
+- Shell options: `set -e`, `set -u`, `set -x`, `set -o pipefail` for robust scripting
+- Dynamic command execution with eval builtin
 
 ### 🚧 Planned Features
-- Advanced shell options: `set -e`, `set -u`, `set -x`, `set -o pipefail`
 - Trap command for signal handling
 - Array variables and associative arrays
-- Select statement for menu generation
+- Escaped glob patterns
+- Additional shell options and POSIX compliance improvements
 
 ## Contributing
 
