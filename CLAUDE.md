@@ -86,6 +86,7 @@ The shell follows a component-based architecture with clear separation of concer
   - `job_control.py`: Job control (jobs, fg, bg)
   - `aliases.py`: Alias management
   - `test_command.py`: Test/[ command implementation
+  - `eval_command.py`: Eval builtin for dynamic command execution
 - **`utils/`**: Utility modules
   - `ast_formatter.py`: AST pretty-printing
   - `token_formatter.py`: Token formatting
@@ -256,7 +257,7 @@ Implemented:
 - I/O redirections (<, >, >>, 2>, 2>>, 2>&1, <<<)
 - Multiple commands (;) and background execution (&)
 - Quoted strings (single and double) with proper variable expansion
-- Built-ins: exit, cd, export, pwd, echo (with -n, -e, -E flags), read (with -r, -p, -s, -t, -n, -d options), unset, env, source, ., history, set, declare, return, jobs, fg, bg, alias, unalias, test, [, true, false, :
+- Built-ins: exit, cd, export, pwd, echo (with -n, -e, -E flags), read (with -r, -p, -s, -t, -n, -d options), unset, env, source, ., history, set, declare, return, jobs, fg, bg, alias, unalias, test, [, true, false, :, eval
 - Wildcards/globbing (*, ?, [...])
 - Exit status tracking ($? variable)
 - Command history with persistence (~/.psh_history)
@@ -403,6 +404,15 @@ Implemented:
   - Combined options support: `set -eux -o pipefail`
   - Centralized options storage with backward compatibility for debug options
   - 12 passing tests, 2 xfail due to test environment issues
+
+- Eval builtin - ✅ **Implemented in v0.36.0**
+  - Execute arguments as shell commands: `eval "echo hello"`
+  - Concatenates all arguments with spaces before execution
+  - Full shell processing: tokenization, parsing, all expansions
+  - Executes in current shell context (variables/functions persist)
+  - Proper exit status handling
+  - Support for all shell features: pipelines, redirections, control structures
+  - 17 comprehensive tests covering all use cases
 
 Not implemented:
 - Trap command for signal handling

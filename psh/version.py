@@ -2,10 +2,23 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.35.1"
+__version__ = "0.36.0"
 
 # Version history
 VERSION_HISTORY = """
+0.36.0 (2025-01-06) - Eval builtin implementation
+  - Added eval builtin for executing arguments as shell commands
+  - Concatenates all arguments with spaces and executes as full shell commands
+  - Complete shell processing: tokenization, parsing, expansions, execution
+  - Executes in current shell context (variables and functions persist)
+  - Proper exit status handling from executed commands
+  - Support for all shell features: pipelines, redirections, control structures
+  - Created comprehensive test suite with 17 tests covering all use cases
+  - Added eval_demo.sh example script demonstrating various usage patterns
+  - No architectural changes required - leveraged existing shell infrastructure
+  - Implementation follows bash-compatible behavior and semantics
+  - Total tests: 788 passing (up from 771 in v0.35.1)
+
 0.35.1 (2025-01-06) - Test suite fix
   - Fixed pipefail test failure by using standard shell scripts instead of PSH scripts
   - Changed test scripts from #!/usr/bin/env psh to #!/bin/sh to avoid nested execution issues
