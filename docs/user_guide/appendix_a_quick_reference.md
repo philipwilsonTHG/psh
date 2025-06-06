@@ -417,11 +417,28 @@ set -o option              # Enable option
 set +o option              # Disable option
 set -o                     # Show all options
 
-PSH-specific options:
-debug-ast                  # Show parsed AST
-debug-tokens               # Show tokenization
-emacs                      # Emacs editing mode
-vi                         # Vi editing mode
+# Error handling options
+set -e                     # Exit on error (errexit)
+set -u                     # Error on undefined variables (nounset)
+set -x                     # Print commands before execution (xtrace)
+set -o pipefail            # Pipeline fails if any command fails
+
+# Common combinations
+set -euo pipefail          # Strict error handling
+set -eux                   # Strict with debug trace
+
+# Debug options
+set -o debug-ast           # Show parsed AST
+set -o debug-tokens        # Show tokenization
+set -o debug-scopes        # Show variable scopes
+
+# Interactive options
+set -o emacs               # Emacs editing mode (default)
+set -o vi                  # Vi editing mode
+
+# Special variables
+PS4='+ '                   # Trace prompt (default)
+PS4='[${LINENO}] '        # Show line numbers in trace
 ```
 
 ## Common Key Bindings

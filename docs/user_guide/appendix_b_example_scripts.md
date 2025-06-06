@@ -1,6 +1,6 @@
 # Appendix B: Example Scripts
 
-This appendix contains a collection of scripts that demonstrate PSH's capabilities. All scripts have been tested and are guaranteed to work with PSH version 0.32.0 and later.
+This appendix contains a collection of scripts that demonstrate PSH's capabilities. All scripts have been tested and are guaranteed to work with PSH version 0.35.0 and later.
 
 ## Table of Contents
 
@@ -107,6 +107,171 @@ for dir in "$@"; do
     fi
 done
 ```
+
+### Robust System Update Script
+
+This script demonstrates using shell options for production-quality error handling:
+
+```bash
+#!/usr/bin/env psh
+# system_update.sh - Robust system update script with error handling
+# Demonstrates: set -e, set -u, set -x, set -o pipefail
+
+# Enable strict error handling
+set -euo pipefail
+
+# Script metadata
+readonly SCRIPT_NAME=$(basename "$0")
+readonly LOG_FILE="/var/log/system_update_$(date +%Y%m%d_%H%M%S).log"
+
+# Enable debug mode if requested
+[ "${DEBUG:-false}" = "true" ] && set -x
+
+# Logging function
+log() {
+    local level="$1"
+    shift
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] [$level] $*" | tee -a "$LOG_FILE"
+}
+
+# Check if running as root
+check_root() {
+    if [ "${EUID:-$(id -u)}" -ne 0 ]; then
+        log "ERROR" "This script must be run as root"
+        exit 1
+    fi
+}
+
+# Create system backup
+create_backup() {
+    log "INFO" "Creating system backup..."
+    
+    local backup_dir="/backup/system/$(date +%Y%m%d)"
+    mkdir -p "$backup_dir"
+    
+    # Backup critical directories
+    for dir in /etc /var/lib/dpkg /var/lib/rpm; do
+        if [ -d "$dir" ]; then
+            log "INFO" "Backing up $dir"
+            tar -czf "$backup_dir/$(basename $dir).tar.gz" "$dir" 2>/dev/null || {
+                log "WARN" "Failed to backup $dir, continuing anyway"
+            }
+        fi
+    done
+    
+    log "INFO" "Backup completed: $backup_dir"
+}
+
+# Update package manager
+update_packages() {
+    log "INFO" "Updating package manager..."
+    
+    # Detect package manager
+    if command -v apt-get >/dev/null 2>&1; then
+        # Debian/Ubuntu
+        apt-get update || {
+            log "ERROR" "Failed to update package lists"
+            return 1
+        }
+        
+        # Use pipefail to catch download failures
+        apt-get upgrade -y | tee -a "$LOG_FILE" || {
+            log "ERROR" "Package upgrade failed"
+            return 1
+        }
+        
+    elif command -v yum >/dev/null 2>&1; then
+        # RHEL/CentOS
+        yum update -y | tee -a "$LOG_FILE" || {
+            log "ERROR" "Package upgrade failed"
+            return 1
+        }
+    else
+        log "ERROR" "No supported package manager found"
+        return 1
+    fi
+    
+    log "INFO" "Package update completed"
+}
+
+# Check disk space
+check_disk_space() {
+    log "INFO" "Checking disk space..."
+    
+    local min_space_mb=1000
+    local available_mb=$(df -m / | tail -1 | awk '{print $4}')
+    
+    if [ "$available_mb" -lt "$min_space_mb" ]; then
+        log "ERROR" "Insufficient disk space: ${available_mb}MB available, ${min_space_mb}MB required"
+        return 1
+    fi
+    
+    log "INFO" "Disk space check passed: ${available_mb}MB available"
+}
+
+# Clean up old files
+cleanup() {
+    log "INFO" "Cleaning up old files..."
+    
+    # Temporarily disable errexit for cleanup
+    set +e
+    
+    # Clean package cache
+    if command -v apt-get >/dev/null 2>&1; then
+        apt-get autoclean
+        apt-get autoremove -y
+    elif command -v yum >/dev/null 2>&1; then
+        yum clean all
+    fi
+    
+    # Remove old log files
+    find /var/log -name "*.gz" -mtime +30 -delete 2>/dev/null
+    
+    # Re-enable errexit
+    set -e
+    
+    log "INFO" "Cleanup completed"
+}
+
+# Main execution
+main() {
+    log "INFO" "Starting system update process"
+    
+    # Run all steps
+    check_root
+    check_disk_space
+    create_backup
+    
+    if update_packages; then
+        log "INFO" "System update completed successfully"
+        cleanup
+        exit 0
+    else
+        log "ERROR" "System update failed"
+        exit 1
+    fi
+}
+
+# Handle interrupts
+handle_interrupt() {
+    log "WARN" "Update interrupted by user"
+    exit 130
+}
+
+# Trap not fully implemented in PSH yet
+# trap handle_interrupt INT TERM
+
+# Run main function
+main "$@"
+```
+
+This script demonstrates:
+- **set -euo pipefail**: Comprehensive error handling
+- **Conditional error handling**: Using || with error blocks
+- **Temporary option toggling**: Disabling errexit for cleanup
+- **Proper logging**: All operations logged with timestamps
+- **Validation**: Pre-flight checks before making changes
+- **Error recovery**: Graceful handling of non-critical failures
 
 ## Mathematical Scripts
 

@@ -278,26 +278,72 @@ psh$ set -- -x file.txt
 psh$ echo $1
 -x
 
-# Show shell options
+# Show all shell options
 psh$ set -o
 edit_mode            emacs
 debug-ast            off
 debug-tokens         off
+debug-scopes         off
+errexit              off
+nounset              off
+xtrace               off
+pipefail             off
 
-# Enable debug options
-psh$ set -o debug-ast
-psh$ echo test
-=== AST ===
-TopLevel:
-  CommandList:
-    AndOrList:
-      Pipeline:
-        Command: ['echo', 'test']
-=== End AST ===
+# Shell option flags (short form)
+psh$ set -e    # Enable errexit (exit on error)
+psh$ set -u    # Enable nounset (error on undefined variables)
+psh$ set -x    # Enable xtrace (print commands before execution)
+psh$ set +e    # Disable errexit
+psh$ set +u    # Disable nounset
+psh$ set +x    # Disable xtrace
+
+# Combine multiple options
+psh$ set -eux  # Enable errexit, nounset, and xtrace
+psh$ set +eux  # Disable all three
+
+# Long form with -o
+psh$ set -o errexit      # Same as set -e
+psh$ set -o nounset      # Same as set -u
+psh$ set -o xtrace       # Same as set -x
+psh$ set -o pipefail     # Pipeline fails if any command fails
+psh$ set +o errexit      # Same as set +e
+
+# Shell Options in Detail:
+
+# errexit (-e): Exit immediately on command failure
+psh$ set -e
+psh$ false
+$ # Shell exits with status 1
+
+# nounset (-u): Treat undefined variables as errors
+psh$ set -u
+psh$ echo $UNDEFINED_VAR
+psh: $UNDEFINED_VAR: unbound variable
+psh$ echo ${UNDEFINED_VAR:-default}  # OK with default
+default
+
+# xtrace (-x): Print commands before execution
+psh$ set -x
+psh$ echo "Hello"
++ echo Hello
+Hello
+psh$ VAR=test
++ VAR=test
+psh$ echo $VAR
++ echo test
 test
 
-# Disable debug options
-psh$ set +o debug-ast
+# pipefail: Return rightmost non-zero exit code in pipeline
+psh$ set -o pipefail
+psh$ false | true
+psh$ echo $?
+1  # Without pipefail, would be 0
+
+# Debug options
+psh$ set -o debug-ast    # Show parsed AST
+psh$ set -o debug-tokens # Show tokenization
+psh$ set -o debug-scopes # Show variable scope operations
+psh$ set +o debug-ast    # Disable AST debugging
 ```
 
 ### declare - Declare Variables and Functions

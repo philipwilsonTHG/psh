@@ -406,21 +406,65 @@ main "$@"
 
 ### Error Handling
 
+PSH provides several shell options for robust error handling in scripts:
+
 ```bash
 #!/usr/bin/env psh
 
-# Exit on error (not fully implemented in PSH yet)
-# set -e
+# Shell Options for Error Handling
+set -e          # Exit on error (errexit)
+set -u          # Error on undefined variables (nounset)
+set -o pipefail # Pipeline fails if any command fails
+
+# Or combine them
+set -euo pipefail
+
+# Common pattern for robust scripts
+set -eux -o pipefail  # Also includes xtrace for debugging
+
+# Exit on Error (set -e / errexit)
+set -e
+mkdir /some/directory    # If this fails, script exits
+cp important.txt backup/ # Won't run if mkdir failed
+
+# Note: Commands in conditionals don't trigger errexit
+if false; then
+    echo "This is OK with set -e"
+fi
+
+# Same for && and ||
+false || echo "This is also OK"
+
+# Undefined Variables (set -u / nounset)
+set -u
+echo $UNDEFINED_VAR      # Error: unbound variable
+echo ${MAYBE_VAR:-default}  # OK - has default value
+
+# Trace Execution (set -x / xtrace)
+set -x
+VAR="test"               # Shows: + VAR=test
+echo "Value: $VAR"       # Shows: + echo "Value: test"
+
+# Custom trace prefix with PS4
+PS4='[${SECONDS}s] '     # Show elapsed time
+set -x
+sleep 1
+echo "Done"              # Shows: [1s] echo "Done"
+
+# Pipeline Failures (set -o pipefail)
+set -o pipefail
+false | echo "test"      # Pipeline returns 1, not 0
+curl -f $URL | process   # Fails if curl fails
 
 # Error handler function
 handle_error() {
     local exit_code=$?
-    local line_number="$1"
+    local line_number="${1:-unknown}"
     echo "Error on line $line_number: Command exited with status $exit_code" >&2
     exit $exit_code
 }
 
-# Manual error checking
+# Manual error checking (when not using set -e)
 create_backup() {
     local source="$1"
     local dest="$2"
@@ -447,6 +491,18 @@ create_backup() {
     return 0
 }
 
+# Temporarily disable options
+perform_optional_task() {
+    set +e  # Disable errexit temporarily
+    optional_command_that_might_fail
+    local result=$?
+    set -e  # Re-enable errexit
+    
+    if [ $result -ne 0 ]; then
+        echo "Optional task failed, continuing anyway"
+    fi
+}
+
 # Cleanup on exit
 cleanup() {
     echo "Cleaning up temporary files..."
@@ -454,7 +510,7 @@ cleanup() {
 }
 
 # Set trap for cleanup
-# trap cleanup EXIT  # Not fully implemented in PSH
+# trap cleanup EXIT  # Trap command not yet implemented in PSH
 ```
 
 ## 13.6 Input and Output
@@ -621,18 +677,54 @@ trace rm -f temp.txt
 
 ### Debug Modes
 
+PSH provides several debug options that can be enabled via command line or at runtime:
+
 ```bash
-# Show parsed AST
-psh$ psh --debug-ast script.sh
-
-# Show tokenization
-psh$ psh --debug-tokens script.sh
-
-# Show variable scopes
-psh$ psh --debug-scopes script.sh
+# Command-line debug flags
+psh$ psh --debug-ast script.sh      # Show parsed AST
+psh$ psh --debug-tokens script.sh   # Show tokenization
+psh$ psh --debug-scopes script.sh   # Show variable scopes
 
 # Combine debug modes
 psh$ psh --debug-ast --debug-tokens script.sh
+
+# Runtime debug toggling with set builtin
+psh$ set -o debug-ast       # Enable AST debugging
+psh$ set -o debug-tokens    # Enable token debugging
+psh$ set -o debug-scopes    # Enable scope debugging
+
+# Disable debug options
+psh$ set +o debug-ast
+psh$ set +o debug-tokens
+psh$ set +o debug-scopes
+
+# Shell execution tracing (xtrace)
+psh$ set -x                 # Enable command tracing
+psh$ echo "Hello"
++ echo Hello
+Hello
+psh$ VAR="test"
++ VAR=test
+psh$ set +x                 # Disable tracing
+
+# Custom trace prompt with PS4
+psh$ PS4='[${LINENO}] '    # Show line numbers
+psh$ set -x
+psh$ echo "Line 1"
+[1] echo Line 1
+Line 1
+
+# Debug in scripts
+#!/usr/bin/env psh
+set -x                      # Enable tracing for entire script
+# Or enable temporarily
+debug_function() {
+    set -x                  # Start tracing
+    echo "Debug this"
+    complex_operation
+    set +x                  # Stop tracing
+    echo "Normal output"
+}
 ```
 
 ### Error Diagnosis
@@ -791,14 +883,21 @@ PSH supports initialization files for customizing the shell environment.
 ```bash
 # ~/.pshrc - PSH initialization file
 
-# Shell options (when implemented)
-# set -o vi          # Vi key bindings
-# set -o ignoreeof   # Prevent Ctrl-D logout
+# Shell options
+set -o vi           # Vi key bindings
+# set -o emacs      # Emacs key bindings (default)
+
+# Shell error handling defaults (for interactive use)
+# Note: Don't use set -e in interactive shells
+set -u              # Warn on undefined variables
 
 # Environment variables
 export EDITOR="vim"
 export PAGER="less"
 export PATH="$HOME/bin:$PATH"
+
+# Custom trace prompt for debugging
+export PS4='+ ${FUNCNAME[0]:+${FUNCNAME[0]}():}line ${LINENO}: '
 
 # Aliases
 alias ll='ls -la'
@@ -1237,6 +1336,210 @@ EOF
 esac
 ```
 
+### Robust Deployment Script with Shell Options
+
+This example demonstrates using shell options for a production-quality deployment script:
+
+```bash
+#!/usr/bin/env psh
+#
+# deploy.sh - Robust deployment script with error handling
+# Demonstrates: set -e, set -u, set -x, set -o pipefail
+
+# Enable strict error handling
+set -euo pipefail
+
+# Script configuration
+readonly SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+readonly APP_NAME="${APP_NAME:-myapp}"
+readonly DEPLOY_ENV="${1:-production}"
+readonly TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+readonly BACKUP_DIR="/backups/${APP_NAME}/${TIMESTAMP}"
+
+# Enable tracing if DEBUG is set
+[ "${DEBUG:-false}" = "true" ] && set -x
+
+# Custom trace prompt showing function names
+export PS4='+ [${BASH_SOURCE##*/}:${LINENO}] ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+
+# Logging functions
+log() {
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*" | tee -a deploy.log
+}
+
+error_exit() {
+    echo "[ERROR] $1" >&2
+    exit "${2:-1}"
+}
+
+# Validation function
+validate_environment() {
+    log "Validating deployment environment..."
+    
+    # Check required variables (set -u will catch undefined ones)
+    : "${DEPLOY_USER:?DEPLOY_USER must be set}"
+    : "${DEPLOY_HOST:?DEPLOY_HOST must be set}"
+    : "${APP_DIR:?APP_DIR must be set}"
+    
+    # Check required commands
+    local required_cmds=(git rsync ssh tar)
+    for cmd in "${required_cmds[@]}"; do
+        if ! command -v "$cmd" >/dev/null 2>&1; then
+            error_exit "Required command '$cmd' not found"
+        fi
+    done
+    
+    # Verify connectivity (pipefail ensures ssh failure is caught)
+    if ! echo "test" | ssh "$DEPLOY_USER@$DEPLOY_HOST" cat >/dev/null; then
+        error_exit "Cannot connect to $DEPLOY_HOST"
+    fi
+    
+    log "Environment validation passed"
+}
+
+# Backup function
+create_backup() {
+    log "Creating backup..."
+    
+    # Create backup directory (set -e ensures mkdir failure stops script)
+    ssh "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p $BACKUP_DIR"
+    
+    # Backup current deployment
+    ssh "$DEPLOY_USER@$DEPLOY_HOST" \
+        "cd $APP_DIR && tar -czf $BACKUP_DIR/app_backup.tar.gz ."
+    
+    # Backup database (pipefail ensures failures are caught)
+    ssh "$DEPLOY_USER@$DEPLOY_HOST" \
+        "mysqldump --single-transaction $APP_NAME | gzip > $BACKUP_DIR/db_backup.sql.gz"
+    
+    log "Backup completed: $BACKUP_DIR"
+}
+
+# Build function
+build_application() {
+    log "Building application..."
+    
+    # Temporarily disable exit on error for optional steps
+    set +e
+    npm run lint
+    local lint_result=$?
+    set -e
+    
+    if [ $lint_result -ne 0 ]; then
+        log "WARNING: Linting failed but continuing..."
+    fi
+    
+    # Critical build steps (will exit on failure due to set -e)
+    npm test
+    npm run build
+    
+    log "Build completed successfully"
+}
+
+# Deploy function
+deploy_application() {
+    log "Deploying to $DEPLOY_ENV..."
+    
+    # Sync files (excluding sensitive ones)
+    rsync -avz \
+        --exclude='.env' \
+        --exclude='node_modules' \
+        --exclude='.git' \
+        --delete \
+        ./dist/ "$DEPLOY_USER@$DEPLOY_HOST:$APP_DIR/"
+    
+    # Run remote commands
+    ssh "$DEPLOY_USER@$DEPLOY_HOST" << 'REMOTE_SCRIPT'
+        set -euo pipefail  # Shell options apply to remote script too
+        cd "$APP_DIR"
+        
+        # Install dependencies
+        npm install --production
+        
+        # Run migrations (will fail and stop if database is down)
+        npm run migrate
+        
+        # Restart service
+        sudo systemctl restart "$APP_NAME"
+        
+        # Health check
+        sleep 5
+        if ! curl -f "http://localhost:3000/health"; then
+            echo "Health check failed!"
+            sudo systemctl status "$APP_NAME"
+            exit 1
+        fi
+REMOTE_SCRIPT
+    
+    log "Deployment completed successfully"
+}
+
+# Rollback function
+rollback() {
+    log "Rolling back deployment..."
+    
+    # Don't exit on error during rollback
+    set +e
+    
+    ssh "$DEPLOY_USER@$DEPLOY_HOST" << REMOTE_SCRIPT
+        if [ -f "$BACKUP_DIR/app_backup.tar.gz" ]; then
+            cd "$APP_DIR"
+            rm -rf *
+            tar -xzf "$BACKUP_DIR/app_backup.tar.gz"
+            sudo systemctl restart "$APP_NAME"
+            echo "Rollback completed"
+        else
+            echo "No backup found at $BACKUP_DIR"
+            exit 1
+        fi
+REMOTE_SCRIPT
+}
+
+# Main deployment flow
+main() {
+    log "Starting deployment of $APP_NAME to $DEPLOY_ENV"
+    
+    # Run deployment steps
+    validate_environment
+    create_backup
+    build_application
+    
+    # Deploy with automatic rollback on failure
+    if deploy_application; then
+        log "Deployment successful!"
+        
+        # Cleanup old backups (keep last 5)
+        ssh "$DEPLOY_USER@$DEPLOY_HOST" \
+            "cd /backups/$APP_NAME && ls -t | tail -n +6 | xargs -r rm -rf"
+    else
+        error_code=$?
+        log "Deployment failed with code $error_code"
+        rollback
+        error_exit "Deployment failed and was rolled back" $error_code
+    fi
+}
+
+# Handle script interruption
+cleanup() {
+    log "Script interrupted, cleaning up..."
+    # Add cleanup tasks here
+}
+
+# trap cleanup INT TERM  # Not yet implemented in PSH
+
+# Run main function
+main "$@"
+```
+
+This script demonstrates:
+- **set -e**: Exits immediately if any command fails
+- **set -u**: Catches undefined variables (like typos)
+- **set -o pipefail**: Ensures pipeline failures are caught
+- **set -x**: Optional debug tracing controlled by DEBUG variable
+- **Temporary option toggling**: Disabling options for optional steps
+- **Error handling patterns**: Validation, logging, and rollback
+- **Remote execution**: Shell options work in SSH sessions too
+
 ## Summary
 
 Shell scripting in PSH provides powerful automation capabilities:
@@ -1245,20 +1548,30 @@ Shell scripting in PSH provides powerful automation capabilities:
 2. **Execution Methods**: Direct execution, command strings, stdin, sourcing
 3. **Arguments**: Positional parameters and special variables for flexibility
 4. **Organization**: Headers, functions, error handling for maintainability
-5. **I/O Handling**: User input, file operations, logging capabilities
-6. **Debugging**: Debug modes, tracing, error diagnosis tools
-7. **Portability**: Environment detection and path handling
-8. **RC Files**: Shell customization and initialization
-9. **Practical Examples**: Real-world scripts for common tasks
+5. **Error Handling**: Shell options (set -e, -u, -x, -o pipefail) for robust scripts
+6. **I/O Handling**: User input, file operations, logging capabilities
+7. **Debugging**: Debug modes, execution tracing, error diagnosis tools
+8. **Portability**: Environment detection and path handling
+9. **RC Files**: Shell customization and initialization
+10. **Practical Examples**: Real-world scripts for common tasks
 
 Key concepts:
 - Scripts are programs written in shell language
 - Shebang line determines the interpreter
 - Arguments are accessible via positional parameters
+- Shell options enable automatic error handling and debugging
 - Functions and organization improve maintainability
-- Error handling is crucial for robust scripts
-- Debug features help identify and fix issues
+- Error handling with set -e, -u ensures robust execution
+- Debug features (set -x, debug modes) help identify issues
 - RC files customize the shell environment
+
+Best practices for production scripts:
+- Always use `set -euo pipefail` at the start of scripts
+- Enable tracing with `set -x` for debugging
+- Validate inputs and environment before proceeding
+- Handle errors gracefully with proper logging
+- Use functions to organize complex logic
+- Test scripts thoroughly in safe environments
 
 Shell scripting enables automation of repetitive tasks, system administration, deployment processes, and complex workflows, making it an essential skill for effective command-line usage.
 
