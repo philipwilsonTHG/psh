@@ -8,34 +8,32 @@ PSH focuses on core shell functionality for educational purposes. Several Bash f
 
 ### Shell Options
 
+PSH now supports the core shell options for robust script development:
+
 ```bash
-# These common Bash options are NOT implemented in PSH:
+# PSH implements these common Bash options (v0.35.0+):
 set -e    # Exit on error (errexit)
 set -u    # Error on undefined variables (nounset)
 set -x    # Print commands before execution (xtrace)
 set -o pipefail  # Pipeline fails if any command fails
 
-# Workaround: Manual error checking
-# Instead of set -e:
-command1 || exit 1
-command2 || exit 1
+# Combined usage
+set -eux -o pipefail  # Strict error handling for scripts
 
-# Instead of set -u:
-if [ -z "${VAR:-}" ]; then
-    echo "Error: VAR is not set" >&2
-    exit 1
-fi
+# Enable/disable at runtime
+set -o errexit      # Same as set -e
+set +o errexit      # Disable errexit
+set -o              # Show all option settings
 
-# Instead of set -x:
-echo "Running: command1" >&2
-command1
+# Example robust script:
+#!/usr/bin/env psh
+set -euo pipefail    # Exit on error, undefined vars, trace, pipefail
 
-# Instead of pipefail:
-command1 | command2
-if [ ${PIPESTATUS[0]} -ne 0 ] || [ ${PIPESTATUS[1]} -ne 0 ]; then
-    echo "Pipeline failed" >&2
-    exit 1
-fi
+# These options make scripts more reliable:
+# -e: Exits immediately if any command fails
+# -u: Treats undefined variables as errors 
+# -x: Shows each command before execution
+# -o pipefail: Pipeline fails if any command in it fails
 ```
 
 ### Array Variables
@@ -85,47 +83,39 @@ cleanup
 
 ### Select Statement
 
+PSH now supports the select statement for interactive menus:
+
 ```bash
-# Bash select for menus is NOT implemented
-# This won't work:
+# PSH implements select statement (v0.34.0+):
 select option in "Option 1" "Option 2" "Quit"; do
     case $option in
         "Option 1") echo "You chose 1" ;;
         "Option 2") echo "You chose 2" ;;
         "Quit") break ;;
+        *) echo "Invalid selection" ;;
     esac
 done
 
-# Workaround: Manual menu
-show_menu() {
-    echo "1) Option 1"
-    echo "2) Option 2"
-    echo "3) Quit"
-    echo -n "Choose: "
-}
+# Features supported:
+# - Numbered menu display on stderr
+# - PS3 prompt customization (default "#? ")
+# - Multi-column layout for large lists
+# - Integration with break/continue statements
+# - I/O redirection support
+# - Variable and command substitution in items
+# - EOF (Ctrl+D) and interrupt (Ctrl+C) handling
 
-while true; do
-    show_menu
-    read choice
-    case "$choice" in
-        1) echo "You chose Option 1" ;;
-        2) echo "You chose Option 2" ;;
-        3) break ;;
-        *) echo "Invalid choice" ;;
-    esac
+# Example with custom prompt:
+PS3="Please select an option: "
+select choice in start stop restart status; do
+    echo "You selected: $choice"
+    [[ $choice ]] && break
 done
 ```
 
 ### Other Missing Features
 
 ```bash
-# History expansion is NOT implemented
-!$      # Last argument of previous command
-!!      # Previous command
-!n      # Command n from history
-!-n     # n commands ago
-!string # Most recent command starting with string
-
 # Coprocesses are NOT implemented
 coproc { command; }
 
@@ -143,6 +133,35 @@ complete -F _my_completion mycommand
 # Process substitution in variable assignment limitations
 # May not work:
 var=$(<(command))  # Use var=$(command) instead
+```
+
+### History Expansion
+
+PSH now supports bash-compatible history expansion:
+
+```bash
+# PSH implements history expansion (v0.33.0+):
+!!      # Previous command
+!n      # Command n from history
+!-n     # n commands ago
+!string # Most recent command starting with string
+!?string? # Most recent command containing string
+
+# Examples:
+psh$ echo hello
+hello
+psh$ !!     # Expands to: echo hello
+hello
+
+psh$ !ec    # Expands to most recent command starting with "ec"
+echo hello
+hello
+
+# Context-aware expansion respects quotes:
+psh$ echo "!!" # Does not expand (inside quotes)
+!!
+
+# Works with parameter expansion contexts
 ```
 
 ## 17.2 Architectural Limitations
@@ -370,8 +389,9 @@ hello
 | if/then/else/fi | ✅ | ✅ | Full support |
 | while/do/done | ✅ | ✅ | Full support |
 | for/do/done | ✅ | ✅ | Full support |
+| C-style for loops | ✅ | ✅ | Full support |
 | case/esac | ✅ | ✅ | Full support |
-| select | ✅ | ❌ | Not implemented |
+| select | ✅ | ✅ | Full support (v0.34.0+) |
 | **Functions** |
 | Function definition | ✅ | ✅ | Both syntaxes |
 | Local variables | ✅ | ✅ | Full support |
@@ -382,15 +402,16 @@ hello
 | Job specifications | ✅ | ✅ | Full support |
 | disown | ✅ | ❌ | Not implemented |
 | **Shell Options** |
-| set -e (errexit) | ✅ | ❌ | Not implemented |
-| set -u (nounset) | ✅ | ❌ | Not implemented |
-| set -x (xtrace) | ✅ | ❌ | Not implemented |
-| set -o pipefail | ✅ | ❌ | Not implemented |
+| set -e (errexit) | ✅ | ✅ | Full support (v0.35.0+) |
+| set -u (nounset) | ✅ | ✅ | Full support (v0.35.0+) |
+| set -x (xtrace) | ✅ | ✅ | Full support (v0.35.0+) |
+| set -o pipefail | ✅ | ✅ | Full support (v0.35.0+) |
 | **Advanced Features** |
 | Trap command | ✅ | ❌ | Not implemented |
-| History expansion | ✅ | ❌ | Not implemented |
+| History expansion | ✅ | ✅ | Full support (v0.33.0+) |
 | Coprocesses | ✅ | ❌ | Not implemented |
 | Programmable completion | ✅ | ❌ | Not implemented |
+| eval builtin | ✅ | ✅ | Full support (v0.36.0+) |
 | **PSH-Specific** |
 | --debug-ast | ❌ | ✅ | PSH only |
 | --debug-tokens | ❌ | ✅ | PSH only |
@@ -512,22 +533,20 @@ echo ${arr[1]}
 set -- one two three
 echo $2
 
-# 3. Replace error handling
-# Before:
-set -e
-command1
-command2
+# 3. Use shell options (now supported in PSH v0.35.0+)
+# PSH now supports:
+set -e    # Exit on error
+set -u    # Error on undefined variables  
+set -x    # Print commands before execution
+set -o pipefail  # Pipeline fails if any command fails
 
-# After:
-command1 || exit 1
-command2 || exit 1
-
-# 4. Handle missing history expansion
-# Before:
-sudo !!
-
-# After:
-# Use up arrow and edit command
+# 4. Use history expansion (now supported in PSH v0.33.0+)
+# PSH now supports:
+!!        # Previous command
+!n        # Command n from history
+!-n       # n commands ago
+!string   # Most recent command starting with string
+!?string? # Most recent command containing string
 ```
 
 ### Script Compatibility Checklist
@@ -538,20 +557,21 @@ sudo !!
 
 # ✅ DO use these features:
 - Simple variables
-- Basic control structures (if, while, for, case)
+- Basic control structures (if, while, for, case, select)
+- C-style for loops: for ((i=0; i<10; i++))
 - Functions with local variables
 - Command substitution with $()
 - Process substitution <() and >()
 - All forms of I/O redirection
-- Parameter expansion
+- Parameter expansion (all bash features)
 - Job control (interactive only)
+- Shell options: set -e, -u, -x, -o pipefail
+- History expansion: !!, !n, !string
+- eval builtin for dynamic execution
 
 # ❌ DON'T use these features:
 - Arrays or associative arrays
-- set -e, set -u, set -x
 - trap command
-- select statement
-- History expansion (!!, !$)
 - Coprocesses
 - Deep recursion (>100 levels)
 
@@ -570,11 +590,11 @@ PSH continues to evolve with a focus on educational value.
 
 ```bash
 # Priority features for future versions:
-1. Shell options (set -e, -u, -x, -o pipefail)
+1. Trap command for signal handling
 2. Basic array support
-3. Trap command for signal handling
-4. History expansion basics
-5. Select statement for menus
+3. Associative arrays
+4. Extended glob patterns
+5. Escaped glob patterns
 
 # Educational enhancements:
 - More detailed error messages
@@ -603,22 +623,24 @@ PSH continues to evolve with a focus on educational value.
 
 Understanding the differences between PSH and Bash helps you use each shell effectively:
 
-1. **Unimplemented Features**: Arrays, shell options, trap, select, and others
-2. **Architectural Limitations**: Recursion depth, pipeline restrictions
-3. **Behavioral Differences**: Quote handling, variable assignment strictness
-4. **PSH-Specific Features**: Debug options and educational enhancements
-5. **Compatibility Reference**: Quick lookup for feature support
-6. **Portable Scripts**: Guidelines for cross-shell compatibility
-7. **Migration Guide**: Moving scripts between shells
-8. **Future Development**: Planned improvements
+1. **Implemented Features**: Core shell options, select statement, history expansion, eval builtin
+2. **Remaining Unimplemented**: Arrays, trap command, coprocesses, extended patterns
+3. **Architectural Limitations**: Recursion depth, pipeline restrictions
+4. **Behavioral Differences**: Quote handling, variable assignment strictness  
+5. **PSH-Specific Features**: Debug options and educational enhancements
+6. **Compatibility Reference**: Quick lookup for feature support
+7. **Portable Scripts**: Guidelines for cross-shell compatibility
+8. **Migration Guide**: Moving scripts between shells
+9. **Future Development**: Planned improvements
 
 Key takeaways:
-- PSH implements core shell features for educational purposes
-- Some Bash features are intentionally omitted for simplicity
-- Debug features make PSH excellent for learning
-- Most everyday shell tasks work identically
-- Scripts can be written to work in both shells
-- Understanding differences prevents frustration
+- PSH now implements most essential shell features including shell options
+- Select statements and history expansion provide full bash compatibility
+- Eval builtin enables sophisticated dynamic programming
+- Debug features make PSH excellent for learning shell internals
+- Most everyday shell tasks work identically to bash
+- Scripts using core features are highly portable
+- Understanding differences prevents frustration and enables effective use
 
 PSH serves as both a practical shell and an educational tool, making shell programming concepts clear and accessible while maintaining compatibility with essential shell features.
 
