@@ -11,7 +11,7 @@ from .builtins import registry as builtin_registry
 from .builtins.function_support import FunctionReturn
 
 # Import from new core modules
-from .core.exceptions import LoopBreak, LoopContinue
+from .core.exceptions import LoopBreak, LoopContinue, UnboundVariableError
 from .core.state import ShellState
 from .utils.ast_formatter import ASTFormatter
 from .utils.token_formatter import TokenFormatter
@@ -319,6 +319,13 @@ class Shell:
             location = f"{input_source.get_name()}:{start_line}" if start_line > 0 else "command"
             print(f"psh: {location}: {e.message}", file=sys.stderr)
             self.last_exit_code = 1
+            return 1
+        except UnboundVariableError as e:
+            # Handle nounset errors
+            print(str(e), file=sys.stderr)
+            self.last_exit_code = 1
+            if self.is_script_mode:
+                sys.exit(1)
             return 1
         except Exception as e:
             # Enhanced error message with location  
