@@ -10,7 +10,10 @@ from .ast_nodes import (
     TestExpression, BinaryTestExpression, UnaryTestExpression, 
     CompoundTestExpression, NegatedTestExpression, Statement, ArithmeticCommand,
     WhileCommand, ForCommand, CStyleForCommand, IfCommand, CaseCommand, 
-    SelectCommand, ArithmeticCompoundCommand
+    SelectCommand, ArithmeticCompoundCommand,
+    # Unified types
+    ExecutionContext, UnifiedControlStructure, WhileLoop, ForLoop, CStyleForLoop,
+    IfConditional, CaseConditional, SelectLoop, ArithmeticEvaluation
 )
 from .parser_base import BaseParser
 from .parser_helpers import TokenGroups, ParseError, ErrorContext
@@ -447,6 +450,19 @@ class Parser(BaseParser):
             TokenType.WHILE, TokenType.DO, TokenType.DONE
         )
         return WhileStatement(condition, body, redirects)
+    
+    def parse_while_unified(self, context: ExecutionContext) -> WhileLoop:
+        """Parse while loop as unified type."""
+        condition, body, redirects = self._parse_loop_structure(
+            TokenType.WHILE, TokenType.DO, TokenType.DONE
+        )
+        return WhileLoop(
+            condition=condition,
+            body=body,
+            redirects=redirects,
+            execution_context=context,
+            background=False
+        )
     
     def parse_while_command(self) -> WhileCommand:
         """Parse while loop as a command for use in pipelines."""
