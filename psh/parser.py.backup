@@ -10,24 +10,146 @@ from .ast_nodes import (
     WhileCommand, ForCommand, CStyleForCommand, IfCommand, CaseCommand, 
     SelectCommand, ArithmeticCompoundCommand
 )
-from .parser_base import BaseParser
-from .parser_helpers import TokenGroups, ParseError, ErrorContext
 
 
-class Parser(BaseParser):
-    def __init__(self, tokens: List[Token]):
-        super().__init__(tokens)
+class ParseError(Exception):
+    def __init__(self, message: str, token: Optional[Token] = None):
+        self.message = message
+        self.token = token
+        super().__init__(self.format_error())
     
-    def _error(self, message: str, token: Optional[Token] = None) -> ParseError:
-        """Create a ParseError with context."""
-        if token is None:
-            token = self.peek()
-        error_context = ErrorContext(
-            token=token,
-            message=message,
-            position=token.position
-        )
-        return ParseError(error_context)
+    def format_error(self) -> str:
+        if self.token:
+            return f"Parse error at position {self.token.position}: {self.message}"
+        return f"Parse error: {self.message}"
+
+
+class TokenGroups:
+    """Groups of related tokens for cleaner matching."""
+    WORD_LIKE = {
+        TokenType.WORD, TokenType.STRING, TokenType.VARIABLE,
+        TokenType.COMMAND_SUB, TokenType.COMMAND_SUB_BACKTICK,
+        TokenType.ARITH_EXPANSION, TokenType.PROCESS_SUB_IN,
+        TokenType.PROCESS_SUB_OUT
+    }
+    
+    REDIRECTS = {
+        TokenType.REDIRECT_IN, TokenType.REDIRECT_OUT, 
+        TokenType.REDIRECT_APPEND, TokenType.HEREDOC,
+        TokenType.HEREDOC_STRIP, TokenType.HERE_STRING,
+        TokenType.REDIRECT_ERR, TokenType.REDIRECT_ERR_APPEND, 
+        TokenType.REDIRECT_DUP
+    }
+    
+    CONTROL_KEYWORDS = {
+        TokenType.IF, TokenType.WHILE, TokenType.FOR, 
+        TokenType.CASE, TokenType.SELECT, TokenType.BREAK, TokenType.CONTINUE,
+        TokenType.DOUBLE_LBRACKET, TokenType.DOUBLE_LPAREN
+    }
+    
+    STATEMENT_SEPARATORS = {TokenType.SEMICOLON, TokenType.NEWLINE}
+    
+    CASE_TERMINATORS = {
+        TokenType.DOUBLE_SEMICOLON, TokenType.SEMICOLON_AMP, 
+        TokenType.AMP_SEMICOLON
+    }
+
+
+class Parser:
+    def __init__(self, tokens: List[Token]):
+        self.tokens = tokens
+        self.current = 0
+        self._in_regex_rhs = False  # Track if we're parsing regex RHS
+    
+    # === Token Management ===
+    
+    def peek(self) -> Token:
+        """Look at the current token without consuming it."""
+        if self.current < len(self.tokens):
+            return self.tokens[self.current]
+        return self.tokens[-1]  # Return EOF token
+    
+    def advance(self) -> Token:
+        """Consume and return the current token."""
+        token = self.peek()
+        if self.current < len(self.tokens) - 1:
+            self.current += 1
+        return token
+    
+    def expect(self, token_type: TokenType) -> Token:
+        """Consume a token of the expected type or raise an error."""
+        token = self.peek()
+        if token.type != token_type:
+            # Map token types to human-readable names for better error messages
+            expected = self._token_type_to_string(token_type)
+            got = self._token_type_to_string(token.type)
+            raise ParseError(f"Expected {expected}, got {got}", token)
+        return self.advance()
+    
+    def match(self, *token_types: TokenType) -> bool:
+        """Check if current token matches any of the given types."""
+        return self.peek().type in token_types
+    
+    def match_any(self, token_set: Set[TokenType]) -> bool:
+        """Check if current token is in the given set."""
+        return self.peek().type in token_set
+    
+    # === Helper Methods ===
+    
+    def skip_newlines(self) -> None:
+        """Skip any newline tokens."""
+        while self.match(TokenType.NEWLINE):
+            self.advance()
+    
+    def skip_separators(self) -> None:
+        """Skip semicolons and newlines."""
+        while self.match_any(TokenGroups.STATEMENT_SEPARATORS):
+            self.advance()
+    
+    def at_end(self) -> bool:
+        """Check if we've reached the end of input."""
+        return self.peek().type == TokenType.EOF
+    
+    def consume_if_match(self, *token_types: TokenType) -> Optional[Token]:
+        """Consume and return token if it matches any of the given types."""
+        if self.match(*token_types):
+            return self.advance()
+        return None
+    
+    def _token_type_to_string(self, token_type: TokenType) -> str:
+        """Convert token type to human-readable string."""
+        token_strings = {
+            TokenType.LBRACE: "'{'",
+            TokenType.RBRACE: "'}'",
+            TokenType.LPAREN: "'('",
+            TokenType.RPAREN: "')'",
+            TokenType.SEMICOLON: "';'",
+            TokenType.PIPE: "'|'",
+            TokenType.AMPERSAND: "'&'",
+            TokenType.AND_AND: "'&&'",
+            TokenType.OR_OR: "'||'",
+            TokenType.DOUBLE_LBRACKET: "'[['",
+            TokenType.DOUBLE_RBRACKET: "']]'",
+            TokenType.EOF: "end of input",
+            TokenType.NEWLINE: "newline",
+            TokenType.WORD: "word",
+            TokenType.STRING: "string",
+            TokenType.VARIABLE: "variable",
+            TokenType.IF: "'if'",
+            TokenType.THEN: "'then'",
+            TokenType.ELSE: "'else'",
+            TokenType.ELIF: "'elif'",
+            TokenType.FI: "'fi'",
+            TokenType.WHILE: "'while'",
+            TokenType.DO: "'do'",
+            TokenType.DONE: "'done'",
+            TokenType.FOR: "'for'",
+            TokenType.IN: "'in'",
+            TokenType.CASE: "'case'",
+            TokenType.ESAC: "'esac'",
+            TokenType.FUNCTION: "'function'",
+        }
+        return token_strings.get(token_type, token_type.name)
     
     # === Top-Level Parsing ===
     
@@ -78,7 +200,7 @@ class Parser(BaseParser):
         elif token_type == TokenType.DOUBLE_LPAREN:
             return self.parse_arithmetic_command()
         else:
-            raise self._error(f"Unexpected control structure token: {token_type.name}")
+            raise ParseError(f"Unexpected control structure token: {token_type.name}", self.peek())
     
     def _simplify_result(self, top_level: TopLevel) -> Union[CommandList, TopLevel]:
         """Simplify result for backward compatibility when possible."""
@@ -274,16 +396,11 @@ class Parser(BaseParser):
         
         # Check for unexpected tokens
         if self.match_any(TokenGroups.CASE_TERMINATORS):
-            error_context = ErrorContext(
-                token=self.peek(),
-                message=f"Syntax error near unexpected token '{self.peek().value}'",
-                position=self.peek().position
-            )
-            raise ParseError(error_context)
+            raise ParseError(f"Syntax error near unexpected token '{self.peek().value}'", self.peek())
         
         # Ensure we have at least one word-like token
         if not self.match_any(TokenGroups.WORD_LIKE):
-            raise self._error("Expected command")
+            raise ParseError("Expected command", self.peek())
         
         # Parse arguments and redirections
         while self.match_any(TokenGroups.WORD_LIKE | TokenGroups.REDIRECTS):
@@ -868,7 +985,7 @@ class Parser(BaseParser):
     def _parse_case_expression(self) -> str:
         """Parse the expression in a case statement."""
         if not self.match_any(TokenGroups.WORD_LIKE):
-            raise self._error("Expected expression after 'case'")
+            raise ParseError("Expected expression after 'case'", self.peek())
         
         token = self.advance()
         if token.type == TokenType.VARIABLE:
@@ -916,7 +1033,7 @@ class Parser(BaseParser):
         
         if not (self.match(TokenType.WORD, TokenType.STRING, TokenType.VARIABLE) or
                 self.match_any(keyword_tokens)):
-            raise self._error("Expected pattern in case statement")
+            raise ParseError("Expected pattern in case statement", self.peek())
         
         token = self.advance()
         if token.type == TokenType.VARIABLE:
@@ -930,7 +1047,7 @@ class Parser(BaseParser):
         
         # Parse variable name
         if not self.match(TokenType.WORD):
-            raise self._error("Expected variable name after 'select'")
+            raise ParseError("Expected variable name after 'select'", self.peek())
         variable = self.advance().value
         
         self.skip_newlines()
@@ -953,8 +1070,10 @@ class Parser(BaseParser):
         
         return SelectStatement(variable, items, body, redirects)
     
-    def _parse_loop_control_level(self) -> int:
-        """Parse optional numeric level for break/continue statements."""
+    def parse_break_statement(self) -> BreakStatement:
+        """Parse break statement with optional level."""
+        self.expect(TokenType.BREAK)
+        
         level = 1
         if self.match(TokenType.WORD):
             try:
@@ -962,18 +1081,21 @@ class Parser(BaseParser):
                 self.advance()
             except ValueError:
                 pass  # Not a number, leave for next parsing
-        return level
-    
-    def parse_break_statement(self) -> BreakStatement:
-        """Parse break statement with optional level."""
-        self.expect(TokenType.BREAK)
-        level = self._parse_loop_control_level()
+        
         return BreakStatement(level=level)
     
     def parse_continue_statement(self) -> ContinueStatement:
         """Parse continue statement with optional level."""
         self.expect(TokenType.CONTINUE)
-        level = self._parse_loop_control_level()
+        
+        level = 1
+        if self.match(TokenType.WORD):
+            try:
+                level = max(1, int(self.peek().value))
+                self.advance()
+            except ValueError:
+                pass  # Not a number, leave for next parsing
+        
         return ContinueStatement(level=level)
     
     # === Functions ===
@@ -1121,12 +1243,12 @@ class Parser(BaseParser):
                 
                 # Special handling for regex patterns
                 if operator == '=~':
-                    self.context.push_context('regex_rhs')
+                    self._in_regex_rhs = True
                 
                 right = self._parse_test_operand()
                 
                 if operator == '=~':
-                    self.context.pop_context()
+                    self._in_regex_rhs = False
                 
                 return BinaryTestExpression(left, operator, right)
         
@@ -1136,13 +1258,13 @@ class Parser(BaseParser):
     def _parse_test_operand(self) -> str:
         """Parse a test operand."""
         if not self.match_any(TokenGroups.WORD_LIKE):
-            raise self._error("Expected test operand")
+            raise ParseError("Expected test operand", self.peek())
         
         token = self.advance()
         result = f"${token.value}" if token.type == TokenType.VARIABLE else token.value
         
         # Concatenate words for regex patterns
-        if self.context.in_context('regex_rhs'):
+        if self._in_regex_rhs:
             while self.match(TokenType.WORD) and not self._is_binary_test_operator(self.peek().value):
                 result += self.advance().value
         
@@ -1241,7 +1363,7 @@ class Parser(BaseParser):
     def _parse_heredoc(self, token: Token) -> Redirect:
         """Parse here document redirect."""
         if not self.match(TokenType.WORD):
-            raise self._error("Expected delimiter after here document operator")
+            raise ParseError("Expected delimiter after here document operator", self.peek())
         
         delimiter = self.advance().value
         
@@ -1254,7 +1376,7 @@ class Parser(BaseParser):
     def _parse_here_string(self, token: Token) -> Redirect:
         """Parse here string redirect."""
         if not self.match(TokenType.WORD, TokenType.STRING, TokenType.VARIABLE):
-            raise self._error("Expected string after here string operator")
+            raise ParseError("Expected string after here string operator", self.peek())
         
         content = self.advance().value
         
@@ -1285,7 +1407,7 @@ class Parser(BaseParser):
         fd = int(fd_part) if fd_part else 2
         
         if not self.match(TokenType.WORD, TokenType.STRING):
-            raise self._error("Expected file name after redirection")
+            raise ParseError("Expected file name after redirection", self.peek())
         
         target = self.advance().value
         redirect_type = '>>' if token.type == TokenType.REDIRECT_ERR_APPEND else '>'
@@ -1300,7 +1422,7 @@ class Parser(BaseParser):
         """Parse standard file redirection."""
         if not self.match(TokenType.WORD, TokenType.STRING, 
                           TokenType.PROCESS_SUB_IN, TokenType.PROCESS_SUB_OUT):
-            raise self._error("Expected file name after redirection")
+            raise ParseError("Expected file name after redirection", self.peek())
         
         target = self.advance().value
         
