@@ -53,11 +53,19 @@ PSH has achieved significant feature completeness with **847 total tests (840 pa
 - ~~**Example**: `echo "data" | while read line; do echo $line; done` fails~~
 - ~~**Cause**: Parser expects Command objects in pipelines, not statements~~
 - **SOLVED**: Implemented unified command model enabling all control structures in pipelines
-- **Revolutionary capabilities**: All control structures now work as pipeline components
+- **All control structures now work as pipeline components**
 - **Examples that now work**:
   - `echo "data" | while read line; do echo $line; done`
   - `seq 1 5 | for i in $(cat); do echo $i; done`
   - `echo "test" | if grep -q test; then echo "found"; fi`
+
+#### C-Style For Loops in Pipelines
+- **Problem**: C-style for loops fail when used in pipelines
+- **Example**: `echo "test" | for ((i=0; i<3; i++)); do echo $i; done` fails with parse error
+- **Error**: Parse error at position 36-37, right after `))` closing the arithmetic expression
+- **Impact**: Cannot use arithmetic-based iteration in pipeline contexts
+- **Note**: Traditional for loops work fine in pipelines, only C-style loops are affected
+- **Workaround**: Use traditional for loops or while loops with arithmetic in pipelines
 
 #### Composite Argument Quote Handling
 - **Problem**: Parser loses quote information when creating composite arguments
@@ -101,10 +109,10 @@ PSH has achieved significant feature completeness with **847 total tests (840 pa
 ### Recent Releases
 
 #### v0.37.0 - Control Structures in Pipelines Implementation
-- **REVOLUTIONARY FEATURE**: Implemented unified command model enabling control structures as pipeline components
+- Implemented unified command model enabling control structures as pipeline components
 - Addresses major architectural limitation that prevented control structures in pipelines
 - All control structures now work in pipelines: while, for, if, case, select, arithmetic commands
-- Game-changing examples now work:
+- Examples now work:
   - `echo "data" | while read line; do echo $line; done`
   - `seq 1 5 | for i in $(cat); do echo $i; done` 
   - `echo "test" | if grep -q test; then echo "found"; fi`
