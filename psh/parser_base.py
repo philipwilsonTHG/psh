@@ -123,6 +123,17 @@ class BaseParser:
     
     # === Token Type Conversion ===
     
+    def _error(self, message: str, token: Optional[Token] = None) -> ParseError:
+        """Create a ParseError with context."""
+        if token is None:
+            token = self.peek()
+        error_context = ErrorContext(
+            token=token,
+            message=message,
+            position=token.position
+        )
+        return ParseError(error_context)
+    
     def _token_type_to_string(self, token_type: TokenType) -> str:
         """Convert token type to human-readable string."""
         # Token type to display string mapping
