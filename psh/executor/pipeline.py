@@ -3,7 +3,12 @@ import os
 import sys
 import signal
 from typing import List
-from ..ast_nodes import Pipeline
+from ..ast_nodes import (
+    Pipeline, SimpleCommand, CompoundCommand,
+    WhileCommand, ForCommand, CStyleForCommand, 
+    IfCommand, CaseCommand, SelectCommand, 
+    ArithmeticCompoundCommand
+)
 from .base import ExecutorComponent
 from ..builtins.function_support import FunctionReturn
 from ..job_control import JobState
@@ -76,7 +81,11 @@ class PipelineExecutor(ExecutorComponent):
         # Create job entry for tracking
         job = self.job_manager.create_job(pgid, command_string)
         for i, pid in enumerate(pids):
-            cmd_str = ' '.join(pipeline.commands[i].args) if pipeline.commands[i].args else ''
+            command = pipeline.commands[i]
+            if isinstance(command, SimpleCommand):
+                cmd_str = ' '.join(command.args) if command.args else ''
+            else:
+                cmd_str = f"({command.__class__.__name__})"
             job.add_process(pid, cmd_str)
         
         # Give terminal control to the pipeline
@@ -144,7 +153,14 @@ class PipelineExecutor(ExecutorComponent):
         """Build a string representation of the pipeline for job display."""
         parts = []
         for command in pipeline.commands:
-            cmd_str = ' '.join(command.args) if command.args else ''
+            if isinstance(command, SimpleCommand):
+                cmd_str = ' '.join(command.args) if command.args else ''
+            elif isinstance(command, CompoundCommand):
+                # Use a generic representation for compound commands
+                cmd_str = f"({command.__class__.__name__})"
+            else:
+                cmd_str = "(unknown)"
+            
             if command.background:
                 cmd_str += ' &'
             parts.append(cmd_str)
@@ -180,5 +196,140 @@ class PipelineExecutor(ExecutorComponent):
     
     def _execute_in_child(self, command):
         """Execute a command in a child process (after fork)"""
-        # Delegate to command executor
-        return self.shell.executor_manager.command_executor.execute_in_child(command)
+        if isinstance(command, SimpleCommand):
+            # Delegate to command executor for simple commands
+            return self.shell.executor_manager.command_executor.execute_in_child(command)
+        elif isinstance(command, CompoundCommand):
+            # Execute compound command in subshell
+            return self._execute_compound_in_subshell(command)
+        else:
+            # Unknown command type
+            return 1
+    
+    def _execute_compound_in_subshell(self, command: CompoundCommand) -> int:
+        """Execute compound command in a subshell for pipeline compatibility."""
+        try:
+            # Set up as pipeline component (stdin/stdout already set up by _setup_child_process)
+            
+            # Apply redirections if any
+            if command.redirects:
+                saved_fds = self.shell.io_manager.apply_redirections(command.redirects)
+            else:
+                saved_fds = None
+            
+            try:
+                # Route to appropriate executor based on command type
+                
+                if isinstance(command, WhileCommand):
+                    return self._execute_while_command(command)
+                elif isinstance(command, ForCommand):
+                    return self._execute_for_command(command)
+                elif isinstance(command, CStyleForCommand):
+                    return self._execute_cstyle_for_command(command)
+                elif isinstance(command, IfCommand):
+                    return self._execute_if_command(command)
+                elif isinstance(command, CaseCommand):
+                    return self._execute_case_command(command)
+                elif isinstance(command, SelectCommand):
+                    return self._execute_select_command(command)
+                elif isinstance(command, ArithmeticCompoundCommand):
+                    return self._execute_arithmetic_command(command)
+                else:
+                    return 1
+            finally:
+                # Restore redirections
+                if saved_fds:
+                    self.shell.io_manager.restore_redirections(saved_fds)
+                    
+        except Exception:
+            return 1
+    
+    def _execute_while_command(self, command: WhileCommand) -> int:
+        """Execute while loop in pipeline context."""
+        last_status = 0
+        
+        while True:
+            try:
+                # Check condition
+                condition_status = self.shell.execute_command_list(command.condition)
+                if condition_status != 0:
+                    break
+                
+                # Execute body
+                last_status = self.shell.execute_command_list(command.body)
+                
+            except Exception:  # Handle break/continue if needed
+                break
+                
+        return last_status
+    
+    def _execute_for_command(self, command: ForCommand) -> int:
+        """Execute for loop in pipeline context."""
+        last_status = 0
+        
+        for item in command.items:
+            # Set loop variable
+            self.state.set_variable(command.variable, item)
+            
+            try:
+                # Execute body
+                last_status = self.shell.execute_command_list(command.body)
+            except Exception:  # Handle break/continue if needed
+                break
+                
+        return last_status
+    
+    def _execute_cstyle_for_command(self, command: CStyleForCommand) -> int:
+        """Execute C-style for loop in pipeline context."""
+        # Convert to statement version for existing executor
+        from ..ast_nodes import CStyleForStatement
+        stmt = CStyleForStatement(
+            init_expr=command.init_expr, 
+            condition_expr=command.condition_expr,
+            update_expr=command.update_expr,
+            body=command.body, 
+            redirects=command.redirects
+        )
+        return self.shell.executor_manager.control_flow_executor.execute_c_style_for(stmt)
+    
+    def _execute_if_command(self, command: IfCommand) -> int:
+        """Execute if statement in pipeline context."""
+        # Check main condition
+        condition_status = self.shell.execute_command_list(command.condition)
+        if condition_status == 0:
+            return self.shell.execute_command_list(command.then_part)
+        
+        # Check elif conditions
+        for elif_condition, elif_then in command.elif_parts:
+            elif_status = self.shell.execute_command_list(elif_condition)
+            if elif_status == 0:
+                return self.shell.execute_command_list(elif_then)
+        
+        # Execute else part if present
+        if command.else_part:
+            return self.shell.execute_command_list(command.else_part)
+        
+        return 0
+    
+    def _execute_case_command(self, command: CaseCommand) -> int:
+        """Execute case statement in pipeline context."""
+        # Convert to statement version for existing executor
+        from ..ast_nodes import CaseStatement
+        stmt = CaseStatement(expr=command.expr, items=command.items, redirects=command.redirects)
+        return self.shell.executor_manager.control_flow_executor.execute_case(stmt)
+    
+    def _execute_select_command(self, command: SelectCommand) -> int:
+        """Execute select statement in pipeline context."""
+        # Convert to statement version for existing executor  
+        from ..ast_nodes import SelectStatement
+        stmt = SelectStatement(variable=command.variable, items=command.items, body=command.body, redirects=command.redirects)
+        return self.shell.executor_manager.control_flow_executor.execute_select(stmt)
+    
+    def _execute_arithmetic_command(self, command: ArithmeticCompoundCommand) -> int:
+        """Execute arithmetic command in pipeline context."""
+        from ..executor.arithmetic_command import ArithmeticCommandExecutor
+        executor = ArithmeticCommandExecutor(self.shell)
+        # Convert to statement version for existing executor
+        from ..ast_nodes import ArithmeticCommand
+        stmt = ArithmeticCommand(expression=command.expression, redirects=command.redirects)
+        return executor.execute(stmt)

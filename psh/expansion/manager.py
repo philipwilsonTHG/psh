@@ -1,6 +1,6 @@
 """Central expansion manager that orchestrates all shell expansions."""
 from typing import List, TYPE_CHECKING
-from ..ast_nodes import Command, Redirect, ProcessSubstitution
+from ..ast_nodes import Command, SimpleCommand, Redirect, ProcessSubstitution
 from ..core.state import ShellState
 from .variable import VariableExpander
 from .command_sub import CommandSubstitution
@@ -24,7 +24,7 @@ class ExpansionManager:
         self.tilde_expander = TildeExpander(shell)
         self.glob_expander = GlobExpander(shell)
     
-    def expand_arguments(self, command: Command) -> List[str]:
+    def expand_arguments(self, command: SimpleCommand) -> List[str]:
         """
         Expand all arguments in a command.
         

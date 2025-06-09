@@ -3,7 +3,7 @@ import sys
 from typing import List, Tuple
 from .state_machine_lexer import tokenize
 from .parser import parse, ParseError
-from .ast_nodes import Command, Pipeline, CommandList, AndOrList, TopLevel, FunctionDef, IfStatement, WhileStatement, ForStatement, BreakStatement, ContinueStatement, CaseStatement, EnhancedTestStatement, TestExpression, BinaryTestExpression, UnaryTestExpression, CompoundTestExpression, NegatedTestExpression
+from .ast_nodes import Command, SimpleCommand, Pipeline, CommandList, AndOrList, TopLevel, FunctionDef, IfStatement, WhileStatement, ForStatement, BreakStatement, ContinueStatement, CaseStatement, EnhancedTestStatement, TestExpression, BinaryTestExpression, UnaryTestExpression, CompoundTestExpression, NegatedTestExpression
 from .aliases import AliasManager
 from .functions import FunctionManager
 from .job_control import JobManager, JobState
@@ -104,7 +104,7 @@ class Shell:
     
     
     
-    def execute_command(self, command: Command):
+    def execute_command(self, command: SimpleCommand):
         """Execute a single command"""
         # Delegate to the CommandExecutor
         return self.executor_manager.command_executor.execute(command)

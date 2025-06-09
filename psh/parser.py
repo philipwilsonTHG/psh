@@ -1,12 +1,14 @@
 from typing import List, Optional, Union, Tuple, Set
 from .token_types import Token, TokenType
 from .ast_nodes import (
-    Command, Pipeline, CommandList, StatementList, AndOrList, Redirect, 
+    Command, SimpleCommand, CompoundCommand, Pipeline, CommandList, StatementList, AndOrList, Redirect, 
     FunctionDef, TopLevel, IfStatement, WhileStatement, ForStatement, 
     CStyleForStatement, BreakStatement, ContinueStatement, CaseStatement, 
     CaseItem, CasePattern, SelectStatement, ProcessSubstitution, EnhancedTestStatement, 
     TestExpression, BinaryTestExpression, UnaryTestExpression, 
-    CompoundTestExpression, NegatedTestExpression, Statement, ArithmeticCommand
+    CompoundTestExpression, NegatedTestExpression, Statement, ArithmeticCommand,
+    WhileCommand, ForCommand, CStyleForCommand, IfCommand, CaseCommand, 
+    SelectCommand, ArithmeticCompoundCommand
 )
 
 
@@ -357,21 +359,40 @@ class Parser:
         if self.consume_if_match(TokenType.EXCLAMATION):
             pipeline.negated = True
         
-        # Parse first command
-        command = self.parse_command()
+        # Parse first command (could be simple or compound)
+        command = self.parse_pipeline_component()
         pipeline.commands.append(command)
         
         # Parse additional piped commands
         while self.match(TokenType.PIPE):
             self.advance()
-            command = self.parse_command()
+            command = self.parse_pipeline_component()
             pipeline.commands.append(command)
         
         return pipeline
     
-    def parse_command(self) -> Command:
+    def parse_pipeline_component(self) -> Command:
+        """Parse a single component of a pipeline (simple or compound command)."""
+        # Try parsing as control structure first
+        if self.match(TokenType.WHILE):
+            return self.parse_while_command()
+        elif self.match(TokenType.FOR):
+            return self.parse_for_command()
+        elif self.match(TokenType.IF):
+            return self.parse_if_command()
+        elif self.match(TokenType.CASE):
+            return self.parse_case_command()
+        elif self.match(TokenType.SELECT):
+            return self.parse_select_command()
+        elif self.match(TokenType.DOUBLE_LPAREN):
+            return self.parse_arithmetic_compound_command()
+        else:
+            # Fall back to simple command
+            return self.parse_command()
+
+    def parse_command(self) -> SimpleCommand:
         """Parse a single command with its arguments and redirections."""
-        command = Command()
+        command = SimpleCommand()
         
         # Check for unexpected tokens
         if self.match_any(TokenGroups.CASE_TERMINATORS):
@@ -398,6 +419,237 @@ class Parser:
             command.background = True
         
         return command
+    
+    # Command variant parsers for use in pipelines
+    
+    def parse_while_command(self) -> WhileCommand:
+        """Parse while loop as a command for use in pipelines."""
+        self.expect(TokenType.WHILE)
+        self.skip_newlines()
+        
+        condition = self.parse_command_list_until(TokenType.DO)
+        self.expect(TokenType.DO)
+        self.skip_newlines()
+        
+        body = self.parse_command_list_until(TokenType.DONE)
+        self.expect(TokenType.DONE)
+        
+        # Handle redirections
+        redirects = self.parse_redirects()
+        
+        return WhileCommand(
+            condition=condition,
+            body=body,
+            redirects=redirects,
+            background=False
+        )
+    
+    def parse_for_command(self) -> Union[ForCommand, CStyleForCommand]:
+        """Parse for loop as a command for use in pipelines."""
+        self.expect(TokenType.FOR)
+        self.skip_newlines()
+        
+        # Check if it's a C-style for loop
+        if self.peek().type == TokenType.DOUBLE_LPAREN:
+            self.advance()  # consume ((
+            return self._parse_c_style_for_command()
+        elif self.peek().type == TokenType.LPAREN:
+            # Check for two consecutive LPAREN tokens
+            saved_pos = self.current
+            self.advance()  # consume first (
+            
+            if self.peek().type == TokenType.LPAREN:
+                self.advance()  # consume second (
+                return self._parse_c_style_for_command()
+            else:
+                # Not C-style, backtrack
+                self.current = saved_pos
+        
+        # Traditional for loop
+        variable = self.expect(TokenType.WORD).value
+        self.expect(TokenType.IN)
+        
+        # Parse items
+        items = []
+        while (self.match_any(TokenGroups.WORD_LIKE) and 
+               not self.match(TokenType.DO)):
+            items.append(self.advance().value)
+        
+        self.skip_newlines()
+        self.expect(TokenType.DO)
+        self.skip_newlines()
+        
+        body = self.parse_command_list_until(TokenType.DONE)
+        self.expect(TokenType.DONE)
+        
+        redirects = self.parse_redirects()
+        
+        return ForCommand(
+            variable=variable,
+            items=items,
+            body=body,
+            redirects=redirects,
+            background=False
+        )
+    
+    def _parse_c_style_for_command(self) -> CStyleForCommand:
+        """Parse C-style for loop as a command."""
+        # Parse init expression
+        init_expr = self._parse_arithmetic_section(';')
+        if init_expr == "":
+            init_expr = None
+        self.advance()  # consume ;
+        
+        # Parse condition expression
+        condition_expr = self._parse_arithmetic_section(';')
+        if condition_expr == "":
+            condition_expr = None
+        self.advance()  # consume ;
+        
+        # Parse update expression
+        update_expr = self._parse_arithmetic_section_until_double_rparen()
+        
+        # Consume ))
+        self.expect(TokenType.RPAREN)
+        self.expect(TokenType.RPAREN)
+        
+        # Optional DO keyword
+        if self.match(TokenType.DO):
+            self.advance()
+        
+        self.skip_newlines()
+        
+        # Parse loop body
+        body = self.parse_command_list_until(TokenType.DONE)
+        self.expect(TokenType.DONE)
+        
+        redirects = self.parse_redirects()
+        
+        return CStyleForCommand(
+            init_expr=init_expr,
+            condition_expr=condition_expr,
+            update_expr=update_expr,
+            body=body,
+            redirects=redirects,
+            background=False
+        )
+    
+    def parse_if_command(self) -> IfCommand:
+        """Parse if statement as a command for use in pipelines."""
+        self.expect(TokenType.IF)
+        self.skip_newlines()
+        
+        condition = self.parse_command_list_until(TokenType.THEN)
+        self.expect(TokenType.THEN)
+        self.skip_newlines()
+        
+        then_part = self.parse_command_list_until(TokenType.ELIF, TokenType.ELSE, TokenType.FI)
+        
+        elif_parts = []
+        else_part = None
+        
+        while self.match(TokenType.ELIF):
+            self.advance()
+            self.skip_newlines()
+            elif_condition = self.parse_command_list_until(TokenType.THEN)
+            self.expect(TokenType.THEN)
+            self.skip_newlines()
+            elif_then = self.parse_command_list_until(TokenType.ELIF, TokenType.ELSE, TokenType.FI)
+            elif_parts.append((elif_condition, elif_then))
+        
+        if self.match(TokenType.ELSE):
+            self.advance()
+            self.skip_newlines()
+            else_part = self.parse_command_list_until(TokenType.FI)
+        
+        self.expect(TokenType.FI)
+        redirects = self.parse_redirects()
+        
+        return IfCommand(
+            condition=condition,
+            then_part=then_part,
+            elif_parts=elif_parts,
+            else_part=else_part,
+            redirects=redirects,
+            background=False
+        )
+    
+    def parse_case_command(self) -> CaseCommand:
+        """Parse case statement as a command for use in pipelines."""
+        self.expect(TokenType.CASE)
+        self.skip_newlines()
+        
+        expr = self.expect(TokenType.WORD).value
+        self.skip_newlines()
+        self.expect(TokenType.IN)
+        self.skip_newlines()
+        
+        items = []
+        while not self.match(TokenType.ESAC):
+            item = self.parse_case_item()
+            items.append(item)
+            self.skip_newlines()
+        
+        self.expect(TokenType.ESAC)
+        redirects = self.parse_redirects()
+        
+        return CaseCommand(
+            expr=expr,
+            items=items,
+            redirects=redirects,
+            background=False
+        )
+    
+    def parse_select_command(self) -> SelectCommand:
+        """Parse select statement as a command for use in pipelines."""
+        self.expect(TokenType.SELECT)
+        self.skip_newlines()
+        
+        variable = self.expect(TokenType.WORD).value
+        self.expect(TokenType.IN)
+        
+        # Parse items
+        items = []
+        while (self.match_any(TokenGroups.WORD_LIKE) and 
+               not self.match(TokenType.DO)):
+            items.append(self.advance().value)
+        
+        self.skip_newlines()
+        self.expect(TokenType.DO)
+        self.skip_newlines()
+        
+        body = self.parse_command_list_until(TokenType.DONE)
+        self.expect(TokenType.DONE)
+        
+        redirects = self.parse_redirects()
+        
+        return SelectCommand(
+            variable=variable,
+            items=items,
+            body=body,
+            redirects=redirects,
+            background=False
+        )
+    
+    def parse_arithmetic_compound_command(self) -> ArithmeticCompoundCommand:
+        """Parse arithmetic command as a compound command for use in pipelines."""
+        self.expect(TokenType.DOUBLE_LPAREN)
+        
+        expression = self._parse_arithmetic_section_until_double_rparen()
+        if expression is None:
+            expression = ""
+        
+        # Consume ))
+        self.expect(TokenType.RPAREN)
+        self.expect(TokenType.RPAREN)
+        
+        redirects = self.parse_redirects()
+        
+        return ArithmeticCompoundCommand(
+            expression=expression,
+            redirects=redirects,
+            background=False
+        )
     
     def parse_composite_argument(self) -> Tuple[str, str, Optional[str]]:
         """Parse a potentially composite argument (concatenated tokens)."""

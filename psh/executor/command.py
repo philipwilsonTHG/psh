@@ -3,7 +3,7 @@ import os
 import sys
 import signal
 from typing import List, Optional
-from ..ast_nodes import Command
+from ..ast_nodes import Command, SimpleCommand
 from .base import ExecutorComponent
 from ..builtins.function_support import FunctionReturn
 from ..job_control import JobState
@@ -11,7 +11,7 @@ from ..job_control import JobState
 class CommandExecutor(ExecutorComponent):
     """Executes single commands (builtins, functions, or external)."""
     
-    def execute(self, command: Command) -> int:
+    def execute(self, command: SimpleCommand) -> int:
         """Execute a single command and return exit status."""
         # Preprocess here strings to expand variables
         for redirect in command.redirects:
@@ -318,7 +318,7 @@ class CommandExecutor(ExecutorComponent):
                 
                 return exit_status
     
-    def execute_in_child(self, command: Command):
+    def execute_in_child(self, command: SimpleCommand):
         """Execute a command in a child process (after fork)"""
         # Expand arguments (reuse the same method as execute_command)
         args = self.expansion_manager.expand_arguments(command)

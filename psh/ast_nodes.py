@@ -32,8 +32,14 @@ class ProcessSubstitution(ASTNode):
         return f"{symbol}({self.command})"
 
 
-@dataclass
 class Command(ASTNode):
+    """Base class for all executable commands."""
+    pass
+
+
+@dataclass
+class SimpleCommand(Command):
+    """Traditional command with arguments (formerly Command class)."""
     args: List[str] = field(default_factory=list)
     arg_types: List[str] = field(default_factory=list)  # Track if arg was quoted
     quote_types: List[Optional[str]] = field(default_factory=list)  # Track quote character used (' or " or None)
@@ -41,9 +47,14 @@ class Command(ASTNode):
     background: bool = False
 
 
+class CompoundCommand(Command):
+    """Base class for control structures usable in pipelines."""
+    pass
+
+
 @dataclass
 class Pipeline(ASTNode):
-    commands: List[Command] = field(default_factory=list)
+    commands: List[Command] = field(default_factory=list)  # Now accepts both SimpleCommand and CompoundCommand
     negated: bool = False  # True if pipeline is prefixed with !
 
 
@@ -171,6 +182,75 @@ class ArithmeticCommand(Statement):
     """Arithmetic command ((expression))."""
     expression: str
     redirects: List[Redirect] = field(default_factory=list)
+
+
+# Compound command variants for use in pipelines
+@dataclass
+class WhileCommand(CompoundCommand):
+    """While loop as a command for use in pipelines."""
+    condition: StatementList
+    body: StatementList
+    redirects: List[Redirect] = field(default_factory=list)
+    background: bool = False
+
+
+@dataclass
+class ForCommand(CompoundCommand):
+    """For loop as a command for use in pipelines."""
+    variable: str
+    items: List[str]
+    body: StatementList
+    redirects: List[Redirect] = field(default_factory=list)
+    background: bool = False
+
+
+@dataclass
+class CStyleForCommand(CompoundCommand):
+    """C-style for loop as a command for use in pipelines."""
+    init_expr: Optional[str]
+    condition_expr: Optional[str]
+    update_expr: Optional[str]
+    body: StatementList
+    redirects: List[Redirect] = field(default_factory=list)
+    background: bool = False
+
+
+@dataclass
+class IfCommand(CompoundCommand):
+    """If statement as a command for use in pipelines."""
+    condition: StatementList
+    then_part: StatementList
+    elif_parts: List[Tuple[StatementList, StatementList]] = field(default_factory=list)
+    else_part: Optional[StatementList] = None
+    redirects: List[Redirect] = field(default_factory=list)
+    background: bool = False
+
+
+@dataclass
+class CaseCommand(CompoundCommand):
+    """Case statement as a command for use in pipelines."""
+    expr: str
+    items: List[CaseItem] = field(default_factory=list)
+    redirects: List[Redirect] = field(default_factory=list)
+    background: bool = False
+
+
+@dataclass
+class SelectCommand(CompoundCommand):
+    """Select statement as a command for use in pipelines."""
+    variable: str
+    items: List[str]
+    body: StatementList
+    redirects: List[Redirect] = field(default_factory=list)
+    background: bool = False
+
+
+@dataclass
+class ArithmeticCompoundCommand(CompoundCommand):
+    """Arithmetic command as a compound command for use in pipelines."""
+    expression: str
+    redirects: List[Redirect] = field(default_factory=list)
+    background: bool = False
 
 
 @dataclass

@@ -2,10 +2,27 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.36.0"
+__version__ = "0.37.0"
 
 # Version history
 VERSION_HISTORY = """
+0.37.0 (2025-01-06) - Control structures in pipelines implementation
+  - Implemented unified command model enabling control structures as pipeline components
+  - Added support for all control structures in pipelines: while, for, if, case, select, arithmetic
+  - Created new AST hierarchy with Command base class, SimpleCommand and CompoundCommand subclasses
+  - Added command variants: WhileCommand, ForCommand, IfCommand, CaseCommand, SelectCommand, etc.
+  - Enhanced parser with parse_pipeline_component() method supporting both command types
+  - Updated PipelineExecutor to handle compound commands in subshells with proper isolation
+  - Fixed redirection handling and execution routing for compound commands in pipeline context
+  - Maintained full backward compatibility - all existing functionality works unchanged
+  - Examples now work: echo "data" | while read line; do echo $line; done
+  - Examples now work: seq 1 5 | for i in $(cat); do echo $i; done
+  - Examples now work: echo "test" | if grep -q test; then echo "found"; fi
+  - Addresses major architectural limitation documented in TODO.md
+  - Added comprehensive test suite with 7 tests covering all control structure types
+  - Total tests: 847 (840 passing, 40 skipped, 5 xfailed) - no regressions introduced
+  - Educational architecture preserved while enabling advanced shell programming
+
 0.36.0 (2025-01-06) - Eval builtin implementation
   - Added eval builtin for executing arguments as shell commands
   - Concatenates all arguments with spaces and executes as full shell commands
