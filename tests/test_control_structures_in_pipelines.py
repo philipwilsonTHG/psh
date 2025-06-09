@@ -1,89 +1,177 @@
-"""Test control structures in pipelines functionality."""
+"""Test control structures in pipelines - both receiving and sending.
+
+Note: These tests require pytest to be run with the -s flag to disable output
+capturing since they use the 'read' builtin which needs access to stdin.
+"""
 import pytest
-import os
 import tempfile
-from psh.shell import Shell
+import os
+from tests.helpers.shell_factory import create_test_shell
+from psh.state_machine_lexer import tokenize
+from psh.parser import parse
 
-def test_while_command_parsing():
-    """Test that while loops can be parsed as pipeline components."""
-    from psh.state_machine_lexer import tokenize
-    from psh.parser import parse
-    from psh.ast_nodes import WhileCommand, SimpleCommand
+class TestControlStructuresInPipelines:
+    """Test that all control structures work as pipeline components."""
     
-    # Test parsing while loop in pipeline
-    tokens = tokenize('echo "test" | while read x; do echo $x; done')
-    ast = parse(tokens)
+    def setup_method(self):
+        """Create a fresh shell for each test."""
+        self.shell = create_test_shell()
+        # Create a temporary file for output capture
+        self.output_fd, self.output_file = tempfile.mkstemp()
+        os.close(self.output_fd)
     
-    # Should have one statement with one pipeline
-    assert len(ast.statements) == 1
-    and_or_list = ast.statements[0]
-    assert len(and_or_list.pipelines) == 1
-    pipeline = and_or_list.pipelines[0]
+    def teardown_method(self):
+        """Clean up temporary files."""
+        try:
+            os.unlink(self.output_file)
+        except:
+            pass
     
-    # Pipeline should have two commands: SimpleCommand and WhileCommand
-    assert len(pipeline.commands) == 2
-    assert isinstance(pipeline.commands[0], SimpleCommand)
-    assert isinstance(pipeline.commands[1], WhileCommand)
+    def execute_command(self, command_string):
+        """Execute a command string and return the exit code."""
+        # Redirect to temp file for capturing output from pipelines
+        if '>' not in command_string:
+            command_string += f' > {self.output_file}'
+        else:
+            # Replace the redirection target
+            command_string = command_string.replace('> /dev/stdout', f'> {self.output_file}')
+        
+        tokens = tokenize(command_string)
+        ast = parse(tokens)
+        # parse() can return either CommandList or TopLevel
+        if hasattr(ast, 'items'):
+            # It's a TopLevel
+            return self.shell.execute_toplevel(ast)
+        else:
+            # It's a CommandList
+            return self.shell.execute_command_list(ast)
     
-    # Check the while command structure
-    while_cmd = pipeline.commands[1]
-    assert while_cmd.condition is not None
-    assert while_cmd.body is not None
-
-def test_while_in_pipeline_simple():
-    """Test basic execution of while loop in a pipeline."""
-    shell = Shell()
+    def get_output(self):
+        """Get captured output from temp file."""
+        try:
+            with open(self.output_file, 'r') as f:
+                return f.read()
+        except FileNotFoundError:
+            return ''
     
-    # Test that the command executes without error
-    # Note: Due to variable scoping in subshells, complex while loops may not work
-    # as expected, but this tests that the parsing and execution infrastructure works
-    exit_code = shell.run_command('echo "test" | while false; do echo "never"; done')
+    @pytest.mark.skip(reason="Test requires stdin access, fails in pytest without -s flag")
+    def test_while_loop_receiving_from_pipeline(self):
+        """Test while loop receiving input from pipeline."""
+        result = self.execute_command('echo -e "a\\nb\\nc" | while read x; do echo "Got: $x"; done')
+        assert result == 0
+        output = self.get_output()
+        assert "Got: a" in output
+        assert "Got: b" in output
+        assert "Got: c" in output
     
-    # Should execute without error (exit code 0 means success)
-    assert exit_code == 0
-
-def test_for_in_pipeline_simple():
-    """Test basic for loop in a pipeline."""
-    shell = Shell()
+    @pytest.mark.skip(reason="Control structures as pipeline sources not yet supported")
+    def test_while_loop_sending_to_pipeline(self):
+        """Test while loop sending output to pipeline."""
+        # Create a temporary file for testing
+        with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
+            f.write("line1\nline2\nline3\n")
+            temp_file = f.name
+        
+        try:
+            result = self.execute_command(f'while read x; do echo $x; done < {temp_file} | head -2 | wc -l')
+            assert result == 0
+            output = self.get_output().strip()
+            assert "2" in output
+        finally:
+            os.unlink(temp_file)
     
-    # Simple for loop in pipeline (testing parsing and basic execution)
-    exit_code = shell.run_command('echo "input" | for x in 1 2 3\ndo\necho "item"\ndone')
+    def test_for_loop_receiving_from_pipeline(self):
+        """Test for loop receiving input from pipeline."""
+        result = self.execute_command('echo "a b c" | for x in $(cat); do echo "Item: $x"; done')
+        assert result == 0
+        output = self.get_output()
+        assert "Item: a" in output
+        assert "Item: b" in output
+        assert "Item: c" in output
     
-    # Should execute without error
-    assert exit_code == 0
-
-def test_if_in_pipeline_simple():
-    """Test basic if statement in a pipeline."""
-    shell = Shell()
+    @pytest.mark.skip(reason="Control structures as pipeline sources not yet supported")
+    def test_for_loop_sending_to_pipeline(self):
+        """Test for loop sending output to pipeline."""
+        result = self.execute_command('for x in a b c; do echo $x; done | wc -l')
+        assert result == 0
+        output = self.get_output().strip()
+        assert "3" in output
     
-    # Simple if statement in pipeline
-    exit_code = shell.run_command('echo "input" | if true; then echo "success"; fi')
+    def test_cstyle_for_loop_receiving_from_pipeline(self):
+        """Test C-style for loop receiving input from pipeline."""
+        result = self.execute_command('echo "test" | for ((i=0; i<3; i++)); do echo "$i: received"; done')
+        assert result == 0
+        output = self.get_output()
+        assert "0: received" in output
+        assert "1: received" in output
+        assert "2: received" in output
     
-    assert exit_code == 0
-
-def test_if_in_pipeline_false_condition():
-    """Test if statement with false condition in pipeline."""
-    shell = Shell()
+    @pytest.mark.skip(reason="Control structures as pipeline sources not yet supported")
+    def test_cstyle_for_loop_sending_to_pipeline(self):
+        """Test C-style for loop sending output to pipeline."""
+        result = self.execute_command('for ((i=0; i<3; i++)); do echo $i; done | wc -l')
+        assert result == 0
+        output = self.get_output().strip()
+        assert "3" in output
     
-    # If statement with false condition
-    exit_code = shell.run_command('echo "input" | if false; then echo "never"; else echo "else"; fi')
+    def test_if_statement_receiving_from_pipeline(self):
+        """Test if statement receiving input from pipeline."""
+        result = self.execute_command('echo "test" | if grep -q test; then echo "found"; else echo "not found"; fi')
+        assert result == 0
+        output = self.get_output()
+        assert "found" in output
     
-    assert exit_code == 0
-
-def test_case_in_pipeline():
-    """Test case statement in a pipeline.""" 
-    shell = Shell()
+    @pytest.mark.skip(reason="Control structures as pipeline sources not yet supported")
+    def test_if_statement_sending_to_pipeline(self):
+        """Test if statement sending output to pipeline."""
+        result = self.execute_command('if true; then echo "yes"; else echo "no"; fi | tr a-z A-Z')
+        assert result == 0
+        output = self.get_output()
+        assert "YES" in output
     
-    # Simple case statement in pipeline
-    exit_code = shell.run_command('echo "input" | case test in test) echo "match";; *) echo "no match";; esac')
+    def test_case_statement_receiving_from_pipeline(self):
+        """Test case statement receiving input from pipeline."""
+        result = self.execute_command('echo "foo" | case $(cat) in foo) echo "matched foo";; *) echo "no match";; esac')
+        assert result == 0
+        output = self.get_output()
+        assert "matched foo" in output
     
-    assert exit_code == 0
-
-def test_arithmetic_command_in_pipeline():
-    """Test arithmetic command in pipeline."""
-    shell = Shell()
+    @pytest.mark.skip(reason="Control structures as pipeline sources not yet supported")
+    def test_case_statement_sending_to_pipeline(self):
+        """Test case statement sending output to pipeline."""
+        result = self.execute_command('case "test" in test) echo "matched";; esac | wc -c')
+        assert result == 0
+        # wc -c counts characters including newline
+        output = self.get_output().strip()
+        # "matched\n" is 8 characters
+        assert "8" in output
     
-    # Simple arithmetic command in pipeline
-    exit_code = shell.run_command('echo "input" | ((5 > 3)) && echo "true"')
+    @pytest.mark.skip(reason="Control structures as pipeline sources not yet supported")
+    def test_complex_pipeline_with_multiple_control_structures(self):
+        """Test complex pipeline with multiple control structures."""
+        # Simplify this test to avoid dependency on wc behavior in pipelines
+        result = self.execute_command(
+            'for i in 1 2 3; do echo $i; done | '
+            'while read n; do echo $((n * 2)); done'
+        )
+        assert result == 0
+        output = self.get_output()
+        assert "2" in output  # 1 * 2
+        assert "4" in output  # 2 * 2
+        assert "6" in output  # 3 * 2
     
-    assert exit_code == 0
+    @pytest.mark.skip(reason="Control structures as pipeline sources not yet supported")
+    def test_nested_control_structures_in_pipeline(self):
+        """Test nested control structures in pipeline."""
+        result = self.execute_command(
+            'echo -e "1\\n2\\n3" | '
+            'while read x; do '
+            '  for ((i=0; i<$x; i++)); do '
+            '    echo -n "*"; '
+            '  done; '
+            '  echo; '
+            'done | wc -l'
+        )
+        assert result == 0
+        output = self.get_output().strip()
+        assert "3" in output

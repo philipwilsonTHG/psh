@@ -195,9 +195,11 @@ class SourceProcessor(ScriptComponent):
                     exit_code = self.shell.execute_command_list(ast)
                     return exit_code
                 except Exception as e:
-                    # Break/continue outside of loops is an error
-                    if "LoopBreak" in str(type(e)) or "LoopContinue" in str(type(e)):
-                        stmt_name = "break" if "LoopBreak" in str(type(e)) else "continue"
+                    # Import the exceptions properly
+                    from ..core.exceptions import LoopBreak, LoopContinue
+                    if isinstance(e, (LoopBreak, LoopContinue)):
+                        # Break/continue outside of loops is an error
+                        stmt_name = "break" if isinstance(e, LoopBreak) else "continue"
                         print(f"{stmt_name}: only meaningful in a `for' or `while' loop", 
                               file=sys.stderr)
                         return 1

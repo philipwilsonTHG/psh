@@ -1,6 +1,8 @@
 """AST formatting utilities for debugging."""
 from ..ast_nodes import (
-    TopLevel, CommandList, AndOrList, Pipeline, Command, Redirect,
+    TopLevel, CommandList, AndOrList, Pipeline, Command, SimpleCommand,
+    CompoundCommand, WhileCommand, ForCommand, CStyleForCommand, IfCommand,
+    CaseCommand, SelectCommand, ArithmeticCompoundCommand, Redirect,
     FunctionDef, IfStatement, WhileStatement, ForStatement, CaseStatement,
     CaseItem, BreakStatement, ContinueStatement
 )
@@ -39,13 +41,91 @@ class ASTFormatter:
                 result += ASTFormatter.format(cmd, indent + 1)
             return result
         
-        elif isinstance(node, Command):
-            result = f"{spaces}Command: {' '.join(node.args)}"
+        elif isinstance(node, SimpleCommand):
+            result = f"{spaces}SimpleCommand: {' '.join(node.args)}"
             if node.background:
                 result += " &"
             result += "\n"
             for redirect in node.redirects:
                 result += ASTFormatter.format(redirect, indent + 1)
+            return result
+        
+        elif isinstance(node, WhileCommand):
+            result = f"{spaces}WhileCommand:\n"
+            result += f"{spaces}  Condition:\n"
+            result += ASTFormatter.format(node.condition, indent + 2)
+            result += f"{spaces}  Body:\n"
+            result += ASTFormatter.format(node.body, indent + 2)
+            for redirect in node.redirects:
+                result += ASTFormatter.format(redirect, indent + 1)
+            return result
+        
+        elif isinstance(node, ForCommand):
+            result = f"{spaces}ForCommand:\n"
+            result += f"{spaces}  Variable: {node.variable}\n"
+            result += f"{spaces}  Items: {node.items}\n"
+            result += f"{spaces}  Body:\n"
+            result += ASTFormatter.format(node.body, indent + 2)
+            for redirect in node.redirects:
+                result += ASTFormatter.format(redirect, indent + 1)
+            return result
+        
+        elif isinstance(node, CStyleForCommand):
+            result = f"{spaces}CStyleForCommand:\n"
+            result += f"{spaces}  Init: {node.init}\n"
+            result += f"{spaces}  Condition: {node.condition}\n"
+            result += f"{spaces}  Update: {node.update}\n"
+            result += f"{spaces}  Body:\n"
+            result += ASTFormatter.format(node.body, indent + 2)
+            for redirect in node.redirects:
+                result += ASTFormatter.format(redirect, indent + 1)
+            return result
+        
+        elif isinstance(node, IfCommand):
+            result = f"{spaces}IfCommand:\n"
+            result += f"{spaces}  Condition:\n"
+            result += ASTFormatter.format(node.condition, indent + 2)
+            result += f"{spaces}  Then:\n"
+            result += ASTFormatter.format(node.then_part, indent + 2)
+            if node.else_part:
+                result += f"{spaces}  Else:\n"
+                result += ASTFormatter.format(node.else_part, indent + 2)
+            for redirect in node.redirects:
+                result += ASTFormatter.format(redirect, indent + 1)
+            return result
+        
+        elif isinstance(node, CaseCommand):
+            result = f"{spaces}CaseCommand:\n"
+            result += f"{spaces}  Expression: {node.expr}\n"
+            for item in node.items:
+                result += ASTFormatter.format(item, indent + 1)
+            for redirect in node.redirects:
+                result += ASTFormatter.format(redirect, indent + 1)
+            return result
+        
+        elif isinstance(node, SelectCommand):
+            result = f"{spaces}SelectCommand:\n"
+            result += f"{spaces}  Variable: {node.variable}\n"
+            result += f"{spaces}  Items: {node.items}\n"
+            result += f"{spaces}  Body:\n"
+            result += ASTFormatter.format(node.body, indent + 2)
+            for redirect in node.redirects:
+                result += ASTFormatter.format(redirect, indent + 1)
+            return result
+        
+        elif isinstance(node, ArithmeticCompoundCommand):
+            result = f"{spaces}ArithmeticCompoundCommand:\n"
+            result += f"{spaces}  Expression: {node.expression}\n"
+            for redirect in node.redirects:
+                result += ASTFormatter.format(redirect, indent + 1)
+            return result
+        
+        elif isinstance(node, Command):
+            # Fallback for any other Command types
+            result = f"{spaces}{type(node).__name__}:\n"
+            if hasattr(node, 'redirects'):
+                for redirect in node.redirects:
+                    result += ASTFormatter.format(redirect, indent + 1)
             return result
         
         elif isinstance(node, Redirect):

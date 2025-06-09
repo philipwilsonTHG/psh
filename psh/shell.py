@@ -3,7 +3,7 @@ import sys
 from typing import List, Tuple
 from .state_machine_lexer import tokenize
 from .parser import parse, ParseError
-from .ast_nodes import Command, SimpleCommand, Pipeline, CommandList, AndOrList, TopLevel, FunctionDef, IfStatement, WhileStatement, ForStatement, BreakStatement, ContinueStatement, CaseStatement, EnhancedTestStatement, TestExpression, BinaryTestExpression, UnaryTestExpression, CompoundTestExpression, NegatedTestExpression
+from .ast_nodes import Command, SimpleCommand, Pipeline, StatementList, AndOrList, TopLevel, FunctionDef, IfStatement, WhileStatement, ForStatement, BreakStatement, ContinueStatement, CaseStatement, EnhancedTestStatement, TestExpression, BinaryTestExpression, UnaryTestExpression, CompoundTestExpression, NegatedTestExpression
 from .aliases import AliasManager
 from .functions import FunctionManager
 from .job_control import JobManager, JobState
@@ -116,7 +116,7 @@ class Shell:
         return self.executor_manager.pipeline_executor.execute(pipeline)
     
     
-    def execute_command_list(self, command_list: CommandList):
+    def execute_command_list(self, command_list: StatementList):
         """Execute a command list"""
         # Delegate to the StatementExecutor
         return self.executor_manager.statement_executor.execute_command_list(command_list)
@@ -303,7 +303,7 @@ class Shell:
             if isinstance(ast, TopLevel):
                 return self.execute_toplevel(ast)
             else:
-                # Backward compatibility - CommandList
+                # Backward compatibility - StatementList
                 try:
                     # Collect here documents if any
                     self.io_manager.collect_heredocs(ast)

@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from psh.shell import Shell
 from psh.state_machine_lexer import tokenize
 from psh.parser import parse
-from psh.ast_nodes import ForStatement, CommandList, TopLevel
+from psh.ast_nodes import ForStatement, ForCommand, StatementList, TopLevel, Pipeline, CommandList
 
 
 class TestForLoops(unittest.TestCase):
@@ -191,6 +191,10 @@ do
     echo $i
 done""")
         ast = parse(tokens)
+        # Parser returns TopLevel for multiline input
+        self.assertIsInstance(ast, TopLevel)
+        self.assertEqual(len(ast.items), 1)
+        # When not in a pipeline, it's still a ForStatement
         self.assertIsInstance(ast.items[0], ForStatement)
 
     def test_for_with_quoted_items(self):

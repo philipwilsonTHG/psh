@@ -246,6 +246,7 @@ class PipelineExecutor(ExecutorComponent):
     
     def _execute_while_command(self, command: WhileCommand) -> int:
         """Execute while loop in pipeline context."""
+        from ..core.exceptions import LoopBreak, LoopContinue
         last_status = 0
         
         while True:
@@ -258,13 +259,20 @@ class PipelineExecutor(ExecutorComponent):
                 # Execute body
                 last_status = self.shell.execute_command_list(command.body)
                 
-            except Exception:  # Handle break/continue if needed
+            except LoopBreak as e:
+                if e.level > 1:
+                    raise LoopBreak(e.level - 1)
                 break
+            except LoopContinue as e:
+                if e.level > 1:
+                    raise LoopContinue(e.level - 1)
+                continue
                 
         return last_status
     
     def _execute_for_command(self, command: ForCommand) -> int:
         """Execute for loop in pipeline context."""
+        from ..core.exceptions import LoopBreak, LoopContinue
         last_status = 0
         
         # Expand the items using the same logic as ForStatement
@@ -276,14 +284,20 @@ class PipelineExecutor(ExecutorComponent):
         
         # Now iterate over expanded items
         for item in expanded_items:
-            # Set loop variable
-            self.state.set_variable(command.variable, item)
-            
             try:
+                # Set loop variable
+                self.state.set_variable(command.variable, item)
+                
                 # Execute body
                 last_status = self.shell.execute_command_list(command.body)
-            except Exception:  # Handle break/continue if needed
+            except LoopBreak as e:
+                if e.level > 1:
+                    raise LoopBreak(e.level - 1)
                 break
+            except LoopContinue as e:
+                if e.level > 1:
+                    raise LoopContinue(e.level - 1)
+                continue
                 
         return last_status
     

@@ -514,6 +514,9 @@ class Parser:
         self.expect(TokenType.RPAREN)
         self.expect(TokenType.RPAREN)
         
+        # Skip any separators after ))
+        self.skip_separators()
+        
         # Optional DO keyword
         if self.match(TokenType.DO):
             self.advance()

@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from psh.shell import Shell
 from psh.state_machine_lexer import tokenize
 from psh.parser import parse
-from psh.ast_nodes import IfStatement, CommandList
+from psh.ast_nodes import IfStatement, StatementList, TopLevel, CommandList
 
 
 class TestControlStructures(unittest.TestCase):
@@ -231,6 +231,9 @@ then
     echo success
 fi""")
         ast = parse(tokens)
+        # Parser returns TopLevel for multiline input
+        self.assertIsInstance(ast, TopLevel)
+        self.assertEqual(len(ast.items), 1)
         self.assertIsInstance(ast.items[0], IfStatement)
 
     def test_nested_commands_in_if(self):

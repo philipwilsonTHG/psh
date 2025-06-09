@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from psh.shell import Shell
 from psh.state_machine_lexer import tokenize
 from psh.parser import parse
-from psh.ast_nodes import WhileStatement, CommandList, TopLevel
+from psh.ast_nodes import WhileStatement, StatementList, TopLevel, CommandList
 
 
 class TestWhileLoops(unittest.TestCase):
@@ -177,6 +177,9 @@ do
     echo success
 done""")
         ast = parse(tokens)
+        # Parser returns TopLevel for multiline input
+        self.assertIsInstance(ast, TopLevel)
+        self.assertEqual(len(ast.items), 1)
         self.assertIsInstance(ast.items[0], WhileStatement)
 
     def test_nested_commands_in_while(self):

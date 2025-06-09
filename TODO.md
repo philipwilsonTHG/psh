@@ -59,13 +59,12 @@ PSH has achieved significant feature completeness with **847 total tests (840 pa
   - `seq 1 5 | for i in $(cat); do echo $i; done`
   - `echo "test" | if grep -q test; then echo "found"; fi`
 
-#### C-Style For Loops in Pipelines
-- **Problem**: C-style for loops fail when used in pipelines
-- **Example**: `echo "test" | for ((i=0; i<3; i++)); do echo $i; done` fails with parse error
-- **Error**: Parse error at position 36-37, right after `))` closing the arithmetic expression
-- **Impact**: Cannot use arithmetic-based iteration in pipeline contexts
-- **Note**: Traditional for loops work fine in pipelines, only C-style loops are affected
-- **Workaround**: Use traditional for loops or while loops with arithmetic in pipelines
+#### Control Structures as Pipeline Sources - ❌ **KNOWN LIMITATION**
+- **Problem**: Control structures cannot send output to pipelines
+- **Example**: `for i in 1 2 3; do echo $i; done | wc -l` fails with parse error
+- **Cause**: Parser treats control structures as statements, not pipeline components
+- **Workaround**: Use command substitution or functions (see docs/control_structures_pipeline_limitations.md)
+- **Note**: Control structures CAN receive input from pipelines (v0.37.0 feature works correctly)
 
 #### Composite Argument Quote Handling
 - **Problem**: Parser loses quote information when creating composite arguments
