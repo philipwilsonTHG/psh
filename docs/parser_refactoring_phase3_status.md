@@ -138,14 +138,48 @@ if isinstance(command, WhileLoop):
         raise ValueError("WhileLoop with STATEMENT context in pipeline")
 ```
 
+## Phase 3.4: Migrate Tests (COMPLETED)
+
+### What Was Done
+
+1. **Extended Parser Support**
+   - Added unified parsing methods for all control structures:
+     - `_parse_if_unified()` for if statements
+     - `_parse_case_unified()` for case statements
+     - `_parse_select_unified()` for select statements
+     - `_parse_arithmetic_unified()` for arithmetic commands
+   - Updated all parsing methods to use unified types when flag is set
+
+2. **Created Test Infrastructure**
+   - Created `test_control_structures_unified.py` with 16 parametrized tests
+   - Tests verify both legacy and unified type parsing
+   - Tests verify execution context is correctly set
+   - Tests verify pipeline vs statement context handling
+
+3. **Created Migration Helpers**
+   - Created `unified_types_helper.py` with helper functions
+   - Created `test_migration_guide.md` documenting migration process
+   - Created `conftest_unified.py` for pytest configuration
+
+4. **Demonstrated Migration Pattern**
+   - Created `test_while_loops_migrated.py` as example migration
+   - Shows how to support both type systems in tests
+   - Uses parametrized tests for comprehensive coverage
+
+### Test Results
+
+All 16 unified type tests pass:
+- While loops: statement and pipeline contexts ✅
+- For loops: statement and pipeline contexts ✅
+- C-style for loops: statement and pipeline contexts ✅
+- If statements: statement and pipeline contexts ✅
+- Case statements: statement and pipeline contexts ✅
+- Select statements: statement and pipeline contexts ✅
+- Arithmetic commands: statement and pipeline contexts ✅
+- Pipeline context validation ✅
+- Execution compatibility ✅
+
 ## Next Steps
-
-### Phase 3.3: Update Executors (COMPLETED)
-
-### Phase 3.4: Migrate Tests (TODO)
-- Update tests to use unified types
-- Ensure backward compatibility
-- Add new tests for execution context
 
 ### Phase 3.5: Deprecate Old Types (TODO)
 - Add deprecation warnings
@@ -156,10 +190,10 @@ if isinstance(command, WhileLoop):
 
 The codebase now has:
 1. Both old dual types (WhileStatement/WhileCommand) - still functional
-2. New unified types (WhileLoop, etc.) - fully implemented
-3. Parser support for unified types - feature flag controlled
-4. Comprehensive test coverage - 6 new tests passing
-5. No executor changes yet - maintaining stability
+2. New unified types (WhileLoop, etc.) - fully implemented for ALL control structures
+3. Parser support for unified types - feature flag controlled, supports all structures
+4. Executors handle unified types - with proper context validation
+5. Comprehensive test coverage - 31 new tests passing (6 parser + 4 executor + 5 integration + 16 migration)
 
 This incremental approach ensures we can:
 - Test the new design thoroughly
@@ -170,11 +204,22 @@ This incremental approach ensures we can:
 - Phase 3.1: ✅ Create unified types
 - Phase 3.2: ✅ Update parser with feature flag
 - Phase 3.3: ✅ Update executors with context validation
-- Phase 3.4: ⏳ Migrate tests
+- Phase 3.4: ✅ Migrate tests
 - Phase 3.5: ⏳ Deprecate old types
 
 ### Test Summary
 - 6 unified parser tests: ✅ All passing
 - 4 unified executor tests: ✅ All passing
 - 5 unified integration tests: ✅ All passing
+- 16 migration tests: ✅ All passing
 - Existing tests: ✅ No regressions
+
+### Unified Types Complete Coverage
+All control structures now support unified types:
+- ✅ WhileLoop (replaces WhileStatement/WhileCommand)
+- ✅ ForLoop (replaces ForStatement/ForCommand)
+- ✅ CStyleForLoop (replaces CStyleForStatement/CStyleForCommand)
+- ✅ IfConditional (replaces IfStatement/IfCommand)
+- ✅ CaseConditional (replaces CaseStatement/CaseCommand)
+- ✅ SelectLoop (replaces SelectStatement/SelectCommand)
+- ✅ ArithmeticEvaluation (replaces ArithmeticCommand/ArithmeticCompoundCommand)

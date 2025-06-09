@@ -365,9 +365,12 @@ class Parser(BaseParser):
     
     # === If Statement ===
     
-    def parse_if_statement(self) -> IfStatement:
+    def parse_if_statement(self) -> Union[IfStatement, 'IfConditional']:
         """Parse if/then/else/fi conditional statement."""
         self.expect(TokenType.IF)
+        
+        if self._use_unified_types:
+            return self._parse_if_unified(ExecutionContext.STATEMENT)
         
         # Parse main condition and body
         condition, then_part = self._parse_condition_then_block()
@@ -394,9 +397,12 @@ class Parser(BaseParser):
         stmt.elif_parts = elif_parts
         return stmt
     
-    def parse_if_command(self) -> IfCommand:
+    def parse_if_command(self) -> Union[IfCommand, 'IfConditional']:
         """Parse if statement as a command for use in pipelines."""
         self.expect(TokenType.IF)
+        
+        if self._use_unified_types:
+            return self._parse_if_unified(ExecutionContext.PIPELINE)
         self.skip_newlines()
         
         condition = self.parse_command_list_until(TokenType.THEN)
@@ -733,9 +739,12 @@ class Parser(BaseParser):
     
     # === Case Statement ===
     
-    def parse_case_statement(self) -> CaseStatement:
+    def parse_case_statement(self) -> Union[CaseStatement, 'CaseConditional']:
         """Parse case/esac statement."""
         self.expect(TokenType.CASE)
+        
+        if self._use_unified_types:
+            return self._parse_case_unified(ExecutionContext.STATEMENT)
         
         # Parse expression to match
         expr = self._parse_case_expression()
@@ -755,9 +764,12 @@ class Parser(BaseParser):
         
         return CaseStatement(expr, items, redirects)
     
-    def parse_case_command(self) -> CaseCommand:
+    def parse_case_command(self) -> Union[CaseCommand, 'CaseConditional']:
         """Parse case statement as a command for use in pipelines."""
         self.expect(TokenType.CASE)
+        
+        if self._use_unified_types:
+            return self._parse_case_unified(ExecutionContext.PIPELINE)
         self.skip_newlines()
         
         # Use the same expression parser as parse_case_statement
@@ -836,9 +848,13 @@ class Parser(BaseParser):
     
     # === Select Statement ===
     
-    def parse_select_statement(self) -> SelectStatement:
+    def parse_select_statement(self) -> Union[SelectStatement, 'SelectLoop']:
         """Parse select statement: select name in words; do commands done"""
         self.expect(TokenType.SELECT)
+        
+        if self._use_unified_types:
+            return self._parse_select_unified(ExecutionContext.STATEMENT)
+        
         self.skip_newlines()
         
         # Parse variable name
@@ -866,9 +882,12 @@ class Parser(BaseParser):
         
         return SelectStatement(variable, items, body, redirects)
     
-    def parse_select_command(self) -> SelectCommand:
+    def parse_select_command(self) -> Union[SelectCommand, 'SelectLoop']:
         """Parse select statement as a command for use in pipelines."""
         self.expect(TokenType.SELECT)
+        
+        if self._use_unified_types:
+            return self._parse_select_unified(ExecutionContext.PIPELINE)
         self.skip_newlines()
         
         variable = self.expect(TokenType.WORD).value
@@ -1005,6 +1024,131 @@ class Parser(BaseParser):
             init_expr=init_expr,
             condition_expr=condition_expr,
             update_expr=update_expr,
+            redirects=redirects,
+            execution_context=context,
+            background=False
+        )
+    
+    def _parse_if_unified(self, context: ExecutionContext) -> 'IfConditional':
+        """Parse if statement as unified type."""
+        self.skip_newlines()
+        
+        # Parse main condition and body
+        condition, then_part = self._parse_condition_then_block()
+        
+        # Parse elif clauses
+        elif_parts = []
+        while self.match(TokenType.ELIF):
+            self.advance()
+            elif_condition, elif_then = self._parse_condition_then_block()
+            elif_parts.append((elif_condition, elif_then))
+        
+        # Parse optional else
+        else_part = None
+        if self.match(TokenType.ELSE):
+            self.advance()
+            self.skip_newlines()
+            else_part = self.parse_command_list_until(TokenType.FI)
+        
+        self.expect(TokenType.FI)
+        redirects = self.parse_redirects()
+        
+        from .ast_nodes import IfConditional
+        return IfConditional(
+            condition=condition,
+            then_part=then_part,
+            elif_parts=elif_parts,
+            else_part=else_part,
+            redirects=redirects,
+            execution_context=context,
+            background=False
+        )
+    
+    def _parse_case_unified(self, context: ExecutionContext) -> 'CaseConditional':
+        """Parse case statement as unified type."""
+        self.skip_newlines()
+        
+        # Parse expression  
+        expr = self._parse_case_expression()
+        
+        self.expect(TokenType.IN)
+        self.skip_newlines()
+        
+        # Parse case items
+        items = []
+        while not self.match(TokenType.ESAC):
+            item = self.parse_case_item()
+            items.append(item)
+            self.skip_newlines()
+        
+        self.expect(TokenType.ESAC)
+        redirects = self.parse_redirects()
+        
+        from .ast_nodes import CaseConditional
+        return CaseConditional(
+            expr=expr,
+            items=items,
+            redirects=redirects,
+            execution_context=context,
+            background=False
+        )
+    
+    def _parse_select_unified(self, context: ExecutionContext) -> 'SelectLoop':
+        """Parse select statement as unified type."""
+        self.skip_newlines()
+        
+        # Variable name
+        variable = self.expect(TokenType.WORD).value
+        
+        self.expect(TokenType.IN)
+        self.skip_newlines()
+        
+        # Parse items list
+        items = []
+        while not self.match(TokenType.DO, TokenType.SEMICOLON, TokenType.NEWLINE):
+            if self.match(TokenType.WORD, TokenType.STRING, TokenType.VARIABLE,
+                         TokenType.COMMAND_SUB, TokenType.COMMAND_SUB_BACKTICK):
+                items.append(self.advance().value)
+            else:
+                break
+        
+        # Handle separators
+        self.skip_separators()
+        
+        self.expect(TokenType.DO)
+        self.skip_newlines()
+        
+        # Parse body
+        body = self.parse_command_list_until(TokenType.DONE)
+        
+        self.expect(TokenType.DONE)
+        redirects = self.parse_redirects()
+        
+        from .ast_nodes import SelectLoop
+        return SelectLoop(
+            variable=variable,
+            items=items,
+            body=body,
+            redirects=redirects,
+            execution_context=context,
+            background=False
+        )
+    
+    def _parse_arithmetic_unified(self, context: ExecutionContext) -> 'ArithmeticEvaluation':
+        """Parse arithmetic command as unified type."""
+        # Parse expression until ))
+        expr = self._parse_arithmetic_expression_until_double_rparen()
+        
+        # Expect ))
+        self.expect(TokenType.RPAREN)
+        self.expect(TokenType.RPAREN)
+        
+        # Parse any redirects
+        redirects = self.parse_redirects()
+        
+        from .ast_nodes import ArithmeticEvaluation
+        return ArithmeticEvaluation(
+            expression=expr,
             redirects=redirects,
             execution_context=context,
             background=False
@@ -1147,10 +1291,13 @@ class Parser(BaseParser):
     
     # === Arithmetic Command ===
     
-    def parse_arithmetic_command(self) -> ArithmeticCommand:
+    def parse_arithmetic_command(self) -> Union[ArithmeticCommand, 'ArithmeticEvaluation']:
         """Parse arithmetic command: ((expression))"""
         # Consume the (( token
         self.expect(TokenType.DOUBLE_LPAREN)
+        
+        if self._use_unified_types:
+            return self._parse_arithmetic_unified(ExecutionContext.STATEMENT)
         
         # Parse expression until ))
         expr = self._parse_arithmetic_expression_until_double_rparen()
@@ -1164,9 +1311,12 @@ class Parser(BaseParser):
         
         return ArithmeticCommand(expr, redirects)
     
-    def parse_arithmetic_compound_command(self) -> ArithmeticCompoundCommand:
+    def parse_arithmetic_compound_command(self) -> Union[ArithmeticCompoundCommand, 'ArithmeticEvaluation']:
         """Parse arithmetic command as a compound command for use in pipelines."""
         self.expect(TokenType.DOUBLE_LPAREN)
+        
+        if self._use_unified_types:
+            return self._parse_arithmetic_unified(ExecutionContext.PIPELINE)
         
         expression = self._parse_arithmetic_section_until_double_rparen()
         if expression is None:
