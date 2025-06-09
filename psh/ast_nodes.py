@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from typing import List, Optional, Tuple, Union
 from abc import ABC
+from enum import Enum
 
 
 class ASTNode(ABC):
@@ -394,3 +395,25 @@ class ArithmeticEvaluation(UnifiedControlStructure):
     redirects: List[Redirect] = field(default_factory=list)
     execution_context: ExecutionContext = ExecutionContext.STATEMENT
     background: bool = False
+
+
+# Apply deprecation warnings to old dual types
+from .deprecation import deprecated_class
+
+# Deprecate statement types
+IfStatement = deprecated_class(IfStatement, IfConditional, "0.38.0", "0.40.0")
+WhileStatement = deprecated_class(WhileStatement, WhileLoop, "0.38.0", "0.40.0")
+ForStatement = deprecated_class(ForStatement, ForLoop, "0.38.0", "0.40.0")
+CStyleForStatement = deprecated_class(CStyleForStatement, CStyleForLoop, "0.38.0", "0.40.0")
+CaseStatement = deprecated_class(CaseStatement, CaseConditional, "0.38.0", "0.40.0")
+SelectStatement = deprecated_class(SelectStatement, SelectLoop, "0.38.0", "0.40.0")
+ArithmeticCommand = deprecated_class(ArithmeticCommand, ArithmeticEvaluation, "0.38.0", "0.40.0")
+
+# Deprecate command types
+WhileCommand = deprecated_class(WhileCommand, WhileLoop, "0.38.0", "0.40.0")
+ForCommand = deprecated_class(ForCommand, ForLoop, "0.38.0", "0.40.0")
+CStyleForCommand = deprecated_class(CStyleForCommand, CStyleForLoop, "0.38.0", "0.40.0")
+IfCommand = deprecated_class(IfCommand, IfConditional, "0.38.0", "0.40.0")
+CaseCommand = deprecated_class(CaseCommand, CaseConditional, "0.38.0", "0.40.0")
+SelectCommand = deprecated_class(SelectCommand, SelectLoop, "0.38.0", "0.40.0")
+ArithmeticCompoundCommand = deprecated_class(ArithmeticCompoundCommand, ArithmeticEvaluation, "0.38.0", "0.40.0")

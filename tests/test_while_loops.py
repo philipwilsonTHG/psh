@@ -1,5 +1,6 @@
 import unittest
 import sys
+import warnings
 import os
 import tempfile
 import time
@@ -11,7 +12,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from psh.shell import Shell
 from psh.state_machine_lexer import tokenize
 from psh.parser import parse
-from psh.ast_nodes import WhileStatement, StatementList, TopLevel, CommandList
+# Import with deprecation warnings suppressed
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore", category=DeprecationWarning)
+    from psh.ast_nodes import WhileStatement, StatementList, TopLevel, CommandList
 
 
 class TestWhileLoops(unittest.TestCase):

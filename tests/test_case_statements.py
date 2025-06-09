@@ -1,10 +1,14 @@
 import pytest
+import warnings
 from io import StringIO
 from unittest.mock import patch
 from psh.shell import Shell
 from psh.state_machine_lexer import tokenize
 from psh.parser import parse
-from psh.ast_nodes import CaseStatement, CaseItem, CasePattern
+# Import with deprecation warnings suppressed
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore", category=DeprecationWarning)
+    from psh.ast_nodes import CaseStatement, CaseItem, CasePattern
 
 
 def test_case_basic_parsing():
