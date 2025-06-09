@@ -1,10 +1,9 @@
 #!/usr/bin/env psh
 # Control Structures in Pipelines Demo
-# Demonstrates the revolutionary v0.37.0 feature that enables control structures as pipeline components
-# This was previously impossible in most shells and represents a major architectural breakthrough
+# Demonstrates the v0.37.0 feature that enables control structures as pipeline components
 
 echo "=== PSH v0.37.0: Control Structures in Pipelines Demo ==="
-echo "This demonstrates revolutionary capabilities that were previously architecturally impossible"
+echo "This demonstrates the ability to use control structures as pipeline components"
 echo
 
 # 1. WHILE LOOPS IN PIPELINES
@@ -78,20 +77,11 @@ echo "4. Case Statements in Pipelines"
 echo "-------------------------------"
 
 echo "Example 4a: Pattern matching on pipeline input"
-echo "apple" | case $(cat) in
-    apple)  echo "🍎 Found an apple!" ;;
-    banana) echo "🍌 Found a banana!" ;;
-    *)      echo "🤷 Unknown fruit" ;;
-esac
+echo "apple" | case $(cat) in apple) echo "🍎 Found an apple!" ;; banana) echo "🍌 Found a banana!" ;; *) echo "🤷 Unknown fruit" ;; esac
 echo
 
 echo "Example 4b: Processing different file types"
-echo "script.sh" | case $(cat) in
-    *.sh)   echo "📜 Shell script detected" ;;
-    *.py)   echo "🐍 Python script detected" ;;
-    *.txt)  echo "📄 Text file detected" ;;
-    *)      echo "❓ Unknown file type" ;;
-esac
+echo "script.sh" | case $(cat) in *.sh) echo "📜 Shell script detected" ;; *.py) echo "🐍 Python script detected" ;; *.txt) echo "📄 Text file detected" ;; *) echo "❓ Unknown file type" ;; esac
 echo
 
 # 5. ARITHMETIC COMMANDS IN PIPELINES
@@ -199,8 +189,8 @@ echo
 
 echo "=== Demo Complete ==="
 echo
-echo "🚀 This revolutionary feature (v0.37.0) enables advanced shell programming"
-echo "   patterns that were previously architecturally impossible in most shells."
+echo "🚀 This feature (v0.37.0) enables advanced shell programming"
+echo "   patterns by allowing control structures to be used in pipelines."
 echo
 echo "✨ Key Benefits:"
 echo "   • More intuitive data processing pipelines"
@@ -208,5 +198,5 @@ echo "   • Cleaner script organization"
 echo "   • Enhanced composability"
 echo "   • Maintained backward compatibility"
 echo
-echo "📚 These examples show just a fraction of the possibilities opened up"
-echo "   by PSH's unified command model architecture."
+echo "📚 These examples demonstrate PSH's support for control structures"
+echo "   as pipeline components through its unified command model."

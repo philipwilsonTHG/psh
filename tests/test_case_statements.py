@@ -167,3 +167,29 @@ def test_case_quoted_patterns():
     with patch('sys.stdout', new=StringIO()) as mock_stdout:
         shell.run_command('case "$test_var" in "hello world") echo "exact match" ;; *) echo "no match" ;; esac')
         assert mock_stdout.getvalue().strip() == 'exact match'
+
+
+def test_case_keyword_patterns():
+    """Test case statement with shell keywords as patterns."""
+    shell = Shell()
+    
+    # Test keyword 'if' as a pattern
+    shell.state.set_variable('test_var', 'if')
+    with patch('sys.stdout', new=StringIO()) as mock_stdout:
+        result = shell.run_command('case $test_var in if) echo "matched if" ;; *) echo "no match" ;; esac')
+        assert result == 0
+        assert mock_stdout.getvalue().strip() == 'matched if'
+    
+    # Test keyword 'for' as a pattern
+    shell.state.set_variable('test_var', 'for')
+    with patch('sys.stdout', new=StringIO()) as mock_stdout:
+        result = shell.run_command('case $test_var in for) echo "matched for" ;; *) echo "no match" ;; esac')
+        assert result == 0
+        assert mock_stdout.getvalue().strip() == 'matched for'
+    
+    # Test multiple keywords as patterns
+    shell.state.set_variable('test_var', 'while')
+    with patch('sys.stdout', new=StringIO()) as mock_stdout:
+        result = shell.run_command('case $test_var in if|then|while) echo "control keyword" ;; *) echo "other" ;; esac')
+        assert result == 0
+        assert mock_stdout.getvalue().strip() == 'control keyword'

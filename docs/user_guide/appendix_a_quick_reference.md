@@ -29,6 +29,11 @@ command1 && command2         # Run command2 if command1 succeeds
 command1 || command2         # Run command2 if command1 fails
 command &                    # Run in background
 command1 | command2          # Pipeline
+
+# 🚀 v0.37.0: Control structures in pipelines
+echo "data" | while read x; do echo $x; done
+seq 1 3 | for i in $(cat); do echo $i; done
+echo "test" | if grep -q "test"; then echo "found"; fi
 ```
 
 ### Variables
@@ -319,6 +324,7 @@ history     # Show command history
 source      # Execute script in current shell
 test        # Evaluate expression
 [           # Evaluate expression
+eval        # Execute arguments as command
 ```
 
 ## Job Control

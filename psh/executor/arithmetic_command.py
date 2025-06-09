@@ -10,8 +10,11 @@ class ArithmeticCommandExecutor(ExecutorComponent):
     def execute(self, command: ArithmeticCommand) -> int:
         """Execute arithmetic command and return exit status."""
         try:
+            # First expand command substitutions and variables in the expression
+            expanded_expr = self.expansion_manager.expand_string_variables(command.expression)
+            
             # Evaluate the expression with shell context
-            result = evaluate_arithmetic(command.expression, self.shell)
+            result = evaluate_arithmetic(expanded_expr, self.shell)
             
             # Return 0 if result is non-zero, 1 if zero
             exit_code = 0 if result != 0 else 1

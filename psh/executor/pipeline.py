@@ -267,7 +267,15 @@ class PipelineExecutor(ExecutorComponent):
         """Execute for loop in pipeline context."""
         last_status = 0
         
+        # Expand the items using the same logic as ForStatement
+        expanded_items = []
         for item in command.items:
+            # Use the control flow executor's expansion method
+            expanded = self.shell.executor_manager.control_flow_executor._expand_for_item(item)
+            expanded_items.extend(expanded)
+        
+        # Now iterate over expanded items
+        for item in expanded_items:
             # Set loop variable
             self.state.set_variable(command.variable, item)
             

@@ -2,6 +2,8 @@
 
 Pipelines and command lists are fundamental to shell programming, allowing you to combine simple commands into powerful data processing workflows. PSH supports pipes for connecting commands, conditional execution with && and ||, and sequential execution with semicolons.
 
+**v0.37.0 Feature**: PSH now supports **control structures in pipelines** - enabling while loops, for loops, if statements, case statements, select statements, and arithmetic commands as pipeline components.
+
 ## 10.1 Simple Pipelines (|)
 
 A pipeline connects the stdout of one command to the stdin of the next, creating a data processing chain.
@@ -92,7 +94,223 @@ psh$ cat data.csv | cut -d, -f2,4 | sort | uniq
 psh$ cat file.json | jq '.users[]' | grep active | wc -l
 ```
 
-## 10.2 Pipeline Exit Status
+## 10.2 Control Structures in Pipelines (v0.37.0)
+
+PSH v0.37.0 introduces the ability to use control structures as pipeline components, enabling advanced data processing patterns.
+
+### While Loops in Pipelines
+
+```bash
+# Process data line by line through a pipeline
+psh$ echo -e "apple\nbanana\ncherry" | while read fruit; do
+>     echo "Processing fruit: $fruit (length: ${#fruit})"
+> done
+Processing fruit: apple (length: 5)
+Processing fruit: banana (length: 6)
+Processing fruit: cherry (length: 6)
+
+# Count and process sequential data
+psh$ seq 1 5 | while read num; do
+>     echo "Number $num squared is $((num * num))"
+> done
+Number 1 squared is 1
+Number 2 squared is 4
+Number 3 squared is 9
+Number 4 squared is 16
+Number 5 squared is 25
+
+# Process file content with complex logic
+psh$ cat logfile.txt | while read line; do
+>     if echo "$line" | grep -q "ERROR"; then
+>         echo "🔴 Error found: $line"
+>     elif echo "$line" | grep -q "WARN"; then
+>         echo "🟡 Warning: $line"
+>     else
+>         echo "ℹ️ Info: $line"
+>     fi
+> done
+```
+
+### For Loops in Pipelines
+
+```bash
+# Traditional for loop processing pipeline data
+psh$ echo "processing data" | for item in alpha beta gamma; do
+>     echo "Item: $item"
+> done
+Item: alpha
+Item: beta
+Item: gamma
+
+# Dynamic for loop with command substitution
+psh$ seq 1 3 | for i in $(cat); do
+>     echo "Processing number: $i"
+> done
+Processing number: 1
+Processing number: 2
+Processing number: 3
+```
+
+### If Statements in Pipelines
+
+```bash
+# Conditional processing based on pipeline input
+psh$ echo "success" | if grep -q "success"; then
+>     echo "✅ Success detected in pipeline"
+> else
+>     echo "❌ Success not found"
+> fi
+✅ Success detected in pipeline
+
+# Test numeric values from pipeline
+psh$ echo "42" | if [ $(cat) -gt 40 ]; then
+>     echo "✅ Number is greater than 40"
+> else
+>     echo "❌ Number is 40 or less"
+> fi
+✅ Number is greater than 40
+
+# Complex conditional with word count
+psh$ echo "hello world test" | if [ $(wc -w) -eq 3 ]; then
+>     echo "✅ Input has exactly 3 words"
+> else
+>     echo "❌ Input does not have 3 words"
+> fi
+✅ Input has exactly 3 words
+```
+
+### Case Statements in Pipelines
+
+```bash
+# Pattern matching on pipeline input
+psh$ echo "apple" | case $(cat) in
+>     apple)  echo "🍎 Found an apple!" ;;
+>     banana) echo "🍌 Found a banana!" ;;
+>     *)      echo "🤷 Unknown fruit" ;;
+> esac
+🍎 Found an apple!
+
+# File type detection
+psh$ echo "script.sh" | case $(cat) in
+>     *.sh)   echo "📜 Shell script detected" ;;
+>     *.py)   echo "🐍 Python script detected" ;;
+>     *.txt)  echo "📄 Text file detected" ;;
+>     *)      echo "❓ Unknown file type" ;;
+> esac
+📜 Shell script detected
+```
+
+### Arithmetic Commands in Pipelines
+
+```bash
+# Arithmetic evaluation with pipeline input
+psh$ echo "15" | if (($(cat) > 10)); then
+>     echo "✅ Number is greater than 10"
+> else
+>     echo "❌ Number is 10 or less"
+> fi
+✅ Number is greater than 10
+
+# Mathematical operations on piped data
+psh$ echo "5" | if (($(cat) * 2 > 8)); then
+>     echo "✅ Double the number is greater than 8"
+> fi
+✅ Double the number is greater than 8
+```
+
+### Complex Pipeline Control Structures
+
+```bash
+# Nested control structures
+psh$ seq 1 3 | while read outer; do
+>     echo "Processing group $outer:"
+>     echo "  a b c" | for inner in x y z; do
+>         echo "    $outer-$inner"
+>     done
+> done
+Processing group 1:
+    1-x
+    1-y
+    1-z
+Processing group 2:
+    2-x
+    2-y
+    2-z
+Processing group 3:
+    3-x
+    3-y
+    3-z
+
+# Pipeline validation with control structures
+psh$ echo "data processing pipeline" | if wc -w | while read count; do
+>     if [ $count -gt 2 ]; then
+>         echo "✅ Pipeline has $count words (sufficient data)"
+>         return 0
+>     else
+>         echo "❌ Pipeline has only $count words (insufficient data)"
+>         return 1
+>     fi
+> done; then
+>     echo "Pipeline validation: PASSED"
+> else
+>     echo "Pipeline validation: FAILED"
+> fi
+✅ Pipeline has 3 words (sufficient data)
+Pipeline validation: PASSED
+```
+
+### Practical Examples
+
+```bash
+# Log processing pipeline with control structures
+psh$ echo "2024-01-06 ERROR Database connection failed" | while read date time level message; do
+>     case $level in
+>         ERROR) echo "🔴 $date $time: $message" ;;
+>         WARN)  echo "🟡 $date $time: $message" ;;
+>         INFO)  echo "🔵 $date $time: $message" ;;
+>         *)     echo "⚪ $date $time $level: $message" ;;
+>     esac
+> done
+🔴 2024-01-06 ERROR: Database connection failed
+
+# CSV data transformation
+psh$ echo "1,John,Engineer" | while IFS=, read id name role; do
+>     if [ "$role" = "Manager" ]; then
+>         echo "👔 $name (ID: $id) - $role [LEADERSHIP]"
+>     else
+>         echo "👨‍💻 $name (ID: $id) - $role"
+>     fi
+> done
+👨‍💻 John (ID: 1) - Engineer
+
+# Configuration validation
+psh$ echo "timeout=30" | while IFS= read config; do
+>     case $config in
+>         timeout=*)
+>             value=${config#timeout=}
+>             if ((value > 0 && value <= 60)); then
+>                 echo "✅ Valid timeout: ${value}s"
+>             else
+>                 echo "❌ Invalid timeout: ${value}s (must be 1-60)"
+>             fi
+>             ;;
+>         *)
+>             echo "❓ Unknown config: $config"
+>             ;;
+>     esac
+> done
+✅ Valid timeout: 30s
+```
+
+### Technical Implementation
+
+This feature is enabled by PSH's unified command model:
+- **Simple Commands**: Traditional commands like `ls`, `cat`, `grep`
+- **Compound Commands**: Control structures that can now act as pipeline components
+- **Subshell Execution**: Control structures run in isolated subshells when used in pipelines
+- **Full Compatibility**: All existing pipeline functionality remains unchanged
+
+## 10.3 Pipeline Exit Status
 
 The exit status of a pipeline is the exit status of the last command:
 

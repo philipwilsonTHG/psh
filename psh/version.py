@@ -2,10 +2,21 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.37.0"
+__version__ = "0.37.1"
 
 # Version history
 VERSION_HISTORY = """
+0.37.1 (2025-01-06) - Parser and documentation improvements
+  - Fixed parse_for_command to use _parse_for_iterable() for proper separator handling
+  - Fixed parse_case_command to accept command substitutions with _parse_case_expression()
+  - Fixed parse_case_item to skip newlines before parsing patterns
+  - Enhanced ForCommandExecutor to expand command substitutions in pipeline contexts
+  - Enhanced ArithmeticCommandExecutor to expand variables before evaluation
+  - Removed hyperbolic "revolutionary" language from all documentation
+  - Updated demo script to use single-line case statements as workaround
+  - All control structure types now work correctly in pipelines
+  - Improved bash compatibility for pipeline control structures
+
 0.37.0 (2025-01-06) - Control structures in pipelines implementation
   - Implemented unified command model enabling control structures as pipeline components
   - Added support for all control structures in pipelines: while, for, if, case, select, arithmetic

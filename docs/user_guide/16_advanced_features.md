@@ -2,7 +2,104 @@
 
 PSH includes several advanced features that provide powerful capabilities for complex scripting and interactive use. These features extend the shell's functionality beyond basic command execution, offering sophisticated text processing, debugging tools, and enhanced control structures.
 
-## 16.1 Process Substitution
+## 16.1 Control Structures in Pipelines (v0.37.0) 🚀
+
+PSH v0.37.0 introduces the ability to use control structures as pipeline components.
+
+### Overview
+
+This feature enables advanced data processing patterns by allowing all control structures (while, for, if, case, select, arithmetic commands) to be used as components within pipelines. Each control structure runs in an isolated subshell when used in a pipeline, ensuring proper process isolation and data flow.
+
+### Supported Control Structures
+
+```bash
+# While loops in pipelines
+psh$ echo -e "1\n2\n3" | while read num; do
+>     echo "Processing: $num"
+> done
+
+# For loops in pipelines  
+psh$ echo "input" | for item in a b c; do
+>     echo "Item: $item"
+> done
+
+# If statements in pipelines
+psh$ echo "test" | if grep -q "test"; then
+>     echo "Found match"
+> fi
+
+# Case statements in pipelines
+psh$ echo "apple" | case $(cat) in
+>     apple) echo "It's an apple!" ;;
+>     *) echo "Unknown fruit" ;;
+> esac
+
+# Arithmetic commands in pipelines
+psh$ echo "42" | if (($(cat) > 40)); then
+>     echo "Greater than 40"
+> fi
+
+# Select statements in pipelines (interactive)
+psh$ echo -e "option1\noption2" | select choice in $(cat); do
+>     echo "Selected: $choice"
+>     break
+> done
+```
+
+### Advanced Pipeline Patterns
+
+```bash
+# Complex nested control structures
+psh$ seq 1 3 | while read outer; do
+>     echo "Group $outer:"
+>     echo "  x y z" | for inner in a b c; do
+>         echo "    $outer-$inner"
+>     done
+> done
+
+# Multi-stage data processing pipeline
+psh$ cat data.csv | while IFS=, read id name value; do
+>     echo "$id,$name,$value" | if [ $(echo "$value" | wc -c) -gt 5 ]; then
+>         echo "Long value: $name has value '$value'"
+>     fi
+> done
+
+# Conditional data transformation
+psh$ echo -e "admin\nuser\nguest" | while read role; do
+>     echo "$role" | case $(cat) in
+>         admin) echo "👑 Administrator: $role" ;;
+>         user)  echo "👤 Regular user: $role" ;;
+>         *)     echo "❓ Other role: $role" ;;
+>     esac
+> done
+
+# Pipeline validation and error handling  
+psh$ echo "critical-data" | if [ -n "$(cat)" ]; then
+>     echo "Data received: $(cat)"
+> else
+>     echo "Error: No data in pipeline" >&2
+>     exit 1
+> fi
+```
+
+### Technical Implementation
+
+- **Unified Command Model**: Control structures implement the `Command` interface
+- **Subshell Execution**: Each control structure runs in an isolated subshell
+- **Process Isolation**: Variables and environment changes don't affect parent shell
+- **Full Compatibility**: All existing pipeline functionality remains unchanged
+- **I/O Redirection**: Control structures support all redirection operators
+
+### Benefits
+
+1. **Enhanced Data Processing**: Create sophisticated data transformation pipelines
+2. **Improved Script Organization**: More intuitive and readable pipeline logic
+3. **Increased Composability**: Mix control structures with traditional commands seamlessly
+4. **Backward Compatibility**: No changes to existing scripts required
+
+For detailed examples and patterns, see [Chapter 10: Pipelines and Lists](10_pipelines_and_lists.md#102-control-structures-in-pipelines-v0370).
+
+## 16.2 Process Substitution
 
 Process substitution allows you to treat the output of a command as a file, enabling powerful command combinations that would otherwise require temporary files.
 
@@ -839,6 +936,149 @@ psh$ process_tree() {
 >             echo "$indent  File: ${item##*/}"
 >         fi
 >     done
+> }
+```
+
+### Dynamic Command Execution with eval
+
+The `eval` builtin enables sophisticated dynamic programming patterns where commands are built and executed at runtime.
+
+```bash
+# Configuration-driven command execution
+psh$ config_action() {
+>     local config_file="$1"
+>     
+>     # Read command from config file
+>     while IFS='=' read -r key value; do
+>         case "$key" in
+>             action) action_cmd="$value" ;;
+>             target) target_path="$value" ;;
+>             options) cmd_options="$value" ;;
+>         esac
+>     done < "$config_file"
+>     
+>     # Build and execute command safely
+>     if [[ "$action_cmd" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]; then
+>         eval "$action_cmd $cmd_options '$target_path'"
+>     else
+>         echo "Invalid action command" >&2
+>         return 1
+>     fi
+> }
+
+# Dynamic variable handling
+psh$ setup_environment() {
+>     local env_prefix="$1"
+>     shift
+>     
+>     # Set multiple environment variables dynamically
+>     for var in "$@"; do
+>         IFS='=' read -r name value <<< "$var"
+>         eval "${env_prefix}_${name}='$value'"
+>     done
+>     
+>     # Display all variables with prefix
+>     for var in "$@"; do
+>         IFS='=' read -r name value <<< "$var"
+>         eval "echo \"${env_prefix}_${name}=\$${env_prefix}_${name}\""
+>     done
+> }
+
+psh$ setup_environment "DB" "HOST=localhost" "PORT=5432" "NAME=myapp"
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=myapp
+
+# Command dispatch table
+psh$ declare -A commands=(
+>     ["start"]="systemctl start"
+>     ["stop"]="systemctl stop"
+>     ["restart"]="systemctl restart"
+>     ["status"]="systemctl status"
+> )
+
+psh$ service_control() {
+>     local action="$1"
+>     local service="$2"
+>     
+>     if [[ -n "${commands[$action]}" ]]; then
+>         eval "${commands[$action]} '$service'"
+>     else
+>         echo "Unknown action: $action" >&2
+>         echo "Available: ${!commands[*]}" >&2
+>         return 1
+>     fi
+> }
+
+# Template-based script generation
+psh$ generate_script() {
+>     local template="$1"
+>     local output="$2"
+>     shift 2
+>     
+>     # Replace placeholders with values
+>     local content
+>     content=$(cat "$template")
+>     
+>     for replacement in "$@"; do
+>         IFS='=' read -r placeholder value <<< "$replacement"
+>         content="${content//\{\{$placeholder\}\}/$value}"
+>     done
+>     
+>     # Execute generated content
+>     eval "$content" > "$output"
+> }
+
+# Dynamic function creation
+psh$ create_accessor() {
+>     local prefix="$1"
+>     shift
+>     
+>     for field in "$@"; do
+>         eval "get_${prefix}_${field}() { echo \"\$${prefix}_${field}\"; }"
+>         eval "set_${prefix}_${field}() { ${prefix}_${field}=\"\$1\"; }"
+>     done
+> }
+
+psh$ create_accessor "user" "name" "email" "age"
+psh$ set_user_name "Alice"
+psh$ set_user_email "alice@example.com"
+psh$ get_user_name
+Alice
+psh$ get_user_email
+alice@example.com
+```
+
+**Security Best Practices for eval:**
+```bash
+# Input validation patterns
+psh$ safe_eval() {
+>     local cmd="$1"
+>     
+>     # Whitelist approach
+>     case "$cmd" in
+>         "ls -la"|"pwd"|"date"|"whoami")
+>             eval "$cmd"
+>             ;;
+>         *)
+>             echo "Command not permitted: $cmd" >&2
+>             return 1
+>             ;;
+>     esac
+> }
+
+# Parameter validation
+psh$ validate_and_eval() {
+>     local template="$1"
+>     local param="$2"
+>     
+>     # Validate parameter format
+>     if [[ "$param" =~ ^[a-zA-Z0-9._/-]+$ ]]; then
+>         eval "printf '$template' '$param'"
+>     else
+>         echo "Invalid parameter format" >&2
+>         return 1
+>     fi
 > }
 ```
 

@@ -2,6 +2,8 @@
 
 Control structures enable conditional execution and loops in shell scripts. PSH provides full support for if statements, while and for loops, case statements, and loop control commands. These constructs allow you to build complex program logic and automate repetitive tasks.
 
+**v0.37.0 Feature**: All control structures can now be used as **pipeline components**. This enables advanced data processing patterns like `echo "data" | while read line; do echo $line; done`. See [Chapter 10](10_pipelines_and_lists.md#102-control-structures-in-pipelines-v0370) for complete pipeline examples.
+
 ## 11.1 Conditional Statements (if/then/else/fi)
 
 The if statement executes commands conditionally based on the exit status of test commands.
@@ -136,6 +138,52 @@ psh$ if [[ "$user" =~ ^admin.* ]]; then
 > fi
 ```
 
+### 🚀 If Statements in Pipelines (v0.37.0)
+
+If statements can now be used as pipeline components:
+
+```bash
+# Conditional processing based on pipeline input
+psh$ echo "success" | if grep -q "success"; then
+>     echo "✅ Success detected in pipeline"
+> else
+>     echo "❌ Success not found"
+> fi
+✅ Success detected in pipeline
+
+# Test numeric values from pipeline
+psh$ echo "85" | if [ $(cat) -ge 80 ]; then
+>     echo "✅ Score is passing ($(cat))"
+> else
+>     echo "❌ Score is failing ($(cat))"
+> fi
+✅ Score is passing (85)
+
+# Complex conditional with pipeline data
+psh$ echo "hello world from pipeline" | if [ $(wc -w) -gt 3 ]; then
+>     echo "✅ Pipeline input has more than 3 words"
+> else
+>     echo "❌ Pipeline input has 3 or fewer words"
+> fi
+✅ Pipeline input has more than 3 words
+
+# File validation through pipeline
+psh$ echo "/etc/passwd" | if [ -f $(cat) ]; then
+>     echo "✅ File $(cat) exists"
+> else
+>     echo "❌ File $(cat) does not exist"
+> fi
+✅ File /etc/passwd exists
+
+# Data validation pipeline
+psh$ echo "user@example.com" | if [[ $(cat) =~ ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$ ]]; then
+>     echo "✅ Valid email: $(cat)"
+> else
+>     echo "❌ Invalid email: $(cat)"
+> fi
+✅ Valid email: user@example.com
+```
+
 ## 11.2 While Loops (while/do/done)
 
 While loops execute commands repeatedly as long as the condition remains true.
@@ -196,6 +244,43 @@ psh$ while true; do
 >     [ "$cmd" = "quit" ] && break
 >     echo "You entered: $cmd"
 > done
+```
+
+### 🚀 While Loops in Pipelines (v0.37.0)
+
+While loops can now be used as pipeline components:
+
+```bash
+# Process data line by line through pipeline
+psh$ echo -e "red\ngreen\nblue" | while read color; do
+>     echo "Color: $color (length: ${#color})"
+> done
+Color: red (length: 3)
+Color: green (length: 5)
+Color: blue (length: 4)
+
+# Count and process numbers
+psh$ seq 1 5 | while read num; do
+>     echo "Number $num cubed is $((num * num * num))"
+> done
+Number 1 cubed is 1
+Number 2 cubed is 8
+Number 3 cubed is 27
+Number 4 cubed is 16
+Number 5 cubed is 125
+
+# Log processing with while loop in pipeline
+psh$ cat access.log | while read ip time request code size; do
+>     if [ "$code" -ge 400 ]; then
+>         echo "Error: $ip requested $request and got $code"
+>     fi
+> done
+
+# Data transformation in pipeline
+psh$ echo "user:alice:1001" | while IFS=: read type name id; do
+>     echo "Type: $type, Name: $name, ID: $id"
+> done
+Type: user, Name: alice, ID: 1001
 ```
 
 ### While Loop Patterns
@@ -293,6 +378,47 @@ psh$ for item in apple:red banana:yellow grape:purple; do
 apple is red
 banana is yellow
 grape is purple
+```
+
+### 🚀 For Loops in Pipelines (v0.37.0)
+
+For loops can now be used as pipeline components:
+
+```bash
+# Traditional for loop processing pipeline data
+psh$ echo "processing data" | for item in alpha beta gamma; do
+>     echo "Processing item: $item"
+> done
+Processing item: alpha
+Processing item: beta
+Processing item: gamma
+
+# Dynamic for loop with pipeline input
+psh$ seq 1 3 | for num in $(cat); do
+>     echo "Processing number: $num (doubled: $((num * 2)))"
+> done
+Processing number: 1 (doubled: 2)
+Processing number: 2 (doubled: 4)
+Processing number: 3 (doubled: 6)
+
+# File processing through pipeline
+psh$ echo "*.txt" | for pattern in $(cat); do
+>     echo "Files matching $pattern:"
+>     ls $pattern 2>/dev/null || echo "  No files found"
+> done
+Files matching *.txt:
+  config.txt
+  data.txt
+  readme.txt
+
+# Data enumeration in pipeline
+psh$ echo "start processing" | for step in init process validate complete; do
+>     echo "Step: $step"
+> done
+Step: init
+Step: process
+Step: validate
+Step: complete
 ```
 
 ### C-Style For Loops

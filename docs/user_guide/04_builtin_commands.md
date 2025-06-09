@@ -836,6 +836,188 @@ psh$ echo $?
 0
 ```
 
+## 4.8 Dynamic Command Execution
+
+### eval - Execute Commands from String
+
+The `eval` builtin executes its arguments as shell commands, enabling dynamic command execution:
+
+```bash
+# Basic usage
+psh$ eval "echo hello"
+hello
+
+# Multiple arguments are joined with spaces
+psh$ eval echo "hello" "world"
+hello world
+
+# Variable assignment in eval
+psh$ eval "name='Alice'"
+psh$ echo $name
+Alice
+
+# Multiple commands
+psh$ eval "echo first; echo second"
+first
+second
+
+# Dynamic command building
+psh$ cmd="echo"
+psh$ msg="Dynamic message"
+psh$ eval "$cmd '$msg'"
+Dynamic message
+
+# Using variables to build complex commands
+psh$ operation="ls"
+psh$ flags="-la"
+psh$ target="/tmp"
+psh$ eval "$operation $flags $target"
+total 48
+drwxrwxrwt 15 root root 4096 Jan 15 12:00 .
+drwxr-xr-x 20 root root 4096 Jan 10 08:00 ..
+...
+
+# Function definition in eval
+psh$ eval "greet() { echo \"Hello, \$1!\"; }"
+psh$ greet World
+Hello, World!
+
+# Control structures in eval
+psh$ eval "for i in 1 2 3; do echo \"Number: \$i\"; done"
+Number: 1
+Number: 2
+Number: 3
+
+# Conditional execution
+psh$ eval "if [ -f /etc/passwd ]; then echo 'File exists'; fi"
+File exists
+
+# Pipelines in eval
+psh$ eval "echo -e 'apple\\nbanana\\ncherry' | grep an"
+banana
+
+# Command substitution in eval
+psh$ eval "current_time=\$(date); echo \"Time: \$current_time\""
+Time: Mon Jan 15 12:00:00 UTC 2024
+
+# I/O redirection
+psh$ eval "echo 'test data' > /tmp/eval_test.txt"
+psh$ cat /tmp/eval_test.txt
+test data
+
+# Nested eval (use with caution)
+psh$ eval "eval \"echo 'nested execution'\""
+nested execution
+
+# Exit status handling
+psh$ eval "true"
+psh$ echo $?
+0
+
+psh$ eval "false"
+psh$ echo $?
+1
+
+# Empty eval returns success
+psh$ eval ""
+psh$ echo $?
+0
+
+# Error handling
+psh$ eval "nonexistent_command"
+psh: nonexistent_command: command not found
+psh$ echo $?
+127
+```
+
+#### Practical Eval Examples
+
+**Configuration Scripts:**
+```bash
+# Load configuration dynamically
+config_file="/etc/myapp.conf"
+if [ -f "$config_file" ]; then
+    # Source config file through eval for security
+    while IFS='=' read -r key value; do
+        [[ $key =~ ^[A-Z_][A-Z0-9_]*$ ]] && eval "$key='$value'"
+    done < "$config_file"
+fi
+```
+
+**Command Dispatch:**
+```bash
+# Simple command dispatcher
+action="$1"
+case "$action" in
+    start)   cmd="systemctl start myservice" ;;
+    stop)    cmd="systemctl stop myservice" ;;
+    restart) cmd="systemctl restart myservice" ;;
+    status)  cmd="systemctl status myservice" ;;
+    *)       echo "Usage: $0 {start|stop|restart|status}"; exit 1 ;;
+esac
+
+echo "Executing: $cmd"
+eval "$cmd"
+```
+
+**Dynamic Variable Names:**
+```bash
+# Set multiple similar variables
+for i in {1..5}; do
+    eval "var_$i='Value $i'"
+done
+
+# Access them later
+for i in {1..5}; do
+    eval "echo \"Variable $i: \$var_$i\""
+done
+```
+
+#### Security Considerations
+
+**⚠️ Warning: eval can execute arbitrary code. Never use eval with untrusted input!**
+
+```bash
+# DANGEROUS - Don't do this
+user_input="$1"
+eval "$user_input"  # Could execute: rm -rf /
+
+# SAFER - Validate input first
+case "$user_input" in
+    [a-zA-Z0-9_-]*) eval "$safe_command $user_input" ;;
+    *) echo "Invalid input" ;;
+esac
+
+# SAFEST - Use alternatives when possible
+case "$user_input" in
+    start)   start_service ;;
+    stop)    stop_service ;;
+    status)  check_status ;;
+esac
+```
+
+#### When to Use eval
+
+**Good use cases:**
+- Configuration scripts that set variables dynamically
+- Command dispatchers with known, safe commands
+- Complex parameter expansion scenarios
+- Building commands from validated components
+
+**Avoid eval when:**
+- Processing user input directly
+- Simple variable assignment would work
+- Alternative approaches are available
+- Security is a primary concern
+
+#### Exit Status
+
+The `eval` command returns the exit status of the last command executed:
+- Returns 0 if arguments are empty or whitespace only
+- Returns the exit status of the executed command(s)
+- Returns 127 if the command is not found
+- Returns appropriate exit codes for syntax errors
+
 ## Practical Examples
 
 ### System Administration Script
@@ -946,6 +1128,7 @@ Built-in commands are the core of PSH functionality. They provide:
 - Job control (jobs, fg, bg)
 - Script execution (source)
 - Conditional testing (test, [, [[)
+- Dynamic command execution (eval)
 
 These commands execute quickly since they don't require forking new processes, and they have direct access to shell internals. Understanding built-ins is crucial for effective shell scripting and interactive use.
 

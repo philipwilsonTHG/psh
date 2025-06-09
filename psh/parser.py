@@ -468,12 +468,13 @@ class Parser:
         # Traditional for loop
         variable = self.expect(TokenType.WORD).value
         self.expect(TokenType.IN)
+        self.skip_newlines()
         
-        # Parse items
-        items = []
-        while (self.match_any(TokenGroups.WORD_LIKE) and 
-               not self.match(TokenType.DO)):
-            items.append(self.advance().value)
+        # Parse items using the same method as parse_for_statement
+        items = self._parse_for_iterable()
+        
+        # Handle separators before DO
+        self.skip_separators()
         
         self.skip_newlines()
         self.expect(TokenType.DO)
@@ -579,7 +580,9 @@ class Parser:
         self.expect(TokenType.CASE)
         self.skip_newlines()
         
-        expr = self.expect(TokenType.WORD).value
+        # Use the same expression parser as parse_case_statement
+        expr = self._parse_case_expression()
+        
         self.skip_newlines()
         self.expect(TokenType.IN)
         self.skip_newlines()
@@ -988,6 +991,9 @@ class Parser:
     
     def parse_case_item(self) -> CaseItem:
         """Parse a single case item: patterns) commands terminator"""
+        # Skip any leading newlines/whitespace
+        self.skip_newlines()
+        
         # Parse patterns
         patterns = [CasePattern(self._parse_case_pattern())]
         
@@ -1013,7 +1019,17 @@ class Parser:
     
     def _parse_case_pattern(self) -> str:
         """Parse a single case pattern."""
-        if not self.match(TokenType.WORD, TokenType.STRING, TokenType.VARIABLE):
+        # Keywords can be valid patterns in bash (e.g., case $x in if) echo "it's if" ;; esac)
+        # So we need to accept keyword tokens as patterns too
+        keyword_tokens = {
+            TokenType.IF, TokenType.THEN, TokenType.ELSE, TokenType.FI, TokenType.ELIF,
+            TokenType.WHILE, TokenType.DO, TokenType.DONE, TokenType.FOR, TokenType.IN,
+            TokenType.BREAK, TokenType.CONTINUE, TokenType.CASE, TokenType.ESAC,
+            TokenType.SELECT, TokenType.FUNCTION
+        }
+        
+        if not (self.match(TokenType.WORD, TokenType.STRING, TokenType.VARIABLE) or
+                self.match_any(keyword_tokens)):
             raise ParseError("Expected pattern in case statement", self.peek())
         
         token = self.advance()

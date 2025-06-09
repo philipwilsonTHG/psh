@@ -1,15 +1,77 @@
 # Appendix B: Example Scripts
 
-This appendix contains a collection of scripts that demonstrate PSH's capabilities. All scripts have been tested and are guaranteed to work with PSH version 0.35.0 and later.
+This appendix contains a collection of scripts that demonstrate PSH's capabilities. All scripts have been tested and are guaranteed to work with PSH version 0.37.0 and later.
 
 ## Table of Contents
 
-1. [System Administration Scripts](#system-administration-scripts)
-2. [Mathematical Scripts](#mathematical-scripts)
-3. [Interactive Utilities](#interactive-utilities)
-4. [Text Processing Scripts](#text-processing-scripts)
-5. [Development Tools](#development-tools)
-6. [Function Libraries](#function-libraries)
+1. [Control Structures in Pipelines (v0.37.0)](#control-structures-in-pipelines-v0370) 🚀
+2. [System Administration Scripts](#system-administration-scripts)
+3. [Mathematical Scripts](#mathematical-scripts)
+4. [Interactive Utilities](#interactive-utilities)
+5. [Text Processing Scripts](#text-processing-scripts)
+6. [Development Tools](#development-tools)
+7. [Function Libraries](#function-libraries)
+8. [Dynamic Programming with eval](#dynamic-programming-with-eval)
+
+## Control Structures in Pipelines (v0.37.0) 🚀
+
+PSH v0.37.0 introduces the ability to use control structures as pipeline components. The comprehensive demonstration script is available at `examples/control_structures_in_pipelines_demo.sh`.
+
+### Quick Examples
+
+```bash
+#!/usr/bin/env psh
+# Pipeline patterns available in PSH v0.37.0
+
+# Data processing with while loops
+echo -e "apple\nbanana\ncherry" | while read fruit; do
+    echo "Processing: $fruit (${#fruit} characters)"
+done
+
+# Conditional processing with if statements
+echo "42" | if [ $(cat) -gt 40 ]; then
+    echo "✅ Number is greater than 40"
+else
+    echo "❌ Number is 40 or less"
+fi
+
+# Pattern matching with case statements
+echo "script.sh" | case $(cat) in
+    *.sh)  echo "📜 Shell script detected" ;;
+    *.py)  echo "🐍 Python script detected" ;;
+    *)     echo "❓ Unknown file type" ;;
+esac
+
+# Multi-stage pipeline processing
+seq 1 3 | while read num; do
+    echo "Group $num:" 
+    echo "  x y z" | for item in a b c; do
+        echo "    $num-$item"
+    done
+done
+
+# Real-world log processing
+echo "2024-01-06 ERROR Database connection failed" | while read date time level message; do
+    case $level in
+        ERROR) echo "🔴 $date $time: $message" ;;
+        WARN)  echo "🟡 $date $time: $message" ;;
+        INFO)  echo "🔵 $date $time: $message" ;;
+        *)     echo "⚪ $date $time $level: $message" ;;
+    esac
+done
+```
+
+### Benefits
+
+- **Enhanced Data Processing**: Create sophisticated data transformation pipelines
+- **Improved Readability**: More intuitive pipeline logic
+- **Increased Composability**: Mix control structures with traditional commands seamlessly
+- **Enhanced Capability**: Control structures as pipeline components
+
+For the complete demonstration with 50+ examples, run:
+```bash
+psh examples/control_structures_in_pipelines_demo.sh
+```
 
 ## System Administration Scripts
 
@@ -1416,11 +1478,299 @@ main() {
 main "$@"
 ```
 
+## Dynamic Programming with eval
+
+### Configuration-Driven Script
+
+```bash
+#!/usr/bin/env psh
+# config_runner.sh - Execute commands based on configuration
+
+# Function to read and execute config file
+run_config() {
+    local config_file="$1"
+    
+    if [ ! -f "$config_file" ]; then
+        echo "Error: Config file not found: $config_file" >&2
+        return 1
+    fi
+    
+    echo "Processing configuration: $config_file"
+    
+    # Read configuration file
+    while IFS='=' read -r key value; do
+        # Skip comments and empty lines
+        [[ "$key" =~ ^[[:space:]]*# ]] && continue
+        [[ -z "$key" ]] && continue
+        
+        case "$key" in
+            action)
+                action_cmd="$value"
+                ;;
+            target)
+                target_path="$value"
+                ;;
+            options)
+                cmd_options="$value"
+                ;;
+            execute)
+                # Build and execute command
+                if [[ -n "$action_cmd" ]] && [[ -n "$target_path" ]]; then
+                    echo "Executing: $action_cmd $cmd_options $target_path"
+                    eval "$action_cmd $cmd_options '$target_path'"
+                    action_cmd=""
+                    target_path=""
+                    cmd_options=""
+                fi
+                ;;
+        esac
+    done < "$config_file"
+}
+
+# Example config file (config.txt):
+# action=ls
+# options=-la
+# target=/tmp
+# execute=true
+# 
+# action=echo
+# target=Hello from config
+# execute=true
+
+# Usage
+if [ $# -eq 0 ]; then
+    echo "Usage: $0 <config_file>"
+    exit 1
+fi
+
+run_config "$1"
+```
+
+### Dynamic Environment Setup
+
+```bash
+#!/usr/bin/env psh
+# env_setup.sh - Dynamic environment configuration
+
+# Function to set up environment based on project type
+setup_project_env() {
+    local project_type="$1"
+    local project_name="$2"
+    
+    case "$project_type" in
+        python)
+            env_vars=(
+                "PYTHONPATH=./src:./lib"
+                "VIRTUAL_ENV=venv"
+                "PROJECT_TYPE=python"
+            )
+            ;;
+        node)
+            env_vars=(
+                "NODE_PATH=./node_modules"
+                "NODE_ENV=development"
+                "PROJECT_TYPE=node"
+            )
+            ;;
+        java)
+            env_vars=(
+                "CLASSPATH=./src:./lib/*"
+                "JAVA_HOME=/usr/lib/jvm/default"
+                "PROJECT_TYPE=java"
+            )
+            ;;
+        *)
+            echo "Unknown project type: $project_type" >&2
+            return 1
+            ;;
+    esac
+    
+    # Set project-specific variables dynamically
+    for var in "${env_vars[@]}"; do
+        IFS='=' read -r name value <<< "$var"
+        eval "export ${project_name}_${name}='$value'"
+        eval "echo \"Set ${project_name}_${name}=\$${project_name}_${name}\""
+    done
+    
+    # Create project activation function
+    eval "${project_name}_activate() {
+        echo \"Activating $project_name environment\"
+        for var in \"${env_vars[@]}\"; do
+            IFS='=' read -r name value <<< \"\$var\"
+            eval \"export \$name='\$value'\"
+        done
+        export PS1=\"($project_name) \$PS1\"
+    }"
+    
+    echo "Created activation function: ${project_name}_activate"
+}
+
+# Usage examples
+echo "Setting up development environments..."
+setup_project_env "python" "myapi"
+setup_project_env "node" "frontend"
+
+# Now you can activate with: myapi_activate or frontend_activate
+```
+
+### Command Template Engine
+
+```bash
+#!/usr/bin/env psh
+# template_engine.sh - Process command templates
+
+# Function to execute command template
+execute_template() {
+    local template="$1"
+    shift
+    
+    # Parse template replacements
+    local cmd="$template"
+    
+    for replacement in "$@"; do
+        IFS='=' read -r placeholder value <<< "$replacement"
+        cmd="${cmd//\{\{$placeholder\}\}/$value}"
+    done
+    
+    echo "Executing: $cmd"
+    eval "$cmd"
+}
+
+# Function to process batch templates
+process_batch() {
+    local template_file="$1"
+    
+    while IFS='|' read -r template vars; do
+        # Skip comments
+        [[ "$template" =~ ^[[:space:]]*# ]] && continue
+        [[ -z "$template" ]] && continue
+        
+        echo "Processing template: $template"
+        
+        # Parse variables
+        IFS=',' read -ra var_array <<< "$vars"
+        execute_template "$template" "${var_array[@]}"
+        echo "---"
+    done < "$template_file"
+}
+
+# Examples of use
+echo "=== Single Template Example ==="
+execute_template "echo 'Hello {{name}}, you are {{age}} years old'" \
+    "name=Alice" "age=30"
+
+execute_template "ls {{flags}} {{directory}}" \
+    "flags=-la" "directory=/tmp"
+
+# Example batch file (templates.txt):
+# echo 'Processing {{file}} with {{tool}}'|file=data.csv,tool=awk
+# mkdir -p {{path}}/{{project}}|path=/tmp,project=myapp
+# cp {{source}} {{dest}}|source=file.txt,dest=/backup/file.txt
+
+echo "=== Batch Template Example ==="
+cat > /tmp/templates.txt << 'EOF'
+echo 'Processing {{file}} with {{tool}}'|file=data.csv,tool=awk
+mkdir -p {{path}}/{{project}}|path=/tmp,project=myapp
+echo 'Project {{project}} created in {{path}}'|path=/tmp,project=myapp
+EOF
+
+process_batch "/tmp/templates.txt"
+rm -f /tmp/templates.txt
+```
+
+### Dynamic Function Factory
+
+```bash
+#!/usr/bin/env psh
+# function_factory.sh - Create functions dynamically
+
+# Create getter/setter functions for a data structure
+create_object() {
+    local object_name="$1"
+    shift
+    
+    echo "Creating object: $object_name"
+    
+    # Create getter and setter for each field
+    for field in "$@"; do
+        # Create getter function
+        eval "${object_name}_get_${field}() {
+            eval \"echo \\\$${object_name}_${field}\"
+        }"
+        
+        # Create setter function
+        eval "${object_name}_set_${field}() {
+            eval \"${object_name}_${field}=\\\$1\"
+        }"
+        
+        echo "  - Created ${object_name}_get_${field} and ${object_name}_set_${field}"
+    done
+    
+    # Create show function
+    eval "${object_name}_show() {
+        echo \"Object: $object_name\"
+        for field in $*; do
+            eval \"echo \\\"  \$field: \\\$${object_name}_\$field\\\"\"
+        done
+    }"
+    
+    echo "  - Created ${object_name}_show"
+}
+
+# Create validation functions
+create_validator() {
+    local validator_name="$1"
+    local validation_rule="$2"
+    
+    eval "${validator_name}() {
+        local value=\"\$1\"
+        if $validation_rule; then
+            return 0
+        else
+            echo \"Validation failed for: \$value\" >&2
+            return 1
+        fi
+    }"
+    
+    echo "Created validator: $validator_name"
+}
+
+# Usage examples
+echo "=== Creating User Object ==="
+create_object "user" "name" "email" "age"
+
+# Use the created functions
+user_set_name "Alice"
+user_set_email "alice@example.com"
+user_set_age "30"
+
+echo "Getting user data:"
+echo "Name: $(user_get_name)"
+echo "Email: $(user_get_email)"
+echo "Age: $(user_get_age)"
+
+echo
+user_show
+
+echo
+echo "=== Creating Validators ==="
+create_validator "validate_email" '[[ "$value" =~ ^[^@]+@[^@]+$ ]]'
+create_validator "validate_age" '[[ "$value" =~ ^[0-9]+$ ]] && (( value >= 0 && value <= 150 ))'
+
+# Test validators
+echo "Testing validators:"
+validate_email "alice@example.com" && echo "Email valid"
+validate_email "invalid-email" || echo "Email invalid"
+validate_age "30" && echo "Age valid"
+validate_age "200" || echo "Age invalid"
+```
+
 ## Next Steps
 
 - Experiment with these scripts to understand PSH capabilities
 - Modify scripts to suit your specific needs
 - Combine techniques from different examples
+- Pay special attention to the eval examples for dynamic programming
 - Share your scripts with the PSH community
 
-Remember that PSH is designed for educational purposes. These scripts demonstrate core shell programming concepts while working within PSH's current feature set.
+Remember that PSH is designed for educational purposes. These scripts demonstrate core shell programming concepts while working within PSH's current feature set. When using eval, always validate input carefully to maintain security.
