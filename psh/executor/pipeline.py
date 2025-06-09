@@ -7,7 +7,11 @@ from ..ast_nodes import (
     Pipeline, SimpleCommand, CompoundCommand,
     WhileCommand, ForCommand, CStyleForCommand, 
     IfCommand, CaseCommand, SelectCommand, 
-    ArithmeticCompoundCommand
+    ArithmeticCompoundCommand,
+    # Unified types
+    WhileLoop, ForLoop, CStyleForLoop, IfConditional,
+    CaseConditional, SelectLoop, ArithmeticEvaluation,
+    ExecutionContext
 )
 from .base import ExecutorComponent
 from ..builtins.function_support import FunctionReturn
@@ -220,7 +224,44 @@ class PipelineExecutor(ExecutorComponent):
             try:
                 # Route to appropriate executor based on command type
                 
-                if isinstance(command, WhileCommand):
+                # Handle unified types
+                if isinstance(command, WhileLoop):
+                    if command.execution_context == ExecutionContext.PIPELINE:
+                        return self._execute_while_command(command)
+                    else:
+                        raise ValueError(f"WhileLoop with STATEMENT context in pipeline")
+                elif isinstance(command, ForLoop):
+                    if command.execution_context == ExecutionContext.PIPELINE:
+                        return self._execute_for_command(command)
+                    else:
+                        raise ValueError(f"ForLoop with STATEMENT context in pipeline")
+                elif isinstance(command, CStyleForLoop):
+                    if command.execution_context == ExecutionContext.PIPELINE:
+                        return self._execute_cstyle_for_command(command)
+                    else:
+                        raise ValueError(f"CStyleForLoop with STATEMENT context in pipeline")
+                elif isinstance(command, IfConditional):
+                    if command.execution_context == ExecutionContext.PIPELINE:
+                        return self._execute_if_command(command)
+                    else:
+                        raise ValueError(f"IfConditional with STATEMENT context in pipeline")
+                elif isinstance(command, CaseConditional):
+                    if command.execution_context == ExecutionContext.PIPELINE:
+                        return self._execute_case_command(command)
+                    else:
+                        raise ValueError(f"CaseConditional with STATEMENT context in pipeline")
+                elif isinstance(command, SelectLoop):
+                    if command.execution_context == ExecutionContext.PIPELINE:
+                        return self._execute_select_command(command)
+                    else:
+                        raise ValueError(f"SelectLoop with STATEMENT context in pipeline")
+                elif isinstance(command, ArithmeticEvaluation):
+                    if command.execution_context == ExecutionContext.PIPELINE:
+                        return self._execute_arithmetic_command(command)
+                    else:
+                        raise ValueError(f"ArithmeticEvaluation with STATEMENT context in pipeline")
+                # Handle old types
+                elif isinstance(command, WhileCommand):
                     return self._execute_while_command(command)
                 elif isinstance(command, ForCommand):
                     return self._execute_for_command(command)
@@ -244,7 +285,7 @@ class PipelineExecutor(ExecutorComponent):
         except Exception:
             return 1
     
-    def _execute_while_command(self, command: WhileCommand) -> int:
+    def _execute_while_command(self, command) -> int:
         """Execute while loop in pipeline context."""
         from ..core.exceptions import LoopBreak, LoopContinue
         last_status = 0
@@ -270,7 +311,7 @@ class PipelineExecutor(ExecutorComponent):
                 
         return last_status
     
-    def _execute_for_command(self, command: ForCommand) -> int:
+    def _execute_for_command(self, command) -> int:
         """Execute for loop in pipeline context."""
         from ..core.exceptions import LoopBreak, LoopContinue
         last_status = 0
@@ -301,7 +342,7 @@ class PipelineExecutor(ExecutorComponent):
                 
         return last_status
     
-    def _execute_cstyle_for_command(self, command: CStyleForCommand) -> int:
+    def _execute_cstyle_for_command(self, command) -> int:
         """Execute C-style for loop in pipeline context."""
         # Convert to statement version for existing executor
         from ..ast_nodes import CStyleForStatement
@@ -314,7 +355,7 @@ class PipelineExecutor(ExecutorComponent):
         )
         return self.shell.executor_manager.control_flow_executor.execute_c_style_for(stmt)
     
-    def _execute_if_command(self, command: IfCommand) -> int:
+    def _execute_if_command(self, command) -> int:
         """Execute if statement in pipeline context."""
         # Check main condition
         condition_status = self.shell.execute_command_list(command.condition)
@@ -333,21 +374,21 @@ class PipelineExecutor(ExecutorComponent):
         
         return 0
     
-    def _execute_case_command(self, command: CaseCommand) -> int:
+    def _execute_case_command(self, command) -> int:
         """Execute case statement in pipeline context."""
         # Convert to statement version for existing executor
         from ..ast_nodes import CaseStatement
         stmt = CaseStatement(expr=command.expr, items=command.items, redirects=command.redirects)
         return self.shell.executor_manager.control_flow_executor.execute_case(stmt)
     
-    def _execute_select_command(self, command: SelectCommand) -> int:
+    def _execute_select_command(self, command) -> int:
         """Execute select statement in pipeline context."""
         # Convert to statement version for existing executor  
         from ..ast_nodes import SelectStatement
         stmt = SelectStatement(variable=command.variable, items=command.items, body=command.body, redirects=command.redirects)
         return self.shell.executor_manager.control_flow_executor.execute_select(stmt)
     
-    def _execute_arithmetic_command(self, command: ArithmeticCompoundCommand) -> int:
+    def _execute_arithmetic_command(self, command) -> int:
         """Execute arithmetic command in pipeline context."""
         from ..executor.arithmetic_command import ArithmeticCommandExecutor
         executor = ArithmeticCommandExecutor(self.shell)

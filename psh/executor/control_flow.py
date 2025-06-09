@@ -3,7 +3,11 @@ import sys
 from typing import List
 from ..ast_nodes import (IfStatement, WhileStatement, ForStatement, 
                          CStyleForStatement, CaseStatement, SelectStatement,
-                         BreakStatement, ContinueStatement, EnhancedTestStatement)
+                         BreakStatement, ContinueStatement, EnhancedTestStatement,
+                         # Unified types
+                         WhileLoop, ForLoop, CStyleForLoop, IfConditional,
+                         CaseConditional, SelectLoop, ArithmeticEvaluation,
+                         ExecutionContext)
 from .base import ExecutorComponent
 from ..core.exceptions import LoopBreak, LoopContinue
 
@@ -12,7 +16,41 @@ class ControlFlowExecutor(ExecutorComponent):
     
     def execute(self, node) -> int:
         """Execute a control flow statement."""
-        if isinstance(node, IfStatement):
+        # Handle unified types
+        if isinstance(node, WhileLoop):
+            # Check execution context
+            if node.execution_context == ExecutionContext.STATEMENT:
+                return self.execute_while(node)
+            else:
+                # Pipeline context - should be handled by pipeline executor
+                raise ValueError(f"WhileLoop with PIPELINE context in ControlFlowExecutor")
+        elif isinstance(node, ForLoop):
+            if node.execution_context == ExecutionContext.STATEMENT:
+                return self.execute_for(node)
+            else:
+                raise ValueError(f"ForLoop with PIPELINE context in ControlFlowExecutor")
+        elif isinstance(node, CStyleForLoop):
+            if node.execution_context == ExecutionContext.STATEMENT:
+                return self.execute_c_style_for(node)
+            else:
+                raise ValueError(f"CStyleForLoop with PIPELINE context in ControlFlowExecutor")
+        elif isinstance(node, IfConditional):
+            if node.execution_context == ExecutionContext.STATEMENT:
+                return self.execute_if(node)
+            else:
+                raise ValueError(f"IfConditional with PIPELINE context in ControlFlowExecutor")
+        elif isinstance(node, CaseConditional):
+            if node.execution_context == ExecutionContext.STATEMENT:
+                return self.execute_case(node)
+            else:
+                raise ValueError(f"CaseConditional with PIPELINE context in ControlFlowExecutor")
+        elif isinstance(node, SelectLoop):
+            if node.execution_context == ExecutionContext.STATEMENT:
+                return self.execute_select(node)
+            else:
+                raise ValueError(f"SelectLoop with PIPELINE context in ControlFlowExecutor")
+        # Handle old types
+        elif isinstance(node, IfStatement):
             return self.execute_if(node)
         elif isinstance(node, WhileStatement):
             return self.execute_while(node)
@@ -35,7 +73,7 @@ class ControlFlowExecutor(ExecutorComponent):
         """Execute enhanced test statement [[...]]."""
         return self.shell.execute_enhanced_test_statement(node)
     
-    def execute_if(self, node: IfStatement) -> int:
+    def execute_if(self, node) -> int:
         """Execute if/then/else statement."""
         # Trace if statement if xtrace is enabled
         if self.state.options.get('xtrace', False):
@@ -71,7 +109,7 @@ class ControlFlowExecutor(ExecutorComponent):
             if saved_fds:
                 self.io_manager.restore_redirections(saved_fds)
     
-    def execute_while(self, node: WhileStatement) -> int:
+    def execute_while(self, node) -> int:
         """Execute while loop."""
         # Trace while statement if xtrace is enabled
         if self.state.options.get('xtrace', False):
@@ -113,7 +151,7 @@ class ControlFlowExecutor(ExecutorComponent):
             if saved_fds:
                 self.io_manager.restore_redirections(saved_fds)
     
-    def execute_for(self, node: ForStatement) -> int:
+    def execute_for(self, node) -> int:
         """Execute for loop."""
         # Trace for statement if xtrace is enabled
         if self.state.options.get('xtrace', False):
@@ -128,7 +166,9 @@ class ControlFlowExecutor(ExecutorComponent):
         try:
             # Expand the word list
             expanded_items = []
-            for item in node.iterable:
+            # Handle both ForStatement (iterable) and ForLoop (items)
+            items = getattr(node, 'iterable', None) or getattr(node, 'items', [])
+            for item in items:
                 # Handle each item based on its type
                 expanded = self._expand_for_item(item)
                 expanded_items.extend(expanded)
@@ -159,7 +199,7 @@ class ControlFlowExecutor(ExecutorComponent):
             if saved_fds:
                 self.io_manager.restore_redirections(saved_fds)
     
-    def execute_case(self, node: CaseStatement) -> int:
+    def execute_case(self, node) -> int:
         """Execute case statement."""
         # Apply redirections if present
         if node.redirects:
@@ -254,7 +294,7 @@ class ControlFlowExecutor(ExecutorComponent):
                 return True
         return False
     
-    def execute_c_style_for(self, node: CStyleForStatement) -> int:
+    def execute_c_style_for(self, node) -> int:
         """Execute C-style for loop: for ((init; condition; update))"""
         # Apply redirections if present
         if node.redirects:
@@ -309,7 +349,7 @@ class ControlFlowExecutor(ExecutorComponent):
             return 1  # Empty expression is true in bash
         return evaluate_arithmetic(expr, self.shell)
     
-    def execute_select(self, node: SelectStatement) -> int:
+    def execute_select(self, node) -> int:
         """Execute a select statement."""
         # Set up redirections
         if node.redirects:

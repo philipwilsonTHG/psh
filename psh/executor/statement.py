@@ -3,7 +3,10 @@ import sys
 from ..ast_nodes import (CommandList, AndOrList, Pipeline, ASTNode, TopLevel,
                          FunctionDef, IfStatement, WhileStatement, ForStatement,
                          CStyleForStatement, BreakStatement, ContinueStatement, 
-                         CaseStatement, SelectStatement, EnhancedTestStatement, ArithmeticCommand)
+                         CaseStatement, SelectStatement, EnhancedTestStatement, ArithmeticCommand,
+                         # Unified types
+                         WhileLoop, ForLoop, CStyleForLoop, IfConditional,
+                         CaseConditional, SelectLoop, ArithmeticEvaluation)
 from .base import ExecutorComponent
 from ..builtins.function_support import FunctionReturn
 from ..core.exceptions import LoopBreak, LoopContinue
@@ -105,6 +108,13 @@ class StatementExecutor(ExecutorComponent):
                             else:
                                 # In interactive mode, just print message
                                 print(f"psh: exit {last_exit} (errexit)", file=self.state.stderr)
+                # Handle unified types
+                elif isinstance(item, (WhileLoop, ForLoop, CStyleForLoop, IfConditional, 
+                                      CaseConditional, SelectLoop, ArithmeticEvaluation)):
+                    # Collect here documents
+                    self.io_manager.collect_heredocs(item)
+                    # Execute through control flow executor
+                    last_exit = self.shell.executor_manager.control_flow_executor.execute(item)
                 elif isinstance(item, IfStatement):
                     # Collect here documents
                     self.io_manager.collect_heredocs(item)
