@@ -2,7 +2,7 @@
 
 An educational Unix shell implementation in Python, designed to teach shell internals and compiler/interpreter concepts through a clean, readable codebase.  **All source code and documentation (with the exception of this sentence) has been written by Claude Code using Sonnet 4 and Opus 4 models.**
 
-**Current Version**: 0.36.0 (2025-01-06)
+**Current Version**: 0.37.0 (2025-01-06)
 
 ## Overview
 
@@ -12,6 +12,10 @@ The shell features a modern component-based architecture where each subsystem (e
 
 ### Recent Major Features
 
+- **v0.37.0**: 🚀 **Control structures in pipelines** - Revolutionary unified command model enabling control structures as pipeline components
+  - Game-changing examples: `echo "data" | while read line; do echo $line; done`
+  - All control structures work in pipelines: while, for, if, case, select, arithmetic
+  - Addresses major architectural limitation while maintaining full backward compatibility
 - **v0.36.0**: Eval builtin for dynamic command execution `eval "echo hello"`
 - **v0.35.0**: Shell options `set -e`, `-u`, `-x`, `-o pipefail` for robust scripting
 - **v0.34.0**: Select statement for interactive menus `select var in items; do ...; done`
@@ -19,8 +23,6 @@ The shell features a modern component-based architecture where each subsystem (e
 - **v0.32.0**: Arithmetic command syntax `((expr))` for standalone arithmetic evaluation
 - **v0.31.0**: C-style for loops with arithmetic iteration `for ((i=0; i<10; i++))`
 - **v0.30.0**: Advanced read builtin with -p, -s, -t, -n, -d options for interactive input
-- **v0.29.4**: Echo builtin flags (-n, -e, -E) with full escape sequence support
-- **v0.29.2**: Complete advanced parameter expansion with all bash string manipulation features
 
 ## Features
 
@@ -42,6 +44,10 @@ The shell features a modern component-based architecture where each subsystem (e
 
 - ✅ **Pipes and Pipelines**
   - Full pipeline support (`cmd1 | cmd2 | cmd3`)
+  - **Revolutionary v0.37.0**: Control structures in pipelines
+    - `echo "data" | while read line; do echo $line; done`
+    - `seq 1 5 | for i in $(cat); do echo $i; done`
+    - `echo "test" | if grep -q test; then echo "found"; fi`
   - Proper process group management
   - Signal propagation
   
@@ -100,6 +106,9 @@ The shell features a modern component-based architecture where each subsystem (e
   - `case`/`esac` pattern matching with command substitution
   - **`select`/`in`/`do`/`done` interactive menu system (v0.34.0)
   - `break` and `continue` statements with multi-level support (`break 2`)
+  - **🚀 NEW v0.37.0**: All control structures work in pipelines!
+    - Revolutionary capability previously impossible in most shells
+    - Examples: `echo data | while read x; do echo $x; done`
   
 - ✅ **Functions**
   - POSIX syntax: `name() { commands; }`

@@ -4,13 +4,14 @@
 
 Python Shell (psh) is designed with a clean, component-based architecture that separates concerns and makes the codebase easy to understand, test, and extend. The shell has been refactored from a monolithic design into a modular system where each component has a specific responsibility.
 
-**Current Version**: 0.29.2 (as of 2025-04-06)
+**Current Version**: 0.37.0 (as of 2025-01-06)
 
 **Key Recent Additions**:
-- Local variable support with function scoping (v0.29.0)
-- Complete advanced parameter expansion (v0.29.2)
-- State machine-based lexer for robust tokenization (v0.28.5)
-- Arithmetic expansion with command substitution support (v0.28.9)
+- **Revolutionary v0.37.0**: Control structures in pipelines with unified command model
+- Eval builtin for dynamic command execution (v0.36.0)
+- Shell options for robust scripting: set -e, -u, -x, -o pipefail (v0.35.0)
+- Select statement for interactive menus (v0.34.0)
+- History expansion and arithmetic command syntax (v0.33.0, v0.32.0)
 
 ## Architecture Diagram
 
@@ -193,9 +194,16 @@ Executes single commands:
 - Process forking and job control
 
 #### PipelineExecutor (`executor/pipeline.py`)
-Handles command pipelines:
+Handles command pipelines with **revolutionary v0.37.0 enhancements**:
+- **Unified Command Model**: Supports both SimpleCommand and CompoundCommand types
+- **Control Structures in Pipelines**: All control structures can now be pipeline components
+  - Examples: `echo "data" | while read line; do echo $line; done`
+  - `seq 1 5 | for i in $(cat); do echo $i; done`
+  - `echo "test" | if grep -q test; then echo "found"; fi`
+- **Compound Command Execution**: Executes control structures in subshells with proper isolation
+- **Enhanced Redirection Handling**: Proper file descriptor management for compound commands
 - Creates pipes between processes
-- Manages process groups
+- Manages process groups  
 - Handles job control for pipelines
 - Supports background execution
 
@@ -407,9 +415,9 @@ Complete arithmetic expression evaluation:
    - Alias expansion (if interactive)
    - Heredoc collection
 5. **Execution** → ExecutorManager routes to appropriate executor:
-   - Single command → CommandExecutor
-   - Pipeline → PipelineExecutor
-   - Control structure → ControlFlowExecutor
+   - Simple command → CommandExecutor
+   - Pipeline (SimpleCommand or CompoundCommand) → PipelineExecutor
+   - Control structure statement → ControlFlowExecutor  
    - Statement list → StatementExecutor
 6. **Expansion** → ExpansionManager handles all expansions
 7. **I/O Setup** → IOManager sets up redirections
@@ -495,6 +503,37 @@ The component architecture enables isolated testing:
 
 ## Recent Architectural Improvements
 
+### Version 0.37.0 - Revolutionary Unified Command Model
+1. **Control Structures in Pipelines** (v0.37.0)
+   - **Problem Solved**: Control structures can now be used as pipeline components
+   - **Revolutionary Examples**: 
+     - `echo "data" | while read line; do echo $line; done`
+     - `seq 1 5 | for i in $(cat); do echo $i; done`
+     - `echo "test" | if grep -q test; then echo "found"; fi`
+   - **Technical Implementation**:
+     - Created unified `Command` hierarchy with `SimpleCommand` and `CompoundCommand`
+     - Added command variants: `WhileCommand`, `ForCommand`, `IfCommand`, etc.
+     - Enhanced parser with `parse_pipeline_component()` method
+     - Updated `PipelineExecutor` to handle compound commands in subshells
+     - Proper process isolation and redirection handling for compound commands
+   - **Impact**: Addresses major architectural limitation, enables advanced shell programming
+   - **Compatibility**: Full backward compatibility - no regressions introduced
+
+### Version 0.36.0 - Dynamic Command Execution
+1. **Eval Builtin Implementation**
+   - Dynamic command execution from strings: `eval "echo hello"`
+   - Full shell processing pipeline: tokenization, parsing, expansions, execution
+   - Current context execution (variables and functions persist)
+   - Support for all shell features: pipelines, redirections, control structures
+
+### Version 0.35.0 - Shell Options and Robust Scripting
+1. **Core Shell Options Implementation**
+   - `-e` (errexit): Exit on command failure with conditional context awareness
+   - `-u` (nounset): Error on undefined variables (respects parameter expansion defaults)
+   - `-x` (xtrace): Print commands before execution with PS4 prefix
+   - `-o pipefail`: Pipeline returns rightmost non-zero exit code
+   - Centralized options storage with backward-compatible debug option migration
+
 ### Version 0.29.x Series
 1. **Local Variable Support** (v0.29.0)
    - Added `ScopeManager` for function-local variables
@@ -525,10 +564,53 @@ The component architecture enables isolated testing:
    - TokenGroups for semantic token grouping
    - Cleaner recursive descent patterns
 
+## AST Structure (v0.37.0 Unified Command Model)
+
+### Command Hierarchy
+The v0.37.0 release introduced a revolutionary unified command model that enables control structures in pipelines:
+
+```python
+# Base command class for all executable units
+class Command(ASTNode):
+    """Base class for all executable commands."""
+    pass
+
+# Simple commands (traditional commands)
+@dataclass  
+class SimpleCommand(Command):
+    """Traditional command with arguments."""
+    args: List[str] = field(default_factory=list)
+    arg_types: List[str] = field(default_factory=list)
+    quote_types: List[Optional[str]] = field(default_factory=list)
+    redirects: List[Redirect] = field(default_factory=list)
+    background: bool = False
+
+# Compound commands (control structures as commands)
+@dataclass
+class CompoundCommand(Command):
+    """Base class for control structures used as commands."""
+    redirects: List[Redirect] = field(default_factory=list)
+    background: bool = False
+
+# Specific command variants for pipelines
+class WhileCommand(CompoundCommand): ...
+class ForCommand(CompoundCommand): ...
+class IfCommand(CompoundCommand): ...
+class CaseCommand(CompoundCommand): ...
+class SelectCommand(CompoundCommand): ...
+class ArithmeticCompoundCommand(CompoundCommand): ...
+```
+
+### Pipeline Support
+Pipelines can now contain any Command type:
+- `Pipeline.commands: List[Command]` (not just SimpleCommand)
+- Parser routes via `parse_pipeline_component()` method
+- PipelineExecutor handles both simple and compound commands
+
 ## Known Architectural Limitations
 
 1. **Composite Arguments**: Parser creates COMPOSITE type but loses quote information from RichTokens
-2. **Control Structures in Pipelines**: Not supported due to statement-based architecture
+2. ~~**Control Structures in Pipelines**: Not supported due to statement-based architecture~~ ✅ **SOLVED in v0.37.0**
 3. **Deep Recursion**: Shell functions have recursion depth limitations
 
 ## Future Improvements
