@@ -35,6 +35,7 @@ class Parser(BaseParser):
     
     def __init__(self, tokens: List[Token]):
         super().__init__(tokens)
+        self._use_unified_types = False  # Feature flag for unified types
     
     # =========================================================================
     # SECTION 1: TOP-LEVEL PARSING
@@ -444,28 +445,22 @@ class Parser(BaseParser):
     
     # === While Statement ===
     
-    def parse_while_statement(self) -> WhileStatement:
+    def parse_while_statement(self) -> Union[WhileStatement, WhileLoop]:
         """Parse while/do/done loop statement."""
+        if self._use_unified_types:
+            return self._parse_while_unified(ExecutionContext.STATEMENT)
+        
         condition, body, redirects = self._parse_loop_structure(
             TokenType.WHILE, TokenType.DO, TokenType.DONE
         )
         return WhileStatement(condition, body, redirects)
     
-    def parse_while_unified(self, context: ExecutionContext) -> WhileLoop:
-        """Parse while loop as unified type."""
-        condition, body, redirects = self._parse_loop_structure(
-            TokenType.WHILE, TokenType.DO, TokenType.DONE
-        )
-        return WhileLoop(
-            condition=condition,
-            body=body,
-            redirects=redirects,
-            execution_context=context,
-            background=False
-        )
-    
-    def parse_while_command(self) -> WhileCommand:
+    def parse_while_command(self) -> Union[WhileCommand, WhileLoop]:
         """Parse while loop as a command for use in pipelines."""
+        if self._use_unified_types:
+            return self._parse_while_unified(ExecutionContext.PIPELINE)
+        
+        # Original implementation
         self.expect(TokenType.WHILE)
         self.skip_newlines()
         
@@ -485,6 +480,20 @@ class Parser(BaseParser):
             redirects=redirects,
             background=False
         )
+    
+    def _parse_while_unified(self, context: ExecutionContext) -> WhileLoop:
+        """Parse while loop as unified type."""
+        condition, body, redirects = self._parse_loop_structure(
+            TokenType.WHILE, TokenType.DO, TokenType.DONE
+        )
+        return WhileLoop(
+            condition=condition,
+            body=body,
+            redirects=redirects,
+            execution_context=context,
+            background=False
+        )
+    
     
     def _parse_loop_structure(self, start: TokenType, body_start: TokenType, 
                             body_end: TokenType) -> Tuple[StatementList, StatementList, List[Redirect]]:
@@ -506,7 +515,7 @@ class Parser(BaseParser):
     
     # === For Statement ===
     
-    def parse_for_statement(self) -> Union[ForStatement, CStyleForStatement]:
+    def parse_for_statement(self) -> Union[ForStatement, CStyleForStatement, ForLoop, CStyleForLoop]:
         """Parse for loop (traditional or C-style)."""
         self.expect(TokenType.FOR)
         self.skip_newlines()
@@ -515,6 +524,8 @@ class Parser(BaseParser):
         if self.peek().type == TokenType.DOUBLE_LPAREN:
             # It's a C-style for loop with DOUBLE_LPAREN token
             self.advance()  # consume ((
+            if self._use_unified_types:
+                return self._parse_c_style_for_unified(ExecutionContext.STATEMENT)
             return self._parse_c_style_for()
         elif self.peek().type == TokenType.LPAREN:
             # Check for two consecutive LPAREN tokens
@@ -524,12 +535,17 @@ class Parser(BaseParser):
             if self.peek().type == TokenType.LPAREN:
                 # It's a C-style for loop
                 self.advance()  # consume second (
+                if self._use_unified_types:
+                    return self._parse_c_style_for_unified(ExecutionContext.STATEMENT)
                 return self._parse_c_style_for()
             else:
                 # Not C-style, backtrack
                 self.current = saved_pos
         
         # Traditional for loop
+        if self._use_unified_types:
+            return self._parse_for_unified(ExecutionContext.STATEMENT)
+        
         # Variable name
         var_token = self.expect(TokenType.WORD)
         variable = var_token.value
@@ -555,7 +571,7 @@ class Parser(BaseParser):
         
         return ForStatement(variable, iterable, body, redirects)
     
-    def parse_for_command(self) -> Union[ForCommand, CStyleForCommand]:
+    def parse_for_command(self) -> Union[ForCommand, CStyleForCommand, ForLoop, CStyleForLoop]:
         """Parse for loop as a command for use in pipelines."""
         self.expect(TokenType.FOR)
         self.skip_newlines()
@@ -563,6 +579,8 @@ class Parser(BaseParser):
         # Check if it's a C-style for loop
         if self.peek().type == TokenType.DOUBLE_LPAREN:
             self.advance()  # consume ((
+            if self._use_unified_types:
+                return self._parse_c_style_for_unified(ExecutionContext.PIPELINE)
             return self._parse_c_style_for_command()
         elif self.peek().type == TokenType.LPAREN:
             # Check for two consecutive LPAREN tokens
@@ -571,12 +589,17 @@ class Parser(BaseParser):
             
             if self.peek().type == TokenType.LPAREN:
                 self.advance()  # consume second (
+                if self._use_unified_types:
+                    return self._parse_c_style_for_unified(ExecutionContext.PIPELINE)
                 return self._parse_c_style_for_command()
             else:
                 # Not C-style, backtrack
                 self.current = saved_pos
         
         # Traditional for loop
+        if self._use_unified_types:
+            return self._parse_for_unified(ExecutionContext.PIPELINE)
+            
         variable = self.expect(TokenType.WORD).value
         self.expect(TokenType.IN)
         self.skip_newlines()
@@ -898,6 +921,94 @@ class Parser(BaseParser):
             except ValueError:
                 pass  # Not a number, leave for next parsing
         return level
+    
+    # === Unified Control Structure Helpers ===
+    
+    def _parse_for_unified(self, context: ExecutionContext) -> ForLoop:
+        """Parse traditional for loop as unified type."""
+        # Variable name
+        var_token = self.expect(TokenType.WORD)
+        variable = var_token.value
+        
+        self.skip_newlines()
+        self.expect(TokenType.IN)
+        self.skip_newlines()
+        
+        # Parse iterable list
+        items = self._parse_for_iterable()
+        
+        # Handle separators before DO
+        self.skip_separators()
+        
+        self.expect(TokenType.DO)
+        self.skip_newlines()
+        
+        # Parse body
+        body = self.parse_command_list_until(TokenType.DONE)
+        
+        self.expect(TokenType.DONE)
+        redirects = self.parse_redirects()
+        
+        return ForLoop(
+            variable=variable,
+            items=items,
+            body=body,
+            redirects=redirects,
+            execution_context=context,
+            background=False
+        )
+    
+    def _parse_c_style_for_unified(self, context: ExecutionContext) -> CStyleForLoop:
+        """Parse C-style for loop as unified type."""
+        # At this point, we've already consumed 'for (('
+        
+        # Parse initialization expression (until semicolon)
+        init_expr = self._parse_arithmetic_section(';')
+        if self.peek().type == TokenType.SEMICOLON:
+            self.advance()  # consume semicolon
+        elif self.peek().type == TokenType.DOUBLE_SEMICOLON:
+            # We have ;;, need to handle this specially
+            self.advance()  # consume ;;
+            # Insert a semicolon token for the next section
+            semicolon_token = Token(TokenType.SEMICOLON, ';', self.peek().position)
+            self.tokens.insert(self.current, semicolon_token)
+        
+        # Parse condition expression (until semicolon)
+        condition_expr = self._parse_arithmetic_section(';')
+        if self.peek().type == TokenType.SEMICOLON:
+            self.advance()  # consume semicolon
+        
+        # Parse update expression (until double rparen)
+        update_expr = self._parse_arithmetic_section_until_double_rparen()
+        
+        # Expect )) - two RPAREN tokens
+        self.expect(TokenType.RPAREN)
+        self.expect(TokenType.RPAREN)
+        
+        # Skip any separators after ))
+        self.skip_separators()
+        
+        # Skip optional DO
+        if self.peek().type == TokenType.DO:
+            self.advance()
+        
+        self.skip_newlines()
+        
+        # Parse loop body
+        body = self.parse_command_list_until(TokenType.DONE)
+        
+        self.expect(TokenType.DONE)
+        redirects = self.parse_redirects()
+        
+        return CStyleForLoop(
+            body=body,
+            init_expr=init_expr,
+            condition_expr=condition_expr,
+            update_expr=update_expr,
+            redirects=redirects,
+            execution_context=context,
+            background=False
+        )
     
     # =========================================================================
     # SECTION 5: EXPRESSIONS
@@ -1350,7 +1461,16 @@ class Parser(BaseParser):
         )
 
 
-def parse(tokens: List[Token]) -> Union[CommandList, TopLevel]:
-    """Parse a list of tokens into an AST."""
+def parse(tokens: List[Token], use_unified_types: bool = False) -> Union[CommandList, TopLevel]:
+    """Parse a list of tokens into an AST.
+    
+    Args:
+        tokens: List of tokens to parse
+        use_unified_types: If True, use unified control structure types
+        
+    Returns:
+        Parsed AST (CommandList or TopLevel)
+    """
     parser = Parser(tokens)
+    parser._use_unified_types = use_unified_types
     return parser.parse()
