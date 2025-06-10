@@ -5,10 +5,7 @@ import signal
 from typing import List
 from ..ast_nodes import (
     Pipeline, SimpleCommand, CompoundCommand,
-    WhileCommand, ForCommand, CStyleForCommand, 
-    IfCommand, CaseCommand, SelectCommand, 
-    ArithmeticCompoundCommand,
-    # Unified types
+    # Unified types only
     WhileLoop, ForLoop, CStyleForLoop, IfConditional,
     CaseConditional, SelectLoop, ArithmeticEvaluation,
     ExecutionContext
@@ -223,8 +220,7 @@ class PipelineExecutor(ExecutorComponent):
             
             try:
                 # Route to appropriate executor based on command type
-                
-                # Handle unified types
+                # Handle unified types only
                 if isinstance(command, WhileLoop):
                     if command.execution_context == ExecutionContext.PIPELINE:
                         return self._execute_while_command(command)
@@ -260,21 +256,6 @@ class PipelineExecutor(ExecutorComponent):
                         return self._execute_arithmetic_command(command)
                     else:
                         raise ValueError(f"ArithmeticEvaluation with STATEMENT context in pipeline")
-                # Handle old types
-                elif isinstance(command, WhileCommand):
-                    return self._execute_while_command(command)
-                elif isinstance(command, ForCommand):
-                    return self._execute_for_command(command)
-                elif isinstance(command, CStyleForCommand):
-                    return self._execute_cstyle_for_command(command)
-                elif isinstance(command, IfCommand):
-                    return self._execute_if_command(command)
-                elif isinstance(command, CaseCommand):
-                    return self._execute_case_command(command)
-                elif isinstance(command, SelectCommand):
-                    return self._execute_select_command(command)
-                elif isinstance(command, ArithmeticCompoundCommand):
-                    return self._execute_arithmetic_command(command)
                 else:
                     return 1
             finally:
@@ -316,7 +297,7 @@ class PipelineExecutor(ExecutorComponent):
         from ..core.exceptions import LoopBreak, LoopContinue
         last_status = 0
         
-        # Expand the items using the same logic as ForStatement
+        # Expand the items using the control flow executor
         expanded_items = []
         for item in command.items:
             # Use the control flow executor's expansion method
@@ -344,16 +325,8 @@ class PipelineExecutor(ExecutorComponent):
     
     def _execute_cstyle_for_command(self, command) -> int:
         """Execute C-style for loop in pipeline context."""
-        # Convert to statement version for existing executor
-        from ..ast_nodes import CStyleForStatement
-        stmt = CStyleForStatement(
-            init_expr=command.init_expr, 
-            condition_expr=command.condition_expr,
-            update_expr=command.update_expr,
-            body=command.body, 
-            redirects=command.redirects
-        )
-        return self.shell.executor_manager.control_flow_executor.execute_c_style_for(stmt)
+        # Execute directly using control flow executor
+        return self.shell.executor_manager.control_flow_executor.execute_c_style_for(command)
     
     def _execute_if_command(self, command) -> int:
         """Execute if statement in pipeline context."""
@@ -376,23 +349,16 @@ class PipelineExecutor(ExecutorComponent):
     
     def _execute_case_command(self, command) -> int:
         """Execute case statement in pipeline context."""
-        # Convert to statement version for existing executor
-        from ..ast_nodes import CaseStatement
-        stmt = CaseStatement(expr=command.expr, items=command.items, redirects=command.redirects)
-        return self.shell.executor_manager.control_flow_executor.execute_case(stmt)
+        # Execute directly using control flow executor
+        return self.shell.executor_manager.control_flow_executor.execute_case(command)
     
     def _execute_select_command(self, command) -> int:
         """Execute select statement in pipeline context."""
-        # Convert to statement version for existing executor  
-        from ..ast_nodes import SelectStatement
-        stmt = SelectStatement(variable=command.variable, items=command.items, body=command.body, redirects=command.redirects)
-        return self.shell.executor_manager.control_flow_executor.execute_select(stmt)
+        # Execute directly using control flow executor
+        return self.shell.executor_manager.control_flow_executor.execute_select(command)
     
     def _execute_arithmetic_command(self, command) -> int:
         """Execute arithmetic command in pipeline context."""
         from ..executor.arithmetic_command import ArithmeticCommandExecutor
         executor = ArithmeticCommandExecutor(self.shell)
-        # Convert to statement version for existing executor
-        from ..ast_nodes import ArithmeticCommand
-        stmt = ArithmeticCommand(expression=command.expression, redirects=command.redirects)
-        return executor.execute(stmt)
+        return executor.execute(command)

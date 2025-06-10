@@ -12,10 +12,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from psh.shell import Shell
 from psh.state_machine_lexer import tokenize
 from psh.parser import parse
-# Import with deprecation warnings suppressed
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=DeprecationWarning)
-    from psh.ast_nodes import WhileStatement, StatementList, TopLevel, CommandList
+from psh.ast_nodes import WhileLoop, StatementList, TopLevel, CommandList
 
 
 class TestWhileLoops(unittest.TestCase):
@@ -43,9 +40,9 @@ class TestWhileLoops(unittest.TestCase):
         tokens = tokenize("while true; do echo hello; done")
         ast = parse(tokens)
         
-        # Should return a TopLevel containing one WhileStatement
+        # Should return a TopLevel containing one WhileLoop
         self.assertEqual(len(ast.items), 1)
-        self.assertIsInstance(ast.items[0], WhileStatement)
+        self.assertIsInstance(ast.items[0], WhileLoop)
         
         while_stmt = ast.items[0]
         self.assertIsInstance(while_stmt.condition, CommandList)
@@ -184,7 +181,7 @@ done""")
         # Parser returns TopLevel for multiline input
         self.assertIsInstance(ast, TopLevel)
         self.assertEqual(len(ast.items), 1)
-        self.assertIsInstance(ast.items[0], WhileStatement)
+        self.assertIsInstance(ast.items[0], WhileLoop)
 
     def test_nested_commands_in_while(self):
         """Test while statement with complex commands."""

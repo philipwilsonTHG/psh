@@ -1,12 +1,13 @@
 """Statement list execution."""
 import sys
-from ..ast_nodes import (CommandList, AndOrList, Pipeline, ASTNode, TopLevel,
-                         FunctionDef, IfStatement, WhileStatement, ForStatement,
-                         CStyleForStatement, BreakStatement, ContinueStatement, 
-                         CaseStatement, SelectStatement, EnhancedTestStatement, ArithmeticCommand,
-                         # Unified types
-                         WhileLoop, ForLoop, CStyleForLoop, IfConditional,
-                         CaseConditional, SelectLoop, ArithmeticEvaluation)
+from ..ast_nodes import (
+    CommandList, AndOrList, Pipeline, ASTNode, TopLevel,
+    FunctionDef, BreakStatement, ContinueStatement, 
+    EnhancedTestStatement,
+    # Unified types only
+    WhileLoop, ForLoop, CStyleForLoop, IfConditional,
+    CaseConditional, SelectLoop, ArithmeticEvaluation
+)
 from .base import ExecutorComponent
 from ..builtins.function_support import FunctionReturn
 from ..core.exceptions import LoopBreak, LoopContinue
@@ -34,21 +35,13 @@ class StatementExecutor(ExecutorComponent):
                     exit_code = self.shell.executor_manager.control_flow_executor.execute(item)
                 elif isinstance(item, ContinueStatement):
                     exit_code = self.shell.executor_manager.control_flow_executor.execute(item)
-                elif isinstance(item, IfStatement):
-                    exit_code = self.shell.executor_manager.control_flow_executor.execute_if(item)
-                elif isinstance(item, WhileStatement):
-                    exit_code = self.shell.executor_manager.control_flow_executor.execute_while(item)
-                elif isinstance(item, ForStatement):
-                    exit_code = self.shell.executor_manager.control_flow_executor.execute_for(item)
-                elif isinstance(item, CStyleForStatement):
-                    exit_code = self.shell.executor_manager.control_flow_executor.execute_c_style_for(item)
-                elif isinstance(item, CaseStatement):
-                    exit_code = self.shell.executor_manager.control_flow_executor.execute_case(item)
-                elif isinstance(item, SelectStatement):
-                    exit_code = self.shell.executor_manager.control_flow_executor.execute_select(item)
+                elif isinstance(item, (WhileLoop, ForLoop, CStyleForLoop, IfConditional, 
+                                      CaseConditional, SelectLoop)):
+                    # Handle unified control structures
+                    exit_code = self.shell.executor_manager.control_flow_executor.execute(item)
                 elif isinstance(item, EnhancedTestStatement):
                     exit_code = self.shell.executor_manager.control_flow_executor.execute_enhanced_test(item)
-                elif isinstance(item, ArithmeticCommand):
+                elif isinstance(item, ArithmeticEvaluation):
                     exit_code = self.shell.executor_manager.arithmetic_executor.execute(item)
                 elif isinstance(item, FunctionDef):
                     # Register the function
@@ -108,43 +101,20 @@ class StatementExecutor(ExecutorComponent):
                             else:
                                 # In interactive mode, just print message
                                 print(f"psh: exit {last_exit} (errexit)", file=self.state.stderr)
-                # Handle unified types
+                # Handle unified types only
                 elif isinstance(item, (WhileLoop, ForLoop, CStyleForLoop, IfConditional, 
-                                      CaseConditional, SelectLoop, ArithmeticEvaluation)):
+                                      CaseConditional, SelectLoop)):
                     # Collect here documents
                     self.io_manager.collect_heredocs(item)
                     # Execute through control flow executor
                     last_exit = self.shell.executor_manager.control_flow_executor.execute(item)
-                elif isinstance(item, IfStatement):
+                    self.state.last_exit_code = last_exit
+                elif isinstance(item, ArithmeticEvaluation):
                     # Collect here documents
                     self.io_manager.collect_heredocs(item)
-                    # Execute if statement
-                    last_exit = self.shell.executor_manager.control_flow_executor.execute_if(item)
-                elif isinstance(item, WhileStatement):
-                    # Collect here documents
-                    self.io_manager.collect_heredocs(item)
-                    # Execute while statement
-                    last_exit = self.shell.executor_manager.control_flow_executor.execute_while(item)
-                elif isinstance(item, ForStatement):
-                    # Collect here documents
-                    self.io_manager.collect_heredocs(item)
-                    # Execute for statement
-                    last_exit = self.shell.executor_manager.control_flow_executor.execute_for(item)
-                elif isinstance(item, CStyleForStatement):
-                    # Collect here documents
-                    self.io_manager.collect_heredocs(item)
-                    # Execute C-style for statement
-                    last_exit = self.shell.executor_manager.control_flow_executor.execute_c_style_for(item)
-                elif isinstance(item, CaseStatement):
-                    # Collect here documents
-                    self.io_manager.collect_heredocs(item)
-                    # Execute case statement
-                    last_exit = self.shell.executor_manager.control_flow_executor.execute_case(item)
-                elif isinstance(item, SelectStatement):
-                    # Collect here documents
-                    self.io_manager.collect_heredocs(item)
-                    # Execute select statement
-                    last_exit = self.shell.executor_manager.control_flow_executor.execute_select(item)
+                    # Execute through arithmetic executor
+                    last_exit = self.shell.executor_manager.arithmetic_executor.execute(item)
+                    self.state.last_exit_code = last_exit
                 elif isinstance(item, BreakStatement):
                     # Execute break statement (this will raise LoopBreak)
                     last_exit = self.shell.executor_manager.control_flow_executor.execute(item)
@@ -154,11 +124,6 @@ class StatementExecutor(ExecutorComponent):
                 elif isinstance(item, EnhancedTestStatement):
                     # Execute enhanced test statement
                     last_exit = self.shell.executor_manager.control_flow_executor.execute_enhanced_test(item)
-                elif isinstance(item, ArithmeticCommand):
-                    # Execute arithmetic command
-                    last_exit = self.shell.executor_manager.arithmetic_executor.execute(item)
-                    # Update last_exit_code immediately for use by subsequent commands
-                    self.state.last_exit_code = last_exit
         except (LoopBreak, LoopContinue) as e:
             # Break/continue outside of loops is an error
             stmt_name = "break" if isinstance(e, LoopBreak) else "continue"

@@ -1,10 +1,10 @@
 """AST formatting utilities for debugging."""
 from ..ast_nodes import (
     TopLevel, CommandList, AndOrList, Pipeline, Command, SimpleCommand,
-    CompoundCommand, WhileCommand, ForCommand, CStyleForCommand, IfCommand,
-    CaseCommand, SelectCommand, ArithmeticCompoundCommand, Redirect,
-    FunctionDef, IfStatement, WhileStatement, ForStatement, CaseStatement,
-    CaseItem, BreakStatement, ContinueStatement
+    CompoundCommand, Redirect, FunctionDef, CaseItem, BreakStatement, ContinueStatement,
+    # Unified types
+    WhileLoop, ForLoop, CStyleForLoop, IfConditional, CaseConditional,
+    SelectLoop, ArithmeticEvaluation
 )
 
 class ASTFormatter:
@@ -50,8 +50,8 @@ class ASTFormatter:
                 result += ASTFormatter.format(redirect, indent + 1)
             return result
         
-        elif isinstance(node, WhileCommand):
-            result = f"{spaces}WhileCommand:\n"
+        elif isinstance(node, WhileLoop) and hasattr(node, 'background'):
+            result = f"{spaces}WhileLoop (Pipeline):\n"
             result += f"{spaces}  Condition:\n"
             result += ASTFormatter.format(node.condition, indent + 2)
             result += f"{spaces}  Body:\n"
@@ -60,8 +60,8 @@ class ASTFormatter:
                 result += ASTFormatter.format(redirect, indent + 1)
             return result
         
-        elif isinstance(node, ForCommand):
-            result = f"{spaces}ForCommand:\n"
+        elif isinstance(node, ForLoop) and hasattr(node, 'background'):
+            result = f"{spaces}ForLoop (Pipeline):\n"
             result += f"{spaces}  Variable: {node.variable}\n"
             result += f"{spaces}  Items: {node.items}\n"
             result += f"{spaces}  Body:\n"
@@ -70,8 +70,8 @@ class ASTFormatter:
                 result += ASTFormatter.format(redirect, indent + 1)
             return result
         
-        elif isinstance(node, CStyleForCommand):
-            result = f"{spaces}CStyleForCommand:\n"
+        elif isinstance(node, CStyleForLoop):
+            result = f"{spaces}CStyleForLoop:\n"
             result += f"{spaces}  Init: {node.init}\n"
             result += f"{spaces}  Condition: {node.condition}\n"
             result += f"{spaces}  Update: {node.update}\n"
@@ -81,8 +81,8 @@ class ASTFormatter:
                 result += ASTFormatter.format(redirect, indent + 1)
             return result
         
-        elif isinstance(node, IfCommand):
-            result = f"{spaces}IfCommand:\n"
+        elif isinstance(node, IfConditional) and hasattr(node, 'background'):
+            result = f"{spaces}IfConditional (Pipeline):\n"
             result += f"{spaces}  Condition:\n"
             result += ASTFormatter.format(node.condition, indent + 2)
             result += f"{spaces}  Then:\n"
@@ -94,8 +94,8 @@ class ASTFormatter:
                 result += ASTFormatter.format(redirect, indent + 1)
             return result
         
-        elif isinstance(node, CaseCommand):
-            result = f"{spaces}CaseCommand:\n"
+        elif isinstance(node, CaseConditional) and hasattr(node, 'background'):
+            result = f"{spaces}CaseConditional (Pipeline):\n"
             result += f"{spaces}  Expression: {node.expr}\n"
             for item in node.items:
                 result += ASTFormatter.format(item, indent + 1)
@@ -103,8 +103,8 @@ class ASTFormatter:
                 result += ASTFormatter.format(redirect, indent + 1)
             return result
         
-        elif isinstance(node, SelectCommand):
-            result = f"{spaces}SelectCommand:\n"
+        elif isinstance(node, SelectLoop) and hasattr(node, 'background'):
+            result = f"{spaces}SelectLoop (Pipeline):\n"
             result += f"{spaces}  Variable: {node.variable}\n"
             result += f"{spaces}  Items: {node.items}\n"
             result += f"{spaces}  Body:\n"
@@ -113,8 +113,8 @@ class ASTFormatter:
                 result += ASTFormatter.format(redirect, indent + 1)
             return result
         
-        elif isinstance(node, ArithmeticCompoundCommand):
-            result = f"{spaces}ArithmeticCompoundCommand:\n"
+        elif isinstance(node, ArithmeticEvaluation):
+            result = f"{spaces}ArithmeticEvaluation:\n"
             result += f"{spaces}  Expression: {node.expression}\n"
             for redirect in node.redirects:
                 result += ASTFormatter.format(redirect, indent + 1)
@@ -145,8 +145,8 @@ class ASTFormatter:
             result += ASTFormatter.format(node.body, indent + 1)
             return result
         
-        elif isinstance(node, IfStatement):
-            result = f"{spaces}IfStatement:\n"
+        elif isinstance(node, IfConditional):
+            result = f"{spaces}IfConditional:\n"
             result += f"{spaces}  Condition:\n"
             result += ASTFormatter.format(node.condition, indent + 2)
             result += f"{spaces}  Then:\n"
@@ -164,24 +164,24 @@ class ASTFormatter:
                 result += ASTFormatter.format(node.else_part, indent + 2)
             return result
         
-        elif isinstance(node, WhileStatement):
-            result = f"{spaces}WhileStatement:\n"
+        elif isinstance(node, WhileLoop):
+            result = f"{spaces}WhileLoop:\n"
             result += f"{spaces}  Condition:\n"
             result += ASTFormatter.format(node.condition, indent + 2)
             result += f"{spaces}  Body:\n"
             result += ASTFormatter.format(node.body, indent + 2)
             return result
         
-        elif isinstance(node, ForStatement):
-            result = f"{spaces}ForStatement:\n"
+        elif isinstance(node, ForLoop):
+            result = f"{spaces}ForLoop:\n"
             result += f"{spaces}  Variable: {node.variable}\n"
-            result += f"{spaces}  Iterable: {node.iterable}\n"
+            result += f"{spaces}  Items: {node.items}\n"
             result += f"{spaces}  Body:\n"
             result += ASTFormatter.format(node.body, indent + 2)
             return result
         
-        elif isinstance(node, CaseStatement):
-            result = f"{spaces}CaseStatement: {node.expr}\n"
+        elif isinstance(node, CaseConditional):
+            result = f"{spaces}CaseConditional: {node.expr}\n"
             for item in node.items:
                 result += ASTFormatter.format(item, indent + 1)
             return result

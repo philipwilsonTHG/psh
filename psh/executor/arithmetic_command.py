@@ -1,13 +1,13 @@
 """Arithmetic command execution."""
 import sys
-from ..ast_nodes import ArithmeticCommand
+from ..ast_nodes import ArithmeticEvaluation
 from .base import ExecutorComponent
 from ..arithmetic import evaluate_arithmetic, ArithmeticError
 
 class ArithmeticCommandExecutor(ExecutorComponent):
     """Executes arithmetic commands ((expression))."""
     
-    def execute(self, command: ArithmeticCommand) -> int:
+    def execute(self, command: ArithmeticEvaluation) -> int:
         """Execute arithmetic command and return exit status."""
         try:
             # First expand command substitutions and variables in the expression

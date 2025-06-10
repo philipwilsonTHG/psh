@@ -2,10 +2,21 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.37.1"
+__version__ = "0.38.0"
 
 # Version history
 VERSION_HISTORY = """
+0.38.0 (2025-01-10) - Unified control structure types
+  - Completed removal of deprecated Command/Statement dual types
+  - All control structures now use unified types (WhileLoop, ForLoop, IfConditional, etc.)
+  - Removed deprecation infrastructure (deprecation.py, parser_refactored.py)
+  - Removed migration-specific test files and helpers
+  - Updated parser to always create unified types without feature flags
+  - Updated all executors to handle only unified types
+  - Fixed $? exit code propagation for arithmetic commands
+  - Simplified AST architecture with single type system
+  - All 793 tests passing with no regressions
+
 0.37.1 (2025-01-06) - Parser and documentation improvements
   - Fixed parse_for_command to use _parse_for_iterable() for proper separator handling
   - Fixed parse_case_command to accept command substitutions with _parse_case_expression()

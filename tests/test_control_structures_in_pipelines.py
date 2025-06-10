@@ -6,7 +6,7 @@ capturing since they use the 'read' builtin which needs access to stdin.
 import pytest
 import tempfile
 import os
-from tests.helpers.shell_factory import create_test_shell
+from psh.shell import Shell
 from psh.state_machine_lexer import tokenize
 from psh.parser import parse
 
@@ -15,7 +15,7 @@ class TestControlStructuresInPipelines:
     
     def setup_method(self):
         """Create a fresh shell for each test."""
-        self.shell = create_test_shell()
+        self.shell = Shell()
         # Create a temporary file for output capture
         self.output_fd, self.output_file = tempfile.mkstemp()
         os.close(self.output_fd)

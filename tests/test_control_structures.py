@@ -14,10 +14,7 @@ from psh.shell import Shell
 from psh.state_machine_lexer import tokenize
 from psh.parser import parse
 
-# Import with deprecation warnings suppressed
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=DeprecationWarning)
-    from psh.ast_nodes import IfStatement, StatementList, TopLevel, CommandList
+from psh.ast_nodes import IfConditional, StatementList, TopLevel, CommandList
 
 
 class TestControlStructures(unittest.TestCase):
@@ -47,7 +44,7 @@ class TestControlStructures(unittest.TestCase):
         
         # Should return a TopLevel containing one IfStatement
         self.assertEqual(len(ast.items), 1)
-        self.assertIsInstance(ast.items[0], IfStatement)
+        self.assertIsInstance(ast.items[0], IfConditional)
         
         if_stmt = ast.items[0]
         self.assertIsInstance(if_stmt.condition, CommandList)
@@ -239,7 +236,7 @@ fi""")
         # Parser returns TopLevel for multiline input
         self.assertIsInstance(ast, TopLevel)
         self.assertEqual(len(ast.items), 1)
-        self.assertIsInstance(ast.items[0], IfStatement)
+        self.assertIsInstance(ast.items[0], IfConditional)
 
     def test_nested_commands_in_if(self):
         """Test if statement with complex commands."""

@@ -1,7 +1,7 @@
 """Here document implementation."""
 import tempfile
 from typing import Optional, TYPE_CHECKING
-from ..ast_nodes import IfStatement, WhileStatement, ForStatement, CommandList, AndOrList, CaseStatement
+from ..ast_nodes import CommandList, AndOrList, WhileLoop, ForLoop, CStyleForLoop, IfConditional, CaseConditional, SelectLoop
 
 if TYPE_CHECKING:
     from ..shell import Shell
@@ -30,7 +30,7 @@ class HeredocHandler:
                             # Collect here document content
                             self._read_heredoc_content(redirect)
                             
-        elif isinstance(node, IfStatement):
+        elif isinstance(node, IfConditional):
             # Recursively collect for if statement parts
             self.collect_heredocs(node.condition)
             self.collect_heredocs(node.then_part)
@@ -41,16 +41,16 @@ class HeredocHandler:
             if node.else_part:
                 self.collect_heredocs(node.else_part)
                 
-        elif isinstance(node, WhileStatement):
+        elif isinstance(node, WhileLoop):
             # Recursively collect for while statement parts
             self.collect_heredocs(node.condition)
             self.collect_heredocs(node.body)
             
-        elif isinstance(node, ForStatement):
+        elif isinstance(node, ForLoop):
             # Recursively collect for for statement body
             self.collect_heredocs(node.body)
             
-        elif isinstance(node, CaseStatement):
+        elif isinstance(node, CaseConditional):
             # Recursively collect for case statement items
             for item in node.items:
                 # item.commands is a StatementList, not a list

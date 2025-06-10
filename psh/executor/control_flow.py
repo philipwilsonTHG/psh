@@ -1,13 +1,13 @@
 """Control flow statement execution."""
 import sys
 from typing import List
-from ..ast_nodes import (IfStatement, WhileStatement, ForStatement, 
-                         CStyleForStatement, CaseStatement, SelectStatement,
-                         BreakStatement, ContinueStatement, EnhancedTestStatement,
-                         # Unified types
-                         WhileLoop, ForLoop, CStyleForLoop, IfConditional,
-                         CaseConditional, SelectLoop, ArithmeticEvaluation,
-                         ExecutionContext)
+from ..ast_nodes import (
+    BreakStatement, ContinueStatement, EnhancedTestStatement,
+    # Unified types only
+    WhileLoop, ForLoop, CStyleForLoop, IfConditional,
+    CaseConditional, SelectLoop, ArithmeticEvaluation,
+    ExecutionContext
+)
 from .base import ExecutorComponent
 from ..core.exceptions import LoopBreak, LoopContinue
 
@@ -16,7 +16,7 @@ class ControlFlowExecutor(ExecutorComponent):
     
     def execute(self, node) -> int:
         """Execute a control flow statement."""
-        # Handle unified types
+        # Handle unified types only
         if isinstance(node, WhileLoop):
             # Check execution context
             if node.execution_context == ExecutionContext.STATEMENT:
@@ -49,23 +49,12 @@ class ControlFlowExecutor(ExecutorComponent):
                 return self.execute_select(node)
             else:
                 raise ValueError(f"SelectLoop with PIPELINE context in ControlFlowExecutor")
-        # Handle old types
-        elif isinstance(node, IfStatement):
-            return self.execute_if(node)
-        elif isinstance(node, WhileStatement):
-            return self.execute_while(node)
-        elif isinstance(node, ForStatement):
-            return self.execute_for(node)
-        elif isinstance(node, CStyleForStatement):
-            return self.execute_c_style_for(node)
-        elif isinstance(node, CaseStatement):
-            return self.execute_case(node)
-        elif isinstance(node, SelectStatement):
-            return self.execute_select(node)
         elif isinstance(node, BreakStatement):
             raise LoopBreak(node.level)
         elif isinstance(node, ContinueStatement):
             raise LoopContinue(node.level)
+        elif isinstance(node, EnhancedTestStatement):
+            return self.execute_enhanced_test(node)
         else:
             raise ValueError(f"Unknown control flow node: {type(node)}")
     
@@ -166,9 +155,8 @@ class ControlFlowExecutor(ExecutorComponent):
         try:
             # Expand the word list
             expanded_items = []
-            # Handle both ForStatement (iterable) and ForLoop (items)
-            items = getattr(node, 'iterable', None) or getattr(node, 'items', [])
-            for item in items:
+            # ForLoop uses 'items' attribute
+            for item in node.items:
                 # Handle each item based on its type
                 expanded = self._expand_for_item(item)
                 expanded_items.extend(expanded)

@@ -12,10 +12,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from psh.shell import Shell
 from psh.state_machine_lexer import tokenize
 from psh.parser import parse
-# Import with deprecation warnings suppressed
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=DeprecationWarning)
-    from psh.ast_nodes import ForStatement, ForCommand, StatementList, TopLevel, Pipeline, CommandList
+from psh.ast_nodes import ForLoop, StatementList, TopLevel, Pipeline, CommandList, ExecutionContext
 
 
 class TestForLoops(unittest.TestCase):
@@ -50,13 +47,13 @@ class TestForLoops(unittest.TestCase):
         tokens = tokenize("for i in a b c; do echo $i; done")
         ast = parse(tokens)
         
-        # Should return a TopLevel containing one ForStatement
+        # Should return a TopLevel containing one ForLoop
         self.assertEqual(len(ast.items), 1)
-        self.assertIsInstance(ast.items[0], ForStatement)
+        self.assertIsInstance(ast.items[0], ForLoop)
         
         for_stmt = ast.items[0]
         self.assertEqual(for_stmt.variable, "i")
-        self.assertEqual(for_stmt.iterable, ["a", "b", "c"])
+        self.assertEqual(for_stmt.items, ["a", "b", "c"])
         self.assertIsInstance(for_stmt.body, CommandList)
 
     def test_execute_for_with_simple_list(self):
@@ -198,8 +195,8 @@ done""")
         # Parser returns TopLevel for multiline input
         self.assertIsInstance(ast, TopLevel)
         self.assertEqual(len(ast.items), 1)
-        # When not in a pipeline, it's still a ForStatement
-        self.assertIsInstance(ast.items[0], ForStatement)
+        # When not in a pipeline, it's a ForLoop with STATEMENT context
+        self.assertIsInstance(ast.items[0], ForLoop)
 
     def test_for_with_quoted_items(self):
         """Test for loop with quoted items in the list."""

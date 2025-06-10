@@ -98,7 +98,41 @@ class FunctionDef(Statement):
     body: StatementList
 
 
-# Deprecated Statement types removed - use unified types instead
+@dataclass
+class IfStatement(Statement):
+    """If/then/else/fi conditional statement."""
+    condition: StatementList  # The command list that determines truth/false
+    then_part: StatementList  # Commands to execute if condition is true
+    elif_parts: List[Tuple[StatementList, StatementList]] = field(default_factory=list)  # List of (condition, then_part) tuples
+    else_part: Optional[StatementList] = None  # Commands to execute if all conditions are false
+    redirects: List[Redirect] = field(default_factory=list)  # Redirections for the entire if statement
+
+
+@dataclass
+class WhileStatement(Statement):
+    """While/do/done loop statement."""
+    condition: StatementList  # The command list that determines continue/stop
+    body: StatementList       # Commands to execute repeatedly while condition is true
+    redirects: List[Redirect] = field(default_factory=list)  # Redirections for the entire while loop
+
+
+@dataclass
+class ForStatement(Statement):
+    """For/in/do/done loop statement."""
+    variable: str           # The loop variable name (e.g., "i", "file")
+    iterable: List[str]     # List of items to iterate over (after expansion)
+    body: StatementList       # Commands to execute for each iteration
+    redirects: List[Redirect] = field(default_factory=list)  # Redirections for the entire for loop
+
+
+@dataclass
+class CStyleForStatement(Statement):
+    """C-style for loop: for ((init; condition; update))"""
+    init_expr: Optional[str] = None      # Initialization expression (can be empty)
+    condition_expr: Optional[str] = None # Condition expression (can be empty)  
+    update_expr: Optional[str] = None    # Update expression (can be empty)
+    body: StatementList = field(default_factory=lambda: StatementList())  # Loop body
+    redirects: List[Redirect] = field(default_factory=list)  # Redirections for the entire loop
 
 
 @dataclass
@@ -127,10 +161,97 @@ class CaseItem(ASTNode):
     terminator: str = ';;'  # ';;', ';&', or ';;&'
 
 
-# Deprecated Statement types removed - use unified types instead
+@dataclass
+class CaseStatement(Statement):
+    """Case/esac statement."""
+    expr: str  # The expression to match against
+    items: List[CaseItem] = field(default_factory=list)
+    redirects: List[Redirect] = field(default_factory=list)  # Redirections for the entire case statement
 
 
-# Deprecated Command types removed - use unified types instead
+@dataclass
+class SelectStatement(Statement):
+    """Select statement for interactive menus."""
+    variable: str  # The variable name to set with selection
+    items: List[str]  # List of items to display in menu (after expansion)
+    body: StatementList  # Commands to execute in loop
+    redirects: List[Redirect] = field(default_factory=list)  # Redirections for the entire select loop
+
+
+@dataclass
+class ArithmeticCommand(Statement):
+    """Arithmetic command ((expression))."""
+    expression: str
+    redirects: List[Redirect] = field(default_factory=list)
+
+
+# Compound command variants for use in pipelines
+@dataclass
+class WhileCommand(CompoundCommand):
+    """While loop as a command for use in pipelines."""
+    condition: StatementList
+    body: StatementList
+    redirects: List[Redirect] = field(default_factory=list)
+    background: bool = False
+
+
+@dataclass
+class ForCommand(CompoundCommand):
+    """For loop as a command for use in pipelines."""
+    variable: str
+    items: List[str]
+    body: StatementList
+    redirects: List[Redirect] = field(default_factory=list)
+    background: bool = False
+
+
+@dataclass
+class CStyleForCommand(CompoundCommand):
+    """C-style for loop as a command for use in pipelines."""
+    init_expr: Optional[str]
+    condition_expr: Optional[str]
+    update_expr: Optional[str]
+    body: StatementList
+    redirects: List[Redirect] = field(default_factory=list)
+    background: bool = False
+
+
+@dataclass
+class IfCommand(CompoundCommand):
+    """If statement as a command for use in pipelines."""
+    condition: StatementList
+    then_part: StatementList
+    elif_parts: List[Tuple[StatementList, StatementList]] = field(default_factory=list)
+    else_part: Optional[StatementList] = None
+    redirects: List[Redirect] = field(default_factory=list)
+    background: bool = False
+
+
+@dataclass
+class CaseCommand(CompoundCommand):
+    """Case statement as a command for use in pipelines."""
+    expr: str
+    items: List[CaseItem] = field(default_factory=list)
+    redirects: List[Redirect] = field(default_factory=list)
+    background: bool = False
+
+
+@dataclass
+class SelectCommand(CompoundCommand):
+    """Select statement as a command for use in pipelines."""
+    variable: str
+    items: List[str]
+    body: StatementList
+    redirects: List[Redirect] = field(default_factory=list)
+    background: bool = False
+
+
+@dataclass
+class ArithmeticCompoundCommand(CompoundCommand):
+    """Arithmetic command as a compound command for use in pipelines."""
+    expression: str
+    redirects: List[Redirect] = field(default_factory=list)
+    background: bool = False
 
 
 @dataclass
@@ -276,4 +397,23 @@ class ArithmeticEvaluation(UnifiedControlStructure):
     background: bool = False
 
 
-# Deprecated types have been removed - use unified types directly
+# Apply deprecation warnings to old dual types
+from .deprecation import deprecated_class
+
+# Deprecate statement types
+IfStatement = deprecated_class(IfStatement, IfConditional, "0.38.0", "0.40.0")
+WhileStatement = deprecated_class(WhileStatement, WhileLoop, "0.38.0", "0.40.0")
+ForStatement = deprecated_class(ForStatement, ForLoop, "0.38.0", "0.40.0")
+CStyleForStatement = deprecated_class(CStyleForStatement, CStyleForLoop, "0.38.0", "0.40.0")
+CaseStatement = deprecated_class(CaseStatement, CaseConditional, "0.38.0", "0.40.0")
+SelectStatement = deprecated_class(SelectStatement, SelectLoop, "0.38.0", "0.40.0")
+ArithmeticCommand = deprecated_class(ArithmeticCommand, ArithmeticEvaluation, "0.38.0", "0.40.0")
+
+# Deprecate command types
+WhileCommand = deprecated_class(WhileCommand, WhileLoop, "0.38.0", "0.40.0")
+ForCommand = deprecated_class(ForCommand, ForLoop, "0.38.0", "0.40.0")
+CStyleForCommand = deprecated_class(CStyleForCommand, CStyleForLoop, "0.38.0", "0.40.0")
+IfCommand = deprecated_class(IfCommand, IfConditional, "0.38.0", "0.40.0")
+CaseCommand = deprecated_class(CaseCommand, CaseConditional, "0.38.0", "0.40.0")
+SelectCommand = deprecated_class(SelectCommand, SelectLoop, "0.38.0", "0.40.0")
+ArithmeticCompoundCommand = deprecated_class(ArithmeticCompoundCommand, ArithmeticEvaluation, "0.38.0", "0.40.0")

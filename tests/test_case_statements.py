@@ -5,10 +5,7 @@ from unittest.mock import patch
 from psh.shell import Shell
 from psh.state_machine_lexer import tokenize
 from psh.parser import parse
-# Import with deprecation warnings suppressed
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=DeprecationWarning)
-    from psh.ast_nodes import CaseStatement, CaseItem, CasePattern
+from psh.ast_nodes import CaseConditional, CaseItem, CasePattern
 
 
 def test_case_basic_parsing():
@@ -22,7 +19,7 @@ def test_case_basic_parsing():
     # Should be a top-level with one case statement
     assert hasattr(result, 'items')
     assert len(result.items) == 1
-    assert isinstance(result.items[0], CaseStatement)
+    assert isinstance(result.items[0], CaseConditional)
     
     case_stmt = result.items[0]
     assert case_stmt.expr == '$var'  # Variable preserved correctly
