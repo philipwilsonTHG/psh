@@ -4,9 +4,10 @@
 
 Python Shell (psh) is designed with a clean, component-based architecture that separates concerns and makes the codebase easy to understand, test, and extend. The shell has been refactored from a monolithic design into a modular system where each component has a specific responsibility.
 
-**Current Version**: 0.37.0 (as of 2025-01-06)
+**Current Version**: 0.38.0 (as of 2025-01-10)
 
 **Key Recent Additions**:
+- **Major refactor v0.38.0**: Completed unified control structure types, removed all deprecated dual types
 - **Revolutionary v0.37.0**: Control structures in pipelines with unified command model
 - Eval builtin for dynamic command execution (v0.36.0)
 - Shell options for robust scripting: set -e, -u, -x, -o pipefail (v0.35.0)
@@ -370,7 +371,7 @@ Clean recursive descent parser with recent improvements:
 #### AST Nodes (`ast_nodes.py`)
 Well-organized node hierarchy:
 - **Base classes**: `ASTNode`, `Statement` for type hierarchy
-- **Control structures**: `IfStatement`, `WhileStatement`, `ForStatement`, `CaseStatement`
+- **Control structures**: `IfConditional`, `WhileLoop`, `ForLoop`, `CaseConditional`, `SelectLoop`, `ArithmeticEvaluation`
 - **Enhanced nodes**: Support for `elif` chains, test expressions, composite arguments
 - **Statement lists**: `StatementList` allows arbitrary nesting of control structures
 - **Function definitions**: `FunctionDef` with both syntaxes supported
@@ -512,7 +513,7 @@ The component architecture enables isolated testing:
      - `echo "test" | if grep -q test; then echo "found"; fi`
    - **Technical Implementation**:
      - Created unified `Command` hierarchy with `SimpleCommand` and `CompoundCommand`
-     - Added command variants: `WhileCommand`, `ForCommand`, `IfCommand`, etc.
+     - All control structures use unified types that work in both contexts
      - Enhanced parser with `parse_pipeline_component()` method
      - Updated `PipelineExecutor` to handle compound commands in subshells
      - Proper process isolation and redirection handling for compound commands
@@ -592,13 +593,21 @@ class CompoundCommand(Command):
     redirects: List[Redirect] = field(default_factory=list)
     background: bool = False
 
-# Specific command variants for pipelines
-class WhileCommand(CompoundCommand): ...
-class ForCommand(CompoundCommand): ...
-class IfCommand(CompoundCommand): ...
-class CaseCommand(CompoundCommand): ...
-class SelectCommand(CompoundCommand): ...
-class ArithmeticCompoundCommand(CompoundCommand): ...
+# Unified control structures (v0.38.0)
+# These types work in both statement and pipeline contexts
+class WhileLoop(UnifiedControlStructure):
+    """Unified while loop that works in both statement and pipeline contexts."""
+    condition: StatementList
+    body: StatementList
+    redirects: List[Redirect]
+    execution_context: ExecutionContext  # STATEMENT or PIPELINE
+    background: bool = False
+
+class ForLoop(UnifiedControlStructure): ...
+class IfConditional(UnifiedControlStructure): ...
+class CaseConditional(UnifiedControlStructure): ...
+class SelectLoop(UnifiedControlStructure): ...
+class ArithmeticEvaluation(UnifiedControlStructure): ...
 ```
 
 ### Pipeline Support
@@ -611,6 +620,7 @@ Pipelines can now contain any Command type:
 
 1. **Composite Arguments**: Parser creates COMPOSITE type but loses quote information from RichTokens
 2. ~~**Control Structures in Pipelines**: Not supported due to statement-based architecture~~ ✅ **SOLVED in v0.37.0**
+   - ~~**Dual Type System**: Had separate Statement/Command types for control structures~~ ✅ **REMOVED in v0.38.0**
 3. **Deep Recursion**: Shell functions have recursion depth limitations
 
 ## Future Improvements

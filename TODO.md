@@ -1,10 +1,17 @@
 # Python Shell (psh) - TODO List
 
-**Current Version**: 0.37.0 (2025-01-06)
+**Current Version**: 0.38.0 (2025-01-10)
 
 ## Overview
 
-PSH has achieved significant feature completeness with **847 total tests (840 passing, 40 skipped, 5 xfailed)**. This document tracks remaining features, known issues, and development priorities.
+PSH has achieved significant feature completeness with **793 total tests (793 passing, 48 skipped, 5 xfailed)**. This document tracks remaining features, known issues, and development priorities.
+
+## Recent Major Changes (v0.38.0)
+
+- **Completed unified control structure types**: Removed all deprecated Command/Statement dual types
+- **Simplified AST architecture**: Single type system for all control structures
+- **Cleaned codebase**: Removed ~1000 lines of deprecated code and migration infrastructure
+- **No functionality regression**: All features continue to work as before
 
 ## Remaining Features
 
