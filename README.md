@@ -2,7 +2,7 @@
 
 An educational Unix shell implementation in Python, designed to teach shell internals and compiler/interpreter concepts through a clean, readable codebase.  **All source code and documentation (with the exception of this sentence) has been written by Claude Code using Sonnet 4 and Opus 4 models.**
 
-**Current Version**: 0.37.0 (2025-01-06)
+**Current Version**: 0.38.1 (2025-01-10)
 
 ## Overview
 
@@ -12,8 +12,12 @@ The shell features a modern component-based architecture where each subsystem (e
 
 ### Recent Major Features
 
-- **v0.37.0**: 🚀 **Control structures in pipelines** - Revolutionary unified command model enabling control structures as pipeline components
-  - Game-changing examples: `echo "data" | while read line; do echo $line; done`
+- **v0.38.1**: Bug fixes for brace expansion and read builtin file redirection
+  - Fixed: `{1..10};` now correctly expands without including semicolon in each element
+  - Fixed: `read var < file` now properly reads from files
+- **v0.38.0**: Unified control structure types - completed removal of deprecated dual types
+- **v0.37.0**: **Control structures in pipelines** - Unified command model enabling control structures as pipeline components
+  - Examples: `echo "data" | while read line; do echo $line; done`
   - All control structures work in pipelines: while, for, if, case, select, arithmetic
   - Addresses major architectural limitation while maintaining full backward compatibility
 - **v0.36.0**: Eval builtin for dynamic command execution `eval "echo hello"`
@@ -523,9 +527,9 @@ See [TODO.md](TODO.md) for a complete list of planned features.
 
 ## Implementation Status
 
-PSH has achieved significant feature completeness with **788 passing tests**:
+PSH has achieved significant feature completeness with **850 passing tests**:
 
-### ✅ Fully Implemented (v0.36.0)
+### ✅ Fully Implemented (v0.38.1)
 - All core shell features (execution, I/O, pipelines, variables)
 - Complete expansion system (variable, parameter, command, arithmetic, brace, process)
 - All control structures (if/elif/else, while, for, C-style for, case, break/continue)
@@ -542,6 +546,8 @@ PSH has achieved significant feature completeness with **788 passing tests**:
 - Select statement for interactive menu generation
 - Shell options: `set -e`, `set -u`, `set -x`, `set -o pipefail` for robust scripting
 - Dynamic command execution with eval builtin
+- Control structures as pipeline components (all control structures work in pipelines)
+- Unified AST types for all control structures
 
 ### 🚧 Planned Features
 - Trap command for signal handling

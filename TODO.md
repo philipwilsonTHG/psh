@@ -1,13 +1,18 @@
 # Python Shell (psh) - TODO List
 
-**Current Version**: 0.38.0 (2025-01-10)
+**Current Version**: 0.38.1 (2025-01-10)
 
 ## Overview
 
-PSH has achieved significant feature completeness with **793 total tests (793 passing, 48 skipped, 5 xfailed)**. This document tracks remaining features, known issues, and development priorities.
+PSH has achieved significant feature completeness with **850 total tests (all passing)**. This document tracks remaining features, known issues, and development priorities.
 
-## Recent Major Changes (v0.38.0)
+## Recent Major Changes
 
+### v0.38.1 - Bug Fixes
+- **Fixed brace expansion**: `{1..10};` now correctly expands without including semicolon
+- **Fixed read builtin**: `read var < file` now properly reads from files
+
+### v0.38.0 - Unified Types
 - **Completed unified control structure types**: Removed all deprecated Command/Statement dual types
 - **Simplified AST architecture**: Single type system for all control structures
 - **Cleaned codebase**: Removed ~1000 lines of deprecated code and migration infrastructure
@@ -65,13 +70,6 @@ PSH has achieved significant feature completeness with **793 total tests (793 pa
   - `echo "data" | while read line; do echo $line; done`
   - `seq 1 5 | for i in $(cat); do echo $i; done`
   - `echo "test" | if grep -q test; then echo "found"; fi`
-
-#### Control Structures as Pipeline Sources - ❌ **KNOWN LIMITATION**
-- **Problem**: Control structures cannot send output to pipelines
-- **Example**: `for i in 1 2 3; do echo $i; done | wc -l` fails with parse error
-- **Cause**: Parser treats control structures as statements, not pipeline components
-- **Workaround**: Use command substitution or functions (see docs/control_structures_pipeline_limitations.md)
-- **Note**: Control structures CAN receive input from pipelines (v0.37.0 feature works correctly)
 
 #### Composite Argument Quote Handling
 - **Problem**: Parser loses quote information when creating composite arguments

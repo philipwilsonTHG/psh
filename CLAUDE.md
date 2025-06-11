@@ -8,20 +8,23 @@ Python Shell (psh) is an educational Unix shell implementation designed for teac
 
 ## Current Development Focus
 
+**Latest**: Bug Fixes - v0.38.1
+- ✓ Fixed brace expansion when sequences are followed by shell metacharacters
+- ✓ Fixed read builtin file redirection by properly redirecting file descriptor 0
+- ✓ Brace expansion like `{1..10};` now correctly expands without including semicolon
+- ✓ Read builtin now works with redirected files: `read var < file`
+- ✓ All 850 tests passing with no regressions
+
+**Completed**: Unified Types - v0.38.0
+- ✓ Completed removal of deprecated Command/Statement dual types
+- ✓ All control structures now use unified types (WhileLoop, ForLoop, etc.)
+- ✓ Simplified AST architecture with single type system
+
 **Completed**: Control Structures in Pipelines - v0.37.0
 - ✓ Unified command model enabling control structures as pipeline components
 - ✓ Support for all control structures: while, for, if, case, select, arithmetic commands
-- ✓ Revolutionary capability: `echo "data" | while read line; do echo $line; done`
+- ✓ Capability: `echo "data" | while read line; do echo $line; done`
 - ✓ Subshell execution with proper process isolation and redirection handling
-- ✓ Full backward compatibility maintained - no regressions introduced
-- ✓ Comprehensive test suite with 847 total tests (840 passing)
-- ✓ Educational architecture preserved while enabling advanced shell programming
-
-**Previous**: Eval Builtin - v0.36.0
-- ✓ Dynamic command execution from strings implemented
-- ✓ Full shell processing: tokenization, parsing, expansions
-- ✓ Current context execution (variables/functions persist)
-- ✓ Comprehensive test suite with 17 tests covering all use cases
 
 **Next Priority**: Trap command for signal handling
 - Signal handling and cleanup on script interruption
@@ -215,6 +218,14 @@ psh --help   # Show usage and options
 
 # Run tests
 python -m pytest tests/
+
+# Run select statement tests (require special handling)
+python -m pytest -s tests/test_select_statement.py::TestSelectStatement  # Interactive tests
+python -m pytest tests/test_select_statement.py::TestSelectStatementNonInteractive  # Non-interactive tests
+python scripts/test_select.py quick  # Convenience script for non-interactive tests
+
+# Note: Select tests need pytest -s flag due to stdin requirements
+# See tests/SELECT_TESTING.md for detailed explanation
 ```
 
 ## Prompt Customization
