@@ -132,8 +132,8 @@ class TestBuiltins:
     def test_source_path_search(self):
         # Create a temporary directory and add to PATH
         with tempfile.TemporaryDirectory() as tmpdir:
-            # Create a script in the temp directory
-            script_name = 'test_script.sh'
+            # Create a script in the temp directory with unique name
+            script_name = 'unique_test_source_script.sh'
             script_path = os.path.join(tmpdir, script_name)
             with open(script_path, 'w') as f:
                 f.write('export PATH_SEARCHED=yes\n')

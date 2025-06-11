@@ -51,6 +51,9 @@ class FileInput(InputSource):
         self.file_path = file_path
         self.file = None
         self.line_number = 0
+        self.processed_lines = []
+        self.current_line = 0
+        self.preprocessed = False
     
     def __enter__(self):
         self.file = open(self.file_path, 'r', encoding='utf-8')
@@ -60,13 +63,32 @@ class FileInput(InputSource):
         if self.file:
             self.file.close()
     
+    def _preprocess_file(self):
+        """Read entire file and preprocess line continuations."""
+        if self.preprocessed:
+            return
+        
+        # Read entire file content
+        content = self.file.read()
+        
+        # Process line continuations
+        from .input_preprocessing import process_line_continuations
+        processed_content = process_line_continuations(content)
+        
+        # Split back into lines
+        self.processed_lines = processed_content.split('\n')
+        self.preprocessed = True
+    
     def read_line(self) -> Optional[str]:
-        """Read the next line from the file."""
-        if self.file:
-            line = self.file.readline()
-            if line:
-                self.line_number += 1
-                return line.rstrip('\n\r')
+        """Read the next line from the preprocessed file."""
+        if not self.preprocessed:
+            self._preprocess_file()
+        
+        if self.current_line < len(self.processed_lines):
+            line = self.processed_lines[self.current_line]
+            self.current_line += 1
+            self.line_number += 1
+            return line
         return None
     
     def is_interactive(self) -> bool:
@@ -83,7 +105,10 @@ class StringInput(InputSource):
     """Input source for reading commands from a string."""
     
     def __init__(self, command: str, name: str = "<command>"):
-        self.lines = command.split('\n')
+        # Process line continuations before splitting into lines
+        from .input_preprocessing import process_line_continuations
+        processed_command = process_line_continuations(command)
+        self.lines = processed_command.split('\n')
         self.current = 0
         self.name = name
         self.line_number = 0

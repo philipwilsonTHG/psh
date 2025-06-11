@@ -46,7 +46,9 @@ class MultiLineInputHandler:
             full_command = '\n'.join(self.buffer)
             if self._is_complete_command(full_command):
                 self.reset()
-                return full_command
+                # Process line continuations before returning
+                from .input_preprocessing import process_line_continuations
+                return process_line_continuations(full_command)
     
     def reset(self):
         """Reset multi-line state."""

@@ -48,11 +48,10 @@ class TestCompositeArgumentQuoteHandling:
         bash_compare.assert_shells_match("echo file'*'.txt")
     
     def test_redirection_with_quoted_composite(self):
-        """Test redirection with quoted composite arguments - REAL LIMITATION"""
-        # This is where the parser limitation shows up
-        bash_compare.expect_shells_differ(
+        """Test redirection with quoted composite arguments - FIXED!"""
+        # This limitation was resolved by the line continuation preprocessing improvements
+        bash_compare.assert_shells_match(
             "echo hello > test'file'.txt; ls test'file'.txt 2>/dev/null || echo 'file not found'",
-            reason="Parser loses quote information in redirection targets",
             check_stderr=False
         )
     

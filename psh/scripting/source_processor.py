@@ -38,13 +38,7 @@ class SourceProcessor(ScriptComponent):
             if not command_buffer and line.strip().startswith('#'):
                 continue
             
-            # Handle line continuation (backslash at end)
-            if line.endswith('\\'):
-                # Remove the backslash and add to buffer
-                if not command_buffer:
-                    command_start_line = input_source.get_line_number()
-                command_buffer += line[:-1] + ' '
-                continue
+            # Note: Line continuation handling is now done in preprocessing
             
             # Add current line to buffer
             if not command_buffer:
@@ -148,6 +142,10 @@ class SourceProcessor(ScriptComponent):
             return 0
         
         try:
+            # Process line continuations first
+            from ..input_preprocessing import process_line_continuations
+            command_string = process_line_continuations(command_string)
+            
             # Perform history expansion before tokenization
             if hasattr(self.shell, 'history_expander'):
                 expanded_command = self.shell.history_expander.expand_history(command_string)

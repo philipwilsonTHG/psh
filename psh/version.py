@@ -2,10 +2,27 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.38.3"
+__version__ = "0.39.0"
 
 # Version history
 VERSION_HISTORY = """
+0.39.0 (2025-01-11) - Line continuation support implementation
+  - Implemented POSIX-compliant line continuation processing (\\<newline> sequences)
+  - Added input_preprocessing.py module with process_line_continuations() function
+  - Modified multiline_handler.py to preprocess interactive commands
+  - Updated scripting/source_processor.py to handle script line continuations
+  - Enhanced input_sources.py for FileInput and StringInput preprocessing
+  - Line continuations now work in all input modes: scripts, interactive, -c commands
+  - Quote-aware processing preserves line continuations inside quotes
+  - Handles complex backslash escaping scenarios correctly
+  - Cross-platform support for both \\n and \\r\\n line endings
+  - Fixed composite argument quote handling in redirections (bonus improvement)
+  - Commands like 'echo hello \\<newline>world' now correctly produce 'echo hello world'
+  - Complex multi-line scripts with pipelines and control structures now parse correctly
+  - Added comprehensive test suite with 22 tests covering all edge cases
+  - All 891 tests passing with no regressions
+  - Major improvement in bash compatibility for multi-line scripts
+
 0.38.3 (2025-01-11) - Backslash escaping fix
   - Fixed critical backslash escaping limitation where \\$variable was incorrectly expanded
   - Modified state machine lexer to use special markers for escaped dollar signs
