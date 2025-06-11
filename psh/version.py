@@ -2,10 +2,18 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.38.1"
+__version__ = "0.38.2"
 
 # Version history
 VERSION_HISTORY = """
+0.38.2 (2025-01-11) - Parser fix for composite argument redirection
+  - Fixed redirection parsing to properly handle quoted composite arguments
+  - Modified _parse_standard_redirect() to use parse_composite_argument() instead of single token parsing
+  - Commands like 'echo test > file'name'.txt' now correctly create 'filename.txt'
+  - Updated bash comparison test framework with comprehensive redirection tests
+  - Fixed TODO.md to reflect actual current limitations vs documented ones
+  - All 850+ tests passing with enhanced redirection capabilities
+
 0.38.1 (2025-01-10) - Bug fixes for brace expansion and read builtin
   - Fixed brace expansion when sequences are followed by shell metacharacters
   - Fixed read builtin file redirection by properly redirecting file descriptor 0

@@ -137,6 +137,7 @@ class MultiLineInputHandler:
                 "Expected closing",
                 "Unexpected EOF",
                 "got end of input",
+                "Expected pattern",  # For incomplete case statements
                 "Expected test operand",
                 # Old patterns for backward compatibility
                 "Expected DO",

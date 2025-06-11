@@ -8,6 +8,7 @@ from ..ast_nodes import (
     # Unified types only
     WhileLoop, ForLoop, CStyleForLoop, IfConditional,
     CaseConditional, SelectLoop, ArithmeticEvaluation,
+    BreakStatement, ContinueStatement,
     ExecutionContext
 )
 from .base import ExecutorComponent
@@ -20,9 +21,27 @@ class PipelineExecutor(ExecutorComponent):
     def execute(self, pipeline: Pipeline) -> int:
         """Execute a pipeline and return exit status of last command."""
         if len(pipeline.commands) == 1:
-            # Simple command, no pipes
+            # Single command, no pipes
+            command = pipeline.commands[0]
+            
+            # Handle break/continue specially
+            if isinstance(command, (BreakStatement, ContinueStatement)):
+                from ..core.exceptions import LoopBreak, LoopContinue
+                if isinstance(command, BreakStatement):
+                    raise LoopBreak(command.level)
+                else:
+                    raise LoopContinue(command.level)
+            
+            # Regular command execution
             try:
-                exit_status = self.shell.execute_command(pipeline.commands[0])
+                if isinstance(command, SimpleCommand):
+                    exit_status = self.shell.execute_command(command)
+                elif isinstance(command, CompoundCommand):
+                    # Execute compound command directly
+                    exit_status = self._execute_compound_in_subshell(command)
+                else:
+                    exit_status = 1
+                    
                 # Apply negation if needed
                 if pipeline.negated:
                     exit_status = 0 if exit_status != 0 else 1
@@ -256,6 +275,14 @@ class PipelineExecutor(ExecutorComponent):
                         return self._execute_arithmetic_command(command)
                     else:
                         raise ValueError(f"ArithmeticEvaluation with STATEMENT context in pipeline")
+                elif isinstance(command, BreakStatement):
+                    # Break in pipeline context
+                    from ..core.exceptions import LoopBreak
+                    raise LoopBreak(command.level)
+                elif isinstance(command, ContinueStatement):
+                    # Continue in pipeline context
+                    from ..core.exceptions import LoopContinue
+                    raise LoopContinue(command.level)
                 else:
                     return 1
             finally:

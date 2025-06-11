@@ -1,4 +1,5 @@
 """Read builtin command implementation."""
+import io
 import os
 import sys
 import select
@@ -300,30 +301,76 @@ class ReadBuiltin(Builtin):
     
     def _read_normal(self, fd: int, delimiter: str) -> Optional[str]:
         """Read normally from file descriptor until delimiter."""
+        # Check if we should use sys.stdin (for StringIO/test scenarios)
+        # or os.read (for real file descriptors/pipes)
+        use_sys_stdin = False
+        
+        # Check if we can actually get a file descriptor from sys.stdin
+        try:
+            sys.stdin.fileno()
+            has_real_fileno = True
+        except (AttributeError, io.UnsupportedOperation):
+            has_real_fileno = False
+        
+        if not has_real_fileno:
+            use_sys_stdin = True
+        else:
+            # Check if we're in pytest capture mode
+            # When pytest captures, sys.stdin has special __class__
+            stdin_class_name = sys.stdin.__class__.__name__
+            if 'DontReadFromInput' in stdin_class_name:
+                # This is pytest's capture object, use os.read to bypass it
+                use_sys_stdin = False
+            else:
+                # Normal case - check if fd is valid
+                try:
+                    os.fstat(fd)
+                    use_sys_stdin = False
+                except (OSError, AttributeError):
+                    use_sys_stdin = True
+        
         if delimiter == '\n':
-            # Use readline for newline delimiter (most common case)
-            line = sys.stdin.readline()
-            if not line:
-                return None
-            # Don't remove the newline yet - let the caller handle it
-            # after escape processing
-            return line
+            if use_sys_stdin:
+                # Use sys.stdin for StringIO/test scenarios
+                line = sys.stdin.readline()
+                if not line:
+                    return None
+                return line
+            else:
+                # Use os.read for real file descriptors
+                chars = []
+                while True:
+                    try:
+                        char = os.read(fd, 1).decode('utf-8', errors='replace')
+                    except OSError as e:
+                        # Error reading - return what we have
+                        return None if not chars else ''.join(chars)
+                    
+                    if not char:
+                        return None if not chars else ''.join(chars)
+                    chars.append(char)
+                    if char == '\n':
+                        return ''.join(chars)
         else:
             # Read character by character for custom delimiter
             chars = []
-            # Check if fd is a TTY
-            if os.isatty(fd):
+            if use_sys_stdin:
+                # Use sys.stdin for StringIO scenarios
                 while True:
-                    char = os.read(fd, 1).decode('utf-8', errors='replace')
+                    char = sys.stdin.read(1)
                     if not char:
                         return None if not chars else ''.join(chars)
                     if char == delimiter:
                         return ''.join(chars)
                     chars.append(char)
             else:
-                # Non-TTY, use sys.stdin
                 while True:
-                    char = sys.stdin.read(1)
+                    try:
+                        char = os.read(fd, 1).decode('utf-8', errors='replace')
+                    except OSError:
+                        # Not a valid file descriptor
+                        return None if not chars else ''.join(chars)
+                    
                     if not char:
                         return None if not chars else ''.join(chars)
                     if char == delimiter:
@@ -368,10 +415,33 @@ class ReadBuiltin(Builtin):
         else:
             # Non-TTY or no special handling needed
             if max_chars is not None:
+                # Determine if we should use sys.stdin or os.read
+                try:
+                    sys.stdin.fileno()
+                    has_real_fileno = True
+                except (AttributeError, io.UnsupportedOperation):
+                    has_real_fileno = False
+                
+                use_sys_stdin = not has_real_fileno
+                if has_real_fileno:
+                    stdin_class_name = sys.stdin.__class__.__name__
+                    if 'DontReadFromInput' not in stdin_class_name:
+                        try:
+                            os.fstat(fd)
+                            use_sys_stdin = False
+                        except (OSError, AttributeError):
+                            use_sys_stdin = True
+                
                 # Read up to max_chars
                 limit = max_chars
                 while len(chars) < limit:
-                    char = sys.stdin.read(1)
+                    if use_sys_stdin:
+                        char = sys.stdin.read(1)
+                    else:
+                        try:
+                            char = os.read(fd, 1).decode('utf-8', errors='replace')
+                        except OSError:
+                            break
                     if not char:
                         break
                     if char == delimiter:
@@ -445,7 +515,39 @@ class ReadBuiltin(Builtin):
                     sys.stdout.flush()
         else:
             # Simple case or non-TTY: just wait for line with timeout
-            ready, _, _ = select.select([sys.stdin], [], [], timeout)
+            # Determine if we should use sys.stdin or os.read
+            try:
+                sys.stdin.fileno()
+                has_real_fileno = True
+            except (AttributeError, io.UnsupportedOperation):
+                has_real_fileno = False
+            
+            use_sys_stdin = not has_real_fileno
+            if has_real_fileno:
+                stdin_class_name = sys.stdin.__class__.__name__
+                if 'DontReadFromInput' in stdin_class_name:
+                    # pytest capture mode - use os.read
+                    use_sys_stdin = False
+                    try:
+                        os.fstat(fd)
+                        ready, _, _ = select.select([fd], [], [], timeout)
+                    except (OSError, AttributeError):
+                        # Can't select on fd
+                        ready = []
+                else:
+                    # Normal terminal or real stdin
+                    try:
+                        os.fstat(fd)
+                        ready, _, _ = select.select([fd], [], [], timeout)
+                        use_sys_stdin = False
+                    except (OSError, AttributeError):
+                        # Try with sys.stdin
+                        ready, _, _ = select.select([sys.stdin], [], [], timeout)
+                        use_sys_stdin = True
+            else:
+                # StringIO doesn't support select, just read immediately
+                ready = [sys.stdin]
+            
             if not ready:
                 return None
             
@@ -453,7 +555,13 @@ class ReadBuiltin(Builtin):
             if max_chars is not None:
                 limit = max_chars
                 while len(chars) < limit:
-                    char = sys.stdin.read(1)
+                    if use_sys_stdin:
+                        char = sys.stdin.read(1)
+                    else:
+                        try:
+                            char = os.read(fd, 1).decode('utf-8', errors='replace')
+                        except OSError:
+                            break
                     if not char:
                         break
                     if char == delimiter:

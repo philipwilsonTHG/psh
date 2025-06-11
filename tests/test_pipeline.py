@@ -74,19 +74,24 @@ class TestPipeline:
         assert exit_code == 127
         assert self.shell.last_exit_code == 127
     
-    @pytest.mark.skip(reason="Built-in output capture conflicts with pytest")
     def test_pipeline_with_builtin(self):
         """Test pipeline with built-in commands"""
-        output_file = "/tmp/pipeline_builtin_test.txt"
+        import tempfile
         
-        # echo is a built-in
-        self.shell.run_command(f"echo hello world | grep hello > {output_file}")
+        # Create temporary file for output capture
+        with tempfile.NamedTemporaryFile(mode='w+', delete=False) as f:
+            output_file = f.name
         
-        with open(output_file, 'r') as f:
-            output = f.read()
-        assert output.strip() == "hello world"
-        
-        os.unlink(output_file)
+        try:
+            # echo is a built-in
+            result = self.shell.run_command(f"echo hello world | grep hello > {output_file}")
+            assert result == 0
+            
+            with open(output_file, 'r') as f:
+                output = f.read()
+            assert output.strip() == "hello world"
+        finally:
+            os.unlink(output_file)
     
     def test_pipeline_with_redirection(self):
         """Test pipeline with input/output redirection"""

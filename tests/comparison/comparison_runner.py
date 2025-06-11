@@ -4,6 +4,9 @@ Comparison test runner for bash vs psh.
 
 This module provides infrastructure to run the same commands/scripts in both
 bash and psh, comparing their outputs to ensure compatibility.
+
+This runner integrates with the new bash_comparison_framework.py for pytest-based
+testing while maintaining standalone command-line functionality.
 """
 
 import os
@@ -422,10 +425,17 @@ class ComparisonTestRunner:
 
 
 def main():
-    """Main entry point for command-line usage."""
+    """Main entry point for command-line usage.
+    
+    For pytest-based testing, use bash_comparison_framework.py instead.
+    This runner is for standalone command-line comparison testing.
+    """
     import argparse
     
-    parser = argparse.ArgumentParser(description="Compare bash and psh outputs")
+    parser = argparse.ArgumentParser(
+        description="Compare bash and psh outputs",
+        epilog="For pytest-based testing, see bash_comparison_framework.py"
+    )
     parser.add_argument("command", nargs="?", help="Command to run")
     parser.add_argument("-f", "--file", help="Script file to run")
     parser.add_argument("-d", "--directory", help="Directory of test files")
@@ -433,8 +443,16 @@ def main():
     parser.add_argument("--format", choices=["text", "json", "html"], 
                        default="text", help="Output format")
     parser.add_argument("-o", "--output", help="Output file (default: stdout)")
+    parser.add_argument("--pytest", action="store_true", 
+                       help="Use pytest framework for testing")
     
     args = parser.parse_args()
+    
+    # Handle pytest framework usage
+    if args.pytest:
+        print("Running with pytest framework...")
+        print("Use: pytest tests/comparison/ -v")
+        return
     
     runner = ComparisonTestRunner(psh_path=args.psh)
     

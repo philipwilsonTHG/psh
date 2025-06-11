@@ -19,18 +19,18 @@ Python Shell (psh) is designed with a clean, component-based architecture that s
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                         User Input                              │
-└────────────────────────────┬───────────────────────────────────┘
+└─────────────────────────────┬───────────────────────────────────┘
                              │
                              ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                      Shell (shell.py)                           │
 │                    Main Orchestrator                            │
-│  ┌─────────────────────────────────────────────────────────┐  │
-│  │ Initializes: State, Managers, Components                │  │
-│  │ Coordinates: Execution flow, Component lifecycle        │  │
-│  │ Delegates: All actual work to specialized components    │  │
-│  └─────────────────────────────────────────────────────────┘  │
-└────────────────────────────┬───────────────────────────────────┘
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │ Initializes: State, Managers, Components                │    │
+│  │ Coordinates: Execution flow, Component lifecycle        │    │
+│  │ Delegates: All actual work to specialized components    │    │
+│  └─────────────────────────────────────────────────────────┘    │
+└─────────────────────────────┬───────────────────────────────────┘
                              │
         ┌────────────────────┴────────────────────┐
         │                                         │

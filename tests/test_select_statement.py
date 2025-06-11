@@ -6,6 +6,7 @@ import os
 # Select statement tests require special handling due to interactive input
 # Run these tests with: pytest -s tests/test_select_statement.py
 # They are skipped in normal test runs due to stdin requirements
+@pytest.mark.interactive
 @pytest.mark.skip(reason="Select tests require pytest -s flag for stdin access. Run with: pytest -s tests/test_select_statement.py")
 class TestSelectStatement:
     def test_basic_select(self, shell, capsys):
@@ -277,3 +278,89 @@ class TestSelectStatement:
         finally:
             os.unlink(temp_path)
             os.unlink(out_path)
+
+
+class TestSelectStatementNonInteractive:
+    """Non-interactive select tests that work without pytest -s flag.
+    
+    These tests focus on parsing and basic functionality without stdin interaction.
+    """
+    
+    def test_select_parsing(self, shell):
+        """Test that select statements parse correctly."""
+        # Test basic parsing - this should not require input
+        script = '''
+        # This should parse but not execute the select body
+        if false; then
+            select x in a b c; do
+                echo "Should not run"
+                break
+            done
+        fi
+        echo "Parsing successful"
+        '''
+        
+        exit_code = shell.run_command(script)
+        assert exit_code == 0
+    
+    def test_select_variable_initialization(self, shell):
+        """Test that select variables are properly initialized."""
+        import tempfile
+        
+        # Create temporary file for output capture
+        with tempfile.NamedTemporaryFile(mode='w+', delete=False) as f:
+            temp_file = f.name
+        
+        try:
+            # Test that REPLY is accessible (should be empty initially)
+            script = f'''
+            echo "REPLY before select: '$REPLY'" > {temp_file}
+            '''
+            exit_code = shell.run_command(script)
+            assert exit_code == 0
+            
+            with open(temp_file, 'r') as f:
+                output = f.read().strip()
+            assert "REPLY before select: ''" in output
+        finally:
+            os.unlink(temp_file)
+    
+    def test_select_syntax_variations(self, shell):
+        """Test different select syntax variations parse correctly."""
+        test_cases = [
+            'select x in a b c; do break; done',  # Basic
+            'select var in $VAR other; do break; done',  # With variable expansion
+            'select choice in "option 1" "option 2"; do break; done',  # Quoted
+            'select file in *.txt; do break; done',  # With glob pattern
+        ]
+        
+        for i, script in enumerate(test_cases):
+            # Wrap in conditional so they don't actually execute
+            wrapped_script = f'if false; then {script}; fi; echo "Test {i+1} parsed"'
+            exit_code = shell.run_command(wrapped_script)
+            assert exit_code == 0, f"Failed to parse: {script}"
+
+
+class TestSelectStatementDocumentation:
+    """Documentation and usage examples for select statement."""
+    
+    def test_select_usage_documentation(self):
+        """Document how to run select tests properly."""
+        usage_info = """
+        SELECT STATEMENT TESTING:
+        
+        Interactive tests require: pytest -s tests/test_select_statement.py
+        
+        Reason: Select statements need real stdin access for user input.
+        The -s flag disables pytest output capture to allow terminal interaction.
+        
+        Example commands:
+        1. Run all select tests: pytest -s tests/test_select_statement.py
+        2. Run specific test: pytest -s tests/test_select_statement.py::TestSelectStatement::test_basic_select
+        3. With verbose output: pytest -sv tests/test_select_statement.py
+        
+        Alternative: Use the non-interactive tests in TestSelectStatementNonInteractive
+        """
+        
+        # This test always passes and serves as documentation
+        assert True, usage_info

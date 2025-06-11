@@ -49,7 +49,17 @@ class Parser(BaseParser):
         if self._is_function_def():
             return self.parse_function_def()
         elif self.match_any(TokenGroups.CONTROL_KEYWORDS):
-            return self._parse_control_structure()
+            # Check if control structure is part of a pipeline
+            control_struct = self._parse_control_structure_neutral()
+            
+            # Check if followed by pipe
+            if self.match(TokenType.PIPE):
+                # Parse as pipeline with control structure as first component
+                return self._parse_pipeline_with_initial_component(control_struct)
+            else:
+                # Set as statement context and return
+                control_struct.execution_context = ExecutionContext.STATEMENT
+                return control_struct
         else:
             # Parse commands until we hit a function or control structure
             cmd_list = self._parse_command_list_until_top_level()
@@ -77,6 +87,28 @@ class Parser(BaseParser):
             return self.parse_enhanced_test_statement()
         elif token_type == TokenType.DOUBLE_LPAREN:
             return self.parse_arithmetic_command()
+        else:
+            raise self._error(f"Unexpected control structure token: {token_type.name}")
+    
+    def _parse_control_structure_neutral(self) -> UnifiedControlStructure:
+        """Parse control structure without setting execution context."""
+        token_type = self.peek().type
+        
+        if token_type == TokenType.IF:
+            return self._parse_if_neutral()
+        elif token_type == TokenType.WHILE:
+            return self._parse_while_neutral()
+        elif token_type == TokenType.FOR:
+            return self._parse_for_neutral()
+        elif token_type == TokenType.CASE:
+            return self._parse_case_neutral()
+        elif token_type == TokenType.SELECT:
+            return self._parse_select_neutral()
+        elif token_type == TokenType.DOUBLE_LPAREN:
+            return self._parse_arithmetic_neutral()
+        elif token_type in (TokenType.BREAK, TokenType.CONTINUE, TokenType.DOUBLE_LBRACKET):
+            # These don't have unified types, fall back to regular parsing
+            return self._parse_control_structure()
         else:
             raise self._error(f"Unexpected control structure token: {token_type.name}")
     
@@ -249,6 +281,42 @@ class Parser(BaseParser):
         
         return pipeline
     
+    def _parse_pipeline_with_initial_component(self, initial_component: Command) -> Statement:
+        """Parse a pipeline starting with an already-parsed component."""
+        # Set the initial component to pipeline context
+        initial_component.execution_context = ExecutionContext.PIPELINE
+        
+        # Create pipeline and add initial component
+        pipeline = Pipeline()
+        pipeline.commands.append(initial_component)
+        
+        # Must have at least one pipe since we were called due to seeing a pipe
+        self.expect(TokenType.PIPE)
+        
+        # Parse remaining pipeline components
+        while True:
+            command = self.parse_pipeline_component()
+            pipeline.commands.append(command)
+            
+            if not self.match(TokenType.PIPE):
+                break
+            self.advance()
+        
+        # Wrap pipeline in AndOrList for consistency
+        and_or_list = AndOrList()
+        and_or_list.pipelines.append(pipeline)
+        
+        # Check for && or || continuation
+        while self.match(TokenType.AND_AND, TokenType.OR_OR):
+            operator = self.advance()
+            and_or_list.operators.append(operator.value)
+            
+            self.skip_newlines()
+            pipeline = self.parse_pipeline()
+            and_or_list.pipelines.append(pipeline)
+        
+        return and_or_list
+    
     def parse_pipeline_component(self) -> Command:
         """Parse a single component of a pipeline (simple or compound command)."""
         # Try parsing as control structure first
@@ -264,6 +332,10 @@ class Parser(BaseParser):
             return self.parse_select_command()
         elif self.match(TokenType.DOUBLE_LPAREN):
             return self.parse_arithmetic_compound_command()
+        elif self.match(TokenType.BREAK):
+            return self.parse_break_statement()
+        elif self.match(TokenType.CONTINUE):
+            return self.parse_continue_statement()
         else:
             # Fall back to simple command
             return self.parse_command()
@@ -615,6 +687,41 @@ class Parser(BaseParser):
             background=False
         )
     
+    def _parse_if_neutral(self) -> IfConditional:
+        """Parse if statement without setting execution context."""
+        self.expect(TokenType.IF)
+        self.skip_newlines()
+        
+        # Parse main condition and body
+        condition, then_part = self._parse_condition_then_block()
+        
+        # Parse elif clauses
+        elif_parts = []
+        while self.match(TokenType.ELIF):
+            self.advance()
+            elif_condition, elif_then = self._parse_condition_then_block()
+            elif_parts.append((elif_condition, elif_then))
+        
+        # Parse optional else
+        else_part = None
+        if self.match(TokenType.ELSE):
+            self.advance()
+            self.skip_newlines()
+            else_part = self.parse_command_list_until(TokenType.FI)
+        
+        self.expect(TokenType.FI)
+        redirects = self.parse_redirects()
+        
+        # Create with default execution_context, caller will update if needed
+        return IfConditional(
+            condition=condition,
+            then_part=then_part,
+            elif_parts=elif_parts,
+            else_part=else_part,
+            redirects=redirects,
+            background=False
+        )
+    
     def _parse_condition_then_block(self) -> Tuple[StatementList, StatementList]:
         """Parse a condition followed by THEN and a command list."""
         self.skip_newlines()
@@ -634,6 +741,18 @@ class Parser(BaseParser):
             body=body,
             redirects=redirects,
             execution_context=ExecutionContext.STATEMENT,
+            background=False
+        )
+    
+    def _parse_while_neutral(self) -> WhileLoop:
+        """Parse while loop without setting execution context."""
+        condition, body, redirects = self._parse_loop_structure(
+            TokenType.WHILE, TokenType.DO, TokenType.DONE
+        )
+        return WhileLoop(
+            condition=condition,
+            body=body,
+            redirects=redirects,
             background=False
         )
     
@@ -690,6 +809,48 @@ class Parser(BaseParser):
             body=body,
             redirects=redirects,
             execution_context=ExecutionContext.STATEMENT,
+            background=False
+        )
+    
+    def _parse_for_neutral(self) -> Union[ForLoop, CStyleForLoop]:
+        """Parse for loop without setting execution context."""
+        self.expect(TokenType.FOR)
+        self.skip_newlines()
+        
+        # Check if it's a C-style for loop
+        if self.peek().type == TokenType.DOUBLE_LPAREN:
+            self.advance()  # consume ((
+            return self._parse_c_style_for_neutral()
+        elif self.peek().type == TokenType.LPAREN:
+            saved_pos = self.current
+            self.advance()  # consume first (
+            
+            if self.peek().type == TokenType.LPAREN:
+                self.advance()  # consume second (
+                return self._parse_c_style_for_neutral()
+            else:
+                self.current = saved_pos
+        
+        # Traditional for loop
+        variable = self.expect(TokenType.WORD).value
+        self.skip_newlines()
+        self.expect(TokenType.IN)
+        self.skip_newlines()
+        
+        items = self._parse_for_iterable()
+        self.skip_separators()
+        self.expect(TokenType.DO)
+        self.skip_newlines()
+        
+        body = self.parse_command_list_until(TokenType.DONE)
+        self.expect(TokenType.DONE)
+        redirects = self.parse_redirects()
+        
+        return ForLoop(
+            variable=variable,
+            items=items,
+            body=body,
+            redirects=redirects,
             background=False
         )
     
@@ -757,6 +918,56 @@ class Parser(BaseParser):
             update_expr=update_expr,
             redirects=redirects,
             execution_context=ExecutionContext.STATEMENT,
+            background=False
+        )
+    
+    def _parse_c_style_for_neutral(self) -> CStyleForLoop:
+        """Parse C-style for loop without setting execution context."""
+        # At this point, we've already consumed 'for (('
+        
+        # Parse init expression
+        init_expr = self._parse_arithmetic_section(';')
+        if init_expr == "":
+            init_expr = None
+        if self.peek().type == TokenType.SEMICOLON:
+            self.advance()  # consume ;
+        elif self.peek().type == TokenType.DOUBLE_SEMICOLON:
+            # Handle ;; case
+            self.advance()  # consume ;;
+            # Insert a semicolon token for the next section
+            semicolon_token = Token(TokenType.SEMICOLON, ';', self.peek().position)
+            self.tokens.insert(self.current, semicolon_token)
+        
+        # Parse condition expression
+        condition_expr = self._parse_arithmetic_section(';')
+        if condition_expr == "":
+            condition_expr = None
+        if self.peek().type == TokenType.SEMICOLON:
+            self.advance()  # consume ;
+        
+        # Parse update expression
+        update_expr = self._parse_arithmetic_section_until_double_rparen()
+        
+        self.expect(TokenType.RPAREN)
+        self.expect(TokenType.RPAREN)
+        
+        self.skip_separators()
+        
+        if self.match(TokenType.DO):
+            self.advance()
+        
+        self.skip_newlines()
+        
+        body = self.parse_command_list_until(TokenType.DONE)
+        self.expect(TokenType.DONE)
+        redirects = self.parse_redirects()
+        
+        return CStyleForLoop(
+            body=body,
+            init_expr=init_expr,
+            condition_expr=condition_expr,
+            update_expr=update_expr,
+            redirects=redirects,
             background=False
         )
     
@@ -886,6 +1097,32 @@ class Parser(BaseParser):
             background=False
         )
     
+    def _parse_case_neutral(self) -> CaseConditional:
+        """Parse case statement without setting execution context."""
+        self.expect(TokenType.CASE)
+        self.skip_newlines()
+        
+        expr = self._parse_case_expression()
+        
+        self.skip_newlines()
+        self.expect(TokenType.IN)
+        self.skip_newlines()
+        
+        items = []
+        while not self.match(TokenType.ESAC):
+            items.append(self.parse_case_item())
+            self.skip_newlines()
+        
+        self.expect(TokenType.ESAC)
+        redirects = self.parse_redirects()
+        
+        return CaseConditional(
+            expr=expr,
+            items=items,
+            redirects=redirects,
+            background=False
+        )
+    
     def _parse_case_expression(self) -> str:
         """Parse the expression in a case statement."""
         if not self.match_any(TokenGroups.WORD_LIKE):
@@ -978,6 +1215,34 @@ class Parser(BaseParser):
             body=body,
             redirects=redirects,
             execution_context=ExecutionContext.STATEMENT,
+            background=False
+        )
+    
+    def _parse_select_neutral(self) -> SelectLoop:
+        """Parse select statement without setting execution context."""
+        self.expect(TokenType.SELECT)
+        self.skip_newlines()
+        
+        variable = self.expect(TokenType.WORD).value
+        self.expect(TokenType.IN)
+        self.skip_newlines()
+        
+        items = self._parse_for_iterable()
+        
+        self.skip_separators()
+        self.expect(TokenType.DO)
+        self.skip_newlines()
+        
+        body = self.parse_command_list_until(TokenType.DONE)
+        self.expect(TokenType.DONE)
+        
+        redirects = self.parse_redirects()
+        
+        return SelectLoop(
+            variable=variable,
+            items=items,
+            body=body,
+            redirects=redirects,
             background=False
         )
     
@@ -1215,6 +1480,23 @@ class Parser(BaseParser):
             background=False
         )
     
+    def _parse_arithmetic_neutral(self) -> ArithmeticEvaluation:
+        """Parse arithmetic command without setting execution context."""
+        self.expect(TokenType.DOUBLE_LPAREN)
+        
+        expr = self._parse_arithmetic_expression_until_double_rparen()
+        
+        self.expect(TokenType.RPAREN)
+        self.expect(TokenType.RPAREN)
+        
+        redirects = self.parse_redirects()
+        
+        return ArithmeticEvaluation(
+            expression=expr,
+            redirects=redirects,
+            background=False
+        )
+    
     def _parse_arithmetic_expression_until_double_rparen(self) -> str:
         """Parse arithmetic expression until )) is found."""
         expr = ""
@@ -1331,11 +1613,11 @@ class Parser(BaseParser):
     
     def _parse_standard_redirect(self, token: Token) -> Redirect:
         """Parse standard file redirection."""
-        if not self.match(TokenType.WORD, TokenType.STRING, 
-                          TokenType.PROCESS_SUB_IN, TokenType.PROCESS_SUB_OUT):
+        if not self.match_any(TokenGroups.WORD_LIKE):
             raise self._error("Expected file name after redirection")
         
-        target = self.advance().value
+        # Use composite argument parsing to handle quoted composites like file'name'.txt
+        target, _, _ = self.parse_composite_argument()
         
         # Extract fd if present
         redirect_str = token.value

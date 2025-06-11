@@ -102,20 +102,31 @@ class TestHereDoc:
         assert "Hello $VAR\n" in content
         os.unlink(output_file)
     
-    @pytest.mark.skip(reason="Pytest capture doesn't work well with external commands")
-    def test_heredoc_with_external_command(self, shell, capsys, monkeypatch):
+    def test_heredoc_with_external_command(self, shell, monkeypatch):
         """Test here document with external command"""
+        import tempfile
+        
         # Mock input
         input_lines = ["Line 1", "Line 2", "EOF"]
         input_iter = iter(input_lines)
         monkeypatch.setattr('builtins.input', lambda: next(input_iter))
         
-        # Use wc -l to count lines
-        shell.run_command("wc -l << EOF")
-        captured = capsys.readouterr()
-        assert "2" in captured.out
+        # Create temporary file for output capture
+        with tempfile.NamedTemporaryFile(mode='w+', delete=False) as f:
+            temp_file = f.name
+        
+        try:
+            # Use wc -l to count lines
+            result = shell.run_command(f"wc -l << EOF > {temp_file}")
+            assert result == 0
+            
+            with open(temp_file, 'r') as f:
+                output = f.read().strip()
+            assert "2" in output
+        finally:
+            os.unlink(temp_file)
     
-    @pytest.mark.skip(reason="Multiple redirections need special handling")
+    # @pytest.mark.skip(reason="Multiple redirections need special handling")
     def test_heredoc_with_output_redirect(self, shell, monkeypatch, tmp_path):
         """Test here document combined with output redirection"""
         # Create temp file
@@ -130,17 +141,28 @@ class TestHereDoc:
         
         assert output_file.read_text() == "Test content\n"
     
-    @pytest.mark.skip(reason="Pytest capture doesn't work well with pipelines")
-    def test_heredoc_in_pipeline(self, shell, capsys, monkeypatch):
+    def test_heredoc_in_pipeline(self, shell, monkeypatch):
         """Test here document in a pipeline"""
+        import tempfile
+        
         # Mock input
         input_lines = ["apple", "banana", "cherry", "EOF"]
         input_iter = iter(input_lines)
         monkeypatch.setattr('builtins.input', lambda: next(input_iter))
         
-        shell.run_command("cat << EOF | wc -l")
-        captured = capsys.readouterr()
-        assert "3" in captured.out
+        # Create temporary file for output capture
+        with tempfile.NamedTemporaryFile(mode='w+', delete=False) as f:
+            temp_file = f.name
+        
+        try:
+            result = shell.run_command(f"cat << EOF | wc -l > {temp_file}")
+            assert result == 0
+            
+            with open(temp_file, 'r') as f:
+                output = f.read().strip()
+            assert "3" in output
+        finally:
+            os.unlink(temp_file)
 
 
 class TestHereString:

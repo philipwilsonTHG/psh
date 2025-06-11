@@ -60,28 +60,29 @@ PSH has achieved significant feature completeness with **850 total tests (all pa
 
 ### Parser Limitations
 
-#### ~~Control Structures in Pipelines~~ - ✅ **IMPLEMENTED in v0.37.0**
-- ~~**Problem**: Control structures cannot be used in pipelines~~
-- ~~**Example**: `echo "data" | while read line; do echo $line; done` fails~~
-- ~~**Cause**: Parser expects Command objects in pipelines, not statements~~
-- **SOLVED**: Implemented unified command model enabling all control structures in pipelines
-- **All control structures now work as pipeline components**
-- **Examples that now work**:
-  - `echo "data" | while read line; do echo $line; done`
-  - `seq 1 5 | for i in $(cat); do echo $i; done`
-  - `echo "test" | if grep -q test; then echo "found"; fi`
+#### Composite Argument Quote Handling in Redirection ✅ **FIXED**
+- **Problem**: Parser loses quote information when creating composite arguments in redirection contexts
+- **Example**: `echo test > file'name'.txt` creates file named `file` not `filename.txt`
+- **Impact**: File redirection with quoted composite names fails
+- **Status**: ✅ **FIXED** - redirection now uses composite argument parsing
+- **Fix**: Modified `_parse_standard_redirect()` to use `parse_composite_argument()`
+- **Test**: `pytest tests/comparison/test_todo_documented_limitations.py -k redirection`
 
-#### Composite Argument Quote Handling
-- **Problem**: Parser loses quote information when creating composite arguments
-- **Example**: `file'*'.txt` may incorrectly expand wildcards
-- **Status**: Partially mitigated by disabling glob expansion for composites
+#### Backslash Escaping ⚠️ **REAL LIMITATION**
+- **Problem**: PSH doesn't handle backslash escaping like bash
+- **Example**: `echo \$variable` outputs empty string instead of `$variable`
+- **Impact**: Cannot escape special characters for literal output
+- **Status**: ❌ **Needs fixing** - different escaping behavior than bash
+- **Test**: `pytest tests/comparison/test_todo_documented_limitations.py -k backslash`
 
 ### Tokenizer Issues
 
-#### Quote Handling in Words
-- **Problem**: Quotes within words included in token value
-- **Example**: `a'b'c` tokenizes as `a'b'c` instead of `abc`
-- **Impact**: Incorrect output for concatenated quoted strings
+#### Quote Handling in Words ✅ **COMPENSATED**
+- **Problem**: Quotes within words tokenized as separate tokens
+- **Example**: `a'b'c` tokenizes as `WORD 'a'`, `STRING 'b'`, `WORD 'c'`
+- **Impact**: ✅ **None** - post-processing correctly concatenates to `abc`
+- **Status**: ✅ **Working** - tokenizer limitation compensated by later processing
+- **Evidence**: All quote concatenation tests pass in bash comparison framework
 
 ### Other Issues
 

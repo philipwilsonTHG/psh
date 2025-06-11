@@ -124,6 +124,10 @@ class StatementExecutor(ExecutorComponent):
                 elif isinstance(item, EnhancedTestStatement):
                     # Execute enhanced test statement
                     last_exit = self.shell.executor_manager.control_flow_executor.execute_enhanced_test(item)
+                elif isinstance(item, AndOrList):
+                    # Execute and/or list (pipelines with && ||)
+                    last_exit = self.execute_and_or_list(item)
+                    self.state.last_exit_code = last_exit
         except (LoopBreak, LoopContinue) as e:
             # Break/continue outside of loops is an error
             stmt_name = "break" if isinstance(e, LoopBreak) else "continue"

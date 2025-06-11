@@ -189,21 +189,30 @@ class TestGlobExpansion:
         finally:
             os.chdir(old_cwd)
     
-    @pytest.mark.skip(reason="Pytest capture doesn't work well with forked processes")
-    def test_glob_in_pipeline(self, shell, test_dir, capsys):
+    def test_glob_in_pipeline(self, shell, test_dir):
         """Test glob expansion in pipelines"""
+        import tempfile
+        
         old_cwd = os.getcwd()
         os.chdir(test_dir)
         
+        # Create temporary file for output capture
+        with tempfile.NamedTemporaryFile(mode='w+', delete=False) as f:
+            temp_file = f.name
+        
         try:
             # Glob expansion should work in pipelines
-            shell.run_command("ls *.txt | wc -l")
-            captured = capsys.readouterr()
+            result = shell.run_command(f"ls *.txt | wc -l > {temp_file}")
+            assert result == 0
+            
+            with open(temp_file, 'r') as f:
+                output = f.read().strip()
             # file1.txt, file2.txt, file[1].txt, file{2}.txt = 4 files
-            assert "4" in captured.out.strip()
+            assert output == "4"
             
         finally:
             os.chdir(old_cwd)
+            os.unlink(temp_file)
     
     def test_glob_sorting(self, shell, test_dir, capsys):
         """Test that glob results are sorted"""

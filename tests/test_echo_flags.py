@@ -119,29 +119,28 @@ class TestEchoFlags:
         captured = capsys.readouterr()
         assert captured.out == "test"
     
-    @pytest.mark.skip(reason="Octal handling needs investigation - expansion adds extra backslashes")
     def test_echo_e_flag_octal(self, shell, capsys):
         """Test -e flag with octal sequences."""
         # Octal with leading 0 (A = 0101 octal)
-        result = shell.run_command("echo -e '\\\\0101'")
+        result = shell.run_command("echo -e '\\0101'")
         assert result == 0
         captured = capsys.readouterr()
         assert captured.out == "A\n"
         
         # Three digit octal (newline = 012 octal)
-        result = shell.run_command("echo -e 'a\\\\012b'")
+        result = shell.run_command("echo -e 'a\\012b'")
         assert result == 0
         captured = capsys.readouterr()
         assert captured.out == "a\nb\n"
         
         # Another octal test (space = 040 octal)
-        result = shell.run_command("echo -e 'hello\\\\040world'")
+        result = shell.run_command("echo -e 'hello\\040world'")
         assert result == 0
         captured = capsys.readouterr()
         assert captured.out == "hello world\n"
         
         # Null byte test
-        result = shell.run_command("echo -e 'start\\\\0end'")
+        result = shell.run_command("echo -e 'start\\000end'")
         assert result == 0
         captured = capsys.readouterr()
         assert captured.out == "start\0end\n"
@@ -327,25 +326,35 @@ class TestEchoFlags:
         finally:
             os.unlink(temp_file)
     
-    @pytest.mark.skip(reason="Pipeline output capture not supported with capsys")
-    def test_echo_in_pipeline(self, shell, capsys):
+    def test_echo_in_pipeline(self, shell):
         """Test echo in pipelines."""
-        # Note: This test is skipped because external commands in pipelines
-        # write directly to stdout using os.write(), which bypasses capsys.
-        # The echo implementation works correctly in pipelines, but the test
-        # infrastructure cannot capture the output properly.
+        import tempfile
+        import os
         
-        # Basic pipeline with -e
-        result = shell.run_command("echo -e 'one\\ntwo\\nthree' | wc -l")
-        assert result == 0
-        # wc -l should output 3
+        # Create temporary file for output capture
+        with tempfile.NamedTemporaryFile(mode='w+', delete=False) as f:
+            temp_file = f.name
         
-        # Pipeline with -n (no final newline)
-        result = shell.run_command("echo -n hello | wc -c")
-        assert result == 0
-        # Should be 5 characters (no newline)
-        
-        # Multiple echoes in pipeline
-        result = shell.run_command("echo -e 'a\\nb' | grep b")
-        assert result == 0
-        # Should output 'b'
+        try:
+            # Basic pipeline with -e
+            result = shell.run_command(f"echo -e 'one\\ntwo\\nthree' | wc -l > {temp_file}")
+            assert result == 0
+            with open(temp_file, 'r') as f:
+                output = f.read().strip()
+            assert output == "3"
+            
+            # Pipeline with -n (no final newline)
+            result = shell.run_command(f"echo -n hello | wc -c > {temp_file}")
+            assert result == 0
+            with open(temp_file, 'r') as f:
+                output = f.read().strip()
+            assert output == "5"
+            
+            # Multiple echoes in pipeline
+            result = shell.run_command(f"echo -e 'a\\nb' | grep b > {temp_file}")
+            assert result == 0
+            with open(temp_file, 'r') as f:
+                output = f.read().strip()
+            assert output == "b"
+        finally:
+            os.unlink(temp_file)

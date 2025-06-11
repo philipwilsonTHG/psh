@@ -132,8 +132,9 @@ class EchoBuiltin(Builtin):
                     return match.group(0)
             except ValueError:
                 return match.group(0)
-        # Match \0nnn format (with explicit 0) or \nnn where n starts with 0-3
-        text = re.sub(r'\\(0[0-7]{0,2}|[0-3][0-7]{2})', replace_octal, text)
+        # Match \0nnn format (with explicit 0) - up to 3 octal digits after \0
+        # or \nnn where n starts with 0-3 (for values 0-255 in octal)
+        text = re.sub(r'\\(0[0-7]{1,3}|[0-3][0-7]{2})', replace_octal, text)
         
         # Finally restore protected backslashes
         text = text.replace('\x01BACKSLASH\x01', '\\')

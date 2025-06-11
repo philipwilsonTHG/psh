@@ -102,15 +102,19 @@ class FunctionDef(Statement):
 
 
 @dataclass
-class BreakStatement(Statement):
+class BreakStatement(Statement, CompoundCommand):
     """Break statement to exit loops."""
     level: int = 1  # Number of loops to break out of (default 1)
+    redirects: List[Redirect] = field(default_factory=list)  # Required for Command interface
+    background: bool = False  # Required for Command interface
 
 
 @dataclass
-class ContinueStatement(Statement):
+class ContinueStatement(Statement, CompoundCommand):
     """Continue statement to skip to next iteration."""
     level: int = 1  # Number of loops to continue to (default 1)
+    redirects: List[Redirect] = field(default_factory=list)  # Required for Command interface
+    background: bool = False  # Required for Command interface
 
 
 @dataclass

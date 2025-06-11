@@ -468,15 +468,26 @@ class TestBackwardCompatibility:
         captured = capsys.readouterr()
         assert captured.out == "Hello, World!\n"
     
-    @pytest.mark.skip(reason="Pipeline output capture conflicts with pytest")
-    def test_pipelines_still_work(self, capsys):
+    def test_pipelines_still_work(self):
         """Test that pipelines work as before."""
-        shell = Shell()
-        exit_code = shell.run_command('echo "test" | cat')
-        assert exit_code == 0
+        import tempfile
+        from psh.shell import Shell
         
-        captured = capsys.readouterr()
-        assert captured.out == "test\n"
+        shell = Shell()
+        
+        # Create temporary file for output capture
+        with tempfile.NamedTemporaryFile(mode='w+', delete=False) as f:
+            temp_file = f.name
+        
+        try:
+            exit_code = shell.run_command(f'echo "test" | cat > {temp_file}')
+            assert exit_code == 0
+            
+            with open(temp_file, 'r') as f:
+                output = f.read()
+            assert output == "test\n"
+        finally:
+            os.unlink(temp_file)
     
     def test_simple_if_still_works(self, capsys):
         """Test that simple if statements work as before."""
