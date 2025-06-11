@@ -7,11 +7,11 @@ __version__ = "0.38.3"
 # Version history
 VERSION_HISTORY = """
 0.38.3 (2025-01-11) - Backslash escaping fix
-  - Fixed critical backslash escaping limitation where \$variable was incorrectly expanded
+  - Fixed critical backslash escaping limitation where \\$variable was incorrectly expanded
   - Modified state machine lexer to use special markers for escaped dollar signs
   - Added escape marker detection in expansion manager to prevent variable expansion
   - Fixed double advancement bug in escape sequence handling
-  - Commands like 'echo \$HOME' now correctly output '$HOME' instead of expanding
+  - Commands like 'echo \\$HOME' now correctly output '$HOME' instead of expanding
   - Updated TODO.md to reflect backslash escaping as FIXED
   - All bash comparison tests now pass (56/56)
   - Enhanced bash compatibility for escaped special characters

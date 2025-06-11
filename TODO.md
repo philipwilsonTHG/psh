@@ -58,32 +58,21 @@ PSH has achieved significant feature completeness with **850 total tests (all pa
 - **Workaround**: Use iterative algorithms
 - **Documentation**: See `docs/recursion_depth_analysis.md`
 
-### Parser Limitations
+### Recently Resolved Issues
 
-#### Composite Argument Quote Handling in Redirection ✅ **FIXED**
-- **Problem**: Parser loses quote information when creating composite arguments in redirection contexts
-- **Example**: `echo test > file'name'.txt` creates file named `file` not `filename.txt`
-- **Impact**: File redirection with quoted composite names fails
-- **Status**: ✅ **FIXED** - redirection now uses composite argument parsing
-- **Fix**: Modified `_parse_standard_redirect()` to use `parse_composite_argument()`
-- **Test**: `pytest tests/comparison/test_todo_documented_limitations.py -k redirection`
+PSH has resolved all major parser and tokenizer limitations as of v0.38.3:
 
-#### Backslash Escaping ✅ **FIXED**
-- **Problem**: PSH didn't handle backslash escaping like bash
-- **Example**: `echo \$variable` now correctly outputs `$variable`
-- **Impact**: ✅ **Resolved** - can now escape special characters for literal output
-- **Status**: ✅ **FIXED** - tokenizer correctly handles backslash escaping in all contexts
-- **Fix**: Fixed double advancement bug in state machine lexer escape handling
-- **Test**: `pytest tests/comparison/test_todo_documented_limitations.py -k backslash`
+#### ✅ **Composite Argument Quote Handling in Redirection** (Fixed in v0.38.2)
+- Commands like `echo test > file'name'.txt` now correctly create `filename.txt`
+- Test: `pytest tests/comparison/test_todo_documented_limitations.py -k redirection`
 
-### Tokenizer Issues
+#### ✅ **Backslash Escaping** (Fixed in v0.38.3)  
+- Commands like `echo \$variable` now correctly output `$variable` instead of expanding
+- Test: `pytest tests/comparison/test_todo_documented_limitations.py -k backslash`
 
-#### Quote Handling in Words ✅ **COMPENSATED**
-- **Problem**: Quotes within words tokenized as separate tokens
-- **Example**: `a'b'c` tokenizes as `WORD 'a'`, `STRING 'b'`, `WORD 'c'`
-- **Impact**: ✅ **None** - post-processing correctly concatenates to `abc`
-- **Status**: ✅ **Working** - tokenizer limitation compensated by later processing
-- **Evidence**: All quote concatenation tests pass in bash comparison framework
+#### ✅ **Quote Handling in Words** (Working)
+- Quote concatenation like `a'b'c` works correctly despite internal tokenizer behavior
+- All bash comparison tests pass (56/56)
 
 ### Other Issues
 
