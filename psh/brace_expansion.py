@@ -183,6 +183,19 @@ class BraceExpander:
         prefix = text[:start]
         suffix = text[end:]
         
+        # Special handling for shell metacharacters in suffix
+        # If the suffix starts with certain metacharacters that should not be
+        # attached to each expansion, we need to handle them differently
+        attach_suffix = suffix
+        detached_suffix = ""
+        
+        # Check if suffix starts with a metacharacter that should be detached
+        # from the brace expansion (only for sequences, not lists)
+        if suffix and '..' in brace_content and suffix[0] in ';|&':
+            # For sequences followed by shell operators, detach them
+            attach_suffix = ""
+            detached_suffix = suffix
+        
         # Determine brace type and expand
         # Check if it's a list (has comma at top level) or pure sequence
         if self._has_top_level_comma(brace_content):
@@ -199,7 +212,12 @@ class BraceExpander:
             return [text]
         
         # Combine with prefix/suffix
-        return [prefix + item + suffix for item in expanded]
+        if detached_suffix:
+            # Join expanded items with spaces, then add the detached suffix
+            return [prefix + ' '.join(expanded) + detached_suffix]
+        else:
+            # Normal case - attach suffix to each item
+            return [prefix + item + attach_suffix for item in expanded]
     
     def _expand_list(self, content: str) -> List[str]:
         """Expand comma-separated list like a,b,c.

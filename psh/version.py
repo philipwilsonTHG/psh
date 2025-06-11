@@ -2,10 +2,18 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.38.0"
+__version__ = "0.38.1"
 
 # Version history
 VERSION_HISTORY = """
+0.38.1 (2025-01-10) - Bug fixes for brace expansion and read builtin
+  - Fixed brace expansion when sequences are followed by shell metacharacters
+  - Fixed read builtin file redirection by properly redirecting file descriptor 0
+  - Brace expansion like {1..10}; now correctly expands without including semicolon
+  - Read builtin now works with redirected files: read var < file
+  - Enhanced IOManager to handle both sys.stdin and file descriptor redirection
+  - All 850 tests passing with no regressions
+
 0.38.0 (2025-01-10) - Unified control structure types
   - Completed removal of deprecated Command/Statement dual types
   - All control structures now use unified types (WhileLoop, ForLoop, IfConditional, etc.)

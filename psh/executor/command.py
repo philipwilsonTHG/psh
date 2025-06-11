@@ -186,7 +186,7 @@ class CommandExecutor(ExecutorComponent):
         self.state.function_stack.append(func.name)
         
         # Apply redirections for the function call
-        stdin_backup, stdout_backup, stderr_backup = self.io_manager.setup_builtin_redirections(command)
+        stdin_backup, stdout_backup, stderr_backup, stdin_fd_backup = self.io_manager.setup_builtin_redirections(command)
         
         try:
             # Execute function body
@@ -196,7 +196,7 @@ class CommandExecutor(ExecutorComponent):
             return ret.exit_code
         finally:
             # Restore redirections
-            self.io_manager.restore_builtin_redirections(stdin_backup, stdout_backup, stderr_backup)
+            self.io_manager.restore_builtin_redirections(stdin_backup, stdout_backup, stderr_backup, stdin_fd_backup)
             # Pop variable scope (destroys local variables)
             self.state.scope_manager.pop_scope()
             # Restore environment
@@ -208,7 +208,7 @@ class CommandExecutor(ExecutorComponent):
         # Check new registry first
         builtin = self.builtin_registry.get(args[0])
         if builtin:
-            stdin_backup, stdout_backup, stderr_backup = self.io_manager.setup_builtin_redirections(command)
+            stdin_backup, stdout_backup, stderr_backup, stdin_fd_backup = self.io_manager.setup_builtin_redirections(command)
             try:
                 # Update sys streams for builtins that might use them
                 self.state.stdout = sys.stdout
@@ -219,18 +219,18 @@ class CommandExecutor(ExecutorComponent):
                 # Re-raise FunctionReturn to propagate it up
                 raise
             finally:
-                self.io_manager.restore_builtin_redirections(stdin_backup, stdout_backup, stderr_backup)
+                self.io_manager.restore_builtin_redirections(stdin_backup, stdout_backup, stderr_backup, stdin_fd_backup)
         
         # Fall back to old builtins
         if args[0] in self.shell.builtins:
-            stdin_backup, stdout_backup, stderr_backup = self.io_manager.setup_builtin_redirections(command)
+            stdin_backup, stdout_backup, stderr_backup, stdin_fd_backup = self.io_manager.setup_builtin_redirections(command)
             try:
                 return self.shell.builtins[args[0]](args)
             except FunctionReturn:
                 # Re-raise FunctionReturn to propagate it up
                 raise
             finally:
-                self.io_manager.restore_builtin_redirections(stdin_backup, stdout_backup, stderr_backup)
+                self.io_manager.restore_builtin_redirections(stdin_backup, stdout_backup, stderr_backup, stdin_fd_backup)
         
         # Not a builtin
         return -1

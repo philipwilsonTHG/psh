@@ -58,6 +58,7 @@ class IOManager:
         stdout_backup = None
         stderr_backup = None
         stdin_backup = None
+        stdin_fd_backup = None
         
         for redirect in command.redirects:
             # Expand tilde in target for file redirections
@@ -130,15 +131,37 @@ class IOManager:
             
             if redirect.type == '<':
                 stdin_backup = sys.stdin
+                # Also need to redirect the actual file descriptor for builtins that use os.read
+                stdin_fd_backup = os.dup(0)
+                fd = os.open(target, os.O_RDONLY)
+                os.dup2(fd, 0)
+                os.close(fd)
                 sys.stdin = open(target, 'r')
             elif redirect.type in ('<<', '<<-'):
                 stdin_backup = sys.stdin
+                # Also need to redirect the actual file descriptor
+                stdin_fd_backup = os.dup(0)
+                r, w = os.pipe()
+                # Write heredoc content to pipe
+                os.write(w, (redirect.heredoc_content or '').encode())
+                os.close(w)
+                # Redirect stdin to read end
+                os.dup2(r, 0)
+                os.close(r)
                 # Create a StringIO object from heredoc content
                 sys.stdin = io.StringIO(redirect.heredoc_content or '')
             elif redirect.type == '<<<':
                 stdin_backup = sys.stdin
+                # Also need to redirect the actual file descriptor
+                stdin_fd_backup = os.dup(0)
+                r, w = os.pipe()
                 # For here string, add a newline to the content
                 content = redirect.target + '\n'
+                os.write(w, content.encode())
+                os.close(w)
+                # Redirect stdin to read end
+                os.dup2(r, 0)
+                os.close(r)
                 sys.stdin = io.StringIO(content)
             elif redirect.type == '>' and redirect.fd == 2:
                 stderr_backup = sys.stderr
@@ -158,9 +181,9 @@ class IOManager:
                     stderr_backup = sys.stderr
                     sys.stderr = sys.stdout
         
-        return stdin_backup, stdout_backup, stderr_backup
+        return stdin_backup, stdout_backup, stderr_backup, stdin_fd_backup
     
-    def restore_builtin_redirections(self, stdin_backup, stdout_backup, stderr_backup):
+    def restore_builtin_redirections(self, stdin_backup, stdout_backup, stderr_backup, stdin_fd_backup=None):
         """Restore original stdin/stdout/stderr after built-in execution"""
         # Restore in reverse order
         if stderr_backup is not None:
@@ -177,6 +200,11 @@ class IOManager:
             if hasattr(sys.stdin, 'close') and sys.stdin != stdin_backup:
                 sys.stdin.close()
             sys.stdin = stdin_backup
+            
+        # Restore stdin file descriptor if it was saved
+        if stdin_fd_backup is not None:
+            os.dup2(stdin_fd_backup, 0)
+            os.close(stdin_fd_backup)
         
         # Clean up process substitution resources if any
         if hasattr(self.shell, '_builtin_proc_sub_fds'):
