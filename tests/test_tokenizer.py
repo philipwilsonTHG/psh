@@ -156,7 +156,7 @@ class TestTokenizer:
         # Escaped special characters
         tokens = tokenize(r"echo \$HOME")
         assert tokens[1].type == TokenType.WORD
-        assert tokens[1].value == "$HOME"  # Backslash is consumed in unquoted context
+        assert tokens[1].value == "\x00$HOME"  # Escaped dollar marked with NULL prefix
         
         # Escaped glob characters
         tokens = tokenize(r"echo \*.txt")

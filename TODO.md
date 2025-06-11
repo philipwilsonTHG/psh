@@ -68,11 +68,12 @@ PSH has achieved significant feature completeness with **850 total tests (all pa
 - **Fix**: Modified `_parse_standard_redirect()` to use `parse_composite_argument()`
 - **Test**: `pytest tests/comparison/test_todo_documented_limitations.py -k redirection`
 
-#### Backslash Escaping ⚠️ **REAL LIMITATION**
-- **Problem**: PSH doesn't handle backslash escaping like bash
-- **Example**: `echo \$variable` outputs empty string instead of `$variable`
-- **Impact**: Cannot escape special characters for literal output
-- **Status**: ❌ **Needs fixing** - different escaping behavior than bash
+#### Backslash Escaping ✅ **FIXED**
+- **Problem**: PSH didn't handle backslash escaping like bash
+- **Example**: `echo \$variable` now correctly outputs `$variable`
+- **Impact**: ✅ **Resolved** - can now escape special characters for literal output
+- **Status**: ✅ **FIXED** - tokenizer correctly handles backslash escaping in all contexts
+- **Fix**: Fixed double advancement bug in state machine lexer escape handling
 - **Test**: `pytest tests/comparison/test_todo_documented_limitations.py -k backslash`
 
 ### Tokenizer Issues

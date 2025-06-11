@@ -291,20 +291,29 @@ class StateMachineLexer:
         if quote_context == '"':
             # In double quotes
             if next_char in '"\\`':
+                self.advance()  # Skip the escaped character
                 return next_char
             elif next_char == '$':
                 # Special case: \$ preserves the backslash in double quotes
+                self.advance()  # Skip the escaped character
                 return '\\$'
             elif next_char in DOUBLE_QUOTE_ESCAPES:
+                self.advance()  # Skip the escaped character
                 return DOUBLE_QUOTE_ESCAPES[next_char]
             else:
                 # Other characters keep the backslash
+                self.advance()  # Skip the escaped character
                 return '\\' + next_char
         elif quote_context is None:
             # Outside quotes - backslash escapes everything
+            self.advance()  # Skip the escaped character
+            if next_char == '$':
+                # Use a special marker for escaped dollar to prevent variable expansion
+                return '\x00$'  # NULL character followed by $
             return next_char
         else:
             # Single quotes - no escaping
+            self.advance()  # Skip the escaped character
             return '\\' + next_char
     
     def emit_token(self, token_type: TokenType, value: str, start_pos: Optional[int] = None,
@@ -539,7 +548,7 @@ class StateMachineLexer:
             elif char == '\\' and self.peek_char():
                 escaped = self.handle_escape_sequence(quote_context)
                 current_value += escaped
-                self.advance()  # handle_escape_sequence already advanced past backslash
+                # Note: handle_escape_sequence already advanced past both backslash and escaped char
             
             else:
                 current_value += char
@@ -636,7 +645,7 @@ class StateMachineLexer:
             elif char == '\\' and self.peek_char():
                 escaped = self.handle_escape_sequence(quote_char)
                 current_value += escaped
-                self.advance()  # handle_escape_sequence already advanced
+                # Note: handle_escape_sequence already advanced past both backslash and escaped char
             
             # Backtick command substitution (only in double quotes)
             elif quote_char == '"' and char == '`':

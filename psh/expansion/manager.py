@@ -87,6 +87,9 @@ class ExpansionManager:
                 var_expr = '$' + arg if not arg.startswith('$') else arg
                 expanded = self.expand_variable(var_expr)
                 args.append(expanded)
+            elif '\x00$' in arg:
+                # Contains escaped dollar sign marker - replace with literal $
+                args.append(arg.replace('\x00$', '$'))
             elif arg_type != 'COMPOSITE' and arg.startswith('$') and not (arg.startswith('$(') or arg.startswith('`')):
                 # Variable expansion for unquoted variables (but not COMPOSITE args)
                 expanded = self.expand_variable(arg)

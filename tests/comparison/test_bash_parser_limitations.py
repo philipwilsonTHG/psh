@@ -131,12 +131,9 @@ class TestEscapingLimitations:
     """Test backslash escaping limitations."""
     
     def test_backslash_escaping_limitation(self):
-        """Test backslash escaping - REAL LIMITATION"""
-        # PSH doesn't handle backslash escaping correctly
-        bash_compare.expect_shells_differ(
-            "echo \\$no_expansion", 
-            reason="PSH doesn't handle backslash escaping like bash"
-        )
+        """Test backslash escaping - ✅ **FIXED**"""
+        # PSH now handles backslash escaping correctly like bash
+        bash_compare.assert_shells_match("echo \\$no_expansion")
         
         # Note: glob escaping actually works the same in both
         # bash_compare.assert_shells_match("echo \\*no_glob")
@@ -185,17 +182,20 @@ class TestLimitationDemonstration:
     """Demonstrate the limitations with clear examples."""
     
     def test_show_escaping_difference(self):
-        """Show the actual difference in backslash escaping."""
-        psh_result, bash_result = bash_compare.expect_shells_differ(
-            "echo \\$no_expansion",
-            reason="Backslash escaping difference"
-        )
+        """Show that backslash escaping now works correctly."""
+        # Both shells now produce the same output
+        bash_compare.assert_shells_match("echo \\$no_expansion")
         
-        # Log the actual differences for debugging
-        print(f"\nBackslash escaping test:")
+        # Log the result for verification
+        import subprocess
+        psh_result = subprocess.run(['python3', '-m', 'psh', '-c', "echo \\$no_expansion"], 
+                                  capture_output=True, text=True)
+        bash_result = subprocess.run(['/opt/homebrew/bin/bash', '-c', "echo \\$no_expansion"], 
+                                   capture_output=True, text=True)
+        print(f"\nBackslash escaping test (FIXED):")
         print(f"PSH output:  '{psh_result.stdout.strip()}'")
         print(f"Bash output: '{bash_result.stdout.strip()}'")
-        print(f"PSH doesn't handle backslash escaping correctly")
+        print(f"✅ Both shells now handle backslash escaping identically")
     
     def test_show_composite_argument_difference(self):
         """Show the composite argument handling difference."""

@@ -71,14 +71,13 @@ class TestOtherLimitations:
     
     def test_backslash_escaping_limitation(self):
         """
-        Not explicitly in TODO.md but discovered during testing.
-        PSH doesn't handle backslash escaping the same as bash.
+        Backslash escaping for special characters like $ and *.
+        ✅ **FIXED**: PSH now correctly handles backslash escaping like bash.
         """
-        # This should FAIL until backslash escaping is fixed
-        bash_compare.expect_shells_differ(
-            "echo \\$variable",
-            reason="PSH backslash escaping differs from bash - undocumented limitation"
-        )
+        # This now works correctly - both shells should match
+        bash_compare.assert_shells_match("echo \\$variable")
+        bash_compare.assert_shells_match("echo \\$HOME")
+        bash_compare.assert_shells_match('echo "\\$variable"')
 
 
 class TestLimitationProgression:
