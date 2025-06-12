@@ -15,3 +15,9 @@ class LoopContinue(Exception):
 class UnboundVariableError(Exception):
     """Raised when accessing unset variable with nounset option."""
     pass
+
+class ReadonlyVariableError(Exception):
+    """Raised when attempting to modify a readonly variable."""
+    def __init__(self, name: str):
+        self.name = name
+        super().__init__(f"readonly variable: {name}")

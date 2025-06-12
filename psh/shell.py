@@ -45,8 +45,9 @@ class Shell:
         if parent_shell:
             self.env = parent_shell.env.copy()
             # Copy global variables from parent's scope manager
-            for name, value in parent_shell.state.scope_manager.global_scope.variables.items():
-                self.state.scope_manager.global_scope.variables[name] = value
+            for name, var in parent_shell.state.scope_manager.global_scope.variables.items():
+                # Copy the entire Variable object to preserve attributes
+                self.state.scope_manager.global_scope.variables[name] = var.copy()
             self.function_manager = parent_shell.function_manager.copy()
             # Note: We don't copy aliases or jobs - those are shell-specific
         

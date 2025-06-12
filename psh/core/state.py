@@ -2,7 +2,8 @@
 import os
 import sys
 from typing import List, Dict, Optional, Any
-from .scope import ScopeManager
+from .scope_enhanced import EnhancedScopeManager
+from .variables import VarAttributes
 
 class ShellState:
     """Container for shell state that can be shared across components."""
@@ -12,8 +13,8 @@ class ShellState:
         # Environment and variables
         self.env = os.environ.copy()
         
-        # Initialize scope manager for variable scoping
-        self.scope_manager = ScopeManager()
+        # Initialize enhanced scope manager for variable scoping with attributes
+        self.scope_manager = EnhancedScopeManager()
         
         # For backward compatibility, keep self.variables as a property
         # that delegates to scope_manager
@@ -21,6 +22,11 @@ class ShellState:
         # Default prompt variables (set in global scope)
         self.scope_manager.set_variable('PS1', 'psh$ ')
         self.scope_manager.set_variable('PS2', '> ')
+        
+        # Import environment variables into scope manager with EXPORT attribute
+        # This ensures they're properly tracked as exported variables
+        for name, value in self.env.items():
+            self.scope_manager.set_variable(name, value, attributes=VarAttributes.EXPORT, local=False)
         
         # Positional parameters and script info
         self.positional_params = args if args else []
@@ -134,9 +140,12 @@ class ShellState:
     
     def export_variable(self, name: str, value: str):
         """Export a variable to the environment."""
-        # Always set in global scope when exporting
-        self.scope_manager.global_scope.variables[name] = value
+        # Set variable with EXPORT attribute in global scope
+        self.scope_manager.set_variable(name, value, attributes=VarAttributes.EXPORT, local=False)
+        # Also update environment
         self.env[name] = value
+        # Sync all exports to environment
+        self.scope_manager.sync_exports_to_environment(self.env)
     
     def get_positional_param(self, index: int) -> str:
         """Get positional parameter by index (1-based)."""

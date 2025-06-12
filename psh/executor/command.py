@@ -237,6 +237,9 @@ class CommandExecutor(ExecutorComponent):
     
     def _execute_external(self, args: List[str], command: Command) -> int:
         """Execute an external command with proper redirection and process handling."""
+        # Sync exported variables to environment before forking
+        self.state.scope_manager.sync_exports_to_environment(self.state.env)
+        
         # Save current terminal foreground process group
         try:
             original_pgid = os.tcgetpgrp(0)

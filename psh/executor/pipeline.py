@@ -71,6 +71,9 @@ class PipelineExecutor(ExecutorComponent):
         except:
             original_pgid = None
         
+        # Sync exported variables to environment before forking
+        self.state.scope_manager.sync_exports_to_environment(self.state.env)
+        
         # Create pipes for inter-process communication
         for i in range(num_commands - 1):
             pipe_read, pipe_write = os.pipe()

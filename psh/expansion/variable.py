@@ -54,8 +54,8 @@ class VariableExpander:
                         index = int(var_name) - 1
                         value = self.state.positional_params[index] if 0 <= index < len(self.state.positional_params) else ''
                     else:
-                        # Regular variable
-                        value = self.state.variables.get(var_name, self.state.env.get(var_name, ''))
+                        # Regular variable - use get_variable which checks scope manager
+                        value = self.state.get_variable(var_name, '')
                     
                     # Apply the operation
                     if operator == '#' and not operand:
@@ -154,7 +154,7 @@ class VariableExpander:
             # Handle ${var:-default} syntax
             if ':-' in var_content:
                 var_name, default = var_content.split(':-', 1)
-                value = self.state.variables.get(var_name, self.state.env.get(var_name, ''))
+                value = self.state.get_variable(var_name, '')
                 return value if value else default
             else:
                 var_name = var_content
@@ -196,7 +196,7 @@ class VariableExpander:
             return ''
         
         # Regular variables - check shell variables first, then environment
-        result = self.state.variables.get(var_name, self.state.env.get(var_name, ''))
+        result = self.state.get_variable(var_name, '')
         
         # Check nounset option
         if self.state.options.get('nounset', False):

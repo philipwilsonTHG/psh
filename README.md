@@ -2,7 +2,7 @@
 
 An educational Unix shell implementation in Python, designed to teach shell internals and compiler/interpreter concepts through a clean, readable codebase.  **All source code and documentation (with the exception of this sentence) has been written by Claude Code using Sonnet 4 and Opus 4 models.**
 
-**Current Version**: 0.39.1 (2025-06-12)
+**Current Version**: 0.40.0 (2025-12-06)
 
 ## Overview
 
@@ -12,6 +12,13 @@ The shell features a modern component-based architecture where each subsystem (e
 
 ### Recent Major Features
 
+- **v0.40.0**: Enhanced declare/typeset with variable attributes
+  - Implemented complete variable attribute system with persistent storage
+  - Added support for integer (-i), lowercase (-l), uppercase (-u), readonly (-r), export (-x) attributes
+  - Enhanced declare -p to show variables with all their attributes
+  - Array declaration syntax (-a/-A) creates proper array objects (syntax support pending)
+  - Attribute removal with + prefix (e.g., +x to remove export)
+  - 27 of 32 enhanced tests passing (84% success rate)
 - **v0.39.1**: Typeset builtin for ksh compatibility
   - Added `typeset` as an alias for `declare` 
   - Enhanced `declare`/`typeset` with `-F` flag to show function names only
@@ -123,6 +130,8 @@ The shell features a modern component-based architecture where each subsystem (e
   - Advanced parameter expansion with string manipulation (v0.29.2)
   - `return` builtin
   - `declare -f` to list functions (with -F for names only)
+  - `declare` with full attribute support: -i (integer), -l (lowercase), -u (uppercase), -r (readonly), -x (export)
+  - `declare -p` to print variables with attributes
   - `typeset` as ksh-compatible alias for `declare`
   - `unset -f` to remove functions
   
@@ -167,7 +176,7 @@ The shell features a modern component-based architecture where each subsystem (e
 ### Built-in Commands
 
 - **Core**: `exit`, `cd`, `pwd`, `echo` (with -n, -e, -E flags), `true`, `false`, `:`
-- **Variables**: `export`, `unset`, `set`, `declare`, `typeset`, `env`, `local`
+- **Variables**: `export`, `unset`, `set`, `declare` (with -i, -l, -u, -r, -x, -a, -A, -p), `typeset`, `env`, `local`
 - **Job Control**: `jobs`, `fg`, `bg`
 - **Functions**: `return`, `source`, `.`
 - **Aliases**: `alias`, `unalias`
@@ -529,9 +538,9 @@ See [TODO.md](TODO.md) for a complete list of planned features.
 
 ## Implementation Status
 
-PSH has achieved significant feature completeness with **900+ passing tests**:
+PSH has achieved significant feature completeness with **929 passing tests**:
 
-### ✅ Fully Implemented (v0.39.1)
+### ✅ Fully Implemented (v0.40.0)
 - All core shell features (execution, I/O, pipelines, variables)
 - Complete expansion system (variable, parameter, command, arithmetic, brace, process)
 - All control structures (if/elif/else, while, for, C-style for, case, break/continue)
@@ -552,10 +561,12 @@ PSH has achieved significant feature completeness with **900+ passing tests**:
 - Unified AST types for all control structures
 - Line continuation support with `\<newline>` sequences
 - Typeset builtin for ksh compatibility
+- Enhanced declare/typeset with variable attributes (-i, -l, -u, -r, -x, -p)
+- Variable attribute system with persistent storage
 
 ### 🚧 Planned Features
-- Array variables and associative arrays (`declare -a`, `declare -A`)
-- Enhanced declare/typeset options (`-r`, `-x`, `-i`, `-l`, `-u`, `-p`)
+- Array variable syntax and expansions (parser updates needed for `${arr[0]}`, `${arr[@]}`)
+  - Note: Array storage infrastructure is implemented, pending parser support
 - Trap command for signal handling
 - Extended globbing patterns (`shopt -s extglob`)
 - Printf builtin enhancements

@@ -456,6 +456,15 @@ Implemented:
   - Cross-platform support for \n and \r\n line endings
   - Fixed composite argument quote handling as a bonus
 
+- Enhanced declare/typeset - ✅ **Implemented in v0.40.0**
+  - Complete variable attribute system with persistent storage
+  - Integer (-i), lowercase (-l), uppercase (-u) attributes with transformations
+  - Readonly (-r) and export (-x) attributes with proper enforcement
+  - Array infrastructure with IndexedArray and AssociativeArray classes
+  - Enhanced declare -p showing all variable attributes
+  - Attribute removal with + prefix syntax
+  - 84% test success rate (27/32 tests passing)
+
 - Typeset builtin - ✅ **Implemented in v0.39.1**
   - Added typeset as ksh-compatible alias for declare
   - Enhanced declare/typeset with -F flag for function names only
@@ -463,8 +472,9 @@ Implemented:
   - Full test coverage with 12 comprehensive tests
 
 Not implemented:
-- Array variables (planned - see docs/DECLARE_ENHANCEMENT_PLAN.md)
-- Enhanced declare options (-r, -x, -i, -l, -u, -p)
+- Array variable syntax in parser (storage infrastructure complete)
+  - Array element access: `${arr[0]}`, `${arr[key]}`
+  - Array expansions: `${arr[@]}`, `${#arr[@]}`, etc.
 - Trap command for signal handling
 - Extended globbing patterns
 - Deep recursion in shell functions (architectural limitation - see docs/recursion_depth_analysis.md)

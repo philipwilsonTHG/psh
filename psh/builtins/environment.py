@@ -5,6 +5,7 @@ import sys
 from typing import List, TYPE_CHECKING
 from .base import Builtin
 from .registry import builtin
+from ..core.exceptions import ReadonlyVariableError
 
 if TYPE_CHECKING:
     from ..shell import Shell
@@ -22,6 +23,8 @@ class EnvBuiltin(Builtin):
         """Display environment variables or run command with modified environment."""
         if len(args) == 1:
             # No arguments, print all environment variables
+            # First sync exports from scope manager to environment
+            shell.state.scope_manager.sync_exports_to_environment(shell.env)
             for key, value in sorted(shell.env.items()):
                 print(f"{key}={value}", 
                       file=shell.stdout if hasattr(shell, 'stdout') else sys.stdout)
@@ -260,11 +263,16 @@ class UnsetBuiltin(Builtin):
             return exit_code
         else:
             # Remove variables
+            exit_code = 0
             for var in args[1:]:
-                # Remove from both shell variables and environment
-                shell.state.scope_manager.unset_variable(var)
-                shell.env.pop(var, None)
-            return 0
+                try:
+                    # Remove from both shell variables and environment
+                    shell.state.scope_manager.unset_variable(var)
+                    shell.env.pop(var, None)
+                except ReadonlyVariableError:
+                    self.error(f"{var}: readonly variable", shell)
+                    exit_code = 1
+            return exit_code
     
     @property
     def help(self) -> str:
