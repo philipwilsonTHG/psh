@@ -25,7 +25,12 @@ class EnhancedScopeManager:
         self.global_scope = VariableScope(name='global')
         self.scope_stack: List[VariableScope] = [self.global_scope]
         self._debug = False
+        self._shell = None  # Reference to shell for arithmetic evaluation
         
+    def set_shell(self, shell):
+        """Set reference to shell instance for arithmetic evaluation."""
+        self._shell = shell
+    
     def enable_debug(self, enabled: bool = True):
         """Enable or disable debug output for scope operations."""
         self._debug = enabled
@@ -224,14 +229,27 @@ class EnhancedScopeManager:
         except ValueError:
             pass
         
-        # Use basic arithmetic evaluation
+        # If not a simple integer, use the shell's arithmetic evaluator
+        # This requires access to the shell instance
+        if hasattr(self, '_shell') and self._shell:
+            from ..arithmetic import evaluate_arithmetic
+            try:
+                # Evaluate the expression using the helper function
+                result = evaluate_arithmetic(expr, self._shell)
+                return result
+            except Exception:
+                # If evaluation fails, return 0
+                return 0
+        
+        # Fallback for simple expressions without shell context
+        # Only allow safe arithmetic operations
         try:
+            # Replace variable names with their values
+            # This is a limited fallback when shell context isn't available
             if re.match(r'^[0-9+\-*/() ]+$', expr):
                 result = int(eval(expr))
                 return result
-            else:
-                pass
-        except Exception as e:
+        except Exception:
             pass
         
         return 0

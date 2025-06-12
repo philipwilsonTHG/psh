@@ -164,6 +164,15 @@ class HistoryExpander:
                             print(f"psh: !{search_prefix}: event not found", file=sys.stderr)
                             return None
                         continue
+                    
+                    # If ! is not followed by any recognized pattern, treat it as a regular character
+                    # This handles cases like [[ ! ... ]] where ! is followed by space
+                    result.append(char)
+                    i += 1
+                    continue
+                
+                # If we broke from the while loop (we're inside ${...}), skip regular char processing
+                continue
             
             # Regular character
             result.append(char)

@@ -1665,9 +1665,9 @@ class Parser(BaseParser):
         saved_pos = self.current
         word_token = self.peek()
         
-        # Check for array initialization: name=(
-        if '=' in word_token.value and word_token.value.endswith('='):
-            # Word contains equals at the end (e.g., "arr=")
+        # Check for array initialization: name=( or name+=(
+        if ('=' in word_token.value or '+=' in word_token.value) and (word_token.value.endswith('=') or word_token.value.endswith('+=')):
+            # Word contains equals at the end (e.g., "arr=" or "arr+=")
             self.advance()
             if self.match(TokenType.LPAREN):
                 self.current = saved_pos
@@ -1691,14 +1691,18 @@ class Parser(BaseParser):
             name = name_token.value
             return self._parse_array_element_assignment(name)
         
-        # Otherwise it's array initialization: name=(elements)
-        # The name token should end with '='
-        if name_token.value.endswith('='):
+        # Otherwise it's array initialization: name=(elements) or name+=(elements)
+        # The name token should end with '=' or '+='
+        if name_token.value.endswith('+='):
+            name = name_token.value[:-2]  # Remove the trailing '+='
+            is_append = True
+        elif name_token.value.endswith('='):
             name = name_token.value[:-1]  # Remove the trailing '='
+            is_append = False
         else:
-            raise self._error("Expected '=' in array initialization")
+            raise self._error("Expected '=' or '+=' in array initialization")
         
-        return self._parse_array_initialization(name)
+        return self._parse_array_initialization(name, is_append)
     
     def _parse_array_element_assignment(self, name: str) -> ArrayElementAssignment:
         """Parse array element assignment: name[index]=value"""
@@ -1732,13 +1736,21 @@ class Parser(BaseParser):
             raise self._error("Expected '=' after array index")
         
         equals_token = self.peek()
-        if not equals_token.value.startswith('='):
-            raise self._error("Expected '=' after array index")
+        if not (equals_token.value.startswith('=') or equals_token.value.startswith('+=')):
+            raise self._error("Expected '=' or '+=' after array index")
         
         self.advance()  # consume the equals token
         
-        # If the equals token has a value after '=', use it
-        if len(equals_token.value) > 1:
+        # Check if it's an append operation
+        is_append = equals_token.value.startswith('+=')
+        
+        # If the equals token has a value after '=' or '+=', use it
+        if is_append and len(equals_token.value) > 2:
+            # Value is part of the equals token (e.g., "+=value")
+            value = equals_token.value[2:]
+            value_type = 'WORD'
+            quote_type = None
+        elif not is_append and len(equals_token.value) > 1:
             # Value is part of the equals token (e.g., "=value")
             value = equals_token.value[1:]
             value_type = 'WORD'
@@ -1754,10 +1766,11 @@ class Parser(BaseParser):
             index=index,
             value=value,
             value_type=value_type,
-            value_quote_type=quote_type
+            value_quote_type=quote_type,
+            is_append=is_append
         )
     
-    def _parse_array_initialization(self, name: str) -> ArrayInitialization:
+    def _parse_array_initialization(self, name: str, is_append: bool = False) -> ArrayInitialization:
         """Parse array initialization: name=(elements)"""
         self.expect(TokenType.LPAREN)
         
@@ -1781,7 +1794,8 @@ class Parser(BaseParser):
             name=name,
             elements=elements,
             element_types=element_types,
-            element_quote_types=element_quote_types
+            element_quote_types=element_quote_types,
+            is_append=is_append
         )
 
 

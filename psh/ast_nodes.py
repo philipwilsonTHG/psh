@@ -45,21 +45,23 @@ class ArrayAssignment(ASTNode):
 
 @dataclass
 class ArrayInitialization(ArrayAssignment):
-    """Array initialization: arr=(one two three)"""
+    """Array initialization: arr=(one two three) or arr+=(four five)"""
     name: str
     elements: List[str]  # The elements inside parentheses
     element_types: List[str] = field(default_factory=list)  # Track element types (WORD, STRING, etc.)
     element_quote_types: List[Optional[str]] = field(default_factory=list)  # Track quote types
+    is_append: bool = False  # True for += initialization
 
 
 @dataclass
 class ArrayElementAssignment(ArrayAssignment):
-    """Array element assignment: arr[0]=value"""
+    """Array element assignment: arr[0]=value or arr[0]+=value"""
     name: str
     index: str  # The index expression
     value: str  # The value to assign
     value_type: str = 'WORD'  # Type of the value
     value_quote_type: Optional[str] = None  # Quote type if any
+    is_append: bool = False  # True for += assignment
 
 
 class Command(ASTNode):

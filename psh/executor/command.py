@@ -38,7 +38,7 @@ class CommandExecutor(ExecutorComponent):
         in_command = False
         
         for arg in args:
-            if not in_command and '=' in arg and not arg.startswith('='):
+            if not in_command and ('=' in arg or '+=' in arg) and not arg.startswith('='):
                 # This is a variable assignment
                 assignments.append(arg)
             else:
@@ -61,12 +61,19 @@ class CommandExecutor(ExecutorComponent):
     
     def _is_variable_assignment(self, args: List[str]) -> bool:
         """Check if command is a variable assignment."""
-        if not args or '=' not in args[0] or args[0].startswith('='):
+        if not args:
+            return False
+        
+        # Check if first arg has = or += (but not starting with =)
+        first_arg = args[0]
+        if first_arg.startswith('='):
+            return False
+        if '=' not in first_arg and '+=' not in first_arg:
             return False
         
         # Check if all leading arguments are assignments
         for arg in args:
-            if '=' not in arg:
+            if '=' not in arg and '+=' not in arg:
                 return False
         return True
     
@@ -75,7 +82,14 @@ class CommandExecutor(ExecutorComponent):
         import re
         
         for assignment in assignments:
-            var_name, var_value = assignment.split('=', 1)
+            # Handle += operator
+            if '+=' in assignment:
+                var_name, var_value = assignment.split('+=', 1)
+                # Get current value for append
+                current_value = self.state.get_variable(var_name, '')
+                var_value = current_value + var_value
+            else:
+                var_name, var_value = assignment.split('=', 1)
             
             # Expand variables in the value first
             # Special case: Don't expand if this looks like a prompt string with escape sequences
@@ -127,21 +141,35 @@ class CommandExecutor(ExecutorComponent):
         
         for assignment in array_assignments:
             if isinstance(assignment, ArrayInitialization):
-                # Create a new indexed array
-                array = IndexedArray()
-                
-                # Populate the array with elements
-                for i, element in enumerate(assignment.elements):
-                    # Expand variables in the element value
-                    expanded_value = self.expansion_manager.expand_string_variables(element)
-                    array.set(i, expanded_value)
-                
-                # Create a Variable with the array attribute
-                var = Variable(
-                    name=assignment.name,
-                    value=array,
-                    attributes=VarAttributes.ARRAY
-                )
+                if assignment.is_append:
+                    # Append to existing array
+                    var = self.state.scope_manager.get_variable_object(assignment.name)
+                    if var is None or not isinstance(var.value, IndexedArray):
+                        # Create new array if it doesn't exist
+                        array = IndexedArray()
+                    else:
+                        array = var.value
+                    
+                    # Find the next available index for appending
+                    if array._elements:
+                        next_index = max(array._elements.keys()) + 1
+                    else:
+                        next_index = 0
+                    
+                    # Populate the array with new elements
+                    for i, element in enumerate(assignment.elements):
+                        # Expand variables in the element value
+                        expanded_value = self.expansion_manager.expand_string_variables(element)
+                        array.set(next_index + i, expanded_value)
+                else:
+                    # Create a new indexed array
+                    array = IndexedArray()
+                    
+                    # Populate the array with elements
+                    for i, element in enumerate(assignment.elements):
+                        # Expand variables in the element value
+                        expanded_value = self.expansion_manager.expand_string_variables(element)
+                        array.set(i, expanded_value)
                 
                 # Store in the shell state using enhanced scope manager
                 self.state.scope_manager.set_variable(assignment.name, array, attributes=VarAttributes.ARRAY)
@@ -198,6 +226,14 @@ class CommandExecutor(ExecutorComponent):
                 # Expand variables in the value
                 expanded_value = self.expansion_manager.expand_string_variables(assignment.value)
                 
+                # Handle append operation for array element
+                if assignment.is_append:
+                    # Get current value of the element
+                    current_value = array.get(index)
+                    if current_value is None:
+                        current_value = ''
+                    expanded_value = current_value + expanded_value
+                
                 # Set the array element
                 try:
                     array.set(index, expanded_value)
@@ -215,7 +251,10 @@ class CommandExecutor(ExecutorComponent):
         # Save current values of variables that will be assigned
         saved_vars = {}
         for assignment in assignments:
-            var_name = assignment.split('=', 1)[0]
+            if '+=' in assignment:
+                var_name = assignment.split('+=', 1)[0]
+            else:
+                var_name = assignment.split('=', 1)[0]
             current_value = self.state.get_variable(var_name, None)
             if current_value is not None:
                 saved_vars[var_name] = current_value
@@ -225,7 +264,14 @@ class CommandExecutor(ExecutorComponent):
         # Apply temporary assignments
         temp_env_vars = {}
         for assignment in assignments:
-            var_name, var_value = assignment.split('=', 1)
+            # Handle += operator
+            if '+=' in assignment:
+                var_name, var_value = assignment.split('+=', 1)
+                # Get current value for append
+                current_value = self.state.get_variable(var_name, '')
+                var_value = current_value + var_value
+            else:
+                var_name, var_value = assignment.split('=', 1)
             # Expand variables in the value
             if '$' in var_value:
                 var_value = self.expansion_manager.expand_string_variables(var_value)

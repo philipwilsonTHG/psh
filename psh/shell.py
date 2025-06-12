@@ -27,6 +27,9 @@ class Shell:
         self.state = ShellState(args, script_name, debug_ast, 
                               debug_tokens, debug_scopes, norc, rcfile)
         
+        # Set shell reference in scope manager for arithmetic evaluation
+        self.state.scope_manager.set_shell(self)
+        
         # Create backward compatibility properties
         self._setup_compatibility_properties()
         
