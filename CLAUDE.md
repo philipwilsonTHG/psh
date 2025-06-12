@@ -8,38 +8,38 @@ Python Shell (psh) is an educational Unix shell implementation designed for teac
 
 ## Current Development Focus
 
-**Latest**: Bug Fixes - v0.38.1
+**Latest**: Typeset Builtin - v0.39.1
+- ✓ Added typeset builtin as ksh-compatible alias for declare
+- ✓ Enhanced declare/typeset with -F flag to show function names only
+- ✓ Created ShellFormatter utility for proper function definition display
+- ✓ Full compatibility with ksh scripts using typeset
+- ✓ All 900+ tests passing with comprehensive coverage
+
+**Completed**: Line Continuation Support - v0.39.0
+- ✓ Implemented POSIX-compliant line continuation (\<newline> sequences)
+- ✓ Works in all input modes: scripts, interactive, -c commands
+- ✓ Quote-aware processing preserves continuations inside quotes
+- ✓ Fixed composite argument quote handling
+
+**Completed**: Bug Fixes - v0.38.1
 - ✓ Fixed brace expansion when sequences are followed by shell metacharacters
 - ✓ Fixed read builtin file redirection by properly redirecting file descriptor 0
-- ✓ Brace expansion like `{1..10};` now correctly expands without including semicolon
-- ✓ Read builtin now works with redirected files: `read var < file`
-- ✓ All 850 tests passing with no regressions
 
-**Completed**: Unified Types - v0.38.0
-- ✓ Completed removal of deprecated Command/Statement dual types
-- ✓ All control structures now use unified types (WhileLoop, ForLoop, etc.)
-- ✓ Simplified AST architecture with single type system
-
-**Completed**: Control Structures in Pipelines - v0.37.0
-- ✓ Unified command model enabling control structures as pipeline components
-- ✓ Support for all control structures: while, for, if, case, select, arithmetic commands
-- ✓ Capability: `echo "data" | while read line; do echo $line; done`
-- ✓ Subshell execution with proper process isolation and redirection handling
-
-**Next Priority**: Trap command for signal handling
-- Signal handling and cleanup on script interruption
-- Trap command syntax: `trap 'commands' SIGNAL`
-- Integration with existing signal management system
-- See TODO.md for full list of remaining features
+**Next Priority**: Array Variables and Enhanced Declare
+- Array variables with declare -a (indexed) and -A (associative)
+- Variable attributes: -r (readonly), -x (export), -i (integer), -l/-u (case)
+- Print functionality with declare -p
+- See docs/DECLARE_ENHANCEMENT_PLAN.md for detailed implementation plan
 
 ## Architecture
 
 The shell follows a component-based architecture with clear separation of concerns:
 
 ### Core Pipeline
-1. **Tokenization** (`tokenizer.py`): Converts input strings into tokens
-2. **Parsing** (`parser.py`): Builds an AST using recursive descent
-3. **Execution** (component-based): Interprets the AST through specialized managers
+1. **Input Preprocessing** (`input_preprocessing.py`): Handles line continuations
+2. **Tokenization** (`state_machine_lexer.py`): State machine-based lexer for tokens
+3. **Parsing** (`parser.py`): Builds an AST using recursive descent
+4. **Execution** (component-based): Interprets the AST through specialized managers
 
 ### Component Organization
 
@@ -95,16 +95,18 @@ The shell follows a component-based architecture with clear separation of concer
   - `registry.py`: Central builtin registry
   - `core.py`: Core builtins (exit, :, true, false)
   - `navigation.py`: Directory navigation (cd, pwd)
-  - `environment.py`: Environment management (export, unset, env)
+  - `environment.py`: Environment management (export, unset, env, set)
   - `io.py`: I/O builtins (echo, read, printf)
   - `job_control.py`: Job control (jobs, fg, bg)
   - `aliases.py`: Alias management
   - `test_command.py`: Test/[ command implementation
   - `eval_command.py`: Eval builtin for dynamic command execution
+  - `function_support.py`: Function management (declare, typeset, return)
 - **`utils/`**: Utility modules
   - `ast_formatter.py`: AST pretty-printing
   - `token_formatter.py`: Token formatting
   - `file_tests.py`: File test utilities
+  - `shell_formatter.py`: Shell syntax reconstruction from AST
 
 Key design principles:
 - Each component has a single, well-defined responsibility
@@ -281,7 +283,7 @@ Implemented:
 - I/O redirections (<, >, >>, 2>, 2>>, 2>&1, <<<)
 - Multiple commands (;) and background execution (&)
 - Quoted strings (single and double) with proper variable expansion
-- Built-ins: exit, cd, export, pwd, echo (with -n, -e, -E flags), read (with -r, -p, -s, -t, -n, -d options), unset, env, source, ., history, set, declare, return, jobs, fg, bg, alias, unalias, test, [, true, false, :, eval
+- Built-ins: exit, cd, export, pwd, echo (with -n, -e, -E flags), read (with -r, -p, -s, -t, -n, -d options), unset, env, source, ., history, set, declare (with -f, -F), typeset, return, jobs, fg, bg, alias, unalias, test, [, true, false, :, eval
 - Wildcards/globbing (*, ?, [...])
 - Exit status tracking ($? variable)
 - Command history with persistence (~/.psh_history)
@@ -304,7 +306,7 @@ Implemented:
 - Vi and Emacs key bindings (set -o vi/emacs)
 - Aliases (alias, unalias) with recursive expansion and trailing space support
 - Shell functions with both POSIX (name() {}) and bash (function name {}) syntax
-- Function management (declare -f, unset -f, return builtin)
+- Function management (declare -f/-F, typeset -f/-F, unset -f, return builtin)
 - Function parameters and special variables within functions
 - Job control (jobs, fg, bg commands, Ctrl-Z suspension, background job notifications)
 - Job specifications (%1, %+, %-, %string)
@@ -318,7 +320,7 @@ Implemented:
 - Multiple patterns per case item (pattern1|pattern2|pattern3)
 - Advanced case terminators: ;; (stop), ;& (fallthrough), ;;& (continue matching)
 - Script file execution with arguments and shebang support
-- Multi-line command support with line continuation (\)
+- Multi-line command support with POSIX-compliant line continuation (\<newline>)
 - Nested control structures to arbitrary depth
 - Command substitution in for loop iterables
 - Brace expansion: Complete {a,b,c} list and {1..10} sequence expansion with proper escape handling
@@ -439,23 +441,30 @@ Implemented:
   - 17 comprehensive tests covering all use cases
 
 - Control structures in pipelines - ✅ **Implemented in v0.37.0**
-  - Revolutionary unified command model enabling control structures as pipeline components
+  - Unified command model enabling control structures as pipeline components
   - All control structures work in pipelines: while, for, if, case, select, arithmetic commands
-  - Game-changing examples now work:
+  - Examples now work:
     - `echo "data" | while read line; do echo $line; done`
     - `seq 1 5 | for i in $(cat); do echo $i; done`
     - `echo "test" | if grep -q test; then echo "found"; fi`
-  - Addresses major architectural limitation documented in TODO.md
-  - Created new AST hierarchy: Command base class, SimpleCommand and CompoundCommand subclasses
-  - Enhanced parser with parse_pipeline_component() supporting both command types
-  - Updated PipelineExecutor with compound command handling in subshells
-  - Proper process isolation, variable scoping, and redirection handling
-  - Full backward compatibility - all existing functionality works unchanged
-  - Comprehensive test suite with 7 tests covering all control structure types
-  - Educational architecture preserved while enabling advanced shell programming
+  - Comprehensive test suite with full coverage
+
+- Line continuation support - ✅ **Implemented in v0.39.0**
+  - POSIX-compliant \<newline> processing before tokenization
+  - Quote-aware handling preserves continuations inside quotes
+  - Works in all input modes: scripts, interactive, -c commands
+  - Cross-platform support for \n and \r\n line endings
+  - Fixed composite argument quote handling as a bonus
+
+- Typeset builtin - ✅ **Implemented in v0.39.1**
+  - Added typeset as ksh-compatible alias for declare
+  - Enhanced declare/typeset with -F flag for function names only
+  - Created ShellFormatter utility for AST-to-shell syntax conversion
+  - Full test coverage with 12 comprehensive tests
 
 Not implemented:
+- Array variables (planned - see docs/DECLARE_ENHANCEMENT_PLAN.md)
+- Enhanced declare options (-r, -x, -i, -l, -u, -p)
 - Trap command for signal handling
-- Escaped glob patterns  
-- Array variables
+- Extended globbing patterns
 - Deep recursion in shell functions (architectural limitation - see docs/recursion_depth_analysis.md)

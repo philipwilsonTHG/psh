@@ -2,7 +2,7 @@
 
 An educational Unix shell implementation in Python, designed to teach shell internals and compiler/interpreter concepts through a clean, readable codebase.  **All source code and documentation (with the exception of this sentence) has been written by Claude Code using Sonnet 4 and Opus 4 models.**
 
-**Current Version**: 0.38.1 (2025-01-10)
+**Current Version**: 0.39.1 (2025-06-12)
 
 ## Overview
 
@@ -12,21 +12,23 @@ The shell features a modern component-based architecture where each subsystem (e
 
 ### Recent Major Features
 
+- **v0.39.1**: Typeset builtin for ksh compatibility
+  - Added `typeset` as an alias for `declare` 
+  - Enhanced `declare`/`typeset` with `-F` flag to show function names only
+  - Created ShellFormatter for proper function definition display
+- **v0.39.0**: POSIX-compliant line continuation support
+  - Implemented `\<newline>` line continuation processing
+  - Works in all input modes: scripts, interactive, -c commands
+  - Quote-aware processing preserves continuations inside quotes
 - **v0.38.1**: Bug fixes for brace expansion and read builtin file redirection
   - Fixed: `{1..10};` now correctly expands without including semicolon in each element
   - Fixed: `read var < file` now properly reads from files
 - **v0.38.0**: Unified control structure types - completed removal of deprecated dual types
-- **v0.37.0**: **Control structures in pipelines** - Unified command model enabling control structures as pipeline components
+- **v0.37.0**: **Control structures in pipelines** - Unified command model
   - Examples: `echo "data" | while read line; do echo $line; done`
   - All control structures work in pipelines: while, for, if, case, select, arithmetic
-  - Addresses major architectural limitation while maintaining full backward compatibility
 - **v0.36.0**: Eval builtin for dynamic command execution `eval "echo hello"`
 - **v0.35.0**: Shell options `set -e`, `-u`, `-x`, `-o pipefail` for robust scripting
-- **v0.34.0**: Select statement for interactive menus `select var in items; do ...; done`
-- **v0.33.0**: History expansion (!!, !n, !-n, !string, !?string?) and for loop variable persistence fix
-- **v0.32.0**: Arithmetic command syntax `((expr))` for standalone arithmetic evaluation
-- **v0.31.0**: C-style for loops with arithmetic iteration `for ((i=0; i<10; i++))`
-- **v0.30.0**: Advanced read builtin with -p, -s, -t, -n, -d options for interactive input
 
 ## Features
 
@@ -48,7 +50,7 @@ The shell features a modern component-based architecture where each subsystem (e
 
 - ✅ **Pipes and Pipelines**
   - Full pipeline support (`cmd1 | cmd2 | cmd3`)
-  - **Revolutionary v0.37.0**: Control structures in pipelines
+  - **v0.37.0**: Control structures in pipelines
     - `echo "data" | while read line; do echo $line; done`
     - `seq 1 5 | for i in $(cat); do echo $i; done`
     - `echo "test" | if grep -q test; then echo "found"; fi`
@@ -110,8 +112,7 @@ The shell features a modern component-based architecture where each subsystem (e
   - `case`/`esac` pattern matching with command substitution
   - **`select`/`in`/`do`/`done` interactive menu system (v0.34.0)
   - `break` and `continue` statements with multi-level support (`break 2`)
-  - **🚀 NEW v0.37.0**: All control structures work in pipelines!
-    - Revolutionary capability previously impossible in most shells
+  - **v0.37.0**: All control structures work in pipelines
     - Examples: `echo data | while read x; do echo $x; done`
   
 - ✅ **Functions**
@@ -516,21 +517,21 @@ psh/
 
 ## Known Limitations
 
-While PSH implements most shell features, there are some architectural limitations:
+While PSH implements most shell features, there are some limitations:
 
-- **Control structures in pipelines**: Control structures (while, for, if, case) cannot be used as part of pipelines due to the statement-based architecture. Use the control structure to wrap the pipeline instead.
 - **Deep recursion in functions**: Recursive shell functions using command substitution hit Python's recursion limit quickly. Use iterative algorithms instead. See [docs/recursion_depth_analysis.md](docs/recursion_depth_analysis.md) for details.
 - **Arithmetic commands in pipelines**: Arithmetic commands `((expr))` cannot be used directly with && or || operators due to parser limitations. Wrap in if statements for conditional logic.
 - **Arrays**: Not implemented - use space-separated strings or multiple variables instead
-- **Composite argument quote handling**: Parser loses quote information when creating composite arguments
+- **Trap command**: Signal handling via trap is not yet implemented
+- **Extended globbing**: No support for patterns like `?(pattern)`, `*(pattern)`, etc.
 
 See [TODO.md](TODO.md) for a complete list of planned features.
 
 ## Implementation Status
 
-PSH has achieved significant feature completeness with **850 passing tests**:
+PSH has achieved significant feature completeness with **900+ passing tests**:
 
-### ✅ Fully Implemented (v0.38.1)
+### ✅ Fully Implemented (v0.39.1)
 - All core shell features (execution, I/O, pipelines, variables)
 - Complete expansion system (variable, parameter, command, arithmetic, brace, process)
 - All control structures (if/elif/else, while, for, C-style for, case, break/continue)
@@ -549,12 +550,16 @@ PSH has achieved significant feature completeness with **850 passing tests**:
 - Dynamic command execution with eval builtin
 - Control structures as pipeline components (all control structures work in pipelines)
 - Unified AST types for all control structures
+- Line continuation support with `\<newline>` sequences
+- Typeset builtin for ksh compatibility
 
 ### 🚧 Planned Features
+- Array variables and associative arrays (`declare -a`, `declare -A`)
+- Enhanced declare/typeset options (`-r`, `-x`, `-i`, `-l`, `-u`, `-p`)
 - Trap command for signal handling
-- Array variables and associative arrays
-- Escaped glob patterns
-- Additional shell options and POSIX compliance improvements
+- Extended globbing patterns (`shopt -s extglob`)
+- Printf builtin enhancements
+- Additional shell options (shopt) and POSIX compliance improvements
 
 ## Contributing
 
