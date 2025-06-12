@@ -123,13 +123,25 @@ class IndexedArray:
     
     def set(self, index: int, value: str):
         """Set element at given index."""
+        # Negative indices not allowed for setting
         if index < 0:
             raise ValueError(f"array index must be non-negative: {index}")
         self._elements[index] = str(value)
         self._max_index = max(self._max_index, index)
     
     def get(self, index: int) -> Optional[str]:
-        """Get element at given index."""
+        """Get element at given index. Supports negative indices."""
+        if index < 0:
+            # Convert negative index to positive
+            # -1 means last element, -2 means second to last, etc.
+            # First, get all indices in order
+            indices = self.indices()
+            if not indices:
+                return None
+            # Convert negative to positive
+            if -index > len(indices):
+                return None  # Out of bounds
+            return self._elements.get(indices[index])
         return self._elements.get(index)
     
     def unset(self, index: int):

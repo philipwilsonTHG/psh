@@ -265,13 +265,52 @@ class UnsetBuiltin(Builtin):
             # Remove variables
             exit_code = 0
             for var in args[1:]:
-                try:
-                    # Remove from both shell variables and environment
-                    shell.state.scope_manager.unset_variable(var)
-                    shell.env.pop(var, None)
-                except ReadonlyVariableError:
-                    self.error(f"{var}: readonly variable", shell)
-                    exit_code = 1
+                # Check if this is an array element syntax
+                if '[' in var and var.endswith(']'):
+                    # Array element unset: arr[index]
+                    bracket_pos = var.find('[')
+                    array_name = var[:bracket_pos]
+                    index_expr = var[bracket_pos+1:-1]
+                    
+                    # Get the array variable
+                    from ..core.variables import IndexedArray, AssociativeArray
+                    var_obj = shell.state.scope_manager.get_variable_object(array_name)
+                    
+                    if var_obj and isinstance(var_obj.value, IndexedArray):
+                        # Evaluate the index
+                        try:
+                            # Expand variables in index
+                            expanded_index = shell.expansion_manager.expand_string_variables(index_expr)
+                            
+                            # Check if it's arithmetic
+                            if any(op in expanded_index for op in ['+', '-', '*', '/', '%', '(', ')']):
+                                from ..arithmetic import evaluate_arithmetic
+                                index = evaluate_arithmetic(expanded_index, shell)
+                            else:
+                                index = int(expanded_index)
+                            
+                            # Unset the element
+                            var_obj.value.unset(index)
+                        except Exception as e:
+                            self.error(f"{var}: bad array subscript", shell)
+                            exit_code = 1
+                    elif var_obj and isinstance(var_obj.value, AssociativeArray):
+                        # For associative arrays
+                        expanded_key = shell.expansion_manager.expand_string_variables(index_expr)
+                        var_obj.value.unset(expanded_key)
+                    else:
+                        # Not an array
+                        self.error(f"{array_name}: not an array", shell)
+                        exit_code = 1
+                else:
+                    # Regular variable unset
+                    try:
+                        # Remove from both shell variables and environment
+                        shell.state.scope_manager.unset_variable(var)
+                        shell.env.pop(var, None)
+                    except ReadonlyVariableError:
+                        self.error(f"{var}: readonly variable", shell)
+                        exit_code = 1
             return exit_code
     
     @property

@@ -15,7 +15,10 @@ Python Shell (psh) is an educational Unix shell implementation designed for teac
 - ✓ Array assignment and initialization: `arr[0]=value`, `arr=(one two three)`
 - ✓ Negative indices and array slicing: `${arr[-1]}`, `${arr[@]:1:2}`
 - ✓ Sparse array support with proper index tracking
-- ✓ 164 comprehensive tests with 99% pass rate
+- ✓ Array element parameter expansion: `${arr[0]/old/new}`, `${#arr[0]}`
+- ✓ Unset array elements: `unset arr[index]`
+- ✓ Integration with declare -a and declare -p
+- ✓ 25/28 array tests passing, 949/962 total tests passing (98.7%)
 
 **Previous**: Typeset Builtin - v0.39.1
 - ✓ Added typeset builtin as ksh-compatible alias for declare

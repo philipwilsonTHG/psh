@@ -21,6 +21,9 @@ class EchoBuiltin(Builtin):
     
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Echo arguments to stdout."""
+        # Debug: log arguments
+        # print(f"DEBUG: echo args = {args}", file=sys.stderr)
+        
         # Parse flags
         suppress_newline, interpret_escapes, start_idx = self._parse_flags(args)
         

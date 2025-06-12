@@ -165,9 +165,32 @@ class CommandExecutor(ExecutorComponent):
                 # Evaluate the index (it might be an expression)
                 try:
                     # Expand variables in the index
-                    expanded_index = self.expansion_manager.expand_string_variables(assignment.index)
-                    # Try to convert to integer
-                    index = int(expanded_index)
+                    # Note: assignment.index might be 'i' or '$i' or '0' etc
+                    if assignment.index.isdigit():
+                        # Direct numeric index
+                        expanded_index = assignment.index
+                    elif assignment.index.startswith('$((') and assignment.index.endswith('))'):
+                        # Arithmetic expansion
+                        expanded_index = str(self.expansion_manager.execute_arithmetic_expansion(assignment.index))
+                    elif assignment.index.startswith('$'):
+                        # Variable with $ prefix
+                        expanded_index = self.expansion_manager.expand_variable(assignment.index)
+                    else:
+                        # Variable name without $ prefix
+                        expanded_index = self.expansion_manager.expand_variable('$' + assignment.index)
+                    
+                    # Check if it's an arithmetic expression
+                    if any(op in expanded_index for op in ['+', '-', '*', '/', '%', '(', ')']):
+                        # Evaluate as arithmetic
+                        from ..arithmetic import evaluate_arithmetic, ArithmeticError
+                        try:
+                            index = evaluate_arithmetic(expanded_index, self.shell)
+                        except (ArithmeticError, Exception):
+                            print(f"psh: {assignment.name}: bad array subscript", file=sys.stderr)
+                            return 1
+                    else:
+                        # Try to convert to integer
+                        index = int(expanded_index)
                 except ValueError:
                     print(f"psh: {assignment.name}: bad array subscript", file=sys.stderr)
                     return 1
