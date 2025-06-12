@@ -1,12 +1,24 @@
 # Python Shell (psh) - TODO List
 
-**Current Version**: 0.38.1 (2025-01-10)
+**Current Version**: 0.39.1 (2025-06-12)
 
 ## Overview
 
-PSH has achieved significant feature completeness with **850 total tests (all passing)**. This document tracks remaining features, known issues, and development priorities.
+PSH has achieved significant feature completeness with **900+ total tests (all passing)**. This document tracks remaining features, known issues, and development priorities.
 
 ## Recent Major Changes
+
+### v0.39.1 - Typeset Builtin
+- **Added typeset builtin**: ksh-compatible alias for declare
+- **Enhanced declare/typeset**: Added -F flag to show function names only
+- **ShellFormatter utility**: Proper function definition display
+- **Full compatibility**: Works with ksh scripts using typeset
+
+### v0.39.0 - Line Continuation Support
+- **POSIX-compliant line continuation**: Implemented \<newline> sequences
+- **Works in all input modes**: Scripts, interactive, -c commands
+- **Quote-aware processing**: Preserves continuations inside quotes
+- **Fixed composite argument quote handling**: Bonus fix during implementation
 
 ### v0.38.1 - Bug Fixes
 - **Fixed brace expansion**: `{1..10};` now correctly expands without including semicolon
@@ -22,21 +34,23 @@ PSH has achieved significant feature completeness with **850 total tests (all pa
 
 ### High Priority
 
-#### Trap Command - **NEXT PRIORITY**
+#### Array Variables and Enhanced Declare - **NEXT PRIORITY**
+- **Description**: Indexed/associative arrays and declare enhancements
+- **Status**: Implementation plan ready (see `docs/DECLARE_ENHANCEMENT_PLAN.md`)
+- **Features**:
+  - Indexed arrays: `declare -a arr=(a b c)`, `${arr[0]}`
+  - Associative arrays: `declare -A map`, `map[key]=value`
+  - Array operations: `${#arr[@]}`, `${arr[@]}`, `${!arr[@]}`
+  - Variable attributes: `-r` (readonly), `-x` (export), `-i` (integer), `-l`/`-u` (case)
+  - Print functionality: `declare -p` to display variables with attributes
+
+#### Trap Command
 - **Description**: Signal handling for cleanup and error management
 - **Status**: Not implemented
 - **Use cases**: Cleanup on exit, error handling, signal interception
 
 
 ### Medium Priority
-
-#### Array Variables
-- **Description**: Indexed and associative arrays
-- **Status**: Not implemented
-- **Features**:
-  - Indexed arrays: `arr=(a b c)`, `${arr[0]}`
-  - Associative arrays: `declare -A map`
-  - Array operations: `${#arr[@]}`, `${arr[@]}`
 
 
 ### Low Priority
@@ -78,6 +92,7 @@ PSH has resolved all major parser and tokenizer limitations as of v0.38.3:
 
 ## Test Suite Status
 
+### Overall: 900+ tests passing
 ### Skipped Tests: 26 total (down from 28 - fixed 2 in v0.33.0)
 
 #### Pytest Output Capture Issues (8 tests)
@@ -102,6 +117,44 @@ PSH has resolved all major parser and tokenizer limitations as of v0.38.3:
 ## Implementation History
 
 ### Recent Releases
+
+#### v0.39.1 - Typeset Builtin Implementation
+- Added typeset builtin as ksh-compatible alias for declare
+- Enhanced DeclareBuiltin class to support -F flag (function names only)
+- Created ShellFormatter utility class for reconstructing shell syntax from AST
+- Proper function definition display matching bash/ksh output format
+- Added TypesetBuiltin class inheriting from DeclareBuiltin
+- Full test suite with 12 comprehensive tests covering all use cases
+- Enables compatibility with ksh scripts that use typeset
+- Total tests: 900+ (all passing) with full feature coverage
+
+#### v0.39.0 - Line Continuation Support
+- Implemented POSIX-compliant \<newline> line continuation processing
+- Added InputPreprocessor component before tokenization
+- Quote-aware continuation handling preserves escapes inside quotes
+- Works in all input modes: scripts, interactive sessions, -c commands
+- Cross-platform support for both \n and \r\n line endings
+- Fixed composite argument quote handling as a bonus improvement
+- Enables multi-line commands without explicit continuation prompts
+- Comprehensive test suite validating all continuation scenarios
+- Total tests: 900+ (all passing) maintaining full compatibility
+
+#### v0.38.1 - Bug Fixes
+- Fixed brace expansion when sequences are followed by shell metacharacters
+  - Example: `{1..10};` now correctly expands without semicolon in elements
+- Fixed read builtin file redirection by properly redirecting file descriptor 0
+  - Example: `read var < file` now reads from files as expected
+- Both fixes include comprehensive test coverage
+- No regressions in existing functionality
+
+#### v0.38.0 - Unified Control Structure Types
+- Completed migration to unified AST type system
+- Removed all deprecated Command/Statement dual types
+- Single consistent type hierarchy for all control structures
+- Removed ~1000 lines of migration infrastructure and deprecated code
+- Simplified parser and executor implementations
+- Maintained full backward compatibility
+- All 850+ tests continue to pass without modification
 
 #### v0.37.0 - Control Structures in Pipelines Implementation
 - Implemented unified command model enabling control structures as pipeline components
@@ -196,13 +249,14 @@ PSH has resolved all major parser and tokenizer limitations as of v0.38.3:
 - Parser improvements with 30% code reduction
 
 ### Feature Summary
-- **Core Shell**: ✓ Complete (execution, I/O, pipelines, variables)
+- **Core Shell**: ✓ Complete (execution, I/O, pipelines, variables, line continuation)
 - **Expansions**: ✓ Complete (variable, parameter, command, arithmetic, brace, process)
-- **Control Flow**: ✓ Complete (if/elif/else, while, for, case, break/continue)
-- **Functions**: ✓ Complete (definition, local variables, return)
+- **Control Flow**: ✓ Complete (if/elif/else, while, for, case, break/continue, arithmetic commands)
+- **Functions**: ✓ Complete (definition, local variables, return, declare -f/-F, typeset)
 - **Job Control**: ✓ Complete (background, suspension, fg/bg)
-- **Interactive**: ✓ Complete (line editing, completion, history, prompts)
-- **Builtins**: ✓ 25 implemented with modular architecture
+- **Interactive**: ✓ Complete (line editing, completion, history, prompts, multi-line)
+- **Builtins**: ✓ 26 implemented with modular architecture (including typeset)
+- **Shell Options**: ✓ Complete (set -e/-u/-x/-o pipefail, debug options)
 
 ## Development Guidelines
 
