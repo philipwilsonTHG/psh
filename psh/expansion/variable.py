@@ -209,7 +209,9 @@ class VariableExpander:
                             return ''
             
             # Check for array subscript syntax: ${arr[index]}
-            if '[' in var_content and var_content.endswith(']'):
+            # But exclude case modification patterns like ${var^^[pattern]}
+            if ('[' in var_content and var_content.endswith(']') and 
+                not any(op in var_content for op in ['^^', ',,', '^', ','])):
                 bracket_pos = var_content.find('[')
                 array_name = var_content[:bracket_pos]
                 index_expr = var_content[bracket_pos+1:-1]  # Remove [ and ]

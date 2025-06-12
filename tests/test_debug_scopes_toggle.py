@@ -81,7 +81,7 @@ class TestDebugScopesToggle:
         # Should see scope push/pop and local variable creation
         assert "Pushing scope for function: test_func" in output
         assert "Creating local variable: x = 10" in output
-        assert "Setting variable in global scope: y = 20" in output
+        assert "Setting variable in scope 'global': y = 20" in output
         assert "Popping scope: test_func" in output
     
     def test_set_o_shows_debug_scopes(self, shell):

@@ -1,12 +1,22 @@
 # Python Shell (psh) - TODO List
 
-**Current Version**: 0.41.0 (2025-12-06)
+**Current Version**: 0.42.0 (2025-12-06)
 
 ## Overview
 
-PSH has achieved significant feature completeness with **900+ total tests (all passing)**. This document tracks remaining features, known issues, and development priorities.
+PSH has achieved complete test suite success with **962 total tests (100% passing)**. This document tracks remaining features, known issues, and development priorities.
 
 ## Recent Major Changes
+
+### v0.42.0 - Complete Test Suite Fixes
+- **100% test pass rate**: All 962 tests now passing (up from 949)
+- **History expansion fix**: Resolved infinite loop when '!' followed by space
+- **+= operator**: Full implementation for variables, arrays, and array elements
+- **Parser improvements**: Fixed array initialization, regex patterns, and case statements
+- **Tokenizer enhancements**: Better context awareness for operators and patterns
+- **Composite argument handling**: Proper quote preservation with COMPOSITE_QUOTED type
+- **Parameter expansion fixes**: Case modification with character class patterns
+- **Debug scopes test**: Updated assertion to match actual output
 
 ### v0.41.0 - Array Variable Support
 - **Indexed arrays**: Full implementation with bash-compatible syntax

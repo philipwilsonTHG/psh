@@ -112,22 +112,16 @@ class ExpansionManager:
             elif arg_type == 'WORD' and '\\$' in arg:
                 # Escaped dollar sign in word - replace with literal $
                 args.append(arg.replace('\\$', '$'))
-            elif arg_type == 'COMPOSITE':
+            elif arg_type == 'COMPOSITE' or arg_type == 'COMPOSITE_QUOTED':
                 # Composite argument - already concatenated in parser
-                # IMPORTANT: We've lost quote information, so we can't safely
-                # perform glob expansion in all cases. In bash, file'*'.txt doesn't expand
-                # because the * was quoted. Since we can't tell which parts
-                # were quoted, we have to make a best guess.
+                # If it's COMPOSITE_QUOTED, it had quoted parts and shouldn't be glob expanded
                 
                 # First, expand variables if present
                 if '$' in arg:
                     arg = self.expand_string_variables(arg)
                 
-                # Check if the argument contains glob characters
-                # This is a heuristic - we assume unquoted composites with glob chars
-                # should be expanded. This may incorrectly expand patterns where
-                # the glob chars were originally quoted.
-                if any(c in arg for c in ['*', '?', '[']):
+                # Only expand globs for non-quoted composites
+                if arg_type == 'COMPOSITE' and any(c in arg for c in ['*', '?', '[']):
                     # Perform glob expansion
                     matches = glob.glob(arg)
                     if matches:
@@ -137,6 +131,7 @@ class ExpansionManager:
                         # No matches, use literal argument (bash behavior)
                         args.append(arg)
                 else:
+                    # No glob expansion - quoted composite or no glob chars
                     args.append(arg)
             elif arg_type in ('COMMAND_SUB', 'COMMAND_SUB_BACKTICK'):
                 # Command substitution

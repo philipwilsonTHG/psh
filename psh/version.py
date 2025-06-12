@@ -2,10 +2,28 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.41.0"
+__version__ = "0.42.0"
 
 # Version history
 VERSION_HISTORY = """
+0.42.0 (2025-12-06) - Complete test suite fixes achieving 100% pass rate
+  - Fixed history expansion infinite loop when '!' followed by space
+  - Fixed test_negation hang by properly handling '!' in enhanced test operators
+  - Implemented += append operator for variables and arrays
+  - Added support for array element append: arr[0]+=value
+  - Fixed declare array initialization syntax: declare -a arr=(one two three)
+  - Fixed regex pattern tokenization after =~ operator in [[ ]] tests
+  - Fixed composite argument handling with proper quote preservation
+  - Added COMPOSITE_QUOTED type to prevent glob expansion on quoted composites
+  - Fixed parameter expansion case modification with character class patterns
+  - Fixed array syntax detection to exclude case modification operators
+  - Fixed case statement pattern parsing for character classes like [abc])
+  - Updated debug scopes test assertion to match actual output format
+  - All 962 tests now passing (100% success rate, up from 949)
+  - Completed remaining array implementation gaps from v0.41.0
+  - Enhanced parser robustness for complex shell constructs
+  - Improved tokenizer context awareness for operator disambiguation
+
 0.41.0 (2025-12-06) - Array variable support
   - Implemented complete indexed array support with bash-compatible syntax
   - Enhanced parser to handle array subscript notation in parameter expansions

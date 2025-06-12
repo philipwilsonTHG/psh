@@ -642,6 +642,7 @@ class Parser(BaseParser):
         parts = []
         first_token = None
         last_end_pos = None
+        has_quoted_part = False
         
         while self.match_any(TokenGroups.WORD_LIKE):
             token = self.peek()
@@ -653,6 +654,10 @@ class Parser(BaseParser):
             token = self.advance()
             if first_token is None:
                 first_token = token
+            
+            # Track if any part was quoted
+            if token.type == TokenType.STRING:
+                has_quoted_part = True
             
             # Convert token to string representation
             if token.type == TokenType.VARIABLE:
@@ -670,7 +675,9 @@ class Parser(BaseParser):
             return self._token_to_argument(first_token)
         
         # Multiple parts - create composite
-        return ''.join(parts), 'COMPOSITE', None
+        # Use special type to indicate quoted composite
+        arg_type = 'COMPOSITE_QUOTED' if has_quoted_part else 'COMPOSITE'
+        return ''.join(parts), arg_type, None
     
     def _token_to_argument(self, token: Token) -> Tuple[str, str, Optional[str]]:
         """Convert a single token to argument tuple format."""
@@ -1216,13 +1223,29 @@ class Parser(BaseParser):
         }
         
         if not (self.match(TokenType.WORD, TokenType.STRING, TokenType.VARIABLE) or
-                self.match_any(keyword_tokens)):
+                self.match_any(keyword_tokens) or self.match(TokenType.LBRACKET, TokenType.RBRACKET)):
             raise self._error("Expected pattern in case statement")
         
-        token = self.advance()
-        if token.type == TokenType.VARIABLE:
-            return f"${token.value}"
-        return token.value
+        # Build pattern from possibly multiple tokens
+        # Handle patterns like [abc] which might be tokenized as WORD + RBRACKET
+        pattern_parts = []
+        
+        # Parse pattern tokens until we hit ) or |
+        while not self.match(TokenType.RPAREN, TokenType.PIPE) and not self.at_end():
+            if self.match(TokenType.WORD, TokenType.STRING, TokenType.VARIABLE) or \
+               self.match_any(keyword_tokens) or self.match(TokenType.LBRACKET, TokenType.RBRACKET):
+                token = self.advance()
+                if token.type == TokenType.VARIABLE:
+                    pattern_parts.append(f"${token.value}")
+                else:
+                    pattern_parts.append(token.value)
+            else:
+                break
+        
+        if not pattern_parts:
+            raise self._error("Expected pattern in case statement")
+        
+        return ''.join(pattern_parts)
     
     def parse_select_statement(self) -> SelectLoop:
         """Parse select statement: select name in words; do commands done"""
