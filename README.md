@@ -121,7 +121,8 @@ The shell features a modern component-based architecture where each subsystem (e
   - `local` builtin for function-scoped variables (v0.29.0)
   - Advanced parameter expansion with string manipulation (v0.29.2)
   - `return` builtin
-  - `declare -f` to list functions
+  - `declare -f` to list functions (with -F for names only)
+  - `typeset` as ksh-compatible alias for `declare`
   - `unset -f` to remove functions
   
 - ✅ **Test Commands**
@@ -165,7 +166,7 @@ The shell features a modern component-based architecture where each subsystem (e
 ### Built-in Commands
 
 - **Core**: `exit`, `cd`, `pwd`, `echo` (with -n, -e, -E flags), `true`, `false`, `:`
-- **Variables**: `export`, `unset`, `set`, `declare`, `env`, `local`
+- **Variables**: `export`, `unset`, `set`, `declare`, `typeset`, `env`, `local`
 - **Job Control**: `jobs`, `fg`, `bg`
 - **Functions**: `return`, `source`, `.`
 - **Aliases**: `alias`, `unalias`

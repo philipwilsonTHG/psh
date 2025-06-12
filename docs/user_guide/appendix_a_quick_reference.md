@@ -207,6 +207,13 @@ function name {
 # Call function
 name [arguments]
 
+# Function management
+declare -f                  # List all functions
+declare -F                  # List function names only
+declare -f name             # Show specific function
+typeset -f/-F               # Same as declare
+unset -f name               # Remove function
+
 # Function builtins
 local var=value             # Local variable
 return [n]                  # Return with status
@@ -285,7 +292,8 @@ readonly    # Make variables read-only
 local       # Create local variables
 env         # Show environment
 set         # Set options/positional parameters
-declare     # Declare variables (limited)
+declare     # Declare variables/functions
+typeset     # Same as declare (ksh compat)
 ```
 
 ### Directory Navigation

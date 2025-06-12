@@ -2,10 +2,25 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.39.0"
+__version__ = "0.39.1"
 
 # Version history
 VERSION_HISTORY = """
+0.39.1 (2025-06-12) - Typeset builtin implementation
+  - Added typeset builtin as a ksh-compatible alias for declare
+  - Enhanced declare builtin with -F flag to show function names only
+  - Both declare and typeset now support:
+    - -f flag: Show complete function definitions
+    - -F flag: Show only function names in format 'declare -f functionname'
+    - Multiple function names as arguments
+    - Proper exit codes (0 on success, 1 if function not found)
+  - Created ShellFormatter utility for reconstructing shell syntax from AST
+  - Improved function definition formatting to better match bash output
+  - Added comprehensive test suite with 12 tests covering all functionality
+  - Updated documentation in user guide chapters 4 (Built-in Commands) and 12 (Functions)
+  - Updated README.md and quick reference guide with typeset information
+  - Full compatibility with ksh scripts that use typeset for function introspection
+
 0.39.0 (2025-01-11) - Line continuation support implementation
   - Implemented POSIX-compliant line continuation processing (\\<newline> sequences)
   - Added input_preprocessing.py module with process_line_continuations() function

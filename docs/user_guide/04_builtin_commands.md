@@ -348,7 +348,7 @@ psh$ set +o debug-ast    # Disable AST debugging
 
 ### declare - Declare Variables and Functions
 
-Display or set variable attributes:
+Display or set variable attributes and function definitions:
 
 ```bash
 # Show all variables
@@ -359,23 +359,93 @@ MYVAR=Hello
 PS1=psh$ 
 ...
 
-# Show all functions
+# Show all function definitions with -f
 psh$ declare -f
-hello() {
+hello() { 
     echo "Hello, $1!"
 }
-greet() {
+greet() { 
     echo "Greetings!"
 }
 
-# Show specific function
+# Show function names only with -F
+psh$ declare -F
+declare -f greet
+declare -f hello
+
+# Show specific function definition
 psh$ declare -f hello
-hello() {
+hello() { 
     echo "Hello, $1!"
 }
 
+# Check if name is a function
+psh$ declare -F hello
+declare -f hello
+psh$ echo $?
+0
+
+# Non-existent function returns error
+psh$ declare -f nonexistent
+psh: declare: nonexistent: not found
+psh$ echo $?
+1
+
 # Currently, declare mainly shows information
 # Full attribute support (like -r for readonly) is planned
+```
+
+### typeset - Korn Shell Compatible Function Display
+
+The `typeset` builtin is provided for compatibility with the Korn shell (ksh). It is exactly equivalent to `declare`:
+
+```bash
+# Show all variables (same as declare)
+psh$ typeset
+DISPLAY=:0
+HOME=/home/alice
+MYVAR=Hello
+PS1=psh$ 
+...
+
+# Show all function definitions
+psh$ typeset -f
+hello() { 
+    echo "Hello, $1!"
+}
+greet() { 
+    echo "Greetings!"
+}
+
+# Show function names only
+psh$ typeset -F
+declare -f greet
+declare -f hello
+
+# Show specific function
+psh$ typeset -f hello
+hello() { 
+    echo "Hello, $1!"
+}
+
+# Multiple functions
+psh$ typeset -f hello greet
+hello() { 
+    echo "Hello, $1!"
+}
+greet() { 
+    echo "Greetings!"
+}
+
+# Check function existence
+psh$ typeset -F greet hello nonexistent
+declare -f greet
+declare -f hello
+psh: typeset: nonexistent: not found
+
+# All features work identically to declare
+psh$ typeset -F | grep hello
+declare -f hello
 ```
 
 ## 4.4 Input/Output

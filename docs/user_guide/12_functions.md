@@ -449,11 +449,34 @@ PSH provides commands to manage functions: listing, displaying, and removing the
 ### Listing Functions
 
 ```bash
-# List all functions
+# List all function definitions
 psh$ declare -f
+hello() { 
+    echo "Hello, $1!"
+}
+greet() { 
+    echo "Greetings!"
+}
 
-# Show specific function
+# List function names only
+psh$ declare -F
+declare -f greet
+declare -f hello
+
+# Show specific function definition
 psh$ declare -f greet
+greet() { 
+    echo "Greetings!"
+}
+
+# Check if specific name is a function
+psh$ declare -F greet
+declare -f greet
+
+# Using typeset (ksh compatibility)
+psh$ typeset -f      # Show all function definitions
+psh$ typeset -F      # Show function names only
+psh$ typeset -f greet # Show specific function
 
 # Alternative: list functions with type
 psh$ type greet
@@ -466,6 +489,48 @@ psh$ is_function() {
 psh$ if is_function greet; then
 >     echo "greet is a function"
 > fi
+```
+
+### Using typeset for Function Management
+
+The `typeset` builtin provides Korn shell (ksh) compatibility and works identically to `declare`:
+
+```bash
+# Display all functions with their definitions
+psh$ myfunc() { echo "test"; }
+psh$ otherfunc() { echo "another"; }
+psh$ typeset -f
+myfunc() { 
+    echo "test"
+}
+otherfunc() { 
+    echo "another"
+}
+
+# Display only function names
+psh$ typeset -F
+declare -f myfunc
+declare -f otherfunc
+
+# Check multiple functions at once
+psh$ typeset -F myfunc otherfunc nonexistent
+declare -f myfunc
+declare -f otherfunc
+psh: typeset: nonexistent: not found
+
+# Use in scripts for portability
+psh$ cat check_functions.sh
+#!/usr/bin/env psh
+# Script that works with both bash and ksh
+
+# Check if functions exist
+for func in process_data validate_input cleanup; do
+    if typeset -F "$func" >/dev/null 2>&1; then
+        echo "Function $func is defined"
+    else
+        echo "Warning: Function $func is missing"
+    fi
+done
 ```
 
 ### Removing Functions
