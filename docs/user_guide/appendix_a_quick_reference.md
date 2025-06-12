@@ -65,6 +65,30 @@ $?          # Last exit status
 $-          # Shell options
 ```
 
+### Arrays
+```bash
+# Create arrays
+arr=(one two three)         # Initialize array
+declare -a arr              # Declare array variable
+arr[0]=value                # Set element
+arr[5]=value                # Sparse arrays supported
+arr+=(four five)            # Append elements
+
+# Access arrays
+${arr[0]}                   # First element
+${arr[@]}                   # All elements (separate words)
+${arr[*]}                   # All elements (single word)
+${#arr[@]}                  # Number of elements
+${!arr[@]}                  # All indices
+${arr[-1]}                  # Last element
+${arr[@]:1:2}               # Slice (offset:length)
+
+# Array operations
+unset arr[2]                # Remove element
+${arr[@]/.txt/.bak}         # Replace in all elements
+${arr[@]^^}                 # Uppercase all elements
+```
+
 ### Parameter Expansion
 ```bash
 ${#VAR}                     # Length of variable
@@ -292,7 +316,7 @@ readonly    # Make variables read-only
 local       # Create local variables
 env         # Show environment
 set         # Set options/positional parameters
-declare     # Declare variables/functions
+declare     # Declare variables/functions with attributes
 typeset     # Same as declare (ksh compat)
 ```
 
@@ -453,6 +477,28 @@ set -o vi                  # Vi editing mode
 # Special variables
 PS4='+ '                   # Trace prompt (default)
 PS4='[${LINENO}] '        # Show line numbers in trace
+```
+
+## Declare/Typeset Options
+
+```bash
+declare -i var       # Integer (arithmetic on assignment)
+declare -l var       # Lowercase (converts to lowercase)
+declare -u var       # Uppercase (converts to uppercase)
+declare -r var       # Readonly (cannot be modified)
+declare -x var       # Export (to environment)
+declare -a arr       # Array (indexed)
+declare -p var       # Print with attributes
+declare -f func      # Show function definition
+declare -F func      # Show function name only
+
+# Remove attributes with +
+declare +x var       # Unexport variable
+declare +r var       # Remove readonly (if not already set)
+
+# Combine attributes
+declare -ilx var     # Integer, lowercase, exported
+declare -ru VAR      # Readonly, uppercase
 ```
 
 ## Common Key Bindings

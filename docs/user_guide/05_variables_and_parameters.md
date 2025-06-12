@@ -796,6 +796,282 @@ psh$ echo "$url"
 hello%20world%3Ffoo%3Dbar
 ```
 
+## 5.7 Array Variables
+
+PSH supports indexed arrays with full bash-compatible syntax. Arrays provide a way to store multiple values in a single variable.
+
+### Creating Arrays
+
+```bash
+# Array initialization with list
+psh$ fruits=(apple banana cherry)
+psh$ echo ${fruits[0]}
+apple
+
+# Declare an array explicitly
+psh$ declare -a colors
+psh$ colors=(red green blue)
+
+# Assign individual elements
+psh$ animals[0]="cat"
+psh$ animals[1]="dog"
+psh$ animals[5]="bird"  # Sparse arrays are supported
+
+# Array from command substitution
+psh$ files=($(ls *.txt))
+
+# Array from glob expansion
+psh$ images=(*.jpg *.png)
+```
+
+### Accessing Array Elements
+
+```bash
+# Access by index
+psh$ echo ${fruits[0]}
+apple
+psh$ echo ${fruits[1]}
+banana
+
+# Negative indices (from end)
+psh$ echo ${fruits[-1]}
+cherry
+psh$ echo ${fruits[-2]}
+banana
+
+# Using variables as indices
+psh$ i=2
+psh$ echo ${fruits[$i]}
+cherry
+
+# Arithmetic in indices
+psh$ echo ${fruits[$((i-1))]}
+banana
+```
+
+### Array Expansions
+
+```bash
+# All elements as separate words
+psh$ echo ${fruits[@]}
+apple banana cherry
+
+# All elements as single word (with IFS)
+psh$ echo ${fruits[*]}
+apple banana cherry
+
+# Number of elements
+psh$ echo ${#fruits[@]}
+3
+
+# Length of specific element
+psh$ echo ${#fruits[0]}
+5
+
+# All defined indices (useful for sparse arrays)
+psh$ animals[0]="cat"
+psh$ animals[5]="bird"
+psh$ echo ${!animals[@]}
+0 5
+
+# Array slice (offset:length)
+psh$ echo ${fruits[@]:1:2}
+banana cherry
+
+# Negative offset
+psh$ echo ${fruits[@]:-2:2}
+banana cherry
+```
+
+### Modifying Arrays
+
+```bash
+# Append to array
+psh$ fruits+=(orange grape)
+psh$ echo ${fruits[@]}
+apple banana cherry orange grape
+
+# Append to element
+psh$ fruits[0]+=" pie"
+psh$ echo ${fruits[0]}
+apple pie
+
+# Replace element
+psh$ fruits[1]="mango"
+
+# Unset element (creates gap)
+psh$ unset fruits[2]
+psh$ echo ${fruits[@]}
+apple pie mango orange grape
+
+# Unset entire array
+psh$ unset fruits
+```
+
+### Array Parameter Expansion
+
+All parameter expansion features work with array elements:
+
+```bash
+# Pattern substitution on all elements
+psh$ files=(document.txt image.txt data.txt)
+psh$ echo ${files[@]/.txt/.bak}
+document.bak image.bak data.bak
+
+# Case modification
+psh$ names=(alice bob charlie)
+psh$ echo ${names[@]^}
+Alice Bob Charlie
+
+# Pattern removal
+psh$ paths=(/home/user/file1 /home/user/file2)
+psh$ echo ${paths[@]##*/}
+file1 file2
+
+# Length of each element
+psh$ for file in "${files[@]}"; do
+>     echo "$file: ${#file} chars"
+> done
+```
+
+### Practical Array Examples
+
+```bash
+#!/usr/bin/env psh
+# Array manipulation examples
+
+# Process command line arguments
+process_args() {
+    local args=("$@")
+    local i
+    
+    echo "Got ${#args[@]} arguments:"
+    for ((i=0; i<${#args[@]}; i++)); do
+        echo "  [$i] = ${args[i]}"
+    done
+}
+
+# Build command dynamically
+build_command() {
+    local cmd=()
+    cmd+=(rsync)
+    cmd+=(-avz)
+    
+    if [ "$VERBOSE" = "true" ]; then
+        cmd+=(--verbose)
+    fi
+    
+    cmd+=("$1" "$2")
+    
+    # Execute the command
+    "${cmd[@]}"
+}
+
+# Parse CSV line into array
+parse_csv() {
+    local line="$1"
+    local oldIFS="$IFS"
+    IFS=','
+    local fields=($line)
+    IFS="$oldIFS"
+    
+    echo "Found ${#fields[@]} fields:"
+    local i
+    for ((i=0; i<${#fields[@]}; i++)); do
+        echo "  Field $i: ${fields[i]}"
+    done
+}
+
+# Find and process files
+process_files() {
+    local pattern="$1"
+    local files=()
+    
+    # Collect matching files
+    while IFS= read -r file; do
+        files+=("$file")
+    done < <(find . -name "$pattern" -type f)
+    
+    echo "Found ${#files[@]} files matching $pattern"
+    
+    # Process in batches
+    local batch_size=10
+    local i
+    for ((i=0; i<${#files[@]}; i+=batch_size)); do
+        echo "Processing batch starting at $i..."
+        process_batch "${files[@]:i:batch_size}"
+    done
+}
+
+# Menu system using arrays
+show_menu() {
+    local title="$1"
+    shift
+    local options=("$@")
+    local choice
+    
+    echo "$title"
+    echo
+    
+    local i
+    for ((i=0; i<${#options[@]}; i++)); do
+        echo "  $((i+1))) ${options[i]}"
+    done
+    echo
+    
+    read -p "Select option (1-${#options[@]}): " choice
+    
+    if ((choice > 0 && choice <= ${#options[@]})); then
+        echo "You selected: ${options[$((choice-1))]}"
+        return $((choice-1))
+    else
+        echo "Invalid selection"
+        return 255
+    fi
+}
+
+# Example usage
+psh$ menu_items=(
+>     "Start service"
+>     "Stop service"
+>     "View logs"
+>     "Exit"
+> )
+psh$ show_menu "Service Manager" "${menu_items[@]}"
+```
+
+### Array Best Practices
+
+1. **Always quote array expansions** to preserve elements with spaces:
+   ```bash
+   # Good
+   for item in "${array[@]}"; do
+   
+   # Bad - splits elements with spaces
+   for item in ${array[@]}; do
+   ```
+
+2. **Use declare -a** for clarity when creating arrays:
+   ```bash
+   declare -a my_array
+   ```
+
+3. **Check if index exists** in sparse arrays:
+   ```bash
+   if [[ -n "${array[5]+set}" ]]; then
+       echo "Index 5 exists"
+   fi
+   ```
+
+4. **Copy arrays** properly:
+   ```bash
+   # Good - preserves all elements
+   new_array=("${old_array[@]}")
+   
+   # Bad - creates single element
+   new_array="${old_array[@]}"
+   ```
+
 ## Summary
 
 Variables and parameters in PSH provide powerful ways to store and manipulate data:
@@ -806,6 +1082,7 @@ Variables and parameters in PSH provide powerful ways to store and manipulate da
 4. **Parameter expansion** enables default values and string manipulation
 5. **Advanced expansion** supports pattern matching, substitution, and case conversion
 6. **Local variables** provide function scope isolation
+7. **Array variables** store multiple values with indexed access and powerful expansions
 
 Understanding these features is essential for effective shell scripting. Variables are the foundation for storing state, passing data between commands, and building complex scripts.
 

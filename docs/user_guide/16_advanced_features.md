@@ -459,7 +459,7 @@ vi             off
 
 ## 16.4 Advanced Parameter Expansion
 
-PSH supports sophisticated parameter expansion operations for string manipulation.
+PSH supports sophisticated parameter expansion operations for string manipulation, including special handling for array variables.
 
 ### Length Operations
 
@@ -469,7 +469,12 @@ psh$ var="Hello, World!"
 psh$ echo ${#var}
 13
 
-# Array length (when arrays are supported)
+# Array element count
+psh$ fruits=(apple banana cherry)
+psh$ echo ${#fruits[@]}
+3
+
+# Positional parameters
 psh$ set -- one two three
 psh$ echo ${#}
 3
@@ -570,6 +575,45 @@ World
 psh$ set -- "Hello, World!"
 psh$ echo ${1:0:5}
 Hello
+```
+
+### Array-Specific Expansions
+
+```bash
+# All array elements
+psh$ colors=(red green blue)
+psh$ echo ${colors[@]}     # Each element as separate word
+red green blue
+psh$ echo ${colors[*]}     # All elements as single word (IFS-separated)
+red green blue
+
+# Array indices (useful for sparse arrays)
+psh$ sparse[0]="first"
+psh$ sparse[5]="middle"
+psh$ sparse[9]="last"
+psh$ echo ${!sparse[@]}
+0 5 9
+
+# Array slicing
+psh$ letters=(a b c d e f)
+psh$ echo ${letters[@]:2:3}   # Start at index 2, take 3 elements
+c d e
+psh$ echo ${letters[@]: -2}   # Last 2 elements
+e f
+
+# Apply expansions to all elements
+psh$ files=(doc.txt image.txt data.txt)
+psh$ echo ${files[@]%.txt}    # Remove .txt from all
+doc image data
+psh$ echo ${files[@]/.txt/.bak}  # Replace in all
+doc.bak image.bak data.bak
+
+# Case modification on array elements
+psh$ names=(alice bob charlie)
+psh$ echo ${names[@]^}        # Capitalize first letter
+Alice Bob Charlie
+psh$ echo ${names[@]^^}       # All uppercase
+ALICE BOB CHARLIE
 ```
 
 ### Case Modification

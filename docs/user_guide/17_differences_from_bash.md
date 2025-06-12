@@ -39,27 +39,31 @@ set -euo pipefail    # Exit on error, undefined vars, trace, pipefail
 ### Array Variables
 
 ```bash
-# Bash arrays are NOT supported in PSH
-# This won't work:
+# PSH fully supports indexed arrays like bash!
+# All of these work:
 declare -a array=(one two three)
-echo ${array[0]}
-echo ${array[@]}
+echo ${array[0]}         # First element
+echo ${array[@]}         # All elements
+echo ${#array[@]}        # Number of elements
 
-# Workaround: Use positional parameters
-set -- one two three
-echo $1          # First element
-echo "$@"        # All elements
-shift            # Remove first element
+# Array features supported:
+fruits=(apple banana cherry)
+fruits[3]="orange"       # Add element
+fruits+=(grape)          # Append to array
+echo ${fruits[-1]}       # Last element
+echo ${fruits[@]:1:2}    # Slice from index 1, length 2
+echo ${!fruits[@]}       # All indices
 
-# Or use separate variables
-item1="one"
-item2="two"
-item3="three"
+# Array element operations
+files=(doc.txt img.txt data.txt)
+echo ${files[@]/.txt/.bak}  # Replace in all elements
+echo ${files[0]^^}          # Uppercase first element
 
-# Or process lists directly
-for item in one two three; do
-    echo "$item"
-done
+# Sparse arrays work too
+unset fruits[2]          # Remove element
+echo ${!fruits[@]}       # Shows: 0 1 3 4
+
+# Note: Associative arrays (declare -A) are not yet supported
 ```
 
 ### Trap Command
@@ -375,7 +379,7 @@ hello
 | Background jobs | ✅ | ✅ | Interactive only |
 | **Variables** |
 | Simple variables | ✅ | ✅ | Full support |
-| Arrays | ✅ | ❌ | Not implemented |
+| Arrays | ✅ | ✅ | Full support (v0.41.0+) |
 | Associative arrays | ✅ | ❌ | Not implemented |
 | Local variables | ✅ | ✅ | Full support |
 | **Expansions** |

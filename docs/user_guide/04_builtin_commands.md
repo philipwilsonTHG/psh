@@ -348,7 +348,7 @@ psh$ set +o debug-ast    # Disable AST debugging
 
 ### declare - Declare Variables and Functions
 
-Display or set variable attributes and function definitions:
+Declare variables with attributes, display variable values and attributes, or show function definitions:
 
 ```bash
 # Show all variables
@@ -358,6 +358,40 @@ HOME=/home/alice
 MYVAR=Hello
 PS1=psh$ 
 ...
+
+# Declare variables with attributes
+psh$ declare -i count=0          # Integer variable
+psh$ declare -l name="ALICE"     # Lowercase variable
+psh$ declare -u city="london"    # Uppercase variable
+psh$ declare -r PI=3.14159       # Readonly variable
+psh$ declare -x MYAPP_CONFIG     # Export to environment
+psh$ declare -a fruits           # Indexed array
+
+# Integer variables evaluate arithmetic on assignment
+psh$ declare -i calc
+psh$ calc="10 * 5"
+psh$ echo $calc
+50
+
+# Case transformation
+psh$ echo "$name $city"
+alice LONDON
+
+# Arrays
+psh$ declare -a colors=(red green blue)
+psh$ echo ${colors[1]}
+green
+
+# Show variables with attributes
+psh$ declare -p count name
+declare -i count="0"
+declare -l name="alice"
+
+# Remove attributes with +
+psh$ declare +l name    # Remove lowercase attribute
+psh$ name="ALICE"
+psh$ echo $name
+ALICE
 
 # Show all function definitions with -f
 psh$ declare -f
@@ -379,21 +413,26 @@ hello() {
     echo "Hello, $1!"
 }
 
-# Check if name is a function
-psh$ declare -F hello
-declare -f hello
-psh$ echo $?
-0
+# Combine multiple attributes
+psh$ declare -ilx PORT=8080      # Integer, lowercase, exported
+psh$ declare -ru VERSION=1.0     # Readonly, uppercase
 
-# Non-existent function returns error
-psh$ declare -f nonexistent
-psh: declare: nonexistent: not found
-psh$ echo $?
-1
-
-# Currently, declare mainly shows information
-# Full attribute support (like -r for readonly) is planned
+# Attempting to modify readonly fails
+psh$ PI=3.14
+psh: PI: readonly variable
 ```
+
+#### Variable Attributes
+
+- **-i** : Integer - arithmetic evaluation on assignment
+- **-l** : Lowercase - converts value to lowercase
+- **-u** : Uppercase - converts value to uppercase  
+- **-r** : Readonly - cannot be modified or unset
+- **-x** : Export - variable is exported to environment
+- **-a** : Array - variable is an indexed array
+- **-p** : Print - display variables with their attributes
+
+Attributes can be combined (e.g., `-ilx` for integer, lowercase, exported) and removed with `+` prefix (e.g., `+x` to unexport).
 
 ### typeset - Korn Shell Compatible Function Display
 
