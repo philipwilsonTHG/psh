@@ -34,6 +34,11 @@
 - Array tests: 28/28 passing (100%)
 - All array functionality complete
 
+### After Declare & Regex Fixes:
+- 5 failing tests out of 962 (99.5% passing)
+- Fixed `declare -a arr=(...)` syntax parsing
+- Fixed regex matching with `=~` operator in `[[ ]]`
+
 ## += Operator Implementation
 
 ### Summary
@@ -48,12 +53,27 @@ Implemented the `+=` operator for:
 - Added `is_append` flag to `ArrayInitialization` and `ArrayElementAssignment` AST nodes
 - Updated array handling in executor to support append operations
 
+## Additional Fixes
+
+### 3. Fixed Declare Array Initialization
+- **Issue**: `declare -a arr=(one two three)` was causing parse errors
+- **Root Cause**: Parser was tokenizing `arr=(` as separate tokens instead of treating the whole expression as an argument
+- **Fix**: Added special case in parser to recognize `word=(...) ` patterns and parse them as complete arguments
+- **Impact**: Fixed all three declare array tests
+
+### 4. Fixed Regex Matching in Enhanced Test
+- **Issue**: `[[ "test123" =~ [0-9]+ ]]` was causing parse errors
+- **Root Cause**: Tokenizer was treating `[` and `]` in regex patterns as bracket operators
+- **Fix**: Added context tracking for regex patterns after `=~` operator to treat brackets as literal characters
+- **Impact**: Fixed regex matching in enhanced test operators
+
 ## Remaining Work
 
-### Other Failing Tests
-- 3 declare tests for arrays (indexed and associative array initialization, array output format)
-- 1 enhanced test operator (regex matching with =~)
-- 4 compatibility/edge case tests (glob concatenation, parameter expansion, debug scopes)
+### Failing Tests (5 remaining)
+- 2 glob concatenation tests (word concatenation with globs)
+- 1 parameter expansion case modification test  
+- 1 case statement character class test
+- 1 debug scopes output format test
 
 ## Technical Notes
 

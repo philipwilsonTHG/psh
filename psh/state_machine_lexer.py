@@ -148,6 +148,7 @@ class StateMachineLexer:
         self.in_double_brackets = 0
         self.paren_depth = 0
         self.command_position = True
+        self.after_regex_match = False  # Track if we just saw =~
         
         # Buffer for current token being built
         self.current_parts: List[TokenPart] = []
@@ -404,6 +405,10 @@ class StateMachineLexer:
         if self.peek_string(2) == '!=':
             return None  # Let it be handled as a word
         
+        # If we're after =~, treat [ and ] as regular characters for regex patterns
+        if self.after_regex_match and self.current_char() in '[]':
+            return None  # Let it be handled as part of the word
+        
         # Check for [[ first (before single [)
         if self.peek_string(2) == '[[' and self.command_position:
             return ('[[', TokenType.DOUBLE_LBRACKET)
@@ -455,6 +460,7 @@ class StateMachineLexer:
                 # =~ is only an operator inside [[ ]]
                 self.emit_token(token_type, op, self.position, end_pos=self.position + len(op))
                 self.advance(len(op))
+                self.after_regex_match = True  # Set flag for regex pattern parsing
             else:
                 # Outside [[ ]], treat as word
                 self.token_start = self.position
@@ -537,6 +543,10 @@ class StateMachineLexer:
         # Emit token
         self.emit_token(token_type, full_value, self.token_start)
         self.state = LexerState.NORMAL
+        
+        # Reset after_regex_match flag after consuming the regex pattern
+        if self.after_regex_match:
+            self.after_regex_match = False
     
     def _read_word_parts(self, quote_context: Optional[str]) -> List[TokenPart]:
         """Read parts of a word, handling embedded variables and expansions."""
@@ -596,13 +606,18 @@ class StateMachineLexer:
         """Check if character terminates a word in current context."""
         # Special handling for [ and ]
         if char == '[':
+            # If we're parsing a regex pattern, [ is part of the pattern
+            if self.after_regex_match:
+                return False
             # [ terminates a word only if we're building a word (for array subscripts)
             # If we're at the start of a word, [ is part of the word
             if self.state == LexerState.IN_WORD and self.position > self.token_start:
                 return True
             return False
         elif char == ']':
-            # ] always terminates a word
+            # ] always terminates a word, unless we're parsing a regex pattern
+            if self.after_regex_match:
+                return False
             return True
         
         if self.in_double_brackets > 0:

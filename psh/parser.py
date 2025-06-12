@@ -373,12 +373,39 @@ class Parser(BaseParser):
                     array_assignment = self._parse_array_assignment()
                     command.array_assignments.append(array_assignment)
                 else:
-                    # Parse a potentially composite argument
-                    arg_value, arg_type, quote_type = self.parse_composite_argument()
-                    command.args.append(arg_value)
-                    command.arg_types.append(arg_type)
-                    command.quote_types.append(quote_type)
-                    has_parsed_regular_args = True
+                    # Special case: check if this is arr=(...) syntax for declare
+                    if (self.match(TokenType.WORD) and self.peek().value.endswith('=') and 
+                        self.peek_ahead(1) and self.peek_ahead(1).type == TokenType.LPAREN):
+                        # This is array initialization syntax like arr=(...)
+                        # Parse it as a single argument
+                        word_token = self.advance()
+                        lparen = self.advance()  # consume LPAREN
+                        
+                        # Collect elements until RPAREN
+                        elements = []
+                        while not self.match(TokenType.RPAREN) and not self.at_end():
+                            if self.match_any(TokenGroups.WORD_LIKE):
+                                elem_value, _, _ = self.parse_composite_argument()
+                                elements.append(elem_value)
+                            else:
+                                raise self._error("Expected array element")
+                        
+                        if not self.consume_if_match(TokenType.RPAREN):
+                            raise self._error("Expected ')' to close array initialization")
+                        
+                        # Build the complete argument
+                        arg_value = word_token.value + '(' + ' '.join(elements) + ')'
+                        command.args.append(arg_value)
+                        command.arg_types.append('WORD')
+                        command.quote_types.append(None)
+                        has_parsed_regular_args = True
+                    else:
+                        # Parse a potentially composite argument
+                        arg_value, arg_type, quote_type = self.parse_composite_argument()
+                        command.args.append(arg_value)
+                        command.arg_types.append(arg_type)
+                        command.quote_types.append(quote_type)
+                        has_parsed_regular_args = True
         
         # Check for background execution
         if self.consume_if_match(TokenType.AMPERSAND):
