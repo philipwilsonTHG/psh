@@ -115,15 +115,27 @@ class ExpansionManager:
             elif arg_type == 'COMPOSITE':
                 # Composite argument - already concatenated in parser
                 # IMPORTANT: We've lost quote information, so we can't safely
-                # perform glob expansion. In bash, file'*'.txt doesn't expand
+                # perform glob expansion in all cases. In bash, file'*'.txt doesn't expand
                 # because the * was quoted. Since we can't tell which parts
-                # were quoted, we skip glob expansion for all COMPOSITE args.
-                # This is a known limitation documented in TODO.md
+                # were quoted, we have to make a best guess.
                 
-                # However, we still need to expand variables
+                # First, expand variables if present
                 if '$' in arg:
-                    expanded_arg = self.expand_string_variables(arg)
-                    args.append(expanded_arg)
+                    arg = self.expand_string_variables(arg)
+                
+                # Check if the argument contains glob characters
+                # This is a heuristic - we assume unquoted composites with glob chars
+                # should be expanded. This may incorrectly expand patterns where
+                # the glob chars were originally quoted.
+                if any(c in arg for c in ['*', '?', '[']):
+                    # Perform glob expansion
+                    matches = glob.glob(arg)
+                    if matches:
+                        # Sort matches for consistent output
+                        args.extend(sorted(matches))
+                    else:
+                        # No matches, use literal argument (bash behavior)
+                        args.append(arg)
                 else:
                     args.append(arg)
             elif arg_type in ('COMMAND_SUB', 'COMMAND_SUB_BACKTICK'):

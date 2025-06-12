@@ -35,7 +35,7 @@ DOUBLE_QUOTE_ESCAPES = {
 }
 
 # Terminal characters for word boundaries
-WORD_TERMINATORS = set(' \t\n|<>;&(){}[]\'"\n')
+WORD_TERMINATORS = set(' \t\n|<>;&(){}\'"\n')  # [ and ] removed - handled specially
 WORD_TERMINATORS_IN_BRACKETS = set(' \t\n|<>;&(){}\'"\n')  # ] handled specially
 
 
@@ -319,13 +319,15 @@ class StateMachineLexer:
             return '\\' + next_char
     
     def emit_token(self, token_type: TokenType, value: str, start_pos: Optional[int] = None,
-                   quote_type: Optional[str] = None) -> None:
+                   quote_type: Optional[str] = None, end_pos: Optional[int] = None) -> None:
         """Emit a token with current parts."""
         if start_pos is None:
             start_pos = self.token_start
+        if end_pos is None:
+            end_pos = self.position
             
         # Create basic token
-        token = Token(token_type, value, start_pos, self.position, quote_type)
+        token = Token(token_type, value, start_pos, end_pos, quote_type)
         
         # Convert to RichToken if we have parts
         if self.current_parts:
@@ -402,6 +404,28 @@ class StateMachineLexer:
         if self.peek_string(2) == '!=':
             return None  # Let it be handled as a word
         
+        # Check for [[ first (before single [)
+        if self.peek_string(2) == '[[' and self.command_position:
+            return ('[[', TokenType.DOUBLE_LBRACKET)
+        
+        # Special handling for [ and ]
+        # [ should be a word at command position or after whitespace
+        # [ should be LBRACKET when immediately after a word (for array subscripts)
+        if self.current_char() == '[':
+            # Check if we're at command position or after whitespace
+            if self.command_position or self.position == 0:
+                return None  # Let it be handled as a word
+            # Check if previous character is whitespace or operator
+            if self.position > 0:
+                prev_char = self.input[self.position - 1]
+                if prev_char in ' \t\n|;&(){}':
+                    return None  # Let it be handled as a word
+            # Otherwise, it's an array subscript
+            return ('[', TokenType.LBRACKET)
+        
+        # ] is always treated as RBRACKET when it's an operator context
+        # But let the word handler deal with it when part of a word
+        
         # Check operators from longest to shortest
         for length in sorted(self.OPERATORS_BY_LENGTH.keys(), reverse=True):
             if length > len(self.input) - self.position:
@@ -420,16 +444,16 @@ class StateMachineLexer:
         # Special handling for [[ and ]]
         if op == '[[' and self.command_position:
             self.in_double_brackets += 1
-            self.emit_token(token_type, op, self.position)
+            self.emit_token(token_type, op, self.position, end_pos=self.position + len(op))
             self.advance(len(op))
         elif op == ']]' and self.in_double_brackets > 0:
             self.in_double_brackets -= 1
-            self.emit_token(token_type, op, self.position)
+            self.emit_token(token_type, op, self.position, end_pos=self.position + len(op))
             self.advance(len(op))
         elif op == '=~':
             if self.in_double_brackets > 0:
                 # =~ is only an operator inside [[ ]]
-                self.emit_token(token_type, op, self.position)
+                self.emit_token(token_type, op, self.position, end_pos=self.position + len(op))
                 self.advance(len(op))
             else:
                 # Outside [[ ]], treat as word
@@ -437,10 +461,10 @@ class StateMachineLexer:
                 self.state = LexerState.IN_WORD
         elif op in ('<', '>') and self.in_double_brackets > 0:
             # Inside [[ ]], < and > are comparison operators, not redirections
-            self.emit_token(TokenType.WORD, op, self.position)
+            self.emit_token(TokenType.WORD, op, self.position, end_pos=self.position + len(op))
             self.advance(len(op))
         else:
-            self.emit_token(token_type, op, self.position)
+            self.emit_token(token_type, op, self.position, end_pos=self.position + len(op))
             self.advance(len(op))
     
     def _is_comment_start(self) -> bool:
@@ -570,6 +594,17 @@ class StateMachineLexer:
     
     def _is_word_terminator(self, char: str) -> bool:
         """Check if character terminates a word in current context."""
+        # Special handling for [ and ]
+        if char == '[':
+            # [ terminates a word only if we're building a word (for array subscripts)
+            # If we're at the start of a word, [ is part of the word
+            if self.state == LexerState.IN_WORD and self.position > self.token_start:
+                return True
+            return False
+        elif char == ']':
+            # ] always terminates a word
+            return True
+        
         if self.in_double_brackets > 0:
             if char in WORD_TERMINATORS_IN_BRACKETS:
                 return True

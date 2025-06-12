@@ -359,14 +359,17 @@ class Parser(BaseParser):
         if not self.match_any(TokenGroups.WORD_LIKE):
             raise self._error("Expected command")
         
+        # Track whether we've parsed any regular arguments yet
+        has_parsed_regular_args = False
+        
         # Parse arguments and redirections
         while self.match_any(TokenGroups.WORD_LIKE | TokenGroups.REDIRECTS):
             if self.match_any(TokenGroups.REDIRECTS):
                 redirect = self.parse_redirect()
                 command.redirects.append(redirect)
             else:
-                # Check if this might be an array assignment
-                if self._is_array_assignment():
+                # Only check for array assignments if we haven't parsed any regular args yet
+                if not has_parsed_regular_args and self._is_array_assignment():
                     array_assignment = self._parse_array_assignment()
                     command.array_assignments.append(array_assignment)
                 else:
@@ -375,6 +378,7 @@ class Parser(BaseParser):
                     command.args.append(arg_value)
                     command.arg_types.append(arg_type)
                     command.quote_types.append(quote_type)
+                    has_parsed_regular_args = True
         
         # Check for background execution
         if self.consume_if_match(TokenType.AMPERSAND):
@@ -626,6 +630,9 @@ class Parser(BaseParser):
             # Convert token to string representation
             if token.type == TokenType.VARIABLE:
                 parts.append(f"${token.value}")
+            elif token.type in (TokenType.LBRACKET, TokenType.RBRACKET):
+                # Include brackets as-is for glob patterns
+                parts.append(token.value)
             else:
                 parts.append(token.value)
             
@@ -649,6 +656,8 @@ class Parser(BaseParser):
             TokenType.PROCESS_SUB_IN: ('PROCESS_SUB_IN', lambda t: t.value),
             TokenType.PROCESS_SUB_OUT: ('PROCESS_SUB_OUT', lambda t: t.value),
             TokenType.WORD: ('WORD', lambda t: t.value),
+            TokenType.LBRACKET: ('WORD', lambda t: t.value),
+            TokenType.RBRACKET: ('WORD', lambda t: t.value),
         }
         
         arg_type, value_fn = type_map.get(token.type, ('WORD', lambda t: t.value))
