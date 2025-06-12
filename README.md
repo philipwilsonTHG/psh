@@ -2,7 +2,7 @@
 
 An educational Unix shell implementation in Python, designed to teach shell internals and compiler/interpreter concepts through a clean, readable codebase.  **All source code and documentation (with the exception of this sentence) has been written by Claude Code using Sonnet 4 and Opus 4 models.**
 
-**Current Version**: 0.40.0 (2025-12-06)
+**Current Version**: 0.41.0 (2025-12-06)
 
 ## Overview
 
@@ -12,11 +12,20 @@ The shell features a modern component-based architecture where each subsystem (e
 
 ### Recent Major Features
 
+- **v0.41.0**: Array variable support
+  - Implemented indexed arrays with full bash-compatible syntax
+  - Array element access: `${arr[0]}`, `${arr[index]}`
+  - Array expansions: `${arr[@]}`, `${arr[*]}`, `${#arr[@]}`, `${!arr[@]}`
+  - Array assignment: `arr[0]=value`, `arr[5]=value` (sparse arrays supported)
+  - Array initialization: `arr=(one two three)`, `declare -a arr=(a b c)`
+  - Negative indices: `${arr[-1]}` for last element
+  - Array slicing: `${arr[@]:1:2}` for subarray extraction
+  - 164 comprehensive tests with 99% pass rate
 - **v0.40.0**: Enhanced declare/typeset with variable attributes
   - Implemented complete variable attribute system with persistent storage
   - Added support for integer (-i), lowercase (-l), uppercase (-u), readonly (-r), export (-x) attributes
   - Enhanced declare -p to show variables with all their attributes
-  - Array declaration syntax (-a/-A) creates proper array objects (syntax support pending)
+  - Array declaration syntax (-a/-A) creates proper array objects
   - Attribute removal with + prefix (e.g., +x to remove export)
   - 27 of 32 enhanced tests passing (84% success rate)
 - **v0.39.1**: Typeset builtin for ksh compatibility
@@ -130,7 +139,7 @@ The shell features a modern component-based architecture where each subsystem (e
   - Advanced parameter expansion with string manipulation (v0.29.2)
   - `return` builtin
   - `declare -f` to list functions (with -F for names only)
-  - `declare` with full attribute support: -i (integer), -l (lowercase), -u (uppercase), -r (readonly), -x (export)
+  - `declare` with full attribute support: -i (integer), -l (lowercase), -u (uppercase), -r (readonly), -x (export), -a (array)
   - `declare -p` to print variables with attributes
   - `typeset` as ksh-compatible alias for `declare`
   - `unset -f` to remove functions
@@ -364,6 +373,14 @@ $ if [[ $name =~ ^[A-Z] ]]; then
 $ result=$(($(get_value) * 2 + 10))
 $ echo "Result: $result"
 
+# Arrays
+$ arr=(one two three)
+$ echo ${arr[0]}      # First element
+$ echo ${arr[@]}      # All elements
+$ echo ${#arr[@]}     # Array length
+$ arr[5]=five         # Sparse arrays
+$ echo ${arr[-1]}     # Last element
+
 # Dynamic command execution with eval
 $ cmd="echo"
 $ msg="Hello from eval"
@@ -530,7 +547,7 @@ While PSH implements most shell features, there are some limitations:
 
 - **Deep recursion in functions**: Recursive shell functions using command substitution hit Python's recursion limit quickly. Use iterative algorithms instead. See [docs/recursion_depth_analysis.md](docs/recursion_depth_analysis.md) for details.
 - **Arithmetic commands in pipelines**: Arithmetic commands `((expr))` cannot be used directly with && or || operators due to parser limitations. Wrap in if statements for conditional logic.
-- **Arrays**: Not implemented - use space-separated strings or multiple variables instead
+- **Associative arrays**: Not yet implemented - indexed arrays are fully supported
 - **Trap command**: Signal handling via trap is not yet implemented
 - **Extended globbing**: No support for patterns like `?(pattern)`, `*(pattern)`, etc.
 
@@ -561,12 +578,12 @@ PSH has achieved significant feature completeness with **929 passing tests**:
 - Unified AST types for all control structures
 - Line continuation support with `\<newline>` sequences
 - Typeset builtin for ksh compatibility
-- Enhanced declare/typeset with variable attributes (-i, -l, -u, -r, -x, -p)
+- Enhanced declare/typeset with variable attributes (-i, -l, -u, -r, -x, -a, -p)
 - Variable attribute system with persistent storage
+- Indexed array variables with full bash-compatible syntax
 
 ### 🚧 Planned Features
-- Array variable syntax and expansions (parser updates needed for `${arr[0]}`, `${arr[@]}`)
-  - Note: Array storage infrastructure is implemented, pending parser support
+- Associative arrays with declare -A (infrastructure exists, syntax support needed)
 - Trap command for signal handling
 - Extended globbing patterns (`shopt -s extglob`)
 - Printf builtin enhancements

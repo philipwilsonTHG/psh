@@ -35,7 +35,7 @@ DOUBLE_QUOTE_ESCAPES = {
 }
 
 # Terminal characters for word boundaries
-WORD_TERMINATORS = set(' \t\n|<>;&(){}\'"\n')
+WORD_TERMINATORS = set(' \t\n|<>;&(){}[]\'"\n')
 WORD_TERMINATORS_IN_BRACKETS = set(' \t\n|<>;&(){}\'"\n')  # ] handled specially
 
 
@@ -120,6 +120,8 @@ class StateMachineLexer:
             ')': TokenType.RPAREN,
             '{': TokenType.LBRACE,
             '}': TokenType.RBRACE,
+            '[': TokenType.LBRACKET,
+            ']': TokenType.RBRACKET,
             '!': TokenType.EXCLAMATION,
             '\n': TokenType.NEWLINE,
         }

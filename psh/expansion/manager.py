@@ -85,15 +85,30 @@ class ExpansionManager:
                 # Variable token from lexer (includes braces but not $ prefix)
                 # Add $ prefix for expand_variable
                 var_expr = '$' + arg if not arg.startswith('$') else arg
-                expanded = self.expand_variable(var_expr)
-                args.append(expanded)
+                
+                # Check if this is an array expansion that produces multiple words
+                if self.variable_expander.is_array_expansion(var_expr):
+                    # Expand to list of words
+                    expanded_list = self.variable_expander.expand_array_to_list(var_expr)
+                    args.extend(expanded_list)
+                else:
+                    # Regular variable expansion
+                    expanded = self.expand_variable(var_expr)
+                    args.append(expanded)
             elif '\x00$' in arg:
                 # Contains escaped dollar sign marker - replace with literal $
                 args.append(arg.replace('\x00$', '$'))
             elif arg_type != 'COMPOSITE' and arg.startswith('$') and not (arg.startswith('$(') or arg.startswith('`')):
                 # Variable expansion for unquoted variables (but not COMPOSITE args)
-                expanded = self.expand_variable(arg)
-                args.append(expanded)
+                # Check if this is an array expansion that produces multiple words
+                if self.variable_expander.is_array_expansion(arg):
+                    # Expand to list of words
+                    expanded_list = self.variable_expander.expand_array_to_list(arg)
+                    args.extend(expanded_list)
+                else:
+                    # Regular variable expansion
+                    expanded = self.expand_variable(arg)
+                    args.append(expanded)
             elif arg_type == 'WORD' and '\\$' in arg:
                 # Escaped dollar sign in word - replace with literal $
                 args.append(arg.replace('\\$', '$'))

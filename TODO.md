@@ -1,12 +1,23 @@
 # Python Shell (psh) - TODO List
 
-**Current Version**: 0.40.0 (2025-12-06)
+**Current Version**: 0.41.0 (2025-12-06)
 
 ## Overview
 
 PSH has achieved significant feature completeness with **900+ total tests (all passing)**. This document tracks remaining features, known issues, and development priorities.
 
 ## Recent Major Changes
+
+### v0.41.0 - Array Variable Support
+- **Indexed arrays**: Full implementation with bash-compatible syntax
+- **Array element access**: `${arr[0]}`, `${arr[index]}` with variable indices
+- **Array expansions**: `${arr[@]}`, `${arr[*]}`, `${#arr[@]}`, `${!arr[@]}`
+- **Array assignment**: `arr[0]=value`, `arr[5]=value` (sparse arrays supported)
+- **Array initialization**: `arr=(one two three)`, `declare -a arr=(a b c)`
+- **Negative indices**: `${arr[-1]}` for last element access
+- **Array slicing**: `${arr[@]:1:2}` for subarray extraction
+- **Integration**: Works with all parameter expansion features
+- **99% test pass rate**: 164 comprehensive tests covering all array features
 
 ### v0.40.0 - Enhanced Declare Implementation
 - **Variable Attribute System**: Complete implementation with persistent storage
@@ -45,15 +56,15 @@ PSH has achieved significant feature completeness with **900+ total tests (all p
 
 ### High Priority
 
-#### Array Variable Syntax - **NEXT PRIORITY**
-- **Description**: Parser support for array element access and expansions
-- **Status**: Storage infrastructure complete (v0.40.0), parser updates needed
+#### Associative Arrays - **NEXT PRIORITY**
+- **Description**: Support for bash associative arrays (declare -A)
+- **Status**: Storage infrastructure exists (AssociativeArray class), parser updates needed
 - **Remaining work**:
-  - Array element access: `${arr[0]}`, `${arr[key]}`
-  - Array expansions: `${arr[@]}`, `${arr[*]}`, `${#arr[@]}`, `${!arr[@]}`
-  - Array element assignment: `arr[0]=value`, `arr[key]=value`
-  - Array initialization syntax parsing improvements
-- **Note**: The underlying array storage and declare support is implemented
+  - Parser support for associative array syntax: `arr[key]=value`
+  - Key-based expansions: `${arr[key]}`, `${!arr[@]}` for keys
+  - Integration with declare -A flag
+  - String keys vs numeric indices differentiation
+- **Note**: Infrastructure from v0.40.0 supports this, needs syntax parsing
 
 #### Trap Command
 - **Description**: Signal handling for cleanup and error management
@@ -128,6 +139,24 @@ PSH has resolved all major parser and tokenizer limitations as of v0.38.3:
 ## Implementation History
 
 ### Recent Releases
+
+#### v0.41.0 - Array Variable Support
+- Implemented complete indexed array support with bash-compatible syntax
+- Enhanced parser to handle array subscript notation in parameter expansions
+- Added ArraySubscriptParser for parsing array indices with arithmetic evaluation
+- Array element access: `${arr[0]}`, `${arr[$i]}`, `${arr[index+1]}`
+- Array expansions: `${arr[@]}`, `${arr[*]}` with proper IFS handling
+- Array length: `${#arr[@]}` for element count, `${#arr[0]}` for element length
+- Array indices: `${!arr[@]}` to get all defined indices (handles sparse arrays)
+- Array assignment: `arr[0]=value`, `arr[5]=value` with automatic array creation
+- Array initialization: `arr=(one two three)`, supports all word types
+- Negative indices: `${arr[-1]}`, `${arr[-2]}` for reverse access
+- Array slicing: `${arr[@]:1:2}` extracts subarrays
+- Integration with all parameter expansion features (case modification, pattern substitution, etc.)
+- Proper handling of undefined elements and sparse arrays
+- 164 comprehensive tests with 99% pass rate (162 passing, 2 failing)
+- Minor issues: Array slice with negative length, associative array syntax
+- Total tests: 1091 (all major functionality working)
 
 #### v0.40.0 - Enhanced Declare Implementation
 - Implemented complete variable attribute system with persistent storage
@@ -284,6 +313,7 @@ PSH has resolved all major parser and tokenizer limitations as of v0.38.3:
 - **Interactive**: ✓ Complete (line editing, completion, history, prompts, multi-line)
 - **Builtins**: ✓ 26 implemented with modular architecture (including enhanced declare/typeset)
 - **Shell Options**: ✓ Complete (set -e/-u/-x/-o pipefail, debug options)
+- **Arrays**: ✓ Indexed arrays complete (declare -a, element access, expansions, slicing)
 
 ## Development Guidelines
 

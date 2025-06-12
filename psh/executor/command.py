@@ -13,6 +13,12 @@ class CommandExecutor(ExecutorComponent):
     
     def execute(self, command: SimpleCommand) -> int:
         """Execute a single command and return exit status."""
+        # Handle array assignments first
+        if command.array_assignments:
+            exit_code = self._handle_array_assignments(command.array_assignments)
+            if exit_code != 0:
+                return exit_code
+        
         # Preprocess here strings to expand variables
         for redirect in command.redirects:
             if redirect.type == '<<<':
@@ -23,6 +29,7 @@ class CommandExecutor(ExecutorComponent):
         args = self.expansion_manager.expand_arguments(command)
         
         if not args:
+            # If we only had array assignments, that's fine
             return 0
         
         # Separate variable assignments from command
@@ -111,6 +118,70 @@ class CommandExecutor(ExecutorComponent):
                 var_value = self.expansion_manager.expand_tilde(var_value)
             
             self.state.set_variable(var_name, var_value)
+        return 0
+    
+    def _handle_array_assignments(self, array_assignments: List) -> int:
+        """Handle array assignments (initialization and element assignment)."""
+        from ..ast_nodes import ArrayInitialization, ArrayElementAssignment
+        from ..core.variables import Variable, IndexedArray, VarAttributes
+        
+        for assignment in array_assignments:
+            if isinstance(assignment, ArrayInitialization):
+                # Create a new indexed array
+                array = IndexedArray()
+                
+                # Populate the array with elements
+                for i, element in enumerate(assignment.elements):
+                    # Expand variables in the element value
+                    expanded_value = self.expansion_manager.expand_string_variables(element)
+                    array.set(i, expanded_value)
+                
+                # Create a Variable with the array attribute
+                var = Variable(
+                    name=assignment.name,
+                    value=array,
+                    attributes=VarAttributes.ARRAY
+                )
+                
+                # Store in the shell state using enhanced scope manager
+                self.state.scope_manager.set_variable(assignment.name, array, attributes=VarAttributes.ARRAY)
+                
+            elif isinstance(assignment, ArrayElementAssignment):
+                # Get the existing array or create a new one
+                var = self.state.scope_manager.get_variable_object(assignment.name)
+                
+                if var is None or not isinstance(var.value, IndexedArray):
+                    # Create a new array if it doesn't exist
+                    array = IndexedArray()
+                    var = Variable(
+                        name=assignment.name,
+                        value=array,
+                        attributes=VarAttributes.ARRAY
+                    )
+                    self.state.scope_manager.set_variable(assignment.name, array, attributes=VarAttributes.ARRAY)
+                else:
+                    array = var.value
+                
+                # Evaluate the index (it might be an expression)
+                try:
+                    # Expand variables in the index
+                    expanded_index = self.expansion_manager.expand_string_variables(assignment.index)
+                    # Try to convert to integer
+                    index = int(expanded_index)
+                except ValueError:
+                    print(f"psh: {assignment.name}: bad array subscript", file=sys.stderr)
+                    return 1
+                
+                # Expand variables in the value
+                expanded_value = self.expansion_manager.expand_string_variables(assignment.value)
+                
+                # Set the array element
+                try:
+                    array.set(index, expanded_value)
+                except ValueError as e:
+                    print(f"psh: {assignment.name}: {e}", file=sys.stderr)
+                    return 1
+        
         return 0
     
     def _execute_with_assignments(self, assignments: List[str], command_args: List[str], 
@@ -323,6 +394,12 @@ class CommandExecutor(ExecutorComponent):
     
     def execute_in_child(self, command: SimpleCommand):
         """Execute a command in a child process (after fork)"""
+        # Handle array assignments first
+        if command.array_assignments:
+            exit_code = self._handle_array_assignments(command.array_assignments)
+            if exit_code != 0:
+                return exit_code
+        
         # Expand arguments (reuse the same method as execute_command)
         args = self.expansion_manager.expand_arguments(command)
         

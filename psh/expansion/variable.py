@@ -29,6 +29,118 @@ class VariableExpander:
         if var_expr.startswith('{') and var_expr.endswith('}'):
             var_content = var_expr[1:-1]
             
+            # Check for special array expansions first
+            # Handle ${#arr[@]} - array length
+            if var_content.startswith('#') and '[' in var_content and var_content.endswith(']'):
+                array_part = var_content[1:]  # Remove the #
+                bracket_pos = array_part.find('[')
+                array_name = array_part[:bracket_pos]
+                index_expr = array_part[bracket_pos+1:-1]  # Remove [ and ]
+                
+                if index_expr == '@' or index_expr == '*':
+                    # Get the array variable
+                    from ..core.variables import IndexedArray, AssociativeArray
+                    var = self.state.scope_manager.get_variable_object(array_name)
+                    
+                    if var and isinstance(var.value, (IndexedArray, AssociativeArray)):
+                        # Return the number of elements
+                        return str(var.value.length())
+                    elif var and var.value:
+                        # Regular variable with value - treat as single element
+                        return '1'
+                    else:
+                        # Not an array or no value, return 0
+                        return '0'
+            
+            # Handle ${!arr[@]} - array indices
+            if var_content.startswith('!') and '[' in var_content and var_content.endswith(']'):
+                array_part = var_content[1:]  # Remove the !
+                bracket_pos = array_part.find('[')
+                array_name = array_part[:bracket_pos]
+                index_expr = array_part[bracket_pos+1:-1]  # Remove [ and ]
+                
+                if index_expr == '@' or index_expr == '*':
+                    # Get the array variable
+                    from ..core.variables import IndexedArray, AssociativeArray
+                    var = self.state.scope_manager.get_variable_object(array_name)
+                    
+                    if var and isinstance(var.value, IndexedArray):
+                        # Return the indices as space-separated list
+                        indices = var.value.indices()
+                        return ' '.join(str(i) for i in indices)
+                    elif var and isinstance(var.value, AssociativeArray):
+                        # Return the keys as space-separated list
+                        keys = var.value.keys()
+                        return ' '.join(keys)
+                    elif var and var.value:
+                        # Regular variable - has index 0
+                        return '0'
+                    else:
+                        # Not an array or no value, return empty
+                        return ''
+            
+            # Check for array subscript syntax: ${arr[index]}
+            if '[' in var_content and var_content.endswith(']'):
+                bracket_pos = var_content.find('[')
+                array_name = var_content[:bracket_pos]
+                index_expr = var_content[bracket_pos+1:-1]  # Remove [ and ]
+                
+                # Get the array variable
+                from ..core.variables import IndexedArray, AssociativeArray
+                var = self.state.scope_manager.get_variable_object(array_name)
+                
+                # Handle special array expansions
+                if index_expr == '@' or index_expr == '*':
+                    # ${arr[@]} or ${arr[*]} - expand to all array elements
+                    if var and isinstance(var.value, (IndexedArray, AssociativeArray)):
+                        elements = var.value.all_elements()
+                        if index_expr == '@':
+                            # ${arr[@]} - each element as separate word (for word splitting)
+                            # In string context, join with spaces
+                            return ' '.join(elements)
+                        else:
+                            # ${arr[*]} - all elements as single word
+                            return ' '.join(elements)
+                    elif var and var.value:
+                        # Regular variable accessed as array - return the value
+                        return str(var.value)
+                    else:
+                        # Not an array or doesn't exist
+                        return ''
+                
+                # Handle regular indexed access
+                if var and isinstance(var.value, IndexedArray):
+                    # Evaluate the index expression (might contain variables)
+                    expanded_index = self.expand_string_variables(index_expr)
+                    try:
+                        index = int(expanded_index)
+                        result = var.value.get(index)
+                        return result if result is not None else ''
+                    except ValueError:
+                        # Invalid index
+                        return ''
+                elif var and isinstance(var.value, AssociativeArray):
+                    # For associative arrays, use the key as-is
+                    expanded_key = self.expand_string_variables(index_expr)
+                    result = var.value.get(expanded_key)
+                    return result if result is not None else ''
+                elif var and var.value:
+                    # Regular variable - treat as single element array
+                    expanded_index = self.expand_string_variables(index_expr)
+                    try:
+                        index = int(expanded_index)
+                        # Only index 0 is valid for regular variables
+                        if index == 0:
+                            return str(var.value)
+                        else:
+                            return ''
+                    except ValueError:
+                        # Invalid index
+                        return ''
+                else:
+                    # Variable doesn't exist
+                    return ''
+            
             # Check for advanced parameter expansion
             try:
                 operator, var_name, operand = self.param_expansion.parse_expansion('${' + var_content + '}')
@@ -332,6 +444,59 @@ class VariableExpander:
             i += 1
         
         return ''.join(result)
+    
+    def is_array_expansion(self, var_expr: str) -> bool:
+        """Check if this is an array expansion that produces multiple words."""
+        if not var_expr.startswith('$'):
+            return False
+        
+        var_expr = var_expr[1:]  # Remove $
+        
+        # Check for ${arr[@]} syntax
+        if var_expr.startswith('{') and var_expr.endswith('}'):
+            var_content = var_expr[1:-1]
+            
+            # Check for array subscript with @ 
+            if '[' in var_content and var_content.endswith(']'):
+                bracket_pos = var_content.find('[')
+                index_expr = var_content[bracket_pos+1:-1]
+                return index_expr == '@'
+        
+        return False
+    
+    def expand_array_to_list(self, var_expr: str) -> list:
+        """Expand an array variable to a list of words for ${arr[@]} syntax."""
+        if not var_expr.startswith('$'):
+            return [var_expr]
+        
+        var_expr = var_expr[1:]  # Remove $
+        
+        # Handle ${var} syntax
+        if var_expr.startswith('{') and var_expr.endswith('}'):
+            var_content = var_expr[1:-1]
+            
+            # Check for array subscript syntax: ${arr[index]}
+            if '[' in var_content and var_content.endswith(']'):
+                bracket_pos = var_content.find('[')
+                array_name = var_content[:bracket_pos]
+                index_expr = var_content[bracket_pos+1:-1]  # Remove [ and ]
+                
+                if index_expr == '@':
+                    # Get the array variable
+                    from ..core.variables import IndexedArray, AssociativeArray
+                    var = self.state.scope_manager.get_variable_object(array_name)
+                    
+                    if var and isinstance(var.value, (IndexedArray, AssociativeArray)):
+                        # Return elements as list
+                        return var.value.all_elements()
+                    elif var and var.value:
+                        # Regular variable - return as single element list
+                        return [str(var.value)]
+                    else:
+                        return []
+        
+        # Not an array expansion, return single element
+        return [self.expand_variable('$' + var_expr)]
     
     def _split_pattern_replacement(self, operand: str):
         """Split pattern/replacement handling escaped slashes."""

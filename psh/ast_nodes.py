@@ -33,6 +33,35 @@ class ProcessSubstitution(ASTNode):
         return f"{symbol}({self.command})"
 
 
+# =============================================================================
+# ARRAY ASSIGNMENT NODES (defined early for use in SimpleCommand)
+# =============================================================================
+
+@dataclass
+class ArrayAssignment(ASTNode):
+    """Base class for array assignments."""
+    pass
+
+
+@dataclass
+class ArrayInitialization(ArrayAssignment):
+    """Array initialization: arr=(one two three)"""
+    name: str
+    elements: List[str]  # The elements inside parentheses
+    element_types: List[str] = field(default_factory=list)  # Track element types (WORD, STRING, etc.)
+    element_quote_types: List[Optional[str]] = field(default_factory=list)  # Track quote types
+
+
+@dataclass
+class ArrayElementAssignment(ArrayAssignment):
+    """Array element assignment: arr[0]=value"""
+    name: str
+    index: str  # The index expression
+    value: str  # The value to assign
+    value_type: str = 'WORD'  # Type of the value
+    value_quote_type: Optional[str] = None  # Quote type if any
+
+
 class Command(ASTNode):
     """Base class for all executable commands."""
     pass
@@ -46,6 +75,7 @@ class SimpleCommand(Command):
     quote_types: List[Optional[str]] = field(default_factory=list)  # Track quote character used (' or " or None)
     redirects: List[Redirect] = field(default_factory=list)
     background: bool = False
+    array_assignments: List[ArrayAssignment] = field(default_factory=list)  # Array assignments before command
 
 
 class CompoundCommand(Command):

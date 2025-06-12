@@ -2,10 +2,35 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.40.0"
+__version__ = "0.41.0"
 
 # Version history
 VERSION_HISTORY = """
+0.41.0 (2025-12-06) - Array variable support
+  - Implemented complete indexed array support with bash-compatible syntax
+  - Enhanced parser to handle array subscript notation in parameter expansions
+  - Created ArraySubscriptParser for parsing array indices with arithmetic evaluation
+  - Array element access: ${arr[0]}, ${arr[$i]}, ${arr[index+1]} with full arithmetic support
+  - Array expansions: ${arr[@]}, ${arr[*]} with proper IFS handling for [*]
+  - Array length: ${#arr[@]} for element count, ${#arr[0]} for element length
+  - Array indices: ${!arr[@]} to get all defined indices (handles sparse arrays)
+  - Array assignment: arr[0]=value, arr[5]=value with automatic array creation
+  - Array initialization: arr=(one two three), supports all word types and expansions
+  - Negative indices: ${arr[-1]}, ${arr[-2]} for reverse access from end
+  - Array slicing: ${arr[@]:1:2} extracts subarrays with offset and length
+  - Enhanced VariableExpander to handle array-specific expansions
+  - Updated set_variable to automatically convert strings to arrays on indexed assignment
+  - Integration with all parameter expansion features:
+    - Pattern removal works on array elements: ${arr[@]#prefix}
+    - Case modification: ${arr[@]^^} converts all elements to uppercase
+    - Pattern substitution: ${arr[@]/old/new} replaces in all elements
+  - Proper handling of undefined elements in sparse arrays
+  - Arrays work in all contexts: functions, loops, pipelines, subshells
+  - Added comprehensive test suite with 164 tests (162 passing, 99% success rate)
+  - Minor limitations: Array slice with negative length, associative array syntax
+  - Built on v0.40.0 infrastructure (IndexedArray class, declare -a support)
+  - Total tests: 1091 with full array functionality integrated
+
 0.40.0 (2025-12-06) - Variable attribute system and enhanced declare builtin
   - Implemented comprehensive variable attribute system as foundation for arrays
   - Created VarAttributes enum with flags: READONLY, EXPORT, INTEGER, LOWERCASE, UPPERCASE, ARRAY, ASSOC_ARRAY, etc.

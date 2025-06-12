@@ -4,7 +4,9 @@ from ..ast_nodes import (
     CompoundCommand, Redirect, FunctionDef, CaseItem, BreakStatement, ContinueStatement,
     # Unified types
     WhileLoop, ForLoop, CStyleForLoop, IfConditional, CaseConditional,
-    SelectLoop, ArithmeticEvaluation
+    SelectLoop, ArithmeticEvaluation,
+    # Array assignments
+    ArrayAssignment, ArrayInitialization, ArrayElementAssignment
 )
 
 class ASTFormatter:
@@ -46,6 +48,9 @@ class ASTFormatter:
             if node.background:
                 result += " &"
             result += "\n"
+            # Show array assignments
+            for arr_assign in node.array_assignments:
+                result += ASTFormatter.format(arr_assign, indent + 1)
             for redirect in node.redirects:
                 result += ASTFormatter.format(redirect, indent + 1)
             return result
@@ -197,6 +202,16 @@ class ASTFormatter:
         
         elif isinstance(node, ContinueStatement):
             return f"{spaces}ContinueStatement(level={node.level})\n"
+        
+        elif isinstance(node, ArrayInitialization):
+            result = f"{spaces}ArrayInitialization: {node.name}=("
+            result += " ".join(node.elements)
+            result += ")\n"
+            return result
+        
+        elif isinstance(node, ArrayElementAssignment):
+            result = f"{spaces}ArrayElementAssignment: {node.name}[{node.index}]={node.value}\n"
+            return result
         
         else:
             return f"{spaces}{type(node).__name__}: {repr(node)}\n"

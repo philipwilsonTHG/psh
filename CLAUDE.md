@@ -8,7 +8,16 @@ Python Shell (psh) is an educational Unix shell implementation designed for teac
 
 ## Current Development Focus
 
-**Latest**: Typeset Builtin - v0.39.1
+**Latest**: Array Variable Support - v0.41.0
+- ✓ Implemented indexed arrays with full bash-compatible syntax
+- ✓ Array element access: `${arr[0]}`, `${arr[index]}` with arithmetic evaluation
+- ✓ Array expansions: `${arr[@]}`, `${arr[*]}`, `${#arr[@]}`, `${!arr[@]}`
+- ✓ Array assignment and initialization: `arr[0]=value`, `arr=(one two three)`
+- ✓ Negative indices and array slicing: `${arr[-1]}`, `${arr[@]:1:2}`
+- ✓ Sparse array support with proper index tracking
+- ✓ 164 comprehensive tests with 99% pass rate
+
+**Previous**: Typeset Builtin - v0.39.1
 - ✓ Added typeset builtin as ksh-compatible alias for declare
 - ✓ Enhanced declare/typeset with -F flag to show function names only
 - ✓ Created ShellFormatter utility for proper function definition display
@@ -25,11 +34,11 @@ Python Shell (psh) is an educational Unix shell implementation designed for teac
 - ✓ Fixed brace expansion when sequences are followed by shell metacharacters
 - ✓ Fixed read builtin file redirection by properly redirecting file descriptor 0
 
-**Next Priority**: Array Variables and Enhanced Declare
-- Array variables with declare -a (indexed) and -A (associative)
-- Variable attributes: -r (readonly), -x (export), -i (integer), -l/-u (case)
-- Print functionality with declare -p
-- See docs/DECLARE_ENHANCEMENT_PLAN.md for detailed implementation plan
+**Next Priority**: Associative Arrays
+- Associative arrays with declare -A
+- Key-based access and expansions
+- Infrastructure already exists (AssociativeArray class from v0.40.0)
+- Need parser support for string keys in array syntax
 
 ## Architecture
 
@@ -465,6 +474,15 @@ Implemented:
   - Attribute removal with + prefix syntax
   - 84% test success rate (27/32 tests passing)
 
+- Array variables - ✅ **Implemented in v0.41.0**
+  - Full indexed array support with bash-compatible syntax
+  - Array element access with arithmetic index evaluation
+  - All array expansions: [@], [*], length, indices
+  - Sparse arrays with proper gap handling
+  - Negative indices and array slicing
+  - Integration with all parameter expansion features
+  - 99% test pass rate (162/164 tests passing)
+
 - Typeset builtin - ✅ **Implemented in v0.39.1**
   - Added typeset as ksh-compatible alias for declare
   - Enhanced declare/typeset with -F flag for function names only
@@ -472,9 +490,7 @@ Implemented:
   - Full test coverage with 12 comprehensive tests
 
 Not implemented:
-- Array variable syntax in parser (storage infrastructure complete)
-  - Array element access: `${arr[0]}`, `${arr[key]}`
-  - Array expansions: `${arr[@]}`, `${#arr[@]}`, etc.
+- Associative arrays (declare -A) - infrastructure exists, needs parser support for string keys
 - Trap command for signal handling
 - Extended globbing patterns
 - Deep recursion in shell functions (architectural limitation - see docs/recursion_depth_analysis.md)

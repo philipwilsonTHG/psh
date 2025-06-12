@@ -8,7 +8,9 @@ from .ast_nodes import (
     CompoundTestExpression, NegatedTestExpression, Statement,
     # Unified types only
     ExecutionContext, UnifiedControlStructure, WhileLoop, ForLoop, CStyleForLoop,
-    IfConditional, CaseConditional, SelectLoop, ArithmeticEvaluation
+    IfConditional, CaseConditional, SelectLoop, ArithmeticEvaluation,
+    # Array assignments
+    ArrayAssignment, ArrayInitialization, ArrayElementAssignment
 )
 from .parser_base import BaseParser
 from .parser_helpers import TokenGroups, ParseError, ErrorContext
@@ -363,11 +365,16 @@ class Parser(BaseParser):
                 redirect = self.parse_redirect()
                 command.redirects.append(redirect)
             else:
-                # Parse a potentially composite argument
-                arg_value, arg_type, quote_type = self.parse_composite_argument()
-                command.args.append(arg_value)
-                command.arg_types.append(arg_type)
-                command.quote_types.append(quote_type)
+                # Check if this might be an array assignment
+                if self._is_array_assignment():
+                    array_assignment = self._parse_array_assignment()
+                    command.array_assignments.append(array_assignment)
+                else:
+                    # Parse a potentially composite argument
+                    arg_value, arg_type, quote_type = self.parse_composite_argument()
+                    command.args.append(arg_value)
+                    command.arg_types.append(arg_type)
+                    command.quote_types.append(quote_type)
         
         # Check for background execution
         if self.consume_if_match(TokenType.AMPERSAND):
@@ -1278,6 +1285,11 @@ class Parser(BaseParser):
         
         # Check for name() pattern
         if self.match(TokenType.WORD):
+            word_token = self.peek()
+            # Don't consider it a function if the word ends with '=' (array assignment)
+            if word_token.value.endswith('='):
+                return False
+                
             saved_pos = self.current
             self.advance()
             
@@ -1632,6 +1644,135 @@ class Parser(BaseParser):
             type=redirect_type,
             target=target,
             fd=fd
+        )
+    
+    # === Array Assignment Parsing ===
+    
+    def _is_array_assignment(self) -> bool:
+        """Check if current position starts an array assignment."""
+        if not self.match(TokenType.WORD):
+            return False
+        
+        saved_pos = self.current
+        word_token = self.peek()
+        
+        # Check for array initialization: name=(
+        if '=' in word_token.value and word_token.value.endswith('='):
+            # Word contains equals at the end (e.g., "arr=")
+            self.advance()
+            if self.match(TokenType.LPAREN):
+                self.current = saved_pos
+                return True
+        
+        # Check for array element assignment: name[
+        self.advance()  # consume word
+        if self.match(TokenType.LBRACKET):
+            self.current = saved_pos
+            return True
+        
+        self.current = saved_pos
+        return False
+    
+    def _parse_array_assignment(self) -> ArrayAssignment:
+        """Parse an array assignment (initialization or element)."""
+        name_token = self.expect(TokenType.WORD)
+        
+        # Check for array element assignment: name[index]=value
+        if self.match(TokenType.LBRACKET):
+            name = name_token.value
+            return self._parse_array_element_assignment(name)
+        
+        # Otherwise it's array initialization: name=(elements)
+        # The name token should end with '='
+        if name_token.value.endswith('='):
+            name = name_token.value[:-1]  # Remove the trailing '='
+        else:
+            raise self._error("Expected '=' in array initialization")
+        
+        return self._parse_array_initialization(name)
+    
+    def _parse_array_element_assignment(self, name: str) -> ArrayElementAssignment:
+        """Parse array element assignment: name[index]=value"""
+        self.expect(TokenType.LBRACKET)
+        
+        # Parse index expression (can be arithmetic expression)
+        index_parts = []
+        bracket_depth = 1
+        
+        while bracket_depth > 0 and not self.at_end():
+            token = self.peek()
+            
+            if token.type == TokenType.LBRACKET:
+                bracket_depth += 1
+            elif token.type == TokenType.RBRACKET:
+                bracket_depth -= 1
+                if bracket_depth == 0:
+                    break
+            
+            index_parts.append(token.value)
+            self.advance()
+        
+        if bracket_depth != 0:
+            raise self._error("Unmatched '[' in array element assignment")
+        
+        self.expect(TokenType.RBRACKET)
+        index = ''.join(index_parts)
+        
+        # Next token should be a WORD starting with '='
+        if not self.match(TokenType.WORD):
+            raise self._error("Expected '=' after array index")
+        
+        equals_token = self.peek()
+        if not equals_token.value.startswith('='):
+            raise self._error("Expected '=' after array index")
+        
+        self.advance()  # consume the equals token
+        
+        # If the equals token has a value after '=', use it
+        if len(equals_token.value) > 1:
+            # Value is part of the equals token (e.g., "=value")
+            value = equals_token.value[1:]
+            value_type = 'WORD'
+            quote_type = None
+        else:
+            # Parse the value as a separate token
+            if not self.match_any(TokenGroups.WORD_LIKE):
+                raise self._error("Expected value after '=' in array element assignment")
+            value, value_type, quote_type = self.parse_composite_argument()
+        
+        return ArrayElementAssignment(
+            name=name,
+            index=index,
+            value=value,
+            value_type=value_type,
+            value_quote_type=quote_type
+        )
+    
+    def _parse_array_initialization(self, name: str) -> ArrayInitialization:
+        """Parse array initialization: name=(elements)"""
+        self.expect(TokenType.LPAREN)
+        
+        elements = []
+        element_types = []
+        element_quote_types = []
+        
+        # Parse array elements
+        while not self.match(TokenType.RPAREN) and not self.at_end():
+            if self.match_any(TokenGroups.WORD_LIKE):
+                value, arg_type, quote_type = self.parse_composite_argument()
+                elements.append(value)
+                element_types.append(arg_type)
+                element_quote_types.append(quote_type)
+            else:
+                break
+        
+        self.expect(TokenType.RPAREN)
+        
+        return ArrayInitialization(
+            name=name,
+            elements=elements,
+            element_types=element_types,
+            element_quote_types=element_quote_types
         )
 
 

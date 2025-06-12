@@ -259,15 +259,35 @@ class ControlFlowExecutor(ExecutorComponent):
                 return output.split()
             return []
         else:
-            # Expand variables and globs
-            expanded = self.expansion_manager.expand_string_variables(item)
-            # Handle glob patterns
-            if any(c in expanded for c in ['*', '?', '[']):
-                import glob
-                matches = glob.glob(expanded)
-                if matches:
-                    return sorted(matches)
-            return [expanded]
+            # Check if this is an array expansion
+            if item.startswith('$') or item.startswith('{'):
+                # Make sure we have the $ prefix
+                var_expr = '$' + item if not item.startswith('$') else item
+                
+                # Check if it's an array expansion that produces multiple words
+                if self.expansion_manager.variable_expander.is_array_expansion(var_expr):
+                    # Expand to list of words
+                    return self.expansion_manager.variable_expander.expand_array_to_list(var_expr)
+                else:
+                    # Regular variable expansion
+                    expanded = self.expansion_manager.expand_variable(var_expr)
+                    # Handle glob patterns
+                    if any(c in expanded for c in ['*', '?', '[']):
+                        import glob
+                        matches = glob.glob(expanded)
+                        if matches:
+                            return sorted(matches)
+                    return [expanded]
+            else:
+                # Not a variable, expand any embedded variables
+                expanded = self.expansion_manager.expand_string_variables(item)
+                # Handle glob patterns
+                if any(c in expanded for c in ['*', '?', '[']):
+                    import glob
+                    matches = glob.glob(expanded)
+                    if matches:
+                        return sorted(matches)
+                return [expanded]
     
     def _expand_case_expr(self, expr):
         """Expand case expression."""
