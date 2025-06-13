@@ -1,12 +1,24 @@
 # Python Shell (psh) - TODO List
 
-**Current Version**: 0.42.0 (2025-12-06)
+**Current Version**: 0.43.0 (2025-12-13)
 
 ## Overview
 
-PSH has achieved complete test suite success with **962 total tests (100% passing)**. This document tracks remaining features, known issues, and development priorities.
+PSH has achieved complete test suite success with **1007 total tests (100% passing)**. This document tracks remaining features, known issues, and development priorities.
 
 ## Recent Major Changes
+
+### v0.43.0 - Associative Arrays Implementation
+- **Complete associative arrays**: Full bash-compatible implementation with declare -A
+- **String-based key storage**: Complex key expressions with variable expansion
+- **All array expansions**: ${array[@]}, ${!array[@]}, ${#array[@]} for associative arrays
+- **Late binding parser**: Token-based key collection for runtime type detection
+- **Enhanced ExecutorManager**: Fixed critical unimplemented execute() method
+- **Variable expansion fixes**: Proper handling of escaped ! character in expansions
+- **Comprehensive test suite**: 7 new tests with 100% pass rate
+- **Updated documentation**: Enhanced user guide with examples and best practices
+- **1007 total tests passing**: No regressions, complete feature implementation
+- **Major bash compatibility**: Completes array functionality milestone
 
 ### v0.42.0 - Complete Test Suite Fixes
 - **100% test pass rate**: All 962 tests now passing (up from 949)
@@ -66,15 +78,19 @@ PSH has achieved complete test suite success with **962 total tests (100% passin
 
 ### High Priority
 
-#### Associative Arrays - **NEXT PRIORITY**
-- **Description**: Support for bash associative arrays (declare -A)
-- **Status**: Storage infrastructure exists (AssociativeArray class), parser updates needed
-- **Remaining work**:
-  - Parser support for associative array syntax: `arr[key]=value`
-  - Key-based expansions: `${arr[key]}`, `${!arr[@]}` for keys
-  - Integration with declare -A flag
-  - String keys vs numeric indices differentiation
-- **Note**: Infrastructure from v0.40.0 supports this, needs syntax parsing
+#### ✅ **Associative Arrays - COMPLETED in v0.43.0**
+- **Description**: Complete bash associative arrays (declare -A) implementation
+- **Status**: ✅ **IMPLEMENTED** - Full feature complete with comprehensive testing
+- **Completed work**:
+  - ✅ Parser support for associative array syntax: `arr[key]=value`
+  - ✅ Key-based expansions: `${arr[key]}`, `${!arr[@]}` for keys
+  - ✅ Integration with declare -A flag and initialization syntax
+  - ✅ String keys vs numeric indices differentiation with late binding
+  - ✅ Complex key expressions with variable expansion: `arr[${prefix}_${suffix}]`
+  - ✅ Quoted keys with spaces: `arr["key with spaces"]`
+  - ✅ Variable keys: `arr[$var]=value`
+  - ✅ Runtime type detection and context-aware key evaluation
+- **Result**: Major bash compatibility milestone achieved
 
 #### Trap Command
 - **Description**: Signal handling for cleanup and error management
@@ -323,7 +339,7 @@ PSH has resolved all major parser and tokenizer limitations as of v0.38.3:
 - **Interactive**: ✓ Complete (line editing, completion, history, prompts, multi-line)
 - **Builtins**: ✓ 26 implemented with modular architecture (including enhanced declare/typeset)
 - **Shell Options**: ✓ Complete (set -e/-u/-x/-o pipefail, debug options)
-- **Arrays**: ✓ Indexed arrays complete (declare -a, element access, expansions, slicing)
+- **Arrays**: ✓ Complete (indexed and associative arrays, declare -a/-A, all expansions, key/index access)
 
 ## Development Guidelines
 

@@ -547,7 +547,7 @@ While PSH implements most shell features, there are some limitations:
 
 - **Deep recursion in functions**: Recursive shell functions using command substitution hit Python's recursion limit quickly. Use iterative algorithms instead. See [docs/recursion_depth_analysis.md](docs/recursion_depth_analysis.md) for details.
 - **Arithmetic commands in pipelines**: Arithmetic commands `((expr))` cannot be used directly with && or || operators due to parser limitations. Wrap in if statements for conditional logic.
-- **Associative arrays**: Not yet implemented - indexed arrays are fully supported
+- **Associative arrays**: ✅ **Fully implemented in v0.43.0** - both indexed and associative arrays are supported
 - **Trap command**: Signal handling via trap is not yet implemented
 - **Extended globbing**: No support for patterns like `?(pattern)`, `*(pattern)`, etc.
 
@@ -555,7 +555,7 @@ See [TODO.md](TODO.md) for a complete list of planned features.
 
 ## Implementation Status
 
-PSH has achieved significant feature completeness with **929 passing tests**:
+PSH has achieved significant feature completeness with **1007 passing tests**:
 
 ### ✅ Fully Implemented (v0.40.0)
 - All core shell features (execution, I/O, pipelines, variables)
@@ -578,12 +578,12 @@ PSH has achieved significant feature completeness with **929 passing tests**:
 - Unified AST types for all control structures
 - Line continuation support with `\<newline>` sequences
 - Typeset builtin for ksh compatibility
-- Enhanced declare/typeset with variable attributes (-i, -l, -u, -r, -x, -a, -p)
+- Enhanced declare/typeset with variable attributes (-i, -l, -u, -r, -x, -a, -A, -p)
 - Variable attribute system with persistent storage
-- Indexed array variables with full bash-compatible syntax
+- **Complete array support**: Both indexed and associative arrays with full bash syntax
+- Associative arrays with declare -A, string keys, and all array expansions
 
 ### 🚧 Planned Features
-- Associative arrays with declare -A (infrastructure exists, syntax support needed)
 - Trap command for signal handling
 - Extended globbing patterns (`shopt -s extglob`)
 - Printf builtin enhancements
