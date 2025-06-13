@@ -8,26 +8,25 @@ Python Shell (psh) is an educational Unix shell implementation designed for teac
 
 ## Current Development Focus
 
-**Latest**: Visitor Pattern Phase 4 - Complete Integration - v0.48.0
-- ✓ **Phase 4 Integration**: Visitor executor is now the default execution engine
+**Latest**: Visitor Pattern Phase 3 - Executor Implementation - v0.47.0
+- ✓ **Phase 3 Integration**: ExecutorVisitor implementation for AST execution
+  - Created ExecutorVisitor extending ASTVisitor[int] for command execution
+  - Implemented execution for all major node types (commands, pipelines, control structures)
+  - Proper process management with forking and job control integration
+  - Pipeline execution with proper exit status propagation
+  - Function definition and execution support
+  - Integration with existing managers (ExpansionManager, IOManager, JobManager)
+  - Maintains full backward compatibility with existing executor
+  - Added --visitor-executor flag to opt-in to new executor (experimental)
   - Fixed all visitor base classes to properly initialize _method_cache
-  - Added missing shell methods for backward compatibility (set_positional_params, execute)
-  - Fixed builtin argument handling to include command name
-  - Fixed function scope management for local variables
-  - Created proper output capture infrastructure for tests
-  - Visitor executor is now the default (99.7% test success rate)
-  - Added --legacy-executor flag for backward compatibility
-  - All 7 quick-win tasks completed:
-    - ArithmeticEvaluation and CStyleForLoop visitor methods
-    - Method lookup caching for performance
-    - MetricsVisitor for code analysis
-    - TestExecutorVisitor for better test output capture
-    - LinterVisitor for code quality checks
-  - Test results: 99.7% success rate (3 known limitations with forked process output)
-- ✓ Successfully transitioned from experimental to production-ready visitor pattern
-- ✓ Clean architecture enables future enhancements and optimizations
+  - Added missing shell methods for backward compatibility
+  - Fixed builtin argument handling and function scope management
+  - All 7 quick-win tasks completed (metrics, linter, test executor visitors)
+  - Test infrastructure limitation: Output capture doesn't work for forked processes
+  - Legacy executor remains default until test infrastructure is updated
+  - All 1131 tests pass with legacy executor
 
-**Previous**: Visitor Pattern Phase 3 - Executor Implementation - v0.47.0
+**Previous**: Visitor Pattern Phase 2 - Enhanced Validation - v0.46.0
 - ✓ **Phase 3 Integration**: ExecutorVisitor implementation for AST execution
   - Created ExecutorVisitor extending ASTVisitor[int] for command execution
   - Implemented execution for all major node types (commands, pipelines, control structures)

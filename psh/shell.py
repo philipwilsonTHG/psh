@@ -23,7 +23,7 @@ from .interactive.base import InteractiveManager
 class Shell:
     def __init__(self, args=None, script_name=None, debug_ast=False, debug_tokens=False, debug_scopes=False, 
                  debug_expansion=False, debug_expansion_detail=False, debug_exec=False, debug_exec_fork=False,
-                 norc=False, rcfile=None, validate_only=False, use_legacy_executor=False, parent_shell=None):
+                 norc=False, rcfile=None, validate_only=False, use_visitor_executor=False, parent_shell=None):
         # Initialize state
         self.state = ShellState(args, script_name, debug_ast, 
                               debug_tokens, debug_scopes, debug_expansion, debug_expansion_detail,
@@ -32,8 +32,8 @@ class Shell:
         # Store validation mode
         self.validate_only = validate_only
         
-        # Store executor mode - default is visitor executor
-        self.use_visitor_executor = not use_legacy_executor
+        # Store executor mode - default is legacy executor for now
+        self.use_visitor_executor = use_visitor_executor
         
         # Set shell reference in scope manager for arithmetic evaluation
         self.state.scope_manager.set_shell(self)

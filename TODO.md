@@ -1,6 +1,6 @@
 # Python Shell (psh) - TODO List
 
-**Current Version**: 0.48.0 (2025-01-14)
+**Current Version**: 0.47.0 (2025-01-14)
 
 ## Overview
 
@@ -8,18 +8,19 @@ PSH has achieved complete test suite success with **1131 total tests (99.7% pass
 
 ## Recent Major Changes
 
-### v0.48.0 - Visitor Pattern Phase 4: Complete Integration
-- **Production-ready visitor executor**: Now the default execution engine for PSH
-- **Removed experimental flag**: --visitor-executor removed; visitor is now default
-- **Added legacy flag**: --legacy-executor for backward compatibility with old executor
-- **Fixed all visitor classes**: Proper _method_cache initialization in base classes
-- **Backward compatibility**: Added missing shell methods (set_positional_params, execute)
-- **Fixed builtin handling**: Arguments now include command name as first element
-- **Function scope management**: Fixed local variable handling in visitor executor
-- **Test infrastructure**: Better output capture with known limitations documented
-- **99.7% test success**: 3 known limitations with forked process output capture
-- **All quick-wins completed**: Method caching, metrics, linter visitors implemented
-- **Clean architecture**: Foundation complete for future visitor-based enhancements
+### v0.47.0 - Visitor Pattern Phase 3: Executor Implementation
+- **ExecutorVisitor implementation**: Complete execution using visitor pattern
+- **Experimental flag**: Added --visitor-executor to opt-in to new executor
+- **Full AST node support**: Commands, pipelines, control structures, functions
+- **Process management**: Proper forking and job control integration
+- **Fixed visitor classes**: Proper _method_cache initialization
+- **Backward compatibility**: Added missing shell methods
+- **Fixed builtin handling**: Arguments include command name
+- **Function scope management**: Fixed local variable handling
+- **Test infrastructure limitation**: Output capture doesn't work for forked processes
+- **Legacy executor default**: Until test infrastructure is updated
+- **All quick-wins completed**: Method caching, metrics, linter visitors
+- **1131 tests passing**: With legacy executor (99.7% pass rate)
 
 ### v0.46.0 - Visitor Pattern Phase 2: Enhanced Validation
 - **Enhanced AST validation**: Created EnhancedValidatorVisitor with static analysis
