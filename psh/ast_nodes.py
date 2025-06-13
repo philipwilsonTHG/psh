@@ -1,7 +1,10 @@
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union, TYPE_CHECKING
 from abc import ABC
 from enum import Enum
+
+if TYPE_CHECKING:
+    from .token_types import Token
 
 
 class ASTNode(ABC):
@@ -57,7 +60,7 @@ class ArrayInitialization(ArrayAssignment):
 class ArrayElementAssignment(ArrayAssignment):
     """Array element assignment: arr[0]=value or arr[0]+=value"""
     name: str
-    index: str  # The index expression
+    index: Union[str, List['Token']]  # The index expression (str for compatibility, List[Token] for late binding)
     value: str  # The value to assign
     value_type: str = 'WORD'  # Type of the value
     value_quote_type: Optional[str] = None  # Quote type if any

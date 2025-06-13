@@ -175,73 +175,147 @@ class CommandExecutor(ExecutorComponent):
                 self.state.scope_manager.set_variable(assignment.name, array, attributes=VarAttributes.ARRAY)
                 
             elif isinstance(assignment, ArrayElementAssignment):
-                # Get the existing array or create a new one
-                var = self.state.scope_manager.get_variable_object(assignment.name)
-                
-                if var is None or not isinstance(var.value, IndexedArray):
-                    # Create a new array if it doesn't exist
-                    array = IndexedArray()
-                    var = Variable(
-                        name=assignment.name,
-                        value=array,
-                        attributes=VarAttributes.ARRAY
-                    )
-                    self.state.scope_manager.set_variable(assignment.name, array, attributes=VarAttributes.ARRAY)
-                else:
-                    array = var.value
-                
-                # Evaluate the index (it might be an expression)
-                try:
-                    # Expand variables in the index
-                    # Note: assignment.index might be 'i' or '$i' or '0' etc
-                    if assignment.index.isdigit():
-                        # Direct numeric index
-                        expanded_index = assignment.index
-                    elif assignment.index.startswith('$((') and assignment.index.endswith('))'):
-                        # Arithmetic expansion
-                        expanded_index = str(self.expansion_manager.execute_arithmetic_expansion(assignment.index))
-                    elif assignment.index.startswith('$'):
-                        # Variable with $ prefix
-                        expanded_index = self.expansion_manager.expand_variable(assignment.index)
-                    else:
-                        # Variable name without $ prefix
-                        expanded_index = self.expansion_manager.expand_variable('$' + assignment.index)
-                    
-                    # Check if it's an arithmetic expression
-                    if any(op in expanded_index for op in ['+', '-', '*', '/', '%', '(', ')']):
-                        # Evaluate as arithmetic
-                        from ..arithmetic import evaluate_arithmetic, ArithmeticError
-                        try:
-                            index = evaluate_arithmetic(expanded_index, self.shell)
-                        except (ArithmeticError, Exception):
-                            print(f"psh: {assignment.name}: bad array subscript", file=sys.stderr)
-                            return 1
-                    else:
-                        # Try to convert to integer
-                        index = int(expanded_index)
-                except ValueError:
-                    print(f"psh: {assignment.name}: bad array subscript", file=sys.stderr)
-                    return 1
-                
-                # Expand variables in the value
-                expanded_value = self.expansion_manager.expand_string_variables(assignment.value)
-                
-                # Handle append operation for array element
-                if assignment.is_append:
-                    # Get current value of the element
-                    current_value = array.get(index)
-                    if current_value is None:
-                        current_value = ''
-                    expanded_value = current_value + expanded_value
-                
-                # Set the array element
-                try:
-                    array.set(index, expanded_value)
-                except ValueError as e:
-                    print(f"psh: {assignment.name}: {e}", file=sys.stderr)
-                    return 1
+                exit_code = self._execute_array_element_assignment(assignment)
+                if exit_code != 0:
+                    return exit_code
         
         return 0
+    
+    def _execute_array_element_assignment(self, assignment) -> int:
+        """Execute array element assignment with late binding support."""
+        from ..ast_nodes import ArrayElementAssignment
+        from ..core.variables import Variable, IndexedArray, AssociativeArray, VarAttributes
+        
+        # Get the existing variable or determine what type of array to create
+        var = self.state.scope_manager.get_variable_object(assignment.name)
+        
+        # Determine array type and evaluate key accordingly
+        if var and var.attributes & VarAttributes.ASSOC_ARRAY:
+            # Associative array - evaluate key as string
+            key = self._evaluate_key_as_string(assignment.index)
+            array = var.value
+        elif var and isinstance(var.value, IndexedArray):
+            # Indexed array - evaluate key as arithmetic
+            try:
+                key = self._evaluate_key_as_arithmetic(assignment.index)
+            except (ValueError, TypeError) as e:
+                print(f"psh: {assignment.name}: bad array subscript", file=sys.stderr)
+                return 1
+            array = var.value
+        elif var and isinstance(var.value, AssociativeArray):
+            # Associative array (shouldn't happen with proper attributes, but defensive)
+            key = self._evaluate_key_as_string(assignment.index)
+            array = var.value
+        else:
+            # Auto-create indexed array (bash behavior for undeclared arrays)
+            try:
+                key = self._evaluate_key_as_arithmetic(assignment.index)
+            except (ValueError, TypeError) as e:
+                print(f"psh: {assignment.name}: bad array subscript", file=sys.stderr)
+                return 1
+            array = IndexedArray()
+            self.state.scope_manager.set_variable(assignment.name, array, attributes=VarAttributes.ARRAY)
+        
+        # Expand variables in the value
+        expanded_value = self.expansion_manager.expand_string_variables(assignment.value)
+        
+        # Handle append operation for array element
+        if assignment.is_append:
+            # Get current value of the element
+            if isinstance(array, AssociativeArray):
+                current_value = array.get(key)
+            else:
+                current_value = array.get(key)
+            if current_value is None:
+                current_value = ''
+            expanded_value = current_value + expanded_value
+        
+        # Set the array element
+        try:
+            array.set(key, expanded_value)
+        except ValueError as e:
+            print(f"psh: {assignment.name}: {e}", file=sys.stderr)
+            return 1
+        
+        return 0
+    
+    def _evaluate_key_as_string(self, key_tokens) -> str:
+        """Evaluate tokens as string key for associative array."""
+        # Handle backward compatibility with string keys
+        if isinstance(key_tokens, str):
+            return self.expansion_manager.expand_string_variables(key_tokens)
+        
+        # New token-based evaluation
+        from ..token_types import TokenType
+        result = []
+        for token in key_tokens:
+            if token.type == TokenType.STRING:
+                # Expand variables in strings if needed
+                result.append(self.expansion_manager.expand_string_variables(token.value))
+            elif token.type == TokenType.VARIABLE:
+                # Expand variable - add $ prefix if not present
+                var_expr = '$' + token.value if not token.value.startswith('$') else token.value
+                expanded = self.expansion_manager.expand_variable(var_expr)
+                result.append(expanded)
+            elif token.type == TokenType.WORD:
+                # Literal text, but may contain variables
+                result.append(self.expansion_manager.expand_string_variables(token.value))
+            else:
+                # Other tokens used literally
+                result.append(token.value)
+        return ''.join(result)
+    
+    def _evaluate_key_as_arithmetic(self, key_tokens) -> int:
+        """Evaluate tokens as arithmetic expression for indexed array."""
+        # Handle backward compatibility with string expressions
+        if isinstance(key_tokens, str):
+            # Legacy string-based arithmetic evaluation
+            expanded_index = self.expansion_manager.expand_string_variables(key_tokens)
+            if expanded_index.isdigit():
+                return int(expanded_index)
+            elif any(op in expanded_index for op in ['+', '-', '*', '/', '%', '(', ')']):
+                from ..arithmetic import evaluate_arithmetic, ArithmeticError
+                try:
+                    return evaluate_arithmetic(expanded_index, self.shell)
+                except (ArithmeticError, Exception):
+                    raise ValueError(f"bad array subscript: {expanded_index}")
+            else:
+                return int(expanded_index)
+        
+        # New token-based evaluation
+        # Reconstruct expression from tokens and evaluate
+        from ..token_types import TokenType
+        expr_parts = []
+        for token in key_tokens:
+            if token.type == TokenType.VARIABLE:
+                # Expand variable
+                var_name = token.value[1:] if token.value.startswith('$') else token.value
+                var_value = self.state.get_variable(var_name, '0')
+                expr_parts.append(var_value)
+            elif token.type == TokenType.ARITH_EXPANSION:
+                # Evaluate arithmetic expansion
+                result = self.expansion_manager.execute_arithmetic_expansion(token.value)
+                expr_parts.append(str(result))
+            else:
+                expr_parts.append(token.value)
+        
+        expr = ''.join(expr_parts)
+        
+        # Evaluate as arithmetic
+        if expr.isdigit() or (expr.startswith('-') and expr[1:].isdigit()):
+            return int(expr)
+        elif any(op in expr for op in ['+', '-', '*', '/', '%', '(', ')']):
+            from ..arithmetic import evaluate_arithmetic, ArithmeticError
+            try:
+                return evaluate_arithmetic(expr, self.shell)
+            except (ArithmeticError, Exception):
+                raise ValueError(f"bad array subscript: {expr}")
+        else:
+            # Try to convert to integer
+            try:
+                return int(expr)
+            except ValueError:
+                raise ValueError(f"bad array subscript: {expr}")
     
     def _execute_with_assignments(self, assignments: List[str], command_args: List[str], 
                                   command: Command) -> int:

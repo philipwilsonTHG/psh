@@ -366,6 +366,7 @@ psh$ declare -u city="london"    # Uppercase variable
 psh$ declare -r PI=3.14159       # Readonly variable
 psh$ declare -x MYAPP_CONFIG     # Export to environment
 psh$ declare -a fruits           # Indexed array
+psh$ declare -A colors           # Associative array
 
 # Integer variables evaluate arithmetic on assignment
 psh$ declare -i calc
@@ -377,10 +378,15 @@ psh$ echo $calc
 psh$ echo "$name $city"
 alice LONDON
 
-# Arrays
-psh$ declare -a colors=(red green blue)
-psh$ echo ${colors[1]}
+# Indexed arrays
+psh$ declare -a indexed_colors=(red green blue)
+psh$ echo ${indexed_colors[1]}
 green
+
+# Associative arrays
+psh$ declare -A assoc_colors=([primary]="red" [secondary]="blue")
+psh$ echo ${assoc_colors[primary]}
+red
 
 # Show variables with attributes
 psh$ declare -p count name
@@ -430,6 +436,7 @@ psh: PI: readonly variable
 - **-r** : Readonly - cannot be modified or unset
 - **-x** : Export - variable is exported to environment
 - **-a** : Array - variable is an indexed array
+- **-A** : Associative Array - variable is an associative array (requires explicit declaration)
 - **-p** : Print - display variables with their attributes
 
 Attributes can be combined (e.g., `-ilx` for integer, lowercase, exported) and removed with `+` prefix (e.g., `+x` to unexport).

@@ -57,5 +57,36 @@ class ExecutorManager:
     
     def execute(self, node: ASTNode) -> int:
         """Route execution to appropriate executor based on node type."""
-        # This will be implemented as we create the executors
-        pass
+        from ..ast_nodes import (
+            SimpleCommand, Pipeline, AndOrList, CommandList, TopLevel, StatementList,
+            WhileLoop, ForLoop, CStyleForLoop, IfConditional, CaseConditional, 
+            SelectLoop, ArithmeticEvaluation, EnhancedTestStatement, FunctionDef,
+            BreakStatement, ContinueStatement
+        )
+        
+        # Route to appropriate executor based on node type
+        if isinstance(node, SimpleCommand):
+            return self.command_executor.execute(node)
+        elif isinstance(node, Pipeline):
+            return self.pipeline_executor.execute(node)
+        elif isinstance(node, (AndOrList, CommandList, TopLevel, StatementList)):
+            return self.statement_executor.execute(node)
+        elif isinstance(node, (WhileLoop, ForLoop, CStyleForLoop, IfConditional, 
+                              CaseConditional, SelectLoop, BreakStatement, 
+                              ContinueStatement, EnhancedTestStatement)):
+            return self.control_flow_executor.execute(node)
+        elif isinstance(node, ArithmeticEvaluation):
+            return self.arithmetic_executor.execute(node)
+        elif isinstance(node, FunctionDef):
+            # Register the function and return 0
+            try:
+                self.shell.function_manager.define_function(node.name, node.body)
+                return 0
+            except ValueError as e:
+                import sys
+                print(f"psh: {e}", file=sys.stderr)
+                return 1
+        else:
+            import sys
+            print(f"psh: unknown node type: {type(node).__name__}", file=sys.stderr)
+            return 1

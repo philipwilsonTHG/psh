@@ -39,8 +39,9 @@ set -euo pipefail    # Exit on error, undefined vars, trace, pipefail
 ### Array Variables
 
 ```bash
-# PSH fully supports indexed arrays like bash!
-# All of these work:
+# PSH fully supports both indexed and associative arrays like bash!
+
+# Indexed arrays
 declare -a array=(one two three)
 echo ${array[0]}         # First element
 echo ${array[@]}         # All elements
@@ -63,7 +64,12 @@ echo ${files[0]^^}          # Uppercase first element
 unset fruits[2]          # Remove element
 echo ${!fruits[@]}       # Shows: 0 1 3 4
 
-# Note: Associative arrays (declare -A) are not yet supported
+# Associative arrays are fully supported!
+declare -A colors=([red]="#FF0000" [green]="#00FF00")
+colors[blue]="#0000FF"
+echo ${colors[red]}      # Access by key
+echo ${!colors[@]}       # All keys
+echo ${colors[@]}        # All values
 ```
 
 ### Trap Command
@@ -380,7 +386,7 @@ hello
 | **Variables** |
 | Simple variables | ✅ | ✅ | Full support |
 | Arrays | ✅ | ✅ | Full support (v0.41.0+) |
-| Associative arrays | ✅ | ❌ | Not implemented |
+| Associative arrays | ✅ | ✅ | Full support (v0.42.0+) |
 | Local variables | ✅ | ✅ | Full support |
 | **Expansions** |
 | Parameter expansion | ✅ | ✅ | All features |
@@ -595,10 +601,10 @@ PSH continues to evolve with a focus on educational value.
 ```bash
 # Priority features for future versions:
 1. Trap command for signal handling
-2. Basic array support
-3. Associative arrays
-4. Extended glob patterns
-5. Escaped glob patterns
+2. Extended glob patterns
+3. Escaped glob patterns
+4. Advanced completion features
+5. Additional built-in commands
 
 # Educational enhancements:
 - More detailed error messages

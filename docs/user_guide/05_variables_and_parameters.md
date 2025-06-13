@@ -1072,6 +1072,270 @@ psh$ show_menu "Service Manager" "${menu_items[@]}"
    new_array="${old_array[@]}"
    ```
 
+## 5.8 Associative Arrays
+
+PSH supports associative arrays (also called hash tables or dictionaries) that use string keys instead of numeric indices. Associative arrays must be explicitly declared with `declare -A`.
+
+### Creating Associative Arrays
+
+```bash
+# Declare an associative array
+psh$ declare -A colors
+psh$ echo "Created associative array 'colors'"
+Created associative array 'colors'
+
+# Assign values using string keys
+psh$ colors[red]="#FF0000"
+psh$ colors[green]="#00FF00"
+psh$ colors[blue]="#0000FF"
+
+# Keys can contain spaces (use quotes)
+psh$ colors["light blue"]="#ADD8E6"
+psh$ colors['dark red']="#8B0000"
+
+# Initialization with declare
+psh$ declare -A fruits=([apple]="red" [banana]="yellow" [grape]="purple")
+```
+
+### Accessing Associative Array Elements
+
+```bash
+# Access by key
+psh$ echo ${colors[red]}
+#FF0000
+
+psh$ echo ${colors["light blue"]}
+#ADD8E6
+
+# Using variables as keys
+psh$ key="green"
+psh$ echo ${colors[$key]}
+#00FF00
+
+# Complex key expressions
+psh$ prefix="light"
+psh$ suffix="blue"
+psh$ echo ${colors["${prefix} ${suffix}"]}
+#ADD8E6
+```
+
+### Associative Array Expansions
+
+```bash
+# All values
+psh$ echo ${colors[@]}
+#FF0000 #00FF00 #0000FF #ADD8E6 #8B0000
+
+# All keys
+psh$ echo ${!colors[@]}
+red green blue light blue dark red
+
+# Number of elements
+psh$ echo ${#colors[@]}
+5
+
+# Check if key exists
+psh$ if [[ -v colors[red] ]]; then
+>     echo "Key 'red' exists"
+> fi
+Key 'red' exists
+
+# Alternative existence check
+psh$ if [[ -n "${colors[red]+set}" ]]; then
+>     echo "Key 'red' exists"
+> fi
+Key 'red' exists
+```
+
+### Modifying Associative Arrays
+
+```bash
+# Update existing key
+psh$ colors[red]="#CC0000"
+psh$ echo ${colors[red]}
+#CC0000
+
+# Append to value (using +=)
+psh$ colors[note]="RGB"
+psh$ colors[note]+=" color"
+psh$ echo ${colors[note]}
+RGB color
+
+# Remove a key
+psh$ unset colors["light blue"]
+psh$ echo ${!colors[@]}
+red green blue dark red note
+
+# Clear all elements
+psh$ unset colors
+```
+
+### Key Differences from Indexed Arrays
+
+```bash
+# Associative arrays require declare -A
+psh$ declare -A assoc
+psh$ assoc[key]="value"     # Works
+
+# Regular arrays auto-create
+psh$ indexed[0]="value"     # Works without declare
+
+# Keys are treated as strings in associative arrays
+psh$ declare -A calc
+psh$ calc[2+2]="not four"   # Key is literally "2+2"
+psh$ echo ${calc[2+2]}
+not four
+
+# vs indexed arrays where expressions are evaluated
+psh$ indexed[2+2]="four"    # Index is calculated as 4
+psh$ echo ${indexed[4]}
+four
+```
+
+### Practical Examples
+
+```bash
+#!/usr/bin/env psh
+# Configuration management using associative arrays
+
+# Server configuration
+declare -A config=(
+    [hostname]="web01.example.com"
+    [port]="8080"
+    [ssl_enabled]="true"
+    [max_connections]="1000"
+)
+
+# Print configuration
+print_config() {
+    echo "Server Configuration:"
+    for key in "${!config[@]}"; do
+        printf "  %-15s: %s\n" "$key" "${config[$key]}"
+    done
+}
+
+# User database simulation
+declare -A users
+users[alice]="alice@example.com:admin"
+users[bob]="bob@example.com:user"
+users[charlie]="charlie@example.com:user"
+
+# Look up user
+lookup_user() {
+    local username="$1"
+    if [[ -v users[$username] ]]; then
+        IFS=':' read -r email role <<< "${users[$username]}"
+        echo "User: $username"
+        echo "Email: $email"
+        echo "Role: $role"
+    else
+        echo "User not found: $username"
+        return 1
+    fi
+}
+
+# File type mapping
+declare -A extensions=(
+    [txt]="Text file"
+    [jpg]="JPEG image"
+    [png]="PNG image"
+    [pdf]="PDF document"
+    [doc]="Word document"
+    [mp3]="Audio file"
+    [mp4]="Video file"
+)
+
+# Classify files
+classify_file() {
+    local filename="$1"
+    local ext="${filename##*.}"  # Get extension
+    local description="${extensions[$ext]:-Unknown file type}"
+    
+    echo "$filename: $description"
+}
+
+# HTTP status codes
+declare -A http_codes=(
+    [200]="OK"
+    [404]="Not Found"
+    [500]="Internal Server Error"
+    [403]="Forbidden"
+    [401]="Unauthorized"
+)
+
+# Process server logs
+process_status() {
+    local code="$1"
+    local message="${http_codes[$code]:-Unknown Status}"
+    echo "HTTP $code: $message"
+}
+
+# Example usage
+psh$ print_config
+psh$ lookup_user alice
+psh$ classify_file document.pdf
+psh$ process_status 404
+```
+
+### Best Practices for Associative Arrays
+
+1. **Always use declare -A** before assignment:
+   ```bash
+   # Required for associative arrays
+   declare -A my_hash
+   my_hash[key]="value"
+   ```
+
+2. **Quote keys with special characters**:
+   ```bash
+   hash["key with spaces"]="value"
+   hash["key/with/slashes"]="value"
+   ```
+
+3. **Use meaningful key names**:
+   ```bash
+   # Good
+   user_info[email]="user@example.com"
+   user_info[role]="admin"
+   
+   # Less clear
+   user_info[0]="user@example.com"
+   user_info[1]="admin"
+   ```
+
+4. **Check key existence before access**:
+   ```bash
+   if [[ -v config[database_url] ]]; then
+       db_url="${config[database_url]}"
+   else
+       db_url="localhost:5432"
+   fi
+   ```
+
+5. **Iterate over keys or values appropriately**:
+   ```bash
+   # Process all key-value pairs
+   for key in "${!config[@]}"; do
+       echo "$key = ${config[$key]}"
+   done
+   
+   # Process all values
+   for value in "${config[@]}"; do
+       echo "Value: $value"
+   done
+   ```
+
+### Associative Arrays vs Regular Variables
+
+| Feature | Regular Variables | Associative Arrays |
+|---------|------------------|-------------------|
+| Storage | Single value | Multiple key-value pairs |
+| Access | `$var` | `${array[key]}` |
+| Declaration | Optional | Required (`declare -A`) |
+| Keys | N/A | String-based |
+| Iteration | N/A | Over keys or values |
+| Use Case | Simple values | Structured data |
+
 ## Summary
 
 Variables and parameters in PSH provide powerful ways to store and manipulate data:
@@ -1083,6 +1347,7 @@ Variables and parameters in PSH provide powerful ways to store and manipulate da
 5. **Advanced expansion** supports pattern matching, substitution, and case conversion
 6. **Local variables** provide function scope isolation
 7. **Array variables** store multiple values with indexed access and powerful expansions
+8. **Associative arrays** provide key-value storage for structured data
 
 Understanding these features is essential for effective shell scripting. Variables are the foundation for storing state, passing data between commands, and building complex scripts.
 

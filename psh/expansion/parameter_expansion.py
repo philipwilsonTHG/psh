@@ -37,6 +37,10 @@ class ParameterExpansion:
             return '#', content[1:], ''
         
         # Check for variable name matching ${!prefix*} or ${!prefix@}
+        # Handle escaped ! character
+        if content.startswith('\\!'):
+            content = content[1:]  # Remove the backslash
+        
         if content.startswith('!'):
             if content.endswith('*'):
                 return '!*', content[1:-1], ''

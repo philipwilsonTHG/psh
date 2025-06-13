@@ -8,7 +8,21 @@ Python Shell (psh) is an educational Unix shell implementation designed for teac
 
 ## Current Development Focus
 
-**Latest**: Complete Test Suite Success - v0.42.0
+**Latest**: Associative Arrays - v0.43.0
+- ✓ Implemented full associative array support with declare -A
+- ✓ String-based keys with full bash-compatible syntax: array[key]="value"
+- ✓ All array expansions: ${array[@]}, ${!array[@]}, ${#array[@]}
+- ✓ Key-value assignment and initialization: declare -A arr=([key]="value")
+- ✓ Complex key expressions with variable expansion: array[${prefix}_${suffix}]
+- ✓ Keys with spaces and special characters: array["key with spaces"]
+- ✓ Late binding parser approach for runtime type detection
+- ✓ Integration with all parameter expansion features
+- ✓ Enhanced variable expansion to handle escaped ! character
+- ✓ Fixed arithmetic expression evaluation in array indices
+- ✓ Updated user guide documentation with comprehensive examples
+- ✓ All 1007 tests passing (100% success rate)
+
+**Previous**: Complete Test Suite Success - v0.42.0
 - ✓ All 962 tests passing (100% success rate)
 - ✓ Fixed history expansion infinite loop with '!' followed by space
 - ✓ Implemented += append operator for variables and arrays
@@ -19,7 +33,7 @@ Python Shell (psh) is an educational Unix shell implementation designed for teac
 - ✓ Fixed case statement character class parsing
 - ✓ Completed all remaining array implementation gaps from v0.41.0
 
-**Previous**: Array Variable Support - v0.41.0
+**Earlier**: Array Variable Support - v0.41.0
 - ✓ Implemented indexed arrays with full bash-compatible syntax
 - ✓ Array element access: `${arr[0]}`, `${arr[index]}` with arithmetic evaluation
 - ✓ Array expansions: `${arr[@]}`, `${arr[*]}`, `${#arr[@]}`, `${!arr[@]}`
@@ -47,11 +61,11 @@ Python Shell (psh) is an educational Unix shell implementation designed for teac
 - ✓ Fixed brace expansion when sequences are followed by shell metacharacters
 - ✓ Fixed read builtin file redirection by properly redirecting file descriptor 0
 
-**Next Priority**: Associative Arrays
-- Associative arrays with declare -A
-- Key-based access and expansions
-- Infrastructure already exists (AssociativeArray class from v0.40.0)
-- Need parser support for string keys in array syntax
+**Next Priority**: Advanced Features
+- Trap command for signal handling
+- Extended glob patterns
+- Additional built-in commands
+- Performance optimizations
 
 ## Architecture
 
@@ -503,7 +517,6 @@ Implemented:
   - Full test coverage with 12 comprehensive tests
 
 Not implemented:
-- Associative arrays (declare -A) - infrastructure exists, needs parser support for string keys
 - Trap command for signal handling
 - Extended globbing patterns
 - Deep recursion in shell functions (architectural limitation - see docs/recursion_depth_analysis.md)

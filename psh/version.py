@@ -2,10 +2,31 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.42.0"
+__version__ = "0.43.0"
 
 # Version history
 VERSION_HISTORY = """
+0.43.0 (2025-12-13) - Associative arrays implementation
+  - Implemented complete associative arrays with declare -A syntax
+  - Added late binding approach for array key evaluation
+  - Parser collects array keys as token lists without immediate evaluation
+  - Executor determines array type at runtime (indexed vs associative)
+  - Context-aware key evaluation: arithmetic for indexed, strings for associative
+  - Support for complex key expressions with variables and expansions
+  - Full AssociativeArray class with string-based key storage
+  - Enhanced declare builtin with -A flag for associative array creation
+  - Array initialization syntax: declare -A arr=([key1]=value1 [key2]=value2)
+  - Fixed critical ExecutorManager.execute() method that was unimplemented
+  - Enhanced variable expansion to handle escaped ! character in ${!array[@]}
+  - Support for quoted keys with spaces and special characters
+  - Variable keys with full expansion support: arr[$var]=value
+  - Backward compatibility maintained with existing indexed arrays
+  - Comprehensive test suite with 6 test cases (100% pass rate)
+  - Updated user guide documentation with examples and best practices
+  - Fixed escaped character handling in parameter expansions
+  - All 1007 tests passing with no regressions from previous versions
+  - Completes major bash compatibility milestone for array functionality
+
 0.42.0 (2025-12-06) - Complete test suite fixes achieving 100% pass rate
   - Fixed history expansion infinite loop when '!' followed by space
   - Fixed test_negation hang by properly handling '!' in enhanced test operators

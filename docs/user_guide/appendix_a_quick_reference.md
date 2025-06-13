@@ -67,24 +67,31 @@ $-          # Shell options
 
 ### Arrays
 ```bash
-# Create arrays
+# Indexed arrays
 arr=(one two three)         # Initialize array
 declare -a arr              # Declare array variable
 arr[0]=value                # Set element
 arr[5]=value                # Sparse arrays supported
 arr+=(four five)            # Append elements
 
+# Associative arrays (v0.42.0+)
+declare -A hash             # Must declare first
+declare -A config=([key]="value" [port]="8080")
+hash[key]="value"           # Set by key
+hash["with spaces"]="ok"    # Keys can have spaces
+
 # Access arrays
-${arr[0]}                   # First element
+${arr[0]}                   # First element (indexed)
+${hash[key]}                # Access by key (associative)
 ${arr[@]}                   # All elements (separate words)
 ${arr[*]}                   # All elements (single word)
 ${#arr[@]}                  # Number of elements
-${!arr[@]}                  # All indices
-${arr[-1]}                  # Last element
-${arr[@]:1:2}               # Slice (offset:length)
+${!arr[@]}                  # All indices/keys
+${arr[-1]}                  # Last element (indexed only)
+${arr[@]:1:2}               # Slice (indexed only)
 
 # Array operations
-unset arr[2]                # Remove element
+unset arr[2]                # Remove element/key
 ${arr[@]/.txt/.bak}         # Replace in all elements
 ${arr[@]^^}                 # Uppercase all elements
 ```
@@ -488,6 +495,7 @@ declare -u var       # Uppercase (converts to uppercase)
 declare -r var       # Readonly (cannot be modified)
 declare -x var       # Export (to environment)
 declare -a arr       # Array (indexed)
+declare -A hash      # Associative array (v0.42.0+)
 declare -p var       # Print with attributes
 declare -f func      # Show function definition
 declare -F func      # Show function name only

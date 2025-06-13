@@ -89,7 +89,11 @@ class VariableExpander:
                     else:
                         return '0'
             
-            # Handle ${!arr[@]} - array indices
+            # Handle ${!arr[@]} - array indices  
+            # Remove escaped ! if present
+            if var_content.startswith('\\!'):
+                var_content = var_content[1:]  # Remove the backslash
+            
             if var_content.startswith('!') and '[' in var_content and var_content.endswith(']'):
                 array_part = var_content[1:]  # Remove the !
                 bracket_pos = array_part.find('[')

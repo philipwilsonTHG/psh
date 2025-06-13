@@ -1754,12 +1754,14 @@ class Parser(BaseParser):
         
         return self._parse_array_initialization(name, is_append)
     
-    def _parse_array_element_assignment(self, name: str) -> ArrayElementAssignment:
-        """Parse array element assignment: name[index]=value"""
-        self.expect(TokenType.LBRACKET)
+    def _parse_array_key_tokens(self) -> List[Token]:
+        """Parse array key as list of tokens for later evaluation.
         
-        # Parse index expression (can be arithmetic expression)
-        index_parts = []
+        This implements the late binding approach where we collect tokens
+        without evaluation, allowing the executor to determine whether to
+        evaluate as arithmetic (indexed arrays) or string (associative arrays).
+        """
+        tokens = []
         bracket_depth = 1
         
         while bracket_depth > 0 and not self.at_end():
@@ -1772,14 +1774,28 @@ class Parser(BaseParser):
                 if bracket_depth == 0:
                     break
             
-            index_parts.append(token.value)
-            self.advance()
+            # Accept any valid key token for later evaluation
+            if token.type in (TokenType.WORD, TokenType.STRING, TokenType.VARIABLE, 
+                             TokenType.COMMAND_SUB, TokenType.COMMAND_SUB_BACKTICK,
+                             TokenType.ARITH_EXPANSION, TokenType.LPAREN, TokenType.RPAREN):
+                tokens.append(token)
+                self.advance()
+            else:
+                raise self._error(f"Invalid token in array key: {token.type}")
         
         if bracket_depth != 0:
             raise self._error("Unmatched '[' in array element assignment")
         
+        return tokens
+    
+    def _parse_array_element_assignment(self, name: str) -> ArrayElementAssignment:
+        """Parse array element assignment: name[index]=value"""
+        self.expect(TokenType.LBRACKET)
+        
+        # Parse index as list of tokens for late binding (associative vs indexed array evaluation)
+        index_tokens = self._parse_array_key_tokens()
+        
         self.expect(TokenType.RBRACKET)
-        index = ''.join(index_parts)
         
         # Next token should be a WORD starting with '='
         if not self.match(TokenType.WORD):
@@ -1813,7 +1829,7 @@ class Parser(BaseParser):
         
         return ArrayElementAssignment(
             name=name,
-            index=index,
+            index=index_tokens,
             value=value,
             value_type=value_type,
             value_quote_type=quote_type,
