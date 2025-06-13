@@ -10,6 +10,7 @@ from .executor_visitor import ExecutorVisitor
 from .formatter_visitor import FormatterVisitor
 from .validator_visitor import ValidatorVisitor
 from .debug_ast_visitor import DebugASTVisitor
+from .enhanced_validator_visitor import EnhancedValidatorVisitor, ValidatorConfig, VariableTracker
 
 __all__ = [
     'ASTVisitor',
@@ -18,4 +19,7 @@ __all__ = [
     'FormatterVisitor',
     'ValidatorVisitor',
     'DebugASTVisitor',
+    'EnhancedValidatorVisitor',
+    'ValidatorConfig',
+    'VariableTracker',
 ]

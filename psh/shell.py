@@ -24,11 +24,14 @@ from .interactive.base import InteractiveManager
 class Shell:
     def __init__(self, args=None, script_name=None, debug_ast=False, debug_tokens=False, debug_scopes=False, 
                  debug_expansion=False, debug_expansion_detail=False, debug_exec=False, debug_exec_fork=False,
-                 norc=False, rcfile=None, parent_shell=None):
+                 norc=False, rcfile=None, validate_only=False, parent_shell=None):
         # Initialize state
         self.state = ShellState(args, script_name, debug_ast, 
                               debug_tokens, debug_scopes, debug_expansion, debug_expansion_detail,
                               debug_exec, debug_exec_fork, norc, rcfile)
+        
+        # Store validation mode
+        self.validate_only = validate_only
         
         # Set shell reference in scope manager for arithmetic evaluation
         self.state.scope_manager.set_shell(self)
@@ -299,6 +302,20 @@ class Shell:
                 debug_visitor = DebugASTVisitor()
                 print(debug_visitor.visit(ast), file=sys.stderr)
                 print("======================", file=sys.stderr)
+            
+            # Validation mode - analyze AST without executing
+            if self.validate_only:
+                from .visitor import EnhancedValidatorVisitor
+                validator = EnhancedValidatorVisitor()
+                validator.visit(ast)
+                
+                # Print validation results
+                print(validator.get_summary())
+                
+                # Return exit code based on errors
+                error_count = sum(1 for i in validator.issues 
+                                if i.severity.value == 'error')
+                return 1 if error_count > 0 else 0
             
             # Add to history if requested (for interactive or testing)
             if add_to_history and command_string.strip():

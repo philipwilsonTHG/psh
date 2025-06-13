@@ -20,6 +20,13 @@ class SourceProcessor(ScriptComponent):
         command_buffer = ""
         command_start_line = 0
         
+        # For validation mode, collect all issues across the entire script
+        if self.shell.validate_only:
+            from ..visitor import EnhancedValidatorVisitor
+            self.validation_visitor = EnhancedValidatorVisitor()
+        else:
+            self.validation_visitor = None
+        
         while True:
             line = input_source.read_line()
             if line is None:  # EOF
@@ -28,6 +35,13 @@ class SourceProcessor(ScriptComponent):
                     exit_code = self._execute_buffered_command(
                         command_buffer, input_source, command_start_line, add_to_history
                     )
+                # In validation mode, show final summary at end
+                if self.validation_visitor:
+                    print(self.validation_visitor.get_summary())
+                    # Return exit code based on errors
+                    error_count = sum(1 for i in self.validation_visitor.issues 
+                                    if i.severity.value == 'error')
+                    exit_code = 1 if error_count > 0 else 0
                 break
             
             # Skip empty lines when no command is being built
@@ -178,6 +192,24 @@ class SourceProcessor(ScriptComponent):
                 from ..utils.ast_formatter import ASTFormatter
                 print(ASTFormatter.format(ast), file=sys.stderr)
                 print("======================", file=sys.stderr)
+            
+            # Validation mode - analyze AST without executing
+            if self.shell.validate_only:
+                # Use the shared validator instance
+                if self.validation_visitor:
+                    self.validation_visitor.visit(ast)
+                else:
+                    # Fallback for single command validation
+                    from ..visitor import EnhancedValidatorVisitor
+                    validator = EnhancedValidatorVisitor()
+                    validator.visit(ast)
+                    print(validator.get_summary())
+                    error_count = sum(1 for i in validator.issues 
+                                    if i.severity.value == 'error')
+                    return 1 if error_count > 0 else 0
+                
+                # Don't execute in validation mode
+                return 0
             
             # Add to history if requested (for interactive or testing)
             if add_to_history and command_string.strip():

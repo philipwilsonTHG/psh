@@ -173,12 +173,12 @@ class ValidatorVisitor(ASTVisitor[None]):
         old_pipeline = getattr(self, '_in_pipeline', None)
         self._in_pipeline = node.commands
         
-        # Check for redundant pipelines
-        if len(node.commands) == 1 and not node.negated:
-            self._add_info(
-                "Single-command pipeline can be simplified to just the command",
-                node
-            )
+        # Check for redundant pipelines - disabled by default as it's too noisy
+        # if len(node.commands) == 1 and not node.negated:
+        #     self._add_info(
+        #         "Single-command pipeline can be simplified to just the command",
+        #         node
+        #     )
         
         # Visit all commands
         for i, cmd in enumerate(node.commands):

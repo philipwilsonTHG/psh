@@ -17,6 +17,7 @@ def main():
     debug_exec_fork = False
     norc = False
     rcfile = None
+    validate_only = False
     args = sys.argv[1:]
     
     # Extract debug flags
@@ -44,6 +45,11 @@ def main():
         debug_exec = True  # Fork implies basic
         args.remove("--debug-exec-fork")
     
+    # Extract validation flag
+    if "--validate" in args:
+        validate_only = True
+        args.remove("--validate")
+    
     # Extract RC file flags
     if "--norc" in args:
         norc = True
@@ -70,7 +76,7 @@ def main():
     shell = Shell(debug_ast=debug_ast, debug_tokens=debug_tokens, debug_scopes=debug_scopes, 
                   debug_expansion=debug_expansion, debug_expansion_detail=debug_expansion_detail,
                   debug_exec=debug_exec, debug_exec_fork=debug_exec_fork,
-                  norc=norc, rcfile=rcfile)
+                  norc=norc, rcfile=rcfile, validate_only=validate_only)
     
     if len(sys.argv) > 1:
         if sys.argv[1] == "-c" and len(sys.argv) > 2:
@@ -103,6 +109,7 @@ def main():
             print("  --debug-expansion-detail Print detailed expansion steps (debugging)")
             print("  --debug-exec     Print executor operations (debugging)")
             print("  --debug-exec-fork Print fork/exec details (debugging)")
+            print("  --validate       Validate script without executing (check for errors)")
             print("\nArguments:")
             print("  script           Script file to execute")
             print("  args             Arguments passed to script or command")

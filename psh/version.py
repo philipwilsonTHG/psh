@@ -2,10 +2,39 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.45.0"
+__version__ = "0.46.0"
 
 # Version history
 VERSION_HISTORY = """
+0.46.0 (2025-01-13) - Visitor Pattern Phase 2: Enhanced Validation
+  - Implemented Phase 2 of visitor pattern integration with enhanced AST validation
+  - Created EnhancedValidatorVisitor with comprehensive static analysis capabilities
+  - Implemented VariableTracker for scope-aware variable definition and usage tracking
+  - Added undefined variable detection with proper handling of scopes and special variables
+  - Tracks function-local variables, positional parameters, and environment variables
+  - Implemented command validation with typo detection and suggestions
+  - Common typos detected: grpe→grep, pyton→python, etc.
+  - Suggests modern alternatives: which→command -v, ifconfig→ip
+  - Added quoting analysis to detect word splitting and pathname expansion risks
+  - Warns about unquoted variables that may cause word splitting
+  - Detects unintentional glob patterns that will expand
+  - Special handling for test command arguments requiring quotes
+  - Implemented security vulnerability detection
+  - Warns about dangerous commands: eval, source with untrusted input
+  - Detects potential command injection in unquoted expansions
+  - Identifies insecure file permissions (chmod 777, world-writable)
+  - Added --validate flag for script validation without execution
+  - Works with scripts, -c commands, and stdin input
+  - Consolidated output shows all issues found in entire script
+  - Returns appropriate exit codes (0=success, 1=errors found)
+  - Created ValidatorConfig for customizable validation rules
+  - Enable/disable specific checks as needed
+  - Configure warning levels and behavior
+  - Added 24 comprehensive tests for enhanced validator
+  - Created example scripts demonstrating good and bad practices
+  - All 1107 tests passing with new validation features
+  - Enhanced shell scripting education with static analysis
+
 0.45.0 (2025-01-13) - AST Visitor Pattern implementation
   - Implemented AST Visitor Pattern as Phase 6 of parser improvements
   - Created base visitor framework with ASTVisitor[T] and ASTTransformer base classes
