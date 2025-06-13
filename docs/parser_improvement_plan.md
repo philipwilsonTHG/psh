@@ -211,14 +211,14 @@ Enable arithmetic commands in conditional contexts: `((x > 5)) && echo "big"`
 - Fixed PipelineExecutor to check for ArithmeticEvaluation before CompoundCommand (order matters due to inheritance)
 - All arithmetic command tests pass, new test cases added and verified
 
-## Phase 5: Parser Context Management (Low Priority)
+## Phase 5: Parser Context Management (Low Priority) ✅ COMPLETE
 
 ### Goal
 Encapsulate parser state for better maintainability.
 
 ### Implementation Steps
 
-1. **Create ParserContext class** (2 hours)
+1. **Enhanced ParserContext class** (2 hours) ✅ COMPLETE
    ```python
    @dataclass
    class ParserContext:
@@ -240,7 +240,7 @@ Encapsulate parser state for better maintainability.
                setattr(self, key, value)
    ```
 
-2. **Refactor parser to use context**:
+2. **Refactor parser to use context**: ✅ COMPLETE
    ```python
    def parse_enhanced_test_statement(self):
        with self.context:
@@ -248,9 +248,24 @@ Encapsulate parser state for better maintainability.
            # Parse test expression
    ```
 
-### Files to Modify
-- Modify: `psh/parser.py`
-- Tests: Existing tests should pass unchanged
+### Files Modified
+- Modified: `psh/parser_helpers.py` - Enhanced ParseContext with context manager support
+- Modified: `psh/parser.py` - Refactored parsing methods to use context manager
+- Created: `tests/test_parser_context.py` - 7 unit tests for ParseContext
+- Created: `tests/test_parser_context_integration.py` - 7 integration tests
+
+### Completion Notes
+- Enhanced existing ParseContext class rather than creating a new one
+- Added context manager support with nested context handling
+- Implemented proper state save/restore with stack for nested contexts
+- Added new parser state flags: in_here_document, in_command_substitution, allow_empty_commands
+- Refactored 4 parser methods to use context manager:
+  - `parse_enhanced_test_statement` - Sets in_test_expr
+  - `_parse_arithmetic_neutral` - Sets in_arithmetic
+  - `parse_case_item` - Sets in_case_pattern  
+  - `parse_compound_command` - Sets in_function_body
+- All existing tests pass, demonstrating backward compatibility
+- Context manager properly handles exceptions and nested usage
 
 ## Phase 6: AST Visitor Pattern (Future)
 

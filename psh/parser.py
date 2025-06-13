@@ -994,11 +994,13 @@ class Parser(BaseParser):
         self.skip_newlines()
         
         # Parse patterns
-        patterns = [CasePattern(self._parse_case_pattern())]
-        
-        while self.match(TokenType.PIPE):
-            self.advance()
-            patterns.append(CasePattern(self._parse_case_pattern()))
+        with self.context:
+            self.context.in_case_pattern = True
+            patterns = [CasePattern(self._parse_case_pattern())]
+            
+            while self.match(TokenType.PIPE):
+                self.advance()
+                patterns.append(CasePattern(self._parse_case_pattern()))
         
         self.expect(TokenType.RPAREN)
         self.skip_newlines()
@@ -1161,10 +1163,13 @@ class Parser(BaseParser):
     
     def parse_compound_command(self) -> CommandList:
         """Parse a compound command { ... }"""
-        self.expect(TokenType.LBRACE)
-        self.skip_newlines()
-        
-        command_list = self.parse_command_list_until(TokenType.RBRACE)
+        with self.context:
+            self.context.in_function_body = True
+            
+            self.expect(TokenType.LBRACE)
+            self.skip_newlines()
+            
+            command_list = self.parse_command_list_until(TokenType.RBRACE)
         
         self.expect(TokenType.RBRACE)
         
@@ -1174,17 +1179,20 @@ class Parser(BaseParser):
     
     def parse_enhanced_test_statement(self) -> EnhancedTestStatement:
         """Parse [[ ... ]] enhanced test statement."""
-        self.expect(TokenType.DOUBLE_LBRACKET)
-        self.skip_newlines()
-        
-        expression = self.parse_test_expression()
-        
-        self.skip_newlines()
-        self.expect(TokenType.DOUBLE_RBRACKET)
-        
-        redirects = self.parse_redirects()
-        
-        return EnhancedTestStatement(expression, redirects)
+        with self.context:
+            self.context.in_test_expr = True
+            
+            self.expect(TokenType.DOUBLE_LBRACKET)
+            self.skip_newlines()
+            
+            expression = self.parse_test_expression()
+            
+            self.skip_newlines()
+            self.expect(TokenType.DOUBLE_RBRACKET)
+            
+            redirects = self.parse_redirects()
+            
+            return EnhancedTestStatement(expression, redirects)
     
     def parse_test_expression(self) -> TestExpression:
         """Parse a test expression with proper precedence."""
@@ -1311,20 +1319,23 @@ class Parser(BaseParser):
     
     def _parse_arithmetic_neutral(self) -> ArithmeticEvaluation:
         """Parse arithmetic command without setting execution context."""
-        self.expect(TokenType.DOUBLE_LPAREN)
-        
-        expr = self._parse_arithmetic_expression_until_double_rparen()
-        
-        self.expect(TokenType.RPAREN)
-        self.expect(TokenType.RPAREN)
-        
-        redirects = self.parse_redirects()
-        
-        return ArithmeticEvaluation(
-            expression=expr,
-            redirects=redirects,
-            background=False
-        )
+        with self.context:
+            self.context.in_arithmetic = True
+            
+            self.expect(TokenType.DOUBLE_LPAREN)
+            
+            expr = self._parse_arithmetic_expression_until_double_rparen()
+            
+            self.expect(TokenType.RPAREN)
+            self.expect(TokenType.RPAREN)
+            
+            redirects = self.parse_redirects()
+            
+            return ArithmeticEvaluation(
+                expression=expr,
+                redirects=redirects,
+                background=False
+            )
     
     def _parse_arithmetic_expression_until_double_rparen(self) -> str:
         """Parse arithmetic expression until )) is found."""
