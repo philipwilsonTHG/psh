@@ -20,6 +20,7 @@ class PipelineExecutor(ExecutorComponent):
     
     def execute(self, pipeline: Pipeline) -> int:
         """Execute a pipeline and return exit status of last command."""
+        
         if len(pipeline.commands) == 1:
             # Single command, no pipes
             command = pipeline.commands[0]
@@ -34,8 +35,14 @@ class PipelineExecutor(ExecutorComponent):
             
             # Regular command execution
             try:
+                
                 if isinstance(command, SimpleCommand):
                     exit_status = self.shell.execute_command(command)
+                elif isinstance(command, ArithmeticEvaluation):
+                    # Execute arithmetic command directly - check this BEFORE CompoundCommand
+                    # since ArithmeticEvaluation inherits from UnifiedControlStructure which
+                    # inherits from both Statement and CompoundCommand
+                    exit_status = self.shell.executor_manager.arithmetic_executor.execute(command)
                 elif isinstance(command, CompoundCommand):
                     # Execute compound command directly
                     exit_status = self._execute_compound_in_subshell(command)

@@ -4,7 +4,7 @@
 
 This plan outlines a phased approach to implementing parser improvements identified in `parser_improvement_observations.md`. The improvements are organized by priority and dependency, maintaining backward compatibility and the educational clarity of the codebase.
 
-## Phase 1: Eliminate Parser Duplication (High Priority)
+## Phase 1: Eliminate Parser Duplication (High Priority) ✅ COMPLETE
 
 ### Goal
 Remove duplication between statement-context and pipeline-context parsers by leveraging existing neutral parsers.
@@ -46,6 +46,12 @@ Remove duplication between statement-context and pipeline-context parsers by lev
 ### Files to Modify
 - `psh/parser.py`
 - Tests: `tests/test_parser.py`, `tests/test_control_structures_in_pipelines.py`
+
+### Completion Notes
+- Successfully refactored 12 duplicate parser methods
+- Reduced parser code by ~267 lines
+- All parser tests pass (100% success rate)
+- Used automated refactoring script for consistency
 
 ## Phase 2: Improved Token Collection (Medium Priority)
 
@@ -144,7 +150,7 @@ Move composite argument detection to a dedicated phase between tokenization and 
 - Modify: `psh/token_types.py`, `psh/parser.py`
 - Tests: `tests/test_composite_processor.py`
 
-## Phase 4: Fix Arithmetic Command Grammar (High Priority)
+## Phase 4: Fix Arithmetic Command Grammar (High Priority) ✅ COMPLETE
 
 ### Goal
 Enable arithmetic commands in conditional contexts: `((x > 5)) && echo "big"`
@@ -167,6 +173,11 @@ Enable arithmetic commands in conditional contexts: `((x > 5)) && echo "big"`
 ### Files to Modify
 - `psh/parser.py` (parse_pipeline_component method)
 - Tests: `tests/test_arithmetic_command.py`
+
+### Completion Notes
+- Fixed by modifying `_parse_top_level_item()` to check for && and || after control structures
+- Fixed PipelineExecutor to check for ArithmeticEvaluation before CompoundCommand (order matters due to inheritance)
+- All arithmetic command tests pass, new test cases added and verified
 
 ## Phase 5: Parser Context Management (Low Priority)
 

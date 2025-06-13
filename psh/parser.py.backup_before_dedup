@@ -54,28 +54,10 @@ class Parser(BaseParser):
             # Check if control structure is part of a pipeline
             control_struct = self._parse_control_structure_neutral()
             
-            # Check if followed by pipe or logical operators
+            # Check if followed by pipe
             if self.match(TokenType.PIPE):
                 # Parse as pipeline with control structure as first component
                 return self._parse_pipeline_with_initial_component(control_struct)
-            elif self.match(TokenType.AND_AND, TokenType.OR_OR):
-                # Create pipeline with control structure and wrap in and_or_list
-                control_struct.execution_context = ExecutionContext.STATEMENT
-                pipeline = Pipeline()
-                pipeline.commands.append(control_struct)
-                
-                and_or_list = AndOrList()
-                and_or_list.pipelines.append(pipeline)
-                
-                # Parse the rest of the and_or_list
-                while self.match(TokenType.AND_AND, TokenType.OR_OR):
-                    operator = self.advance()
-                    and_or_list.operators.append(operator.value)
-                    self.skip_newlines()
-                    pipeline = self.parse_pipeline()
-                    and_or_list.pipelines.append(pipeline)
-                
-                return and_or_list
             else:
                 # Set as statement context and return
                 control_struct.execution_context = ExecutionContext.STATEMENT
@@ -152,33 +134,7 @@ class Parser(BaseParser):
     
     def parse_statement(self) -> Optional[Statement]:
         """Parse a single statement (control structure or and_or_list)."""
-        # Special handling for arithmetic commands that might be part of and_or_list
-        if self.match(TokenType.DOUBLE_LPAREN):
-            arith_cmd = self.parse_arithmetic_command()
-            
-            # Check if followed by && or ||
-            if self.match(TokenType.AND_AND, TokenType.OR_OR):
-                # Create a pipeline with the arithmetic command
-                pipeline = Pipeline()
-                pipeline.commands.append(arith_cmd)
-                
-                # Create and_or_list and continue parsing
-                and_or_list = AndOrList()
-                and_or_list.pipelines.append(pipeline)
-                
-                # Parse the rest of the and_or_list
-                while self.match(TokenType.AND_AND, TokenType.OR_OR):
-                    operator = self.advance()
-                    and_or_list.operators.append(operator.value)
-                    self.skip_newlines()
-                    pipeline = self.parse_pipeline()
-                    and_or_list.pipelines.append(pipeline)
-                
-                return and_or_list
-            else:
-                # Just the arithmetic command by itself
-                return arith_cmd
-        elif self.match(TokenType.IF):
+        if self.match(TokenType.IF):
             return self.parse_if_statement()
         elif self.match(TokenType.WHILE):
             return self.parse_while_statement()
@@ -190,6 +146,8 @@ class Parser(BaseParser):
             return self.parse_select_statement()
         elif self.match(TokenType.DOUBLE_LBRACKET):
             return self.parse_enhanced_test_statement()
+        elif self.match(TokenType.DOUBLE_LPAREN):
+            return self.parse_arithmetic_command()
         elif self._is_function_def():
             return self.parse_function_def()
         else:
@@ -459,15 +417,66 @@ class Parser(BaseParser):
     
     def parse_while_command(self) -> WhileLoop:
         """Parse while loop as a command for use in pipelines."""
-        result = self._parse_while_neutral()
-        result.execution_context = ExecutionContext.PIPELINE
-        return result
+        condition, body, redirects = self._parse_loop_structure(
+            TokenType.WHILE, TokenType.DO, TokenType.DONE
+        )
+        return WhileLoop(
+            condition=condition,
+            body=body,
+            redirects=redirects,
+            execution_context=ExecutionContext.PIPELINE,
+            background=False
+        )
     
     def parse_for_command(self) -> Union[ForLoop, CStyleForLoop]:
         """Parse for loop as a command for use in pipelines."""
-        result = self._parse_for_neutral()
-        result.execution_context = ExecutionContext.PIPELINE
-        return result
+        self.expect(TokenType.FOR)
+        self.skip_newlines()
+        
+        # Check if it's a C-style for loop
+        if self.peek().type == TokenType.DOUBLE_LPAREN:
+            self.advance()  # consume ((
+            return self._parse_c_style_for_command()
+        elif self.peek().type == TokenType.LPAREN:
+            # Check for two consecutive LPAREN tokens
+            saved_pos = self.current
+            self.advance()  # consume first (
+            
+            if self.peek().type == TokenType.LPAREN:
+                self.advance()  # consume second (
+                return self._parse_c_style_for_command()
+            else:
+                # Not C-style, backtrack
+                self.current = saved_pos
+        
+        # Traditional for loop
+        variable = self.expect(TokenType.WORD).value
+        self.expect(TokenType.IN)
+        self.skip_newlines()
+        
+        # Parse items using the same method as parse_for_statement
+        items = self._parse_for_iterable()
+        
+        # Handle separators before DO
+        self.skip_separators()
+        
+        self.skip_newlines()
+        self.expect(TokenType.DO)
+        self.skip_newlines()
+        
+        body = self.parse_command_list_until(TokenType.DONE)
+        self.expect(TokenType.DONE)
+        
+        redirects = self.parse_redirects()
+        
+        return ForLoop(
+            variable=variable,
+            items=items,
+            body=body,
+            redirects=redirects,
+            execution_context=ExecutionContext.PIPELINE,
+            background=False
+        )
     
     def _parse_c_style_for_command(self) -> CStyleForLoop:
         """Parse C-style for loop as a command."""
@@ -517,27 +526,116 @@ class Parser(BaseParser):
     
     def parse_if_command(self) -> IfConditional:
         """Parse if statement as a command for use in pipelines."""
-        result = self._parse_if_neutral()
-        result.execution_context = ExecutionContext.PIPELINE
-        return result
+        self.expect(TokenType.IF)
+        self.skip_newlines()
+        
+        # Parse main condition and body
+        condition, then_part = self._parse_condition_then_block()
+        
+        # Parse elif clauses
+        elif_parts = []
+        while self.match(TokenType.ELIF):
+            self.advance()
+            elif_condition, elif_then = self._parse_condition_then_block()
+            elif_parts.append((elif_condition, elif_then))
+        
+        # Parse optional else
+        else_part = None
+        if self.match(TokenType.ELSE):
+            self.advance()
+            self.skip_newlines()
+            else_part = self.parse_command_list_until(TokenType.FI)
+        
+        self.expect(TokenType.FI)
+        redirects = self.parse_redirects()
+        
+        return IfConditional(
+            condition=condition,
+            then_part=then_part,
+            elif_parts=elif_parts,
+            else_part=else_part,
+            redirects=redirects,
+            execution_context=ExecutionContext.PIPELINE,
+            background=False
+        )
     
     def parse_case_command(self) -> CaseConditional:
         """Parse case statement as a command for use in pipelines."""
-        result = self._parse_case_neutral()
-        result.execution_context = ExecutionContext.PIPELINE
-        return result
+        self.expect(TokenType.CASE)
+        self.skip_newlines()
+        
+        # Use the same expression parser as parse_case_statement
+        expr = self._parse_case_expression()
+        
+        self.skip_newlines()
+        self.expect(TokenType.IN)
+        self.skip_newlines()
+        
+        items = []
+        while not self.match(TokenType.ESAC):
+            item = self.parse_case_item()
+            items.append(item)
+            self.skip_newlines()
+        
+        self.expect(TokenType.ESAC)
+        redirects = self.parse_redirects()
+        
+        return CaseConditional(
+            expr=expr,
+            items=items,
+            redirects=redirects,
+            execution_context=ExecutionContext.PIPELINE,
+            background=False
+        )
     
     def parse_select_command(self) -> SelectLoop:
         """Parse select statement as a command for use in pipelines."""
-        result = self._parse_select_neutral()
-        result.execution_context = ExecutionContext.PIPELINE
-        return result
+        self.expect(TokenType.SELECT)
+        self.skip_newlines()
+        
+        variable = self.expect(TokenType.WORD).value
+        self.expect(TokenType.IN)
+        self.skip_newlines()
+        
+        # Parse items
+        items = self._parse_for_iterable()
+        
+        self.skip_separators()
+        self.expect(TokenType.DO)
+        self.skip_newlines()
+        
+        body = self.parse_command_list_until(TokenType.DONE)
+        self.expect(TokenType.DONE)
+        
+        redirects = self.parse_redirects()
+        
+        return SelectLoop(
+            variable=variable,
+            items=items,
+            body=body,
+            redirects=redirects,
+            execution_context=ExecutionContext.PIPELINE,
+            background=False
+        )
     
     def parse_arithmetic_compound_command(self) -> ArithmeticEvaluation:
         """Parse arithmetic command as a compound command for use in pipelines."""
-        result = self._parse_arithmetic_neutral()
-        result.execution_context = ExecutionContext.PIPELINE
-        return result
+        self.expect(TokenType.DOUBLE_LPAREN)
+        
+        expression = self._parse_arithmetic_expression_until_double_rparen()
+        
+        # Consume ))
+        self.expect(TokenType.RPAREN)
+        self.expect(TokenType.RPAREN)
+        
+        redirects = self.parse_redirects()
+        
+        return ArithmeticEvaluation(
+            expression=expression,
+            redirects=redirects,
+            execution_context=ExecutionContext.PIPELINE,
+            background=False
+        )
     
     def parse_composite_argument(self) -> Tuple[str, str, Optional[str]]:
         """Parse a potentially composite argument (concatenated tokens)."""
@@ -606,9 +704,38 @@ class Parser(BaseParser):
     
     def parse_if_statement(self) -> IfConditional:
         """Parse if/then/else/fi conditional statement."""
-        result = self._parse_if_neutral()
-        result.execution_context = ExecutionContext.STATEMENT
-        return result
+        self.expect(TokenType.IF)
+        self.skip_newlines()
+        
+        # Parse main condition and body
+        condition, then_part = self._parse_condition_then_block()
+        
+        # Parse elif clauses
+        elif_parts = []
+        while self.match(TokenType.ELIF):
+            self.advance()
+            elif_condition, elif_then = self._parse_condition_then_block()
+            elif_parts.append((elif_condition, elif_then))
+        
+        # Parse optional else
+        else_part = None
+        if self.match(TokenType.ELSE):
+            self.advance()
+            self.skip_newlines()
+            else_part = self.parse_command_list_until(TokenType.FI)
+        
+        self.expect(TokenType.FI)
+        redirects = self.parse_redirects()
+        
+        return IfConditional(
+            condition=condition,
+            then_part=then_part,
+            elif_parts=elif_parts,
+            else_part=else_part,
+            redirects=redirects,
+            execution_context=ExecutionContext.STATEMENT,
+            background=False
+        )
     
     def _parse_if_neutral(self) -> IfConditional:
         """Parse if statement without setting execution context."""
@@ -656,9 +783,16 @@ class Parser(BaseParser):
     
     def parse_while_statement(self) -> WhileLoop:
         """Parse while/do/done loop statement."""
-        result = self._parse_while_neutral()
-        result.execution_context = ExecutionContext.STATEMENT
-        return result
+        condition, body, redirects = self._parse_loop_structure(
+            TokenType.WHILE, TokenType.DO, TokenType.DONE
+        )
+        return WhileLoop(
+            condition=condition,
+            body=body,
+            redirects=redirects,
+            execution_context=ExecutionContext.STATEMENT,
+            background=False
+        )
     
     def _parse_while_neutral(self) -> WhileLoop:
         """Parse while loop without setting execution context."""
@@ -674,9 +808,59 @@ class Parser(BaseParser):
     
     def parse_for_statement(self) -> Union[ForLoop, CStyleForLoop]:
         """Parse for loop (traditional or C-style)."""
-        result = self._parse_for_neutral()
-        result.execution_context = ExecutionContext.STATEMENT
-        return result
+        self.expect(TokenType.FOR)
+        self.skip_newlines()
+        
+        # Check if it's a C-style for loop by looking for (( or DOUBLE_LPAREN
+        if self.peek().type == TokenType.DOUBLE_LPAREN:
+            # It's a C-style for loop with DOUBLE_LPAREN token
+            self.advance()  # consume ((
+            return self._parse_c_style_for()
+        elif self.peek().type == TokenType.LPAREN:
+            # Check for two consecutive LPAREN tokens
+            saved_pos = self.current
+            self.advance()  # consume first (
+            
+            if self.peek().type == TokenType.LPAREN:
+                # It's a C-style for loop
+                self.advance()  # consume second (
+                return self._parse_c_style_for()
+            else:
+                # Not C-style, backtrack
+                self.current = saved_pos
+        
+        # Traditional for loop
+        # Variable name
+        var_token = self.expect(TokenType.WORD)
+        variable = var_token.value
+        
+        self.skip_newlines()
+        self.expect(TokenType.IN)
+        self.skip_newlines()
+        
+        # Parse iterable list
+        items = self._parse_for_iterable()
+        
+        # Handle separators before DO
+        self.skip_separators()
+        
+        self.expect(TokenType.DO)
+        self.skip_newlines()
+        
+        # Parse body
+        body = self.parse_command_list_until(TokenType.DONE)
+        
+        self.expect(TokenType.DONE)
+        redirects = self.parse_redirects()
+        
+        return ForLoop(
+            variable=variable,
+            items=items,
+            body=body,
+            redirects=redirects,
+            execution_context=ExecutionContext.STATEMENT,
+            background=False
+        )
     
     def _parse_for_neutral(self) -> Union[ForLoop, CStyleForLoop]:
         """Parse for loop without setting execution context."""
@@ -936,9 +1120,32 @@ class Parser(BaseParser):
     
     def parse_case_statement(self) -> CaseConditional:
         """Parse case/esac statement."""
-        result = self._parse_case_neutral()
-        result.execution_context = ExecutionContext.STATEMENT
-        return result
+        self.expect(TokenType.CASE)
+        self.skip_newlines()
+        
+        # Parse expression to match
+        expr = self._parse_case_expression()
+        
+        self.skip_newlines()
+        self.expect(TokenType.IN)
+        self.skip_newlines()
+        
+        # Parse case items
+        items = []
+        while not self.match(TokenType.ESAC) and not self.at_end():
+            items.append(self.parse_case_item())
+            self.skip_newlines()
+        
+        self.expect(TokenType.ESAC)
+        redirects = self.parse_redirects()
+        
+        return CaseConditional(
+            expr=expr,
+            items=items,
+            redirects=redirects,
+            execution_context=ExecutionContext.STATEMENT,
+            background=False
+        )
     
     def _parse_case_neutral(self) -> CaseConditional:
         """Parse case statement without setting execution context."""
@@ -1042,9 +1249,40 @@ class Parser(BaseParser):
     
     def parse_select_statement(self) -> SelectLoop:
         """Parse select statement: select name in words; do commands done"""
-        result = self._parse_select_neutral()
-        result.execution_context = ExecutionContext.STATEMENT
-        return result
+        self.expect(TokenType.SELECT)
+        self.skip_newlines()
+        
+        # Parse variable name
+        if not self.match(TokenType.WORD):
+            raise self._error("Expected variable name after 'select'")
+        variable = self.advance().value
+        
+        self.skip_newlines()
+        self.expect(TokenType.IN)
+        self.skip_newlines()
+        
+        # Parse word list (reuse existing method)
+        items = self._parse_for_iterable()
+        
+        # Parse do block
+        self.skip_separators()
+        self.expect(TokenType.DO)
+        self.skip_newlines()
+        
+        # Parse body
+        body = self.parse_command_list_until(TokenType.DONE)
+        
+        self.expect(TokenType.DONE)
+        redirects = self.parse_redirects()
+        
+        return SelectLoop(
+            variable=variable,
+            items=items,
+            body=body,
+            redirects=redirects,
+            execution_context=ExecutionContext.STATEMENT,
+            background=False
+        )
     
     def _parse_select_neutral(self) -> SelectLoop:
         """Parse select statement without setting execution context."""
@@ -1293,9 +1531,25 @@ class Parser(BaseParser):
     
     def parse_arithmetic_command(self) -> ArithmeticEvaluation:
         """Parse arithmetic command: ((expression))"""
-        result = self._parse_arithmetic_neutral()
-        result.execution_context = ExecutionContext.STATEMENT
-        return result
+        # Consume the (( token
+        self.expect(TokenType.DOUBLE_LPAREN)
+        
+        # Parse expression until ))
+        expr = self._parse_arithmetic_expression_until_double_rparen()
+        
+        # Expect ))
+        self.expect(TokenType.RPAREN)
+        self.expect(TokenType.RPAREN)
+        
+        # Parse any redirects (rare but allowed)
+        redirects = self.parse_redirects()
+        
+        return ArithmeticEvaluation(
+            expression=expr,
+            redirects=redirects,
+            execution_context=ExecutionContext.STATEMENT,
+            background=False
+        )
     
     def _parse_arithmetic_neutral(self) -> ArithmeticEvaluation:
         """Parse arithmetic command without setting execution context."""
