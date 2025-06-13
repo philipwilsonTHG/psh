@@ -116,6 +116,10 @@ class SourceProcessor(ScriptComponent):
             # Commands
             ("Expected command", "got end of input"),
             
+            # Case patterns
+            ("Expected pattern in case statement", "got end of input"),
+            ("Expected pattern in case statement", None),  # When no "got" part
+            
             # Old patterns for backward compatibility (in case some weren't updated)
             ("Expected DO", "got EOF"),
             ("Expected DONE", "got EOF"),
