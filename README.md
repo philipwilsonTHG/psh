@@ -2,7 +2,7 @@
 
 An educational Unix shell implementation in Python, designed to teach shell internals and compiler/interpreter concepts through a clean, readable codebase.  **All source code and documentation (with the exception of this sentence) has been written by Claude Code using Sonnet 4 and Opus 4 models.**
 
-**Current Version**: 0.42.0 (2025-12-06)
+**Current Version**: 0.44.0 (2025-06-13)
 
 ## Overview
 
@@ -12,6 +12,24 @@ The shell features a modern component-based architecture where each subsystem (e
 
 ### Recent Major Features
 
+- **v0.44.0**: Advanced debugging features
+  - Expansion debugging with `--debug-expansion` to trace all shell expansions
+  - Detailed expansion tracking with `--debug-expansion-detail` for step-by-step analysis
+  - Execution debugging with `--debug-exec` to trace command routing and execution
+  - Fork/exec debugging with `--debug-exec-fork` for pipeline and process creation
+  - Runtime toggle support via `set -o debug-*` commands
+  - Comprehensive architecture documentation for expansion and executor systems
+  - Updated user guide with debugging examples and best practices
+- **v0.43.0**: Associative arrays
+  - Complete bash-compatible implementation with `declare -A`
+  - String-based keys: `array[key]="value"`, `array["key with spaces"]="value"`
+  - All array operations: `${array[@]}`, `${!array[@]}`, `${#array[@]}`
+  - Complex key expressions with variable expansion
+  - Late binding parser for runtime type detection
+- **v0.42.0**: 100% test suite pass rate
+  - Fixed all remaining test failures (962 tests passing)
+  - Implemented `+=` operator for variables and arrays
+  - Fixed array initialization, regex patterns, and composite arguments
 - **v0.41.0**: Array variable support
   - Implemented indexed arrays with full bash-compatible syntax
   - Array element access: `${arr[0]}`, `${arr[index]}`

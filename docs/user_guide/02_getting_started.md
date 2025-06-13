@@ -120,6 +120,65 @@ You can use both debug modes together:
 $ psh --debug-tokens --debug-ast -c "x=5; echo $x"
 ```
 
+### Debug Modes (continued)
+
+PSH provides additional debug modes for understanding expansion and execution:
+
+#### Expansion Debugging (--debug-expansion)
+
+See how PSH expands variables, globs, and other constructs:
+
+```bash
+$ psh --debug-expansion -c 'echo $HOME/*.txt'
+[EXPANSION] Expanding command: ['echo', '$HOME/*.txt']
+[EXPANSION] Result: ['echo', '/home/user/doc1.txt', '/home/user/doc2.txt']
+/home/user/doc1.txt /home/user/doc2.txt
+```
+
+#### Detailed Expansion Debugging (--debug-expansion-detail)
+
+Get step-by-step expansion details:
+
+```bash
+$ psh --debug-expansion-detail -c 'echo ${USER:-nobody}'
+[EXPANSION] Expanding command: ['echo', '${USER:-nobody}']
+[EXPANSION]   arg_types: ['WORD', 'VARIABLE']
+[EXPANSION]   quote_types: [None, None]
+[EXPANSION]   Processing arg[0]: 'echo' (type=WORD, quote=None)
+[EXPANSION]   Processing arg[1]: '${USER:-nobody}' (type=VARIABLE, quote=None)
+[EXPANSION]     Variable expansion: '${USER:-nobody}' -> 'alice'
+[EXPANSION] Result: ['echo', 'alice']
+alice
+```
+
+#### Execution Debugging (--debug-exec)
+
+Trace command execution paths:
+
+```bash
+$ psh --debug-exec -c 'echo hello | cat'
+[EXEC] PipelineExecutor: SimpleCommand(args=['echo', 'hello']) | SimpleCommand(args=['cat'])
+[EXEC] CommandExecutor: ['echo', 'hello']
+[EXEC]   Executing builtin: echo
+[EXEC] CommandExecutor: ['cat']
+[EXEC]   Executing external: cat
+hello
+```
+
+#### Fork/Exec Debugging (--debug-exec-fork)
+
+See detailed process creation:
+
+```bash
+$ psh --debug-exec-fork -c 'ls | head -n 2'
+[EXEC-FORK] Forking for pipeline command 1/2: SimpleCommand(args=['ls'])
+[EXEC-FORK] Pipeline child 12345: executing command 1
+[EXEC-FORK] Forking for pipeline command 2/2: SimpleCommand(args=['head', '-n', '2'])
+[EXEC-FORK] Pipeline child 12346: executing command 2
+file1.txt
+file2.txt
+```
+
 ### Command-Line Options
 
 Here's a complete list of PSH command-line options:
@@ -128,14 +187,18 @@ Here's a complete list of PSH command-line options:
 psh [options] [script] [arguments]
 
 Options:
-  -c <command>      Execute command and exit
-  -h, --help        Show help message
-  -V, --version     Show version information
-  --debug-ast       Show parsed AST before execution
-  --debug-tokens    Show tokenized input before parsing
-  --debug-scopes    Show variable scope operations
-  --norc            Don't load ~/.pshrc file
-  --rcfile <file>   Use alternative RC file instead of ~/.pshrc
+  -c <command>              Execute command and exit
+  -h, --help                Show help message
+  -V, --version             Show version information
+  --debug-ast               Show parsed AST before execution
+  --debug-tokens            Show tokenized input before parsing
+  --debug-scopes            Show variable scope operations
+  --debug-expansion         Show expansions as they occur
+  --debug-expansion-detail  Show detailed expansion steps
+  --debug-exec              Show executor operations
+  --debug-exec-fork         Show fork/exec details
+  --norc                    Don't load ~/.pshrc file
+  --rcfile <file>           Use alternative RC file instead of ~/.pshrc
 ```
 
 ## 2.2 Basic Command Structure

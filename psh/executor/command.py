@@ -13,6 +13,8 @@ class CommandExecutor(ExecutorComponent):
     
     def execute(self, command: SimpleCommand) -> int:
         """Execute a single command and return exit status."""
+        if self.state.options.get('debug-exec'):
+            print(f"[EXEC] CommandExecutor: {command.args}", file=self.state.stderr)
         # Handle array assignments first
         if command.array_assignments:
             exit_code = self._handle_array_assignments(command.array_assignments)
@@ -363,15 +365,22 @@ class CommandExecutor(ExecutorComponent):
         
         # Execute the command with temporary variables
         try:
+            cmd_name = command_args[0]
             # Check for function call BEFORE builtin check
-            func = self.function_manager.get_function(command_args[0])
+            func = self.function_manager.get_function(cmd_name)
             if func:
+                if self.state.options.get('debug-exec'):
+                    print(f"[EXEC]   Executing function: {cmd_name}", file=self.state.stderr)
                 result = self._execute_function(func, command_args, command)
-            elif self.builtin_registry.has(command_args[0]) or command_args[0] in self.shell.builtins:
+            elif self.builtin_registry.has(cmd_name) or cmd_name in self.shell.builtins:
                 # Execute builtin with command_args
+                if self.state.options.get('debug-exec'):
+                    print(f"[EXEC]   Executing builtin: {cmd_name}", file=self.state.stderr)
                 result = self._execute_builtin(command_args, command)
             else:
                 # External command
+                if self.state.options.get('debug-exec'):
+                    print(f"[EXEC]   Executing external: {cmd_name}", file=self.state.stderr)
                 result = self._execute_external(command_args, command)
         finally:
             # Clean up process substitutions
@@ -460,9 +469,14 @@ class CommandExecutor(ExecutorComponent):
         except:
             original_pgid = None
         
+        if self.state.options.get('debug-exec-fork'):
+            print(f"[EXEC-FORK] Forking for external command: {args[0]}", file=self.state.stderr)
+        
         pid = os.fork()
         
         if pid == 0:  # Child process
+            if self.state.options.get('debug-exec-fork'):
+                print(f"[EXEC-FORK] Child process {os.getpid()}: preparing to exec {args[0]}", file=self.state.stderr)
             # Set flag to indicate we're in a forked child
             self.state._in_forked_child = True
             # Create new process group
@@ -489,6 +503,9 @@ class CommandExecutor(ExecutorComponent):
                 os._exit(1)
         
         else:  # Parent process
+            if self.state.options.get('debug-exec-fork'):
+                print(f"[EXEC-FORK] Parent process: child PID is {pid}", file=self.state.stderr)
+            
             # Set child's process group
             try:
                 os.setpgid(pid, pid)

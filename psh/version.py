@@ -2,10 +2,29 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.43.0"
+__version__ = "0.44.0"
 
 # Version history
 VERSION_HISTORY = """
+0.44.0 (2025-06-13) - Advanced debugging features
+  - Implemented comprehensive debugging capabilities for expansion and execution tracking
+  - Added --debug-expansion flag to show expansions as they occur in real-time
+  - Added --debug-expansion-detail for detailed step-by-step expansion analysis
+  - Added --debug-exec to trace command execution paths and routing decisions
+  - Added --debug-exec-fork for detailed process creation and pipeline execution
+  - All debug output goes to stderr to avoid interfering with normal stdout
+  - Runtime toggle support: all debug options can be enabled/disabled via set builtin
+  - Examples: set -o debug-expansion, set +o debug-expansion
+  - Debug options integrate with existing ShellState.options dictionary
+  - Created comprehensive architecture documentation (docs/expansion_executor_architecture.md)
+  - Updated all user guide chapters with debug option documentation and examples
+  - Added example scripts demonstrating debug features (examples/debug_*.sh)
+  - Enhanced set -o to display all available debug options
+  - All debug flags can be combined for comprehensive analysis
+  - No changes to core functionality - only added observability features
+  - All 1056 tests continue to pass with no regressions
+  - Educational value enhanced with ability to trace shell internals
+
 0.43.0 (2025-12-13) - Associative arrays implementation
   - Implemented complete associative arrays with declare -A syntax
   - Added late binding approach for array key evaluation

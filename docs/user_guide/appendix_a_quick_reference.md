@@ -8,15 +8,19 @@ This quick reference provides a concise overview of PSH syntax, commands, and fe
 psh [options] [script] [arguments]
 
 Options:
-  -c COMMAND         Execute command string
-  -i                 Force interactive mode
-  --norc             Skip ~/.pshrc file
-  --rcfile FILE      Use alternate RC file
-  --debug-ast        Show parsed AST
-  --debug-tokens     Show tokenization
-  --debug-scopes     Show variable scopes
-  --version          Show version
-  --help             Show help
+  -c COMMAND                Execute command string
+  -i                        Force interactive mode
+  --norc                    Skip ~/.pshrc file
+  --rcfile FILE             Use alternate RC file
+  --debug-ast               Show parsed AST
+  --debug-tokens            Show tokenization
+  --debug-scopes            Show variable scopes
+  --debug-expansion         Show expansions as they occur
+  --debug-expansion-detail  Show detailed expansion steps
+  --debug-exec              Show executor operations
+  --debug-exec-fork         Show fork/exec details
+  --version                 Show version
+  --help                    Show help
 ```
 
 ## Basic Syntax
@@ -325,6 +329,26 @@ env         # Show environment
 set         # Set options/positional parameters
 declare     # Declare variables/functions with attributes
 typeset     # Same as declare (ksh compat)
+```
+
+### Shell Options
+```bash
+set -o              # Show all options
+set -o option       # Enable option
+set +o option       # Disable option
+set -e              # Exit on error (errexit)
+set -u              # Error on undefined variables (nounset)
+set -x              # Print commands before execution (xtrace)
+set -o pipefail     # Pipeline fails if any command fails
+
+# Debug options (PSH specific)
+set -o debug-ast              # Show AST before execution
+set -o debug-tokens           # Show tokens before parsing
+set -o debug-scopes           # Show variable scope operations
+set -o debug-expansion        # Show expansions as they occur
+set -o debug-expansion-detail # Show detailed expansion steps
+set -o debug-exec             # Show executor operations
+set -o debug-exec-fork        # Show fork/exec details
 ```
 
 ### Directory Navigation

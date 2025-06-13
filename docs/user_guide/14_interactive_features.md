@@ -22,6 +22,13 @@ $ psh --rcfile ~/.custom_pshrc
 
 # Start without RC file
 $ psh --norc
+
+# Start with debug options
+$ psh --debug-expansion
+psh$ echo $HOME
+[EXPANSION] Expanding command: ['echo', '$HOME']
+[EXPANSION] Result: ['echo', '/home/user']
+/home/user
 ```
 
 ### Interactive vs Non-Interactive Mode
@@ -543,7 +550,92 @@ psh$ send_email() {
 > }
 ```
 
-## 14.7 Job Control
+## 14.7 Shell Options and Debugging
+
+PSH provides various shell options for controlling behavior and debugging.
+
+### Runtime Debug Options
+
+```bash
+# View all shell options
+psh$ set -o
+debug-ast            off
+debug-exec           off
+debug-exec-fork      off
+debug-expansion      off
+debug-expansion-detail off
+debug-scopes         off
+debug-tokens         off
+emacs                on
+errexit              off
+nounset              off
+pipefail             off
+vi                   off
+xtrace               off
+
+# Enable expansion debugging
+psh$ set -o debug-expansion
+psh$ echo $USER
+[EXPANSION] Expanding command: ['echo', '$USER']
+[EXPANSION] Result: ['echo', 'alice']
+alice
+
+# Enable detailed expansion debugging
+psh$ set -o debug-expansion-detail
+psh$ echo ${PATH##*/}
+[EXPANSION] Expanding command: ['echo', '${PATH##*/}']
+[EXPANSION]   arg_types: ['WORD', 'VARIABLE']
+[EXPANSION]   quote_types: [None, None]
+[EXPANSION]   Processing arg[0]: 'echo' (type=WORD, quote=None)
+[EXPANSION]   Processing arg[1]: '${PATH##*/}' (type=VARIABLE, quote=None)
+[EXPANSION]     Variable expansion: '${PATH##*/}' -> 'bin'
+[EXPANSION] Result: ['echo', 'bin']
+bin
+
+# Enable execution debugging
+psh$ set -o debug-exec
+psh$ echo hello | cat
+[EXEC] PipelineExecutor: SimpleCommand(args=['echo', 'hello']) | SimpleCommand(args=['cat'])
+[EXEC] CommandExecutor: ['echo', 'hello']
+[EXEC]   Executing builtin: echo
+[EXEC] CommandExecutor: ['cat']
+[EXEC]   Executing external: cat
+hello
+
+# Disable debugging
+psh$ set +o debug-expansion +o debug-expansion-detail +o debug-exec
+
+# Enable multiple options at once
+psh$ set -o debug-expansion -o debug-exec
+```
+
+### Traditional Shell Options
+
+```bash
+# Enable error checking
+psh$ set -e    # Exit on error (errexit)
+psh$ set -u    # Error on undefined variables (nounset)
+psh$ set -x    # Print commands before execution (xtrace)
+
+# Combine options
+psh$ set -eux
+
+# Pipeline error handling
+psh$ set -o pipefail  # Pipeline fails if any command fails
+
+# Check specific option
+psh$ set -o | grep errexit
+errexit              on
+
+# Show options as set commands
+psh$ set +o
+set -o errexit
+set +o nounset
+set -o xtrace
+set -o pipefail
+```
+
+## 14.8 Job Control
 
 PSH provides job control features for managing multiple processes in interactive mode.
 

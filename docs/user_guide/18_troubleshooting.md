@@ -128,6 +128,8 @@ PSH provides several debugging tools to help diagnose issues.
 
 ### Using Debug Flags
 
+PSH provides several debug flags for different aspects of shell operation:
+
 ```bash
 # Debug tokenization issues
 psh$ psh --debug-tokens -c 'echo "Hello $USER"'
@@ -158,6 +160,42 @@ psh$ psh --debug-scopes script.sh
 [SCOPE] Creating local variable: count
 [SCOPE] Variable lookup: count (found in local scope)
 [SCOPE] Exiting function: main
+
+# Debug expansion process
+psh$ psh --debug-expansion -c 'echo $HOME/*.txt'
+[EXPANSION] Expanding command: ['echo', '$HOME/*.txt']
+[EXPANSION] Result: ['echo', '/home/user/file1.txt', '/home/user/file2.txt']
+/home/user/file1.txt /home/user/file2.txt
+
+# Debug expansion with detailed steps
+psh$ psh --debug-expansion-detail -c 'echo ${USER:-nobody}'
+[EXPANSION] Expanding command: ['echo', '${USER:-nobody}']
+[EXPANSION]   arg_types: ['WORD', 'VARIABLE']
+[EXPANSION]   quote_types: [None, None]
+[EXPANSION]   Processing arg[0]: 'echo' (type=WORD, quote=None)
+[EXPANSION]   Processing arg[1]: '${USER:-nobody}' (type=VARIABLE, quote=None)
+[EXPANSION]     Variable expansion: '${USER:-nobody}' -> 'alice'
+[EXPANSION] Result: ['echo', 'alice']
+alice
+
+# Debug command execution
+psh$ psh --debug-exec -c 'echo hello | cat'
+[EXEC] PipelineExecutor: SimpleCommand(args=['echo', 'hello']) | SimpleCommand(args=['cat'])
+[EXEC] CommandExecutor: ['echo', 'hello']
+[EXEC]   Executing builtin: echo
+[EXEC] CommandExecutor: ['cat']
+[EXEC]   Executing external: cat
+hello
+
+# Debug fork and exec operations
+psh$ psh --debug-exec-fork -c 'ls | head -n 2'
+[EXEC] PipelineExecutor: SimpleCommand(args=['ls']) | SimpleCommand(args=['head', '-n', '2'])
+[EXEC-FORK] Forking for pipeline command 1/2: SimpleCommand(args=['ls'])
+[EXEC-FORK] Pipeline child 12345: executing command 1
+[EXEC-FORK] Forking for pipeline command 2/2: SimpleCommand(args=['head', '-n', '2'])
+[EXEC-FORK] Pipeline child 12346: executing command 2
+file1.txt
+file2.txt
 ```
 
 ### Runtime Debugging
@@ -175,13 +213,34 @@ test
 
 # Check current settings
 psh$ set -o
-debug-ast      on
-debug-tokens   off
-emacs          on
-vi             off
+debug-ast            on
+debug-exec           off
+debug-exec-fork      off
+debug-expansion      off
+debug-expansion-detail off
+debug-scopes         off
+debug-tokens         off
+emacs                on
+errexit              off
+nounset              off
+pipefail             off
+vi                   off
+xtrace               off
+
+# Enable multiple debug options
+psh$ set -o debug-expansion -o debug-exec
+psh$ echo $USER | cat
+[EXPANSION] Expanding command: ['echo', '$USER']
+[EXPANSION] Result: ['echo', 'alice']
+[EXEC] PipelineExecutor: SimpleCommand(args=['echo', '$USER']) | SimpleCommand(args=['cat'])
+[EXEC] CommandExecutor: ['echo', 'alice']
+[EXEC]   Executing builtin: echo
+[EXEC] CommandExecutor: ['cat']
+[EXEC]   Executing external: cat
+alice
 
 # Disable debugging
-psh$ set +o debug-ast
+psh$ set +o debug-ast +o debug-expansion +o debug-exec
 
 # Trace variable values
 psh$ debug_var() {
@@ -678,6 +737,8 @@ PSH version 0.32.0
 psh$ psh --help
 usage: psh [-h] [-c COMMAND] [-i] [--norc] [--rcfile RCFILE]
           [--debug-ast] [--debug-tokens] [--debug-scopes]
+          [--debug-expansion] [--debug-expansion-detail]
+          [--debug-exec] [--debug-exec-fork]
           [--version] ...
 
 # Check available builtins

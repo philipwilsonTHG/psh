@@ -22,10 +22,13 @@ from .scripting.base import ScriptManager
 from .interactive.base import InteractiveManager
 
 class Shell:
-    def __init__(self, args=None, script_name=None, debug_ast=False, debug_tokens=False, debug_scopes=False, norc=False, rcfile=None, parent_shell=None):
+    def __init__(self, args=None, script_name=None, debug_ast=False, debug_tokens=False, debug_scopes=False, 
+                 debug_expansion=False, debug_expansion_detail=False, debug_exec=False, debug_exec_fork=False,
+                 norc=False, rcfile=None, parent_shell=None):
         # Initialize state
         self.state = ShellState(args, script_name, debug_ast, 
-                              debug_tokens, debug_scopes, norc, rcfile)
+                              debug_tokens, debug_scopes, debug_expansion, debug_expansion_detail,
+                              debug_exec, debug_exec_fork, norc, rcfile)
         
         # Set shell reference in scope manager for arithmetic evaluation
         self.state.scope_manager.set_shell(self)

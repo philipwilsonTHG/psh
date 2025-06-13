@@ -41,6 +41,13 @@ class ExpansionManager:
         import glob
         args = []
         
+        # Debug: show pre-expansion args
+        if self.state.options.get('debug-expansion'):
+            print(f"[EXPANSION] Expanding command: {command.args}", file=self.state.stderr)
+            if self.state.options.get('debug-expansion-detail'):
+                print(f"[EXPANSION]   arg_types: {command.arg_types}", file=self.state.stderr)
+                print(f"[EXPANSION]   quote_types: {command.quote_types}", file=self.state.stderr)
+        
         # Check if we have process substitutions
         has_proc_sub = any(command.arg_types[i] in ('PROCESS_SUB_IN', 'PROCESS_SUB_OUT') 
                           for i in range(len(command.arg_types)))
@@ -65,6 +72,9 @@ class ExpansionManager:
             
             
             
+            if self.state.options.get('debug-expansion-detail'):
+                print(f"[EXPANSION]   Processing arg[{i}]: '{arg}' (type={arg_type}, quote={quote_type})", file=self.state.stderr)
+            
             if arg_type == 'STRING':
                 # Handle quoted strings
                 if quote_type == '"' and '$' in arg:
@@ -72,11 +82,16 @@ class ExpansionManager:
                     # Special handling for "$@"
                     if arg == '$@':
                         # "$@" expands to multiple arguments, each properly quoted
+                        if self.state.options.get('debug-expansion-detail'):
+                            print(f"[EXPANSION]     Expanding \"$@\" to: {self.state.positional_params}", file=self.state.stderr)
                         args.extend(self.state.positional_params)
                         continue
                     else:
                         # Expand variables within the string
+                        original = arg
                         arg = self.expand_string_variables(arg)
+                        if self.state.options.get('debug-expansion-detail') and original != arg:
+                            print(f"[EXPANSION]     String variable expansion: '{original}' -> '{arg}'", file=self.state.stderr)
                         args.append(arg)
                 else:
                     # Single-quoted string or no variables - no expansion
@@ -90,10 +105,14 @@ class ExpansionManager:
                 if self.variable_expander.is_array_expansion(var_expr):
                     # Expand to list of words
                     expanded_list = self.variable_expander.expand_array_to_list(var_expr)
+                    if self.state.options.get('debug-expansion-detail'):
+                        print(f"[EXPANSION]     Array expansion: '{var_expr}' -> {expanded_list}", file=self.state.stderr)
                     args.extend(expanded_list)
                 else:
                     # Regular variable expansion
                     expanded = self.expand_variable(var_expr)
+                    if self.state.options.get('debug-expansion-detail'):
+                        print(f"[EXPANSION]     Variable expansion: '{var_expr}' -> '{expanded}'", file=self.state.stderr)
                     args.append(expanded)
             elif '\x00$' in arg:
                 # Contains escaped dollar sign marker - replace with literal $
@@ -136,10 +155,14 @@ class ExpansionManager:
             elif arg_type in ('COMMAND_SUB', 'COMMAND_SUB_BACKTICK'):
                 # Command substitution
                 output = self.execute_command_substitution(arg)
+                if self.state.options.get('debug-expansion-detail'):
+                    print(f"[EXPANSION]     Command substitution: '{arg}' -> '{output}'", file=self.state.stderr)
                 # POSIX: apply word splitting to unquoted command substitution
                 if output:
                     # Split on whitespace
                     words = output.split()
+                    if self.state.options.get('debug-expansion-detail') and len(words) > 1:
+                        print(f"[EXPANSION]     Word splitting: '{output}' -> {words}", file=self.state.stderr)
                     args.extend(words)
                 # If output is empty, don't add anything
             elif arg_type == 'ARITH_EXPANSION':
@@ -155,7 +178,10 @@ class ExpansionManager:
                 
                 # Tilde expansion (only for unquoted words)
                 if arg.startswith('~') and arg_type == 'WORD':
+                    original = arg
                     arg = self.expand_tilde(arg)
+                    if self.state.options.get('debug-expansion-detail') and original != arg:
+                        print(f"[EXPANSION]     Tilde expansion: '{original}' -> '{arg}'", file=self.state.stderr)
                 
                 # Check if the argument contains glob characters and wasn't quoted
                 if any(c in arg for c in ['*', '?', '[']) and arg_type != 'STRING':
@@ -163,12 +189,21 @@ class ExpansionManager:
                     matches = glob.glob(arg)
                     if matches:
                         # Sort matches for consistent output
+                        if self.state.options.get('debug-expansion-detail'):
+                            print(f"[EXPANSION]     Glob expansion: '{arg}' -> {sorted(matches)}", file=self.state.stderr)
                         args.extend(sorted(matches))
                     else:
                         # No matches, use literal argument (bash behavior)
+                        if self.state.options.get('debug-expansion-detail'):
+                            print(f"[EXPANSION]     Glob expansion: '{arg}' -> no matches", file=self.state.stderr)
                         args.append(arg)
                 else:
                     args.append(arg)
+        
+        # Debug: show post-expansion args
+        if self.state.options.get('debug-expansion'):
+            print(f"[EXPANSION] Result: {args}", file=self.state.stderr)
+        
         return args
     
     def expand_string_variables(self, text: str) -> str:

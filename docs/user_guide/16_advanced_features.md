@@ -835,31 +835,109 @@ psh$ echo "Data: $data"
 Data: hello world
 ```
 
-## 16.7 Advanced Shell Options
+## 16.7 Advanced Shell Options and Debugging
 
 ### Runtime Configuration
 
 ```bash
 # View all options
 psh$ set -o
-debug-ast      off
-debug-tokens   off
-emacs          on
-vi             off
+debug-ast            off
+debug-exec           off
+debug-exec-fork      off
+debug-expansion      off
+debug-expansion-detail off
+debug-scopes         off
+debug-tokens         off
+emacs                on
+errexit              off
+nounset              off
+pipefail             off
+vi                   off
+xtrace               off
 
-# Enable options
-psh$ set -o vi            # Vi mode
-psh$ set -o debug-ast     # AST debugging
+# Enable shell options
+psh$ set -e              # Exit on error (errexit)
+psh$ set -u              # Error on undefined variables (nounset)
+psh$ set -x              # Print commands before execution (xtrace)
+psh$ set -o pipefail     # Pipeline fails if any command fails
+
+# Enable debug options
+psh$ set -o debug-ast              # AST debugging
+psh$ set -o debug-tokens           # Token debugging
+psh$ set -o debug-scopes           # Variable scope debugging
+psh$ set -o debug-expansion        # Expansion debugging
+psh$ set -o debug-expansion-detail # Detailed expansion debugging
+psh$ set -o debug-exec             # Execution debugging
+psh$ set -o debug-exec-fork        # Fork/exec debugging
 
 # Disable options
-psh$ set +o vi            # Disable vi mode
-psh$ set +o debug-ast     # Disable AST debugging
+psh$ set +e              # Disable errexit
+psh$ set +o debug-ast    # Disable AST debugging
 
-# Future options (when implemented)
-# set -e    # Exit on error
-# set -u    # Error on undefined variables
-# set -x    # Print commands before execution
-# set -o pipefail  # Pipeline fails if any command fails
+# Combine options
+psh$ set -eux            # Enable errexit, nounset, xtrace
+psh$ set -o debug-expansion -o debug-exec  # Multiple debug options
+```
+
+### Advanced Debugging Techniques
+
+```bash
+# Debug variable expansion in real-time
+psh$ set -o debug-expansion
+psh$ VAR="hello"
+psh$ echo ${VAR^^}
+[EXPANSION] Expanding command: ['echo', '${VAR^^}']
+[EXPANSION] Result: ['echo', 'HELLO']
+HELLO
+
+# Debug command execution paths
+psh$ set -o debug-exec
+psh$ echo test | cat
+[EXEC] PipelineExecutor: SimpleCommand(args=['echo', 'test']) | SimpleCommand(args=['cat'])
+[EXEC] CommandExecutor: ['echo', 'test']
+[EXEC]   Executing builtin: echo
+[EXEC] CommandExecutor: ['cat']
+[EXEC]   Executing external: cat
+test
+
+# Trace fork/exec operations
+psh$ set -o debug-exec-fork
+psh$ ls | head -n 1
+[EXEC-FORK] Forking for pipeline command 1/2: SimpleCommand(args=['ls'])
+[EXEC-FORK] Pipeline child 12345: executing command 1
+[EXEC-FORK] Forking for pipeline command 2/2: SimpleCommand(args=['head', '-n', '1'])
+[EXEC-FORK] Pipeline child 12346: executing command 2
+file.txt
+
+# Combine with traditional debugging
+psh$ set -x -o debug-expansion
+psh$ FILE="test.txt"
++ FILE=test.txt
+[EXPANSION] Expanding command: ['FILE=test.txt']
+[EXPANSION] Result: ['FILE=test.txt']
+psh$ [ -f "$FILE" ] && echo "exists"
++ '[' -f test.txt ']'
+[EXPANSION] Expanding command: ['[', '-f', '$FILE', ']']
+[EXPANSION] Result: ['[', '-f', 'test.txt', ']']
++ echo exists
+[EXPANSION] Expanding command: ['echo', 'exists']
+[EXPANSION] Result: ['echo', 'exists']
+exists
+
+# Debug function for specific commands
+psh$ debug_cmd() {
+>     set -o debug-expansion -o debug-exec
+>     "$@"
+>     set +o debug-expansion +o debug-exec
+> }
+psh$ debug_cmd echo $USER
+[EXPANSION] Expanding command: ['echo', '$USER']
+[EXPANSION] Result: ['echo', 'alice']
+[EXEC] PipelineExecutor: SimpleCommand(args=['echo', '$USER'])
+[EXEC] CommandExecutor: ['echo', 'alice']
+[EXEC]   Executing builtin: echo
+alice
 ```
 
 ### Advanced Prompt Features

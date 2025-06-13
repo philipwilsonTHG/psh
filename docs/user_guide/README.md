@@ -45,4 +45,4 @@ Each chapter builds upon previous concepts. Beginners should read chapters 1-5 s
 
 ### Version
 
-This guide covers PSH version 0.32.0 and later.
+This guide covers PSH version 0.43.0 and later, including enhanced debugging features.

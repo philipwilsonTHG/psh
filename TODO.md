@@ -8,6 +8,17 @@ PSH has achieved complete test suite success with **1007 total tests (100% passi
 
 ## Recent Major Changes
 
+### v0.44.0 - Advanced Debugging Features (pending)
+- **Expansion debugging**: Added --debug-expansion flag to show expansions as they occur
+- **Detailed expansion tracking**: Added --debug-expansion-detail for step-by-step expansion
+- **Execution debugging**: Added --debug-exec to trace command execution paths
+- **Fork/exec debugging**: Added --debug-exec-fork for detailed process creation tracking
+- **Runtime toggling**: All debug options can be enabled/disabled at runtime via set builtin
+- **Comprehensive documentation**: Created detailed architecture docs for expansion/executor systems
+- **User guide updates**: All chapters updated with debug option documentation and examples
+- **Example scripts**: Created demo scripts showing debug features in action
+- **1056 total tests passing**: All tests continue to pass with new features
+
 ### v0.43.0 - Associative Arrays Implementation
 - **Complete associative arrays**: Full bash-compatible implementation with declare -A
 - **String-based key storage**: Complex key expressions with variable expansion

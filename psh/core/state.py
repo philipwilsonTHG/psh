@@ -9,7 +9,8 @@ class ShellState:
     """Container for shell state that can be shared across components."""
     
     def __init__(self, args=None, script_name=None, debug_ast=False, 
-                 debug_tokens=False, debug_scopes=False, norc=False, rcfile=None):
+                 debug_tokens=False, debug_scopes=False, debug_expansion=False, debug_expansion_detail=False,
+                 debug_exec=False, debug_exec_fork=False, norc=False, rcfile=None):
         # Environment and variables
         self.env = os.environ.copy()
         
@@ -39,7 +40,11 @@ class ShellState:
             'debug-ast': debug_ast,
             'debug-tokens': debug_tokens,
             'debug-scopes': debug_scopes,
-            # New shell options (to be implemented)
+            'debug-expansion': debug_expansion,
+            'debug-expansion-detail': debug_expansion_detail,
+            'debug-exec': debug_exec,
+            'debug-exec-fork': debug_exec_fork,
+            # Shell options (to be implemented)
             'errexit': False,      # -e: exit on error
             'nounset': False,      # -u: error on undefined variables
             'xtrace': False,       # -x: print commands before execution

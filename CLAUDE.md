@@ -8,7 +8,20 @@ Python Shell (psh) is an educational Unix shell implementation designed for teac
 
 ## Current Development Focus
 
-**Latest**: Associative Arrays - v0.43.0
+**Latest**: Advanced Debugging Features - v0.44.0 (pending)
+- ✓ Implemented comprehensive debugging capabilities for expansion and execution
+- ✓ Added --debug-expansion flag to show expansions as they occur
+- ✓ Added --debug-expansion-detail for detailed step-by-step expansion tracking
+- ✓ Added --debug-exec to trace command execution paths and builtin/external routing
+- ✓ Added --debug-exec-fork for detailed process creation and pipeline execution
+- ✓ All debug options can be toggled at runtime via set builtin (e.g., set -o debug-expansion)
+- ✓ Debug output goes to stderr to avoid interfering with normal stdout
+- ✓ Created comprehensive architecture documentation for expansion/executor systems
+- ✓ Updated all user guide chapters with debug option documentation
+- ✓ Added example scripts demonstrating debug features
+- ✓ All 1056 tests passing (100% success rate)
+
+**Previous**: Associative Arrays - v0.43.0
 - ✓ Implemented full associative array support with declare -A
 - ✓ String-based keys with full bash-compatible syntax: array[key]="value"
 - ✓ All array expansions: ${array[@]}, ${!array[@]}, ${#array[@]}

@@ -21,6 +21,10 @@ class PipelineExecutor(ExecutorComponent):
     def execute(self, pipeline: Pipeline) -> int:
         """Execute a pipeline and return exit status of last command."""
         
+        if self.state.options.get('debug-exec'):
+            cmd_str = ' | '.join(str(cmd) for cmd in pipeline.commands)
+            print(f"[EXEC] PipelineExecutor: {cmd_str}", file=self.state.stderr)
+        
         if len(pipeline.commands) == 1:
             # Single command, no pipes
             command = pipeline.commands[0]
@@ -88,9 +92,14 @@ class PipelineExecutor(ExecutorComponent):
         
         # Fork and execute each command
         for i, command in enumerate(pipeline.commands):
+            if self.state.options.get('debug-exec-fork'):
+                print(f"[EXEC-FORK] Forking for pipeline command {i+1}/{num_commands}: {command}", file=self.state.stderr)
+            
             pid = os.fork()
             
             if pid == 0:  # Child process
+                if self.state.options.get('debug-exec-fork'):
+                    print(f"[EXEC-FORK] Pipeline child {os.getpid()}: executing command {i+1}", file=self.state.stderr)
                 # Set flag to indicate we're in a forked child
                 self.state._in_forked_child = True
                 pgid = self._setup_child_process(pgid, i, num_commands, pipes)

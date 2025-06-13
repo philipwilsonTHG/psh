@@ -11,6 +11,10 @@ def main():
     debug_ast = False
     debug_tokens = False
     debug_scopes = False
+    debug_expansion = False
+    debug_expansion_detail = False
+    debug_exec = False
+    debug_exec_fork = False
     norc = False
     rcfile = None
     args = sys.argv[1:]
@@ -25,6 +29,20 @@ def main():
     if "--debug-scopes" in args:
         debug_scopes = True
         args.remove("--debug-scopes")
+    if "--debug-expansion" in args:
+        debug_expansion = True
+        args.remove("--debug-expansion")
+    if "--debug-expansion-detail" in args:
+        debug_expansion_detail = True
+        debug_expansion = True  # Detail implies basic
+        args.remove("--debug-expansion-detail")
+    if "--debug-exec" in args:
+        debug_exec = True
+        args.remove("--debug-exec")
+    if "--debug-exec-fork" in args:
+        debug_exec_fork = True
+        debug_exec = True  # Fork implies basic
+        args.remove("--debug-exec-fork")
     
     # Extract RC file flags
     if "--norc" in args:
@@ -49,7 +67,10 @@ def main():
     # Update sys.argv to remove the flags
     sys.argv = [sys.argv[0]] + args
     
-    shell = Shell(debug_ast=debug_ast, debug_tokens=debug_tokens, debug_scopes=debug_scopes, norc=norc, rcfile=rcfile)
+    shell = Shell(debug_ast=debug_ast, debug_tokens=debug_tokens, debug_scopes=debug_scopes, 
+                  debug_expansion=debug_expansion, debug_expansion_detail=debug_expansion_detail,
+                  debug_exec=debug_exec, debug_exec_fork=debug_exec_fork,
+                  norc=norc, rcfile=rcfile)
     
     if len(sys.argv) > 1:
         if sys.argv[1] == "-c" and len(sys.argv) > 2:
@@ -78,6 +99,10 @@ def main():
             print("  --debug-ast      Print AST before execution (debugging)")
             print("  --debug-tokens   Print tokens before parsing (debugging)")
             print("  --debug-scopes   Print variable scope operations (debugging)")
+            print("  --debug-expansion Print expansions as they occur (debugging)")
+            print("  --debug-expansion-detail Print detailed expansion steps (debugging)")
+            print("  --debug-exec     Print executor operations (debugging)")
+            print("  --debug-exec-fork Print fork/exec details (debugging)")
             print("\nArguments:")
             print("  script           Script file to execute")
             print("  args             Arguments passed to script or command")
