@@ -83,6 +83,7 @@ class PrettyPrintVisitor(ASTVisitor):
     """Visitor that pretty-prints the AST."""
     
     def __init__(self, indent: int = 2):
+        super().__init__()
         self.indent = indent
         self.level = 0
     

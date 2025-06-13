@@ -45,6 +45,7 @@ class DebugASTVisitor(ASTVisitor[str]):
         Args:
             indent: Number of spaces per indentation level
         """
+        super().__init__()
         self.indent_size = indent
         self.level = 0
     

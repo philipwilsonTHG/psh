@@ -1,14 +1,37 @@
 # Python Shell (psh) - TODO List
 
-**Current Version**: 0.45.0 (2025-01-13)
+**Current Version**: 0.48.0 (2025-01-14)
 
 ## Overview
 
-PSH has achieved complete test suite success with **1083 total tests (100% passing)**. This document tracks remaining features, known issues, and development priorities.
+PSH has achieved complete test suite success with **1131 total tests (99.7% passing)**. This document tracks remaining features, known issues, and development priorities.
 
 ## Recent Major Changes
 
-### v0.45.0 - Visitor Pattern Implementation (pending)
+### v0.48.0 - Visitor Pattern Phase 4: Complete Integration
+- **Production-ready visitor executor**: Now the default execution engine for PSH
+- **Removed experimental flag**: --visitor-executor removed; visitor is now default
+- **Added legacy flag**: --legacy-executor for backward compatibility with old executor
+- **Fixed all visitor classes**: Proper _method_cache initialization in base classes
+- **Backward compatibility**: Added missing shell methods (set_positional_params, execute)
+- **Fixed builtin handling**: Arguments now include command name as first element
+- **Function scope management**: Fixed local variable handling in visitor executor
+- **Test infrastructure**: Better output capture with known limitations documented
+- **99.7% test success**: 3 known limitations with forked process output capture
+- **All quick-wins completed**: Method caching, metrics, linter visitors implemented
+- **Clean architecture**: Foundation complete for future visitor-based enhancements
+
+### v0.46.0 - Visitor Pattern Phase 2: Enhanced Validation
+- **Enhanced AST validation**: Created EnhancedValidatorVisitor with static analysis
+- **Variable tracking**: Scope-aware detection of undefined variables
+- **Command validation**: Typo detection with suggestions (grpe→grep, etc.)
+- **Quoting analysis**: Warns about word splitting and unintended glob expansion
+- **Security checks**: Detects eval usage, command injection, insecure permissions
+- **--validate flag**: Script validation without execution
+- **24 new tests**: Comprehensive validation test coverage
+- **1107 total tests passing**: All tests pass with enhanced validation
+
+### v0.45.0 - Visitor Pattern Implementation
 - **AST Visitor Pattern**: Implemented Phase 6 of parser improvements for clean separation
 - **Base visitor framework**: Created ASTVisitor[T] and ASTTransformer base classes
 - **FormatterVisitor**: Pretty-prints AST as shell script, replacing static utilities

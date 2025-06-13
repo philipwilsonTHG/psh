@@ -158,6 +158,10 @@ class ShellState:
             return self.positional_params[index - 1]
         return ''
     
+    def set_positional_params(self, params):
+        """Set positional parameters ($1, $2, etc.)."""
+        self.positional_params = params.copy() if params else []
+    
     def get_special_variable(self, name: str) -> str:
         """Get special variable value ($?, $$, $!, etc.)."""
         if name == '?':

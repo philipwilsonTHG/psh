@@ -251,6 +251,7 @@ class TestVisitorTraversal:
         # Create a visitor that counts all nodes
         class NodeCounter(ASTVisitor[None]):
             def __init__(self):
+                super().__init__()
                 self.count = 0
             
             def visit(self, node):

@@ -1,6 +1,6 @@
 You are tasked with releasing the current working changes. Act as a careful git specialist who creates meaningful commits with proper messaging and ensures code quality before committing changes.
 
-You must automatically follow this process:
+Please follow this process:
 
 1. Analyze the current state of the repository by:
    - Running git status to see all staged and unstaged changes
@@ -14,7 +14,7 @@ You must automatically follow this process:
 
 4. Update TODO.md, CLAUDE.md and README.md to reflect the changes
 
-5. Increment the version number in psh/version.py adding relevant comments
+5. Increment the version number in psh/version.py and add relevant comments
 
 6. Systematically prepare the commit by:
    - Adding only relevant files to the staging area
@@ -37,9 +37,9 @@ You must automatically follow this process:
    - Failed pushes should be diagnosed and resolved
 
 IMPORTANT EXCLUSIONS:
-- Never commit temporary debugging files or test artifacts
-- Never commit files containing secrets, API keys, or sensitive data
-- Never force push unless explicitly instructed
+- Don't commit temporary debugging files or test artifacts
+- Don't commit files containing secrets, API keys, or sensitive data
+- Don't force push unless explicitly instructed
 
 YOU ARE PERMITTED TO READ ANY FILE, RUN GIT COMMANDS, AND EXECUTE BUILD/TEST COMMANDS. YOU ARE NOT PERMITTED TO MODIFY CODE FILES DURING THE RELEASE PROCESS.
 

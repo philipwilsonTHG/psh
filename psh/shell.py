@@ -13,7 +13,6 @@ from .builtins.function_support import FunctionReturn
 # Import from new core modules
 from .core.exceptions import LoopBreak, LoopContinue, UnboundVariableError
 from .core.state import ShellState
-from .utils.ast_formatter import ASTFormatter
 from .utils.token_formatter import TokenFormatter
 from .expansion.manager import ExpansionManager
 from .io_redirect.manager import IOManager
@@ -24,7 +23,7 @@ from .interactive.base import InteractiveManager
 class Shell:
     def __init__(self, args=None, script_name=None, debug_ast=False, debug_tokens=False, debug_scopes=False, 
                  debug_expansion=False, debug_expansion_detail=False, debug_exec=False, debug_exec_fork=False,
-                 norc=False, rcfile=None, validate_only=False, parent_shell=None):
+                 norc=False, rcfile=None, validate_only=False, use_legacy_executor=False, parent_shell=None):
         # Initialize state
         self.state = ShellState(args, script_name, debug_ast, 
                               debug_tokens, debug_scopes, debug_expansion, debug_expansion_detail,
@@ -32,6 +31,9 @@ class Shell:
         
         # Store validation mode
         self.validate_only = validate_only
+        
+        # Store executor mode - default is visitor executor
+        self.use_visitor_executor = not use_legacy_executor
         
         # Set shell reference in scope manager for arithmetic evaluation
         self.state.scope_manager.set_shell(self)
@@ -128,13 +130,35 @@ class Shell:
     
     def execute_command_list(self, command_list: StatementList):
         """Execute a command list"""
-        # Delegate to the StatementExecutor
+        # Use visitor executor by default
+        if self.use_visitor_executor:
+            from .visitor.executor_visitor import ExecutorVisitor
+            executor = ExecutorVisitor(self)
+            return executor.visit(command_list)
+        
+        # Otherwise use legacy executor
         return self.executor_manager.statement_executor.execute_command_list(command_list)
     
     def execute_toplevel(self, toplevel: TopLevel):
         """Execute a top-level script/input containing functions and commands."""
-        # Delegate to the StatementExecutor
+        # Use visitor executor by default
+        if self.use_visitor_executor:
+            from .visitor.executor_visitor import ExecutorVisitor
+            executor = ExecutorVisitor(self)
+            return executor.visit(toplevel)
+        
+        # Otherwise use legacy executor
         return self.executor_manager.statement_executor.execute_toplevel(toplevel)
+    
+    def execute(self, ast):
+        """Execute an AST node - for backward compatibility with tests."""
+        from .ast_nodes import TopLevel
+        if isinstance(ast, TopLevel):
+            return self.execute_toplevel(ast)
+        else:
+            # Wrap in TopLevel if needed
+            toplevel = TopLevel([ast])
+            return self.execute_toplevel(toplevel)
     
     
     def execute_enhanced_test_statement(self, test_stmt: EnhancedTestStatement) -> int:

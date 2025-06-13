@@ -58,6 +58,7 @@ class ValidatorVisitor(ASTVisitor[None]):
     
     def __init__(self):
         """Initialize the validator."""
+        super().__init__()
         self.issues: List[ValidationIssue] = []
         self.in_function: bool = False
         self.in_loop: int = 0  # Nesting level of loops

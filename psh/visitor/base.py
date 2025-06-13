@@ -21,6 +21,10 @@ class ASTVisitor(ABC, Generic[T]):
     visit_* method based on the node's class name.
     """
     
+    def __init__(self):
+        # Cache for method lookups to improve performance
+        self._method_cache = {}
+    
     def visit(self, node: ASTNode) -> T:
         """
         Dispatch to the appropriate visit_* method based on node type.
@@ -31,9 +35,13 @@ class ASTVisitor(ABC, Generic[T]):
         Returns:
             The result of visiting the node
         """
-        method_name = f'visit_{node.__class__.__name__}'
-        visitor = getattr(self, method_name, self.generic_visit)
-        return visitor(node)
+        # Use cached method if available
+        node_class = node.__class__
+        if node_class not in self._method_cache:
+            method_name = f'visit_{node_class.__name__}'
+            self._method_cache[node_class] = getattr(self, method_name, self.generic_visit)
+        
+        return self._method_cache[node_class](node)
     
     def generic_visit(self, node: ASTNode) -> T:
         """

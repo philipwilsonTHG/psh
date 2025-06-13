@@ -151,7 +151,7 @@ class EchoBuiltin(Builtin):
             text += '\n'
         
         # Check if we're in a child process (forked for pipeline/background)
-        if hasattr(shell, '_in_forked_child') and shell._in_forked_child:
+        if hasattr(shell.state, '_in_forked_child') and shell.state._in_forked_child:
             # In child process, write directly to fd 1
             output_bytes = text.encode('utf-8', errors='replace')
             os.write(1, output_bytes)

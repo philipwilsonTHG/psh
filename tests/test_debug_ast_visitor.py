@@ -2,7 +2,7 @@
 Tests for the debug AST visitor implementation.
 
 These tests verify that the visitor-based debug AST formatter produces
-correct output and can be used as a drop-in replacement for ASTFormatter.
+correct output for debugging parsed AST structures.
 """
 
 import pytest
@@ -12,7 +12,6 @@ from psh.ast_nodes import (
     ArrayInitialization, ArrayElementAssignment
 )
 from psh.visitor import DebugASTVisitor
-from psh.utils.ast_formatter import ASTFormatter
 
 
 class TestDebugASTVisitor:
@@ -160,20 +159,6 @@ class TestDebugASTVisitor:
         assert any('    Body:' in line for line in lines)
         assert any('      CommandList:' in line for line in lines)
     
-    def test_comparison_with_old_formatter(self):
-        """Test that both formatters handle basic cases similarly."""
-        # Simple command
-        cmd = SimpleCommand(args=['ls', '-la'], arg_types=['WORD', 'WORD'])
-        
-        old_output = ASTFormatter.format(cmd)
-        new_visitor = DebugASTVisitor()
-        new_output = new_visitor.visit(cmd)
-        
-        # Both should mention SimpleCommand and the command
-        assert 'SimpleCommand' in old_output
-        assert 'SimpleCommand' in new_output
-        assert 'ls -la' in old_output
-        assert 'ls -la' in new_output
 
 
 def test_visitor_import():

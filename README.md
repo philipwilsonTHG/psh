@@ -2,7 +2,7 @@
 
 An educational Unix shell implementation in Python, designed to teach shell internals and compiler/interpreter concepts through a clean, readable codebase.  **All source code and documentation (with the exception of this sentence) has been written by Claude Code using Sonnet 4 and Opus 4 models.**
 
-**Current Version**: 0.45.0 (2025-01-13)
+**Current Version**: 0.48.0 (2025-01-14)
 
 ## Overview
 
@@ -12,6 +12,22 @@ The shell features a modern component-based architecture where each subsystem (e
 
 ### Recent Major Features
 
+- **v0.48.0**: Visitor Pattern Phase 4 - Complete Integration
+  - Visitor executor is now the default execution engine
+  - Removed experimental --visitor-executor flag (visitor is now default)
+  - Added --legacy-executor flag for backward compatibility
+  - Fixed all visitor classes with proper initialization
+  - Added missing shell methods for backward compatibility
+  - Fixed builtin argument handling and function scope management
+  - 99.7% test success rate with known limitations documented
+  - Successfully transitioned from experimental to production-ready
+- **v0.46.0**: Visitor Pattern Phase 2 - Enhanced Validation
+  - Created EnhancedValidatorVisitor with comprehensive static analysis
+  - Variable tracking with scope-aware undefined variable detection
+  - Command validation with typo detection and suggestions
+  - Quoting analysis for word splitting and glob expansion warnings
+  - Security vulnerability detection (eval, command injection, permissions)
+  - Added --validate flag for script validation without execution
 - **v0.45.0**: AST Visitor Pattern implementation
   - Implemented Phase 6 of parser improvements for clean separation of concerns
   - Created base visitor framework with `ASTVisitor[T]` and `ASTTransformer` classes
