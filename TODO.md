@@ -1,14 +1,26 @@
 # Python Shell (psh) - TODO List
 
-**Current Version**: 0.43.0 (2025-12-13)
+**Current Version**: 0.45.0 (2025-01-13)
 
 ## Overview
 
-PSH has achieved complete test suite success with **1007 total tests (100% passing)**. This document tracks remaining features, known issues, and development priorities.
+PSH has achieved complete test suite success with **1083 total tests (100% passing)**. This document tracks remaining features, known issues, and development priorities.
 
 ## Recent Major Changes
 
-### v0.44.0 - Advanced Debugging Features (pending)
+### v0.45.0 - Visitor Pattern Implementation (pending)
+- **AST Visitor Pattern**: Implemented Phase 6 of parser improvements for clean separation
+- **Base visitor framework**: Created ASTVisitor[T] and ASTTransformer base classes
+- **FormatterVisitor**: Pretty-prints AST as shell script, replacing static utilities
+- **ValidatorVisitor**: Semantic analysis with error/warning/info collection
+- **ExecutorVisitor**: Demonstration of execution using visitor pattern
+- **DebugASTVisitor**: Phase 1 integration - replaced ASTFormatter for --debug-ast
+- **Complete test coverage**: 27 new tests for visitor functionality
+- **Documentation**: Created comprehensive visitor pattern docs and examples
+- **Backward compatibility**: Seamless integration without disrupting existing features
+- **1083 total tests passing**: All tests continue to pass with new architecture
+
+### v0.44.0 - Advanced Debugging Features
 - **Expansion debugging**: Added --debug-expansion flag to show expansions as they occur
 - **Detailed expansion tracking**: Added --debug-expansion-detail for step-by-step expansion
 - **Execution debugging**: Added --debug-exec to trace command execution paths

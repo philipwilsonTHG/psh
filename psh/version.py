@@ -2,10 +2,36 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.44.0"
+__version__ = "0.45.0"
 
 # Version history
 VERSION_HISTORY = """
+0.45.0 (2025-01-13) - AST Visitor Pattern implementation
+  - Implemented AST Visitor Pattern as Phase 6 of parser improvements
+  - Created base visitor framework with ASTVisitor[T] and ASTTransformer base classes
+  - ASTVisitor[T] provides double dispatch mechanism for type-safe tree traversal
+  - ASTTransformer enables AST-to-AST transformations for optimization passes
+  - Implemented FormatterVisitor for pretty-printing AST as shell script
+  - Replaces static utilities with clean visitor-based approach
+  - Implemented ValidatorVisitor for semantic analysis and error checking
+  - Collects errors, warnings, and info messages during AST traversal
+  - Provides foundation for future enhanced error recovery features
+  - Created ExecutorVisitor demonstration showing execution refactoring potential
+  - Shows how execution logic could be migrated to visitor pattern
+  - Phase 1 Integration: Reimplemented --debug-ast using DebugASTVisitor
+  - Replaced static ASTFormatter with visitor-based implementation
+  - Maintains backward compatibility with existing debug output format
+  - Demonstrates successful integration without disrupting functionality
+  - Added comprehensive test suite with 27 tests for visitor functionality
+  - Tests cover all visitor types and edge cases
+  - Created detailed documentation and examples in docs/ and examples/
+  - Visitor pattern provides clean separation between AST and operations
+  - Enables easy addition of new AST operations without modifying nodes
+  - Foundation for future enhancements: error recovery, optimization passes
+  - All 1083 tests passing with no regressions from new architecture
+  - Educational value enhanced with cleaner, more extensible design
+  - Sets stage for Phase 7: Enhanced Error Recovery with visitor-based approach
+
 0.44.0 (2025-06-13) - Advanced debugging features
   - Implemented comprehensive debugging capabilities for expansion and execution tracking
   - Added --debug-expansion flag to show expansions as they occur in real-time

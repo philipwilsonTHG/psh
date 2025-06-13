@@ -295,8 +295,9 @@ class Shell:
             # Debug: Print AST if requested
             if self.debug_ast:
                 print("=== AST Debug Output ===", file=sys.stderr)
-                from .utils.ast_formatter import ASTFormatter
-                print(ASTFormatter.format(ast), file=sys.stderr)
+                from .visitor import DebugASTVisitor
+                debug_visitor = DebugASTVisitor()
+                print(debug_visitor.visit(ast), file=sys.stderr)
                 print("======================", file=sys.stderr)
             
             # Add to history if requested (for interactive or testing)

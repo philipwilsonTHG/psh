@@ -2,7 +2,7 @@
 
 An educational Unix shell implementation in Python, designed to teach shell internals and compiler/interpreter concepts through a clean, readable codebase.  **All source code and documentation (with the exception of this sentence) has been written by Claude Code using Sonnet 4 and Opus 4 models.**
 
-**Current Version**: 0.44.0 (2025-06-13)
+**Current Version**: 0.45.0 (2025-01-13)
 
 ## Overview
 
@@ -12,6 +12,15 @@ The shell features a modern component-based architecture where each subsystem (e
 
 ### Recent Major Features
 
+- **v0.45.0**: AST Visitor Pattern implementation
+  - Implemented Phase 6 of parser improvements for clean separation of concerns
+  - Created base visitor framework with `ASTVisitor[T]` and `ASTTransformer` classes
+  - Implemented `FormatterVisitor` for pretty-printing AST as shell script
+  - Added `ValidatorVisitor` for semantic analysis and error checking
+  - Created `ExecutorVisitor` demonstration for future execution refactoring
+  - Phase 1 integration: Replaced static `ASTFormatter` with `DebugASTVisitor`
+  - 27 new tests with comprehensive coverage of visitor functionality
+  - Foundation for future enhancements: error recovery, optimization passes
 - **v0.44.0**: Advanced debugging features
   - Expansion debugging with `--debug-expansion` to trace all shell expansions
   - Detailed expansion tracking with `--debug-expansion-detail` for step-by-step analysis

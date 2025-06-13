@@ -8,7 +8,23 @@ Python Shell (psh) is an educational Unix shell implementation designed for teac
 
 ## Current Development Focus
 
-**Latest**: Advanced Debugging Features - v0.44.0 (pending)
+**Latest**: Visitor Pattern Implementation - v0.45.0 (pending)
+- ✓ Implemented AST Visitor Pattern (Phase 6 of parser improvements)
+- ✓ Created base visitor classes: ASTVisitor[T] and ASTTransformer
+- ✓ Implemented FormatterVisitor for pretty-printing AST as shell script
+- ✓ Implemented ValidatorVisitor for semantic analysis and error checking
+- ✓ Created ExecutorVisitor demonstration showing execution refactoring potential
+- ✓ Added comprehensive test suite for visitor pattern functionality
+- ✓ Created visitor pattern documentation and examples
+- ✓ Visitor pattern provides clean separation between AST and operations
+- ✓ Enables easy addition of new AST operations without modifying nodes
+- ✓ Foundation for future enhancements: error recovery, optimization passes
+- ✓ **Phase 1 Integration**: Reimplemented --debug-ast using DebugASTVisitor
+  - Replaced static ASTFormatter with visitor-based implementation
+  - Maintains backward compatibility with existing debug output format
+  - Demonstrates successful integration without disrupting functionality
+
+**Previous**: Advanced Debugging Features - v0.44.0
 - ✓ Implemented comprehensive debugging capabilities for expansion and execution
 - ✓ Added --debug-expansion flag to show expansions as they occur
 - ✓ Added --debug-expansion-detail for detailed step-by-step expansion tracking
@@ -138,6 +154,12 @@ The shell follows a component-based architecture with clear separation of concer
 - **`script_validator.py`**: Script validation and security checks
 - **`shebang_handler.py`**: Shebang (#!) processing
 - **`source_processor.py`**: Source command implementation
+
+#### Visitor Pattern (`visitor/`)
+- **`base.py`**: Base visitor classes (ASTVisitor, ASTTransformer)
+- **`formatter_visitor.py`**: Pretty-prints AST as shell script
+- **`validator_visitor.py`**: Semantic validation and error checking
+- **`executor_visitor.py`**: Demonstration of execution using visitors
 
 #### Other Components
 - **`builtins/`**: Built-in commands organized by category
