@@ -1,6 +1,7 @@
 from typing import List, Optional, Union, Tuple, Set
 from .token_types import Token, TokenType
 from .token_stream import TokenStream
+from .composite_processor import CompositeTokenProcessor, CompositeToken
 from .ast_nodes import (
     Command, SimpleCommand, CompoundCommand, Pipeline, CommandList, StatementList, AndOrList, Redirect, 
     FunctionDef, TopLevel, BreakStatement, ContinueStatement, 
@@ -18,7 +19,11 @@ from .parser_helpers import TokenGroups, ParseError, ErrorContext
 
 
 class Parser(BaseParser):
-    def __init__(self, tokens: List[Token]):
+    def __init__(self, tokens: List[Token], use_composite_processor: bool = False):
+        # Optionally process tokens for composites
+        if use_composite_processor:
+            processor = CompositeTokenProcessor()
+            tokens = processor.process(tokens)
         super().__init__(tokens)
     
     def _error(self, message: str, token: Optional[Token] = None) -> ParseError:
@@ -542,6 +547,12 @@ class Parser(BaseParser):
     
     def parse_composite_argument(self) -> Tuple[str, str, Optional[str]]:
         """Parse a potentially composite argument (concatenated tokens)."""
+        # If current token is already a COMPOSITE, just return it
+        if self.peek() and self.peek().type == TokenType.COMPOSITE:
+            token = self.advance()
+            return self._token_to_argument(token)
+        
+        # Otherwise, check for adjacent tokens forming a composite
         # Create TokenStream to check for composite
         stream = TokenStream(self.tokens, self.current)
         composite = stream.peek_composite_sequence()
@@ -581,6 +592,12 @@ class Parser(BaseParser):
     
     def _token_to_argument(self, token: Token) -> Tuple[str, str, Optional[str]]:
         """Convert a single token to argument tuple format."""
+        # Handle composite tokens specially
+        if token.type == TokenType.COMPOSITE:
+            # Composite tokens already have the merged value
+            arg_type = 'COMPOSITE_QUOTED' if token.quote_type == 'mixed' else 'COMPOSITE'
+            return token.value, arg_type, None
+        
         type_map = {
             TokenType.VARIABLE: ('VARIABLE', lambda t: f"${t.value}"),
             TokenType.STRING: ('STRING', lambda t: t.value),

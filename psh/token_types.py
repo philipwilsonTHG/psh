@@ -75,6 +75,9 @@ class TokenType(Enum):
     DOUBLE_LBRACKET = auto()   # [[
     DOUBLE_RBRACKET = auto()   # ]]
     REGEX_MATCH = auto()       # =~
+    
+    # Composite tokens
+    COMPOSITE = auto()         # Merged adjacent tokens
 
 
 @dataclass
