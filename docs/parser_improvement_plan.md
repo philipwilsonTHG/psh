@@ -53,14 +53,14 @@ Remove duplication between statement-context and pipeline-context parsers by lev
 - All parser tests pass (100% success rate)
 - Used automated refactoring script for consistency
 
-## Phase 2: Improved Token Collection (Medium Priority)
+## Phase 2: Improved Token Collection (Medium Priority) ✅ PARTIAL
 
 ### Goal
 Create reusable token collection utilities to eliminate duplicate quote/bracket tracking logic.
 
 ### Implementation Steps
 
-1. **Add TokenStream class** (4-5 hours)
+1. **Add TokenStream class** (4-5 hours) ✅ COMPLETE
    ```python
    class TokenStream:
        """Enhanced token stream with utility methods."""
@@ -81,7 +81,7 @@ Create reusable token collection utilities to eliminate duplicate quote/bracket 
            # Implementation here
    ```
 
-2. **Refactor array key parsing**:
+2. **Refactor array key parsing**: ✅ COMPLETE
    ```python
    def _parse_array_key_tokens(self) -> List[Token]:
        # Old: Manual state tracking
@@ -93,16 +93,23 @@ Create reusable token collection utilities to eliminate duplicate quote/bracket 
        )
    ```
 
-3. **Apply to other balanced constructs**:
+3. **Apply to other balanced constructs**: ⏳ TODO
    - Command substitution `$(...)`
    - Arithmetic expansion `$((...))` 
    - Process substitution `<(...)`
    - Brace expansion `{...}`
 
 ### Files to Create/Modify
-- New: `psh/token_stream.py`
-- Modify: `psh/parser.py`
-- Tests: `tests/test_token_stream.py`
+- New: `psh/token_stream.py` ✅ CREATED
+- Modify: `psh/parser.py` ✅ MODIFIED (array key parsing)
+- Tests: `tests/test_token_stream.py` ✅ CREATED (10 comprehensive tests)
+
+### Completion Notes
+- Successfully created TokenStream class with all planned functionality
+- Refactored array key parsing to use TokenStream.collect_until_balanced()
+- Fixed quote handling to work with shell's STRING token semantics
+- All associative and indexed array tests pass
+- Still need to apply TokenStream to other parts of parser (arithmetic sections, etc.)
 
 ## Phase 3: Enhanced Composite Argument Handling (Medium Priority)
 

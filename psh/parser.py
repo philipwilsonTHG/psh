@@ -1,5 +1,6 @@
 from typing import List, Optional, Union, Tuple, Set
 from .token_types import Token, TokenType
+from .token_stream import TokenStream
 from .ast_nodes import (
     Command, SimpleCommand, CompoundCommand, Pipeline, CommandList, StatementList, AndOrList, Redirect, 
     FunctionDef, TopLevel, BreakStatement, ContinueStatement, 
@@ -1507,30 +1508,30 @@ class Parser(BaseParser):
         without evaluation, allowing the executor to determine whether to
         evaluate as arithmetic (indexed arrays) or string (associative arrays).
         """
-        tokens = []
-        bracket_depth = 1
+        # Create a TokenStream from current position
+        stream = TokenStream(self.tokens, self.current)
         
-        while bracket_depth > 0 and not self.at_end():
-            token = self.peek()
-            
-            if token.type == TokenType.LBRACKET:
-                bracket_depth += 1
-            elif token.type == TokenType.RBRACKET:
-                bracket_depth -= 1
-                if bracket_depth == 0:
-                    break
-            
-            # Accept any valid key token for later evaluation
-            if token.type in (TokenType.WORD, TokenType.STRING, TokenType.VARIABLE, 
-                             TokenType.COMMAND_SUB, TokenType.COMMAND_SUB_BACKTICK,
-                             TokenType.ARITH_EXPANSION, TokenType.LPAREN, TokenType.RPAREN):
-                tokens.append(token)
-                self.advance()
-            else:
+        # Collect tokens until balanced RBRACKET
+        tokens = stream.collect_until_balanced(
+            TokenType.LBRACKET, 
+            TokenType.RBRACKET,
+            respect_quotes=True,
+            include_delimiters=False
+        )
+        
+        # Validate tokens
+        valid_key_tokens = {
+            TokenType.WORD, TokenType.STRING, TokenType.VARIABLE,
+            TokenType.COMMAND_SUB, TokenType.COMMAND_SUB_BACKTICK,
+            TokenType.ARITH_EXPANSION, TokenType.LPAREN, TokenType.RPAREN
+        }
+        
+        for token in tokens:
+            if token.type not in valid_key_tokens:
                 raise self._error(f"Invalid token in array key: {token.type}")
         
-        if bracket_depth != 0:
-            raise self._error("Unmatched '[' in array element assignment")
+        # Update parser position
+        self.current = stream.pos
         
         return tokens
     
@@ -1541,7 +1542,7 @@ class Parser(BaseParser):
         # Parse index as list of tokens for late binding (associative vs indexed array evaluation)
         index_tokens = self._parse_array_key_tokens()
         
-        self.expect(TokenType.RBRACKET)
+        # Note: _parse_array_key_tokens already consumed the RBRACKET
         
         # Next token should be a WORD starting with '='
         if not self.match(TokenType.WORD):
