@@ -1,6 +1,6 @@
 """Enhanced token stream with utility methods for parser."""
 
-from typing import List, Optional, Tuple, Set
+from typing import List, Optional, Tuple, Set, Callable
 from .token_types import Token, TokenType
 
 
@@ -205,3 +205,75 @@ class TokenStream:
     def remaining_tokens(self) -> List[Token]:
         """Get all remaining tokens from current position."""
         return self.tokens[self.pos:] if self.pos < len(self.tokens) else []
+    
+    def collect_arithmetic_expression(self, 
+                                    stop_condition=None,
+                                    transform_redirects: bool = True) -> Tuple[List[Token], str]:
+        """Collect tokens for arithmetic expression with special handling.
+        
+        This method is specialized for collecting arithmetic expressions which need:
+        - Balanced parenthesis tracking
+        - Redirect token transformation (< and > operators)
+        - Optional stop conditions (e.g., semicolon at depth 0)
+        
+        Args:
+            stop_condition: Optional callable(token, paren_depth) -> bool
+            transform_redirects: If True, transform REDIRECT_IN/OUT to < and >
+            
+        Returns:
+            Tuple of (collected tokens, formatted expression string)
+        """
+        tokens = []
+        expr_parts = []
+        paren_depth = 0
+        
+        while not self.at_end():
+            token = self.peek()
+            if not token:
+                break
+            
+            # Check stop condition if provided
+            if stop_condition and stop_condition(token, paren_depth):
+                break
+            
+            # Track parentheses depth
+            if token.type == TokenType.LPAREN:
+                paren_depth += 1
+            elif token.type == TokenType.RPAREN:
+                paren_depth -= 1
+                # Some stop conditions check for RPAREN at depth 0
+                if stop_condition and stop_condition(token, paren_depth):
+                    break
+            
+            # Collect token
+            tokens.append(token)
+            self.advance()
+            
+            # Build expression string with transformations
+            if transform_redirects:
+                if token.type == TokenType.REDIRECT_IN:
+                    expr_parts.append('<')
+                elif token.type == TokenType.REDIRECT_OUT:
+                    expr_parts.append('>')
+                else:
+                    expr_parts.append(token.value)
+            else:
+                expr_parts.append(token.value)
+            
+            # Add space between tokens if needed
+            # Always add space after operators for readability
+            if not self.at_end():
+                next_token = self.peek()
+                if next_token:
+                    current_val = expr_parts[-1] if expr_parts else ""
+                    # Add space between word tokens
+                    if token.type == TokenType.WORD and next_token.type == TokenType.WORD:
+                        expr_parts.append(' ')
+                    # Add space after redirect operators, unless next token starts with =
+                    elif (transform_redirects and 
+                          token.type in (TokenType.REDIRECT_IN, TokenType.REDIRECT_OUT) and
+                          not (next_token.value and next_token.value.startswith('='))):
+                        expr_parts.append(' ')
+        
+        expr_string = ''.join(expr_parts).strip()
+        return tokens, expr_string

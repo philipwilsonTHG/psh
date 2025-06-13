@@ -542,45 +542,42 @@ class Parser(BaseParser):
     
     def parse_composite_argument(self) -> Tuple[str, str, Optional[str]]:
         """Parse a potentially composite argument (concatenated tokens)."""
-        parts = []
-        first_token = None
-        last_end_pos = None
-        has_quoted_part = False
+        # Create TokenStream to check for composite
+        stream = TokenStream(self.tokens, self.current)
+        composite = stream.peek_composite_sequence()
         
-        while self.match_any(TokenGroups.WORD_LIKE):
-            token = self.peek()
+        if composite:
+            # Process composite tokens
+            parts = []
+            has_quoted_part = False
             
-            # Check if tokens are adjacent
-            if last_end_pos is not None and token.position != last_end_pos:
-                break  # Not adjacent
+            for token in composite:
+                # Track if any part was quoted
+                if token.type == TokenType.STRING:
+                    has_quoted_part = True
+                
+                # Convert token to string representation
+                if token.type == TokenType.VARIABLE:
+                    parts.append(f"${token.value}")
+                elif token.type in (TokenType.LBRACKET, TokenType.RBRACKET):
+                    # Include brackets as-is for glob patterns
+                    parts.append(token.value)
+                else:
+                    parts.append(token.value)
             
-            token = self.advance()
-            if first_token is None:
-                first_token = token
+            # Advance parser position
+            self.current = stream.pos + len(composite)
             
-            # Track if any part was quoted
-            if token.type == TokenType.STRING:
-                has_quoted_part = True
-            
-            # Convert token to string representation
-            if token.type == TokenType.VARIABLE:
-                parts.append(f"${token.value}")
-            elif token.type in (TokenType.LBRACKET, TokenType.RBRACKET):
-                # Include brackets as-is for glob patterns
-                parts.append(token.value)
+            # Create composite
+            arg_type = 'COMPOSITE_QUOTED' if has_quoted_part else 'COMPOSITE'
+            return ''.join(parts), arg_type, None
+        else:
+            # Single token case - preserve original type info
+            if self.match_any(TokenGroups.WORD_LIKE):
+                token = self.advance()
+                return self._token_to_argument(token)
             else:
-                parts.append(token.value)
-            
-            last_end_pos = token.end_position
-        
-        # Single token case - preserve original type info
-        if len(parts) == 1:
-            return self._token_to_argument(first_token)
-        
-        # Multiple parts - create composite
-        # Use special type to indicate quoted composite
-        arg_type = 'COMPOSITE_QUOTED' if has_quoted_part else 'COMPOSITE'
-        return ''.join(parts), arg_type, None
+                raise self._error("Expected word-like token")
     
     def _token_to_argument(self, token: Token) -> Tuple[str, str, Optional[str]]:
         """Convert a single token to argument tuple format."""
@@ -723,15 +720,36 @@ class Parser(BaseParser):
     
     def _parse_for_iterable(self) -> List[str]:
         """Parse the iterable list in a for statement."""
-        iterable = []
+        # Create TokenStream from current position
+        stream = TokenStream(self.tokens, self.current)
         
-        while not self.match(TokenType.DO, TokenType.SEMICOLON, TokenType.NEWLINE) and not self.at_end():
-            if self.match(TokenType.WORD, TokenType.STRING, TokenType.VARIABLE,
-                         TokenType.COMMAND_SUB, TokenType.COMMAND_SUB_BACKTICK):
-                token = self.advance()
+        # Collect tokens until DO, SEMICOLON, or NEWLINE
+        stop_types = {TokenType.DO, TokenType.SEMICOLON, TokenType.NEWLINE}
+        tokens = stream.collect_until(stop_types, respect_quotes=False, include_stop=False)
+        
+        # Filter and convert valid tokens to values
+        valid_types = {
+            TokenType.WORD, TokenType.STRING, TokenType.VARIABLE,
+            TokenType.COMMAND_SUB, TokenType.COMMAND_SUB_BACKTICK
+        }
+        
+        iterable = []
+        for token in tokens:
+            if token.type in valid_types:
                 iterable.append(token.value)
             else:
+                # Stop at first invalid token
                 break
+        
+        # Update parser position
+        # Count how many valid tokens we processed
+        valid_count = 0
+        for token in tokens:
+            if token.type in valid_types:
+                valid_count += 1
+            else:
+                break
+        self.current += valid_count
         
         return iterable
     
@@ -840,82 +858,58 @@ class Parser(BaseParser):
     
     def _parse_arithmetic_section(self, terminator: str) -> Optional[str]:
         """Parse arithmetic expression section until terminator character."""
-        expr_parts = []
-        paren_depth = 0
+        # Create TokenStream from current position
+        stream = TokenStream(self.tokens, self.current)
         
-        while not self.at_end():
-            token = self.peek()
-            
-            # Check for terminator at depth 0
+        # Define stop condition for semicolon terminator
+        def stop_at_semicolon(token, paren_depth):
             if paren_depth == 0 and terminator == ';':
                 if token.type == TokenType.SEMICOLON:
-                    break
+                    return True
                 elif token.type == TokenType.DOUBLE_SEMICOLON:
                     # Found ;;, treat first ; as terminator
-                    break
-            
-            # Track parentheses depth
-            if token.type == TokenType.LPAREN:
-                paren_depth += 1
-            elif token.type == TokenType.RPAREN:
-                if paren_depth == 0:
-                    # This might be the end of the C-style for
-                    break
-                paren_depth -= 1
-            
-            # For operators that got tokenized as redirects, use their raw form
-            if token.type == TokenType.REDIRECT_IN:
-                expr_parts.append('<')
-            elif token.type == TokenType.REDIRECT_OUT:
-                expr_parts.append('>')
-            else:
-                expr_parts.append(token.value)
-                
-            # Add space between tokens if needed
-            if len(expr_parts) > 1 and expr_parts[-2][-1].isalnum() and token.value[0].isalnum():
-                expr_parts.insert(-1, ' ')
-                
-            self.advance()
+                    return True
+            # Also stop at RPAREN when depth would go negative
+            if token.type == TokenType.RPAREN and paren_depth == 0:
+                return True
+            return False
         
-        return ''.join(expr_parts).strip() if expr_parts else ""
+        # Collect arithmetic expression
+        tokens, expr_string = stream.collect_arithmetic_expression(
+            stop_condition=stop_at_semicolon,
+            transform_redirects=True
+        )
+        
+        # Update parser position
+        self.current = stream.pos
+        
+        return expr_string if expr_string else ""
     
     def _parse_arithmetic_section_until_double_rparen(self) -> Optional[str]:
         """Parse arithmetic expression until we find )) at depth 0."""
-        expr_parts = []
-        paren_depth = 0
+        # Create TokenStream from current position
+        stream = TokenStream(self.tokens, self.current)
         
-        while not self.at_end():
-            token = self.peek()
-            
-            # Check for )) at depth 0
+        # Define stop condition for double RPAREN
+        def stop_at_double_rparen(token, paren_depth):
             if paren_depth == 0 and token.type == TokenType.RPAREN:
                 # Peek ahead to see if next is also RPAREN
-                next_pos = self.current + 1
-                if next_pos < len(self.tokens) and self.tokens[next_pos].type == TokenType.RPAREN:
+                next_token = stream.peek(1)
+                if next_token and next_token.type == TokenType.RPAREN:
                     # Found ))
-                    break
-            
-            # Track parentheses depth
-            if token.type == TokenType.LPAREN:
-                paren_depth += 1
-            elif token.type == TokenType.RPAREN:
-                paren_depth -= 1
-            
-            # For operators that got tokenized as redirects, use their raw form
-            if token.type == TokenType.REDIRECT_IN:
-                expr_parts.append('<')
-            elif token.type == TokenType.REDIRECT_OUT:
-                expr_parts.append('>')
-            else:
-                expr_parts.append(token.value)
-                
-            # Add space between tokens if needed
-            if len(expr_parts) > 1 and expr_parts[-2] and expr_parts[-2][-1].isalnum() and token.value and token.value[0].isalnum():
-                expr_parts.insert(-1, ' ')
-                
-            self.advance()
+                    return True
+            return False
         
-        return ''.join(expr_parts).strip() if expr_parts else None
+        # Collect arithmetic expression
+        tokens, expr_string = stream.collect_arithmetic_expression(
+            stop_condition=stop_at_double_rparen,
+            transform_redirects=True
+        )
+        
+        # Update parser position
+        self.current = stream.pos
+        
+        return expr_string if expr_string else None
     
     def _parse_loop_structure(self, start: TokenType, body_start: TokenType, 
                             body_end: TokenType) -> Tuple[StatementList, StatementList, List[Redirect]]:
@@ -1317,34 +1311,29 @@ class Parser(BaseParser):
     
     def _parse_arithmetic_expression_until_double_rparen(self) -> str:
         """Parse arithmetic expression until )) is found."""
-        expr = ""
-        paren_depth = 0
+        # Create TokenStream from current position
+        stream = TokenStream(self.tokens, self.current)
         
-        while not self.at_end():
-            token = self.peek()
-            
-            # Check for )) at depth 0
-            if token.type == TokenType.RPAREN and paren_depth == 0:
-                # Look ahead for another )
-                if self.current + 1 < len(self.tokens) and self.tokens[self.current + 1].type == TokenType.RPAREN:
-                    break
-            
-            # Track parentheses depth
-            if token.type == TokenType.LPAREN:
-                paren_depth += 1
-            elif token.type == TokenType.RPAREN:
-                paren_depth -= 1
-            
-            expr += token.value
-            self.advance()
-            
-            # Add space between tokens if needed
-            if not self.at_end() and self.peek().type != TokenType.RPAREN:
-                next_token = self.peek()
-                if token.type == TokenType.WORD and next_token.type == TokenType.WORD:
-                    expr += " "
+        # Define stop condition for double RPAREN
+        def stop_at_double_rparen(token, paren_depth):
+            if paren_depth == 0 and token.type == TokenType.RPAREN:
+                # Peek ahead to see if next is also RPAREN
+                next_token = stream.peek(1)
+                if next_token and next_token.type == TokenType.RPAREN:
+                    # Found ))
+                    return True
+            return False
         
-        return expr.strip()
+        # Collect arithmetic expression (no redirect transformation needed here)
+        tokens, expr_string = stream.collect_arithmetic_expression(
+            stop_condition=stop_at_double_rparen,
+            transform_redirects=False
+        )
+        
+        # Update parser position
+        self.current = stream.pos
+        
+        return expr_string
     
     # === Redirections ===
     

@@ -224,3 +224,86 @@ class TestTokenStream:
         )
         assert len(collected) == 0
         assert stream.peek().type == TokenType.EOF
+    
+    def test_collect_arithmetic_expression(self):
+        """Test collecting arithmetic expression with special handling."""
+        tokens = [
+            Token(TokenType.WORD, "i", 0),
+            Token(TokenType.REDIRECT_IN, "<", 1),  # Less than operator
+            Token(TokenType.WORD, "10", 2),
+            Token(TokenType.SEMICOLON, ";", 4),
+            Token(TokenType.WORD, "j", 5),
+            Token(TokenType.REDIRECT_OUT, ">", 6),  # Greater than operator
+            Token(TokenType.WORD, "5", 7),
+            Token(TokenType.EOF, "", 8)
+        ]
+        stream = TokenStream(tokens)
+        
+        # Collect until semicolon at depth 0
+        def stop_at_semicolon(token, depth):
+            return token.type == TokenType.SEMICOLON and depth == 0
+        
+        tokens_collected, expr = stream.collect_arithmetic_expression(
+            stop_condition=stop_at_semicolon,
+            transform_redirects=True
+        )
+        
+        assert expr == "i< 10"  # Space after operator
+        assert len(tokens_collected) == 3
+        assert stream.peek().type == TokenType.SEMICOLON
+    
+    def test_collect_arithmetic_with_compound_operators(self):
+        """Test arithmetic collection with compound operators like <=."""
+        tokens = [
+            Token(TokenType.WORD, "i", 0),
+            Token(TokenType.REDIRECT_IN, "<", 1),  # Part of <=
+            Token(TokenType.WORD, "=10", 2),       # Rest of <=
+            Token(TokenType.SEMICOLON, ";", 5),
+            Token(TokenType.EOF, "", 6)
+        ]
+        stream = TokenStream(tokens)
+        
+        # Collect until semicolon
+        def stop_at_semicolon(token, depth):
+            return token.type == TokenType.SEMICOLON and depth == 0
+        
+        tokens_collected, expr = stream.collect_arithmetic_expression(
+            stop_condition=stop_at_semicolon,
+            transform_redirects=True
+        )
+        
+        assert expr == "i<=10"  # No space when next token starts with =
+        assert len(tokens_collected) == 3
+    
+    def test_collect_arithmetic_with_parentheses(self):
+        """Test arithmetic collection with nested parentheses."""
+        tokens = [
+            Token(TokenType.LPAREN, "(", 0),
+            Token(TokenType.WORD, "a", 1),
+            Token(TokenType.WORD, "+", 2),
+            Token(TokenType.WORD, "b", 3),
+            Token(TokenType.RPAREN, ")", 4),
+            Token(TokenType.WORD, "*", 5),
+            Token(TokenType.WORD, "c", 6),
+            Token(TokenType.RPAREN, ")", 7),
+            Token(TokenType.RPAREN, ")", 8),
+            Token(TokenType.EOF, "", 9)
+        ]
+        stream = TokenStream(tokens)
+        
+        # Collect until )) at depth 0
+        def stop_at_double_rparen(token, depth):
+            if depth == 0 and token.type == TokenType.RPAREN:
+                next_tok = stream.peek(1)
+                return next_tok and next_tok.type == TokenType.RPAREN
+            return False
+        
+        tokens_collected, expr = stream.collect_arithmetic_expression(
+            stop_condition=stop_at_double_rparen,
+            transform_redirects=False
+        )
+        
+        assert expr == "(a + b)* c"  # Space handling depends on token types
+        assert len(tokens_collected) == 7
+        # Stream should be at first ) of ))
+        assert stream.peek().type == TokenType.RPAREN
