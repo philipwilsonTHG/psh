@@ -342,7 +342,8 @@ class StateMachineLexer:
         if token_type in (TokenType.SEMICOLON, TokenType.AND_AND, TokenType.OR_OR,
                          TokenType.PIPE, TokenType.LPAREN, TokenType.NEWLINE,
                          TokenType.IF, TokenType.WHILE, TokenType.FOR, TokenType.CASE,
-                         TokenType.THEN, TokenType.DO, TokenType.ELSE, TokenType.ELIF):
+                         TokenType.THEN, TokenType.DO, TokenType.ELSE, TokenType.ELIF,
+                         TokenType.LBRACE):  # Add LBRACE to enable keywords after {
             self.command_position = True
         elif token_type not in (TokenType.REDIRECT_IN, TokenType.REDIRECT_OUT,
                                TokenType.REDIRECT_APPEND, TokenType.REDIRECT_ERR,
