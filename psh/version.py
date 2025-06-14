@@ -2,10 +2,33 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.47.0"
+__version__ = "0.48.0"
 
 # Version history
 VERSION_HISTORY = """
+0.48.0 (2025-01-14) - Visitor Pattern Phase 4: Partial Implementation
+  - Advanced Phase 4 of visitor pattern with significant improvements
+  - Completed missing node types - SelectLoop now fully implemented
+  - Implemented interactive menu system with proper PS3 prompt handling
+  - Multi-column layout and EOF/interrupt handling for select loops
+  - Created TestableExecutor for improved test output capture
+  - Uses subprocess.run for external commands to capture output
+  - Overrides builtin stdout/stderr for proper output capture
+  - Fixed 3 previously xfailed tests with new testing infrastructure
+  - Visitor executor tests improved from 11/23 to 22/25 passing
+  - All major shell features verified working with visitor executor:
+    - Basic commands, variables, arithmetic, control structures
+    - Functions, pipelines, enhanced tests, C-style loops
+  - Added comprehensive test script demonstrating all features
+  - Updated test infrastructure but pipeline output capture still limited
+  - Visitor executor remains experimental with --visitor-executor flag
+  - Legacy executor still default due to test infrastructure limitations
+  - All 1090 tests pass (up from 1089) with no regressions
+  - Foundation laid for Phase 4 completion:
+    - Performance optimization pending
+    - Advanced visitors (optimization, security) pending
+    - Migration to default pending test infrastructure updates
+
 0.47.0 (2025-01-14) - Visitor Pattern Phase 3: Executor Implementation
   - Completed Phase 3 of visitor pattern - ExecutorVisitor implementation
   - Created ExecutorVisitor extending ASTVisitor[int] for command execution

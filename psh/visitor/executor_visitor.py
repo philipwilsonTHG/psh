@@ -877,11 +877,126 @@ class ExecutorVisitor(ASTVisitor[int]):
         return exit_status
     
     def visit_SelectLoop(self, node: SelectLoop) -> int:
-        """Execute select loop."""
-        # Select loops are complex due to their interactive nature
-        # For now, we'll provide a basic implementation
-        print("ExecutorVisitor: SelectLoop not fully implemented", file=sys.stderr)
-        return 1
+        """Execute select loop for interactive menu selection."""
+        exit_status = 0
+        self._loop_depth += 1
+        
+        # Expand items
+        expanded_items = []
+        for item in node.items:
+            # Expand variables and globs in the item
+            if '$' in item:
+                item = self.expansion_manager.expand_string_variables(item)
+            
+            # Handle glob expansion
+            import glob
+            matches = glob.glob(item)
+            if matches:
+                expanded_items.extend(matches)
+            else:
+                expanded_items.append(item)
+        
+        # Empty list - exit immediately
+        if not expanded_items:
+            self._loop_depth -= 1
+            return 0
+        
+        # Apply redirections for entire loop
+        with self._apply_redirections(node.redirects):
+            try:
+                # Get PS3 prompt (default "#? " if not set)
+                ps3 = self.state.get_variable("PS3", "#? ")
+                
+                while True:
+                    # Display menu to stderr
+                    self._display_select_menu(expanded_items)
+                    
+                    # Show prompt and read input
+                    try:
+                        sys.stderr.write(ps3)
+                        sys.stderr.flush()
+                        
+                        # Read input line
+                        if hasattr(self.shell, 'stdin') and self.shell.stdin:
+                            # Use shell's stdin if available (set by I/O redirection)
+                            reply = self.shell.stdin.readline()
+                        else:
+                            # Use sys.stdin as fallback
+                            if sys.stdin is None or sys.stdin.closed:
+                                raise EOFError
+                            try:
+                                reply = sys.stdin.readline()
+                            except (OSError, ValueError):
+                                # Handle case where stdin is not available in test environment
+                                raise EOFError
+                        
+                        if not reply:  # EOF
+                            raise EOFError
+                        reply = reply.rstrip('\n')
+                    except (EOFError, KeyboardInterrupt):
+                        # Ctrl+D or Ctrl+C exits the loop
+                        sys.stderr.write("\n")
+                        break
+                    
+                    # Set REPLY variable
+                    self.state.set_variable("REPLY", reply)
+                    
+                    # Process selection
+                    if reply.strip().isdigit():
+                        choice = int(reply.strip())
+                        if 1 <= choice <= len(expanded_items):
+                            # Valid selection
+                            selected = expanded_items[choice - 1]
+                            self.state.set_variable(node.variable, selected)
+                        else:
+                            # Out of range
+                            self.state.set_variable(node.variable, "")
+                    else:
+                        # Non-numeric input
+                        self.state.set_variable(node.variable, "")
+                    
+                    # Execute loop body
+                    try:
+                        exit_status = self.visit(node.body)
+                    except LoopContinue as lc:
+                        if lc.level > 1:
+                            raise LoopContinue(lc.level - 1)
+                        continue
+                    except LoopBreak as lb:
+                        if lb.level > 1:
+                            raise LoopBreak(lb.level - 1)
+                        break
+            except KeyboardInterrupt:
+                sys.stderr.write("\n")
+                exit_status = 130
+            finally:
+                self._loop_depth -= 1
+        
+        return exit_status
+    
+    def _display_select_menu(self, items: List[str]) -> None:
+        """Display the select menu to stderr."""
+        # Calculate layout
+        num_items = len(items)
+        if num_items <= 9:
+            # Single column for small lists
+            for i, item in enumerate(items, 1):
+                sys.stderr.write(f"{i}) {item}\n")
+        else:
+            # Multi-column for larger lists
+            columns = 2 if num_items <= 20 else 3
+            rows = (num_items + columns - 1) // columns
+            
+            # Calculate column widths
+            col_width = max(len(f"{i}) {items[i-1]}") for i in range(1, num_items + 1)) + 3
+            
+            for row in range(rows):
+                for col in range(columns):
+                    idx = row + col * rows
+                    if idx < num_items:
+                        entry = f"{idx + 1}) {items[idx]}"
+                        sys.stderr.write(entry.ljust(col_width))
+                sys.stderr.write("\n")
     
     def visit_EnhancedTestStatement(self, node: EnhancedTestStatement) -> int:
         """Execute enhanced test: [[ expression ]]"""
