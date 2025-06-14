@@ -441,7 +441,9 @@ class ExecutorVisitor(ASTVisitor[int]):
                     # Apply all expansions to assignment values
                     value = self._expand_assignment_value(value)
                     self.state.set_variable(var, value)
-                return 0
+                
+                # Return the last exit code which will be from command substitution if any
+                return self.state.last_exit_code
             
             # Apply assignments for this command
             saved_vars = {}
@@ -755,7 +757,7 @@ class ExecutorVisitor(ASTVisitor[int]):
         exit_status = 0
         self._loop_depth += 1
         
-        # Expand items - create a temporary SimpleCommand for expansion
+        # Expand items - handle all types of expansion
         expanded_items = []
         for item in node.items:
             # Check if this is an array expansion
@@ -763,24 +765,46 @@ class ExecutorVisitor(ASTVisitor[int]):
                 # Expand array to list of items
                 array_items = self.expansion_manager.variable_expander.expand_array_to_list(item)
                 expanded_items.extend(array_items)
-            elif '$' in item:
-                # Regular variable expansion
-                expanded = self.expansion_manager.expand_string_variables(item)
-                # Handle glob expansion on the result
-                import glob
-                matches = glob.glob(expanded)
-                if matches:
-                    expanded_items.extend(matches)
-                else:
-                    expanded_items.append(expanded)
             else:
-                # No variable expansion needed, just glob
-                import glob
-                matches = glob.glob(item)
-                if matches:
-                    expanded_items.extend(matches)
+                # Perform full expansion on the item
+                # Determine the type of the item
+                if item.startswith('$(') and item.endswith(')'):
+                    # Command substitution
+                    output = self.expansion_manager.execute_command_substitution(item)
+                    # Split on whitespace for word splitting
+                    if output:
+                        words = output.split()
+                        expanded_items.extend(words)
+                elif item.startswith('`') and item.endswith('`'):
+                    # Backtick command substitution
+                    output = self.expansion_manager.execute_command_substitution(item)
+                    # Split on whitespace for word splitting
+                    if output:
+                        words = output.split()
+                        expanded_items.extend(words)
+                elif '$' in item:
+                    # Variable expansion
+                    expanded = self.expansion_manager.expand_string_variables(item)
+                    # Word splitting - split on whitespace
+                    import re
+                    words = re.split(r'\s+', expanded.strip()) if expanded.strip() else []
+                    
+                    # Handle glob expansion on each word
+                    import glob
+                    for word in words:
+                        matches = glob.glob(word)
+                        if matches:
+                            expanded_items.extend(matches)
+                        else:
+                            expanded_items.append(word)
                 else:
-                    expanded_items.append(item)
+                    # No expansion needed, just handle glob
+                    import glob
+                    matches = glob.glob(item)
+                    if matches:
+                        expanded_items.extend(matches)
+                    else:
+                        expanded_items.append(item)
         
         # Apply redirections for entire loop
         with self._apply_redirections(node.redirects):

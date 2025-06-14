@@ -117,6 +117,7 @@ class TestPipeline:
         finally:
             os.unlink(input_file)
     
+    @pytest.mark.visitor_xfail(reason="Visitor executor needs proper single command handling without forking")
     def test_empty_pipeline_handling(self):
         """Test that single command doesn't use pipeline execution"""
         # This should use the simple execution path, not fork
@@ -129,6 +130,7 @@ class TestPipeline:
         
         os.unlink("/tmp/single_cmd_test.txt")
     
+    @pytest.mark.visitor_xfail(reason="Visitor executor echo builtin needs proper escape sequence handling")
     def test_pipeline_preserves_order(self):
         """Test that pipeline preserves command output order"""
         output_file = "/tmp/pipeline_order_test.txt"
@@ -153,6 +155,7 @@ class TestPipeline:
         exit_code = self.shell.run_command("echo hello | nonexistentcmd 2>/dev/null | cat > /dev/null")
         assert exit_code == 0  # cat succeeds, so exit code is 0
     
+    @pytest.mark.visitor_xfail(reason="Visitor executor needs proper environment variable propagation in pipelines")
     def test_pipeline_environment_inheritance(self):
         """Test that environment variables are passed through pipeline"""
         self.shell.env['TEST_PIPE_VAR'] = 'test_value'

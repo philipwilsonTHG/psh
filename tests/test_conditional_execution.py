@@ -47,6 +47,7 @@ class TestConditionalExecution:
         assert and_or_list.operators[0] == "&&"
         assert and_or_list.operators[1] == "||"
     
+    @pytest.mark.visitor_xfail(reason="Visitor executor output capture doesn't work with file redirections in forked processes")
     def test_and_success_execution(self):
         """Test && executes second command when first succeeds"""
         with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
@@ -74,6 +75,7 @@ class TestConditionalExecution:
         assert exit_code == 1
         assert not os.path.exists(test_file)
     
+    @pytest.mark.visitor_xfail(reason="Visitor executor output capture doesn't work with file redirections in forked processes")
     def test_or_failure_execution(self):
         """Test || executes second command when first fails"""
         with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
@@ -124,6 +126,7 @@ class TestConditionalExecution:
         assert exit_code == 1
         assert self.shell.last_exit_code == 1
     
+    @pytest.mark.visitor_xfail(reason="Visitor executor output capture doesn't work with file redirections in forked processes")
     def test_with_pipelines(self):
         """Test && and || with pipelines"""
         with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:

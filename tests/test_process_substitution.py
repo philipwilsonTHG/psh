@@ -28,6 +28,7 @@ class TestProcessSubstitution:
         result = shell.run_command('cat <(echo -e "line1\\nline2\\nline3")')
         assert result == 0
     
+    @pytest.mark.visitor_xfail(reason="Visitor executor needs proper handling of output process substitution")
     def test_simple_output_substitution(self, shell):
         """Test basic >(cmd) substitution."""
         

@@ -233,6 +233,10 @@ class ExpansionManager:
         else:
             return 0
         
+        # Pre-expand variables in the arithmetic expression
+        # This handles $var syntax which the arithmetic parser doesn't understand
+        arith_expr = self._expand_vars_in_arithmetic(arith_expr)
+        
         # Pre-expand command substitutions in the arithmetic expression
         arith_expr = self._expand_command_subs_in_arithmetic(arith_expr)
         
@@ -293,6 +297,82 @@ class ExpansionManager:
                     continue
             
             # Not a command substitution, copy character as-is
+            result.append(expr[i])
+            i += 1
+        
+        return ''.join(result)
+    
+    def _expand_vars_in_arithmetic(self, expr: str) -> str:
+        """Expand $var syntax in arithmetic expression.
+        
+        This method finds all $var patterns in the arithmetic expression
+        and replaces them with their values before arithmetic evaluation.
+        The arithmetic parser only understands bare variable names.
+        
+        Args:
+            expr: The arithmetic expression potentially containing $var
+            
+        Returns:
+            The expression with all $var expanded to their values
+        """
+        result = []
+        i = 0
+        
+        while i < len(expr):
+            if expr[i] == '$' and i + 1 < len(expr):
+                # Check if next char could start a variable name
+                if expr[i + 1].isalpha() or expr[i + 1] == '_' or expr[i + 1].isdigit():
+                    # Simple variable like $x, $1, $_
+                    j = i + 1
+                    while j < len(expr) and (expr[j].isalnum() or expr[j] == '_'):
+                        j += 1
+                    
+                    var_name = expr[i+1:j]
+                    # Check if it's a special variable (positional param, etc)
+                    if var_name.isdigit() or var_name in ('?', '$', '!', '#', '@', '*'):
+                        value = self.shell.state.get_special_variable(var_name)
+                    else:
+                        value = self.shell.state.get_variable(var_name, '0')
+                    
+                    # Convert empty or non-numeric to 0
+                    if not value:
+                        value = '0'
+                    try:
+                        int(value)
+                    except ValueError:
+                        value = '0'
+                    
+                    result.append(value)
+                    i = j
+                    continue
+                elif expr[i + 1] == '{':
+                    # Variable like ${x}
+                    j = i + 2
+                    brace_count = 1
+                    while j < len(expr) and brace_count > 0:
+                        if expr[j] == '{':
+                            brace_count += 1
+                        elif expr[j] == '}':
+                            brace_count -= 1
+                        j += 1
+                    
+                    if brace_count == 0:
+                        var_expr = expr[i:j]  # Include ${...}
+                        value = self.expand_variable(var_expr)
+                        
+                        # Convert empty or non-numeric to 0
+                        if not value:
+                            value = '0'
+                        try:
+                            int(value)
+                        except ValueError:
+                            value = '0'
+                        
+                        result.append(value)
+                        i = j
+                        continue
+            
+            # Not a variable expansion, copy character as-is
             result.append(expr[i])
             i += 1
         

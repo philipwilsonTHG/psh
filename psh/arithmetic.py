@@ -688,9 +688,14 @@ class ArithmeticEvaluator:
             elif node.op == ArithTokenType.NOT:
                 return 0 if operand else 1
             elif node.op == ArithTokenType.BIT_NOT:
-                # Bash uses 64-bit signed integers
-                # Python has arbitrary precision, so we need to mask
-                return ~operand & 0xFFFFFFFFFFFFFFFF
+                # Bash uses 32-bit signed integers for bitwise operations
+                # Python has arbitrary precision, so we need to mask to 32-bit
+                # and convert to signed
+                result = ~operand & 0xFFFFFFFF
+                # Convert to signed 32-bit
+                if result & 0x80000000:  # If sign bit is set
+                    result = result - 0x100000000
+                return result
         
         elif isinstance(node, BinaryOpNode):
             # Special handling for short-circuit operators

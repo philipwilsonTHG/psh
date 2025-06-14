@@ -140,7 +140,8 @@ class TestArithmeticEvaluator:
         assert evaluate_arithmetic("5 & 3", self.shell) == 1  # 101 & 011 = 001
         assert evaluate_arithmetic("5 | 3", self.shell) == 7  # 101 | 011 = 111
         assert evaluate_arithmetic("5 ^ 3", self.shell) == 6  # 101 ^ 011 = 110
-        assert evaluate_arithmetic("~0", self.shell) == 0xFFFFFFFFFFFFFFFF
+        assert evaluate_arithmetic("~0", self.shell) == -1  # Bash uses 32-bit signed integers
+        assert evaluate_arithmetic("~5", self.shell) == -6  # Bash behavior: ~5 = -6
         assert evaluate_arithmetic("4 << 2", self.shell) == 16
         assert evaluate_arithmetic("16 >> 2", self.shell) == 4
     

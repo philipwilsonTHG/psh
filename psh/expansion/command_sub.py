@@ -46,7 +46,14 @@ class CommandSubstitution:
             )
             
             # Execute the command with output redirected to temp file
-            temp_shell.run_command(f"{command} > {temp_output}", add_to_history=False)
+            try:
+                exit_code = temp_shell.run_command(f"{command} > {temp_output}", add_to_history=False)
+            except SystemExit as e:
+                # Command substitution runs in a subshell, so exit should not affect parent
+                exit_code = e.code if e.code is not None else 0
+            
+            # Update parent shell's last exit code for command substitution
+            self.shell.state.last_exit_code = exit_code
             
             # Read the captured output
             with open(temp_output, 'r') as f:
