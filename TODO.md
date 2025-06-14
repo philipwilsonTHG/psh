@@ -1,6 +1,6 @@
 # Python Shell (psh) - TODO List
 
-**Current Version**: 0.47.0 (2025-01-14)
+**Current Version**: 0.49.0 (2025-01-14)
 
 ## Overview
 
@@ -8,19 +8,16 @@ PSH has achieved complete test suite success with **1131 total tests (99.7% pass
 
 ## Recent Major Changes
 
-### v0.47.0 - Visitor Pattern Phase 3: Executor Implementation
-- **ExecutorVisitor implementation**: Complete execution using visitor pattern
-- **Experimental flag**: Added --visitor-executor to opt-in to new executor
-- **Full AST node support**: Commands, pipelines, control structures, functions
-- **Process management**: Proper forking and job control integration
-- **Fixed visitor classes**: Proper _method_cache initialization
-- **Backward compatibility**: Added missing shell methods
-- **Fixed builtin handling**: Arguments include command name
-- **Function scope management**: Fixed local variable handling
-- **Test infrastructure limitation**: Output capture doesn't work for forked processes
-- **Legacy executor default**: Until test infrastructure is updated
-- **All quick-wins completed**: Method caching, metrics, linter visitors
-- **1131 tests passing**: With legacy executor (99.7% pass rate)
+### v0.49.0 - Visitor Pattern Phase 4: Complete Implementation
+- **Terminal control fixed**: Emacs and other programs now properly run in foreground
+- **Recursive functions fixed**: FunctionReturn exception handling corrected
+- **Test infrastructure updated**: 15+ test files now respect PSH_USE_VISITOR_EXECUTOR
+- **Command substitution fixed**: Inherits visitor executor flag from parent shell
+- **Variable assignment fixes**: Tilde expansion and array key evaluation
+- **94.7% test pass rate**: With visitor executor (63 failures from 1131 tests)
+- **Major features verified**: Functions, pipelines, control structures all working
+- **Documented limitations**: Command substitution output capture, builtin redirections
+- **Foundation complete**: Ready for performance optimization and migration
 
 ### v0.46.0 - Visitor Pattern Phase 2: Enhanced Validation
 - **Enhanced AST validation**: Created EnhancedValidatorVisitor with static analysis

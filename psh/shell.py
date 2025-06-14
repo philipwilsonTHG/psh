@@ -32,8 +32,11 @@ class Shell:
         # Store validation mode
         self.validate_only = validate_only
         
-        # Store executor mode - default is legacy executor for now
-        self.use_visitor_executor = use_visitor_executor
+        # Store executor mode - check environment variable and option
+        # Default is legacy executor for now, but check environment
+        self.use_visitor_executor = (use_visitor_executor or 
+                                   os.environ.get('PSH_USE_VISITOR_EXECUTOR', '').lower() in ('1', 'true', 'yes') or
+                                   self.state.options.get('visitor-executor', False))
         
         # Set shell reference in scope manager for arithmetic evaluation
         self.state.scope_manager.set_shell(self)

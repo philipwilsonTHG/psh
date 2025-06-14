@@ -17,7 +17,10 @@ from psh.ast_nodes import ForLoop, StatementList, TopLevel, Pipeline, CommandLis
 
 class TestForLoops(unittest.TestCase):
     def setUp(self):
-        self.shell = Shell()
+        # Respect PSH_USE_VISITOR_EXECUTOR env var
+        import os
+        use_visitor = os.environ.get('PSH_USE_VISITOR_EXECUTOR', '').lower() in ('1', 'true', 'yes')
+        self.shell = Shell(use_visitor_executor=use_visitor)
         # Redirect stdout for testing
         self.saved_stdout = sys.stdout
         self.test_output = StringIO()

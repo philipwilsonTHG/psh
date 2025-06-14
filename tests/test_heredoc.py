@@ -9,7 +9,10 @@ class TestHereDoc:
     
     @pytest.fixture
     def shell(self):
-        return Shell()
+        # Respect PSH_USE_VISITOR_EXECUTOR env var
+        import os
+        use_visitor = os.environ.get('PSH_USE_VISITOR_EXECUTOR', '').lower() in ('1', 'true', 'yes')
+        return Shell(use_visitor_executor=use_visitor)
     
     def test_tokenize_heredoc(self):
         """Test that << is tokenized correctly"""
@@ -170,7 +173,10 @@ class TestHereString:
     
     @pytest.fixture
     def shell(self):
-        return Shell()
+        # Respect PSH_USE_VISITOR_EXECUTOR env var
+        import os
+        use_visitor = os.environ.get('PSH_USE_VISITOR_EXECUTOR', '').lower() in ('1', 'true', 'yes')
+        return Shell(use_visitor_executor=use_visitor)
     
     def test_tokenize_here_string(self):
         """Test that <<< is tokenized correctly"""

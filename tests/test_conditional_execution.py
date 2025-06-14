@@ -8,7 +8,10 @@ from psh.parser import parse
 
 class TestConditionalExecution:
     def setup_method(self):
-        self.shell = Shell()
+        # Respect PSH_USE_VISITOR_EXECUTOR env var
+        import os
+        use_visitor = os.environ.get('PSH_USE_VISITOR_EXECUTOR', '').lower() in ('1', 'true', 'yes')
+        self.shell = Shell(use_visitor_executor=use_visitor)
     
     def test_tokenize_and_and(self):
         """Test tokenization of && operator"""

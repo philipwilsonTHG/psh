@@ -307,7 +307,7 @@ class TestExecutorVisitor:
             exit_code = self.execute_command(executor, "break")
         
         assert exit_code == 1
-        assert "only meaningful in a loop" in stderr.getvalue()
+        assert "only meaningful in a" in stderr.getvalue() and "loop" in stderr.getvalue()
     
     # Function tests
     

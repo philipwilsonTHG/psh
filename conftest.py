@@ -13,8 +13,9 @@ def shell():
     original_stdout = os.dup(1) 
     original_stderr = os.dup(2)
     
-    # Create shell instance
-    shell_instance = Shell()
+    # Create shell instance - respect PSH_USE_VISITOR_EXECUTOR env var
+    use_visitor = os.environ.get('PSH_USE_VISITOR_EXECUTOR', '').lower() in ('1', 'true', 'yes')
+    shell_instance = Shell(use_visitor_executor=use_visitor)
     
     try:
         yield shell_instance

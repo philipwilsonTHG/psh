@@ -1,0 +1,19 @@
+{
+  "legacy": {
+    "passed": 0,
+    "failed": 2,
+    "errors": [
+      "==================================== ERRORS ====================================",
+      "_____________ ERROR collecting tests/test_process_substitution.py ______________"
+    ]
+  },
+  "visitor": {
+    "passed": 0,
+    "failed": 2,
+    "errors": [
+      "==================================== ERRORS ====================================",
+      "_____________ ERROR collecting tests/test_process_substitution.py ______________"
+    ]
+  },
+  "differences": []
+}

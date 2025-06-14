@@ -48,6 +48,7 @@ class ShellState:
             'errexit': False,      # -e: exit on error
             'nounset': False,      # -u: error on undefined variables
             'xtrace': False,       # -x: print commands before execution
+            'visitor-executor': False,  # Use visitor pattern executor
             'pipefail': False,     # -o pipefail: pipeline fails if any command fails
         }
         
@@ -82,12 +83,51 @@ class ShellState:
         self._in_forked_child = False
         
         # I/O streams (for backward compatibility)
-        self.stdout = sys.stdout
-        self.stderr = sys.stderr
-        self.stdin = sys.stdin
+        # Store initial values
+        self._stdout = sys.stdout
+        self._stderr = sys.stderr
+        self._stdin = sys.stdin
         
         # PS4 prompt for xtrace
         self.scope_manager.set_variable('PS4', '+ ')
+    
+    @property
+    def stdout(self):
+        """Always return current sys.stdout for test compatibility."""
+        # If we have a custom stdout set, use it
+        if hasattr(self, '_custom_stdout'):
+            return self._custom_stdout
+        # Otherwise return current sys.stdout (which pytest might have replaced)
+        return sys.stdout
+    
+    @stdout.setter
+    def stdout(self, value):
+        """Allow setting a custom stdout."""
+        self._custom_stdout = value
+    
+    @property
+    def stderr(self):
+        """Always return current sys.stderr for test compatibility."""
+        if hasattr(self, '_custom_stderr'):
+            return self._custom_stderr
+        return sys.stderr
+    
+    @stderr.setter  
+    def stderr(self, value):
+        """Allow setting a custom stderr."""
+        self._custom_stderr = value
+    
+    @property
+    def stdin(self):
+        """Always return current sys.stdin for test compatibility."""
+        if hasattr(self, '_custom_stdin'):
+            return self._custom_stdin
+        return sys.stdin
+    
+    @stdin.setter
+    def stdin(self, value):
+        """Allow setting a custom stdin."""
+        self._custom_stdin = value
     
     # Backward-compatible properties for debug options
     @property

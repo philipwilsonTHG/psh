@@ -9,7 +9,10 @@ from psh.shell import Shell
 
 class TestPipeline:
     def setup_method(self):
-        self.shell = Shell()
+        # Respect PSH_USE_VISITOR_EXECUTOR env var
+        import os
+        use_visitor = os.environ.get('PSH_USE_VISITOR_EXECUTOR', '').lower() in ('1', 'true', 'yes')
+        self.shell = Shell(use_visitor_executor=use_visitor)
         # Create a small history to avoid loading large existing history
         self.shell.history = []
         self.shell.history_file = "/tmp/test_psh_history"

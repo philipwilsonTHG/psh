@@ -12,7 +12,10 @@ class TestArrays:
     @pytest.fixture
     def shell(self):
         """Create a shell instance for testing."""
-        return Shell()
+        # Respect PSH_USE_VISITOR_EXECUTOR env var
+        import os
+        use_visitor = os.environ.get('PSH_USE_VISITOR_EXECUTOR', '').lower() in ('1', 'true', 'yes')
+        return Shell(use_visitor_executor=use_visitor)
     
     # Array initialization tests
     

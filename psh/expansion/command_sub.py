@@ -37,9 +37,11 @@ class CommandSubstitution:
             from ..shell import Shell
             
             # Create a temporary shell to execute the command with output redirected
+            # Use the same executor as the parent shell
             temp_shell = Shell(
                 debug_ast=self.state.debug_ast,
                 debug_tokens=self.state.debug_tokens,
+                use_visitor_executor=self.shell.use_visitor_executor,
                 parent_shell=self.shell
             )
             

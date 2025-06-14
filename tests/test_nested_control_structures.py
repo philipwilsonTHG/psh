@@ -7,12 +7,20 @@ import tempfile
 import os
 
 
+@pytest.fixture
+def shell():
+    """Create a shell instance for testing."""
+    # Respect PSH_USE_VISITOR_EXECUTOR env var
+    import os
+    use_visitor = os.environ.get('PSH_USE_VISITOR_EXECUTOR', '').lower() in ('1', 'true', 'yes')
+    return Shell(use_visitor_executor=use_visitor)
+
+
 class TestNestedControlStructures:
     """Test cases for arbitrarily nested control structures."""
     
-    def test_if_inside_for(self, capsys):
+    def test_if_inside_for(self, shell, capsys):
         """Test if statement inside for loop."""
-        shell = Shell()
         script = '''
         for i in 1 2 3; do
             if [ "$i" = "2" ]; then
@@ -28,9 +36,8 @@ class TestNestedControlStructures:
         captured = capsys.readouterr()
         assert captured.out == "Not 2: 1\nFound 2\nNot 2: 3\n"
     
-    def test_while_inside_if(self, capsys):
+    def test_while_inside_if(self, shell, capsys):
         """Test while loop inside if statement."""
-        shell = Shell()
         script = '''
         count=3
         if [ "$count" -gt 0 ]; then
@@ -46,9 +53,8 @@ class TestNestedControlStructures:
         captured = capsys.readouterr()
         assert captured.out == "Count: 3\nCount: 2\nCount: 1\n"
     
-    def test_for_inside_while(self, capsys):
+    def test_for_inside_while(self, shell, capsys):
         """Test for loop inside while loop."""
-        shell = Shell()
         script = '''
         n=2
         while [ "$n" -gt 0 ]; do
@@ -66,9 +72,8 @@ class TestNestedControlStructures:
         expected = "Outer: 2\n  Inner: a\n  Inner: b\nOuter: 1\n  Inner: a\n  Inner: b\n"
         assert captured.out == expected
     
-    def test_case_inside_for_inside_if(self, capsys):
+    def test_case_inside_for_inside_if(self, shell, capsys):
         """Test deeply nested control structures."""
-        shell = Shell()
         script = '''
         flag=true
         if [ "$flag" = "true" ]; then
@@ -94,9 +99,8 @@ class TestNestedControlStructures:
         expected = "Red fruit: apple\nYellow fruit: banana\nOther fruit: cherry\n"
         assert captured.out == expected
     
-    def test_nested_if_statements(self, capsys):
+    def test_nested_if_statements(self, shell, capsys):
         """Test nested if statements."""
-        shell = Shell()
         script = '''
         x=5
         y=10
@@ -117,9 +121,8 @@ class TestNestedControlStructures:
         expected = "x is less than 10\ny is greater than 5\nx is less than y\n"
         assert captured.out == expected
     
-    def test_break_in_nested_loops(self, capsys):
+    def test_break_in_nested_loops(self, shell, capsys):
         """Test break statement in nested loops."""
-        shell = Shell()
         script = '''
         for i in 1 2 3; do
             echo "Outer: $i"
@@ -140,9 +143,8 @@ class TestNestedControlStructures:
                    "Outer: 3\n  Inner: a\n  Inner: b\n")
         assert captured.out == expected
     
-    def test_continue_in_nested_loops(self, capsys):
+    def test_continue_in_nested_loops(self, shell, capsys):
         """Test continue statement in nested loops."""
-        shell = Shell()
         script = '''
         for i in 1 2; do
             echo "Outer: $i"
@@ -162,9 +164,8 @@ class TestNestedControlStructures:
                    "Outer: 2\n  Inner: a\n  Inner: c\n")
         assert captured.out == expected
     
-    def test_function_with_nested_structures(self, capsys):
+    def test_function_with_nested_structures(self, shell, capsys):
         """Test function containing nested control structures."""
-        shell = Shell()
         script = '''
         process_items() {
             for item in "$@"; do
@@ -196,9 +197,8 @@ class TestNestedControlStructures:
                    "Text file: file2.txt\n")
         assert captured.out == expected
     
-    def test_while_with_case_and_if(self, capsys):
+    def test_while_with_case_and_if(self, shell, capsys):
         """Test while loop with case statement and if inside."""
-        shell = Shell()
         script = '''
         counter=0
         while [ "$counter" -lt 3 ]; do
@@ -229,9 +229,8 @@ class TestNestedControlStructures:
                    "Finishing...\n")
         assert captured.out == expected
     
-    def test_nested_loops_with_redirection(self, capsys):
+    def test_nested_loops_with_redirection(self, shell, capsys):
         """Test control structure redirections work correctly."""
-        shell = Shell()
         
         # Create test files
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -260,9 +259,8 @@ class TestNestedControlStructures:
             assert actual_output == "True\n"
     
     @pytest.mark.xfail(reason="while read pattern conflicts with pytest output capture - run with pytest -s")
-    def test_while_read_pattern(self):
+    def test_while_read_pattern(self, shell):
         """Test the while read pattern with file redirection."""
-        shell = Shell()
         
         with tempfile.TemporaryDirectory() as tmpdir:
             input_file = os.path.join(tmpdir, "input.txt")
@@ -282,9 +280,8 @@ class TestNestedControlStructures:
             expected = "Read: line1\nRead: line2\nRead: line3\n"
             assert actual_output == expected
     
-    def test_read_in_nested_loops(self, capsys):
+    def test_read_in_nested_loops(self, shell, capsys):
         """Test read builtin in nested loops without while read pattern."""
-        shell = Shell()
         
         # Create test files
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -304,9 +301,8 @@ class TestNestedControlStructures:
             expected = "Run 1: line1\nRun 2: line1\n"
             assert captured.out == expected
 
-    def test_complex_nesting_with_functions(self, capsys):
+    def test_complex_nesting_with_functions(self, shell, capsys):
         """Test complex nesting with functions and multiple control structures."""
-        shell = Shell()
         script = '''
         check_number() {
             local num=$1
@@ -389,9 +385,8 @@ class TestNestedControlStructures:
         assert captured.out == expected
     
     @pytest.mark.skip(reason="Pipeline output capture conflicts with pytest")
-    def test_nested_structures_with_pipes(self, capsys):
+    def test_nested_structures_with_pipes(self, shell, capsys):
         """Test nested structures with pipelines."""
-        shell = Shell()
         script = '''
         for word in hello world test; do
             if [ "${#word}" -gt 4 ]; then
@@ -429,9 +424,8 @@ class TestNestedControlStructures:
         assert captured.out == expected
     
     @pytest.mark.skip(reason="Pipeline output capture conflicts with pytest")
-    def test_heredoc_in_nested_structure(self, capsys):
+    def test_heredoc_in_nested_structure(self, shell, capsys):
         """Test here documents in nested control structures."""
-        shell = Shell()
         script = '''
         for i in 1 2; do
             if [ "$i" = "1" ]; then
@@ -459,21 +453,19 @@ EOF
 class TestBackwardCompatibility:
     """Test that existing functionality still works."""
     
-    def test_simple_commands_still_work(self, capsys):
+    def test_simple_commands_still_work(self, shell, capsys):
         """Test that simple commands work as before."""
-        shell = Shell()
         exit_code = shell.run_command('echo "Hello, World!"')
         assert exit_code == 0
         
         captured = capsys.readouterr()
         assert captured.out == "Hello, World!\n"
     
-    def test_pipelines_still_work(self):
+    def test_pipelines_still_work(self, shell):
         """Test that pipelines work as before."""
         import tempfile
         from psh.shell import Shell
         
-        shell = Shell()
         
         # Create temporary file for output capture
         with tempfile.NamedTemporaryFile(mode='w+', delete=False) as f:
@@ -489,9 +481,8 @@ class TestBackwardCompatibility:
         finally:
             os.unlink(temp_file)
     
-    def test_simple_if_still_works(self, capsys):
+    def test_simple_if_still_works(self, shell, capsys):
         """Test that simple if statements work as before."""
-        shell = Shell()
         script = '''
         if true; then
             echo "Success"
@@ -503,9 +494,8 @@ class TestBackwardCompatibility:
         captured = capsys.readouterr()
         assert captured.out == "Success\n"
     
-    def test_simple_loops_still_work(self, capsys):
+    def test_simple_loops_still_work(self, shell, capsys):
         """Test that simple loops work as before."""
-        shell = Shell()
         
         # Test for loop
         exit_code = shell.run_command('for i in 1 2; do echo "$i"; done')

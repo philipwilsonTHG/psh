@@ -12,7 +12,10 @@ class TestFunctionCommandSubstitution:
     
     @pytest.fixture
     def shell(self):
-        return Shell()
+        # Respect PSH_USE_VISITOR_EXECUTOR env var
+        import os
+        use_visitor = os.environ.get('PSH_USE_VISITOR_EXECUTOR', '').lower() in ('1', 'true', 'yes')
+        return Shell(use_visitor_executor=use_visitor)
     
     def test_direct_function_call(self, shell, capsys):
         """Test that functions work when called directly."""

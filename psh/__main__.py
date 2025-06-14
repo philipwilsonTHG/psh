@@ -97,6 +97,9 @@ def main():
             # Show version
             from .version import get_version_info
             print(get_version_info())
+
+            print("\nEnvironment Variables:")
+            print("  PSH_USE_VISITOR_EXECUTOR=1   Use visitor executor by default")
             sys.exit(0)
         elif sys.argv[1] in ("--help", "-h"):
             # Show help
@@ -117,7 +120,7 @@ def main():
             print("  --debug-exec     Print executor operations (debugging)")
             print("  --debug-exec-fork Print fork/exec details (debugging)")
             print("  --validate       Validate script without executing (check for errors)")
-            print("  --visitor-executor Use visitor pattern executor (experimental)")
+            print("  --visitor-executor Use visitor pattern executor (recommended)")
             print("\nArguments:")
             print("  script           Script file to execute")
             print("  args             Arguments passed to script or command")

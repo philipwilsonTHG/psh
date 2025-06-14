@@ -143,12 +143,12 @@ class ExecutorVisitor(ASTVisitor[int]):
                 self.state.last_exit_code = exit_status
             except LoopBreak:
                 # Break at top level is an error
-                print("psh: break: only meaningful in a loop", file=sys.stderr)
+                print("break: only meaningful in a `for' or `while' loop", file=sys.stderr)
                 exit_status = 1
                 self.state.last_exit_code = exit_status
             except LoopContinue:
                 # Continue at top level is an error
-                print("psh: continue: only meaningful in a loop", file=sys.stderr)
+                print("continue: only meaningful in a `for' or `while' loop", file=sys.stderr)
                 exit_status = 1
                 self.state.last_exit_code = exit_status
             except SystemExit:
@@ -167,9 +167,22 @@ class ExecutorVisitor(ASTVisitor[int]):
         exit_status = 0
         
         for statement in node.statements:
-            exit_status = self.visit(statement)
-            # Update $? after each statement
-            self.state.last_exit_code = exit_status
+            try:
+                exit_status = self.visit(statement)
+                # Update $? after each statement
+                self.state.last_exit_code = exit_status
+            except FunctionReturn:
+                # Function return should propagate up
+                raise
+            except (LoopBreak, LoopContinue):
+                # Re-raise if we're in a loop, otherwise it's an error
+                if self._loop_depth > 0:
+                    raise
+                # Not in a loop - this was already reported by visit_BreakStatement/visit_ContinueStatement
+                exit_status = 1
+                self.state.last_exit_code = exit_status
+                # Don't continue executing statements after break/continue error
+                break
         
         return exit_status
     
@@ -304,8 +317,36 @@ class ExecutorVisitor(ASTVisitor[int]):
                 job.foreground = True
                 self.job_manager.set_foreground_job(job)
                 
+                # Give terminal control to the pipeline
+                try:
+                    original_pgid = os.tcgetpgrp(0)
+                    os.tcsetpgrp(0, pgid)
+                except:
+                    original_pgid = None
+                
                 # Use job manager to wait (it handles SIGCHLD)
-                exit_status = self.job_manager.wait_for_job(job)
+                if self.state.options.get('pipefail') and len(node.commands) > 1:
+                    # Get all exit statuses for pipefail
+                    all_statuses = self.job_manager.wait_for_job(job, collect_all_statuses=True)
+                    if isinstance(all_statuses, list):
+                        # Return rightmost non-zero exit status, or 0 if all succeeded
+                        exit_status = 0
+                        for status in reversed(all_statuses):
+                            if status != 0:
+                                exit_status = status
+                                break
+                    else:
+                        exit_status = all_statuses
+                else:
+                    # Normal behavior: return exit status of last command
+                    exit_status = self.job_manager.wait_for_job(job)
+                
+                # Restore terminal control
+                if original_pgid is not None:
+                    try:
+                        os.tcsetpgrp(0, original_pgid)
+                    except:
+                        pass
                 
                 self.job_manager.set_foreground_job(None)
                 
@@ -362,7 +403,9 @@ class ExecutorVisitor(ASTVisitor[int]):
     def _command_to_string(self, cmd: ASTNode) -> str:
         """Convert command to string representation."""
         if isinstance(cmd, SimpleCommand):
-            return " ".join(cmd.args)
+            # Convert args to strings (in case they're RichToken objects)
+            str_args = [str(arg) for arg in cmd.args]
+            return " ".join(str_args)
         else:
             return f"<{type(cmd).__name__}>"
     
@@ -386,7 +429,18 @@ class ExecutorVisitor(ASTVisitor[int]):
             assignments = self._extract_assignments(expanded_args)
             if assignments and len(expanded_args) == len(assignments):
                 # Pure assignment (no command)
+                # Handle xtrace for assignments
+                if self.state.options.get('xtrace'):
+                    ps4 = self.state.get_variable('PS4', '+ ')
+                    for var, value in assignments:
+                        trace_line = ps4 + f"{var}={value}\n"
+                        self.state.stderr.write(trace_line)
+                        self.state.stderr.flush()
+                
                 for var, value in assignments:
+                    # Apply tilde expansion to assignment values
+                    if value.startswith('~'):
+                        value = self.expansion_manager.expand_tilde(value)
                     self.state.set_variable(var, value)
                 return 0
             
@@ -394,6 +448,9 @@ class ExecutorVisitor(ASTVisitor[int]):
             saved_vars = {}
             for var, value in assignments:
                 saved_vars[var] = self.state.get_variable(var)
+                # Apply tilde expansion to assignment values
+                if value.startswith('~'):
+                    value = self.expansion_manager.expand_tilde(value)
                 self.state.set_variable(var, value)
             
             try:
@@ -413,12 +470,20 @@ class ExecutorVisitor(ASTVisitor[int]):
                     if not cmd_name:
                         return 0
                     
+                    # Handle xtrace option
+                    if self.state.options.get('xtrace'):
+                        # Get PS4 prompt (default "+ ")
+                        ps4 = self.state.get_variable('PS4', '+ ')
+                        # Print command to stderr
+                        trace_line = ps4 + ' '.join([cmd_name] + cmd_args) + '\n'
+                        self.state.stderr.write(trace_line)
+                        self.state.stderr.flush()
+                    
                     # Execute based on command type
                     exit_status = self._execute_command(cmd_name, cmd_args, node.background)
                     
-                    # Handle background jobs
+                    # Clear background job reference
                     if node.background and self._background_job:
-                        print(f"[{self._background_job.job_id}] {self._background_job.pid}")
                         self._background_job = None
                     
                     return exit_status
@@ -432,6 +497,15 @@ class ExecutorVisitor(ASTVisitor[int]):
                         else:
                             self.state.set_variable(var, old_value)
                 
+        except FunctionReturn:
+            # Function return must propagate
+            raise
+        except (LoopBreak, LoopContinue):
+            # Loop control must propagate
+            raise
+        except SystemExit:
+            # Exit must propagate
+            raise
         except Exception as e:
             print(f"psh: {e}", file=sys.stderr)
             return 1
@@ -473,6 +547,9 @@ class ExecutorVisitor(ASTVisitor[int]):
         except SystemExit as e:
             # Some builtins like 'exit' raise SystemExit
             raise
+        except FunctionReturn as e:
+            # FunctionReturn must propagate to be caught by function execution
+            raise
         except Exception as e:
             print(f"psh: {name}: {e}", file=sys.stderr)
             return 1
@@ -503,7 +580,16 @@ class ExecutorVisitor(ASTVisitor[int]):
             return self.visit(func.body)
             
         except FunctionReturn as ret:
-            return ret.code
+            return ret.exit_code
+        except (LoopBreak, LoopContinue) as e:
+            # If we're called from within a loop, propagate the exception
+            if self._loop_depth > 0:
+                raise
+            # Otherwise, it's an error
+            stmt_name = "break" if isinstance(e, LoopBreak) else "continue"
+            print(f"{stmt_name}: only meaningful in a `for' or `while' loop", 
+                  file=sys.stderr)
+            return 1
         finally:
             # Pop function scope
             self.state.scope_manager.pop_scope()
@@ -525,6 +611,12 @@ class ExecutorVisitor(ASTVisitor[int]):
             except OSError as e:
                 print(f"psh: {args[0]}: {e}", file=sys.stderr)
                 os._exit(127)
+        
+        # Save current terminal foreground process group
+        try:
+            original_pgid = os.tcgetpgrp(0)
+        except:
+            original_pgid = None
         
         # Normal execution - fork a child process
         pid = os.fork()
@@ -565,8 +657,8 @@ class ExecutorVisitor(ASTVisitor[int]):
                 pass  # Race condition - child may have already done it
             
             # Create job for tracking
-            job = self.job_manager.create_job(pid, " ".join(args))
-            job.add_process(pid, args[0])
+            job = self.job_manager.create_job(pid, " ".join(str(arg) for arg in args))
+            job.add_process(pid, str(args[0]))
             
             if background:
                 # Background job
@@ -576,15 +668,30 @@ class ExecutorVisitor(ASTVisitor[int]):
                 print(f"[{job.job_id}] {pid}")
                 return 0
             else:
-                # Foreground job
+                # Foreground job - give it terminal control
                 job.foreground = True
                 self.job_manager.set_foreground_job(job)
+                
+                if original_pgid is not None:
+                    self.state.foreground_pgid = pid
+                    try:
+                        os.tcsetpgrp(0, pid)
+                    except:
+                        pass
                 
                 # Use job manager to wait (it handles SIGCHLD)
                 exit_status = self.job_manager.wait_for_job(job)
                 
+                # Restore terminal control
+                if original_pgid is not None:
+                    self.state.foreground_pgid = None
+                    self.job_manager.set_foreground_job(None)
+                    try:
+                        os.tcsetpgrp(0, original_pgid)
+                    except:
+                        pass
+                
                 # Clean up
-                self.job_manager.set_foreground_job(None)
                 if job.state == JobState.DONE:
                     self.job_manager.remove_job(job.job_id)
                 
@@ -653,17 +760,29 @@ class ExecutorVisitor(ASTVisitor[int]):
         # Expand items - create a temporary SimpleCommand for expansion
         expanded_items = []
         for item in node.items:
-            # Expand variables and globs in the item
-            if '$' in item:
-                item = self.expansion_manager.expand_string_variables(item)
-            
-            # Handle glob expansion
-            import glob
-            matches = glob.glob(item)
-            if matches:
-                expanded_items.extend(matches)
+            # Check if this is an array expansion
+            if '$' in item and self.expansion_manager.variable_expander.is_array_expansion(item):
+                # Expand array to list of items
+                array_items = self.expansion_manager.variable_expander.expand_array_to_list(item)
+                expanded_items.extend(array_items)
+            elif '$' in item:
+                # Regular variable expansion
+                expanded = self.expansion_manager.expand_string_variables(item)
+                # Handle glob expansion on the result
+                import glob
+                matches = glob.glob(expanded)
+                if matches:
+                    expanded_items.extend(matches)
+                else:
+                    expanded_items.append(expanded)
             else:
-                expanded_items.append(item)
+                # No variable expansion needed, just glob
+                import glob
+                matches = glob.glob(item)
+                if matches:
+                    expanded_items.extend(matches)
+                else:
+                    expanded_items.append(item)
         
         # Apply redirections for entire loop
         with self._apply_redirections(node.redirects):
@@ -731,15 +850,17 @@ class ExecutorVisitor(ASTVisitor[int]):
     def visit_BreakStatement(self, node: BreakStatement) -> int:
         """Execute break statement."""
         if self._loop_depth == 0:
-            print("psh: break: only meaningful in a loop", file=self.shell.stderr)
-            return 1
+            print("break: only meaningful in a `for' or `while' loop", file=self.shell.stderr)
+            # Raise exception even outside loop so StatementList stops executing
+            raise LoopBreak(node.level)
         raise LoopBreak(node.level)
     
     def visit_ContinueStatement(self, node: ContinueStatement) -> int:
         """Execute continue statement."""
         if self._loop_depth == 0:
-            print("psh: continue: only meaningful in a loop", file=self.shell.stderr)
-            return 1
+            print("continue: only meaningful in a `for' or `while' loop", file=self.shell.stderr)
+            # Raise exception even outside loop so StatementList stops executing
+            raise LoopContinue(node.level)
         raise LoopContinue(node.level)
     
     def visit_FunctionDef(self, node: FunctionDef) -> int:
@@ -788,14 +909,12 @@ class ExecutorVisitor(ASTVisitor[int]):
     
     def _handle_array_assignment(self, assignment):
         """Handle array initialization or element assignment."""
+        # This is now handled by visit_ArrayInitialization and visit_ArrayElementAssignment
         if isinstance(assignment, ArrayInitialization):
-            # Initialize array with elements
-            self.state.set_array(assignment.name, assignment.elements)
+            return self.visit_ArrayInitialization(assignment)
         elif isinstance(assignment, ArrayElementAssignment):
-            # Set array element
-            # Evaluate index
-            index = self._evaluate_arithmetic(assignment.index)
-            self.state.set_array_element(assignment.name, index, assignment.value)
+            return self.visit_ArrayElementAssignment(assignment)
+        return 0
     
     def _evaluate_arithmetic(self, expr: str) -> int:
         """Evaluate arithmetic expression."""
@@ -1002,6 +1121,95 @@ class ExecutorVisitor(ASTVisitor[int]):
         """Execute enhanced test: [[ expression ]]"""
         # Delegate to shell's existing implementation
         return self.shell.execute_enhanced_test_statement(node)
+    
+    # Array operations
+    
+    def visit_ArrayInitialization(self, node: ArrayInitialization) -> int:
+        """Execute array initialization: arr=(a b c)"""
+        # Handle append mode
+        from ..core.variables import IndexedArray, VarAttributes
+        
+        if node.is_append:
+            # Get existing array or create new one
+            var_obj = self.state.scope_manager.get_variable_object(node.name)
+            if var_obj and isinstance(var_obj.value, IndexedArray):
+                array = var_obj.value
+                # Find next index for appending
+                start_index = max(array._elements.keys()) + 1 if array._elements else 0
+            else:
+                array = IndexedArray()
+                start_index = 0
+        else:
+            # Create new array
+            array = IndexedArray()
+            start_index = 0
+        
+        # Expand and add elements
+        for i, element in enumerate(node.elements):
+            expanded = self.expansion_manager.expand_string_variables(element)
+            # Check if we should split on whitespace
+            if i < len(node.element_types) and node.element_types[i] == 'WORD':
+                # Split unquoted words on whitespace
+                words = expanded.split()
+                for j, word in enumerate(words):
+                    array.set(start_index + i + j, word)
+                start_index += len(words) - 1
+            else:
+                # Keep as single element
+                array.set(start_index + i, expanded)
+        
+        # Set array in shell state
+        self.state.scope_manager.set_variable(node.name, array, attributes=VarAttributes.ARRAY)
+        return 0
+    
+    def visit_ArrayElementAssignment(self, node: ArrayElementAssignment) -> int:
+        """Execute array element assignment: arr[i]=value"""
+        # Handle index - can be string or list of tokens
+        if isinstance(node.index, list):
+            # Convert tokens to string using their values
+            index_str = ''.join(token.value if hasattr(token, 'value') else str(token) 
+                               for token in node.index)
+        else:
+            index_str = node.index
+        
+        # Expand the index
+        expanded_index = self.expansion_manager.expand_string_variables(index_str)
+        
+        # Evaluate arithmetic if needed
+        try:
+            if any(op in expanded_index for op in ['+', '-', '*', '/', '%', '(', ')']):
+                from ..arithmetic import evaluate_arithmetic
+                index = evaluate_arithmetic(expanded_index, self.shell)
+            else:
+                index = int(expanded_index)
+        except (ValueError, Exception):
+            print(f"psh: {node.name}[{index_str}]: bad array subscript", file=sys.stderr)
+            return 1
+        
+        # Expand value
+        expanded_value = self.expansion_manager.expand_string_variables(node.value)
+        
+        # Get or create array
+        from ..core.variables import IndexedArray
+        var_obj = self.state.scope_manager.get_variable_object(node.name)
+        if var_obj and isinstance(var_obj.value, IndexedArray):
+            array = var_obj.value
+        else:
+            # Create new array
+            array = IndexedArray()
+            from ..core.variables import VarAttributes
+            self.state.scope_manager.set_variable(node.name, array, attributes=VarAttributes.ARRAY)
+        
+        # Handle append mode
+        if node.is_append:
+            # Get current value and append
+            current = array.get(index)
+            if current is not None:
+                expanded_value = current + expanded_value
+        
+        # Set element
+        array.set(index, expanded_value)
+        return 0
     
     # Fallback for unimplemented nodes
     

@@ -226,7 +226,10 @@ class TestFunctionManagement:
     
     @pytest.fixture
     def shell(self):
-        return Shell()
+        # Respect PSH_USE_VISITOR_EXECUTOR env var
+        import os
+        use_visitor = os.environ.get('PSH_USE_VISITOR_EXECUTOR', '').lower() in ('1', 'true', 'yes')
+        return Shell(use_visitor_executor=use_visitor)
     
     def test_declare_f_lists_functions(self, shell, capsys):
         """Test declare -f lists all functions."""
@@ -293,7 +296,10 @@ class TestFunctionEdgeCases:
     
     @pytest.fixture
     def shell(self):
-        return Shell()
+        # Respect PSH_USE_VISITOR_EXECUTOR env var
+        import os
+        use_visitor = os.environ.get('PSH_USE_VISITOR_EXECUTOR', '').lower() in ('1', 'true', 'yes')
+        return Shell(use_visitor_executor=use_visitor)
     
     def test_invalid_function_name_keyword(self, shell, capsys):
         """Test error on reserved word as function name."""
