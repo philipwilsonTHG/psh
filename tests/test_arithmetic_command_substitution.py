@@ -15,8 +15,15 @@ class TestArithmeticCommandSubstitution:
     
     def test_simple_command_sub_in_arithmetic(self, shell, capsys):
         """Test basic command substitution in arithmetic."""
-        shell.run_command('result=$(($(echo 42) * 2))')
-        shell.run_command('echo $result')
+        # Disable debug for cleaner test
+        exit_code = shell.run_command('result=$(($(echo 42) * 2))')
+        assert exit_code == 0
+        # Check the variable was set correctly
+        result_value = shell.state.get_variable('result')
+        assert result_value == '84', f"Expected result='84', got result='{result_value}'"
+        # Test echo separately  
+        exit_code2 = shell.run_command('echo $result')
+        assert exit_code2 == 0
         captured = capsys.readouterr()
         assert captured.out.strip() == "84"
     

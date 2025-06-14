@@ -438,9 +438,8 @@ class ExecutorVisitor(ASTVisitor[int]):
                         self.state.stderr.flush()
                 
                 for var, value in assignments:
-                    # Apply tilde expansion to assignment values
-                    if value.startswith('~'):
-                        value = self.expansion_manager.expand_tilde(value)
+                    # Apply all expansions to assignment values
+                    value = self._expand_assignment_value(value)
                     self.state.set_variable(var, value)
                 return 0
             
@@ -448,9 +447,8 @@ class ExecutorVisitor(ASTVisitor[int]):
             saved_vars = {}
             for var, value in assignments:
                 saved_vars[var] = self.state.get_variable(var)
-                # Apply tilde expansion to assignment values
-                if value.startswith('~'):
-                    value = self.expansion_manager.expand_tilde(value)
+                # Apply all expansions to assignment values
+                value = self._expand_assignment_value(value)
                 self.state.set_variable(var, value)
             
             try:
@@ -921,6 +919,44 @@ class ExecutorVisitor(ASTVisitor[int]):
         # Use the shell's arithmetic evaluator
         from ..arithmetic import evaluate_arithmetic
         return evaluate_arithmetic(expr, self.shell)
+    
+    def _expand_assignment_value(self, value: str) -> str:
+        """Expand a value used in variable assignment."""
+        # First expand variables
+        if '$' in value:
+            value = self.expansion_manager.expand_string_variables(value)
+        
+        # Then expand arithmetic expressions
+        if '$((' in value and '))' in value:
+            # Find and expand all arithmetic expansions
+            result = []
+            i = 0
+            while i < len(value):
+                if value[i:i+3] == '$((': 
+                    # Find matching ))
+                    paren_count = 2
+                    j = i + 3
+                    while j < len(value) and paren_count > 0:
+                        if value[j] == '(':
+                            paren_count += 1
+                        elif value[j] == ')':
+                            paren_count -= 1
+                        j += 1
+                    if paren_count == 0:
+                        # Found complete arithmetic expression
+                        arith_expr = value[i:j]
+                        result.append(str(self.expansion_manager.execute_arithmetic_expansion(arith_expr)))
+                        i = j
+                        continue
+                result.append(value[i])
+                i += 1
+            value = ''.join(result)
+        
+        # Finally apply tilde expansion
+        if value.startswith('~'):
+            value = self.expansion_manager.expand_tilde(value)
+        
+        return value
     
     # Additional node type implementations
     
