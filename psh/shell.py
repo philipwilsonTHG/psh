@@ -23,7 +23,7 @@ from .interactive.base import InteractiveManager
 class Shell:
     def __init__(self, args=None, script_name=None, debug_ast=False, debug_tokens=False, debug_scopes=False, 
                  debug_expansion=False, debug_expansion_detail=False, debug_exec=False, debug_exec_fork=False,
-                 norc=False, rcfile=None, validate_only=False, use_visitor_executor=False, parent_shell=None):
+                 norc=False, rcfile=None, validate_only=False, use_visitor_executor=True, parent_shell=None):
         # Initialize state
         self.state = ShellState(args, script_name, debug_ast, 
                               debug_tokens, debug_scopes, debug_expansion, debug_expansion_detail,
@@ -32,11 +32,22 @@ class Shell:
         # Store validation mode
         self.validate_only = validate_only
         
-        # Store executor mode - check environment variable and option
-        # Default is legacy executor for now, but check environment
-        self.use_visitor_executor = (use_visitor_executor or 
-                                   os.environ.get('PSH_USE_VISITOR_EXECUTOR', '').lower() in ('1', 'true', 'yes') or
-                                   self.state.options.get('visitor-executor', False))
+        # Store executor mode - visitor executor is now the default
+        # Priority order:
+        # 1. Environment variable PSH_USE_VISITOR_EXECUTOR
+        # 2. Explicit parameter (use_visitor_executor)
+        # 3. Default from state options
+        env_override = os.environ.get('PSH_USE_VISITOR_EXECUTOR', '').lower()
+        if env_override in ('0', 'false', 'no'):
+            self.use_visitor_executor = False
+        elif env_override in ('1', 'true', 'yes'):
+            self.use_visitor_executor = True
+        else:
+            # Use parameter if provided, otherwise use state default
+            self.use_visitor_executor = use_visitor_executor
+        
+        # Update state options to match
+        self.state.options['visitor-executor'] = self.use_visitor_executor
         
         # Set shell reference in scope manager for arithmetic evaluation
         self.state.scope_manager.set_shell(self)

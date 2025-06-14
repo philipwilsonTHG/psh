@@ -18,7 +18,7 @@ def main():
     norc = False
     rcfile = None
     validate_only = False
-    visitor_executor = False  # Default is legacy executor for now
+    visitor_executor = True  # Default is visitor executor
     args = sys.argv[1:]
     
     # Extract debug flags
@@ -51,10 +51,13 @@ def main():
         validate_only = True
         args.remove("--validate")
     
-    # Extract visitor executor flag
+    # Extract executor flags
     if "--visitor-executor" in args:
         visitor_executor = True
         args.remove("--visitor-executor")
+    if "--legacy-executor" in args:
+        visitor_executor = False
+        args.remove("--legacy-executor")
     
     # Extract RC file flags
     if "--norc" in args:
@@ -120,7 +123,8 @@ def main():
             print("  --debug-exec     Print executor operations (debugging)")
             print("  --debug-exec-fork Print fork/exec details (debugging)")
             print("  --validate       Validate script without executing (check for errors)")
-            print("  --visitor-executor Use visitor pattern executor (recommended)")
+            print("  --visitor-executor Use visitor pattern executor (default)")
+            print("  --legacy-executor Use legacy executor (for compatibility)")
             print("\nArguments:")
             print("  script           Script file to execute")
             print("  args             Arguments passed to script or command")

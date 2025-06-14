@@ -48,7 +48,7 @@ class ShellState:
             'errexit': False,      # -e: exit on error
             'nounset': False,      # -u: error on undefined variables
             'xtrace': False,       # -x: print commands before execution
-            'visitor-executor': False,  # Use visitor pattern executor
+            'visitor-executor': True,  # Use visitor pattern executor (default)
             'pipefail': False,     # -o pipefail: pipeline fails if any command fails
         }
         

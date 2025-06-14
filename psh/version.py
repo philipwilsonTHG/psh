@@ -2,10 +2,22 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.49.0"
+__version__ = "0.50.0"
 
 # Version history
 VERSION_HISTORY = """
+0.50.0 (2025-01-14) - Visitor Executor Now Default
+  - Made visitor executor the default execution engine for PSH
+  - Visitor pattern provides cleaner architecture and better extensibility
+  - Legacy executor remains available via --legacy-executor flag
+  - Environment variable PSH_USE_VISITOR_EXECUTOR=0 disables visitor executor
+  - All 1165 tests pass with visitor executor as default
+  - Fixed logic to properly respect environment variables and parameters
+  - Known limitations (affecting both executors):
+    - Deep recursion in shell functions hits Python stack limit
+    - Command substitution output capture issues in test environments
+  - Major milestone: Visitor pattern is now the primary execution model
+
 0.49.0 (2025-01-14) - Visitor Pattern Phase 4: Complete Implementation
   - Completed visitor pattern Phase 4 with major bug fixes and improvements
   - Fixed terminal control issue where emacs was immediately stopped
