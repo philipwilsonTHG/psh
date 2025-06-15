@@ -293,7 +293,11 @@ class StateMachineLexer:
         
         if quote_context == '"':
             # In double quotes
-            if next_char in '"\\`':
+            if next_char == '\n':
+                # Escaped newline is a line continuation - remove it
+                self.advance()  # Skip the newline
+                return ''  # Return empty string to continue the line
+            elif next_char in '"\\`':
                 self.advance()  # Skip the escaped character
                 return next_char
             elif next_char == '$':
@@ -309,6 +313,10 @@ class StateMachineLexer:
                 return '\\' + next_char
         elif quote_context is None:
             # Outside quotes - backslash escapes everything
+            if next_char == '\n':
+                # Escaped newline is a line continuation - remove it
+                self.advance()  # Skip the newline
+                return ''  # Return empty string to continue the line
             self.advance()  # Skip the escaped character
             if next_char == '$':
                 # Use a special marker for escaped dollar to prevent variable expansion

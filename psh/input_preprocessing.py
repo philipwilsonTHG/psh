@@ -68,8 +68,9 @@ def process_line_continuations(text: str) -> str:
             i += 1
             continue
         
-        # Don't process line continuations inside quotes
-        if in_single_quote or in_double_quote:
+        # Don't process line continuations inside single quotes
+        # (but do process them inside double quotes)
+        if in_single_quote:
             result.append(char)
             i += 1
             continue
