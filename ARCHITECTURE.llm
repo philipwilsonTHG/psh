@@ -1,0 +1,353 @@
+# PSH Architecture Reference for Large Language Models
+
+Version: 0.50.0 (2025-01-15)
+Purpose: Optimized reference for LLMs working with PSH codebase
+
+## Quick Start
+
+### Making Common Changes
+
+**Add a new builtin command:**
+1. Create file in `psh/builtins/` (e.g., `mycommand.py`)
+2. Implement command class inheriting from `BuiltinCommand`
+3. Register in `psh/builtins/registry.py`
+
+**Add a new shell option:**
+1. Add to `psh/core/options.py` OPTION_HANDLERS
+2. Update `psh/core/state.py` if needed
+3. Add tests in `tests/test_shell_options.py`
+
+**Modify expansion behavior:**
+1. Edit relevant file in `psh/expansion/`
+2. Update `ExpansionManager.expand_argument()` if order changes
+3. Add tests in `tests/test_*_expansion.py`
+
+**Add AST visitor operation:**
+1. Create new visitor in `psh/visitor/`
+2. Inherit from `ASTVisitor[T]`
+3. Implement `visit_*` methods for each node type
+
+## Component Hierarchy
+
+```
+psh/
+├── shell.py                 # Main orchestrator (~490 lines)
+├── core/                    # Shared state and exceptions
+│   ├── state.py            # Central state management
+│   ├── scope.py            # Variable scoping
+│   ├── variables.py        # Variable types (arrays)
+│   ├── exceptions.py       # Control flow exceptions
+│   └── options.py          # Shell option handlers
+├── input_preprocessing.py   # Line continuation handling
+├── state_machine_lexer.py   # Tokenization (state machine)
+├── parser.py               # Recursive descent parser
+├── ast_nodes.py            # AST node definitions
+├── visitor/                # Visitor pattern operations
+│   ├── base.py            # Base visitor classes
+│   └── executor_visitor.py # Default executor (visitor pattern)
+├── expansion/              # Shell expansions
+│   ├── manager.py         # Orchestrates expansions
+│   ├── variable.py        # Variable/parameter expansion
+│   ├── command_sub.py     # Command substitution
+│   ├── tilde.py          # Tilde expansion
+│   └── glob.py           # Pathname expansion
+├── executor/               # Legacy execution (being phased out)
+│   ├── base.py           # Base classes
+│   ├── command.py        # Single command execution
+│   ├── pipeline.py       # Pipeline execution
+│   ├── control_flow.py   # Control structures
+│   └── statement.py      # Command lists
+├── io_redirect/            # I/O redirection
+│   ├── manager.py        # Orchestrates redirections
+│   ├── file_redirect.py  # File redirections
+│   ├── heredoc.py        # Here documents
+│   └── process_sub.py    # Process substitution
+├── interactive/            # Interactive shell features
+│   ├── repl_loop.py      # Read-eval-print loop
+│   ├── prompt_manager.py # PS1/PS2 prompts
+│   └── history_manager.py # Command history
+├── scripting/              # Script execution
+│   └── script_executor.py # Execute script files
+├── builtins/               # Built-in commands
+│   ├── registry.py       # Central registry
+│   └── *.py             # Individual builtins
+└── utils/                  # Utility modules
+```
+
+## Execution Pipeline
+
+```
+Input → Preprocessing → Tokenization → Parsing → AST → Visitor Execution → Result
+
+1. Input Processing:
+   - Line continuation (\<newline>) removal
+   - History expansion (!!, !n, etc.)
+   - Brace expansion ({a,b}, {1..5})
+
+2. Tokenization (state_machine_lexer.py):
+   - State machine with contexts (NORMAL, IN_QUOTE, etc.)
+   - Produces RichToken objects with metadata
+   - Preserves quote information for expansion
+
+3. Parsing (parser.py):
+   - Recursive descent parser
+   - Produces AST (ast_nodes.py)
+   - Handles all shell constructs
+
+4. Execution (visitor/executor_visitor.py):
+   - Visitor pattern traversal
+   - Calls expansion manager
+   - Delegates to component managers
+   - Returns exit status
+```
+
+## Key Components
+
+### Shell (shell.py)
+**Purpose:** Central orchestrator coordinating all components
+**Key Methods:**
+- `run_command(cmd: str) -> int` - Execute a command string
+- `interactive_loop()` - Start interactive REPL
+- `execute_ast(ast: ASTNode) -> int` - Execute parsed AST
+
+**Initialized Components:**
+```python
+self.state = ShellState()
+self.expansion_manager = ExpansionManager(self)
+self.io_manager = IORedirectManager(self)
+self.executor = ExecutorVisitor(self)  # Default visitor executor
+self.job_manager = JobControlManager(self)
+self.alias_manager = AliasManager(self)
+self.function_manager = FunctionManager(self)
+self.builtin_registry = BuiltinRegistry(self)
+self.interactive_manager = InteractiveManager(self)
+self.script_manager = ScriptManager(self)
+```
+
+### ShellState (core/state.py)
+**Purpose:** Centralized state for entire shell
+**Key Attributes:**
+- `environment: Dict[str, str]` - Environment variables
+- `scope_manager: EnhancedScopeManager` - Variable scopes
+- `positional_params: List[str]` - $1, $2, etc.
+- `last_exit_status: int` - $?
+- `shell_pid: int` - $$
+- `last_bg_pid: Optional[int]` - $!
+- `options: Dict[str, bool]` - Shell options
+
+### ExecutorVisitor (visitor/executor_visitor.py)
+**Purpose:** Default execution engine using visitor pattern
+**Key Methods:**
+```python
+def visit_SimpleCommand(self, node: SimpleCommand) -> int
+def visit_Pipeline(self, node: Pipeline) -> int
+def visit_WhileLoop(self, node: WhileLoop) -> int
+def visit_IfConditional(self, node: IfConditional) -> int
+# ... one method per AST node type
+```
+
+### ExpansionManager (expansion/manager.py)
+**Purpose:** Orchestrate all expansions in correct order
+**Expansion Order:**
+1. Tilde expansion (~, ~user)
+2. Variable expansion ($var, ${var})
+3. Command substitution ($(...), `...`)
+4. Arithmetic expansion ($((...)))
+5. Word splitting (on $IFS)
+6. Pathname expansion (*, ?, [...])
+7. Quote removal
+
+### Key Interfaces
+
+**BuiltinCommand (builtins/base.py):**
+```python
+class BuiltinCommand(ABC):
+    @abstractmethod
+    def execute(self, args: List[str], shell: 'Shell') -> int:
+        """Execute builtin with args, return exit status"""
+```
+
+**ASTVisitor (visitor/base.py):**
+```python
+class ASTVisitor(Generic[T], ABC):
+    def visit(self, node: ASTNode) -> T:
+        """Visit a node, dispatching to visit_* method"""
+        method_name = f'visit_{node.__class__.__name__}'
+        visitor = getattr(self, method_name, self.generic_visit)
+        return visitor(node)
+```
+
+**ExecutorComponent (executor/base.py):**
+```python
+class ExecutorComponent(ABC):
+    def __init__(self, shell: 'Shell'):
+        self.shell = shell
+        self.state = shell.state
+        # ... other manager references
+```
+
+## Data Flow Examples
+
+### Simple Command: `echo "Hello $USER"`
+1. **Tokenize:** [WORD("echo"), STRING("Hello $USER")]
+2. **Parse:** SimpleCommand(args=["echo", "Hello $USER"])
+3. **Execute:**
+   - Expand arguments: ["echo", "Hello alice"]
+   - Resolve command: builtin "echo"
+   - Execute builtin: outputs "Hello alice"
+   - Return: exit status 0
+
+### Pipeline: `ls | grep test`
+1. **Parse:** Pipeline([SimpleCommand("ls"), SimpleCommand("grep", "test")])
+2. **Execute:**
+   - Create pipe
+   - Fork for ls (redirect stdout to pipe)
+   - Fork for grep (redirect stdin from pipe)
+   - Wait for both processes
+   - Return: exit status of grep
+
+### Variable Assignment: `X=10; echo $X`
+1. **Parse:** StatementList([SimpleCommand with assignment, SimpleCommand])
+2. **Execute:**
+   - First command: set variable X=10
+   - Second command: expand $X to "10", echo it
+   - Return: exit status 0
+
+## Extension Points
+
+### Adding Features
+
+**New Builtin Command:**
+```python
+# psh/builtins/mybuiltin.py
+from psh.builtins.base import BuiltinCommand
+
+class MyBuiltin(BuiltinCommand):
+    def execute(self, args: List[str], shell: 'Shell') -> int:
+        # Implementation
+        return 0
+
+# Register in psh/builtins/registry.py
+self.register('mybuiltin', MyBuiltin)
+```
+
+**New AST Operation:**
+```python
+# psh/visitor/myvisitor.py
+from psh.visitor.base import ASTVisitor
+
+class MyVisitor(ASTVisitor[None]):
+    def visit_SimpleCommand(self, node: SimpleCommand) -> None:
+        # Process command
+        pass
+```
+
+**New Expansion Type:**
+1. Add expander class in `psh/expansion/`
+2. Integrate into `ExpansionManager.expand_argument()`
+3. Consider expansion order requirements
+
+## Architecture Invariants
+
+1. **State Centralization:** All state goes through ShellState
+2. **Component Isolation:** Components communicate through Shell instance
+3. **Visitor Pattern:** AST nodes are data-only, operations in visitors
+4. **Exit Status:** All execution returns integer exit status
+5. **Fork for External:** External commands always fork()
+6. **Expansion Order:** Must follow POSIX expansion order
+
+## Testing Conventions
+
+**Test Organization:**
+- Unit tests: `test_<component>.py`
+- Integration tests: `test_integration.py`
+- Bash comparison: `tests/comparison/test_bash_*.py`
+
+**Test Patterns:**
+```python
+def test_feature(shell):  # shell fixture from conftest.py
+    result = shell.run_command("command")
+    assert result == 0  # exit status
+```
+
+## Performance Considerations
+
+1. **Tokenizer:** State machine minimizes backtracking
+2. **Parser:** Single-pass recursive descent
+3. **Visitor:** Direct dispatch via Python method lookup
+4. **Expansion:** Lazy evaluation where possible
+5. **Subprocess:** Fork only when necessary
+
+## Known Limitations
+
+1. **Deep Recursion:** Python stack limits affect shell function recursion
+2. **Pytest Capture:** Command substitution output capture issues in tests
+3. **Builtin Redirections:** Would require forking builtins
+4. **Composite Token Quotes:** Some quote information lost in parser
+
+## Common Patterns
+
+### Manager Pattern
+```python
+class SomeManager:
+    def __init__(self, shell: 'Shell'):
+        self.shell = shell
+        self.state = shell.state
+```
+
+### Visitor Method
+```python
+def visit_NodeType(self, node: NodeType) -> int:
+    # Process node
+    # Recurse to children if needed
+    # Return exit status
+```
+
+### Builtin Implementation
+```python
+class MyBuiltin(BuiltinCommand):
+    def execute(self, args: List[str], shell: 'Shell') -> int:
+        # Validate arguments
+        # Perform operation
+        # Update state if needed
+        # Return exit status
+```
+
+## Quick Reference
+
+### File Locations
+- **Add builtin:** `psh/builtins/` + register in `registry.py`
+- **Modify parsing:** `psh/parser.py` + `ast_nodes.py`
+- **Change expansion:** `psh/expansion/` + `manager.py`
+- **Add shell option:** `psh/core/options.py`
+- **Modify tokenization:** `psh/state_machine_lexer.py`
+
+### Key Classes
+- `Shell` - Main orchestrator
+- `ShellState` - Central state
+- `ExecutorVisitor` - Default executor
+- `ExpansionManager` - Expansion orchestrator
+- `Parser` - Recursive descent parser
+- `StateMachineLexer` - Tokenizer
+
+### Important Methods
+- `shell.run_command(cmd)` - Execute command
+- `expansion_manager.expand_argument(arg, type)` - Expand argument
+- `parser.parse()` - Parse tokens to AST
+- `visitor.visit(node)` - Execute AST node
+
+## Maintenance
+
+To keep this document updated:
+1. Update version and date at top
+2. Add new components to hierarchy
+3. Update data flow if execution changes
+4. Add new patterns as they emerge
+5. Document new limitations discovered
+6. Keep quick reference current
+
+Related Documentation:
+- `ARCHITECTURE.md` - Human-focused architecture guide
+- `PARSER_ARCHITECTURE.md` - Parser details
+- `docs/expansion_executor_architecture.md` - Expansion/execution details
+- `docs/visitor_pattern_implementation.md` - Visitor pattern details
