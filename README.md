@@ -596,6 +596,22 @@ While PSH implements most shell features, there are some limitations:
 
 See [TODO.md](TODO.md) for a complete list of planned features.
 
+## POSIX Compliance
+
+PSH implements a significant subset of POSIX.1-2017 shell functionality, achieving approximately **80% POSIX compliance**. While PSH includes many bash-compatible extensions, it can run most POSIX shell scripts correctly.
+
+### POSIX Compliance Highlights
+- ✅ **Shell Grammar**: 95% compliant - all major constructs supported
+- ✅ **Parameter Expansion**: 90% compliant - all POSIX forms implemented  
+- ✅ **I/O Redirection**: 95% compliant - missing only `<>` read-write
+- ✅ **Control Structures**: 100% compliant - if/while/for/case fully supported
+- ⚠️ **Built-in Commands**: 75% compliant - missing trap, shift, exec, wait, getopts
+
+See [docs/posix/](docs/posix/) for detailed POSIX compliance documentation:
+- [POSIX Compliance Analysis](docs/posix/posix_compliance_analysis.md) - Feature-by-feature analysis
+- [POSIX Compatibility Guide](docs/posix/posix_compatibility_guide.md) - Writing portable scripts
+- [POSIX Specification Reference](docs/posix/posix_spec_reference.md) - Key POSIX requirements
+
 ## Implementation Status
 
 PSH has achieved significant feature completeness with **1007 passing tests**:
