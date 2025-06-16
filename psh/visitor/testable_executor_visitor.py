@@ -72,6 +72,46 @@ class TestableExecutor(ExecutorVisitor):
         """Cleanup on deletion."""
         self._cleanup_capture_files()
     
+    def visit_SimpleCommand(self, node: SimpleCommand) -> int:
+        """Execute a simple command with proper stream preservation."""
+        if not self.capture_output:
+            return super().visit_SimpleCommand(node)
+        
+        # Save the current shell streams (which might be StringIO from tests)
+        saved_stdout = self.shell.stdout
+        saved_stderr = self.shell.stderr
+        saved_stdin = self.shell.stdin
+        
+        # Also temporarily replace sys.stdout/stderr/stdin to prevent
+        # the parent class from resetting shell streams to them
+        saved_sys_stdout = sys.stdout
+        saved_sys_stderr = sys.stderr  
+        saved_sys_stdin = sys.stdin
+        
+        # If we have StringIO streams, use them as sys streams temporarily
+        if hasattr(saved_stdout, 'write') and hasattr(saved_stdout, 'getvalue'):
+            sys.stdout = saved_stdout
+        if hasattr(saved_stderr, 'write') and hasattr(saved_stderr, 'getvalue'):
+            sys.stderr = saved_stderr
+        if hasattr(saved_stdin, 'read'):
+            sys.stdin = saved_stdin
+        
+        try:
+            # Execute the command
+            result = super().visit_SimpleCommand(node)
+            
+            return result
+        finally:
+            # Restore sys streams
+            sys.stdout = saved_sys_stdout
+            sys.stderr = saved_sys_stderr
+            sys.stdin = saved_sys_stdin
+            
+            # Always restore shell streams
+            self.shell.stdout = saved_stdout
+            self.shell.stderr = saved_stderr
+            self.shell.stdin = saved_stdin
+    
     def _execute_external(self, args: List[str], background: bool = False) -> int:
         """Execute an external command with output capture."""
         if not self.capture_output or self._in_pipeline:
@@ -120,46 +160,11 @@ class TestableExecutor(ExecutorVisitor):
         if not self.capture_output:
             return super()._execute_builtin(name, args)
         
-        # Temporarily override shell's stdout/stderr to capture builtin output
-        from io import StringIO
+        # Just execute the builtin - the visit_SimpleCommand method
+        # will preserve any StringIO streams set by tests
+        exit_code = super()._execute_builtin(name, args)
         
-        capture_stdout = StringIO()
-        capture_stderr = StringIO()
-        
-        # Save original streams
-        orig_stdout = self.shell.stdout
-        orig_stderr = self.shell.stderr
-        
-        # Override streams
-        self.shell.stdout = capture_stdout
-        self.shell.stderr = capture_stderr
-        
-        try:
-            # Execute builtin
-            exit_code = super()._execute_builtin(name, args)
-            
-            # Capture output
-            stdout_content = capture_stdout.getvalue()
-            stderr_content = capture_stderr.getvalue()
-            
-            if stdout_content:
-                self.captured_stdout.append(stdout_content)
-                # Write to original stdout
-                orig_stdout.write(stdout_content)
-                orig_stdout.flush()
-            
-            if stderr_content:
-                self.captured_stderr.append(stderr_content)
-                # Write to original stderr
-                orig_stderr.write(stderr_content)
-                orig_stderr.flush()
-            
-            return exit_code
-            
-        finally:
-            # Restore original streams
-            self.shell.stdout = orig_stdout
-            self.shell.stderr = orig_stderr
+        return exit_code
     
     def get_captured_output(self) -> Dict[str, str]:
         """
