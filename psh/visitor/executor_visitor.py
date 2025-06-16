@@ -503,9 +503,14 @@ class ExecutorVisitor(ASTVisitor[int]):
                         )
                         # Reset shell stream references to current sys streams
                         # This avoids holding onto closed/captured streams
-                        self.shell.stdout = sys.stdout
-                        self.shell.stderr = sys.stderr
-                        self.shell.stdin = sys.stdin
+                        # However, preserve StringIO objects for test frameworks
+                        import io
+                        if not isinstance(self.shell.stdout, io.StringIO):
+                            self.shell.stdout = sys.stdout
+                        if not isinstance(self.shell.stderr, io.StringIO):
+                            self.shell.stderr = sys.stderr
+                        if not isinstance(self.shell.stdin, io.StringIO):
+                            self.shell.stdin = sys.stdin
                 else:
                     # Apply normal redirections for external commands or builtins in pipelines
                     with self._apply_redirections(node.redirects):

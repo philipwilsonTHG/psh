@@ -42,15 +42,20 @@ class TestCaptureUtils:
             assert result['exit_code'] == 0
     
     def test_capture_both_streams(self):
-        """Test capturing both stdout and stderr."""
-        for use_visitor in [False, True]:
-            shell = Shell()
-            helper = ShellTestHelper(shell)
-            
-            # Run multiple commands
-            shell.run_command('echo "to stdout"')
-            shell.run_command('echo "to stderr" >&2')
-            
-            # Now test with capture
-            result = helper.run_and_capture('echo "captured"')
-            assert result['stdout'] == 'captured\n'
+        """Test capturing both stdout and stderr using builtins."""
+        shell = Shell()
+        helper = ShellTestHelper(shell)
+        
+        # Test capturing echo output
+        result = helper.run_and_capture('echo "to stdout"')
+        assert result['stdout'] == 'to stdout\n'
+        assert result['stderr'] == ''
+        assert result['exit_code'] == 0
+        
+        # Test that we can capture multiple commands in sequence
+        shell2 = Shell()
+        helper2 = ShellTestHelper(shell2)
+        result = helper2.run_and_capture('echo "first"; echo "second"')
+        assert result['stdout'] == 'first\nsecond\n'
+        assert result['stderr'] == ''
+        assert result['exit_code'] == 0

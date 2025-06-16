@@ -204,20 +204,28 @@ class IOManager:
     
     def restore_builtin_redirections(self, stdin_backup, stdout_backup, stderr_backup, stdin_fd_backup=None):
         """Restore original stdin/stdout/stderr after built-in execution"""
+        import io
+        
         # Restore in reverse order
         if stderr_backup is not None:
             if hasattr(sys.stderr, 'close') and sys.stderr != stderr_backup:
-                sys.stderr.close()
+                # Don't close StringIO objects as they might be reused
+                if not isinstance(sys.stderr, io.StringIO):
+                    sys.stderr.close()
             sys.stderr = stderr_backup
         
         if stdout_backup is not None:
             if hasattr(sys.stdout, 'close') and sys.stdout != stdout_backup:
-                sys.stdout.close()
+                # Don't close StringIO objects as they might be reused
+                if not isinstance(sys.stdout, io.StringIO):
+                    sys.stdout.close()
             sys.stdout = stdout_backup
             
         if stdin_backup is not None:
             if hasattr(sys.stdin, 'close') and sys.stdin != stdin_backup:
-                sys.stdin.close()
+                # Don't close StringIO objects as they might be reused
+                if not isinstance(sys.stdin, io.StringIO):
+                    sys.stdin.close()
             sys.stdin = stdin_backup
             
         # Restore stdin file descriptor if it was saved
