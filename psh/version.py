@@ -42,7 +42,6 @@ VERSION_HISTORY = """
     - 16 tests for command builtin
     - All tests passing with high coverage
 
-"""
 0.56.0 (2025-06-16) - Kill Builtin and CD Dash Implementation
   - Implemented POSIX-compliant kill builtin for process management
     - Full POSIX syntax support: kill [-s signal | -signal] pid... | kill -l [exit_status]

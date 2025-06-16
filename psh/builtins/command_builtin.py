@@ -2,6 +2,7 @@
 
 import os
 import sys
+import signal
 from typing import List, TYPE_CHECKING
 from .base import Builtin
 from .registry import builtin
@@ -139,6 +140,15 @@ class CommandBuiltin(Builtin):
             if pid == 0:
                 # Child process
                 try:
+                    # Create new process group
+                    os.setpgid(0, 0)
+                    
+                    # Reset signal handlers to default
+                    signal.signal(signal.SIGINT, signal.SIG_DFL)
+                    signal.signal(signal.SIGTSTP, signal.SIG_DFL)
+                    signal.signal(signal.SIGTTOU, signal.SIG_DFL)
+                    signal.signal(signal.SIGTTIN, signal.SIG_DFL)
+                    
                     # Execute the command
                     os.execv(executable, args)
                 except OSError as e:

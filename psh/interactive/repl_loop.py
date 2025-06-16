@@ -70,6 +70,14 @@ class REPLLoop(InteractiveComponent):
                 # Ctrl-D pressed
                 print()
                 break
+            except OSError as e:
+                # Handle I/O errors specially
+                if e.errno == 5:  # EIO - Input/output error
+                    print(f"psh: fatal: {e}", file=sys.stderr)
+                    break  # Exit the loop instead of continuing
+                else:
+                    print(f"psh: {e}", file=sys.stderr)
+                    self.state.last_exit_code = 1
             except Exception as e:
                 print(f"psh: {e}", file=sys.stderr)
                 self.state.last_exit_code = 1

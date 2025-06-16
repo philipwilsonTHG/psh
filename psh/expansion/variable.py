@@ -470,6 +470,9 @@ class VariableExpander:
         elif var_name == '#':
             return str(len(self.state.positional_params))
         elif var_name == '0':
+            # If in a function, return function name; otherwise script name
+            if self.state.function_stack:
+                return self.state.function_stack[-1]
             return self.state.script_name  # Shell or script name
         elif var_name == '@':
             # When in a string context (like echo "$@"), don't add quotes
