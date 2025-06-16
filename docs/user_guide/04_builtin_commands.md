@@ -1795,6 +1795,268 @@ The `eval` command returns the exit status of the last command executed:
 - Returns 127 if the command is not found
 - Returns appropriate exit codes for syntax errors
 
+## 4.11 Positional Parameter Management
+
+PSH provides built-ins for managing positional parameters ($1, $2, etc.) and parsing command-line options.
+
+### shift - Shift Positional Parameters
+
+The `shift` command removes positional parameters from the beginning of the list:
+
+```bash
+# Basic usage - shift by 1
+psh$ set -- arg1 arg2 arg3 arg4
+psh$ echo "Args: $@"
+Args: arg1 arg2 arg3 arg4
+psh$ shift
+psh$ echo "Args: $@"
+Args: arg2 arg3 arg4
+
+# Shift by specific amount
+psh$ set -- one two three four five
+psh$ shift 2
+psh$ echo "Args: $@"
+Args: three four five
+
+# Shift all parameters
+psh$ set -- a b c
+psh$ shift 3
+psh$ echo "Args: $@"
+Args:
+
+# Error cases
+psh$ set -- x y
+psh$ shift 5  # More than available
+psh$ echo $?
+1
+
+psh$ shift -1  # Negative not allowed
+shift: shift count must be non-negative
+```
+
+#### Practical Shift Examples
+
+**Processing Script Arguments:**
+```bash
+#!/usr/bin/env psh
+# Process options until we find non-option arguments
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -v|--verbose)
+            verbose=1
+            shift
+            ;;
+        -f|--file)
+            file="$2"
+            shift 2
+            ;;
+        --)
+            shift
+            break
+            ;;
+        -*)
+            echo "Unknown option: $1" >&2
+            exit 1
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+
+# Remaining arguments are in $@
+echo "Remaining args: $@"
+```
+
+**Function with Variable Arguments:**
+```bash
+# Function that processes pairs of arguments
+process_pairs() {
+    while [ $# -ge 2 ]; do
+        echo "Pair: $1 = $2"
+        shift 2
+    done
+    
+    if [ $# -eq 1 ]; then
+        echo "Odd argument: $1"
+    fi
+}
+
+process_pairs key1 value1 key2 value2 key3
+```
+
+### getopts - Parse Option Arguments
+
+The `getopts` builtin provides POSIX-compliant option parsing:
+
+```bash
+# Basic option parsing
+while getopts "hvo:" opt; do
+    case $opt in
+        h)
+            echo "Usage: $0 [-h] [-v] [-o output]"
+            exit 0
+            ;;
+        v)
+            verbose=1
+            ;;
+        o)
+            output="$OPTARG"
+            ;;
+        \?)
+            echo "Invalid option: -$OPTARG" >&2
+            exit 1
+            ;;
+    esac
+done
+
+# Shift past the options
+shift $((OPTIND - 1))
+echo "Remaining args: $@"
+```
+
+#### getopts Features
+
+**Option Arguments:**
+```bash
+# Options with required arguments (followed by :)
+while getopts "f:d:v" opt; do
+    case $opt in
+        f)  file="$OPTARG" ;;
+        d)  dir="$OPTARG" ;;
+        v)  verbose=1 ;;
+    esac
+done
+```
+
+**Silent Error Reporting:**
+```bash
+# Leading : enables silent mode
+while getopts ":f:v" opt; do
+    case $opt in
+        f)  file="$OPTARG" ;;
+        v)  verbose=1 ;;
+        :)  # Missing argument
+            echo "Option -$OPTARG requires an argument" >&2
+            exit 1
+            ;;
+        \?) # Invalid option
+            echo "Invalid option: -$OPTARG" >&2
+            exit 1
+            ;;
+    esac
+done
+```
+
+**Clustered Options:**
+```bash
+# Handles: script -vfa file.txt
+# Same as: script -v -f -a file.txt
+while getopts "vf:a" opt; do
+    case $opt in
+        v)  verbose=1 ;;
+        f)  file="$OPTARG" ;;
+        a)  all=1 ;;
+    esac
+done
+```
+
+#### getopts Variables
+
+- **OPTIND**: Index of next argument to process (starts at 1)
+- **OPTARG**: Argument value for options requiring arguments
+- **OPTERR**: Controls error message printing (1=enabled, 0=disabled)
+
+```bash
+# Reset option parsing
+OPTIND=1
+
+# Disable error messages
+OPTERR=0
+
+# Parse custom argument list
+set -- -f file.txt -v
+while getopts "f:v" opt; do
+    echo "Option: $opt, OPTARG: $OPTARG, OPTIND: $OPTIND"
+done
+```
+
+### command - Bypass Functions and Aliases
+
+The `command` builtin executes commands while bypassing shell functions and aliases:
+
+```bash
+# Basic usage - bypass alias/function
+psh$ alias ls='ls --color=auto'
+psh$ ls           # Uses alias
+psh$ command ls   # Bypasses alias
+
+# Create function that shadows external command
+psh$ grep() { echo "Function grep called"; }
+psh$ grep test    # Calls function
+Function grep called
+psh$ command grep test file.txt  # Calls external grep
+
+# Check if command exists
+psh$ command -v ls
+/bin/ls
+psh$ command -v nonexistent
+psh$ echo $?
+1
+
+# Verbose command information
+psh$ command -V echo
+echo is a shell builtin
+psh$ command -V ls
+ls is /bin/ls
+
+# Use default PATH
+psh$ PATH=/fake/path command -p ls  # Still finds ls
+```
+
+#### Practical command Examples
+
+**Safe Command Execution:**
+```bash
+# Ensure we call external commands, not functions
+backup_files() {
+    # Always use external tar, not potential function
+    command tar -czf backup.tar.gz "$@"
+}
+
+# Check command availability
+if command -v git >/dev/null 2>&1; then
+    echo "Git is installed"
+else
+    echo "Git is not installed"
+fi
+```
+
+**Wrapper Functions:**
+```bash
+# Create wrapper that adds functionality
+ls() {
+    # Add header
+    echo "=== Directory: $PWD ==="
+    # Call real ls
+    command ls "$@"
+    # Add footer
+    echo "=== Total: $(command ls -1 "$@" 2>/dev/null | wc -l) items ==="
+}
+```
+
+**Portable Scripts:**
+```bash
+#!/usr/bin/env psh
+# Use command -p for portable scripts
+
+# Find files using POSIX utilities
+command -p find . -type f -name "*.txt" |
+command -p sort |
+command -p head -10
+```
+
 ## Practical Examples
 
 ### System Administration Script

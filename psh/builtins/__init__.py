@@ -18,6 +18,8 @@ from . import read_builtin
 from . import eval_command
 from . import help_command
 from . import kill_command
+from . import positional
+from . import command_builtin
 
 # Re-export for convenience
 __all__ = ['registry', 'builtin', 'Builtin']

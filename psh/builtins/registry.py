@@ -42,6 +42,14 @@ class BuiltinRegistry:
     def instances(self) -> List[Builtin]:
         """Get all unique builtin instances."""
         return list(self._instances)
+    
+    def __contains__(self, item: str) -> bool:
+        """Support 'in' operator."""
+        return self.has(item)
+    
+    def __getitem__(self, key: str) -> Optional[Builtin]:
+        """Support dict-like access."""
+        return self.get(key)
 
 
 # Global registry instance

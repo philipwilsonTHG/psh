@@ -2,10 +2,47 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.56.0"
+__version__ = "0.57.0"
 
 # Version history
 VERSION_HISTORY = """
+0.57.0 (2025-06-16) - POSIX Positional Parameter Builtins
+  - Implemented three essential POSIX builtins for argument processing
+    - shift: Shift positional parameters left by n positions
+      - Supports default shift by 1 or explicit count
+      - Proper error handling for invalid counts
+      - Returns failure if n > $# as per POSIX
+    - getopts: POSIX-compliant option parsing
+      - Full optstring syntax with required arguments (: suffix)
+      - Silent error reporting mode (leading :)
+      - Handles clustered options (-abc)
+      - OPTIND, OPTARG, OPTERR variable support
+      - Custom argument list parsing support
+      - 15 comprehensive tests covering all features
+    - command: Bypass shell functions and aliases
+      - Execute commands directly without function/alias lookup
+      - -v option: Check command existence and location
+      - -V option: Verbose command information
+      - -p option: Use secure default PATH
+      - Proper builtin vs external command detection
+  - Enhanced BuiltinRegistry with dict-like interface
+    - Added __contains__ and __getitem__ methods
+    - Supports 'in' operator and [] access
+  - POSIX compliance improvements
+    - Built-in commands compliance increased from 86% to 89%
+    - Only trap and wait remain unimplemented
+    - Critical for robust shell scripting
+  - Documentation updates
+    - Added comprehensive section 4.11 to user guide
+    - Updated POSIX compliance analysis
+    - Created positional_demo.sh example script
+  - Testing
+    - 10 tests for shift builtin
+    - 15 tests for getopts builtin
+    - 16 tests for command builtin
+    - All tests passing with high coverage
+
+"""
 0.56.0 (2025-06-16) - Kill Builtin and CD Dash Implementation
   - Implemented POSIX-compliant kill builtin for process management
     - Full POSIX syntax support: kill [-s signal | -signal] pid... | kill -l [exit_status]

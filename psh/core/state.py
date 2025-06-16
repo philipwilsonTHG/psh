@@ -90,6 +90,10 @@ class ShellState:
         
         # PS4 prompt for xtrace
         self.scope_manager.set_variable('PS4', '+ ')
+        
+        # Initialize getopts variables
+        self.scope_manager.set_variable('OPTIND', '1')
+        self.scope_manager.set_variable('OPTERR', '1')
     
     @property
     def stdout(self):

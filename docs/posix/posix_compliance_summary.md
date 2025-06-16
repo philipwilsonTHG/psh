@@ -21,7 +21,7 @@ Based on comprehensive analysis and automated testing (updated for v0.55.0):
 | **Basic Commands** | 100% | 100% | Simple commands, pipelines, lists |
 | **Parameter Expansion** | 85% | 71% | Some edge cases with `:=` and `:+` |
 | **Special Parameters** | 95% | 100% | All POSIX special parameters work |
-| **Built-in Commands** | 86% | 93% | Missing key built-ins (trap, shift), exec, help, and kill now implemented |
+| **Built-in Commands** | 89% | 95% | Missing trap and wait, shift/getopts/command now implemented |
 | **I/O Redirection** | 90% | 80% | Minor issues with stderr and heredocs |
 | **Quoting** | 100% | 100% | Perfect POSIX compliance |
 | **Word Expansion** | 90% | 75% | Field splitting edge case |
@@ -59,13 +59,15 @@ From automated testing, the following POSIX features have issues:
 
 ### Missing Built-ins (High Priority) ❌
 1. **`trap`** - Signal handling (critical for robust scripts)
-2. **`shift`** - Positional parameter manipulation
-3. **`wait`** - Process synchronization
-4. **`getopts`** - Standard option parsing
+2. **`wait`** - Process synchronization
 
-### Recently Implemented ✅ (v0.55.0)
+### Recently Implemented ✅
 1. **`exec`** - POSIX-compliant process replacement and FD manipulation (v0.54.0)
 2. **`help`** - Bash-compatible self-documentation system (v0.55.0)
+3. **`kill`** - Send signals to processes with job control support (v0.56.0)
+4. **`shift`** - Positional parameter manipulation (v0.57.0)
+5. **`getopts`** - Standard option parsing (v0.57.0)
+6. **`command`** - Bypass functions and aliases (v0.57.0)
 
 ### Parser/Execution Issues 🐛
 1. Subshell exit status propagation
@@ -76,21 +78,21 @@ From automated testing, the following POSIX features have issues:
 
 ## Recommendations
 
-### Immediate Priorities (for 90%+ compliance)
+### Immediate Priorities (for 92%+ compliance)
 1. **Fix parameter expansion bugs** - These are core POSIX features
 2. **Fix subshell exit status** - Important for script correctness
-3. **Implement `shift`** - Essential for argument processing
+3. **Implement `trap`** - Critical for signal handling
 4. **Fix stderr redirection** - Basic I/O functionality
 
 ### Medium-term Goals (for 95%+ compliance)
-1. **Implement `trap`** - Critical for production scripts
+1. **Implement `wait`** - Process coordination  
 2. **Fix here document parsing** - Common script pattern
-3. **Implement `wait`** - Process coordination
-4. **Implement `shift`** - Essential for argument processing
+3. **Fix field splitting with IFS** - Core shell feature
+4. **Complete signal handling infrastructure**
 
 ### Long-term Enhancements
 1. **Add POSIX mode** (`set -o posix`) to disable extensions
-2. **Implement remaining built-ins** (`getopts`, `command`, `hash`)
+2. **Implement remaining built-ins** (`hash`, `newgrp`, `ulimit`)
 3. **Complete signal handling infrastructure**
 4. **Add POSIX compliance warnings**
 
