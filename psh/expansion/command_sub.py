@@ -46,11 +46,13 @@ class CommandSubstitution:
                 os.dup2(write_fd, 1)
                 os.close(write_fd)
                 
-                # Ensure stdin remains valid - redirect from /dev/null
-                # This prevents commands from accidentally consuming terminal input
-                null_fd = os.open('/dev/null', os.O_RDONLY)
-                os.dup2(null_fd, 0)
-                os.close(null_fd)
+                # Protect stdin only in interactive mode to prevent terminal corruption
+                # In non-interactive mode (scripts, pipelines), preserve stdin
+                if not self.state.is_script_mode and os.isatty(0):
+                    # Interactive mode: redirect from /dev/null to prevent terminal input consumption
+                    null_fd = os.open('/dev/null', os.O_RDONLY)
+                    os.dup2(null_fd, 0)
+                    os.close(null_fd)
                 
                 # Create a temporary shell to execute the command
                 temp_shell = Shell(

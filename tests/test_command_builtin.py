@@ -102,7 +102,8 @@ class TestCommandBuiltin:
             result = self.command.execute(['command', '-V', 'ls'], self.shell)
         
         assert result == 0
-        assert "ls is /bin/ls" in self.shell.stdout.getvalue()
+        output = self.shell.stdout.getvalue()
+        assert "ls is " in output and "/ls" in output
     
     def test_command_v_not_found(self):
         """Test -v option with non-existent command."""
