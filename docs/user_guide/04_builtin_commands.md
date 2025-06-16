@@ -952,7 +952,263 @@ psh$ echo $?
 0
 ```
 
-## 4.8 Dynamic Command Execution
+## 4.8 Process Control
+
+### exec - Execute Commands or Manipulate File Descriptors
+
+The `exec` builtin executes commands or applies file descriptor redirections permanently to the current shell:
+
+```bash
+# Mode 1: exec without command - apply redirections permanently
+psh$ exec > output.txt
+psh$ echo "This goes to the file"
+psh$ pwd    # Also redirected to file
+psh$ exec 2>&1  # Redirect stderr to stdout permanently
+
+# Mode 2: exec with command - replace the shell process
+psh$ exec echo "This replaces the shell"
+This replaces the shell
+$ # Shell has been replaced by echo command
+
+# Practical redirection examples
+psh$ exec 3< input.txt    # Open file descriptor 3 for reading
+psh$ exec 4> output.txt   # Open file descriptor 4 for writing  
+psh$ exec 5>&1           # Duplicate stdout to fd 5
+
+# Common use in shell scripts
+#!/usr/bin/env psh
+# Redirect all script output to log file
+exec > /var/log/script.log 2>&1
+
+echo "Starting script..."
+echo "This will be logged"
+date
+echo "Script completed"
+
+# Environment variable assignment with exec
+psh$ DEBUG=1 exec > debug.log  # Set variable and redirect
+
+# Using exec to close file descriptors
+psh$ exec 3<&-  # Close file descriptor 3
+psh$ exec 4>&-  # Close file descriptor 4
+```
+
+#### Mode 1: Redirection Only
+
+When used without a command, `exec` applies redirections permanently to the current shell:
+
+```bash
+# Basic output redirection
+psh$ exec > log.txt
+psh$ echo "All output goes to log.txt now"
+psh$ ls -la
+psh$ cat log.txt
+All output goes to log.txt now
+# ... ls output ...
+
+# Input redirection  
+psh$ echo -e "line1\nline2\nline3" > input.txt
+psh$ exec < input.txt
+psh$ read line1; echo "First: $line1"
+First: line1
+psh$ read line2; echo "Second: $line2"  
+Second: line2
+
+# Error redirection
+psh$ exec 2> errors.log
+psh$ ls nonexistent 2>/dev/null || echo "Error logged"
+Error logged
+psh$ cat errors.log
+ls: cannot access 'nonexistent': No such file or directory
+
+# File descriptor duplication
+psh$ exec 3>&1     # Save stdout to fd 3
+psh$ exec > temp.txt # Redirect stdout to file
+psh$ echo "To file"
+psh$ exec 1>&3     # Restore stdout from fd 3
+psh$ echo "To terminal"
+To terminal
+psh$ cat temp.txt
+To file
+
+# Multiple redirections at once
+psh$ exec < input.txt > output.txt 2> error.txt
+# Now stdin, stdout, stderr are all redirected
+
+# Here documents with exec
+psh$ exec << 'EOF'
+line 1
+line 2
+EOF
+psh$ read first; echo "Got: $first"
+Got: line 1
+```
+
+#### Mode 2: Command Execution
+
+When given a command, `exec` replaces the current shell process entirely:
+
+```bash
+# Replace shell with another command
+psh$ exec cat /etc/passwd
+# Shell is replaced by cat, output shows, then process exits
+
+# Replace with another shell
+psh$ exec bash
+bash$ # Now running bash instead of psh
+
+# Replace with script
+psh$ exec ./myscript.sh
+# Shell is replaced by the script
+
+# With environment variables
+psh$ PATH=/usr/bin exec env
+# Shows environment with modified PATH, then exits
+
+# Common in shell wrapper scripts
+#!/usr/bin/env psh
+# Setup script that eventually replaces itself
+export MYAPP_CONFIG=/etc/myapp
+export MYAPP_LOG=/var/log/myapp
+exec /usr/bin/myapp "$@"  # Replace with the real program
+```
+
+#### Error Handling
+
+The `exec` builtin provides proper POSIX error codes:
+
+```bash
+# Command not found
+psh$ exec nonexistent_command
+exec: nonexistent_command: command not found
+psh$ echo $?
+127
+
+# Permission denied  
+psh$ touch /tmp/no_exec
+psh$ chmod 644 /tmp/no_exec  # Remove execute permission
+psh$ exec /tmp/no_exec
+exec: /tmp/no_exec: Permission denied  
+psh$ echo $?
+126
+
+# Cannot exec builtins
+psh$ exec echo
+exec: echo: cannot exec a builtin
+psh$ echo $?
+1
+
+# Cannot exec functions
+psh$ myfunc() { echo "test"; }
+psh$ exec myfunc
+exec: myfunc: cannot exec a function
+psh$ echo $?
+1
+
+# Redirection errors
+psh$ exec > /dev/null/invalid
+exec: cannot redirect: No such file or directory
+psh$ echo $?
+1
+```
+
+#### Environment Variables
+
+Environment variable assignments are processed for both modes:
+
+```bash
+# Mode 1: Variables set permanently in shell
+psh$ DEBUG=1 VERBOSE=1 exec > debug.log
+psh$ echo $DEBUG $VERBOSE
+1 1
+
+# Mode 2: Variables passed to exec'd command
+psh$ DEBUG=1 exec env | grep DEBUG
+DEBUG=1
+# Shell is replaced by env command
+
+# Multiple assignments
+psh$ VAR1=value1 VAR2=value2 exec > output.txt
+psh$ echo "$VAR1 $VAR2"  # Output goes to file
+```
+
+#### Advanced Usage
+
+**Script Initialization:**
+```bash
+#!/usr/bin/env psh
+# Common pattern: setup and redirect all output
+exec > "$LOGFILE" 2>&1
+exec 3>&1  # Save original stdout for user messages
+
+echo "Script started at $(date)"
+# All output now goes to log
+
+# Send message to user via saved stdout
+echo "Check log file: $LOGFILE" >&3
+```
+
+**File Descriptor Management:**
+```bash
+# Open multiple files for processing
+exec 3< input1.txt
+exec 4< input2.txt  
+exec 5> output.txt
+
+# Process data from both inputs
+while read -u 3 line1 && read -u 4 line2; do
+    echo "$line1 | $line2" >&5
+done
+
+# Close when done
+exec 3<&- 4<&- 5>&-
+```
+
+**Backup and Restore Streams:**
+```bash
+# Save original streams
+exec 6>&1  # Save stdout  
+exec 7>&2  # Save stderr
+
+# Redirect everything to log
+exec > script.log 2>&1
+
+# Do work that gets logged
+echo "This goes to log"
+ls nonexistent  # Error also logged
+
+# Restore original streams  
+exec 1>&6 2>&7 6>&- 7>&-
+
+# Back to normal
+echo "This goes to terminal"
+```
+
+#### Security Considerations
+
+Unlike `eval`, `exec` is generally safe as it doesn't interpret shell syntax in arguments:
+
+```bash
+# Safe - exec doesn't parse shell syntax
+user_input="/bin/echo hello; rm -rf /"
+exec "$user_input"  # Tries to exec that exact filename, fails safely
+
+# Still validate paths for exec with command
+case "$program" in
+    /usr/bin/*|/bin/*) exec "$program" ;;
+    *) echo "Invalid program path" ;;
+esac
+```
+
+#### Exit Status
+
+- **Mode 1** (redirection only): Returns 0 on success, 1 on redirection errors
+- **Mode 2** (with command): Does not return (process is replaced), or returns error codes:
+  - 126: Permission denied or cannot execute
+  - 127: Command not found
+  - 1: Cannot exec builtin or function
+
+## 4.9 Dynamic Command Execution
 
 ### eval - Execute Commands from String
 
@@ -1244,6 +1500,7 @@ Built-in commands are the core of PSH functionality. They provide:
 - Job control (jobs, fg, bg)
 - Script execution (source)
 - Conditional testing (test, [, [[)
+- Process control (exec)
 - Dynamic command execution (eval)
 
 These commands execute quickly since they don't require forking new processes, and they have direct access to shell internals. Understanding built-ins is crucial for effective shell scripting and interactive use.

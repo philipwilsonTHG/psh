@@ -121,6 +121,122 @@ class FileRedirector:
             del self.shell._saved_stderr
             del self.shell._saved_stdin
     
+    def apply_permanent_redirections(self, redirects: List[Redirect]):
+        """Apply redirections permanently (for exec builtin)."""
+        import sys
+        
+        for redirect in redirects:
+            # Expand tilde in target for file redirections
+            target = redirect.target
+            if target and redirect.type in ('<', '>', '>>') and target.startswith('~'):
+                target = self.shell.expansion_manager.expand_tilde(target)
+            
+            # Handle process substitution as redirect target  
+            if target and target.startswith(('<(', '>(')) and target.endswith(')'):
+                target = self._handle_process_sub_redirect(target, redirect)
+            
+            if redirect.type == '<':
+                # Input redirection - redirect stdin permanently
+                fd = os.open(target, os.O_RDONLY)
+                os.dup2(fd, 0)
+                os.close(fd)
+                # Update shell stdin
+                self.shell.stdin = sys.stdin
+                self.state.stdin = sys.stdin
+                
+            elif redirect.type in ('<<', '<<-'):
+                # Here document - redirect stdin permanently
+                r, w = os.pipe()
+                os.write(w, (redirect.heredoc_content or '').encode())
+                os.close(w)
+                os.dup2(r, 0)
+                os.close(r)
+                # Update shell stdin
+                self.shell.stdin = sys.stdin
+                self.state.stdin = sys.stdin
+                
+            elif redirect.type == '<<<':
+                # Here string - redirect stdin permanently
+                r, w = os.pipe()
+                # Expand variables unless single quoted
+                if hasattr(redirect, 'quote_type') and redirect.quote_type == "'":
+                    expanded_content = redirect.target
+                else:
+                    expanded_content = self.shell.expansion_manager.expand_string_variables(redirect.target)
+                content = expanded_content + '\n'
+                os.write(w, content.encode())
+                os.close(w)
+                os.dup2(r, 0)
+                os.close(r)
+                # Update shell stdin
+                self.shell.stdin = sys.stdin
+                self.state.stdin = sys.stdin
+                
+            elif redirect.type == '>':
+                # Output redirection (truncate) - redirect permanently
+                target_fd = redirect.fd if redirect.fd is not None else 1
+                fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)
+                os.dup2(fd, target_fd)
+                os.close(fd)
+                # Update shell streams to use new file descriptor
+                if target_fd == 1:
+                    # Update sys.stdout to use the new file descriptor
+                    import sys
+                    sys.stdout = open(target, 'w')
+                    self.shell.stdout = sys.stdout
+                    self.state.stdout = sys.stdout
+                elif target_fd == 2:
+                    # Update sys.stderr to use the new file descriptor
+                    import sys
+                    sys.stderr = open(target, 'w')
+                    self.shell.stderr = sys.stderr
+                    self.state.stderr = sys.stderr
+                
+            elif redirect.type == '>>':
+                # Output redirection (append) - redirect permanently
+                target_fd = redirect.fd if redirect.fd is not None else 1
+                fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o644)
+                os.dup2(fd, target_fd)
+                os.close(fd)
+                # Update shell streams to use new file descriptor
+                if target_fd == 1:
+                    # Update sys.stdout to use the new file descriptor
+                    import sys
+                    sys.stdout = open(target, 'a')
+                    self.shell.stdout = sys.stdout
+                    self.state.stdout = sys.stdout
+                elif target_fd == 2:
+                    # Update sys.stderr to use the new file descriptor
+                    import sys
+                    sys.stderr = open(target, 'a')
+                    self.shell.stderr = sys.stderr
+                    self.state.stderr = sys.stderr
+                
+            elif redirect.type == '>&':
+                # FD duplication (e.g., 2>&1) - duplicate permanently
+                if redirect.fd is not None and redirect.dup_fd is not None:
+                    os.dup2(redirect.dup_fd, redirect.fd)
+                    # Update shell streams to use new file descriptor
+                    if redirect.fd == 1:
+                        # Create new file object using the redirected fd
+                        self.shell.stdout = os.fdopen(1, 'w')
+                        self.state.stdout = self.shell.stdout
+                    elif redirect.fd == 2:
+                        # Create new file object using the redirected fd
+                        self.shell.stderr = os.fdopen(2, 'w')
+                        self.state.stderr = self.shell.stderr
+            
+            elif redirect.type == '<&':
+                # FD duplication for input
+                if redirect.fd is not None and redirect.dup_fd is not None:
+                    os.dup2(redirect.dup_fd, redirect.fd)
+                elif redirect.fd is not None and redirect.target == '-':
+                    # Close the file descriptor
+                    try:
+                        os.close(redirect.fd)
+                    except OSError:
+                        pass  # Already closed
+    
     def _handle_process_sub_redirect(self, target: str, redirect: Redirect) -> str:
         """
         Handle process substitution used as a redirect target.

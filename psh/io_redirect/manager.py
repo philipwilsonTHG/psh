@@ -48,6 +48,10 @@ class IOManager:
         """Restore file descriptors from saved list."""
         self.file_redirector.restore_redirections(saved_fds)
     
+    def apply_permanent_redirections(self, redirects: List[Redirect]):
+        """Apply redirections permanently (for exec builtin)."""
+        return self.file_redirector.apply_permanent_redirections(redirects)
+    
     def setup_builtin_redirections(self, command: Command) -> Tuple:
         """Set up redirections for built-in commands. Returns tuple of backup objects."""
         import io

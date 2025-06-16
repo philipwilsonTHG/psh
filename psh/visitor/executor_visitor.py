@@ -462,6 +462,10 @@ class ExecutorVisitor(ASTVisitor[int]):
                 # Remove assignments from args
                 command_args = expanded_args[len(assignments):]
                 
+                # Special handling for exec builtin
+                if command_args and command_args[0] == 'exec':
+                    return self._handle_exec_builtin(node, command_args, assignments)
+                
                 # Check if this is a builtin that needs special redirection handling
                 if command_args and self.builtin_registry.has(command_args[0]) and not self._in_pipeline:
                     # DEBUG: Log builtin redirection setup
@@ -1383,6 +1387,131 @@ class ExecutorVisitor(ASTVisitor[int]):
         # Set element
         array.set(index, expanded_value)
         return 0
+    
+    # Exec builtin implementation
+    
+    def _handle_exec_builtin(self, node: SimpleCommand, command_args: List[str], assignments: List[tuple]) -> int:
+        """Handle exec builtin with access to redirections."""
+        exec_args = command_args[1:]  # Remove 'exec' itself
+        
+        # Handle xtrace option
+        if self.state.options.get('xtrace'):
+            ps4 = self.state.get_variable('PS4', '+ ')
+            trace_line = ps4 + ' '.join(command_args) + '\n'
+            self.state.stderr.write(trace_line)
+            self.state.stderr.flush()
+        
+        # Apply environment variable assignments permanently for exec
+        for var, value in assignments:
+            expanded_value = self._expand_assignment_value(value)
+            self.state.set_variable(var, expanded_value)
+            # Also set in environment for exec
+            os.environ[var] = expanded_value
+        
+        try:
+            if exec_args:
+                # Mode 1: exec with command - replace the shell process
+                return self._exec_with_command(node, exec_args)
+            else:
+                # Mode 2: exec without command - apply redirections permanently
+                return self._exec_without_command(node)
+                
+        except OSError as e:
+            if e.errno == 2:  # No such file or directory
+                print(f"exec: {exec_args[0]}: command not found", file=sys.stderr)
+                return 127
+            elif e.errno == 13:  # Permission denied  
+                print(f"exec: {exec_args[0]}: Permission denied", file=sys.stderr)
+                return 126
+            else:
+                print(f"exec: {exec_args[0]}: {e}", file=sys.stderr)
+                return 126
+        except Exception as e:
+            print(f"exec: {e}", file=sys.stderr)
+            return 1
+    
+    def _exec_with_command(self, node: SimpleCommand, args: List[str]) -> int:
+        """Handle exec with command - replace the shell process."""
+        cmd_name = args[0]
+        cmd_args = args
+        
+        # Apply redirections before exec
+        if node.redirects:
+            try:
+                # Apply redirections permanently (don't restore them)
+                self.io_manager.apply_permanent_redirections(node.redirects)
+            except Exception as e:
+                print(f"exec: {e}", file=sys.stderr)
+                return 1
+        
+        # Check if command is a builtin first
+        if self.builtin_registry.has(cmd_name):
+            print(f"exec: {cmd_name}: cannot exec a builtin", file=sys.stderr)
+            return 1
+        
+        # Check if command is a function
+        if self.function_manager.get_function(cmd_name):
+            print(f"exec: {cmd_name}: cannot exec a function", file=sys.stderr) 
+            return 1
+        
+        # Find the command in PATH
+        command_path = self._find_command_in_path(cmd_name)
+        if not command_path:
+            print(f"exec: {cmd_name}: command not found", file=sys.stderr)
+            return 127
+        
+        # Check if command is executable
+        if not os.access(command_path, os.X_OK):
+            print(f"exec: {cmd_name}: Permission denied", file=sys.stderr)
+            return 126
+        
+        # Reset signal handlers to default
+        import signal
+        signal.signal(signal.SIGINT, signal.SIG_DFL)
+        signal.signal(signal.SIGQUIT, signal.SIG_DFL)
+        signal.signal(signal.SIGTSTP, signal.SIG_DFL)
+        signal.signal(signal.SIGCHLD, signal.SIG_DFL)
+        
+        # Replace the current process with the command
+        try:
+            os.execv(command_path, cmd_args)
+        except OSError as e:
+            # This should not return, but if it does, there was an error
+            print(f"exec: {cmd_name}: {e}", file=sys.stderr)
+            return 126
+    
+    def _exec_without_command(self, node: SimpleCommand) -> int:
+        """Handle exec without command - apply redirections permanently."""
+        if not node.redirects:
+            # No redirections, just return success
+            return 0
+        
+        try:
+            # Apply redirections permanently (don't restore them)
+            self.io_manager.apply_permanent_redirections(node.redirects)
+            return 0
+        except Exception as e:
+            print(f"exec: {e}", file=sys.stderr)
+            return 1
+    
+    def _find_command_in_path(self, cmd_name: str) -> str:
+        """Find command in PATH, return full path or None."""
+        # If command contains '/', it's a path
+        if '/' in cmd_name:
+            if os.path.isfile(cmd_name):
+                return cmd_name
+            return None
+        
+        # Search in PATH
+        path_env = os.environ.get('PATH', '')
+        for path_dir in path_env.split(':'):
+            if not path_dir:
+                continue
+            full_path = os.path.join(path_dir, cmd_name)
+            if os.path.isfile(full_path):
+                return full_path
+        
+        return None
     
     # Fallback for unimplemented nodes
     

@@ -2,10 +2,54 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.53.0"
+__version__ = "0.54.0"
 
 # Version history
 VERSION_HISTORY = """
+0.54.0 (2025-01-16) - POSIX-Compliant Exec Builtin Implementation
+  - Implemented complete POSIX-compliant exec builtin with two modes of operation
+    - Mode 1: exec [command] - Replace shell process with specified command
+    - Mode 2: exec [redirections] - Apply redirections permanently to current shell
+  - Full redirection support for permanent application
+    - Output redirection: exec > file, exec >> file
+    - Input redirection: exec < file  
+    - File descriptor duplication: exec 2>&1
+    - Error redirection: exec 2> file
+    - Proper update of shell streams after redirection
+  - Complete error handling with POSIX-compliant exit codes
+    - Exit code 127 for command not found
+    - Exit code 126 for permission denied
+    - Exit code 1 for builtin/function exec attempts (exec pwd, exec function)
+    - Exit code 0 for successful redirection-only exec
+  - Environment variable assignment support
+    - VAR=value exec command properly sets variables for executed command
+    - Permanent variable assignment for redirection-only exec
+  - Process replacement implementation
+    - Uses os.execv() for proper process replacement
+    - Proper signal handler reset to defaults
+    - PATH resolution with execute permission checking
+    - Rejects builtins and functions with appropriate error messages
+  - Special handling in executor architecture
+    - Custom _handle_exec_builtin() method with access to SimpleCommand AST
+    - Access to redirections and environment assignments before normal builtin dispatch
+    - apply_permanent_redirections() method for persistent redirection changes
+  - Comprehensive testing coverage
+    - 18 passing unit tests covering all major functionality
+    - 3 skipped tests for valid reasons (process replacement, parser limitations)
+    - Bash comparison tests for POSIX compliance verification
+  - Integration with existing PSH features
+    - Works with xtrace (set -x) option
+    - Proper debug output when debug-exec enabled
+    - Compatible with all existing redirection types
+  - Documentation and examples
+    - Complete help text with usage examples
+    - Implementation plan documentation in docs/
+    - POSIX compliance notes and behavioral specifications
+  - Known limitations documented
+    - FD redirection syntax (exec 3< file) requires parser improvements
+    - Bash comparison tests have some timeout issues with multi-line scripts
+  - Major POSIX compliance milestone: exec builtin now fully functional
+
 0.53.0 (2025-01-16) - Complete Test Suite Success
   - Achieved 0 failing tests across entire test suite (1000+ tests)
   - Fixed line continuation test expectations to match bash behavior

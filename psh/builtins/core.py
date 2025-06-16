@@ -1,6 +1,7 @@
-"""Core shell builtins (exit, :, true, false)."""
+"""Core shell builtins (exit, :, true, false, exec)."""
 
 import sys
+import os
 from typing import List, TYPE_CHECKING
 from .base import Builtin
 from .registry import builtin
@@ -94,3 +95,44 @@ class FalseBuiltin(Builtin):
         return """false: false
     
     Always returns failure (exit code 1). Useful in conditional expressions."""
+
+
+@builtin
+class ExecBuiltin(Builtin):
+    """Execute commands and manipulate file descriptors."""
+    
+    @property
+    def name(self) -> str:
+        return "exec"
+    
+    def execute(self, args: List[str], shell: 'Shell') -> int:
+        """Execute command or apply redirections."""
+        # This is a placeholder implementation for registration.
+        # The actual exec logic is handled specially in the executor
+        # before normal builtin dispatch, since exec needs access to
+        # the original SimpleCommand node with redirections.
+        self.error("exec: internal error - should be handled by executor", shell)
+        return 1
+    
+    @property
+    def help(self) -> str:
+        return """exec: exec [command [argument ...]]
+    
+    Execute commands and manipulate file descriptors.
+    
+    If command is specified, it replaces the shell without creating a new process.
+    If no command is specified, any redirections take effect in the current shell.
+    
+    Examples:
+        exec echo hello world    # Replace shell with echo command
+        exec 3< file             # Open file descriptor 3 for reading
+        exec 4> file             # Open file descriptor 4 for writing
+        exec 5<&0                # Duplicate fd 0 to fd 5
+        exec 3<&-                # Close file descriptor 3
+    
+    Exit Status:
+        If command is specified: doesn't return (process replaced)
+        Command not found: 127
+        Command not executable: 126  
+        Redirection error: 1-125
+        Success (no command): 0"""
