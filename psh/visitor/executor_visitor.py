@@ -1286,38 +1286,52 @@ class ExecutorVisitor(ASTVisitor[int]):
         """Execute array element assignment: arr[i]=value"""
         # Handle index - can be string or list of tokens
         if isinstance(node.index, list):
-            # Convert tokens to string using their values
-            index_str = ''.join(token.value if hasattr(token, 'value') else str(token) 
-                               for token in node.index)
+            # Expand each token if it's a variable
+            expanded_parts = []
+            for token in node.index:
+                if hasattr(token, 'type') and str(token.type) == 'TokenType.VARIABLE':
+                    # This is a variable token, expand it
+                    var_name = token.value
+                    expanded_parts.append(self.state.get_variable(var_name, ''))
+                else:
+                    # Regular token, use its value
+                    expanded_parts.append(token.value if hasattr(token, 'value') else str(token))
+            index_str = ''.join(expanded_parts)
         else:
             index_str = node.index
         
-        # Expand the index
+        # Expand any remaining variables in the index (e.g., ${var})
         expanded_index = self.expansion_manager.expand_string_variables(index_str)
         
-        # Evaluate arithmetic if needed
-        try:
-            if any(op in expanded_index for op in ['+', '-', '*', '/', '%', '(', ')']):
-                from ..arithmetic import evaluate_arithmetic
-                index = evaluate_arithmetic(expanded_index, self.shell)
-            else:
-                index = int(expanded_index)
-        except (ValueError, Exception):
-            print(f"psh: {node.name}[{index_str}]: bad array subscript", file=sys.stderr)
-            return 1
+        # Get the variable to check if it's an associative array
+        from ..core.variables import IndexedArray, AssociativeArray, VarAttributes
+        var_obj = self.state.scope_manager.get_variable_object(node.name)
+        
+        # Determine index type based on array type
+        if var_obj and isinstance(var_obj.value, AssociativeArray):
+            # For associative arrays, index is always a string
+            index = expanded_index
+        else:
+            # For indexed arrays, evaluate arithmetic if needed
+            try:
+                if any(op in expanded_index for op in ['+', '-', '*', '/', '%', '(', ')']):
+                    from ..arithmetic import evaluate_arithmetic
+                    index = evaluate_arithmetic(expanded_index, self.shell)
+                else:
+                    index = int(expanded_index)
+            except (ValueError, Exception):
+                print(f"psh: {node.name}[{index_str}]: bad array subscript", file=sys.stderr)
+                return 1
         
         # Expand value
         expanded_value = self.expansion_manager.expand_string_variables(node.value)
         
         # Get or create array
-        from ..core.variables import IndexedArray
-        var_obj = self.state.scope_manager.get_variable_object(node.name)
-        if var_obj and isinstance(var_obj.value, IndexedArray):
+        if var_obj and (isinstance(var_obj.value, IndexedArray) or isinstance(var_obj.value, AssociativeArray)):
             array = var_obj.value
         else:
-            # Create new array
+            # Create new indexed array by default
             array = IndexedArray()
-            from ..core.variables import VarAttributes
             self.state.scope_manager.set_variable(node.name, array, attributes=VarAttributes.ARRAY)
         
         # Handle append mode
