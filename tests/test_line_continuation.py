@@ -56,13 +56,13 @@ class TestLineContinuationPreprocessing:
     
     def test_quotes_prevent_processing(self):
         """Test that quotes prevent line continuation processing."""
-        # Single quotes
+        # Single quotes prevent processing
         result = process_line_continuations("echo 'hello \\\nworld'")
         assert result == "echo 'hello \\\nworld'"
         
-        # Double quotes
+        # Double quotes allow processing (bash behavior)
         result = process_line_continuations('echo "hello \\\nworld"')
-        assert result == 'echo "hello \\\nworld"'
+        assert result == 'echo "hello world"'
     
     def test_mixed_quotes_and_continuations(self):
         """Test mixed quotes and line continuations."""
@@ -185,9 +185,9 @@ class TestLineContinuationEdgeCases:
     
     def test_complex_quoting_scenarios(self):
         """Test complex quoting scenarios."""
-        # Escaped quote doesn't end quote context
+        # Escaped quote doesn't end quote context, line continuation is processed
         result = process_line_continuations('echo "hello \\" \\\nworld"')
-        assert result == 'echo "hello \\" \\\nworld"'
+        assert result == 'echo "hello \\" world"'
         
         # Multiple quote levels
         result = process_line_continuations("echo 'single \"double \\\ninside\" single'")

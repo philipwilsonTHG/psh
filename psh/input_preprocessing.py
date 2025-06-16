@@ -69,7 +69,7 @@ def process_line_continuations(text: str) -> str:
             continue
         
         # Don't process line continuations inside single quotes
-        # (but do process them inside double quotes)
+        # (but do process them inside double quotes - bash behavior)
         if in_single_quote:
             result.append(char)
             i += 1
