@@ -635,6 +635,15 @@ class ExecutorVisitor(ASTVisitor[int]):
         saved_zero = self.state.get_variable('0')
         old_function = self._current_function
         
+        # Save terminal attributes if in interactive mode
+        saved_attrs = None
+        if hasattr(sys, 'stdin') and sys.stdin.isatty():
+            try:
+                import termios
+                saved_attrs = termios.tcgetattr(0)
+            except:
+                saved_attrs = None
+        
         try:
             # Push new variable scope for the function
             self.state.scope_manager.push_scope(name)
@@ -670,6 +679,14 @@ class ExecutorVisitor(ASTVisitor[int]):
             self.state.set_variable('#', saved_param_count)
             self.state.set_variable('0', saved_zero)
             self._current_function = old_function
+            
+            # Restore terminal attributes if they were saved
+            if saved_attrs is not None:
+                try:
+                    import termios
+                    termios.tcsetattr(0, termios.TCSANOW, saved_attrs)
+                except:
+                    pass
     
     def _execute_external(self, args: List[str], background: bool = False) -> int:
         """Execute an external command."""

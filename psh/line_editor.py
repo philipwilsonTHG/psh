@@ -80,7 +80,17 @@ class LineEditor:
         
         with self.terminal:
             while True:
-                char = sys.stdin.read(1)
+                try:
+                    char = sys.stdin.read(1)
+                except OSError as e:
+                    # Handle I/O errors (e.g., terminal disconnected)
+                    if e.errno == 5:  # EIO
+                        # Try to restore terminal before failing
+                        try:
+                            self.terminal.restore()
+                        except:
+                            pass
+                    raise  # Re-raise the exception
                 
                 # Handle EOF (empty string from read)
                 if not char:

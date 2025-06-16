@@ -1,5 +1,6 @@
 """Script file execution."""
 import os
+import sys
 from typing import List, Optional
 from .base import ScriptComponent
 from ..input_sources import FileInput

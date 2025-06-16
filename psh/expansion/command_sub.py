@@ -46,6 +46,12 @@ class CommandSubstitution:
                 os.dup2(write_fd, 1)
                 os.close(write_fd)
                 
+                # Ensure stdin remains valid - redirect from /dev/null
+                # This prevents commands from accidentally consuming terminal input
+                null_fd = os.open('/dev/null', os.O_RDONLY)
+                os.dup2(null_fd, 0)
+                os.close(null_fd)
+                
                 # Create a temporary shell to execute the command
                 temp_shell = Shell(
                     debug_ast=self.state.debug_ast,
