@@ -9,11 +9,7 @@ class TestGlobExpansion:
     
     @pytest.fixture
     def shell(self):
-        # Respect PSH_USE_VISITOR_EXECUTOR env var
-        import os
-        use_visitor = os.environ.get('PSH_USE_VISITOR_EXECUTOR', '').lower() in ('1', 'true', 'yes')
-        return Shell(use_visitor_executor=use_visitor)
-    
+        return Shell()
     @pytest.fixture
     def test_dir(self):
         """Create a temporary directory with test files"""

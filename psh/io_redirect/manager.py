@@ -55,6 +55,11 @@ class IOManager:
         from ..state_machine_lexer import tokenize
         from ..parser import parse
         
+        # DEBUG: Log builtin redirection setup
+        if self.state.options.get('debug-exec'):
+            print(f"DEBUG IOManager: setup_builtin_redirections called", file=sys.stderr)
+            print(f"DEBUG IOManager: Redirects: {[(r.type, r.target, r.fd) for r in command.redirects]}", file=sys.stderr)
+        
         stdout_backup = None
         stderr_backup = None
         stdin_backup = None
@@ -172,14 +177,28 @@ class IOManager:
             elif redirect.type == '>' and (redirect.fd is None or redirect.fd == 1):
                 stdout_backup = sys.stdout
                 sys.stdout = open(target, 'w')
+                # DEBUG: Log stdout redirection
+                if self.state.options.get('debug-exec'):
+                    print(f"DEBUG IOManager: Redirected stdout to file '{target}'", file=sys.stderr)
+                    print(f"DEBUG IOManager: sys.stdout is now {sys.stdout}", file=sys.stderr)
             elif redirect.type == '>>' and (redirect.fd is None or redirect.fd == 1):
                 stdout_backup = sys.stdout
                 sys.stdout = open(target, 'a')
+                # DEBUG: Log stdout append redirection
+                if self.state.options.get('debug-exec'):
+                    print(f"DEBUG IOManager: Redirected stdout (append) to file '{target}'", file=sys.stderr)
+                    print(f"DEBUG IOManager: sys.stdout is now {sys.stdout}", file=sys.stderr)
             elif redirect.type == '>&':
-                # Handle fd duplication like 2>&1
+                # Handle fd duplication like 2>&1, >&2, etc.
                 if redirect.fd == 2 and redirect.dup_fd == 1:
+                    # 2>&1: stderr to stdout
                     stderr_backup = sys.stderr
                     sys.stderr = sys.stdout
+                elif redirect.fd == 1 and redirect.dup_fd == 2:
+                    # 1>&2 or >&2: stdout to stderr
+                    stdout_backup = sys.stdout
+                    sys.stdout = sys.stderr
+                # Note: Other fd combinations would require more complex handling
         
         return stdin_backup, stdout_backup, stderr_backup, stdin_fd_backup
     

@@ -115,7 +115,6 @@ class TestCompletionManager:
     def test_integration_with_interactive_manager(self):
         """Test that CompletionManager integrates with InteractiveManager."""
         shell = Shell()
-        
         # Test that CompletionManager can be created and used by shell
         cm = CompletionManager(shell)
         

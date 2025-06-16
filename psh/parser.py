@@ -1415,11 +1415,30 @@ class Parser(BaseParser):
         )
     
     def _parse_dup_redirect(self, token: Token) -> Redirect:
-        """Parse file descriptor duplication (2>&1)."""
-        # Token value is like "2>&1"
-        parts = token.value.split('>&')
-        fd = int(parts[0]) if parts[0] else 1
-        dup_fd = int(parts[1]) if len(parts) > 1 and parts[1] else 1
+        """Parse file descriptor duplication (2>&1 or >&2)."""
+        # Token value might be:
+        # - "2>&1" (complete form)
+        # - ">&" (partial form, followed by fd number)
+        
+        if token.value == '>&':
+            # Partial form: >&2, >&1, etc.
+            # Default source fd is 1 (stdout)
+            fd = 1
+            
+            # Next token should be the target fd
+            if self.match(TokenType.WORD):
+                next_token = self.peek()
+                if next_token.value.isdigit():
+                    dup_fd = int(self.advance().value)
+                else:
+                    raise self._error(f"Expected file descriptor number after '>&', got '{next_token.value}'")
+            else:
+                raise self._error("Expected file descriptor number after '>&'")
+        else:
+            # Complete form like "2>&1"
+            parts = token.value.split('>&')
+            fd = int(parts[0]) if parts[0] else 1
+            dup_fd = int(parts[1]) if len(parts) > 1 and parts[1] else 1
         
         return Redirect(
             type='>&',

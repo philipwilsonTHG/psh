@@ -1,7 +1,8 @@
 """
-Test compatibility between legacy and visitor executors.
+Test visitor executor functionality.
 
-This test ensures both executors produce identical results.
+This test was originally for compatibility between legacy and visitor executors.
+Now it tests the visitor executor behavior.
 """
 
 import pytest
@@ -16,12 +17,12 @@ from psh.parser import parse
 
 
 class TestExecutorCompatibility:
-    """Test that both executors produce identical results."""
+    """Test visitor executor functionality."""
     
-    def run_with_executor(self, command, use_visitor=False):
-        """Run command with specified executor and capture output."""
-        # Create shell with specified executor
-        shell = Shell(use_visitor_executor=use_visitor)
+    def run_command(self, command):
+        """Run command and capture output."""
+        # Create shell
+        shell = Shell()
         
         # Capture output
         stdout = StringIO()
@@ -39,93 +40,54 @@ class TestExecutorCompatibility:
             'exit_code': exit_code,
             'stdout': stdout.getvalue(),
             'stderr': stderr.getvalue(),
-            'variables': dict(shell.variables),
-            'last_exit_code': shell.last_exit_code
+            'variables': dict(shell.state.variables),
+            'last_exit_code': shell.state.last_exit_code
         }
     
-    def assert_identical_results(self, command):
-        """Assert that both executors produce identical results."""
-        legacy_result = self.run_with_executor(command, use_visitor=False)
-        visitor_result = self.run_with_executor(command, use_visitor=True)
-        
-        # Compare results
-        assert legacy_result['exit_code'] == visitor_result['exit_code'], \
-            f"Exit codes differ: legacy={legacy_result['exit_code']}, visitor={visitor_result['exit_code']}"
-        
-        assert legacy_result['stdout'] == visitor_result['stdout'], \
-            f"Stdout differs:\nLegacy: {repr(legacy_result['stdout'])}\nVisitor: {repr(visitor_result['stdout'])}"
-        
-        assert legacy_result['stderr'] == visitor_result['stderr'], \
-            f"Stderr differs:\nLegacy: {repr(legacy_result['stderr'])}\nVisitor: {repr(visitor_result['stderr'])}"
-        
-        assert legacy_result['last_exit_code'] == visitor_result['last_exit_code'], \
-            f"Last exit codes differ: legacy={legacy_result['last_exit_code']}, visitor={visitor_result['last_exit_code']}"
+    def test_simple_echo(self):
+        """Test simple echo command."""
+        result = self.run_command("echo hello")
+        assert result['exit_code'] == 0
+        assert result['stdout'] == "hello\n"
+        assert result['stderr'] == ""
     
-    def test_simple_commands(self):
-        """Test simple command execution."""
-        self.assert_identical_results('echo hello')
-        self.assert_identical_results('echo $HOME')
-        self.assert_identical_results('VAR=value; echo $VAR')
+    def test_variable_assignment(self):
+        """Test variable assignment."""
+        result = self.run_command("x=42; echo $x")
+        assert result['exit_code'] == 0
+        assert result['stdout'] == "42\n"
+        assert result['variables']['x'] == '42'
     
-    def test_pipelines(self):
+    def test_command_substitution(self):
+        """Test command substitution."""
+        result = self.run_command("result=$(echo test); echo $result")
+        assert result['exit_code'] == 0
+        assert result['stdout'] == "test\n"
+        assert result['variables']['result'] == 'test'
+    
+    def test_pipeline(self):
         """Test pipeline execution."""
-        self.assert_identical_results('echo hello | cat')
-        self.assert_identical_results('echo one; echo two | cat')
+        result = self.run_command("echo hello | cat")
+        assert result['exit_code'] == 0
+        assert result['stdout'] == "hello\n"
     
-    def test_control_structures(self):
-        """Test control structure execution."""
-        self.assert_identical_results('if true; then echo yes; fi')
-        self.assert_identical_results('for i in 1 2 3; do echo $i; done')
-        self.assert_identical_results('i=0; while [ $i -lt 3 ]; do echo $i; i=$((i+1)); done')
+    @pytest.mark.xfail(reason="StringIO doesn't capture direct fd writes from external commands")
+    def test_stderr_redirection(self):
+        """Test stderr redirection."""
+        # This command redirects stderr to stdout, so ls error goes to stdout
+        result = self.run_command("ls /nonexistent 2>&1")
+        assert result['exit_code'] != 0  # ls should fail
+        assert "/nonexistent" in result['stdout']  # Error message in stdout
+        assert result['stderr'] == ""  # Nothing in stderr
     
-    def test_functions(self):
+    def test_exit_status(self):
+        """Test exit status tracking."""
+        result = self.run_command("false; echo $?")
+        assert result['stdout'] == "1\n"
+        assert result['last_exit_code'] == 0  # echo succeeded
+    
+    def test_function_definition(self):
         """Test function definition and execution."""
-        self.assert_identical_results('foo() { echo hello; }; foo')
-        self.assert_identical_results('function bar { return 42; }; bar; echo $?')
-    
-    def test_arithmetic(self):
-        """Test arithmetic evaluation."""
-        self.assert_identical_results('echo $((2 + 2))')
-        self.assert_identical_results('((x = 5)); echo $x')
-        self.assert_identical_results('for ((i=0; i<3; i++)); do echo $i; done')
-    
-    def test_expansions(self):
-        """Test various expansions."""
-        self.assert_identical_results('echo ${HOME:-/tmp}')
-        self.assert_identical_results('X=hello; echo ${#X}')
-        self.assert_identical_results('Y=foobar; echo ${Y/foo/bar}')
-    
-    @pytest.mark.parametrize('command', [
-        'true',
-        'false',
-        'exit 0',
-        'exit 1',
-        'exit 42',
-    ])
-    def test_exit_codes(self, command):
-        """Test that exit codes match."""
-        # Note: We can't use assert_identical_results for exit commands
-        # because they terminate the shell
-        legacy_shell = Shell(use_visitor_executor=False)
-        visitor_shell = Shell(use_visitor_executor=True)
-        
-        # Parse command
-        tokens = tokenize(command)
-        ast = parse(tokens)
-        
-        # Execute and compare exit codes
-        try:
-            legacy_exit = legacy_shell.execute(ast)
-        except SystemExit as e:
-            legacy_exit = e.code if e.code is not None else 0
-            
-        try:
-            visitor_exit = visitor_shell.execute(ast)
-        except SystemExit as e:
-            visitor_exit = e.code if e.code is not None else 0
-        
-        assert legacy_exit == visitor_exit
-
-
-if __name__ == '__main__':
-    pytest.main([__file__, '-v'])
+        result = self.run_command("greet() { echo Hello $1; }; greet World")
+        assert result['exit_code'] == 0
+        assert result['stdout'] == "Hello World\n"

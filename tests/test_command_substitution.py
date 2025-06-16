@@ -54,7 +54,6 @@ class TestCommandSubstitution:
     def test_command_substitution_execution(self):
         """Test execution of command substitution"""
         shell = Shell()
-        
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create a test file
             test_file = os.path.join(tmpdir, "test.txt")
@@ -80,7 +79,6 @@ class TestCommandSubstitution:
     def test_command_substitution_word_splitting(self):
         """Test that command substitution results are word-split"""
         shell = Shell()
-        
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create a file with multiple words
             test_file = os.path.join(tmpdir, "words.txt")
@@ -100,7 +98,6 @@ class TestCommandSubstitution:
     def test_command_substitution_exit_status(self):
         """Test that command substitution sets exit status"""
         shell = Shell()
-        
         # Successful command
         shell.run_command("echo $(echo test)")
         assert shell.last_exit_code == 0
@@ -118,7 +115,6 @@ class TestCommandSubstitution:
     def test_command_substitution_empty_output(self):
         """Test command substitution with empty output"""
         shell = Shell()
-        
         with tempfile.TemporaryDirectory() as tmpdir:
             output_file = os.path.join(tmpdir, "output.txt")
             
@@ -134,7 +130,6 @@ class TestCommandSubstitution:
     def test_command_substitution_with_variables(self):
         """Test command substitution containing variables"""
         shell = Shell()
-        
         with tempfile.TemporaryDirectory() as tmpdir:
             output_file = os.path.join(tmpdir, "output.txt")
             
@@ -152,7 +147,6 @@ class TestCommandSubstitution:
     def test_nested_command_substitution(self):
         """Test nested command substitution"""
         shell = Shell()
-        
         with tempfile.TemporaryDirectory() as tmpdir:
             output_file = os.path.join(tmpdir, "output.txt")
             
@@ -167,7 +161,6 @@ class TestCommandSubstitution:
     def test_backtick_escape_sequences(self):
         """Test escape sequences in backticks"""
         shell = Shell()
-        
         with tempfile.TemporaryDirectory() as tmpdir:
             output_file = os.path.join(tmpdir, "output.txt")
             
@@ -188,7 +181,6 @@ class TestCommandSubstitution:
     def test_command_substitution_in_pipeline(self):
         """Test command substitution in pipeline"""
         shell = Shell()
-        
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create test files
             file1 = os.path.join(tmpdir, "file1.txt")

@@ -151,9 +151,9 @@ class SetBuiltin(Builtin):
                     # Special handling for debug-scopes
                     if option == 'debug-scopes':
                         shell.state.scope_manager.enable_debug(True)
-                    # Special handling for visitor-executor
+                    # visitor-executor option removed - visitor is now the only executor
                     elif option == 'visitor-executor':
-                        shell.use_visitor_executor = True
+                        pass  # Silently ignore for backward compatibility
                     return 0
                 else:
                     self.error(f"invalid option: {option}", shell)
@@ -196,9 +196,9 @@ class SetBuiltin(Builtin):
                     # Special handling for debug-scopes
                     if option == 'debug-scopes':
                         shell.state.scope_manager.enable_debug(False)
-                    # Special handling for visitor-executor
+                    # visitor-executor option removed - visitor is now the only executor
                     elif option == 'visitor-executor':
-                        shell.use_visitor_executor = False
+                        print("psh: set: visitor-executor: option is deprecated (visitor is now the only executor)", file=sys.stderr)
                 return 0
             
             # Otherwise, treat as positional parameters
@@ -238,7 +238,7 @@ class SetBuiltin(Builtin):
       -o nounset        Error on undefined variables (same as -u)
       -o xtrace         Print commands before execution (same as -x)
       -o pipefail       Pipeline fails if any command fails
-      -o visitor-executor Use visitor pattern executor (recommended)
+      -o visitor-executor Deprecated (visitor is now the only executor)
       +o <option>       Disable the specified option
     
     With arguments, set positional parameters ($1, $2, etc.)."""

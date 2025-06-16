@@ -16,13 +16,12 @@ class TestAssociativeArrays:
     def test_declare_associative_array(self):
         """Test declare -A command."""
         shell = Shell()
-        
         # Test declare -A command
         lexer = StateMachineLexer('declare -A colors')
         tokens = lexer.tokenize()
         parser = Parser(tokens)
         ast = parser.parse()
-        result = shell.executor_manager.execute(ast)
+        result = shell.execute(ast)
         
         assert result == 0, f"declare -A should succeed, got {result}"
         
@@ -35,13 +34,12 @@ class TestAssociativeArrays:
     def test_associative_array_element_assignment(self):
         """Test array element assignment for associative arrays."""
         shell = Shell()
-        
         # First declare the associative array
         lexer = StateMachineLexer('declare -A colors')
         tokens = lexer.tokenize()
         parser = Parser(tokens)
         ast = parser.parse()
-        shell.executor_manager.execute(ast)
+        shell.execute(ast)
         
         # Test array element assignment
         lexer = StateMachineLexer('colors[red]="#FF0000"')
@@ -58,7 +56,7 @@ class TestAssociativeArrays:
         assert assignment.value == '#FF0000', "Assignment value should be '#FF0000'"
         
         # Execute the assignment
-        result = shell.executor_manager.execute(ast)
+        result = shell.execute(ast)
         assert result == 0, "Array assignment should succeed"
         
         # Check if value was set
@@ -72,9 +70,8 @@ class TestAssociativeArrays:
     def test_associative_array_with_space_key(self):
         """Test associative array with key containing spaces."""
         shell = Shell()
-        
         # Declare associative array
-        shell.executor_manager.execute(Parser(StateMachineLexer('declare -A colors').tokenize()).parse())
+        shell.execute(Parser(StateMachineLexer('declare -A colors').tokenize()).parse())
         
         # Test assignment with quoted key containing spaces
         lexer = StateMachineLexer('colors["light blue"]="#ADD8E6"')
@@ -82,7 +79,7 @@ class TestAssociativeArrays:
         parser = Parser(tokens)
         ast = parser.parse()
         
-        result = shell.executor_manager.execute(ast)
+        result = shell.execute(ast)
         assert result == 0, "Array assignment with spaced key should succeed"
         
         # Check if value was set
@@ -93,10 +90,9 @@ class TestAssociativeArrays:
     def test_associative_array_variable_key(self):
         """Test associative array with variable as key."""
         shell = Shell()
-        
         # Set up variables
-        shell.executor_manager.execute(Parser(StateMachineLexer('declare -A colors').tokenize()).parse())
-        shell.executor_manager.execute(Parser(StateMachineLexer('key_var="red"').tokenize()).parse())
+        shell.execute(Parser(StateMachineLexer('declare -A colors').tokenize()).parse())
+        shell.execute(Parser(StateMachineLexer('key_var="red"').tokenize()).parse())
         
         # Test assignment with variable key
         lexer = StateMachineLexer('colors[$key_var]="#FF0000"')
@@ -104,7 +100,7 @@ class TestAssociativeArrays:
         parser = Parser(tokens)
         ast = parser.parse()
         
-        result = shell.executor_manager.execute(ast)
+        result = shell.execute(ast)
         assert result == 0, "Array assignment with variable key should succeed"
         
         # Check if value was set (should be stored under "red")
@@ -115,7 +111,6 @@ class TestAssociativeArrays:
     def test_associative_array_initialization_syntax(self):
         """Test associative array initialization syntax."""
         shell = Shell()
-        
         # Test initialization with declare -A arr=([key]=value)
         cmd = 'declare -A fruits=([apple]="red" [banana]="yellow")'
         lexer = StateMachineLexer(cmd)
@@ -123,7 +118,7 @@ class TestAssociativeArrays:
         parser = Parser(tokens)
         ast = parser.parse()
         
-        result = shell.executor_manager.execute(ast)
+        result = shell.execute(ast)
         assert result == 0, "Associative array initialization should succeed"
         
         # Check if values were set
@@ -137,14 +132,13 @@ class TestAssociativeArrays:
     def test_indexed_vs_associative_array_distinction(self):
         """Test that indexed and associative arrays are properly distinguished."""
         shell = Shell()
-        
         # Create indexed array
-        shell.executor_manager.execute(Parser(StateMachineLexer('declare -a indexed').tokenize()).parse())
-        shell.executor_manager.execute(Parser(StateMachineLexer('indexed[0]="zero"').tokenize()).parse())
+        shell.execute(Parser(StateMachineLexer('declare -a indexed').tokenize()).parse())
+        shell.execute(Parser(StateMachineLexer('indexed[0]="zero"').tokenize()).parse())
         
         # Create associative array
-        shell.executor_manager.execute(Parser(StateMachineLexer('declare -A assoc').tokenize()).parse())
-        shell.executor_manager.execute(Parser(StateMachineLexer('assoc[key]="value"').tokenize()).parse())
+        shell.execute(Parser(StateMachineLexer('declare -A assoc').tokenize()).parse())
+        shell.execute(Parser(StateMachineLexer('assoc[key]="value"').tokenize()).parse())
         
         # Check types
         indexed_var = shell.state.scope_manager.get_variable_object('indexed')
@@ -163,16 +157,15 @@ class TestAssociativeArrays:
     def test_associative_array_keys_expansion(self):
         """Test ${!array[@]} expansion for associative arrays."""
         shell = Shell()
-        
         # Create associative array with multiple keys
-        shell.executor_manager.execute(Parser(StateMachineLexer('declare -A colors=([red]="#FF0000" [green]="#00FF00" [blue]="#0000FF")').tokenize()).parse())
+        shell.execute(Parser(StateMachineLexer('declare -A colors=([red]="#FF0000" [green]="#00FF00" [blue]="#0000FF")').tokenize()).parse())
         
         # Test ${!colors[@]} expansion
         from unittest.mock import patch
         output = []
         with patch('sys.stdout.write') as mock_out:
             mock_out.side_effect = lambda x: output.append(x)
-            shell.executor_manager.execute(Parser(StateMachineLexer('echo "${!colors[@]}"').tokenize()).parse())
+            shell.execute(Parser(StateMachineLexer('echo "${!colors[@]}"').tokenize()).parse())
         
         result = ''.join(output)
         # Keys should be present (order not guaranteed in associative arrays)
@@ -181,21 +174,21 @@ class TestAssociativeArrays:
         assert 'blue' in result, f"'blue' should be in keys output: '{result}'"
         
         # Test with empty associative array
-        shell.executor_manager.execute(Parser(StateMachineLexer('declare -A empty').tokenize()).parse())
+        shell.execute(Parser(StateMachineLexer('declare -A empty').tokenize()).parse())
         output.clear()
         with patch('sys.stdout.write') as mock_out:
             mock_out.side_effect = lambda x: output.append(x)
-            shell.executor_manager.execute(Parser(StateMachineLexer('echo "[${!empty[@]}]"').tokenize()).parse())
+            shell.execute(Parser(StateMachineLexer('echo "[${!empty[@]}]"').tokenize()).parse())
         
         result = ''.join(output).strip()
         assert result == '[]', f"Empty array keys should be empty: '{result}'"
         
         # Test with single key
-        shell.executor_manager.execute(Parser(StateMachineLexer('declare -A single=([only]="value")').tokenize()).parse())
+        shell.execute(Parser(StateMachineLexer('declare -A single=([only]="value")').tokenize()).parse())
         output.clear()
         with patch('sys.stdout.write') as mock_out:
             mock_out.side_effect = lambda x: output.append(x)
-            shell.executor_manager.execute(Parser(StateMachineLexer('echo "${!single[@]}"').tokenize()).parse())
+            shell.execute(Parser(StateMachineLexer('echo "${!single[@]}"').tokenize()).parse())
         
         result = ''.join(output).strip()
         assert result == 'only', f"Single key should be 'only': '{result}'"

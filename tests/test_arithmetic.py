@@ -104,7 +104,6 @@ class TestArithmeticEvaluator:
     
     def setup_method(self):
         self.shell = Shell()
-    
     def test_basic_arithmetic(self):
         assert evaluate_arithmetic("2 + 2", self.shell) == 4
         assert evaluate_arithmetic("10 - 3", self.shell) == 7
@@ -234,7 +233,6 @@ class TestArithmeticIntegration:
     
     def setup_method(self):
         self.shell = Shell()
-    
     def test_basic_arithmetic_expansion(self):
         with patch('sys.stdout', new=StringIO()) as mock_stdout:
             self.shell.run_command("echo $((2 + 2))")

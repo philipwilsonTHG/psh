@@ -153,7 +153,7 @@ class TestHistory:
         
         # Create new shell with patched HOME to avoid loading user's history
         with patch.dict(os.environ, {'HOME': os.path.dirname(self.temp_history.name)}):
-            new_shell = Shell()
+            new_self.shell = Shell()
             new_shell.history_file = self.temp_history.name
             new_shell.history = []  # Clear any default history
             new_shell._load_history()

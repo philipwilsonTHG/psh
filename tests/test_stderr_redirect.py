@@ -77,7 +77,6 @@ class TestStderrRedirection:
     def test_stderr_redirect_execution(self):
         """Test actual execution of stderr redirection"""
         shell = Shell()
-        
         with tempfile.TemporaryDirectory() as tmpdir:
             error_file = os.path.join(tmpdir, "errors.txt")
             
@@ -102,7 +101,6 @@ class TestStderrRedirection:
     def test_stderr_stdout_combined(self):
         """Test combining stderr and stdout"""
         shell = Shell()
-        
         with tempfile.TemporaryDirectory() as tmpdir:
             output_file = os.path.join(tmpdir, "combined.txt")
             
@@ -127,7 +125,6 @@ print("This is stderr", file=sys.stderr)
     def test_stderr_redirect_with_builtin(self):
         """Test stderr redirection with built-in commands"""
         shell = Shell()
-        
         with tempfile.TemporaryDirectory() as tmpdir:
             error_file = os.path.join(tmpdir, "errors.txt")
             

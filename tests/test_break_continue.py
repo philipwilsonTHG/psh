@@ -10,7 +10,6 @@ class TestBreakContinue:
     def test_break_in_while_loop(self):
         """Test break statement in while loop."""
         shell = Shell()
-        
         # Simple while loop with break
         code = '''
         for i in 1 2 3 4 5; do
@@ -63,7 +62,6 @@ class TestBreakContinue:
     def test_break_in_for_loop(self):
         """Test break statement in for loop."""
         shell = Shell()
-        
         code = '''
         for i in 1 2 3 4 5; do
             if [ $i -eq 3 ]; then
@@ -90,7 +88,6 @@ class TestBreakContinue:
     def test_continue_in_for_loop(self):
         """Test continue statement in for loop."""
         shell = Shell()
-        
         code = '''
         for i in 1 2 3 4 5; do
             if [ $i -eq 3 ]; then
@@ -115,7 +112,6 @@ class TestBreakContinue:
     def test_nested_loops_break_inner(self):
         """Test break in nested loops affecting only inner loop."""
         shell = Shell()
-        
         code = '''
         for outer in 1 2; do
             echo "outer: $outer"
@@ -143,7 +139,6 @@ class TestBreakContinue:
     def test_nested_loops_continue_inner(self):
         """Test continue in nested loops affecting only inner loop."""
         shell = Shell()
-        
         code = '''
         for outer in 1 2; do
             echo "outer: $outer"
@@ -200,7 +195,6 @@ class TestBreakContinue:
     def test_continue_with_complex_condition(self):
         """Test continue with complex conditional logic."""
         shell = Shell()
-        
         code = '''
         for i in 1 2 3 4 5 6 7 8; do
             if [ $((i % 2)) -eq 0 ] && [ $i -le 6 ]; then
@@ -226,7 +220,6 @@ class TestBreakContinue:
     def test_break_outside_loop_error(self):
         """Test that break outside of loop produces error."""
         shell = Shell()
-        
         import io
         from contextlib import redirect_stderr
         
@@ -241,7 +234,6 @@ class TestBreakContinue:
     def test_continue_outside_loop_error(self):
         """Test that continue outside of loop produces error."""
         shell = Shell()
-        
         import io
         from contextlib import redirect_stderr
         
@@ -256,7 +248,6 @@ class TestBreakContinue:
     def test_break_in_function_outside_loop(self):
         """Test that break in function but outside loop produces error."""
         shell = Shell()
-        
         code = '''
         test_func() {
             echo "in function"
@@ -280,7 +271,6 @@ class TestBreakContinue:
     def test_continue_in_function_outside_loop(self):
         """Test that continue in function but outside loop produces error."""
         shell = Shell()
-        
         code = '''
         test_func() {
             echo "in function"
@@ -304,7 +294,6 @@ class TestBreakContinue:
     def test_break_continue_in_function_within_loop(self):
         """Test break and continue work correctly in functions called from loops."""
         shell = Shell()
-        
         code = '''
         break_func() {
             if [ $1 -eq 3 ]; then
@@ -373,7 +362,6 @@ class TestBreakContinue:
     def test_break_continue_with_pipes_and_operators(self):
         """Test that break/continue work correctly with shell operators."""
         shell = Shell()
-        
         code = '''
         for i in 1 2 3 4 5; do
             if [ $i -eq 3 ]; then
@@ -399,7 +387,6 @@ class TestBreakContinue:
     def test_variable_scoping_with_break_continue(self):
         """Test that variable scoping works correctly with break/continue."""
         shell = Shell()
-        
         # Test that loop variable is properly restored after break
         shell.state.set_variable('i', 'original')
         

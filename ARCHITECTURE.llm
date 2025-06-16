@@ -1,6 +1,6 @@
 # PSH Architecture Reference for Large Language Models
 
-Version: 0.50.0 (2025-01-15)
+Version: 0.51.0 (2025-01-15) - Legacy executor removed
 Purpose: Optimized reference for LLMs working with PSH codebase
 
 ## Quick Start
@@ -51,12 +51,7 @@ psh/
 │   ├── command_sub.py     # Command substitution
 │   ├── tilde.py          # Tilde expansion
 │   └── glob.py           # Pathname expansion
-├── executor/               # Legacy execution (being phased out)
-│   ├── base.py           # Base classes
-│   ├── command.py        # Single command execution
-│   ├── pipeline.py       # Pipeline execution
-│   ├── control_flow.py   # Control structures
-│   └── statement.py      # Command lists
+# executor/ directory removed - visitor pattern is now the only executor
 ├── io_redirect/            # I/O redirection
 │   ├── manager.py        # Orchestrates redirections
 │   ├── file_redirect.py  # File redirections
@@ -115,7 +110,7 @@ Input → Preprocessing → Tokenization → Parsing → AST → Visitor Executi
 self.state = ShellState()
 self.expansion_manager = ExpansionManager(self)
 self.io_manager = IORedirectManager(self)
-self.executor = ExecutorVisitor(self)  # Default visitor executor
+# Executor is now created on-demand in execute methods
 self.job_manager = JobControlManager(self)
 self.alias_manager = AliasManager(self)
 self.function_manager = FunctionManager(self)
@@ -177,14 +172,7 @@ class ASTVisitor(Generic[T], ABC):
         return visitor(node)
 ```
 
-**ExecutorComponent (executor/base.py):**
-```python
-class ExecutorComponent(ABC):
-    def __init__(self, shell: 'Shell'):
-        self.shell = shell
-        self.state = shell.state
-        # ... other manager references
-```
+# ExecutorComponent removed - visitor pattern is now the only executor
 
 ## Data Flow Examples
 

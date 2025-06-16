@@ -457,36 +457,86 @@ class ExecutorVisitor(ASTVisitor[int]):
                 # Remove assignments from args
                 command_args = expanded_args[len(assignments):]
                 
-                # Apply redirections
-                with self._apply_redirections(node.redirects):
-                    # Execute command
-                    if not command_args:
-                        return 0
+                # Check if this is a builtin that needs special redirection handling
+                if command_args and self.builtin_registry.has(command_args[0]) and not self._in_pipeline:
+                    # DEBUG: Log builtin redirection setup
+                    if self.state.options.get('debug-exec'):
+                        print(f"DEBUG ExecutorVisitor: Setting up builtin redirections for '{command_args[0]}'", file=sys.stderr)
+                        print(f"DEBUG ExecutorVisitor: Redirections: {[r.type for r in node.redirects]}", file=sys.stderr)
                     
-                    cmd_name = command_args[0]
-                    cmd_args = command_args[1:]
-                    
-                    # Check for empty command after expansion
-                    if not cmd_name:
-                        return 0
-                    
-                    # Handle xtrace option
-                    if self.state.options.get('xtrace'):
-                        # Get PS4 prompt (default "+ ")
-                        ps4 = self.state.get_variable('PS4', '+ ')
-                        # Print command to stderr
-                        trace_line = ps4 + ' '.join([cmd_name] + cmd_args) + '\n'
-                        self.state.stderr.write(trace_line)
-                        self.state.stderr.flush()
-                    
-                    # Execute based on command type
-                    exit_status = self._execute_command(cmd_name, cmd_args, node.background)
-                    
-                    # Clear background job reference
-                    if node.background and self._background_job:
-                        self._background_job = None
-                    
-                    return exit_status
+                    # Builtins need special redirection handling
+                    stdin_backup, stdout_backup, stderr_backup, stdin_fd_backup = \
+                        self.io_manager.setup_builtin_redirections(node)
+                    try:
+                        # Update shell streams for builtins that might use them
+                        self.shell.stdout = sys.stdout
+                        self.shell.stderr = sys.stderr
+                        self.shell.stdin = sys.stdin
+                        
+                        # Execute command
+                        if not command_args:
+                            return 0
+                        
+                        cmd_name = command_args[0]
+                        cmd_args = command_args[1:]
+                        
+                        # Check for empty command after expansion
+                        if not cmd_name:
+                            return 0
+                        
+                        # Handle xtrace option
+                        if self.state.options.get('xtrace'):
+                            # Get PS4 prompt (default "+ ")
+                            ps4 = self.state.get_variable('PS4', '+ ')
+                            # Print command to stderr
+                            trace_line = ps4 + ' '.join([cmd_name] + cmd_args) + '\n'
+                            self.state.stderr.write(trace_line)
+                            self.state.stderr.flush()
+                        
+                        # Execute builtin
+                        exit_status = self._execute_builtin(cmd_name, cmd_args)
+                        
+                        return exit_status
+                    finally:
+                        self.io_manager.restore_builtin_redirections(
+                            stdin_backup, stdout_backup, stderr_backup, stdin_fd_backup
+                        )
+                        # Reset shell stream references to current sys streams
+                        # This avoids holding onto closed/captured streams
+                        self.shell.stdout = sys.stdout
+                        self.shell.stderr = sys.stderr
+                        self.shell.stdin = sys.stdin
+                else:
+                    # Apply normal redirections for external commands or builtins in pipelines
+                    with self._apply_redirections(node.redirects):
+                        # Execute command
+                        if not command_args:
+                            return 0
+                        
+                        cmd_name = command_args[0]
+                        cmd_args = command_args[1:]
+                        
+                        # Check for empty command after expansion
+                        if not cmd_name:
+                            return 0
+                        
+                        # Handle xtrace option
+                        if self.state.options.get('xtrace'):
+                            # Get PS4 prompt (default "+ ")
+                            ps4 = self.state.get_variable('PS4', '+ ')
+                            # Print command to stderr
+                            trace_line = ps4 + ' '.join([cmd_name] + cmd_args) + '\n'
+                            self.state.stderr.write(trace_line)
+                            self.state.stderr.flush()
+                        
+                        # Execute based on command type
+                        exit_status = self._execute_command(cmd_name, cmd_args, node.background)
+                        
+                        # Clear background job reference
+                        if node.background and self._background_job:
+                            self._background_job = None
+                        
+                        return exit_status
                     
             finally:
                 # Restore variables (unless exported)
@@ -538,6 +588,11 @@ class ExecutorVisitor(ASTVisitor[int]):
         builtin = self.builtin_registry.get(name)
         if not builtin:
             return 127  # Command not found
+        
+        # DEBUG: Log builtin execution
+        if self.state.options.get('debug-exec'):
+            print(f"DEBUG ExecutorVisitor: executing builtin '{name}' with args {args}", file=sys.stderr)
+            print(f"DEBUG ExecutorVisitor: _in_pipeline={self._in_pipeline}, _in_forked_child={self.state._in_forked_child}", file=sys.stderr)
         
         try:
             # Use the builtin's execute method

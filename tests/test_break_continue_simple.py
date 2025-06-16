@@ -10,7 +10,6 @@ class TestBreakContinueSimple:
     def test_break_outside_loop_error(self):
         """Test that break outside of loop produces error."""
         shell = Shell()
-        
         import io
         from contextlib import redirect_stderr
         
@@ -25,7 +24,6 @@ class TestBreakContinueSimple:
     def test_continue_outside_loop_error(self):
         """Test that continue outside of loop produces error."""
         shell = Shell()
-        
         import io
         from contextlib import redirect_stderr
         
@@ -66,7 +64,6 @@ class TestBreakContinueSimple:
     def test_break_in_for_loop(self):
         """Test break statement in for loop."""
         shell = Shell()
-        
         # Test by executing step by step using the shell's execution methods
         from psh.state_machine_lexer import tokenize
         from psh.parser import parse
@@ -105,7 +102,6 @@ class TestBreakContinueSimple:
     def test_continue_in_for_loop(self):
         """Test continue statement in for loop."""
         shell = Shell()
-        
         # Test continue using direct execution method
         from psh.state_machine_lexer import tokenize
         from psh.parser import parse
@@ -162,7 +158,6 @@ class TestBreakContinueSimple:
     def test_continue_in_for_loop_simple(self):
         """Test continue in a simple for loop.""" 
         shell = Shell()
-        
         # Test by manually testing continue that we know works
         from psh.state_machine_lexer import tokenize
         from psh.parser import parse
@@ -195,7 +190,6 @@ class TestBreakContinueSimple:
     def test_basic_break_continue_behavior(self):
         """Test basic break and continue behavior works correctly."""
         shell = Shell()
-        
         # Test that break actually stops the loop 
         from psh.state_machine_lexer import tokenize
         from psh.parser import parse

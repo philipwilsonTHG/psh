@@ -9,7 +9,6 @@ from psh.shell import Shell
 class TestExitStatus:
     def setup_method(self):
         self.shell = Shell()
-    
     def test_initial_exit_status(self):
         """Test that initial exit status is 0"""
         assert self.shell.last_exit_code == 0

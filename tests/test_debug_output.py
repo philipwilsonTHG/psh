@@ -12,8 +12,7 @@ def test_debug_legacy_executor():
     print("\n=== LEGACY EXECUTOR DEBUG ===")
     
     # Create shell with legacy executor
-    shell = Shell(use_visitor_executor=False)
-    
+    shell = Shell()
     # Check stdout
     print(f"shell.stdout: {shell.stdout}")
     print(f"shell.state.stdout: {shell.state.stdout}")
@@ -28,8 +27,7 @@ def test_debug_visitor_executor():
     print("\n=== VISITOR EXECUTOR DEBUG ===")
     
     # Create shell with visitor executor
-    shell = Shell(use_visitor_executor=True)
-    
+    shell = Shell()
     # Check stdout
     print(f"shell.stdout: {shell.stdout}")
     print(f"shell.state.stdout: {shell.state.stdout}")
@@ -51,7 +49,7 @@ def test_debug_with_capture():
     sys.stdout = capture
     
     # Create shell
-    shell = Shell(use_visitor_executor=True)
+    shell = Shell()
     shell.stdout = capture
     shell.state.stdout = capture
     

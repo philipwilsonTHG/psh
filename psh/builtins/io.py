@@ -150,6 +150,14 @@ class EchoBuiltin(Builtin):
         if not suppress_newline:
             text += '\n'
         
+        # DEBUG: Log output method
+        if shell.state.options.get('debug-exec'):
+            print(f"DEBUG EchoBuiltin: _in_forked_child={getattr(shell.state, '_in_forked_child', False)}", file=sys.stderr)
+            print(f"DEBUG EchoBuiltin: shell.stdout={getattr(shell, 'stdout', 'N/A')}", file=sys.stderr)
+            print(f"DEBUG EchoBuiltin: shell.state.stdout={getattr(shell.state, 'stdout', 'N/A')}", file=sys.stderr)
+            print(f"DEBUG EchoBuiltin: sys.stdout={sys.stdout}", file=sys.stderr)
+            print(f"DEBUG EchoBuiltin: Writing text: {repr(text[:50])}", file=sys.stderr)
+        
         # Check if we're in a child process (forked for pipeline/background)
         if hasattr(shell.state, '_in_forked_child') and shell.state._in_forked_child:
             # In child process, write directly to fd 1
@@ -158,6 +166,9 @@ class EchoBuiltin(Builtin):
         else:
             # In parent process, use shell.stdout to respect redirections
             output = shell.stdout if hasattr(shell, 'stdout') else sys.stdout
+            # DEBUG: Log actual output stream
+            if shell.state.options.get('debug-exec'):
+                print(f"DEBUG EchoBuiltin: Using output stream: {output}", file=sys.stderr)
             output.write(text)
             output.flush()
     

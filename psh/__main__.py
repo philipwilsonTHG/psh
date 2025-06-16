@@ -18,7 +18,7 @@ def main():
     norc = False
     rcfile = None
     validate_only = False
-    visitor_executor = True  # Default is visitor executor
+    # Visitor executor is now the only executor
     args = sys.argv[1:]
     
     # Extract debug flags
@@ -51,12 +51,11 @@ def main():
         validate_only = True
         args.remove("--validate")
     
-    # Extract executor flags
+    # Legacy executor flags removed - visitor is the only executor
     if "--visitor-executor" in args:
-        visitor_executor = True
-        args.remove("--visitor-executor")
+        args.remove("--visitor-executor")  # Silently ignore for backward compatibility
     if "--legacy-executor" in args:
-        visitor_executor = False
+        print("Warning: --legacy-executor is deprecated and ignored (visitor executor is now the only executor)", file=sys.stderr)
         args.remove("--legacy-executor")
     
     # Extract RC file flags
@@ -86,7 +85,7 @@ def main():
                   debug_expansion=debug_expansion, debug_expansion_detail=debug_expansion_detail,
                   debug_exec=debug_exec, debug_exec_fork=debug_exec_fork,
                   norc=norc, rcfile=rcfile, validate_only=validate_only, 
-                  use_visitor_executor=visitor_executor)
+                  )
     
     if len(sys.argv) > 1:
         if sys.argv[1] == "-c" and len(sys.argv) > 2:
@@ -102,7 +101,7 @@ def main():
             print(get_version_info())
 
             print("\nEnvironment Variables:")
-            print("  PSH_USE_VISITOR_EXECUTOR=1   Use visitor executor by default")
+            print("  (Note: PSH_USE_VISITOR_EXECUTOR is deprecated and ignored)")
             sys.exit(0)
         elif sys.argv[1] in ("--help", "-h"):
             # Show help
@@ -123,8 +122,8 @@ def main():
             print("  --debug-exec     Print executor operations (debugging)")
             print("  --debug-exec-fork Print fork/exec details (debugging)")
             print("  --validate       Validate script without executing (check for errors)")
-            print("  --visitor-executor Use visitor pattern executor (default)")
-            print("  --legacy-executor Use legacy executor (for compatibility)")
+            print("  --visitor-executor Deprecated flag (visitor is now the only executor)")
+            print("  --legacy-executor Deprecated flag (no longer supported)")
             print("\nArguments:")
             print("  script           Script file to execute")
             print("  args             Arguments passed to script or command")

@@ -11,10 +11,7 @@ from psh.parser import parse
 
 class TestIntegration:
     def setup_method(self):
-        # Respect PSH_USE_VISITOR_EXECUTOR env var
-        import os
-        use_visitor = os.environ.get('PSH_USE_VISITOR_EXECUTOR', '').lower() in ('1', 'true', 'yes')
-        self.shell = Shell(use_visitor_executor=use_visitor)
+        self.shell = Shell()
         self.original_cwd = os.getcwd()
     
     def teardown_method(self):

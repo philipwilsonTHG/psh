@@ -24,7 +24,6 @@ class TestDebugToggle:
     def test_enable_debug_ast(self):
         """Test enabling AST debug at runtime."""
         shell = Shell()
-        
         # Enable debug-ast
         exit_code = shell.run_command("set -o debug-ast")
         assert exit_code == 0
@@ -34,7 +33,6 @@ class TestDebugToggle:
     def test_enable_debug_tokens(self):
         """Test enabling token debug at runtime."""
         shell = Shell()
-        
         # Enable debug-tokens
         exit_code = shell.run_command("set -o debug-tokens")
         assert exit_code == 0
@@ -44,7 +42,6 @@ class TestDebugToggle:
     def test_disable_debug_options(self):
         """Test disabling debug options."""
         shell = Shell()
-        
         # Enable both options first
         shell.run_command("set -o debug-ast")
         shell.run_command("set -o debug-tokens")
@@ -65,7 +62,6 @@ class TestDebugToggle:
     def test_show_options(self):
         """Test showing current options with set -o."""
         shell = Shell()
-        
         # Enable one option
         shell.run_command("set -o debug-ast")
         
@@ -87,7 +83,6 @@ class TestDebugToggle:
     def test_show_options_as_commands(self):
         """Test showing options as set commands with set +o."""
         shell = Shell()
-        
         # Enable debug-ast
         shell.run_command("set -o debug-ast")
         
@@ -108,7 +103,6 @@ class TestDebugToggle:
     def test_debug_output_with_ast(self):
         """Test that debug-ast actually produces output."""
         shell = Shell()
-        
         # Enable debug-ast
         shell.run_command("set -o debug-ast")
         
@@ -128,7 +122,6 @@ class TestDebugToggle:
     def test_debug_output_with_tokens(self):
         """Test that debug-tokens actually produces output."""
         shell = Shell()
-        
         # Enable debug-tokens
         shell.run_command("set -o debug-tokens")
         
@@ -150,7 +143,6 @@ class TestDebugToggle:
     def test_invalid_option(self):
         """Test error handling for invalid options."""
         shell = Shell()
-        
         # Capture stderr
         old_stderr = sys.stderr
         sys.stderr = StringIO()
@@ -168,7 +160,6 @@ class TestDebugToggle:
     def test_underscore_vs_dash(self):
         """Test that both debug_ast and debug-ast work."""
         shell = Shell()
-        
         # Test with underscore
         exit_code = shell.run_command("set -o debug_ast")
         assert exit_code == 0
@@ -185,7 +176,6 @@ class TestDebugToggle:
     def test_persistence_across_commands(self):
         """Test that debug settings persist across multiple commands."""
         shell = Shell()
-        
         # Enable debug options
         shell.run_command("set -o debug-ast")
         shell.run_command("set -o debug-tokens")

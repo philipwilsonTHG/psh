@@ -137,7 +137,6 @@ class TestComments:
     def test_shell_execution_with_comments(self):
         """Test shell execution with comments."""
         shell = Shell()
-        
         # Test simple command with comment
         exit_code = shell.run_command("echo hello # this is a comment", add_to_history=False)
         assert exit_code == 0

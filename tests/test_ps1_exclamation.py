@@ -6,7 +6,6 @@ from psh.shell import Shell
 def test_ps1_with_exclamation_single_quotes():
     """Test setting PS1 with exclamation mark in single quotes."""
     shell = Shell()
-    
     # Test direct assignment
     exit_code = shell.run_command("PS1='[\\!]$ '")
     assert exit_code == 0
@@ -28,7 +27,6 @@ def test_ps1_with_exclamation_double_quotes():
     Use single quotes for exact prompt escape sequence preservation.
     """
     shell = Shell()
-    
     # Test direct assignment with double quotes - escapes are preserved
     exit_code = shell.run_command('PS1="[\\!]$ "')
     assert exit_code == 0
@@ -48,7 +46,6 @@ def test_ps1_with_various_escape_sequences():
     This is a known limitation - use single quotes to preserve prompt escape sequences.
     """
     shell = Shell()
-    
     # Test single quotes - these preserve all escape sequences
     single_quote_tests = [
         ("PS1='\\u@\\h:\\w\\$ '", '\\u@\\h:\\w\\$ '),
@@ -72,7 +69,6 @@ def test_ps1_with_various_escape_sequences():
 def test_ps1_in_script():
     """Test setting PS1 in a script context."""
     shell = Shell()
-    
     # Multiple commands including PS1 setting
     script = """
 PS1='[\\!]$ '
@@ -93,7 +89,6 @@ export PS2='... '
 def test_ps1_heuristic_vs_normal_variables():
     """Test that PS1/PS2 heuristic doesn't affect normal variables."""
     shell = Shell()
-    
     # Normal variable with \$ should have it converted to $ in assignment
     exit_code = shell.run_command('VAR="\\$"')
     assert exit_code == 0

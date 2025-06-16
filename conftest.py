@@ -14,20 +14,15 @@ def pytest_configure(config):
 
 
 def pytest_collection_modifyitems(config, items):
-    """Apply xfail marking to tests marked with visitor_xfail when using visitor executor."""
-    # Check if visitor executor is being used
-    use_visitor = os.environ.get('PSH_USE_VISITOR_EXECUTOR', '').lower() in ('1', 'true', 'yes')
-    
-    # Also check if visitor executor is the default (would need to import Shell to check)
-    # For now, we'll just use the environment variable
-    
-    if use_visitor:
-        for item in items:
-            # Check if test has visitor_xfail marker
-            visitor_xfail_marker = item.get_closest_marker("visitor_xfail")
-            if visitor_xfail_marker:
-                reason = visitor_xfail_marker.kwargs.get("reason", "Test fails with visitor executor due to pytest output capture limitations")
-                item.add_marker(pytest.mark.xfail(reason=f"Visitor executor: {reason}"))
+    """Apply xfail marking to tests marked with visitor_xfail."""
+    # Visitor executor is now the only executor
+    # All tests marked with visitor_xfail should be expected to fail
+    for item in items:
+        # Check if test has visitor_xfail marker
+        visitor_xfail_marker = item.get_closest_marker("visitor_xfail")
+        if visitor_xfail_marker:
+            reason = visitor_xfail_marker.kwargs.get("reason", "Test fails due to pytest output capture limitations with forked processes")
+            item.add_marker(pytest.mark.xfail(reason=reason))
 
 
 @pytest.fixture
@@ -38,9 +33,8 @@ def shell():
     original_stdout = os.dup(1) 
     original_stderr = os.dup(2)
     
-    # Create shell instance - respect PSH_USE_VISITOR_EXECUTOR env var
-    use_visitor = os.environ.get('PSH_USE_VISITOR_EXECUTOR', '').lower() in ('1', 'true', 'yes')
-    shell_instance = Shell(use_visitor_executor=use_visitor)
+    # Create shell instance - visitor executor is now the only executor
+    shell_instance = Shell()
     
     try:
         yield shell_instance

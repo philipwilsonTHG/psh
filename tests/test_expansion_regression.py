@@ -17,7 +17,6 @@ class TestExpansionRegression(unittest.TestCase):
     
     def setUp(self):
         self.shell = Shell()
-    
     def test_command_substitution_in_string_expansion(self):
         """Test that command substitution works inside double-quoted strings."""
         # This was the bug: _execute_command_substitution method not found

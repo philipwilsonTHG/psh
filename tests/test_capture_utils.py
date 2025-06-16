@@ -11,7 +11,7 @@ class TestCaptureUtils:
     
     def test_capture_with_legacy_executor(self):
         """Test output capture with legacy executor."""
-        shell = Shell(use_visitor_executor=False)
+        shell = Shell()
         helper = ShellTestHelper(shell)
         
         result = helper.run_and_capture('echo hello')
@@ -21,7 +21,7 @@ class TestCaptureUtils:
     
     def test_capture_with_visitor_executor(self):
         """Test output capture with visitor executor."""
-        shell = Shell(use_visitor_executor=True)
+        shell = Shell()
         helper = ShellTestHelper(shell)
         
         result = helper.run_and_capture('echo hello')
@@ -32,7 +32,7 @@ class TestCaptureUtils:
     def test_capture_stderr(self):
         """Test stderr capture."""
         for use_visitor in [False, True]:
-            shell = Shell(use_visitor_executor=use_visitor)
+            shell = Shell()
             helper = ShellTestHelper(shell)
             
             # Test that we can capture both stdout and stderr
@@ -44,7 +44,7 @@ class TestCaptureUtils:
     def test_capture_both_streams(self):
         """Test capturing both stdout and stderr."""
         for use_visitor in [False, True]:
-            shell = Shell(use_visitor_executor=use_visitor)
+            shell = Shell()
             helper = ShellTestHelper(shell)
             
             # Run multiple commands

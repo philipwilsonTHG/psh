@@ -166,7 +166,6 @@ class TestShellIntegration:
     def test_error_exit_codes(self):
         """Test that syntax errors return non-zero exit codes."""
         shell = Shell()
-        
         # Double semicolon error
         exit_code = shell.run_command("echo hello;; echo world")
         assert exit_code != 0

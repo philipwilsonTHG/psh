@@ -170,7 +170,6 @@ class TestEnhancedTestOperators:
     def test_variable_expansion(self):
         """Test variable expansion in [[ ]]."""
         shell = Shell()
-        
         # Set some variables
         shell.state.set_variable('VAR1', 'hello')
         shell.state.set_variable('VAR2', 'world')
@@ -193,7 +192,6 @@ class TestEnhancedTestOperators:
     def test_no_word_splitting(self):
         """Test that [[ ]] doesn't perform word splitting."""
         shell = Shell()
-        
         # Set variable with spaces
         shell.state.set_variable('VAR_WITH_SPACES', 'hello world')
         

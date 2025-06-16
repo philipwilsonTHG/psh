@@ -8,11 +8,7 @@ class TestArithmeticCommandSubstitution:
     
     @pytest.fixture
     def shell(self):
-        # Respect PSH_USE_VISITOR_EXECUTOR env var
-        import os
-        use_visitor = os.environ.get('PSH_USE_VISITOR_EXECUTOR', '').lower() in ('1', 'true', 'yes')
-        return Shell(use_visitor_executor=use_visitor)
-    
+        return Shell()
     @pytest.mark.visitor_xfail(reason="Visitor executor does not support command substitution in arithmetic expansion")
     def test_simple_command_sub_in_arithmetic(self, shell, capsys):
         """Test basic command substitution in arithmetic."""

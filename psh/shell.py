@@ -16,14 +16,14 @@ from .core.state import ShellState
 from .utils.token_formatter import TokenFormatter
 from .expansion.manager import ExpansionManager
 from .io_redirect.manager import IOManager
-from .executor.base import ExecutorManager
+# Legacy executor removed - using visitor pattern exclusively
 from .scripting.base import ScriptManager
 from .interactive.base import InteractiveManager
 
 class Shell:
     def __init__(self, args=None, script_name=None, debug_ast=False, debug_tokens=False, debug_scopes=False, 
                  debug_expansion=False, debug_expansion_detail=False, debug_exec=False, debug_exec_fork=False,
-                 norc=False, rcfile=None, validate_only=False, use_visitor_executor=True, parent_shell=None):
+                 norc=False, rcfile=None, validate_only=False, parent_shell=None):
         # Initialize state
         self.state = ShellState(args, script_name, debug_ast, 
                               debug_tokens, debug_scopes, debug_expansion, debug_expansion_detail,
@@ -32,22 +32,10 @@ class Shell:
         # Store validation mode
         self.validate_only = validate_only
         
-        # Store executor mode - visitor executor is now the default
-        # Priority order:
-        # 1. Environment variable PSH_USE_VISITOR_EXECUTOR
-        # 2. Explicit parameter (use_visitor_executor)
-        # 3. Default from state options
-        env_override = os.environ.get('PSH_USE_VISITOR_EXECUTOR', '').lower()
-        if env_override in ('0', 'false', 'no'):
-            self.use_visitor_executor = False
-        elif env_override in ('1', 'true', 'yes'):
-            self.use_visitor_executor = True
-        else:
-            # Use parameter if provided, otherwise use state default
-            self.use_visitor_executor = use_visitor_executor
-        
-        # Update state options to match
-        self.state.options['visitor-executor'] = self.use_visitor_executor
+        # Visitor executor is now the only executor
+        # Remove this option from state as well
+        if 'visitor-executor' in self.state.options:
+            del self.state.options['visitor-executor']
         
         # Set shell reference in scope manager for arithmetic evaluation
         self.state.scope_manager.set_shell(self)
@@ -80,13 +68,18 @@ class Shell:
         # These will get the correct function_manager reference
         self.expansion_manager = ExpansionManager(self)
         self.io_manager = IOManager(self)
-        self.executor_manager = ExecutorManager(self)
+        # Legacy executor removed - using visitor pattern exclusively
         self.script_manager = ScriptManager(self)
         self.interactive_manager = InteractiveManager(self)
         
         # Initialize history expander
         from .history_expansion import HistoryExpander
         self.history_expander = HistoryExpander(self)
+        
+        # Initialize stream references (used by builtins)
+        self.stdout = sys.stdout
+        self.stderr = sys.stderr
+        self.stdin = sys.stdin
         
         # Load history
         self.interactive_manager.load_history()
@@ -130,39 +123,20 @@ class Shell:
     
     
     
-    def execute_command(self, command: SimpleCommand):
-        """Execute a single command"""
-        # Delegate to the CommandExecutor
-        return self.executor_manager.command_executor.execute(command)
-    
-    
-    def execute_pipeline(self, pipeline: Pipeline):
-        """Execute a pipeline"""
-        # Delegate to the PipelineExecutor
-        return self.executor_manager.pipeline_executor.execute(pipeline)
-    
+    # Legacy execute_command and execute_pipeline methods removed
+    # All execution now goes through the visitor pattern
     
     def execute_command_list(self, command_list: StatementList):
         """Execute a command list"""
-        # Use visitor executor by default
-        if self.use_visitor_executor:
-            from .visitor.executor_visitor import ExecutorVisitor
-            executor = ExecutorVisitor(self)
-            return executor.visit(command_list)
-        
-        # Otherwise use legacy executor
-        return self.executor_manager.statement_executor.execute_command_list(command_list)
+        from .visitor.executor_visitor import ExecutorVisitor
+        executor = ExecutorVisitor(self)
+        return executor.visit(command_list)
     
     def execute_toplevel(self, toplevel: TopLevel):
         """Execute a top-level script/input containing functions and commands."""
-        # Use visitor executor by default
-        if self.use_visitor_executor:
-            from .visitor.executor_visitor import ExecutorVisitor
-            executor = ExecutorVisitor(self)
-            return executor.visit(toplevel)
-        
-        # Otherwise use legacy executor
-        return self.executor_manager.statement_executor.execute_toplevel(toplevel)
+        from .visitor.executor_visitor import ExecutorVisitor
+        executor = ExecutorVisitor(self)
+        return executor.visit(toplevel)
     
     def execute(self, ast):
         """Execute an AST node - for backward compatibility with tests."""

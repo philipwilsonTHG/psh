@@ -6,6 +6,8 @@ Python Shell (psh) is designed with a clean, component-based architecture that s
 
 **Current Version**: 0.50.0 (as of 2025-01-14)
 
+**Note:** For LLM-optimized architecture documentation, see `ARCHITECTURE.llm`
+
 **Key Architectural Features**:
 - **Visitor Pattern Executor** (default as of v0.50.0): Clean separation between AST and operations
 - **State Machine Lexer**: Handles complex tokenization with rich metadata

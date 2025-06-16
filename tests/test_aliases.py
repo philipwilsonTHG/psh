@@ -127,7 +127,6 @@ class TestAliasBuiltins:
     def setup_method(self):
         """Set up test environment."""
         self.shell = Shell()
-    
     def test_alias_no_args(self, capsys):
         """Test alias with no arguments lists all aliases."""
         self.shell.alias_manager.define_alias('ll', 'ls -l')
@@ -211,7 +210,6 @@ class TestAliasIntegration:
     def setup_method(self):
         """Set up test environment."""
         self.shell = Shell()
-    
     def test_alias_execution(self, capsys):
         """Test that aliases are expanded during command execution."""
         self.shell.alias_manager.define_alias('hello', 'echo hello')

@@ -21,7 +21,6 @@ class TestPhase2Builtins:
     def test_history_builtin(self, capsys):
         """Test history builtin."""
         shell = Shell()
-        
         # Add some commands to history
         shell._add_to_history("echo test1")
         shell._add_to_history("echo test2")
@@ -43,7 +42,6 @@ class TestPhase2Builtins:
     def test_version_builtin(self, capsys):
         """Test version builtin."""
         shell = Shell()
-        
         # Test full version
         shell.run_command("version")
         captured = capsys.readouterr()
@@ -58,7 +56,6 @@ class TestPhase2Builtins:
     def test_env_builtin(self, capsys):
         """Test env builtin."""
         shell = Shell()
-        
         # Set a test variable
         shell.env['TEST_ENV_VAR'] = 'test_value'
         
@@ -70,7 +67,6 @@ class TestPhase2Builtins:
     def test_export_builtin(self, capsys):
         """Test export builtin."""
         shell = Shell()
-        
         # Test export with assignment
         shell.run_command("export TEST_EXPORT=value123")
         assert shell.env.get('TEST_EXPORT') == 'value123'
@@ -89,7 +85,6 @@ class TestPhase2Builtins:
     def test_set_builtin(self, capsys):
         """Test set builtin."""
         shell = Shell()
-        
         # Test setting positional parameters
         shell.run_command("set arg1 arg2 arg3")
         assert shell.positional_params == ['arg1', 'arg2', 'arg3']
@@ -110,7 +105,6 @@ class TestPhase2Builtins:
     def test_unset_builtin(self):
         """Test unset builtin."""
         shell = Shell()
-        
         # Set variables
         shell.state.set_variable('VAR1', 'value1')
         shell.env['VAR1'] = 'value1'
@@ -131,7 +125,6 @@ class TestPhase2Builtins:
     def test_alias_builtin(self, capsys):
         """Test alias builtin."""
         shell = Shell()
-        
         # Define an alias
         shell.run_command("alias ll='ls -la'")
         assert shell.alias_manager.get_alias('ll') == 'ls -la'
@@ -154,7 +147,6 @@ class TestPhase2Builtins:
     def test_unalias_builtin(self, capsys):
         """Test unalias builtin."""
         shell = Shell()
-        
         # Create some aliases
         shell.alias_manager.define_alias('ll', 'ls -la')
         shell.alias_manager.define_alias('la', 'ls -a')

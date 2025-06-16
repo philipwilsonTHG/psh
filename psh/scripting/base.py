@@ -13,7 +13,6 @@ class ScriptComponent(ABC):
     def __init__(self, shell: 'Shell'):
         self.shell = shell
         self.state = shell.state
-        self.executor_manager = shell.executor_manager
         self.expansion_manager = shell.expansion_manager
     
     @abstractmethod

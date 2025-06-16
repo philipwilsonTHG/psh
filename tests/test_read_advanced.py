@@ -10,7 +10,6 @@ from psh.shell import Shell
 class TestReadAdvanced:
     def setup_method(self):
         self.shell = Shell()
-    
     def test_read_prompt_option(self):
         """Test read -p prompt option."""
         # Since prompt goes to stderr, we need to test with subprocess

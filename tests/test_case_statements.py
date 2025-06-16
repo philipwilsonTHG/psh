@@ -82,7 +82,6 @@ def test_case_pattern_matching():
 def test_case_character_classes():
     """Test case statement with character classes."""
     shell = Shell()
-    
     # Test character class [abc]
     shell.state.set_variable('test_var', 'a')
     with patch('sys.stdout', new=StringIO()) as mock_stdout:
@@ -101,7 +100,6 @@ def test_case_character_classes():
 def test_case_question_mark_wildcard():
     """Test case statement with ? wildcard."""
     shell = Shell()
-    
     # Test single character match
     shell.state.set_variable('test_var', 'ab')
     with patch('sys.stdout', new=StringIO()) as mock_stdout:
@@ -120,7 +118,6 @@ def test_case_question_mark_wildcard():
 def test_case_multiple_items():
     """Test case statement with multiple items and proper matching."""
     shell = Shell()
-    
     shell.state.set_variable('test_var', 'hello')
     with patch('sys.stdout', new=StringIO()) as mock_stdout:
         shell.run_command("case $test_var in hi) echo 'greeting1' ;; hello) echo 'greeting2' ;; bye) echo 'farewell' ;; esac")
@@ -130,7 +127,6 @@ def test_case_multiple_items():
 def test_case_default_pattern():
     """Test case statement with default (*) pattern."""
     shell = Shell()
-    
     shell.state.set_variable('test_var', 'unknown')
     with patch('sys.stdout', new=StringIO()) as mock_stdout:
         shell.run_command("case $test_var in hello) echo 'greeting' ;; *) echo 'default' ;; esac")
@@ -150,7 +146,6 @@ def test_case_empty_commands():
 def test_case_variable_expansion():
     """Test variable expansion in case expressions and patterns."""
     shell = Shell()
-    
     shell.state.set_variable('pattern', 'test*')
     shell.state.set_variable('value', 'testing')
     
@@ -162,7 +157,6 @@ def test_case_variable_expansion():
 def test_case_quoted_patterns():
     """Test case statement with quoted patterns."""
     shell = Shell()
-    
     shell.state.set_variable('test_var', 'hello world')
     
     with patch('sys.stdout', new=StringIO()) as mock_stdout:
@@ -173,7 +167,6 @@ def test_case_quoted_patterns():
 def test_case_keyword_patterns():
     """Test case statement with shell keywords as patterns."""
     shell = Shell()
-    
     # Test keyword 'if' as a pattern
     shell.state.set_variable('test_var', 'if')
     with patch('sys.stdout', new=StringIO()) as mock_stdout:
