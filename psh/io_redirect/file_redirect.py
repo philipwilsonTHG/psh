@@ -67,8 +67,15 @@ class FileRedirector:
                 # Here string
                 saved_fds.append((0, os.dup(0)))
                 r, w = os.pipe()
+                # Expand variables unless single quoted
+                if hasattr(redirect, 'quote_type') and redirect.quote_type == "'":
+                    # Single quotes - no expansion
+                    expanded_content = redirect.target
+                else:
+                    # Double quotes or no quotes - expand variables
+                    expanded_content = self.shell.expansion_manager.expand_string_variables(redirect.target)
                 # Write here string content with newline
-                content = redirect.target + '\n'
+                content = expanded_content + '\n'
                 os.write(w, content.encode())
                 os.close(w)
                 # Redirect stdin to read end

@@ -160,8 +160,15 @@ class IOManager:
                 # Also need to redirect the actual file descriptor
                 stdin_fd_backup = os.dup(0)
                 r, w = os.pipe()
-                # For here string, add a newline to the content
-                content = redirect.target + '\n'
+                # For here string, expand variables unless single quoted
+                if redirect.quote_type == "'":
+                    # Single quotes - no expansion
+                    expanded_content = redirect.target
+                else:
+                    # Double quotes or no quotes - expand variables
+                    expanded_content = self.shell.expansion_manager.expand_string_variables(redirect.target)
+                # Add a newline to the content
+                content = expanded_content + '\n'
                 os.write(w, content.encode())
                 os.close(w)
                 # Redirect stdin to read end

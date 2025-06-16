@@ -25,23 +25,23 @@ class CommandSubstitution:
         else:
             return ''
         
-        # Use subprocess to capture output from both builtins and external commands
-        import subprocess
+        # Import Shell here to avoid circular import
+        from ..shell import Shell
         
         # Create a temporary file to capture output
         with tempfile.NamedTemporaryFile(mode='w+', delete=False) as tmpfile:
             temp_output = tmpfile.name
         
         try:
-            # Import Shell here to avoid circular import
-            from ..shell import Shell
-            
-            # Create a temporary shell to execute the command with output redirected
+            # Create a temporary shell to execute the command
             temp_shell = Shell(
                 debug_ast=self.state.debug_ast,
                 debug_tokens=self.state.debug_tokens,
                 parent_shell=self.shell
             )
+            
+            # Note: Proper subprocess isolation would require forking,
+            # but that's complex to implement correctly
             
             # Execute the command with output redirected to temp file
             try:

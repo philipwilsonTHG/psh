@@ -441,6 +441,11 @@ class VariableExpander:
                 var_name, default = var_content.split(':-', 1)
                 value = self.state.get_variable(var_name, '')
                 return value if value else default
+            # Handle ${var:+alternative} syntax
+            elif ':+' in var_content:
+                var_name, alternative = var_content.split(':+', 1)
+                value = self.state.get_variable(var_name, '')
+                return alternative if value else ''
             else:
                 var_name = var_content
                 

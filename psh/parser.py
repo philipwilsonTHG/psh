@@ -1406,12 +1406,13 @@ class Parser(BaseParser):
         if not self.match(TokenType.WORD, TokenType.STRING, TokenType.VARIABLE):
             raise self._error("Expected string after here string operator")
         
-        content = self.advance().value
+        content_token = self.advance()
         
         return Redirect(
             type=token.value,
-            target=content,
-            heredoc_content=None
+            target=content_token.value,
+            heredoc_content=None,
+            quote_type=content_token.quote_type
         )
     
     def _parse_dup_redirect(self, token: Token) -> Redirect:

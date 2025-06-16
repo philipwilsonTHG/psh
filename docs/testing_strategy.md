@@ -108,11 +108,6 @@ tests/
 pytest
 ```
 
-### Run with legacy executor
-```bash
-PSH_USE_VISITOR_EXECUTOR=0 pytest
-```
-
 ### Run only comparison tests
 ```bash
 pytest tests/comparison/

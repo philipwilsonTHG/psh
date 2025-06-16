@@ -23,6 +23,7 @@ class Redirect(ASTNode):
     fd: Optional[int] = None  # File descriptor (None for stdin/stdout, 2 for stderr, etc.)
     dup_fd: Optional[int] = None  # For duplications like 2>&1
     heredoc_content: Optional[str] = None  # For here documents
+    quote_type: Optional[str] = None  # Quote type used (' or " or None) for here strings
 
 
 @dataclass
