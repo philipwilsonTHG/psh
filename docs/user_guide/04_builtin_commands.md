@@ -702,7 +702,259 @@ psh$ bg %2
 [2]- sleep 100 &
 ```
 
-## 4.6 Other Built-ins
+## 4.6 Command Help and Information
+
+### help - Display Builtin Command Information
+
+The `help` builtin provides comprehensive documentation for PSH's built-in commands:
+
+```bash
+# Show all available builtins
+psh$ help
+PSH Shell, version 0.55.0
+These shell commands are defined internally. Type 'help name' to find out more
+about the function 'name'.
+
+ .                              : [arguments]
+ [                              alias
+ bg                             cd
+ declare                        echo [-neE] [arg ...]
+ env                            eval
+ exec [command [argument ...]]  exit [n]
+ export                         false
+ fg                             help [-dms] [pattern ...]
+ history                        jobs
+ local                          pwd
+ read                           return
+ set                            source
+ test                           true
+ typeset                        unalias
+ unset                          version
+
+# Get detailed help for a specific builtin
+psh$ help echo
+echo: echo [-neE] [arg ...]
+    
+    Display arguments separated by spaces, followed by a newline.
+    If no arguments are given, print a blank line.
+    
+    Options:
+        -n    Do not output the trailing newline
+        -e    Enable interpretation of backslash escape sequences
+        -E    Disable interpretation of backslash escapes (default)
+    
+    Escape sequences (with -e):
+        \a    Alert (bell)
+        \b    Backspace
+        \c    Suppress further output
+        \e    Escape character
+        \f    Form feed
+        \n    New line
+        \r    Carriage return
+        \t    Horizontal tab
+        \v    Vertical tab
+        \\    Backslash
+        \0nnn Character with octal value nnn (0 prefix required)
+        \xhh  Character with hex value hh (1 to 2 digits)
+        \uhhhh    Unicode character with hex value hhhh (4 digits)
+        \Uhhhhhhhh Unicode character with hex value hhhhhhhh (8 digits)
+
+# Get help for multiple builtins
+psh$ help cd pwd
+cd: cd [dir]
+    Change the current directory to DIR.
+    
+    The default DIR is the value of the HOME shell variable.
+    The variable CDPATH defines the search path for the directory
+    containing DIR.
+    
+    Special directories:
+      ~     User's home directory
+      -     Previous working directory
+    
+    Exit Status:
+    Returns 0 if the directory is changed; non-zero otherwise.
+
+pwd: pwd
+    Print the current working directory
+
+# Pattern matching to find builtins
+psh$ help e*
+echo: echo [-neE] [arg ...]
+    Display text
+
+env: env [NAME=VALUE]... [COMMAND [ARG]...]
+    Display or set environment variables.
+    
+    When called without arguments, prints all environment variables.
+    When called with NAME=VALUE pairs, sets those variables for COMMAND.
+    When called with COMMAND, executes COMMAND with the modified environment.
+
+eval: eval [arg ...]
+    Execute arguments as shell commands
+
+exec: exec [command [argument ...]]
+    Execute commands and manipulate file descriptors
+
+exit: exit [n]
+    Exit the shell
+
+export: export [name[=value] ...]
+    Set export attribute for shell variables
+
+# Description mode - shows one-line descriptions
+psh$ help -d
+. - Dot command (alias for source).
+: - Null command that returns success
+[ - [ command (alias for test).
+alias - Define or display aliases.
+bg - Resume job in background.
+cd - Change directory.
+declare - Declare variables and functions with attributes.
+echo - Display text
+env - Display or modify environment variables.
+eval - Execute arguments as shell commands.
+exec - Execute commands and manipulate file descriptors
+exit - Exit the shell
+export - Export variables to environment.
+false - Always return failure
+fg - Bring job to foreground.
+help - Display information about builtin commands
+history - Display command history.
+jobs - List active jobs.
+local - Create local variables within functions.
+pwd - Print the current working directory
+read - Read a line from standard input and assign to variables.
+return - Return from a function with optional exit code.
+set - Set shell options and positional parameters.
+source - Execute commands from a file in the current shell.
+test - Test command for conditionals.
+true - Always return success
+typeset - Typeset builtin - alias for declare (ksh compatibility).
+unalias - Remove aliases.
+unset - Unset variables and functions.
+version - Display version information.
+
+# Synopsis mode - shows just command syntax
+psh$ help -s echo pwd read
+echo: echo [-neE] [arg ...]
+pwd: pwd
+read: read [-r] [-p prompt] [-s] [-t timeout] [-n chars] [-d delim] [name ...]
+
+# Manpage format - detailed documentation
+psh$ help -m help
+NAME
+    help - Display information about builtin commands
+
+SYNOPSIS
+    help [-dms] [pattern ...]
+
+DESCRIPTION
+    help: help [-dms] [pattern ...]
+        Display information about builtin commands.
+
+        Displays brief summaries of builtin commands. If PATTERN is
+        specified, gives detailed help on all commands matching PATTERN,
+        otherwise the list of help topics is printed.
+
+        Options:
+          -d    output short description for each topic
+          -m    display usage in pseudo-manpage format
+          -s    output only a short usage synopsis for each topic matching
+                PATTERN
+
+        Arguments:
+          PATTERN    Pattern specifying a help topic
+
+        Exit Status:
+        Returns success unless PATTERN is not found or an invalid option is given.
+
+# Pattern matching examples
+psh$ help "[cde]*"  # Commands starting with c, d, or e
+psh$ help "*read*"  # Commands containing 'read'
+psh$ help "??"      # Two-character commands (cd, bg, fg)
+
+# Error handling
+psh$ help nonexistent
+help: no help topics match 'nonexistent'
+
+psh$ help -x
+help: invalid option: '-x'
+Usage: help [-dms] [pattern ...]
+```
+
+#### Help Pattern Matching
+
+The help command supports glob-style pattern matching using these special characters:
+
+- `*` - Matches any sequence of characters
+- `?` - Matches any single character  
+- `[abc]` - Matches any character in the set (a, b, or c)
+- `[a-z]` - Matches any character in the range (a through z)
+- `[!abc]` - Matches any character NOT in the set
+
+```bash
+# Find all commands with specific patterns
+psh$ help "*set*"    # Commands containing 'set'
+unset: unset [-f] [-v] name ...
+    Unset variables and functions
+
+set: set [--] [arg ...]
+    Set shell options and positional parameters
+
+typeset: typeset [-f] [-F] [name ...]
+    Typeset builtin - alias for declare (ksh compatibility)
+
+psh$ help "?"        # Single character commands
+:: : [arguments]
+    Null command that returns success
+
+[: [ arg ... ]
+    [ command (alias for test)
+
+psh$ help "[jfb]g"   # Commands matching pattern (fg, bg)
+bg: bg [job_spec]
+    Resume job in background
+
+fg: fg [job_spec]
+    Bring job to foreground
+```
+
+#### Help Options
+
+- **No options**: Default behavior - shows command listing or detailed help
+- **-d**: Description mode - shows "command - description" format for all builtins
+- **-s**: Synopsis mode - shows only the command syntax/usage line
+- **-m**: Manpage mode - shows formatted manual page with NAME, SYNOPSIS, DESCRIPTION
+
+Options can be combined, with later options taking precedence:
+```bash
+psh$ help -ds echo   # -s overrides -d, shows synopsis
+echo: echo [-neE] [arg ...]
+```
+
+#### Exit Status
+
+- Returns 0 on success
+- Returns 1 if no patterns match any builtins
+- Returns 2 if invalid options are provided
+
+#### Self-Documentation
+
+The help system provides complete self-documentation for PSH:
+
+```bash
+# Learn about PSH without external documentation
+psh$ help help      # Learn how to use help itself
+psh$ help -d        # Overview of all available commands
+psh$ help set       # Learn about shell options
+psh$ help read      # Learn about input handling
+psh$ help declare   # Learn about variable management
+```
+
+This makes PSH educational and self-discoverable - users can learn shell features directly through the shell interface, similar to bash's help system.
+
+## 4.7 Other Built-ins
 
 ### source (.) - Execute Script in Current Shell
 
@@ -865,7 +1117,7 @@ psh: ll: command not found
 psh$ unalias -a
 ```
 
-## 4.7 Test Commands
+## 4.8 Test Commands
 
 ### test and [ - Conditional Testing
 
@@ -952,7 +1204,7 @@ psh$ echo $?
 0
 ```
 
-## 4.8 Process Control
+## 4.9 Process Control
 
 ### exec - Execute Commands or Manipulate File Descriptors
 
@@ -1208,7 +1460,7 @@ esac
   - 127: Command not found
   - 1: Cannot exec builtin or function
 
-## 4.9 Dynamic Command Execution
+## 4.10 Dynamic Command Execution
 
 ### eval - Execute Commands from String
 
@@ -1498,6 +1750,7 @@ Built-in commands are the core of PSH functionality. They provide:
 - Environment management (export, unset, env, set, declare)
 - I/O operations (echo, read)
 - Job control (jobs, fg, bg)
+- Command help and information (help)
 - Script execution (source)
 - Conditional testing (test, [, [[)
 - Process control (exec)

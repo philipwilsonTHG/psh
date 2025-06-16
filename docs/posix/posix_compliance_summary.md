@@ -8,7 +8,7 @@ This document summarizes the POSIX compliance assessment conducted for PSH (Pyth
 
 ### Overall Compliance Score: **~87-90%**
 
-Based on comprehensive analysis and automated testing (updated for v0.54.0):
+Based on comprehensive analysis and automated testing (updated for v0.55.0):
 - **Automated Test Score**: 88.7% (47/53 tests passing, exec builtin now passes)
 - **Feature Analysis Score**: ~87% (weighted by importance) 
 - **Real-world Script Compatibility**: ~85-90%
@@ -21,7 +21,7 @@ Based on comprehensive analysis and automated testing (updated for v0.54.0):
 | **Basic Commands** | 100% | 100% | Simple commands, pipelines, lists |
 | **Parameter Expansion** | 85% | 71% | Some edge cases with `:=` and `:+` |
 | **Special Parameters** | 95% | 100% | All POSIX special parameters work |
-| **Built-in Commands** | 80% | 93% | Missing key built-ins (trap, shift), exec now implemented |
+| **Built-in Commands** | 83% | 93% | Missing key built-ins (trap, shift), exec and help now implemented |
 | **I/O Redirection** | 90% | 80% | Minor issues with stderr and heredocs |
 | **Quoting** | 100% | 100% | Perfect POSIX compliance |
 | **Word Expansion** | 90% | 75% | Field splitting edge case |
@@ -63,8 +63,9 @@ From automated testing, the following POSIX features have issues:
 3. **`wait`** - Process synchronization
 4. **`getopts`** - Standard option parsing
 
-### Recently Implemented ✅ (v0.54.0)
-1. **`exec`** - POSIX-compliant process replacement and FD manipulation
+### Recently Implemented ✅ (v0.55.0)
+1. **`exec`** - POSIX-compliant process replacement and FD manipulation (v0.54.0)
+2. **`help`** - Bash-compatible self-documentation system (v0.55.0)
 
 ### Parser/Execution Issues 🐛
 1. Subshell exit status propagation
@@ -152,7 +153,7 @@ The latest release (v0.54.0) adds complete POSIX-compliant `exec` builtin functi
 - 18 passing unit tests covering all functionality
 - Bash comparison tests for POSIX compliance verification
 
-This implementation brings PSH's built-in command compliance from 75% to 80%, representing a significant step toward full POSIX compatibility.
+Combined with the help builtin in v0.55.0, these implementations bring PSH's built-in command compliance from 75% to 83%, representing significant progress toward full POSIX compatibility.
 
 ## Conclusion
 
@@ -161,4 +162,4 @@ PSH achieves approximately **87-90% POSIX compliance**, which is excellent for a
 - Small bugs in parameter expansion
 - Edge cases in I/O handling
 
-With the recent addition of the exec builtin and focused effort on the remaining high-priority items, PSH could achieve 95%+ POSIX compliance while maintaining its educational clarity and bash-compatible extensions.
+With the recent additions of the exec and help builtins and focused effort on the remaining high-priority items, PSH could achieve 95%+ POSIX compliance while maintaining its educational clarity and bash-compatible extensions.

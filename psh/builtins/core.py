@@ -18,6 +18,14 @@ class ExitBuiltin(Builtin):
     def name(self) -> str:
         return "exit"
     
+    @property
+    def synopsis(self) -> str:
+        return "exit [n]"
+    
+    @property
+    def description(self) -> str:
+        return "Exit the shell"
+    
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Exit the shell with optional exit code."""
         # Save history before exiting
@@ -36,6 +44,17 @@ class ExitBuiltin(Builtin):
                 exit_code = 2
         
         sys.exit(exit_code)
+    
+    @property
+    def help(self) -> str:
+        return """exit: exit [n]
+    Exit the shell.
+    
+    Exits the shell with a status of N. If N is omitted, the exit status
+    is that of the last command executed.
+    
+    Exit Status:
+    Returns N, or failure if an invalid argument is given."""
 
 
 @builtin
@@ -46,6 +65,14 @@ class ColonBuiltin(Builtin):
     def name(self) -> str:
         return ":"
     
+    @property
+    def synopsis(self) -> str:
+        return ": [arguments]"
+    
+    @property
+    def description(self) -> str:
+        return "Null command that returns success"
+    
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Do nothing and return success."""
         return 0
@@ -53,10 +80,14 @@ class ColonBuiltin(Builtin):
     @property
     def help(self) -> str:
         return """: : [arguments]
+    Null command.
     
-    Null command. This command does nothing and always returns success (0).
+    This command does nothing and always returns success (0).
     Any arguments are ignored. Useful as a placeholder or for parameter expansion
-    side effects."""
+    side effects.
+    
+    Exit Status:
+    Always returns success."""
 
 
 @builtin
@@ -67,6 +98,14 @@ class TrueBuiltin(Builtin):
     def name(self) -> str:
         return "true"
     
+    @property
+    def synopsis(self) -> str:
+        return "true"
+    
+    @property
+    def description(self) -> str:
+        return "Always return success"
+    
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Always return success (0)."""
         return 0
@@ -74,8 +113,12 @@ class TrueBuiltin(Builtin):
     @property
     def help(self) -> str:
         return """true: true
+    Always return success.
     
-    Always returns success (exit code 0). Useful in conditional expressions."""
+    Always returns success (exit code 0). Useful in conditional expressions.
+    
+    Exit Status:
+    Always returns success."""
 
 
 @builtin
@@ -86,6 +129,14 @@ class FalseBuiltin(Builtin):
     def name(self) -> str:
         return "false"
     
+    @property
+    def synopsis(self) -> str:
+        return "false"
+    
+    @property
+    def description(self) -> str:
+        return "Always return failure"
+    
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Always return failure (1)."""
         return 1
@@ -93,8 +144,12 @@ class FalseBuiltin(Builtin):
     @property
     def help(self) -> str:
         return """false: false
+    Always return failure.
     
-    Always returns failure (exit code 1). Useful in conditional expressions."""
+    Always returns failure (exit code 1). Useful in conditional expressions.
+    
+    Exit Status:
+    Always returns failure."""
 
 
 @builtin
@@ -104,6 +159,14 @@ class ExecBuiltin(Builtin):
     @property
     def name(self) -> str:
         return "exec"
+    
+    @property
+    def synopsis(self) -> str:
+        return "exec [command [argument ...]]"
+    
+    @property
+    def description(self) -> str:
+        return "Execute commands and manipulate file descriptors"
     
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Execute command or apply redirections."""

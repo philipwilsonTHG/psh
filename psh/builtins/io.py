@@ -19,6 +19,14 @@ class EchoBuiltin(Builtin):
     def name(self) -> str:
         return "echo"
     
+    @property
+    def synopsis(self) -> str:
+        return "echo [-neE] [arg ...]"
+    
+    @property
+    def description(self) -> str:
+        return "Display text"
+    
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Echo arguments to stdout."""
         # Debug: log arguments
@@ -209,6 +217,14 @@ class PwdBuiltin(Builtin):
     def name(self) -> str:
         return "pwd"
     
+    @property
+    def synopsis(self) -> str:
+        return "pwd"
+    
+    @property
+    def description(self) -> str:
+        return "Print the current working directory"
+    
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Print the current working directory."""
         try:
@@ -228,5 +244,10 @@ class PwdBuiltin(Builtin):
     @property
     def help(self) -> str:
         return """pwd: pwd
+    Print the current working directory.
     
-    Print the current working directory."""
+    Display the full pathname of the current working directory.
+    
+    Exit Status:
+    Returns 0 unless an error occurs while reading the pathname of the
+    current directory."""

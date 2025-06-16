@@ -8,7 +8,7 @@ PSH implements a significant subset of POSIX shell functionality with some exten
 
 ### Compliance Statistics
 - **Core Shell Grammar**: ~85% compliant
-- **Built-in Commands**: ~75% compliant (missing some special built-ins)
+- **Built-in Commands**: ~80% compliant (exec now implemented)
 - **Parameter Expansion**: ~90% compliant  
 - **Signal Handling**: ~60% compliant (missing trap command)
 - **Overall POSIX Compliance**: ~80%
@@ -116,7 +116,7 @@ PSH implements a significant subset of POSIX shell functionality with some exten
 | `continue` | ✅ | ✅ Compliant | With levels |
 | `.` (dot) | ✅ | ✅ Compliant | Source command |
 | `eval` | ✅ | ✅ Compliant | Full support |
-| `exec` | ✅ | ❌ Not Implemented | Critical missing |
+| `exec` | ✅ | ✅ Compliant | Full support |
 | `exit` | ✅ | ✅ Compliant | With exit code |
 | `export` | ✅ | ✅ Compliant | Full support |
 | `readonly` | ✅ | ⚠️ Partial | Via declare -r |
@@ -194,6 +194,7 @@ PSH includes several bash-compatible extensions beyond POSIX:
 - Advanced parameter expansions (case modification, arrays)
 - `read` builtin enhancements (-p, -s, -t, -n, -d)
 - `echo` with -n, -e flags
+- `help` builtin for self-documentation
 - Brace expansion (`{1..10}`, `{a,b,c}`)
 - Process substitution (`<(...)`, `>(...)`)
 - C-style for loops `for ((;;))`
@@ -210,9 +211,8 @@ PSH includes several bash-compatible extensions beyond POSIX:
 ### High Priority (Core POSIX Features)
 1. **Implement `trap` command** - Critical for signal handling
 2. **Implement `shift` command** - Essential for argument processing
-3. **Implement `exec` command** - Required special built-in
-4. **Implement `getopts`** - Standard option parsing
-5. **Add `command` built-in** - For command lookup control
+3. **Implement `getopts`** - Standard option parsing
+4. **Add `command` built-in** - For command lookup control
 
 ### Medium Priority (Common POSIX Features)
 1. **Implement `wait` command** - Process synchronization

@@ -2,10 +2,43 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.54.0"
+__version__ = "0.55.0"
 
 # Version history
 VERSION_HISTORY = """
+0.55.0 (2025-06-16) - Help Builtin Implementation
+  - Implemented complete bash-compatible help builtin for self-documentation
+    - Basic listing: help shows all available builtins in two-column format
+    - Specific help: help echo shows detailed help for individual builtins
+    - Multiple builtins: help echo pwd shows help for multiple builtins
+    - Pattern matching: help ec* uses glob patterns to match builtins
+  - Command options for different display modes
+    - -d: Description mode showing "builtin - description" format
+    - -s: Synopsis mode showing just command syntax
+    - -m: Manpage format with NAME, SYNOPSIS, and DESCRIPTION sections
+    - Combined flags work correctly with precedence rules
+  - Enhanced builtin base class with structured help properties
+    - Added synopsis, description, and help properties to all builtins
+    - Provides consistent and comprehensive documentation for all PSH builtins
+    - Enhanced help text formatting for better readability
+  - Pattern matching using fnmatch module for glob-style patterns
+    - Supports *, ?, [abc], [a-z] patterns for finding builtins
+    - Case-insensitive matching for improved usability
+  - Error handling and POSIX-compliant exit codes
+    - Invalid options show usage and return exit code 2
+    - Non-matching patterns show error and return exit code 1
+    - Empty patterns handled gracefully
+  - Integration and testing
+    - All 25 comprehensive tests passing (100% success rate)
+    - Works with redirections, pipelines, and command substitution
+    - Proper integration with existing PSH builtin system
+    - Self-documenting with help help functionality
+  - Documentation enhancements
+    - All builtins now have proper synopsis, description, and detailed help
+    - Bash-compatible output format and behavior
+    - Significantly improves PSH's self-documentation capabilities
+  - Educational value: Users can now discover and learn about shell features through the shell itself
+
 0.54.0 (2025-01-16) - POSIX-Compliant Exec Builtin Implementation
   - Implemented complete POSIX-compliant exec builtin with two modes of operation
     - Mode 1: exec [command] - Replace shell process with specified command

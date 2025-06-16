@@ -36,9 +36,19 @@ class Builtin(ABC):
         pass
     
     @property
+    def synopsis(self) -> str:
+        """Return brief command syntax for the builtin."""
+        return f"{self.name}"
+    
+    @property
+    def description(self) -> str:
+        """Return one-line description for the builtin."""
+        return self.__class__.__doc__ or 'no description available'
+    
+    @property
     def help(self) -> str:
-        """Return help text for the builtin."""
-        return f"{self.name}: {self.__class__.__doc__ or 'no help available'}"
+        """Return detailed help text for the builtin."""
+        return f"{self.synopsis}\n    {self.description}"
     
     def error(self, message: str, shell: 'Shell') -> None:
         """Print an error message to stderr."""
