@@ -437,12 +437,17 @@ class ExecutorVisitor(ASTVisitor[int]):
                         self.state.stderr.write(trace_line)
                         self.state.stderr.flush()
                 
+                # Save the current exit code before expansions
+                saved_exit_code = self.state.last_exit_code
+                
                 for var, value in assignments:
                     # Apply all expansions to assignment values
                     value = self._expand_assignment_value(value)
                     self.state.set_variable(var, value)
                 
-                # Return the last exit code which will be from command substitution if any
+                # If any command substitution happened during expansion, it will have set last_exit_code
+                # Return the current exit code (which will be from command substitution if any)
+                # Otherwise return the saved exit code
                 return self.state.last_exit_code
             
             # Apply assignments for this command
@@ -1006,17 +1011,50 @@ class ExecutorVisitor(ASTVisitor[int]):
     
     def _expand_assignment_value(self, value: str) -> str:
         """Expand a value used in variable assignment."""
-        # First expand variables
-        if '$' in value:
-            value = self.expansion_manager.expand_string_variables(value)
+        # Handle all expansions in order, without word splitting
         
-        # Then expand arithmetic expressions
-        if '$((' in value and '))' in value:
-            # Find and expand all arithmetic expansions
+        # 1. Tilde expansion (only at start)
+        if value.startswith('~'):
+            value = self.expansion_manager.expand_tilde(value)
+        
+        # 2. Variable expansion (including ${var} forms)
+        if '$' in value:
+            # We need to handle command substitution separately from variable expansion
+            # to preserve the exact semantics
             result = []
             i = 0
             while i < len(value):
-                if value[i:i+3] == '$((': 
+                if i < len(value) - 1 and value[i:i+2] == '$(':
+                    # Find matching )
+                    paren_count = 1
+                    j = i + 2
+                    while j < len(value) and paren_count > 0:
+                        if value[j] == '(':
+                            paren_count += 1
+                        elif value[j] == ')':
+                            paren_count -= 1
+                        j += 1
+                    if paren_count == 0:
+                        # Found complete command substitution
+                        cmd_sub = value[i:j]
+                        output = self.expansion_manager.execute_command_substitution(cmd_sub)
+                        result.append(output)
+                        i = j
+                        continue
+                elif value[i] == '`':
+                    # Find matching backtick
+                    j = i + 1
+                    while j < len(value) and value[j] != '`':
+                        j += 1
+                    if j < len(value):
+                        # Found complete backtick command substitution
+                        cmd_sub = value[i:j+1]
+                        output = self.expansion_manager.execute_command_substitution(cmd_sub)
+                        result.append(output)
+                        i = j + 1
+                        continue
+                elif i < len(value) - 2 and value[i:i+3] == '$((': 
+                    # Arithmetic expansion
                     # Find matching ))
                     paren_count = 2
                     j = i + 3
@@ -1032,13 +1070,14 @@ class ExecutorVisitor(ASTVisitor[int]):
                         result.append(str(self.expansion_manager.execute_arithmetic_expansion(arith_expr)))
                         i = j
                         continue
+                
                 result.append(value[i])
                 i += 1
+            
             value = ''.join(result)
-        
-        # Finally apply tilde expansion
-        if value.startswith('~'):
-            value = self.expansion_manager.expand_tilde(value)
+            
+            # Now expand remaining variables
+            value = self.expansion_manager.expand_string_variables(value)
         
         return value
     
