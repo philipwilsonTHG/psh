@@ -2,10 +2,39 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.51.0"
+__version__ = "0.52.0"
 
 # Version history
 VERSION_HISTORY = """
+0.52.0 (2025-01-16) - Bug Fixes and Enhanced Test Infrastructure
+  - Fixed executor visitor test output capture
+    - TestableExecutor now preserves test-provided StringIO streams
+    - Fixed issue where builtins would write to terminal instead of capture buffers
+    - All 22 executor visitor tests now pass
+  - Fixed parameter expansion :+ operator
+    - Added support for ${var:+alternative} syntax (use alternative if var is set)
+    - Complements existing :- operator for full bash compatibility
+  - Fixed command substitution with proper fork/pipe implementation
+    - Replaced file-based approach with os.fork() and pipes
+    - Functions now work correctly in command substitution
+    - Output properly captured without terminal interference
+    - Fixed "No child processes" error in pytest environment
+  - Fixed here string variable expansion
+    - Added quote_type preservation from lexer through AST
+    - Single-quoted here strings no longer expand variables
+    - Double-quoted and unquoted here strings expand variables correctly
+  - Fixed associative array element assignment
+    - Executor now distinguishes between indexed and associative arrays
+    - String keys properly handled for associative arrays
+    - Variable expansion in array indices (e.g., arr[$key]) now works
+  - Fixed command substitution exit status preservation
+    - Exit status from commands in $(cmd) properly preserved in $?
+    - Added SIGCHLD signal handling to prevent job control interference
+    - Variable assignments with command substitution preserve exit status
+  - Reduced failing tests from 26 to 18
+  - All function command substitution tests (7) now pass
+  - All associative array tests (7) now pass
+
 0.51.0 (2025-01-14) - Major Command Substitution and Test Suite Improvements
   - Fixed critical bugs in command substitution and arithmetic expansion
   - Fixed word splitting in for loops with command substitution
