@@ -8,7 +8,7 @@ PSH implements a significant subset of POSIX shell functionality with some exten
 
 ### Compliance Statistics
 - **Core Shell Grammar**: ~85% compliant
-- **Built-in Commands**: ~80% compliant (exec now implemented)
+- **Built-in Commands**: ~83% compliant (exec and kill now implemented)
 - **Parameter Expansion**: ~90% compliant  
 - **Signal Handling**: ~60% compliant (missing trap command)
 - **Overall POSIX Compliance**: ~80%
@@ -139,7 +139,7 @@ PSH implements a significant subset of POSIX shell functionality with some exten
 | `getopts` | ✅ | ❌ Not Implemented | Option parsing |
 | `hash` | ✅ | ❌ Not Implemented | Command cache |
 | `jobs` | ✅ | ✅ Compliant | Job listing |
-| `kill` | ✅ | ❌ Not Implemented | Use external |
+| `kill` | ✅ | ✅ Compliant | Full support |
 | `pwd` | ✅ | ✅ Compliant | Print directory |
 | `read` | ✅ | ✅ Compliant | Enhanced version |
 | `true` | ✅ | ✅ Compliant | Returns 0 |

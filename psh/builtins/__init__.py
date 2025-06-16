@@ -17,6 +17,7 @@ from . import function_support
 from . import read_builtin
 from . import eval_command
 from . import help_command
+from . import kill_command
 
 # Re-export for convenience
 __all__ = ['registry', 'builtin', 'Builtin']

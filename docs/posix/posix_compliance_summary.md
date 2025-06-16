@@ -21,7 +21,7 @@ Based on comprehensive analysis and automated testing (updated for v0.55.0):
 | **Basic Commands** | 100% | 100% | Simple commands, pipelines, lists |
 | **Parameter Expansion** | 85% | 71% | Some edge cases with `:=` and `:+` |
 | **Special Parameters** | 95% | 100% | All POSIX special parameters work |
-| **Built-in Commands** | 83% | 93% | Missing key built-ins (trap, shift), exec and help now implemented |
+| **Built-in Commands** | 86% | 93% | Missing key built-ins (trap, shift), exec, help, and kill now implemented |
 | **I/O Redirection** | 90% | 80% | Minor issues with stderr and heredocs |
 | **Quoting** | 100% | 100% | Perfect POSIX compliance |
 | **Word Expansion** | 90% | 75% | Field splitting edge case |

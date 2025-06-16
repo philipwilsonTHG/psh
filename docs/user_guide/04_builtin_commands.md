@@ -702,6 +702,159 @@ psh$ bg %2
 [2]- sleep 100 &
 ```
 
+### kill - Send Signals to Processes
+
+Send signals to running processes or list available signals:
+
+```bash
+# Send default signal (TERM) to a process
+psh$ sleep 300 &
+[1] 12345
+psh$ kill 12345
+
+# Send specific signal by name
+psh$ sleep 300 &
+[1] 12346
+psh$ kill -KILL 12346
+psh$ kill -HUP 12347
+psh$ kill -INT 12348
+
+# Send signal by number
+psh$ kill -9 12349    # SIGKILL
+psh$ kill -15 12350   # SIGTERM
+psh$ kill -1 12351    # SIGHUP
+
+# Using -s option
+psh$ kill -s TERM 12352
+psh$ kill -s KILL 12353
+
+# Kill multiple processes
+psh$ kill 12354 12355 12356
+psh$ kill -TERM 12357 12358
+
+# Kill jobs using job specifications
+psh$ sleep 300 &
+[1] 12359
+psh$ sleep 400 &
+[2] 12360
+psh$ kill %1          # Kill job 1
+psh$ kill %2          # Kill job 2
+psh$ kill %+          # Kill current job
+psh$ kill %-          # Kill previous job
+
+# Kill process groups (negative PID)
+psh$ kill -TERM -12361    # Send TERM to process group 12361
+
+# Test if process exists (signal 0)
+psh$ kill -0 12362
+psh$ echo $?
+0     # Process exists
+
+psh$ kill -0 99999
+kill: (99999) - No such process
+psh$ echo $?
+1     # Process doesn't exist
+
+# List all available signals
+psh$ kill -l
+1) SIGHUP      	2) SIGINT      	3) SIGQUIT     	4) SIGILL      
+5) SIGTRAP     	6) SIGABRT     	7) 7           	8) SIGFPE      
+9) SIGKILL     	10) SIGBUS     	11) SIGSEGV    	12) SIGSYS     
+13) SIGPIPE    	14) SIGALRM    	15) SIGTERM    	16) SIGURG     
+17) SIGSTOP    	18) SIGTSTP    	19) SIGCONT    	20) SIGCHLD    
+21) SIGTTIN    	22) SIGTTOU    	23) SIGIO      	24) SIGXCPU    
+25) SIGXFSZ    	26) SIGVTALRM  	27) SIGPROF    	28) SIGWINCH   
+29) 29         	30) SIGUSR1    	31) SIGUSR2
+
+# Show signal name for exit status
+psh$ kill -l 143
+SIGTERM
+
+psh$ kill -l 137
+SIGKILL
+
+# Common use cases
+# Gracefully terminate a process
+psh$ kill -TERM 12363   # Or just: kill 12363
+
+# Force kill an unresponsive process
+psh$ kill -KILL 12364   # Or: kill -9 12364
+
+# Reload configuration (for daemons)
+psh$ kill -HUP 12365
+
+# Suspend a process
+psh$ kill -STOP 12366
+
+# Resume a suspended process
+psh$ kill -CONT 12366
+
+# Interrupt a process (like Ctrl-C)
+psh$ kill -INT 12367
+
+# Error handling examples
+psh$ kill 99999
+kill: (99999) - No such process
+
+psh$ kill -INVALID 12368
+kill: invalid signal name: INVALID
+
+psh$ kill %99
+kill: %99: no such job
+```
+
+#### Signal Reference
+
+Common signals used with kill:
+
+- **TERM (15)**: Terminate process gracefully (default)
+- **KILL (9)**: Force kill process (cannot be caught or ignored)
+- **HUP (1)**: Hangup - often used to reload configuration
+- **INT (2)**: Interrupt - equivalent to Ctrl-C
+- **QUIT (3)**: Quit - equivalent to Ctrl-\
+- **STOP (19)**: Suspend process (cannot be caught)
+- **CONT (18)**: Resume suspended process
+- **USR1 (10)**: User-defined signal 1
+- **USR2 (12)**: User-defined signal 2
+
+#### Job Control Integration
+
+The kill command integrates seamlessly with PSH's job control:
+
+```bash
+# Start some background jobs
+psh$ sleep 100 &
+[1] 12369
+psh$ sleep 200 &
+[2] 12370
+psh$ find / -name "*.log" 2>/dev/null &
+[3] 12371
+
+# Kill specific jobs
+psh$ kill %1          # Kill job 1 (sleep 100)
+psh$ kill %find       # Kill job matching "find"
+
+# Kill all processes in a job (pipelines)
+psh$ cat file | grep pattern | sort &
+[4] 12372
+psh$ kill %4          # Kills all processes in the pipeline
+
+# Combining with job control commands
+psh$ jobs
+[2]  Running    sleep 200 &
+[3]- Running    find / -name "*.log" 2>/dev/null &
+
+psh$ kill %2
+psh$ jobs
+[3]+ Running    find / -name "*.log" 2>/dev/null &
+```
+
+#### Exit Status
+
+- **0**: At least one signal was sent successfully
+- **1**: Error occurred (process not found, permission denied, etc.)
+- **2**: Invalid arguments or usage
+
 ## 4.6 Command Help and Information
 
 ### help - Display Builtin Command Information
@@ -1749,7 +1902,7 @@ Built-in commands are the core of PSH functionality. They provide:
 - Navigation capabilities (cd, pwd)
 - Environment management (export, unset, env, set, declare)
 - I/O operations (echo, read)
-- Job control (jobs, fg, bg)
+- Job control (jobs, fg, bg, kill)
 - Command help and information (help)
 - Script execution (source)
 - Conditional testing (test, [, [[)

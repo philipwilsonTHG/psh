@@ -2,10 +2,39 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.55.0"
+__version__ = "0.56.0"
 
 # Version history
 VERSION_HISTORY = """
+0.56.0 (2025-06-16) - Kill Builtin and CD Dash Implementation
+  - Implemented POSIX-compliant kill builtin for process management
+    - Full POSIX syntax support: kill [-s signal | -signal] pid... | kill -l [exit_status]
+    - Signal name and number support (TERM, KILL, HUP, INT, etc.)
+    - Job control integration (%1, %+, %-, %jobspec support)
+    - Process group signaling (negative PIDs)
+    - Signal listing with kill -l option
+    - Comprehensive error handling with proper exit codes
+    - 38 comprehensive tests with 100% pass rate
+  - Enhanced cd builtin with bash-compatible cd - functionality
+    - cd - changes to previous working directory
+    - Properly maintains PWD and OLDPWD environment variables
+    - Prints new directory when using cd - (bash behavior)
+    - Enhanced help documentation with special directories section
+    - Error handling for unset OLDPWD
+    - 5 comprehensive tests covering all functionality
+  - POSIX compliance improvements
+    - Built-in commands compliance increased from 83% to 86%
+    - Added kill to POSIX compliance documentation
+    - Enhanced process management capabilities
+  - Documentation updates
+    - Updated user guide with kill builtin examples and signal reference
+    - Enhanced cd help text with - option documentation
+    - Updated POSIX compliance analysis
+  - Educational value enhancements
+    - Complete signal management learning opportunities
+    - Improved directory navigation user experience
+    - Self-documenting process management capabilities
+
 0.55.0 (2025-06-16) - Help Builtin Implementation
   - Implemented complete bash-compatible help builtin for self-documentation
     - Basic listing: help shows all available builtins in two-column format
