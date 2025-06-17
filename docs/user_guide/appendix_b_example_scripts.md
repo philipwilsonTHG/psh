@@ -6,12 +6,13 @@ This appendix contains a collection of scripts that demonstrate PSH's capabiliti
 
 1. [Control Structures in Pipelines (v0.37.0)](#control-structures-in-pipelines-v0370) 🚀
 2. [System Administration Scripts](#system-administration-scripts)
-3. [Mathematical Scripts](#mathematical-scripts)
-4. [Interactive Utilities](#interactive-utilities)
-5. [Text Processing Scripts](#text-processing-scripts)
-6. [Development Tools](#development-tools)
-7. [Function Libraries](#function-libraries)
-8. [Dynamic Programming with eval](#dynamic-programming-with-eval)
+3. [Signal Handling and Cleanup (v0.57.2)](#signal-handling-and-cleanup-v0572) 🆕
+4. [Mathematical Scripts](#mathematical-scripts)
+5. [Interactive Utilities](#interactive-utilities)
+6. [Text Processing Scripts](#text-processing-scripts)
+7. [Development Tools](#development-tools)
+8. [Function Libraries](#function-libraries)
+9. [Dynamic Programming with eval](#dynamic-programming-with-eval)
 
 ## Control Structures in Pipelines (v0.37.0) 🚀
 
@@ -334,6 +335,310 @@ This script demonstrates:
 - **Proper logging**: All operations logged with timestamps
 - **Validation**: Pre-flight checks before making changes
 - **Error recovery**: Graceful handling of non-critical failures
+
+## Signal Handling and Cleanup (v0.57.2) 🆕
+
+PSH v0.57.2 introduces the `trap` builtin for robust signal handling and cleanup. These scripts demonstrate proper cleanup patterns for production use.
+
+### Long-Running Process with Cleanup
+
+```bash
+#!/usr/bin/env psh
+# long_process.sh - Demonstrates proper signal handling and cleanup
+
+# Global variables for cleanup
+PID_FILE="/tmp/long_process.pid"
+LOG_FILE="/tmp/long_process.log"
+TEMP_DIR=""
+
+# Cleanup function
+cleanup() {
+    echo "Cleaning up..." | tee -a "$LOG_FILE"
+    
+    # Kill background processes
+    if [ -f "$PID_FILE" ]; then
+        local pid=$(cat "$PID_FILE")
+        kill "$pid" 2>/dev/null || true
+        rm -f "$PID_FILE"
+    fi
+    
+    # Remove temporary files
+    if [ -n "$TEMP_DIR" ] && [ -d "$TEMP_DIR" ]; then
+        rm -rf "$TEMP_DIR"
+    fi
+    
+    echo "Cleanup completed" | tee -a "$LOG_FILE"
+}
+
+# Set up signal traps
+trap cleanup EXIT INT TERM
+
+# Create temporary directory
+TEMP_DIR=$(mktemp -d)
+echo "Working directory: $TEMP_DIR" | tee -a "$LOG_FILE"
+
+# Simulate long-running process
+echo "Starting long process..." | tee -a "$LOG_FILE"
+for i in $(seq 1 100); do
+    echo "Processing item $i/100..." | tee -a "$LOG_FILE"
+    sleep 0.5
+    
+    # Check for interruption
+    if [ ! -d "$TEMP_DIR" ]; then
+        echo "Process interrupted, exiting..." | tee -a "$LOG_FILE"
+        exit 1
+    fi
+done
+
+echo "Process completed successfully" | tee -a "$LOG_FILE"
+```
+
+### Database Backup with Signal Forwarding
+
+```bash
+#!/usr/bin/env psh
+# db_backup.sh - Database backup with proper signal handling
+
+# Configuration
+DB_NAME="${1:-myapp}"
+BACKUP_DIR="/backups/$(date +%Y-%m-%d)"
+LOCK_FILE="/tmp/backup_${DB_NAME}.lock"
+
+# Track child processes
+BACKUP_PID=""
+COMPRESS_PID=""
+
+# Signal handler for graceful shutdown
+graceful_shutdown() {
+    echo "Received shutdown signal, stopping backup..." >&2
+    
+    # Send TERM to backup process
+    if [ -n "$BACKUP_PID" ]; then
+        echo "Stopping backup process $BACKUP_PID" >&2
+        kill -TERM "$BACKUP_PID" 2>/dev/null || true
+    fi
+    
+    # Send TERM to compression process
+    if [ -n "$COMPRESS_PID" ]; then
+        echo "Stopping compression process $COMPRESS_PID" >&2
+        kill -TERM "$COMPRESS_PID" 2>/dev/null || true
+    fi
+    
+    # Wait for processes to finish
+    wait
+    
+    cleanup_and_exit 130  # 128 + SIGINT
+}
+
+# Cleanup function
+cleanup_and_exit() {
+    local exit_code="${1:-0}"
+    
+    echo "Cleaning up backup environment..." >&2
+    
+    # Remove lock file
+    rm -f "$LOCK_FILE"
+    
+    # Remove incomplete backup files
+    if [ -f "$BACKUP_DIR/${DB_NAME}_incomplete.sql" ]; then
+        rm -f "$BACKUP_DIR/${DB_NAME}_incomplete.sql"
+    fi
+    
+    echo "Cleanup completed" >&2
+    exit "$exit_code"
+}
+
+# Set up signal handlers
+trap graceful_shutdown INT TERM
+trap cleanup_and_exit EXIT
+
+# Check for existing backup
+if [ -f "$LOCK_FILE" ]; then
+    echo "Error: Another backup is already running (PID: $(cat $LOCK_FILE))" >&2
+    exit 1
+fi
+
+# Create lock file
+echo $$ > "$LOCK_FILE"
+
+# Create backup directory
+mkdir -p "$BACKUP_DIR"
+
+echo "Starting backup of database '$DB_NAME'"
+echo "Backup directory: $BACKUP_DIR"
+
+# Start backup process
+(
+    # Simulate database dump
+    echo "-- Backup started: $(date)"
+    for table in users orders products; do
+        echo "-- Dumping table: $table"
+        for i in $(seq 1 10); do
+            echo "INSERT INTO $table VALUES ($i, 'data_$i');"
+            sleep 0.1
+        done
+    done
+    echo "-- Backup completed: $(date)"
+) > "$BACKUP_DIR/${DB_NAME}_incomplete.sql" &
+
+BACKUP_PID=$!
+echo "Backup process started (PID: $BACKUP_PID)"
+
+# Wait for backup to complete
+wait "$BACKUP_PID"
+backup_status=$?
+
+if [ $backup_status -eq 0 ]; then
+    # Rename completed backup
+    mv "$BACKUP_DIR/${DB_NAME}_incomplete.sql" "$BACKUP_DIR/${DB_NAME}.sql"
+    
+    # Start compression
+    echo "Compressing backup..."
+    gzip "$BACKUP_DIR/${DB_NAME}.sql" &
+    COMPRESS_PID=$!
+    
+    wait "$COMPRESS_PID"
+    
+    if [ $? -eq 0 ]; then
+        echo "Backup completed successfully: $BACKUP_DIR/${DB_NAME}.sql.gz"
+        ls -lh "$BACKUP_DIR/${DB_NAME}.sql.gz"
+    else
+        echo "Error: Compression failed" >&2
+        exit 1
+    fi
+else
+    echo "Error: Backup failed with status $backup_status" >&2
+    exit 1
+fi
+```
+
+### Service Manager with Signal Handling
+
+```bash
+#!/usr/bin/env psh
+# service_manager.sh - Service management with proper signal handling
+
+# Service configuration
+SERVICE_NAME="${1:-myservice}"
+SERVICE_CMD="${2:-./dummy_service}"
+PID_FILE="/var/run/${SERVICE_NAME}.pid"
+LOG_FILE="/var/log/${SERVICE_NAME}.log"
+
+# Global variables
+SERVICE_PID=""
+SHOULD_RESTART=true
+
+# Service monitoring function
+start_service() {
+    if [ -f "$PID_FILE" ] && kill -0 "$(cat $PID_FILE)" 2>/dev/null; then
+        echo "Service $SERVICE_NAME is already running (PID: $(cat $PID_FILE))"
+        return 0
+    fi
+    
+    echo "Starting service $SERVICE_NAME..." | tee -a "$LOG_FILE"
+    
+    # Start service in background
+    $SERVICE_CMD >> "$LOG_FILE" 2>&1 &
+    SERVICE_PID=$!
+    
+    # Save PID
+    echo "$SERVICE_PID" > "$PID_FILE"
+    
+    echo "Service started with PID: $SERVICE_PID" | tee -a "$LOG_FILE"
+}
+
+# Signal handlers
+handle_shutdown() {
+    echo "Received shutdown signal, stopping service..." | tee -a "$LOG_FILE"
+    SHOULD_RESTART=false
+    stop_service
+    exit 0
+}
+
+handle_reload() {
+    echo "Received reload signal, restarting service..." | tee -a "$LOG_FILE"
+    stop_service
+    sleep 2
+    start_service
+}
+
+stop_service() {
+    if [ -n "$SERVICE_PID" ] && kill -0 "$SERVICE_PID" 2>/dev/null; then
+        echo "Stopping service (PID: $SERVICE_PID)..." | tee -a "$LOG_FILE"
+        
+        # Send TERM signal
+        kill -TERM "$SERVICE_PID"
+        
+        # Wait for graceful shutdown
+        local count=0
+        while kill -0 "$SERVICE_PID" 2>/dev/null && [ $count -lt 10 ]; do
+            sleep 1
+            count=$((count + 1))
+        done
+        
+        # Force kill if still running
+        if kill -0 "$SERVICE_PID" 2>/dev/null; then
+            echo "Service didn't stop gracefully, force killing..." | tee -a "$LOG_FILE"
+            kill -KILL "$SERVICE_PID"
+        fi
+        
+        echo "Service stopped" | tee -a "$LOG_FILE"
+    fi
+    
+    # Remove PID file
+    rm -f "$PID_FILE"
+}
+
+# Set up signal handlers
+trap handle_shutdown INT TERM
+trap handle_reload HUP
+trap stop_service EXIT
+
+# Start service
+start_service
+
+# Monitor service
+echo "Monitoring service $SERVICE_NAME (PID: $SERVICE_PID)"
+echo "Send SIGHUP to reload, SIGTERM/SIGINT to stop"
+
+while $SHOULD_RESTART; do
+    # Check if service is still running
+    if ! kill -0 "$SERVICE_PID" 2>/dev/null; then
+        echo "Service died, restarting..." | tee -a "$LOG_FILE"
+        start_service
+    fi
+    
+    sleep 5
+done
+```
+
+### Key Signal Handling Patterns
+
+These scripts demonstrate essential patterns:
+
+1. **Cleanup on Exit**: Use `trap cleanup EXIT` to ensure cleanup runs regardless of how the script exits
+2. **Signal Forwarding**: Forward signals to child processes for graceful shutdown
+3. **Process Monitoring**: Track child PIDs and handle their lifecycle
+4. **Lock Files**: Prevent multiple instances with proper cleanup
+5. **Graceful Degradation**: Handle failures gracefully while maintaining system state
+6. **Resource Management**: Clean up temporary files, sockets, and other resources
+
+**Common Trap Patterns:**
+```bash
+# Basic cleanup
+trap 'rm -f /tmp/lockfile.$$' EXIT
+
+# Signal forwarding
+trap 'kill -TERM $child_pid; exit 0' INT TERM
+
+# Multiple signals with same handler
+trap 'graceful_shutdown' INT TERM HUP
+
+# Ignore signals during critical sections
+trap '' INT TERM
+# ... critical code ...
+trap - INT TERM  # Restore default behavior
+```
 
 ## Mathematical Scripts
 

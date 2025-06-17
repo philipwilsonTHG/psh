@@ -855,6 +855,135 @@ psh$ jobs
 - **1**: Error occurred (process not found, permission denied, etc.)
 - **2**: Invalid arguments or usage
 
+### trap - Handle Signals and Shell Exit
+
+The `trap` command sets up signal handlers and exit traps for robust shell script cleanup:
+
+```bash
+# Set up basic signal handling
+psh$ trap 'echo "Interrupted by user"' INT
+psh$ # Press Ctrl-C to see the trap execute
+
+# Clean exit trap
+psh$ trap 'echo "Script exiting, cleaning up..."' EXIT
+psh$ exit
+
+# Multiple signals with same handler
+psh$ trap 'cleanup_function' INT TERM HUP QUIT
+
+# Ignore a signal
+psh$ trap '' QUIT
+psh$ # Now SIGQUIT (Ctrl-\) is ignored
+
+# Reset signal to default behavior
+psh$ trap - INT
+psh$ # INT signal now has default behavior
+
+# List all available signals
+psh$ trap -l
+ -) DEBUG
+ -) ERR
+ -) EXIT
+ 1) SIGHUP
+ 2) SIGINT
+ 3) SIGQUIT
+ ...
+
+# Show current trap settings
+psh$ trap -p
+trap -- 'cleanup_function' INT
+trap -- '' QUIT
+
+# Show specific trap
+psh$ trap -p EXIT
+trap -- 'echo "Exiting"' EXIT
+```
+
+#### Common Trap Patterns
+
+**Cleanup on Exit:**
+```bash
+#!/usr/bin/env psh
+# Cleanup temporary files on exit
+tempfile=$(mktemp)
+trap 'rm -f "$tempfile"' EXIT
+
+echo "Working with $tempfile..."
+# Script will clean up automatically
+```
+
+**Graceful Shutdown:**
+```bash
+#!/usr/bin/env psh
+# Handle Ctrl-C gracefully
+cleanup() {
+    echo "Cleaning up..."
+    kill $bg_pid 2>/dev/null
+    exit 0
+}
+
+trap cleanup INT TERM
+
+# Start background work
+long_running_command &
+bg_pid=$!
+wait $bg_pid
+```
+
+**Signal Forwarding:**
+```bash
+#!/usr/bin/env psh
+# Forward signals to child process
+child_pid=""
+
+forward_signal() {
+    if [ -n "$child_pid" ]; then
+        kill -TERM $child_pid
+    fi
+    exit 0
+}
+
+trap forward_signal INT TERM
+
+# Start child and wait
+important_process &
+child_pid=$!
+wait $child_pid
+```
+
+#### Signal Reference
+
+Commonly trapped signals:
+
+- **INT (2)**: Interrupt (Ctrl-C)
+- **TERM (15)**: Termination request
+- **HUP (1)**: Hangup (terminal closed)
+- **QUIT (3)**: Quit (Ctrl-\)
+- **USR1 (10)**: User-defined signal 1
+- **USR2 (12)**: User-defined signal 2
+
+Special trap conditions:
+
+- **EXIT**: Shell or script exit
+- **DEBUG**: Before each command (bash extension)
+- **ERR**: Command returns non-zero (bash extension)
+
+#### Syntax Summary
+
+```bash
+trap [action] [signal...]    # Set trap
+trap -l                      # List signals
+trap -p [signal...]         # Show traps
+trap '' signal              # Ignore signal
+trap - signal               # Reset to default
+```
+
+#### Exit Status
+
+- **0**: Trap set successfully
+- **1**: Invalid signal specification
+- **2**: Invalid usage or arguments
+
 ## 4.6 Command Help and Information
 
 ### help - Display Builtin Command Information

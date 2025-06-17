@@ -38,7 +38,10 @@ class SignalManager(InteractiveComponent):
     def _setup_interactive_mode_handlers(self):
         """Set up full signal handling for interactive mode."""
         # Store original handlers for restoration
-        self._original_handlers[signal.SIGINT] = signal.signal(signal.SIGINT, self._handle_sigint)
+        self._original_handlers[signal.SIGINT] = signal.signal(signal.SIGINT, self._handle_signal_with_trap_check)
+        self._original_handlers[signal.SIGTERM] = signal.signal(signal.SIGTERM, self._handle_signal_with_trap_check)
+        self._original_handlers[signal.SIGHUP] = signal.signal(signal.SIGHUP, self._handle_signal_with_trap_check)
+        self._original_handlers[signal.SIGQUIT] = signal.signal(signal.SIGQUIT, self._handle_signal_with_trap_check)
         self._original_handlers[signal.SIGTSTP] = signal.signal(signal.SIGTSTP, signal.SIG_IGN)
         self._original_handlers[signal.SIGTTOU] = signal.signal(signal.SIGTTOU, signal.SIG_IGN)
         self._original_handlers[signal.SIGTTIN] = signal.signal(signal.SIGTTIN, signal.SIG_IGN)
@@ -55,8 +58,35 @@ class SignalManager(InteractiveComponent):
                 pass
         self._original_handlers.clear()
         
+    def _handle_signal_with_trap_check(self, signum, frame):
+        """Handle signals with trap checking."""
+        # Get signal name from number
+        signal_name = None
+        if hasattr(self.shell, 'trap_manager'):
+            signal_name = self.shell.trap_manager.signal_names.get(signum)
+        
+        # Check if there's a user-defined trap for this signal
+        if signal_name and hasattr(self.shell, 'trap_manager'):
+            if signal_name in self.shell.trap_manager.state.trap_handlers:
+                action = self.shell.trap_manager.state.trap_handlers[signal_name]
+                if action == '':
+                    # Signal is ignored
+                    return
+                else:
+                    # Execute the trap
+                    self.shell.trap_manager.execute_trap(signal_name)
+                    return
+        
+        # No trap set, use default behavior
+        if signum == signal.SIGINT:
+            self._handle_sigint(signum, frame)
+        else:
+            # For other signals, use default behavior
+            signal.signal(signum, signal.SIG_DFL)
+            os.kill(os.getpid(), signum)
+    
     def _handle_sigint(self, signum, frame):
-        """Handle Ctrl-C (SIGINT)."""
+        """Handle Ctrl-C (SIGINT) default behavior."""
         # Just print a newline - the command loop will handle the rest
         print()
         # The signal will be delivered to the foreground process group

@@ -94,6 +94,14 @@ class ShellState:
         # Initialize getopts variables
         self.scope_manager.set_variable('OPTIND', '1')
         self.scope_manager.set_variable('OPTERR', '1')
+        
+        # Trap handlers: signal -> command string
+        # Maps signal names (e.g., 'INT', 'TERM', 'EXIT') to trap command strings
+        self.trap_handlers = {}
+        
+        # Original signal handlers for restoration
+        # Used when traps are removed to restore original behavior
+        self._original_signal_handlers = {}
     
     @property
     def stdout(self):

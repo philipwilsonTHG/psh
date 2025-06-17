@@ -76,6 +76,10 @@ class Shell:
         from .history_expansion import HistoryExpander
         self.history_expander = HistoryExpander(self)
         
+        # Initialize trap manager
+        from .core.trap_manager import TrapManager
+        self.trap_manager = TrapManager(self)
+        
         # Initialize stream references (used by builtins)
         self.stdout = sys.stdout
         self.stderr = sys.stderr

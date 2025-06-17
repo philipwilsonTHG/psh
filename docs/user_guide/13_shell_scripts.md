@@ -510,7 +510,7 @@ cleanup() {
 }
 
 # Set trap for cleanup
-# trap cleanup EXIT  # Trap command not yet implemented in PSH
+trap cleanup EXIT
 ```
 
 ## 13.6 Input and Output
@@ -1525,7 +1525,7 @@ cleanup() {
     # Add cleanup tasks here
 }
 
-# trap cleanup INT TERM  # Not yet implemented in PSH
+trap cleanup INT TERM
 
 # Run main function
 main "$@"

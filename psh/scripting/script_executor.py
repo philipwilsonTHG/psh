@@ -39,8 +39,14 @@ class ScriptExecutor(ScriptComponent):
         
         try:
             with FileInput(script_path) as input_source:
-                return self.shell.script_manager.source_processor.execute_from_source(
+                exit_code = self.shell.script_manager.source_processor.execute_from_source(
                     input_source, add_to_history=False)
+                
+                # Execute EXIT trap if set (only for the main script, not sourced files)
+                if hasattr(self.shell, 'trap_manager') and old_script_mode != True:
+                    self.shell.trap_manager.execute_exit_trap()
+                
+                return exit_code
         except Exception as e:
             print(f"psh: {script_path}: {e}", file=sys.stderr)
             return 1

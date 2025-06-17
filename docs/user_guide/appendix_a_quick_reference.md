@@ -374,6 +374,7 @@ fg [job]    # Foreground job
 bg [job]    # Background job
 wait [pid]  # Wait for process
 kill        # Send signal
+trap        # Handle signals (v0.57.2)
 ```
 
 ### Other
@@ -406,6 +407,33 @@ Job specifications:
 %+, %%      # Current job
 %-          # Previous job
 %string     # Job beginning with string
+```
+
+## Signal Handling (v0.57.2)
+
+```bash
+# Set signal handlers
+trap 'command' SIGNAL...       # Set trap
+trap 'cleanup' EXIT            # Run on exit
+trap 'graceful' INT TERM       # Handle interrupts
+trap '' SIGNAL                 # Ignore signal
+trap - SIGNAL                  # Reset to default
+
+# Show and list
+trap -p                        # Show all traps
+trap -p SIGNAL                 # Show specific trap
+trap -l                        # List all signals
+
+# Common signals
+INT (2)     # Ctrl-C interrupt
+TERM (15)   # Termination request
+HUP (1)     # Hangup (terminal closed)
+QUIT (3)    # Quit (Ctrl-\)
+EXIT        # Shell exit (pseudo-signal)
+
+# Example patterns
+trap 'rm -f $tmpfile' EXIT     # Cleanup temp files
+trap 'kill $bg_pid' INT TERM   # Kill background job
 ```
 
 ## Prompt Customization

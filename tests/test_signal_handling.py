@@ -19,9 +19,9 @@ class TestSignalHandling:
         handler = signal.getsignal(signal.SIGTTOU)
         assert handler == signal.SIG_IGN
         
-        # Check that SIGINT has a handler
+        # Check that SIGINT has a handler (now uses trap-aware handler)
         handler = signal.getsignal(signal.SIGINT)
-        assert handler == self.shell._handle_sigint
+        assert handler == self.shell.interactive_manager.signal_manager._handle_signal_with_trap_check
         
         # Check that SIGTSTP is ignored by the shell
         handler = signal.getsignal(signal.SIGTSTP)

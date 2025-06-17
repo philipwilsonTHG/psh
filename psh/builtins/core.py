@@ -28,10 +28,6 @@ class ExitBuiltin(Builtin):
     
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Exit the shell with optional exit code."""
-        # Save history before exiting
-        if hasattr(shell, '_save_history'):
-            shell._save_history()
-        
         exit_code = 0
         if len(args) > 1:
             try:
@@ -42,6 +38,17 @@ class ExitBuiltin(Builtin):
             except ValueError:
                 self.error(f"{args[1]}: numeric argument required", shell)
                 exit_code = 2
+        
+        # Set the exit code in shell state for EXIT trap
+        shell.state.last_exit_code = exit_code
+        
+        # Execute EXIT trap if set
+        if hasattr(shell, 'trap_manager'):
+            shell.trap_manager.execute_exit_trap()
+        
+        # Save history before exiting
+        if hasattr(shell, '_save_history'):
+            shell._save_history()
         
         sys.exit(exit_code)
     
