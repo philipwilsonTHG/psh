@@ -159,6 +159,11 @@ class SourceProcessor(ScriptComponent):
         if not command_string.strip() or command_string.strip().startswith('#'):
             return 0
         
+        # Verbose mode: echo input lines as they are read
+        if self.state.options.get('verbose', False):
+            # Echo the command to stderr before execution
+            print(command_string, file=sys.stderr)
+        
         try:
             # Process line continuations first
             from ..input_preprocessing import process_line_continuations
@@ -210,6 +215,11 @@ class SourceProcessor(ScriptComponent):
                     return 1 if error_count > 0 else 0
                 
                 # Don't execute in validation mode
+                return 0
+            
+            # NoExec mode - parse and validate but don't execute
+            if self.state.options.get('noexec', False):
+                # Successfully parsed, so syntax is valid
                 return 0
             
             # Add to history if requested (for interactive or testing)

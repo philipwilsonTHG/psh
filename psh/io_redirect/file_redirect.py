@@ -86,6 +86,11 @@ class FileRedirector:
                 # Output redirection (truncate)
                 target_fd = redirect.fd if redirect.fd is not None else 1
                 saved_fds.append((target_fd, os.dup(target_fd)))
+                
+                # Check noclobber option - prevent overwriting existing files
+                if self.state.options.get('noclobber', False) and os.path.exists(target):
+                    raise OSError(f"psh: cannot overwrite existing file: {target}")
+                
                 fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)
                 os.dup2(fd, target_fd)
                 os.close(fd)
@@ -175,6 +180,11 @@ class FileRedirector:
             elif redirect.type == '>':
                 # Output redirection (truncate) - redirect permanently
                 target_fd = redirect.fd if redirect.fd is not None else 1
+                
+                # Check noclobber option - prevent overwriting existing files
+                if self.state.options.get('noclobber', False) and os.path.exists(target):
+                    raise OSError(f"psh: cannot overwrite existing file: {target}")
+                
                 fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)
                 os.dup2(fd, target_fd)
                 os.close(fd)

@@ -181,12 +181,22 @@ class IOManager:
                 sys.stdin = io.StringIO(content)
             elif redirect.type == '>' and redirect.fd == 2:
                 stderr_backup = sys.stderr
+                
+                # Check noclobber option - prevent overwriting existing files
+                if self.state.options.get('noclobber', False) and os.path.exists(target):
+                    raise OSError(f"psh: cannot overwrite existing file: {target}")
+                
                 sys.stderr = open(target, 'w')
             elif redirect.type == '>>' and redirect.fd == 2:
                 stderr_backup = sys.stderr
                 sys.stderr = open(target, 'a')
             elif redirect.type == '>' and (redirect.fd is None or redirect.fd == 1):
                 stdout_backup = sys.stdout
+                
+                # Check noclobber option - prevent overwriting existing files
+                if self.state.options.get('noclobber', False) and os.path.exists(target):
+                    raise OSError(f"psh: cannot overwrite existing file: {target}")
+                
                 sys.stdout = open(target, 'w')
                 # DEBUG: Log stdout redirection
                 if self.state.options.get('debug-exec'):
