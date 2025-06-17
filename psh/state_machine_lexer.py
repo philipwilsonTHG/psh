@@ -803,7 +803,7 @@ class StateMachineLexer:
         var_name = ""
         
         # Read variable name
-        while self.current_char() and (self.current_char().isalnum() or self.current_char() in '_?$!#@*0123456789'):
+        while self.current_char() and (self.current_char().isalnum() or self.current_char() in '_?$!#@*-0123456789'):
             var_name += self.current_char()
             self.advance()
         

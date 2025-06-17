@@ -103,8 +103,16 @@ class SetBuiltin(Builtin):
         
         # Map short options to long names
         short_to_long = {
+            'a': 'allexport',
+            'b': 'notify',
+            'C': 'noclobber',
             'e': 'errexit',
+            'f': 'noglob',
+            'h': 'hashcmds',
+            'm': 'monitor',
+            'n': 'noexec',
             'u': 'nounset',
+            'v': 'verbose',
             'x': 'xtrace',
         }
         
@@ -214,31 +222,46 @@ class SetBuiltin(Builtin):
     
     @property
     def help(self) -> str:
-        return """set: set [-euxo option] [+euxo option] [arg ...]
+        return """set: set [-abCefhmnuvx] [+abCefhmnuvx] [-o option] [arg ...]
     
     Set shell options and positional parameters.
     With no arguments, print all shell variables.
     
     Short options:
+      -a                Enable allexport (auto-export all variables)
+      -b                Enable notify (async job completion notifications)
+      -C                Enable noclobber (prevent file overwriting with >)
       -e                Enable errexit (exit on command failure)
+      -f                Enable noglob (disable pathname expansion)
+      -h                Enable hashcmds (hash command locations)
+      -m                Enable monitor (job control mode)
+      -n                Enable noexec (read but don't execute commands)
       -u                Enable nounset (error on undefined variables)
+      -v                Enable verbose (echo input lines as read)
       -x                Enable xtrace (print commands before execution)
-      +e                Disable errexit
-      +u                Disable nounset
-      +x                Disable xtrace
+      +<option>         Disable the specified option
     
     Long options:
       -o                Show current option settings
       -o vi             Set vi editing mode
       -o emacs          Set emacs editing mode (default)
+      -o allexport      Auto-export all variables (same as -a)
+      -o notify         Async job completion notifications (same as -b)
+      -o noclobber      Prevent file overwriting with > (same as -C)
+      -o errexit        Exit on command failure (same as -e)
+      -o noglob         Disable pathname expansion (same as -f)
+      -o hashcmds       Hash command locations (same as -h)
+      -o monitor        Job control mode (same as -m)
+      -o noexec         Read but don't execute commands (same as -n)
+      -o nounset        Error on undefined variables (same as -u)
+      -o verbose        Echo input lines as read (same as -v)
+      -o xtrace         Print commands before execution (same as -x)
+      -o pipefail       Pipeline fails if any command fails
+      -o ignoreeof      Don't exit on EOF (Ctrl-D)
+      -o nolog          Don't log function definitions to history
       -o debug-ast      Enable AST debug output
       -o debug-tokens   Enable token debug output
       -o debug-scopes   Enable variable scope debug output
-      -o errexit        Exit on command failure (same as -e)
-      -o nounset        Error on undefined variables (same as -u)
-      -o xtrace         Print commands before execution (same as -x)
-      -o pipefail       Pipeline fails if any command fails
-      -o visitor-executor Deprecated (visitor is now the only executor)
       +o <option>       Disable the specified option
     
     With arguments, set positional parameters ($1, $2, etc.)."""

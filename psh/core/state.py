@@ -44,12 +44,22 @@ class ShellState:
             'debug-expansion-detail': debug_expansion_detail,
             'debug-exec': debug_exec,
             'debug-exec-fork': debug_exec_fork,
-            # Shell options (to be implemented)
+            # Shell options (existing)
             'errexit': False,      # -e: exit on error
             'nounset': False,      # -u: error on undefined variables
             'xtrace': False,       # -x: print commands before execution
-            # 'visitor-executor' removed - visitor is now the only executor
             'pipefail': False,     # -o pipefail: pipeline fails if any command fails
+            # New POSIX options
+            'allexport': False,    # -a: auto-export all variables
+            'notify': False,       # -b: async job completion notifications
+            'noclobber': False,    # -C: prevent file overwriting with >
+            'noglob': False,       # -f: disable pathname expansion
+            'hashcmds': False,     # -h: hash command locations
+            'monitor': False,      # -m: job control mode (default for interactive)
+            'noexec': False,       # -n: read commands but don't execute
+            'verbose': False,      # -v: echo input lines as read
+            'ignoreeof': False,    # -o ignoreeof: don't exit on EOF
+            'nolog': False,        # -o nolog: don't log function definitions
         }
         
         # Enable debug mode on scope manager if debug-scopes is set
@@ -230,6 +240,8 @@ class ShellState:
             return ' '.join(self.positional_params)
         elif name == '*':
             return ' '.join(self.positional_params)
+        elif name == '-':
+            return self.get_option_string()
         elif name.isdigit():
             return self.get_positional_param(int(name))
         return ''
@@ -267,3 +279,20 @@ class ShellState:
         # Also update scope manager
         if hasattr(self, 'scope_manager'):
             self.scope_manager.enable_debug(value)
+    
+    def get_option_string(self) -> str:
+        """Get string representation of set options for $- special variable."""
+        opts = []
+        # Single-letter options in alphabetical order
+        if self.options.get('allexport'): opts.append('a')
+        if self.options.get('notify'): opts.append('b')
+        if self.options.get('noclobber'): opts.append('C')
+        if self.options.get('errexit'): opts.append('e')
+        if self.options.get('noglob'): opts.append('f')
+        if self.options.get('hashcmds'): opts.append('h')
+        if self.options.get('monitor'): opts.append('m')
+        if self.options.get('noexec'): opts.append('n')
+        if self.options.get('nounset'): opts.append('u')
+        if self.options.get('verbose'): opts.append('v')
+        if self.options.get('xtrace'): opts.append('x')
+        return ''.join(opts)

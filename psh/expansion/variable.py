@@ -469,6 +469,8 @@ class VariableExpander:
             return str(self.state.last_bg_pid) if self.state.last_bg_pid else ''
         elif var_name == '#':
             return str(len(self.state.positional_params))
+        elif var_name == '-':
+            return self.state.get_option_string()
         elif var_name == '0':
             # If in a function, return function name; otherwise script name
             if self.state.function_stack:

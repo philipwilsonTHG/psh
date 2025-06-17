@@ -139,8 +139,9 @@ class ExpansionManager:
                 if '$' in arg:
                     arg = self.expand_string_variables(arg)
                 
-                # Only expand globs for non-quoted composites
-                if arg_type == 'COMPOSITE' and any(c in arg for c in ['*', '?', '[']):
+                # Only expand globs for non-quoted composites (unless noglob is set)
+                if (arg_type == 'COMPOSITE' and any(c in arg for c in ['*', '?', '[']) 
+                    and not self.state.options.get('noglob', False)):
                     # Perform glob expansion
                     matches = glob.glob(arg)
                     if matches:
@@ -150,7 +151,7 @@ class ExpansionManager:
                         # No matches, use literal argument (bash behavior)
                         args.append(arg)
                 else:
-                    # No glob expansion - quoted composite or no glob chars
+                    # No glob expansion - quoted composite, no glob chars, or noglob set
                     args.append(arg)
             elif arg_type in ('COMMAND_SUB', 'COMMAND_SUB_BACKTICK'):
                 # Command substitution
@@ -183,8 +184,9 @@ class ExpansionManager:
                     if self.state.options.get('debug-expansion-detail') and original != arg:
                         print(f"[EXPANSION]     Tilde expansion: '{original}' -> '{arg}'", file=self.state.stderr)
                 
-                # Check if the argument contains glob characters and wasn't quoted
-                if any(c in arg for c in ['*', '?', '[']) and arg_type != 'STRING':
+                # Check if the argument contains glob characters and wasn't quoted (unless noglob is set)
+                if (any(c in arg for c in ['*', '?', '[']) and arg_type != 'STRING' 
+                    and not self.state.options.get('noglob', False)):
                     # Perform glob expansion
                     matches = glob.glob(arg)
                     if matches:
