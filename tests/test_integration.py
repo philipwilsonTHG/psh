@@ -26,11 +26,22 @@ class TestIntegration:
     
     def test_variable_expansion(self):
         """Test variable expansion in commands"""
-        self.shell.env['TEST_VAR'] = 'expanded_value'
+        # Save original state
+        original_test_var = self.shell.env.get('INTEGRATION_TEST_VAR')
         
-        with patch('sys.stdout', new=StringIO()) as mock_stdout:
-            self.shell.run_command("echo $TEST_VAR")
-            assert mock_stdout.getvalue() == "expanded_value\n"
+        try:
+            # Use unique variable name to avoid conflicts
+            self.shell.env['INTEGRATION_TEST_VAR'] = 'hello'
+            
+            with patch('sys.stdout', new=StringIO()) as mock_stdout:
+                self.shell.run_command("echo $INTEGRATION_TEST_VAR")
+                assert mock_stdout.getvalue() == "hello\n"
+        finally:
+            # Restore original state
+            if original_test_var is not None:
+                self.shell.env['INTEGRATION_TEST_VAR'] = original_test_var
+            else:
+                self.shell.env.pop('INTEGRATION_TEST_VAR', None)
     
     def test_multiple_commands(self):
         """Test executing multiple commands separated by semicolons"""

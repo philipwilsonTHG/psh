@@ -44,20 +44,26 @@ class TestCompletionManager:
         shell = Shell()
         cm = CompletionManager(shell)
         
-        with tempfile.TemporaryDirectory() as tmpdir:
-            # Create test files
-            open(os.path.join(tmpdir, 'test1.txt'), 'w').close()
-            open(os.path.join(tmpdir, 'test2.txt'), 'w').close()
-            open(os.path.join(tmpdir, 'other.txt'), 'w').close()
-            
-            os.chdir(tmpdir)
-            
-            # Get completions for 'test'
-            completions = cm.get_completions('test', 'test', 4)
-            
-            assert 'test1.txt' in completions
-            assert 'test2.txt' in completions
-            assert 'other.txt' not in completions
+        # Save current directory to restore it later
+        original_cwd = os.getcwd()
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                # Create test files
+                open(os.path.join(tmpdir, 'test1.txt'), 'w').close()
+                open(os.path.join(tmpdir, 'test2.txt'), 'w').close()
+                open(os.path.join(tmpdir, 'other.txt'), 'w').close()
+                
+                os.chdir(tmpdir)
+                
+                # Get completions for 'test'
+                completions = cm.get_completions('test', 'test', 4)
+                
+                assert 'test1.txt' in completions
+                assert 'test2.txt' in completions
+                assert 'other.txt' not in completions
+        finally:
+            # Always restore the original working directory
+            os.chdir(original_cwd)
     
     def test_complete_variable(self):
         """Test variable name completion."""

@@ -107,24 +107,37 @@ class TestVariableAssignmentCommand:
     
     def test_assignment_before_function(self):
         """Test variable assignment before function call."""
-        # Define a function
-        self.shell.run_command("testfunc() { echo $VAR; }")
-        
-        # Call function with temporary variable
-        import io
-        import sys
-        captured_output = io.StringIO()
-        old_stdout = sys.stdout
-        sys.stdout = captured_output
+        # Save original state
+        original_var = self.shell.state.get_variable("FUNC_TEST_VAR")
         
         try:
-            exit_code = self.shell.run_command("VAR=temporary testfunc")
-            assert exit_code == 0
+            # Define a function using unique variable name
+            self.shell.run_command("testfunc() { echo $FUNC_TEST_VAR; }")
             
-            output = captured_output.getvalue()
-            assert "temporary" in output
+            # Call function with temporary variable
+            import io
+            import sys
+            captured_output = io.StringIO()
+            old_stdout = sys.stdout
+            sys.stdout = captured_output
             
-            # VAR should not persist
-            assert self.shell.state.get_variable("VAR") == ""
+            try:
+                exit_code = self.shell.run_command("FUNC_TEST_VAR=temporary testfunc")
+                assert exit_code == 0
+                
+                output = captured_output.getvalue()
+                assert "temporary" in output
+                
+                # FUNC_TEST_VAR should not persist
+                assert self.shell.state.get_variable("FUNC_TEST_VAR") == ""
+            finally:
+                sys.stdout = old_stdout
         finally:
-            sys.stdout = old_stdout
+            # Restore original state
+            if original_var:
+                self.shell.state.set_variable("FUNC_TEST_VAR", original_var)
+            else:
+                self.shell.state.set_variable("FUNC_TEST_VAR", "")
+            # Also clean up the function
+            if hasattr(self.shell, 'function_manager'):
+                self.shell.function_manager.undefine_function("testfunc")

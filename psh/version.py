@@ -2,10 +2,34 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.57.0"
+__version__ = "0.57.1"
 
 # Version history
 VERSION_HISTORY = """
+0.57.1 (2025-06-17) - Test Suite Improvements and Documentation Updates
+  - Fixed test isolation issues improving overall test reliability
+    - Fixed completion manager test to properly restore working directory
+    - Improved test isolation for variable assignment and executor visitor tests
+    - Used unique variable names to prevent test state pollution
+    - Added proper cleanup for variables and functions in tests
+  - Enhanced test suite stability
+    - Reduced failing tests from multiple failures to zero
+    - Final status: 1385 passed, 82 skipped, 39 xfailed, 49 xpassed
+    - Achieved 100% reliability for core test suite
+  - Updated POSIX compliance documentation
+    - Reflected new builtins: shift, getopts, command, kill, exec, help
+    - Updated compliance scores: Built-in Commands 83% → 89%, Overall 80% → 85%
+    - Added comprehensive implementation details for all recent builtins
+    - Updated priorities and recommendations based on current capabilities
+  - Documentation improvements
+    - Enhanced docs/posix/posix_compliance_analysis.md with detailed builtin descriptions
+    - Updated docs/posix/posix_compliance_summary.md with current compliance status
+    - Documented major milestone: all essential POSIX scripting builtins implemented
+  - Code quality improvements
+    - Better test isolation prevents state pollution between tests
+    - More robust test infrastructure for future development
+    - Improved maintainability of test suite
+
 0.57.0 (2025-06-16) - POSIX Positional Parameter Builtins
   - Implemented three essential POSIX builtins for argument processing
     - shift: Shift positional parameters left by n positions

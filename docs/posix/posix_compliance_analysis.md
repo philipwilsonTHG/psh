@@ -4,14 +4,14 @@ This document analyzes PSH's compliance with POSIX.1-2017 shell requirements, ca
 
 ## Executive Summary
 
-PSH implements a significant subset of POSIX shell functionality with some extensions from bash. While not fully POSIX-compliant, PSH covers most common POSIX use cases and could achieve higher compliance with targeted improvements.
+PSH implements a significant subset of POSIX shell functionality with some extensions from bash. With recent major builtin implementations (v0.54.0-v0.57.0), PSH now covers most common POSIX use cases and has achieved substantial compliance improvements. The shell provides comprehensive scripting capabilities with only a few critical gaps remaining.
 
 ### Compliance Statistics
 - **Core Shell Grammar**: ~85% compliant
-- **Built-in Commands**: ~83% compliant (exec and kill now implemented)
+- **Built-in Commands**: ~89% compliant (shift, getopts, command, kill, exec now implemented)
 - **Parameter Expansion**: ~90% compliant  
 - **Signal Handling**: ~60% compliant (missing trap command)
-- **Overall POSIX Compliance**: ~80%
+- **Overall POSIX Compliance**: ~85%
 
 ## Detailed Compliance Analysis
 
@@ -122,7 +122,7 @@ PSH implements a significant subset of POSIX shell functionality with some exten
 | `readonly` | ✅ | ⚠️ Partial | Via declare -r |
 | `return` | ✅ | ✅ Compliant | From functions |
 | `set` | ✅ | ⚠️ Partial | Missing some options |
-| `shift` | ✅ | ❌ Not Implemented | Important missing |
+| `shift` | ✅ | ✅ Compliant | Full support (v0.57.0) |
 | `trap` | ✅ | ❌ Not Implemented | Signal handling |
 | `unset` | ✅ | ✅ Compliant | Variables/functions |
 
@@ -132,14 +132,14 @@ PSH implements a significant subset of POSIX shell functionality with some exten
 | `alias` | ✅ | ✅ Compliant | Full support |
 | `bg` | ✅ | ✅ Compliant | Job control |
 | `cd` | ✅ | ✅ Compliant | With CDPATH |
-| `command` | ✅ | ❌ Not Implemented | Command lookup |
+| `command` | ✅ | ✅ Compliant | Full support (v0.57.0) |
 | `false` | ✅ | ✅ Compliant | Returns 1 |
 | `fc` | ✅ | ❌ Not Implemented | History editing |
 | `fg` | ✅ | ✅ Compliant | Job control |
-| `getopts` | ✅ | ❌ Not Implemented | Option parsing |
+| `getopts` | ✅ | ✅ Compliant | Full support (v0.57.0) |
 | `hash` | ✅ | ❌ Not Implemented | Command cache |
 | `jobs` | ✅ | ✅ Compliant | Job listing |
-| `kill` | ✅ | ✅ Compliant | Full support |
+| `kill` | ✅ | ✅ Compliant | Full support (v0.56.0) |
 | `pwd` | ✅ | ✅ Compliant | Print directory |
 | `read` | ✅ | ✅ Compliant | Enhanced version |
 | `true` | ✅ | ✅ Compliant | Returns 0 |
@@ -210,9 +210,6 @@ PSH includes several bash-compatible extensions beyond POSIX:
 
 ### High Priority (Core POSIX Features)
 1. **Implement `trap` command** - Critical for signal handling
-2. **Implement `shift` command** - Essential for argument processing
-3. **Implement `getopts`** - Standard option parsing
-4. **Add `command` built-in** - For command lookup control
 
 ### Medium Priority (Common POSIX Features)
 1. **Implement `wait` command** - Process synchronization
@@ -223,9 +220,8 @@ PSH includes several bash-compatible extensions beyond POSIX:
 
 ### Low Priority (Rarely Used)
 1. **Implement `hash` command** - Command location cache
-2. **Implement `kill` built-in** - Usually external is fine
-3. **Add `<>` redirection** - Read-write file access
-4. **Complete `$-` parameter** - All option flags
+2. **Add `<>` redirection** - Read-write file access
+3. **Complete `$-` parameter** - All option flags
 
 ### POSIX Mode Implementation
 Consider adding a `set -o posix` mode that:
@@ -243,4 +239,49 @@ Consider adding a `set -o posix` mode that:
 
 ## Conclusion
 
-PSH achieves approximately 80% POSIX compliance, covering most common use cases. The main gaps are in signal handling (`trap`), some special built-ins (`exec`, `shift`), and utility commands. With focused effort on the high-priority items, PSH could achieve 90%+ POSIX compliance while maintaining its bash extensions for convenience.
+PSH achieves approximately 85% POSIX compliance, covering most common use cases. The main gaps are in signal handling (`trap`), some utility commands (`hash`, `fc`, `wait`), and I/O redirection edge cases. 
+
+## Recent Major Implementations (v0.54.0 - v0.57.0)
+
+PSH has achieved significant POSIX compliance improvements with the implementation of 6 critical builtins:
+
+### `exec` Builtin (v0.54.0)
+- **Process replacement**: `exec command` replaces shell process
+- **Permanent I/O redirection**: `exec > file`, `exec 2>&1` 
+- **Environment assignment**: `VAR=value exec command`
+- **POSIX-compliant exit codes**: 126, 127, 1, 0
+- **Error handling**: Rejects builtins/functions appropriately
+
+### `help` Builtin (v0.55.0) 
+- **Bash-compatible self-documentation**: `help`, `help echo`
+- **Pattern matching**: `help ec*` uses glob patterns
+- **Multiple display modes**: `-d`, `-s`, `-m` options
+- **Comprehensive builtin documentation**: All PSH builtins documented
+
+### `kill` Builtin (v0.56.0)
+- **Signal management**: `kill -TERM pid`, `kill -9 %1`
+- **Job control integration**: `%1`, `%+`, `%-` job specifications
+- **Signal listing**: `kill -l` shows available signals
+- **Process groups**: Negative PIDs for process group signaling
+
+### `shift` Builtin (v0.57.0)
+- **Positional parameter shifting**: `shift`, `shift 3`
+- **POSIX error handling**: Returns 1 if shift count > $#
+- **Proper parameter management**: Updates $#, $@, $*
+- **Essential for argument processing**: Enables robust shell scripts
+
+### `getopts` Builtin (v0.57.0)
+- **POSIX option parsing**: `getopts "abc:" opt`
+- **Required arguments**: Colon suffix for options needing values
+- **Silent error mode**: Leading colon for custom error handling
+- **Variable support**: OPTIND, OPTARG, OPTERR integration
+- **Clustered options**: Handles `-abc` as `-a -b -c`
+
+### `command` Builtin (v0.57.0)
+- **Function/alias bypass**: `command ls` ignores aliases
+- **Command existence**: `command -v ls` shows command location
+- **Verbose information**: `command -V ls` shows detailed info
+- **Secure PATH**: `command -p` uses default system PATH
+- **Essential for reliable scripting**: Prevents function/alias interference
+
+With the recent implementation of these critical builtins, PSH now provides comprehensive POSIX shell scripting capabilities. With focused effort on the remaining high-priority items, PSH could achieve 90%+ POSIX compliance while maintaining its bash extensions for convenience.

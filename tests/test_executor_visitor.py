@@ -87,15 +87,25 @@ class TestExecutorVisitor:
     
     def test_command_with_assignment(self, executor):
         """Test command with temporary assignment."""
-        # Set initial value
-        executor.state.set_variable("VAR", "initial")
+        # Save original state
+        original_var = executor.state.get_variable("EXEC_TEST_VAR")
         
-        with capture_shell_output(executor.shell) as (stdout, stderr):
-            exit_code = self.execute_command(executor, 'VAR=temp echo "$VAR"')
-        
-        assert exit_code == 0
-        # Variable should be restored after command
-        assert executor.state.get_variable("VAR") == "initial"
+        try:
+            # Set initial value using unique variable name
+            executor.state.set_variable("EXEC_TEST_VAR", "initial")
+            
+            with capture_shell_output(executor.shell) as (stdout, stderr):
+                exit_code = self.execute_command(executor, 'EXEC_TEST_VAR=temp echo "$EXEC_TEST_VAR"')
+            
+            assert exit_code == 0
+            # Variable should be restored after command
+            assert executor.state.get_variable("EXEC_TEST_VAR") == "initial"
+        finally:
+            # Restore original state
+            if original_var:
+                executor.state.set_variable("EXEC_TEST_VAR", original_var)
+            else:
+                executor.state.set_variable("EXEC_TEST_VAR", "")
     
     def test_external_command(self, executor):
         """Test executing external command."""
