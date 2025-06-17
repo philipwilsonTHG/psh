@@ -2,10 +2,54 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.57.3"
+__version__ = "0.57.4"
 
 # Version history
 VERSION_HISTORY = """
+0.57.4 (2025-06-17) - Wait Builtin Implementation and Process Synchronization
+  - Implemented complete POSIX-compliant wait builtin for process synchronization
+    - Wait for all background jobs: wait (returns immediately if no jobs)
+    - Wait for specific processes: wait PID1 PID2 with proper status propagation
+    - Wait for specific jobs: wait %1 %2 %+ %- using job control specifications
+    - Support for job pattern matching: %string, %?string for job identification
+    - Proper exit status collection and propagation from child processes
+  - POSIX compliance and error handling
+    - Returns exit status of last process waited for when waiting multiple
+    - Exit code 127 for invalid PID or job specification (process not found)
+    - Exit code 1 for stopped jobs and other error conditions
+    - Proper error messages matching POSIX standards
+    - Immediate return (exit 0) when no background jobs exist
+  - Integration with existing job control infrastructure
+    - Seamless integration with JobManager and job control system
+    - Compatible with jobs, fg, bg, and kill builtins
+    - Proper handling of job states: running, stopped, done
+    - Support for both PID-based and job-based process identification
+  - Comprehensive testing and validation
+    - 11 unit tests covering all wait functionality and edge cases
+    - 3 integration tests using direct Shell instances for realistic testing
+    - Fixed test infrastructure to use PSH builtins instead of system commands
+    - Proper mocking and isolation for reliable test execution
+  - Enhanced documentation and user experience
+    - Updated user guide with comprehensive wait examples and use cases
+    - Added parallel processing and resource coordination examples
+    - Enhanced job control quick reference with wait command
+    - Created wait_demo.sh example script demonstrating all features
+  - POSIX compliance milestone achievement
+    - Built-in Commands compliance improved from 92% to 95%
+    - Overall POSIX compliance increased from 88% to 90%
+    - Completed essential POSIX job control builtin suite
+    - Only minor utilities remain for complete built-in command compliance
+  - Architecture and implementation quality
+    - Clean WaitBuiltin class implementation in job_control module
+    - Proper separation of concerns with helper methods
+    - Integration with existing help system and builtin registry
+    - Educational value preserved with clear, documented code structure
+  - Process synchronization capabilities
+    - Enables sophisticated shell scripting patterns with background jobs
+    - Proper coordination of parallel processes and resource management
+    - Foundation for advanced job control and process orchestration
+    - Essential for production-quality shell script development
+
 0.57.3 (2025-06-17) - Trap Builtin Implementation and Signal Handling Integration
   - Implemented complete POSIX-compliant trap builtin with comprehensive functionality
     - Full syntax support: trap [-lp] [action] [signals...] for all trap operations
