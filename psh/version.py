@@ -2,10 +2,25 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.57.1"
+__version__ = "0.57.2"
 
 # Version history
 VERSION_HISTORY = """
+0.57.2 (2025-06-17) - Command Substitution Interactive Detection Fix
+  - Fixed critical command substitution crash with "Input/output error" (errno 5)
+  - Corrected interactive mode detection logic in command substitution
+    - Was using non-existent 'interactive' attribute on Shell class
+    - Now uses same detection pattern as shell initialization: sys.stdin.isatty()
+    - Fixed hasattr() check that was preventing proper stdin protection
+  - Enhanced command substitution stdin handling
+    - Interactive sessions now properly protect stdin from terminal corruption
+    - Non-interactive mode (scripts, pipelines) preserves stdin as needed
+    - Test environment detection prevents interference with pytest infrastructure
+  - Added missing sys import to command_sub.py module
+  - Resolves crash when running commands like: emacs `find . -name "*.md" | grep -i trap`
+  - Command substitution now works reliably in all execution contexts
+  - No functional changes to command substitution behavior - only fixes runtime crash
+
 0.57.1 (2025-06-17) - Test Suite Improvements and Documentation Updates
   - Fixed test isolation issues improving overall test reliability
     - Fixed completion manager test to properly restore working directory

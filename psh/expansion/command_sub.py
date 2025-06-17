@@ -1,5 +1,6 @@
 """Command substitution implementation."""
 import os
+import sys
 import tempfile
 from typing import TYPE_CHECKING
 from ..core.state import ShellState
@@ -48,11 +49,11 @@ class CommandSubstitution:
                 
                 # Protect stdin in interactive sessions to prevent terminal corruption
                 # But preserve stdin for pipelines and scripts where it's needed
-                # Use more reliable indicators than os.isatty(0) which can be flaky in tests
+                # Use same interactive detection logic as shell initialization
+                is_interactive = getattr(self.shell, '_force_interactive', sys.stdin.isatty())
                 should_protect_stdin = (
                     not self.state.is_script_mode and 
-                    hasattr(self.shell, 'interactive') and 
-                    getattr(self.shell, 'interactive', False) and
+                    is_interactive and
                     not os.environ.get('PYTEST_CURRENT_TEST')  # Don't interfere with tests
                 )
                 if should_protect_stdin:
