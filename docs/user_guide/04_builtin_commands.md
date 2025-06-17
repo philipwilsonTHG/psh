@@ -984,6 +984,178 @@ trap - signal               # Reset to default
 - **1**: Invalid signal specification
 - **2**: Invalid usage or arguments
 
+### wait - Wait for Process Completion
+
+The `wait` command waits for background processes to complete and returns their exit status:
+
+```bash
+# Start some background jobs
+psh$ sleep 2 &
+[1] 12345
+psh$ sleep 3 &
+[2] 12346
+psh$ sleep 1 &
+[3] 12347
+
+# Wait for all background jobs to complete
+psh$ wait
+psh$ echo $?
+0
+
+# Wait for specific job by job number
+psh$ sleep 5 &
+[1] 12348
+psh$ wait %1
+psh$ echo $?
+0
+
+# Wait for specific process by PID
+psh$ sleep 4 &
+[1] 12349
+psh$ wait 12349
+psh$ echo $?
+0
+
+# Wait for multiple specific processes
+psh$ sleep 2 &
+[1] 12350
+psh$ sleep 3 &
+[2] 12351
+psh$ wait %1 %2
+psh$ echo $?
+0  # Exit status of last process waited for
+
+# Wait for current and previous jobs
+psh$ sleep 2 &
+[1] 12352
+psh$ sleep 3 &
+[2] 12353
+psh$ wait %+ %-
+```
+
+#### Common Use Cases
+
+**Process Synchronization:**
+```bash
+#!/usr/bin/env psh
+# Run multiple tasks in parallel, then synchronize
+
+# Start parallel background tasks
+task1 &
+pid1=$!
+task2 &
+pid2=$!
+task3 &
+pid3=$!
+
+# Wait for all tasks to complete
+wait $pid1 $pid2 $pid3
+echo "All tasks completed"
+```
+
+**Exit Status Collection:**
+```bash
+#!/usr/bin/env psh
+# Check if background job succeeded
+
+risky_command &
+bg_pid=$!
+
+# Do other work while it runs
+echo "Working on other tasks..."
+sleep 1
+
+# Wait for background job and check result
+wait $bg_pid
+if [ $? -eq 0 ]; then
+    echo "Background job succeeded"
+else
+    echo "Background job failed with status $?"
+fi
+```
+
+**Timeout Pattern:**
+```bash
+#!/usr/bin/env psh
+# Wait with timeout (using trap)
+
+timeout_handler() {
+    echo "Operation timed out!"
+    kill $bg_pid 2>/dev/null
+    exit 1
+}
+
+# Set up timeout
+trap timeout_handler ALRM
+(sleep 10; kill -ALRM $$) &
+timeout_pid=$!
+
+# Start main task
+long_running_task &
+bg_pid=$!
+
+# Wait for completion
+wait $bg_pid
+exit_status=$?
+
+# Cancel timeout
+kill $timeout_pid 2>/dev/null
+trap - ALRM
+
+exit $exit_status
+```
+
+#### Job Specifications
+
+The wait command supports the same job specifications as `fg` and `bg`:
+
+- `%1`, `%2`, etc. - Job number
+- `%+` or `%%` - Current job
+- `%-` - Previous job
+- `%string` - Job whose command begins with string
+- `%?string` - Job whose command contains string
+
+#### Exit Status
+
+- **0**: All specified processes completed successfully
+- **Exit status of last process**: When waiting for multiple processes
+- **127**: Invalid PID or job specification (process not found)
+- **1**: Other errors (job stopped, invalid arguments)
+
+#### Error Handling
+
+```bash
+# Wait for non-existent process
+psh$ wait 99999
+wait: pid 99999 is not a child of this shell
+psh$ echo $?
+127
+
+# Wait for non-existent job
+psh$ wait %99
+wait: %99: no such job
+psh$ echo $?
+127
+
+# Wait for stopped job
+psh$ sleep 100 &
+[1] 12354
+psh$ kill -STOP %1
+psh$ wait %1
+wait: %1: job is stopped
+psh$ echo $?
+1
+```
+
+#### Syntax Summary
+
+```bash
+wait                    # Wait for all background jobs
+wait pid ...           # Wait for specific process IDs
+wait %job ...          # Wait for specific jobs
+wait %+ %-             # Wait for current and previous jobs
+```
+
 ## 4.6 Command Help and Information
 
 ### help - Display Builtin Command Information
@@ -1009,9 +1181,10 @@ about the function 'name'.
  local                          pwd
  read                           return
  set                            source
- test                           true
- typeset                        unalias
- unset                          version
+ test                           trap
+ true                           typeset
+ unalias                        unset
+ version                        wait
 
 # Get detailed help for a specific builtin
 psh$ help echo
@@ -1112,10 +1285,12 @@ set - Set shell options and positional parameters.
 source - Execute commands from a file in the current shell.
 test - Test command for conditionals.
 true - Always return success
+trap - Handle signals and shell exit.
 typeset - Typeset builtin - alias for declare (ksh compatibility).
 unalias - Remove aliases.
 unset - Unset variables and functions.
 version - Display version information.
+wait - Wait for process completion and return exit status.
 
 # Synopsis mode - shows just command syntax
 psh$ help -s echo pwd read
@@ -2293,7 +2468,8 @@ Built-in commands are the core of PSH functionality. They provide:
 - Navigation capabilities (cd, pwd)
 - Environment management (export, unset, env, set, declare)
 - I/O operations (echo, read)
-- Job control (jobs, fg, bg, kill)
+- Job control (jobs, fg, bg, kill, wait)
+- Signal handling (trap)
 - Command help and information (help)
 - Script execution (source)
 - Conditional testing (test, [, [[)

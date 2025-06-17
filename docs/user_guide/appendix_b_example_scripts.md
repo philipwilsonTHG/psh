@@ -7,12 +7,13 @@ This appendix contains a collection of scripts that demonstrate PSH's capabiliti
 1. [Control Structures in Pipelines (v0.37.0)](#control-structures-in-pipelines-v0370) 🚀
 2. [System Administration Scripts](#system-administration-scripts)
 3. [Signal Handling and Cleanup (v0.57.2)](#signal-handling-and-cleanup-v0572) 🆕
-4. [Mathematical Scripts](#mathematical-scripts)
-5. [Interactive Utilities](#interactive-utilities)
-6. [Text Processing Scripts](#text-processing-scripts)
-7. [Development Tools](#development-tools)
-8. [Function Libraries](#function-libraries)
-9. [Dynamic Programming with eval](#dynamic-programming-with-eval)
+4. [Process Synchronization with Wait (v0.57.3)](#process-synchronization-with-wait-v0573) 🆕
+5. [Mathematical Scripts](#mathematical-scripts)
+6. [Interactive Utilities](#interactive-utilities)
+7. [Text Processing Scripts](#text-processing-scripts)
+8. [Development Tools](#development-tools)
+9. [Function Libraries](#function-libraries)
+10. [Dynamic Programming with eval](#dynamic-programming-with-eval)
 
 ## Control Structures in Pipelines (v0.37.0) 🚀
 
@@ -340,6 +341,10 @@ This script demonstrates:
 
 PSH v0.57.2 introduces the `trap` builtin for robust signal handling and cleanup. These scripts demonstrate proper cleanup patterns for production use.
 
+## Process Synchronization with Wait (v0.57.3) 🆕
+
+PSH v0.57.3 adds the POSIX-compliant `wait` builtin for process synchronization and background job management. These examples show how to coordinate multiple processes effectively.
+
 ### Long-Running Process with Cleanup
 
 ```bash
@@ -569,18 +574,21 @@ stop_service() {
         # Send TERM signal
         kill -TERM "$SERVICE_PID"
         
-        # Wait for graceful shutdown
-        local count=0
-        while kill -0 "$SERVICE_PID" 2>/dev/null && [ $count -lt 10 ]; do
-            sleep 1
-            count=$((count + 1))
-        done
-        
-        # Force kill if still running
-        if kill -0 "$SERVICE_PID" 2>/dev/null; then
-            echo "Service didn't stop gracefully, force killing..." | tee -a "$LOG_FILE"
-            kill -KILL "$SERVICE_PID"
-        fi
+        # Wait for graceful shutdown using wait builtin
+        wait "$SERVICE_PID" 2>/dev/null || {
+            local count=0
+            while kill -0 "$SERVICE_PID" 2>/dev/null && [ $count -lt 10 ]; do
+                sleep 1
+                count=$((count + 1))
+            done
+            
+            # Force kill if still running
+            if kill -0 "$SERVICE_PID" 2>/dev/null; then
+                echo "Service didn't stop gracefully, force killing..." | tee -a "$LOG_FILE"
+                kill -KILL "$SERVICE_PID"
+                wait "$SERVICE_PID" 2>/dev/null
+            fi
+        }
         
         echo "Service stopped" | tee -a "$LOG_FILE"
     fi
@@ -638,6 +646,199 @@ trap 'graceful_shutdown' INT TERM HUP
 trap '' INT TERM
 # ... critical code ...
 trap - INT TERM  # Restore default behavior
+```
+
+### Parallel Processing with Wait
+
+```bash
+#!/usr/bin/env psh
+# parallel_processor.sh - Demonstrates parallel processing coordination
+
+# Process multiple tasks in parallel with synchronization
+parallel_backup() {
+    local directories=("$@")
+    local pids=()
+    local start_time=$(date +%s)
+    
+    echo "Starting parallel backup of ${#directories[@]} directories..."
+    echo "Start time: $(date)"
+    echo
+    
+    # Start all backup jobs in parallel
+    for dir in "${directories[@]}"; do
+        {
+            echo "[$dir] Backup started"
+            
+            # Simulate backup work
+            local files=$(find "$dir" -type f 2>/dev/null | wc -l)
+            echo "[$dir] Found $files files to backup"
+            
+            # Simulate varying backup times
+            sleep $((RANDOM % 4 + 1))
+            
+            # Simulate occasional failures
+            if [[ "$dir" == *"temp"* ]]; then
+                echo "[$dir] Backup failed: temporary directory" >&2
+                exit 1
+            else
+                echo "[$dir] Backup completed successfully"
+                exit 0
+            fi
+        } &
+        
+        pids+=($!)
+        echo "Started backup for $dir (PID: $!)"
+    done
+    
+    echo
+    echo "All backup jobs started. Waiting for completion..."
+    echo
+    
+    # Wait for each backup and report results
+    local failed=0
+    local completed=0
+    
+    for i in "${!pids[@]}"; do
+        local pid=${pids[$i]}
+        local dir=${directories[$i]}
+        
+        echo "Waiting for $dir backup (PID: $pid)..."
+        wait $pid
+        local status=$?
+        
+        ((completed++))
+        
+        if [ $status -eq 0 ]; then
+            echo "✓ $dir: Backup successful"
+        else
+            echo "✗ $dir: Backup failed (exit code: $status)"
+            ((failed++))
+        fi
+    done
+    
+    local end_time=$(date +%s)
+    local duration=$((end_time - start_time))
+    
+    echo
+    echo "=== Backup Summary ==="
+    echo "Directories processed: $completed"
+    echo "Successful backups: $((completed - failed))"
+    echo "Failed backups: $failed"
+    echo "Total time: ${duration}s"
+    echo "End time: $(date)"
+    
+    return $failed
+}
+
+# Demonstration
+echo "=== Parallel Backup Demo ==="
+echo
+
+# Create some test directories
+test_dirs=(/etc /usr/share/doc /tmp /var/log)
+echo "Testing with directories: ${test_dirs[*]}"
+echo
+
+parallel_backup "${test_dirs[@]}"
+
+if [ $? -eq 0 ]; then
+    echo
+    echo "All backups completed successfully!"
+else
+    echo
+    echo "Some backups failed. Check logs above."
+fi
+```
+
+### Resource Coordination with Wait
+
+```bash
+#!/usr/bin/env psh
+# resource_demo.sh - Resource allocation and coordination
+
+# Shared resource counter
+RESOURCE_COUNT=0
+RESOURCE_FILE="/tmp/psh_resource_demo"
+
+# Initialize shared resource
+init_resource() {
+    echo "0" > "$RESOURCE_FILE"
+    echo "Resource initialized: $RESOURCE_FILE"
+}
+
+# Worker that uses shared resource
+resource_worker() {
+    local worker_id="$1"
+    local operations="$2"
+    
+    echo "[$worker_id] Starting with $operations operations"
+    
+    for ((i=1; i<=operations; i++)); do
+        # Critical section - update shared resource
+        {
+            local current=$(cat "$RESOURCE_FILE")
+            local new_value=$((current + 1))
+            sleep 0.1  # Simulate processing time
+            echo "$new_value" > "$RESOURCE_FILE"
+            echo "[$worker_id] Operation $i: $current -> $new_value"
+        }
+        
+        # Non-critical work
+        sleep 0.2
+    done
+    
+    echo "[$worker_id] Completed all operations"
+    return 0
+}
+
+# Main coordination demo
+echo "=== Resource Coordination Demo ==="
+echo
+
+# Initialize
+init_resource
+
+echo "Starting multiple workers that share a resource..."
+
+# Start workers
+resource_worker "Worker-A" 3 &
+pid_a=$!
+
+resource_worker "Worker-B" 4 &
+pid_b=$!
+
+resource_worker "Worker-C" 2 &
+pid_c=$!
+
+echo "All workers started:"
+echo "  Worker-A: PID $pid_a"
+echo "  Worker-B: PID $pid_b" 
+echo "  Worker-C: PID $pid_c"
+echo
+
+# Wait for specific workers
+echo "Waiting for Worker-A to complete..."
+wait $pid_a
+echo "Worker-A finished with status: $?"
+
+echo "Waiting for Worker-C to complete..."
+wait $pid_c
+echo "Worker-C finished with status: $?"
+
+# Wait for remaining workers
+echo "Waiting for all remaining workers..."
+wait
+echo "All workers completed"
+
+# Check final resource state
+final_value=$(cat "$RESOURCE_FILE")
+echo
+echo "Final resource value: $final_value"
+echo "Expected value: 9 (3+4+2 operations)"
+
+# Cleanup
+rm -f "$RESOURCE_FILE"
+echo "Resource cleanup completed"
 ```
 
 ## Mathematical Scripts

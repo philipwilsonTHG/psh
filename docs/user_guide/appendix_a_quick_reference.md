@@ -398,6 +398,7 @@ command &                   # Run in background
 jobs                        # List jobs
 fg [%job]                   # Bring to foreground
 bg [%job]                   # Resume in background
+wait [pid|%job]             # Wait for completion
 kill %job                   # Kill job
 Ctrl-Z                      # Suspend current job
 Ctrl-C                      # Interrupt current job

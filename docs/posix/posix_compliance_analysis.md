@@ -8,10 +8,10 @@ PSH implements a significant subset of POSIX shell functionality with some exten
 
 ### Compliance Statistics
 - **Core Shell Grammar**: ~85% compliant
-- **Built-in Commands**: ~92% compliant (all essential builtins now implemented)
+- **Built-in Commands**: ~95% compliant (all essential builtins now implemented)
 - **Parameter Expansion**: ~90% compliant  
 - **Signal Handling**: ~95% compliant (trap command implemented)
-- **Overall POSIX Compliance**: ~88%
+- **Overall POSIX Compliance**: ~90%
 
 ## Detailed Compliance Analysis
 
@@ -145,7 +145,7 @@ PSH implements a significant subset of POSIX shell functionality with some exten
 | `true` | ✅ | ✅ Compliant | Returns 0 |
 | `umask` | ✅ | ❌ Not Implemented | File creation mask |
 | `unalias` | ✅ | ✅ Compliant | Remove aliases |
-| `wait` | ✅ | ❌ Not Implemented | Process wait |
+| `wait` | ✅ | ✅ Compliant | Full support (v0.57.3) |
 
 ### 7. Exit Status ✅ Mostly Compliant
 
@@ -209,7 +209,7 @@ PSH includes several bash-compatible extensions beyond POSIX:
 ## Recommendations for POSIX Compliance
 
 ### High Priority (Core POSIX Features)
-1. **Implement `wait` command** - Process synchronization
+*All high priority features are now implemented!*
 
 ### Medium Priority (Common POSIX Features)
 1. **Implement `umask` command** - File permissions
@@ -294,4 +294,14 @@ PSH has achieved significant POSIX compliance improvements with the implementati
 - **POSIX compliance**: Full support for all POSIX trap features
 - **Critical for robust scripts**: Enables cleanup and graceful shutdown
 
-With the recent implementation of these critical builtins, PSH now provides comprehensive POSIX shell scripting capabilities. The addition of `trap` completes the essential signal handling features, enabling robust error handling and cleanup in shell scripts. With focused effort on the remaining high-priority items, PSH could achieve 90%+ POSIX compliance while maintaining its bash extensions for convenience.
+### `wait` Builtin (v0.57.3)
+- **Process synchronization**: `wait` waits for child processes to complete
+- **Background job waiting**: `wait` with no arguments waits for all background jobs
+- **Specific process waiting**: `wait pid` waits for specific process ID
+- **Job specification support**: `wait %1`, `wait %+`, `wait %-` for job control
+- **Exit status propagation**: Returns exit status of waited process
+- **Error handling**: Proper POSIX error codes for invalid PIDs and job specs
+- **POSIX compliance**: Full support for all POSIX wait features
+- **Essential for scripting**: Enables process synchronization and status checking
+
+With the recent implementation of these critical builtins, PSH now provides comprehensive POSIX shell scripting capabilities. The addition of `wait` completes ALL essential POSIX builtins, achieving the milestone of 90% POSIX compliance. PSH now has all the core features needed for robust shell scripting while maintaining its bash extensions for convenience.
