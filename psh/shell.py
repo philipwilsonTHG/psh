@@ -54,6 +54,9 @@ class Shell:
         self.function_manager = FunctionManager()
         self.job_manager = JobManager()
         
+        # Connect job manager to shell state for option checking
+        self.job_manager.set_shell_state(self.state)
+        
         # Inherit from parent shell if provided - MUST be done before creating other managers
         if parent_shell:
             self.env = parent_shell.env.copy()

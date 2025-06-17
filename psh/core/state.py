@@ -201,9 +201,18 @@ class ShellState:
     
     def set_variable(self, name: str, value: str):
         """Set a shell variable."""
-        # Use scope manager (will set in global scope if not in function,
-        # or global scope if in function per bash behavior)
-        self.scope_manager.set_variable(name, value, local=False)
+        # If allexport is enabled, set with export attribute
+        if self.options.get('allexport', False):
+            self.scope_manager.set_variable(name, value, attributes=VarAttributes.EXPORT, local=False)
+            # Also update both internal and system environment
+            self.env[name] = value
+            os.environ[name] = value
+            # Sync all exports to environment
+            self.scope_manager.sync_exports_to_environment(self.env)
+        else:
+            # Use scope manager (will set in global scope if not in function,
+            # or global scope if in function per bash behavior)
+            self.scope_manager.set_variable(name, value, local=False)
     
     def export_variable(self, name: str, value: str):
         """Export a variable to the environment."""

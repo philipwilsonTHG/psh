@@ -103,12 +103,17 @@ class JobManager:
         self.previous_job: Optional[Job] = None
         self.shell_pgid = os.getpgrp()
         self.shell_tmodes = None
+        self.shell_state = None  # Will be set by shell
         
         # Save shell's terminal modes
         try:
             self.shell_tmodes = termios.tcgetattr(0)
         except:
             pass
+    
+    def set_shell_state(self, state):
+        """Set reference to shell state for option checking."""
+        self.shell_state = state
     
     def create_job(self, pgid: int, command: str) -> Job:
         """Create a new job."""
@@ -310,7 +315,15 @@ class JobManager:
                         exit_status = proc_exit_status
         
         # Update job state
+        old_state = job.state
         job.update_state()
+        
+        # If notify option is enabled and job just completed, notify immediately
+        if (self.shell_state and self.shell_state.options.get('notify', False) and
+            old_state != JobState.DONE and job.state == JobState.DONE and
+            not job.foreground and not job.notified):
+            print(f"\n[{job.job_id}]+  Done                    {job.command}")
+            job.notified = True
         
         if collect_all_statuses:
             return all_exit_statuses

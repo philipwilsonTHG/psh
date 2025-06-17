@@ -44,8 +44,10 @@ class REPLLoop(InteractiveComponent):
         
         while True:
             try:
-                # Check for completed background jobs
-                self.job_manager.notify_completed_jobs()
+                # Check for completed background jobs (only if notify option is disabled)
+                # When notify is enabled, jobs are notified immediately when they complete
+                if not self.state.options.get('notify', False):
+                    self.job_manager.notify_completed_jobs()
                 
                 # Check for stopped jobs (from Ctrl-Z)
                 self.job_manager.notify_stopped_jobs()
