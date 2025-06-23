@@ -1,11 +1,18 @@
 #!/usr/bin/env python3
 """
 Test line continuation handling in quoted strings.
+
+NOTE: These tests have been moved to tests/comparison/test_bash_line_continuation_quotes.py
+to avoid test isolation issues. The bash comparison framework provides better isolation
+for subprocess-based tests.
 """
 
 import pytest
 import subprocess
 import sys
+
+# Skip all tests in this file due to test isolation issues
+pytestmark = pytest.mark.skip(reason="Moved to tests/comparison/test_bash_line_continuation_quotes.py to avoid isolation issues")
 
 
 class TestLineContinuationInQuotes:

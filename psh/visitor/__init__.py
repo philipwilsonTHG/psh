@@ -12,7 +12,7 @@ from .validator_visitor import ValidatorVisitor
 from .debug_ast_visitor import DebugASTVisitor
 from .enhanced_validator_visitor import EnhancedValidatorVisitor, ValidatorConfig, VariableTracker
 from .metrics_visitor import MetricsVisitor
-from .test_executor_visitor import TestExecutorVisitor
+from .testing_executor_visitor import TestExecutorVisitor
 from .linter_visitor import LinterVisitor, LinterConfig, LintLevel
 
 __all__ = [

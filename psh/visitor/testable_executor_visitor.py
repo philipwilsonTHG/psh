@@ -16,7 +16,7 @@ from .executor_visitor import ExecutorVisitor
 from ..ast_nodes import SimpleCommand
 
 
-class TestableExecutor(ExecutorVisitor):
+class MockExecutorVisitor(ExecutorVisitor):
     """
     Executor visitor with output capture for testing.
     

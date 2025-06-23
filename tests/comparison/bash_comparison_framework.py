@@ -9,6 +9,7 @@ their outputs to ensure compatibility and catch regressions.
 import subprocess
 import re
 import os
+import sys
 import tempfile
 import pytest
 from typing import Tuple, Optional, List, Dict, Any
@@ -28,7 +29,7 @@ class BashComparisonFramework:
     
     def __init__(self, bash_path: str = "/opt/homebrew/bin/bash"):
         self.bash_path = bash_path
-        self.psh_command = ["python3", "-m", "psh"]
+        self.psh_command = [sys.executable, "-m", "psh"]
         
     def run_in_shell(self, command: str, shell_command: List[str], 
                     timeout: float = 10.0, env: Optional[Dict[str, str]] = None,
@@ -39,6 +40,13 @@ class BashComparisonFramework:
             shell_env = os.environ.copy()
             if env:
                 shell_env.update(env)
+            
+            # Ensure PYTHONPATH includes the psh directory
+            psh_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            if 'PYTHONPATH' in shell_env:
+                shell_env['PYTHONPATH'] = f"{psh_root}:{shell_env['PYTHONPATH']}"
+            else:
+                shell_env['PYTHONPATH'] = psh_root
             
             # Run the command
             cmd = shell_command + ["-c", command]

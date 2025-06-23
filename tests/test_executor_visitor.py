@@ -13,7 +13,7 @@ from contextlib import contextmanager
 
 from psh.shell import Shell
 from psh.visitor.executor_visitor import ExecutorVisitor
-from psh.visitor.testable_executor_visitor import TestableExecutor
+from psh.visitor.testable_executor_visitor import MockExecutorVisitor
 from psh.state_machine_lexer import tokenize
 from psh.parser import parse
 
@@ -56,7 +56,7 @@ class TestExecutorVisitor:
     @pytest.fixture
     def executor(self, shell):
         """Create an executor visitor."""
-        return TestableExecutor(shell, capture_output=True)
+        return MockExecutorVisitor(shell, capture_output=True)
     
     def execute_command(self, executor, command):
         """Helper to execute a command string."""
