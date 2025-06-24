@@ -3,7 +3,7 @@
 
 import pytest
 from psh.input_preprocessing import process_line_continuations
-from psh.state_machine_lexer import tokenize
+from psh.lexer import tokenize
 
 
 class TestLineContinuationPreprocessing:

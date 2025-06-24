@@ -1,7 +1,7 @@
 """Integration tests for parser context management."""
 
 import pytest
-from psh.state_machine_lexer import tokenize
+from psh.lexer import tokenize
 from psh.parser import Parser
 from psh.ast_nodes import EnhancedTestStatement, ArithmeticEvaluation, CaseConditional, CommandList
 

@@ -104,7 +104,7 @@ class ProcessSubstitutionHandler:
             # Execute the substitution command
             try:
                 # Import here to avoid circular import
-                from ..state_machine_lexer import tokenize
+                from ..lexer import tokenize
                 from ..parser import parse
                 from ..shell import Shell
                 

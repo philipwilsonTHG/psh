@@ -7,7 +7,7 @@ import os
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from psh.state_machine_lexer import StateMachineLexer
+from psh.lexer import StateMachineLexer
 from psh.parser import Parser
 from psh.shell import Shell
 

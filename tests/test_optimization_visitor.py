@@ -5,7 +5,7 @@ This module tests AST optimization functionality.
 """
 
 import pytest
-from psh.state_machine_lexer import tokenize
+from psh.lexer import tokenize
 from psh.parser import parse
 from psh.visitor.optimization_visitor import OptimizationVisitor
 from psh.visitor.formatter_visitor import FormatterVisitor

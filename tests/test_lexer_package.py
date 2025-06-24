@@ -64,8 +64,8 @@ class TestBackwardCompatibility:
     
     def test_old_import_still_works(self):
         """Test that old import pattern still works."""
-        from psh.state_machine_lexer import tokenize as old_tokenize
-        from psh.state_machine_lexer import StateMachineLexer as OldLexer
+        from psh.lexer import tokenize as old_tokenize
+        from psh.lexer import StateMachineLexer as OldLexer
         
         tokens = old_tokenize('echo hello')
         assert len(tokens) == 3

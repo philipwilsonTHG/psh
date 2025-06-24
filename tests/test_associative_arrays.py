@@ -5,7 +5,7 @@ import pytest
 import sys
 import os
 
-from psh.state_machine_lexer import StateMachineLexer
+from psh.lexer import StateMachineLexer
 from psh.parser import Parser
 from psh.shell import Shell
 from psh.core.variables import AssociativeArray, VarAttributes

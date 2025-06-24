@@ -15,7 +15,7 @@ class TestFDDuplication:
         # Since we can't easily test with capsys due to fd manipulation,
         # we'll verify the functionality works by checking the parsing
         # and doing a manual verification
-        from psh.state_machine_lexer import tokenize
+        from psh.lexer import tokenize
         from psh.parser import parse
         
         # Verify parsing of >&2
@@ -38,7 +38,7 @@ class TestFDDuplication:
     def test_stderr_to_stdout(self):
         """Test 2>&1 redirection (stderr to stdout)."""
         # Just verify parsing since actual behavior depends on complex fd interactions
-        from psh.state_machine_lexer import tokenize
+        from psh.lexer import tokenize
         from psh.parser import parse
         
         # Verify parsing of 2>&1
@@ -79,7 +79,7 @@ class TestFDDuplication:
     
     def test_partial_form_parsing(self):
         """Test that >&2 is parsed correctly (not as >& followed by 2)."""
-        from psh.state_machine_lexer import tokenize
+        from psh.lexer import tokenize
         from psh.parser import parse
         
         # Parse the command
@@ -107,7 +107,7 @@ class TestFDDuplication:
         # cat err.txt  # shows "test"
         
         # For automated testing, just verify the parsing
-        from psh.state_machine_lexer import tokenize
+        from psh.lexer import tokenize
         from psh.parser import parse
         
         tokens = tokenize('echo "to stderr" >&2')

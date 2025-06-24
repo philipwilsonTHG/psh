@@ -3,8 +3,7 @@
 
 from typing import List, Dict, Set, Optional, Tuple
 from .token_types import Token, TokenType
-from .state_machine_lexer import tokenize
-
+from .lexer import StateMachineLexer, tokenize
 
 class AliasManager:
     """Manages shell aliases and their expansion."""

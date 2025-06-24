@@ -56,7 +56,7 @@ class IOManager:
         """Set up redirections for built-in commands. Returns tuple of backup objects."""
         import io
         import fcntl
-        from ..state_machine_lexer import tokenize
+        from ..lexer import tokenize
         from ..parser import parse
         
         # DEBUG: Log builtin redirection setup

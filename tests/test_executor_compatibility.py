@@ -12,7 +12,7 @@ from io import StringIO
 from contextlib import redirect_stdout, redirect_stderr
 
 from psh.shell import Shell
-from psh.state_machine_lexer import tokenize
+from psh.lexer import tokenize
 from psh.parser import parse
 
 

@@ -102,7 +102,7 @@ def test_ps1_heuristic_vs_normal_variables():
 
 def test_quotes_not_consumed_by_word():
     """Test that quotes are properly handled as separate tokens."""
-    from psh.state_machine_lexer import tokenize
+    from psh.lexer import tokenize
     from psh.token_types import TokenType
     
     # Test that quotes stop word reading

@@ -1,7 +1,7 @@
 import pytest
 from psh.shell import Shell
 from psh.parser import parse
-from psh.state_machine_lexer import tokenize
+from psh.lexer import tokenize
 
 
 class TestBreakContinueSimple:
@@ -67,7 +67,7 @@ class TestBreakContinueSimple:
         """Test break statement in for loop."""
         shell = Shell()
         # Test by executing step by step using the shell's execution methods
-        from psh.state_machine_lexer import tokenize
+        from psh.lexer import tokenize
         from psh.parser import parse
         
         # Create a for loop with break inside
@@ -105,7 +105,7 @@ class TestBreakContinueSimple:
         """Test continue statement in for loop."""
         shell = Shell()
         # Test continue using direct execution method
-        from psh.state_machine_lexer import tokenize
+        from psh.lexer import tokenize
         from psh.parser import parse
         
         # Create a for loop with continue inside  
@@ -161,7 +161,7 @@ class TestBreakContinueSimple:
         """Test continue in a simple for loop.""" 
         shell = Shell()
         # Test by manually testing continue that we know works
-        from psh.state_machine_lexer import tokenize
+        from psh.lexer import tokenize
         from psh.parser import parse
         
         # Create a simpler test that uses continue in its basic form
@@ -193,7 +193,7 @@ class TestBreakContinueSimple:
         """Test basic break and continue behavior works correctly."""
         shell = Shell()
         # Test that break actually stops the loop 
-        from psh.state_machine_lexer import tokenize
+        from psh.lexer import tokenize
         from psh.parser import parse
         
         # Simple break test

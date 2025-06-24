@@ -5,7 +5,7 @@ allowing users to naturally type control structures across multiple lines.
 """
 
 from typing import Optional, List
-from .state_machine_lexer import tokenize
+from .lexer import tokenize
 from .parser import parse, ParseError
 from .line_editor import LineEditor
 from .prompt import PromptExpander

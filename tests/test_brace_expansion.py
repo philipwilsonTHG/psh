@@ -229,7 +229,7 @@ class TestBraceExpansionIntegration:
     
     def test_tokenizer_integration(self):
         """Test that brace expansion works through the tokenizer."""
-        from psh.state_machine_lexer import tokenize
+        from psh.lexer import tokenize
         from psh.token_types import TokenType
         
         # Simple expansion
@@ -249,7 +249,7 @@ class TestBraceExpansionIntegration:
     
     def test_tokenizer_quotes_preserved(self):
         """Test that quoted braces don't expand in tokenizer."""
-        from psh.state_machine_lexer import tokenize
+        from psh.lexer import tokenize
         from psh.token_types import TokenType
         
         tokens = tokenize('echo "{a,b,c}"')
@@ -264,7 +264,7 @@ class TestBraceExpansionIntegration:
     
     def test_tokenizer_with_operators(self):
         """Test brace expansion with shell operators."""
-        from psh.state_machine_lexer import tokenize
+        from psh.lexer import tokenize
         from psh.token_types import TokenType
         
         # With pipe
@@ -282,7 +282,7 @@ class TestBraceExpansionIntegration:
     
     def test_tokenizer_error_handling(self):
         """Test that tokenizer handles brace expansion errors gracefully."""
-        from psh.state_machine_lexer import tokenize
+        from psh.lexer import tokenize
         from psh.token_types import TokenType
         
         # Save original limit

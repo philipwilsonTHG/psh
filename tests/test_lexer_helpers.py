@@ -6,7 +6,7 @@ These tests verify the internal helper methods work correctly in isolation.
 """
 
 import pytest
-from psh.state_machine_lexer import StateMachineLexer
+from psh.lexer import StateMachineLexer
 from psh.lexer import TokenPart
 from psh.lexer_position import Position, LexerConfig
 from psh.token_types import TokenType

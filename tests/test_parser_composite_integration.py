@@ -1,7 +1,7 @@
 """Tests for parser integration with CompositeTokenProcessor."""
 
 import pytest
-from psh.state_machine_lexer import tokenize
+from psh.lexer import tokenize
 from psh.parser import Parser
 from psh.ast_nodes import SimpleCommand, Pipeline
 

@@ -14,7 +14,7 @@ from contextlib import contextmanager
 from psh.shell import Shell
 from psh.visitor.executor_visitor import ExecutorVisitor
 from psh.visitor.testable_executor_visitor import MockExecutorVisitor
-from psh.state_machine_lexer import tokenize
+from psh.lexer import tokenize
 from psh.parser import parse
 
 

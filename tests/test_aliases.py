@@ -2,7 +2,7 @@
 import pytest
 from psh.shell import Shell
 from psh.aliases import AliasManager
-from psh.state_machine_lexer import tokenize
+from psh.lexer import tokenize
 from psh.token_types import Token, TokenType
 
 

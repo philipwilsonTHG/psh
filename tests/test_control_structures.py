@@ -11,7 +11,7 @@ import warnings
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from psh.shell import Shell
-from psh.state_machine_lexer import tokenize
+from psh.lexer import tokenize
 from psh.parser import parse
 
 from psh.ast_nodes import IfConditional, StatementList, TopLevel, CommandList

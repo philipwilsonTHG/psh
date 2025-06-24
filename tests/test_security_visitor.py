@@ -5,7 +5,7 @@ This module tests security vulnerability detection functionality.
 """
 
 import pytest
-from psh.state_machine_lexer import tokenize
+from psh.lexer import tokenize
 from psh.parser import parse
 from psh.visitor.security_visitor import SecurityVisitor, SecurityIssue
 

@@ -5,7 +5,7 @@ This module tests the visitor composition and pipeline functionality.
 """
 
 import pytest
-from psh.state_machine_lexer import tokenize
+from psh.lexer import tokenize
 from psh.parser import parse
 from psh.visitor.visitor_pipeline import (
     VisitorRegistry, VisitorPipeline, get_global_registry
