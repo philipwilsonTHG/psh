@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from psh.state_machine_lexer import tokenize
+from psh.lexer import tokenize
 from psh.parser import parse
 from psh.ast_nodes import Command, Pipeline, CommandList, AndOrList, Redirect
 
