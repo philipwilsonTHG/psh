@@ -1,6 +1,6 @@
 # PSH Architecture Reference for Large Language Models
 
-Version: 0.51.0 (2025-01-15) - Legacy executor removed
+Version: 0.51.0 (2025-01-15)
 Purpose: Optimized reference for LLMs working with PSH codebase
 
 ## Quick Start
