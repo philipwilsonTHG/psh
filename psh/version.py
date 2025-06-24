@@ -2,10 +2,24 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.58.1"
+__version__ = "0.58.2"
 
 # Version history
 VERSION_HISTORY = """
+0.58.2 (2025-01-28) - Lexer Package Self-Containment: Position Module Integration
+  - Moved psh/lexer_position.py into lexer package as psh/lexer/position.py
+  - Completed lexer package encapsulation with all supporting classes contained within package
+  - Updated internal package imports from ..lexer_position to .position for clean architecture
+  - Updated all test files to import position classes from psh.lexer package
+  - Enhanced lexer package __init__.py to export position classes (Position, LexerConfig, etc.)
+  - Updated documentation (ARCHITECTURE.md, ARCHITECTURE.llm) to reflect final package structure
+  - Achieved true package self-containment with 8 focused modules totaling 1,987 lines
+  - Final lexer package structure: core, helpers, state_handlers, constants, unicode_support, token_parts, position, __init__
+  - All 42+ lexer tests pass with new encapsulated structure
+  - Logical grouping achieved: position tracking belongs with lexer that uses it
+  - Improved discoverability: all lexer components available from single package import
+  - Eliminated external lexer dependencies for complete architectural consistency
+
 0.58.1 (2025-01-28) - Lexer Package Cleanup: Direct Import Architecture
   - Removed backward compatibility wrapper psh/state_machine_lexer.py
   - All imports now use direct psh.lexer package imports for cleaner architecture

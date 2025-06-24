@@ -2,7 +2,7 @@
 
 from typing import List, Optional, Tuple
 from ..token_types import TokenType
-from ..lexer_position import LexerState, Position
+from .position import LexerState, Position
 from .token_parts import TokenPart
 from .unicode_support import is_whitespace
 

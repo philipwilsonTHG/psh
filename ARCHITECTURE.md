@@ -109,6 +109,7 @@ The lexer is implemented as a modular package with clean separation of concerns:
 - **`psh/lexer/constants.py`** - All lexer constants and character sets
 - **`psh/lexer/unicode_support.py`** - Unicode character classification
 - **`psh/lexer/token_parts.py`** - TokenPart and RichToken classes
+- **`psh/lexer/position.py`** - Position tracking, error handling, and lexer configuration
 - **`psh/lexer/__init__.py`** - Clean public API
 
 The main lexer uses mixin classes for code organization:

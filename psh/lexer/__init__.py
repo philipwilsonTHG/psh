@@ -13,6 +13,10 @@ from ..token_types import Token
 
 # Core lexer components
 from .core import StateMachineLexer
+from .position import (
+    Position, LexerState, LexerConfig, LexerError, RecoverableLexerError,
+    LexerErrorHandler, PositionTracker
+)
 from .constants import (
     KEYWORDS, OPERATORS_BY_LENGTH, SPECIAL_VARIABLES,
     DOUBLE_QUOTE_ESCAPES, WORD_TERMINATORS
@@ -67,6 +71,9 @@ def tokenize(input_string: str) -> List[Token]:
 __all__ = [
     # Main lexer interface
     'StateMachineLexer', 'tokenize',
+    # Position and configuration
+    'Position', 'LexerState', 'LexerConfig', 'LexerError', 'RecoverableLexerError',
+    'LexerErrorHandler', 'PositionTracker',
     # Constants
     'KEYWORDS', 'OPERATORS_BY_LENGTH', 'SPECIAL_VARIABLES',
     'DOUBLE_QUOTE_ESCAPES', 'WORD_TERMINATORS',

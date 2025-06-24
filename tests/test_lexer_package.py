@@ -7,7 +7,7 @@ from psh.lexer import (
     KEYWORDS, OPERATORS_BY_LENGTH,
     is_identifier_start, is_whitespace
 )
-from psh.lexer_position import LexerConfig
+from psh.lexer import LexerConfig
 
 
 class TestLexerPackageAPI:

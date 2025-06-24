@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import List, Optional
 
 from ..token_types import Token
-from ..lexer_position import Position
+from .position import Position
 
 
 @dataclass

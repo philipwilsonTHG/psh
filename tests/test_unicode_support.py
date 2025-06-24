@@ -11,7 +11,7 @@ from psh.lexer import (
     StateMachineLexer, is_identifier_start, is_identifier_char, 
     is_whitespace, normalize_identifier, validate_identifier
 )
-from psh.lexer_position import LexerConfig
+from psh.lexer import LexerConfig
 from psh.token_types import TokenType
 
 

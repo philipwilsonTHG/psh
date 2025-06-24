@@ -46,8 +46,8 @@ psh/
 │   ├── state_handlers.py  # StateHandlers mixin with state machine logic
 │   ├── constants.py       # All lexer constants and character sets
 │   ├── unicode_support.py # Unicode character classification
-│   └── token_parts.py     # TokenPart and RichToken classes
-├── lexer_position.py        # Position tracking and error handling for lexer
+│   ├── token_parts.py     # TokenPart and RichToken classes
+│   └── position.py        # Position tracking, error handling, and lexer configuration
 ├── token_types.py          # Token type definitions and Token dataclass
 ├── parser.py               # Recursive descent parser
 ├── ast_nodes.py            # AST node definitions
@@ -176,6 +176,7 @@ def visit_IfConditional(self, node: IfConditional) -> int
 - **Constants** (constants.py): Character sets, operators, keywords
 - **Unicode Support** (unicode_support.py): Unicode character classification with POSIX fallback
 - **Token Parts** (token_parts.py): TokenPart and RichToken definitions
+- **Position Tracking** (position.py): Position, LexerState, LexerConfig, error handling
 
 **Key Features:**
 - Mixin-based architecture for extensibility and maintainability
@@ -378,7 +379,8 @@ class MyBuiltin(BuiltinCommand):
 - **Modify tokenization:** `psh/lexer/` package (core.py for main logic, helpers.py for utilities, etc.)
 - **Lexer constants:** `psh/lexer/constants.py`
 - **Unicode support:** `psh/lexer/unicode_support.py`
-- **Configure lexer features:** `LexerConfig` class in `psh/lexer/core.py`
+- **Position tracking:** `psh/lexer/position.py`
+- **Configure lexer features:** `LexerConfig` class in `psh/lexer/position.py`
 
 ### Key Classes
 - `Shell` - Main orchestrator

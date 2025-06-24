@@ -4,7 +4,7 @@ Unit tests for LexerConfig and configuration-driven lexer behavior.
 """
 
 import pytest
-from psh.lexer_position import LexerConfig, LexerState
+from psh.lexer import LexerConfig, LexerState
 from psh.lexer import StateMachineLexer
 from psh.token_types import TokenType
 

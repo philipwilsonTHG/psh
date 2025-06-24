@@ -3,7 +3,7 @@
 import re
 from typing import List, Optional
 from ..token_types import Token, TokenType
-from ..lexer_position import (
+from .position import (
     LexerConfig, LexerState, PositionTracker, LexerErrorHandler, Position
 )
 from .constants import KEYWORDS, SPECIAL_VARIABLES
@@ -316,7 +316,7 @@ class StateMachineLexer(LexerHelpers, StateHandlers):
         
     def _format_error(self, message: str, position: int) -> str:
         """Format an error message with context from the input (legacy compatibility)."""
-        from ..lexer_position import LexerError
+        from .position import LexerError
         pos_obj = self.position_tracker.get_position_at_offset(position)
         error = LexerError(message, pos_obj, self.input)
         return str(error)

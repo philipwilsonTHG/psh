@@ -2,7 +2,7 @@
 
 from typing import List, Optional, Tuple
 from ..token_types import TokenType
-from ..lexer_position import Position
+from .position import Position
 from .token_parts import TokenPart
 from .constants import OPERATORS_BY_LENGTH, DOUBLE_QUOTE_ESCAPES
 
