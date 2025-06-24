@@ -37,7 +37,7 @@
  ## 5. Integration with Testing Framework
  
  - **Regression Detection:** Use the existing pytest framework and golden-file tests to catch regressions.
- - **Compatibility Checks:** Validate that refactored code aligns with expected POSIX behavior and Bash compatibility where applicable. For lexer changes, verify both Unicode and POSIX modes work correctly, and ensure the modular package structure maintains backward compatibility.
+ - **Compatibility Checks:** Validate that refactored code aligns with expected POSIX behavior and Bash compatibility where applicable. For lexer changes, verify both Unicode and POSIX modes work correctly with the modular package structure.
  - **Detailed Diff Reporting:** When discrepancies arise, provide clear diffs that detail differences between expected and actual behavior.
  
  ## 6. Agent Interaction Guidelines

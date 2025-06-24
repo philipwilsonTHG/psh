@@ -109,7 +109,7 @@ The lexer is implemented as a modular package with clean separation of concerns:
 - **`psh/lexer/constants.py`** - All lexer constants and character sets
 - **`psh/lexer/unicode_support.py`** - Unicode character classification
 - **`psh/lexer/token_parts.py`** - TokenPart and RichToken classes
-- **`psh/lexer/__init__.py`** - Clean public API with backward compatibility
+- **`psh/lexer/__init__.py`** - Clean public API
 
 The main lexer uses mixin classes for code organization:
 ```python
@@ -163,8 +163,8 @@ The package structure provides several advantages:
 - **Separation of Concerns**: Helper methods, state handlers, constants, and core logic are cleanly separated
 - **Mixin Architecture**: Combines functionality from multiple mixins for extensibility
 - **Unicode Support**: Dedicated module for Unicode character classification and POSIX compatibility
-- **Maintainability**: 99% code reduction in main interface (1504 → 15 lines)
-- **Backward Compatibility**: Complete API compatibility via `psh/state_machine_lexer.py` wrapper
+- **Maintainability**: Clean modular design with focused components
+- **Clean API**: Direct imports from `psh.lexer` package with no compatibility layers needed
 
 ### 2.5 Context-Aware Tokenization
 

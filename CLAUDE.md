@@ -83,7 +83,6 @@ python -m psh --validate script.sh        # Validate without executing
 - `psh/shell.py` - Main orchestrator (~500 lines)
 - `psh/parser.py` - Recursive descent parser
 - `psh/lexer/` - Modular tokenizer package with mixin architecture
-- `psh/state_machine_lexer.py` - Backward compatibility wrapper (15 lines)
 - `psh/visitor/executor_visitor.py` - Main execution engine
 - `psh/core/state.py` - Central state management
 - `psh/expansion/manager.py` - Orchestrates all expansions
@@ -142,10 +141,10 @@ class MyVisitor(ASTVisitor[T]):
 
 **Recent Work**:
 - **Lexer Package Refactoring (v0.58.0)**: Transformed monolithic 1500+ line lexer into modular package
-  - 99% code reduction in main interface (1504 → 15 lines)
+  - Clean modular design with 7 focused components
   - Mixin-based architecture with LexerHelpers and StateHandlers
   - Clean separation: core logic, helpers, state handlers, constants, Unicode support
-  - Complete backward compatibility maintained
+  - Direct imports from `psh.lexer` package with clean API
 - POSIX set builtin options implemented (-a, -b, -C, -f, -n, -v)
 - Wait builtin completed for job synchronization  
 - Trap builtin with signal handling

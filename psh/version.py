@@ -2,10 +2,21 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.58.0"
+__version__ = "0.58.1"
 
 # Version history
 VERSION_HISTORY = """
+0.58.1 (2025-01-28) - Lexer Package Cleanup: Direct Import Architecture
+  - Removed backward compatibility wrapper psh/state_machine_lexer.py
+  - All imports now use direct psh.lexer package imports for cleaner architecture
+  - Updated all test files to use new import pattern: from psh.lexer import tokenize, StateMachineLexer
+  - Updated main source code to use relative imports: from .lexer import tokenize
+  - Documentation updates across ARCHITECTURE.md, CLAUDE.md, ARCHITECTURE.llm, and AGENTS.md
+  - Completed transition to fully modular lexer package with no legacy code
+  - All 1722+ tests pass with clean import structure
+  - Simplified package structure eliminates compatibility layers
+  - Final clean architecture with 7 focused lexer modules and direct API access
+
 0.58.0 (2025-01-28) - Lexer Package Refactoring: Modular Architecture
   - Transformed monolithic 1500+ line state_machine_lexer.py into modular package structure
   - 99% code reduction in main interface (1504 → 15 lines) while maintaining 100% backward compatibility

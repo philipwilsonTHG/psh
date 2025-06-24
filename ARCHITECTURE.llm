@@ -40,14 +40,13 @@ psh/
 │   └── options.py          # Shell option handlers
 ├── input_preprocessing.py   # Line continuation handling
 ├── lexer/                   # Modular lexer package with mixin architecture
-│   ├── __init__.py         # Clean public API and backward compatibility
+│   ├── __init__.py         # Clean public API
 │   ├── core.py            # Main StateMachineLexer class
 │   ├── helpers.py         # LexerHelpers mixin with utility methods
 │   ├── state_handlers.py  # StateHandlers mixin with state machine logic
 │   ├── constants.py       # All lexer constants and character sets
 │   ├── unicode_support.py # Unicode character classification
 │   └── token_parts.py     # TokenPart and RichToken classes
-├── state_machine_lexer.py   # Backward compatibility wrapper (15 lines)
 ├── lexer_position.py        # Position tracking and error handling for lexer
 ├── token_types.py          # Token type definitions and Token dataclass
 ├── parser.py               # Recursive descent parser
@@ -186,7 +185,7 @@ def visit_IfConditional(self, node: IfConditional) -> int
 - Configurable feature flags for different shell modes
 - State machine with contexts: NORMAL, IN_QUOTE, IN_VARIABLE, etc.
 - Enhanced operator precedence handling
-- 99% code reduction in main interface (backward compatibility maintained)
+- Clean modular design with direct package imports
 
 **Unicode Functions:**
 ```python
@@ -380,7 +379,6 @@ class MyBuiltin(BuiltinCommand):
 - **Lexer constants:** `psh/lexer/constants.py`
 - **Unicode support:** `psh/lexer/unicode_support.py`
 - **Configure lexer features:** `LexerConfig` class in `psh/lexer/core.py`
-- **Backward compatibility:** `psh/state_machine_lexer.py` (wrapper)
 
 ### Key Classes
 - `Shell` - Main orchestrator
