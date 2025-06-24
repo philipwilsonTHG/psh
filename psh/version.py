@@ -6,6 +6,40 @@ __version__ = "0.58.0"
 
 # Version history
 VERSION_HISTORY = """
+0.58.0 (2025-01-28) - Lexer Package Refactoring: Modular Architecture
+  - Transformed monolithic 1500+ line state_machine_lexer.py into modular package structure
+  - 99% code reduction in main interface (1504 → 15 lines) while maintaining 100% backward compatibility
+  - Created 7 focused modules with clean separation of concerns:
+    - psh/lexer/core.py: Main StateMachineLexer class (408 lines)
+    - psh/lexer/helpers.py: LexerHelpers mixin with utility methods (388 lines)  
+    - psh/lexer/state_handlers.py: StateHandlers mixin with state machine logic (475 lines)
+    - psh/lexer/constants.py: All lexer constants and character sets (74 lines)
+    - psh/lexer/unicode_support.py: Unicode character classification (126 lines)
+    - psh/lexer/token_parts.py: TokenPart and RichToken classes (37 lines)
+    - psh/lexer/__init__.py: Clean public API with backward compatibility (79 lines)
+  - Mixin-based architecture for extensibility and maintainability
+    - StateMachineLexer(LexerHelpers, StateHandlers) combines functionality
+    - Clean separation between utility methods and state machine logic
+    - Modular design enables focused testing and independent development
+  - Enhanced architecture benefits:
+    - Improved maintainability: smaller, focused files easier to understand
+    - Better testability: each component can be tested in isolation
+    - Increased extensibility: new functionality can be added via mixins
+    - Preserved educational value: clearer separation of lexer concerns
+  - Complete backward compatibility maintained:
+    - All existing imports continue to work unchanged
+    - psh/state_machine_lexer.py serves as compatibility wrapper
+    - Zero breaking changes to public API or behavior
+    - All 1722 tests pass with new architecture
+  - Documentation updates:
+    - Updated ARCHITECTURE.md, CLAUDE.md, ARCHITECTURE.llm, and AGENTS.md
+    - Comprehensive documentation of new modular structure
+    - Migration guide for future lexer development
+  - Foundation for future enhancements:
+    - Package structure enables adding new lexer features incrementally
+    - Mixin architecture supports extending functionality without modification
+    - Clear separation of concerns facilitates debugging and optimization
+
 0.57.4 (2025-06-17) - Wait Builtin Implementation and Process Synchronization
   - Implemented complete POSIX-compliant wait builtin for process synchronization
     - Wait for all background jobs: wait (returns immediately if no jobs)

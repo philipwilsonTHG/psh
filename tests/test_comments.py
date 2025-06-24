@@ -7,7 +7,8 @@ import sys
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from psh.state_machine_lexer import tokenize, TokenType
+from psh.state_machine_lexer import tokenize
+from psh.token_types import TokenType
 from psh.parser import parse
 from psh.shell import Shell
 

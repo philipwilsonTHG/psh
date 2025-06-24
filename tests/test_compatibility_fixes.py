@@ -1,7 +1,8 @@
 """Unit tests for compatibility fixes between PSH and Bash."""
 
 import pytest
-from psh.state_machine_lexer import tokenize, TokenType
+from psh.state_machine_lexer import tokenize
+from psh.token_types import TokenType
 from psh.parser import parse, ParseError
 from psh.shell import Shell
 from psh.token_transformer import TokenTransformer

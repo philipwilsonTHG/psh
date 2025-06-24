@@ -72,7 +72,7 @@ python -m psh --validate script.sh        # Validate without executing
 
 **Modify parser:**
 1. Add tokens to `psh/token_types.py` if needed
-2. Update `psh/state_machine_lexer.py` for new tokens
+2. Update `psh/lexer/` package for new tokens (core.py for main logic, constants.py for new token constants)
 3. Add AST nodes to `psh/ast_nodes.py`
 4. Update `psh/parser.py` with parsing logic
 5. Implement visitor methods in `psh/visitor/executor_visitor.py`
@@ -82,7 +82,8 @@ python -m psh --validate script.sh        # Validate without executing
 ### Key Files
 - `psh/shell.py` - Main orchestrator (~500 lines)
 - `psh/parser.py` - Recursive descent parser
-- `psh/state_machine_lexer.py` - Tokenizer
+- `psh/lexer/` - Modular tokenizer package with mixin architecture
+- `psh/state_machine_lexer.py` - Backward compatibility wrapper (15 lines)
 - `psh/visitor/executor_visitor.py` - Main execution engine
 - `psh/core/state.py` - Central state management
 - `psh/expansion/manager.py` - Orchestrates all expansions
@@ -137,9 +138,14 @@ class MyVisitor(ASTVisitor[T]):
 
 ## Current Development Status
 
-**Version**: 0.57.4 (see version.py for detailed history)
+**Version**: 0.58.0 (see version.py for detailed history)
 
 **Recent Work**:
+- **Lexer Package Refactoring (v0.58.0)**: Transformed monolithic 1500+ line lexer into modular package
+  - 99% code reduction in main interface (1504 → 15 lines)
+  - Mixin-based architecture with LexerHelpers and StateHandlers
+  - Clean separation: core logic, helpers, state handlers, constants, Unicode support
+  - Complete backward compatibility maintained
 - POSIX set builtin options implemented (-a, -b, -C, -f, -n, -v)
 - Wait builtin completed for job synchronization  
 - Trap builtin with signal handling

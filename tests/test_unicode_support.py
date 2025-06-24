@@ -7,7 +7,7 @@ contexts, including variable names, whitespace, and edge cases.
 """
 
 import pytest
-from psh.state_machine_lexer import (
+from psh.lexer import (
     StateMachineLexer, is_identifier_start, is_identifier_char, 
     is_whitespace, normalize_identifier, validate_identifier
 )

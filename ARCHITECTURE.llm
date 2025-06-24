@@ -1,6 +1,6 @@
 # PSH Architecture Reference for Large Language Models
 
-Version: 0.51.0 (2025-01-15)
+Version: 0.58.0 (2025-01-28) - Lexer Package Refactoring
 Purpose: Optimized reference for LLMs working with PSH codebase
 
 ## Quick Start
@@ -39,7 +39,17 @@ psh/
 │   ├── exceptions.py       # Control flow exceptions
 │   └── options.py          # Shell option handlers
 ├── input_preprocessing.py   # Line continuation handling
-├── state_machine_lexer.py   # Tokenization (state machine)
+├── lexer/                   # Modular lexer package with mixin architecture
+│   ├── __init__.py         # Clean public API and backward compatibility
+│   ├── core.py            # Main StateMachineLexer class
+│   ├── helpers.py         # LexerHelpers mixin with utility methods
+│   ├── state_handlers.py  # StateHandlers mixin with state machine logic
+│   ├── constants.py       # All lexer constants and character sets
+│   ├── unicode_support.py # Unicode character classification
+│   └── token_parts.py     # TokenPart and RichToken classes
+├── state_machine_lexer.py   # Backward compatibility wrapper (15 lines)
+├── lexer_position.py        # Position tracking and error handling for lexer
+├── token_types.py          # Token type definitions and Token dataclass
 ├── parser.py               # Recursive descent parser
 ├── ast_nodes.py            # AST node definitions
 ├── visitor/                # Visitor pattern operations
@@ -79,10 +89,16 @@ Input → Preprocessing → Tokenization → Parsing → AST → Visitor Executi
    - History expansion (!!, !n, etc.)
    - Brace expansion ({a,b}, {1..5})
 
-2. Tokenization (state_machine_lexer.py):
-   - State machine with contexts (NORMAL, IN_QUOTE, etc.)
+2. Tokenization (lexer/ package):
+   - Modular package with mixin-based architecture
+   - Advanced state machine with Unicode support
+   - LexerConfig system for feature control
+   - Position tracking with enhanced error handling
+   - Unicode-aware character classification
+   - POSIX compatibility mode
    - Produces RichToken objects with metadata
    - Preserves quote information for expansion
+   - Clean separation of concerns: core, helpers, state handlers, constants
 
 3. Parsing (parser.py):
    - Recursive descent parser
@@ -151,6 +167,58 @@ def visit_IfConditional(self, node: IfConditional) -> int
 5. Word splitting (on $IFS)
 6. Pathname expansion (*, ?, [...])
 7. Quote removal
+
+### Lexer Package (lexer/)
+**Purpose:** Modular lexer with advanced tokenization, Unicode support, and mixin architecture
+**Key Components:**
+- **StateMachineLexer** (core.py): Main lexer class combining mixins
+- **LexerHelpers** (helpers.py): Utility methods for balanced parsing, operators, word termination
+- **StateHandlers** (state_handlers.py): All state machine transition logic
+- **Constants** (constants.py): Character sets, operators, keywords
+- **Unicode Support** (unicode_support.py): Unicode character classification with POSIX fallback
+- **Token Parts** (token_parts.py): TokenPart and RichToken definitions
+
+**Key Features:**
+- Mixin-based architecture for extensibility and maintainability
+- Unicode-aware character classification (letters, numbers, marks, whitespace)
+- POSIX compatibility mode for ASCII-only operation
+- Comprehensive error handling with position tracking
+- Configurable feature flags for different shell modes
+- State machine with contexts: NORMAL, IN_QUOTE, IN_VARIABLE, etc.
+- Enhanced operator precedence handling
+- 99% code reduction in main interface (backward compatibility maintained)
+
+**Unicode Functions:**
+```python
+def is_identifier_start(char: str, posix_mode: bool = False) -> bool
+def is_identifier_char(char: str, posix_mode: bool = False) -> bool  
+def is_whitespace(char: str, posix_mode: bool = False) -> bool
+def normalize_identifier(name: str, posix_mode: bool = False, case_sensitive: bool = True) -> str
+def validate_identifier(name: str, posix_mode: bool = False) -> bool
+```
+
+**Architecture:**
+```python
+# Mixin-based design for modularity
+class StateMachineLexer(LexerHelpers, StateHandlers):
+    def __init__(self, input_string: str, config: Optional[LexerConfig] = None):
+        # Initialize lexer with modular components
+        pass
+
+# Configuration system
+class LexerConfig:
+    # Core features
+    enable_double_quotes: bool = True
+    enable_single_quotes: bool = True
+    enable_variable_expansion: bool = True
+    # Unicode support
+    posix_mode: bool = False
+    unicode_identifiers: bool = True
+    case_sensitive: bool = True
+    # Error handling
+    strict_mode: bool = False
+    recovery_mode: bool = True
+```
 
 ### Key Interfaces
 
@@ -308,7 +376,11 @@ class MyBuiltin(BuiltinCommand):
 - **Modify parsing:** `psh/parser.py` + `ast_nodes.py`
 - **Change expansion:** `psh/expansion/` + `manager.py`
 - **Add shell option:** `psh/core/options.py`
-- **Modify tokenization:** `psh/state_machine_lexer.py`
+- **Modify tokenization:** `psh/lexer/` package (core.py for main logic, helpers.py for utilities, etc.)
+- **Lexer constants:** `psh/lexer/constants.py`
+- **Unicode support:** `psh/lexer/unicode_support.py`
+- **Configure lexer features:** `LexerConfig` class in `psh/lexer/core.py`
+- **Backward compatibility:** `psh/state_machine_lexer.py` (wrapper)
 
 ### Key Classes
 - `Shell` - Main orchestrator
@@ -316,7 +388,11 @@ class MyBuiltin(BuiltinCommand):
 - `ExecutorVisitor` - Default executor
 - `ExpansionManager` - Expansion orchestrator
 - `Parser` - Recursive descent parser
-- `StateMachineLexer` - Tokenizer
+- `StateMachineLexer` - Modular tokenizer with mixin architecture
+- `LexerHelpers` - Mixin with utility methods
+- `StateHandlers` - Mixin with state machine logic
+- `LexerConfig` - Lexer configuration and feature control
+- `PositionTracker` - Position tracking for error handling
 
 ### Important Methods
 - `shell.run_command(cmd)` - Execute command

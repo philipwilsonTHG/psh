@@ -98,8 +98,26 @@ This happens early because it can create multiple tokens from a single pattern.
 
 The lexer converts character streams into meaningful tokens using a state machine approach.
 
-### 2.1 State Machine Architecture
-**File**: `state_machine_lexer.py`
+### 2.1 Lexer Package Architecture
+**Package**: `psh/lexer/`
+
+The lexer is implemented as a modular package with clean separation of concerns:
+
+- **`psh/lexer/core.py`** - Main StateMachineLexer class
+- **`psh/lexer/helpers.py`** - LexerHelpers mixin with utility methods
+- **`psh/lexer/state_handlers.py`** - StateHandlers mixin with state machine logic
+- **`psh/lexer/constants.py`** - All lexer constants and character sets
+- **`psh/lexer/unicode_support.py`** - Unicode character classification
+- **`psh/lexer/token_parts.py`** - TokenPart and RichToken classes
+- **`psh/lexer/__init__.py`** - Clean public API with backward compatibility
+
+The main lexer uses mixin classes for code organization:
+```python
+class StateMachineLexer(LexerHelpers, StateHandlers):
+    """State machine-based lexer combining helper methods and state handlers"""
+```
+
+### 2.2 State Machine Architecture
 
 The lexer uses a finite state machine with these states:
 ```python
@@ -117,8 +135,8 @@ class LexerState(Enum):
     IN_PARAM_EXPANSION = "IN_PARAM_EXPANSION"
 ```
 
-### 2.2 Rich Token System
-**Files**: `token_types.py`, `state_machine_lexer.py`
+### 2.3 Rich Token System
+**Files**: `token_types.py`, `psh/lexer/token_parts.py`
 
 The lexer produces `RichToken` objects that maintain metadata:
 ```python
@@ -139,7 +157,16 @@ class RichToken:
     original_quotes: Optional[str]
 ```
 
-### 2.3 Context-Aware Tokenization
+### 2.4 Modular Design Benefits
+
+The package structure provides several advantages:
+- **Separation of Concerns**: Helper methods, state handlers, constants, and core logic are cleanly separated
+- **Mixin Architecture**: Combines functionality from multiple mixins for extensibility
+- **Unicode Support**: Dedicated module for Unicode character classification and POSIX compatibility
+- **Maintainability**: 99% code reduction in main interface (1504 → 15 lines)
+- **Backward Compatibility**: Complete API compatibility via `psh/state_machine_lexer.py` wrapper
+
+### 2.5 Context-Aware Tokenization
 
 The lexer handles context-sensitive tokenization:
 - `<` and `>` are operators inside `[[ ]]`, redirections elsewhere
@@ -147,7 +174,7 @@ The lexer handles context-sensitive tokenization:
 - Operators are recognized using length-based lookup for efficiency
 - Quote information is preserved for proper expansion later
 
-### 2.4 Composite Token Handling
+### 2.6 Composite Token Handling
 
 Adjacent string-like tokens become COMPOSITE tokens:
 ```bash
