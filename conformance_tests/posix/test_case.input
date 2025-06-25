@@ -1,0 +1,11 @@
+case "b" in
+  a)
+    echo "A"
+    ;;
+  b)
+    echo "B"
+    ;;
+  *)
+    echo "default"
+    ;;
+esac
