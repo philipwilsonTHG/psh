@@ -2,10 +2,36 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.58.4"
+__version__ = "0.58.6"
 
 # Version history
 VERSION_HISTORY = """
+0.58.6 (2025-01-25) - History Expansion Multiple Print Fix: Interactive Display Issue
+  - Fixed history expansion printing expanded commands multiple times in interactive mode
+  - Added print_expansion parameter to HistoryExpander.expand_history() method
+  - Modified completeness testing calls to use print_expansion=False to prevent duplicate output
+  - Interactive !! commands now print the expanded command only once before execution
+  - Maintained proper expansion printing behavior for actual command execution
+  - Resolves issue where users saw previous commands printed 3+ times with !! in interactive shell
+  - All existing history expansion functionality and tests remain intact
+
+0.58.5 (2025-01-28) - Interactive History Expansion Fix: Complete Multi-Path Resolution
+  - Fixed history expansion (!! commands) in interactive mode by applying expansion before completeness testing
+  - Modified MultiLineInputHandler._is_complete_command() to match script processor behavior
+  - Interactive and script paths now both apply history expansion before parse testing
+  - Resolves "Parse error at position 1: Expected command" for !! in interactive shell
+  - Ensures consistent history expansion behavior across all input modes
+  - All history expansion tests continue to pass with unified processing pipeline
+  - Completes the history expansion fix initiated in v0.58.4 for comprehensive coverage
+
+0.58.4 (2025-01-28) - History Expansion Parse Error Fix: Script Processing Path
+  - Fixed history expansion parse error in script processing by applying expansion before test parsing
+  - Modified SourceProcessor to apply history expansion before command completeness testing
+  - Resolved "Parse error at position 1: Expected command" for !! in script files
+  - Enhanced source processor pipeline to handle history expansion correctly
+  - Maintained proper error handling for failed history expansions
+  - Foundation fix for history expansion - interactive mode addressed in v0.58.5
+
 0.58.3 (2025-01-28) - Lexer Performance Optimization: Dispatch Table Implementation
   - Optimized state handler dispatch from O(n) if-elif chain to O(1) dictionary lookup
   - Implemented dispatch table in StateMachineLexer.__init__ for all 10 lexer states

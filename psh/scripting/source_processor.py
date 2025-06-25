@@ -69,9 +69,9 @@ class SourceProcessor(ScriptComponent):
                 from ..input_preprocessing import process_line_continuations
                 test_command = process_line_continuations(test_command)
                 
-                # Apply history expansion for completeness testing
+                # Apply history expansion for completeness testing (don't print)
                 if hasattr(self.shell, 'history_expander'):
-                    expanded_test = self.shell.history_expander.expand_history(test_command)
+                    expanded_test = self.shell.history_expander.expand_history(test_command, print_expansion=False)
                     if expanded_test is not None:
                         test_command = expanded_test
                 

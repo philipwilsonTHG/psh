@@ -4,6 +4,7 @@ This module provides multi-line command support for the interactive shell,
 allowing users to naturally type control structures across multiple lines.
 """
 
+import sys
 from typing import Optional, List
 from .lexer import tokenize
 from .parser import parse, ParseError
@@ -93,6 +94,13 @@ class MultiLineInputHandler:
                 return False
             # Inside [[ ]], let the parser decide
         
+        
+        # Check for history expansion patterns that should be treated as complete
+        # These will be expanded during execution, not during completeness testing
+        import re
+        if re.search(r'(?:^|\s)!(?:!|[0-9]+|-[0-9]+|[a-zA-Z][a-zA-Z0-9]*|\?[^?]*\?)(?:\s|$)', command):
+            # Contains history expansion - treat as complete and let execution handle it
+            return True
         
         # Try to tokenize and parse
         try:

@@ -16,8 +16,12 @@ class HistoryExpander:
         self.shell = shell
         self.state = shell.state
         
-    def expand_history(self, command: str) -> str:
+    def expand_history(self, command: str, print_expansion: bool = True) -> str:
         """Expand history references in a command string.
+        
+        Args:
+            command: The command string to expand
+            print_expansion: Whether to print the expanded command to stdout
         
         Supports:
         - !! : Previous command
@@ -180,8 +184,8 @@ class HistoryExpander:
         
         final_result = ''.join(result)
         
-        # If we made expansions, print the expanded command
-        if expanded and sys.stdin.isatty():
+        # If we made expansions, print the expanded command (only when print_expansion is True)
+        if expanded and print_expansion and sys.stdin.isatty():
             print(final_result)
             
         return final_result
