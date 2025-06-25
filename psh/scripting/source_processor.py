@@ -3,7 +3,7 @@ import sys
 from typing import Optional
 from .base import ScriptComponent
 from ..lexer import tokenize
-from ..parser import parse, ParseError
+from ..parser import parse, parse_with_heredocs, ParseError
 from ..ast_nodes import TopLevel
 
 
@@ -74,6 +74,20 @@ class SourceProcessor(ScriptComponent):
                     expanded_test = self.shell.history_expander.expand_history(test_command, print_expansion=False)
                     if expanded_test is not None:
                         test_command = expanded_test
+                
+                # Check for unclosed heredocs and collect content if needed
+                if self._has_unclosed_heredoc(test_command):
+                    # Continue reading lines to complete heredocs
+                    command_buffer = self._collect_heredoc_content(command_buffer, input_source)
+                    if command_buffer is None:  # EOF while reading heredoc
+                        break
+                    # Re-process the complete command
+                    test_command = command_buffer
+                    test_command = process_line_continuations(test_command)
+                    if hasattr(self.shell, 'history_expander'):
+                        expanded_test = self.shell.history_expander.expand_history(test_command, print_expansion=False)
+                        if expanded_test is not None:
+                            test_command = expanded_test
                 
                 # Check if command contains history expansion - if so, treat as complete
                 import re
@@ -212,7 +226,19 @@ class SourceProcessor(ScriptComponent):
             
             # Expand aliases
             tokens = self.shell.alias_manager.expand_aliases(tokens)
-            ast = parse(tokens)
+            
+            # Check if command contains heredocs and parse accordingly
+            if '<<' in command_string:
+                # Extract heredoc content first
+                heredoc_map = self._extract_heredoc_content(command_string)
+                # Remove heredoc content from command for tokenizing
+                clean_command = self._remove_heredoc_content_from_command(command_string)
+                # Re-tokenize the clean command
+                clean_tokens = tokenize(clean_command)
+                clean_tokens = self.shell.alias_manager.expand_aliases(clean_tokens)
+                ast = parse_with_heredocs(clean_tokens, heredoc_map)
+            else:
+                ast = parse(tokens)
             
             # Debug: Print AST if requested
             if self.state.debug_ast:
@@ -262,8 +288,7 @@ class SourceProcessor(ScriptComponent):
             else:
                 # Backward compatibility - CommandList
                 try:
-                    # Collect here documents if any
-                    self.shell.io_manager.collect_heredocs(ast)
+                    # Heredoc content is now pre-populated during parsing
                     exit_code = self.shell.execute_command_list(ast)
                     return exit_code
                 except Exception as e:
@@ -288,3 +313,292 @@ class SourceProcessor(ScriptComponent):
             print(f"psh: {location}: unexpected error: {e}", file=sys.stderr)
             self.state.last_exit_code = 1
             return 1
+    
+    def _has_unclosed_heredoc(self, command: str) -> bool:
+        """Check if command has an unclosed heredoc."""
+        import re
+        
+        # Find all heredoc start markers (<<EOF, <<-EOF, << EOF, etc.)
+        # But exclude << inside arithmetic expressions, command substitutions, etc.
+        heredoc_pattern = r'<<(-?)\s*([\'"]?)(\\\s*)?(\w+)\2'
+        
+        lines = command.split('\n')
+        heredoc_delimiters = []
+        
+        for line in lines:
+            # Skip if line is inside a heredoc
+            if any(d for d in heredoc_delimiters if not d['closed']):
+                # Check if this line closes a heredoc
+                for delimiter in heredoc_delimiters:
+                    if not delimiter['closed']:
+                        # For <<- style, strip leading tabs
+                        check_line = line.lstrip('\t') if delimiter['strip_tabs'] else line
+                        if check_line.rstrip() == delimiter['word']:
+                            delimiter['closed'] = True
+                            break
+            else:
+                # Look for new heredoc markers, but exclude ones inside expansions
+                potential_matches = list(re.finditer(heredoc_pattern, line))
+                for match in potential_matches:
+                    # Check if this << is inside an arithmetic expression or command substitution
+                    start_pos = match.start()
+                    if self._is_inside_expansion(line, start_pos):
+                        continue  # Skip this match
+                    
+                    strip_tabs = bool(match.group(1))  # '-' present
+                    has_backslash = bool(match.group(3))  # Escaped delimiter
+                    word = match.group(4)
+                    heredoc_delimiters.append({
+                        'word': word,
+                        'strip_tabs': strip_tabs,
+                        'closed': False,
+                        'escaped': has_backslash
+                    })
+        
+        # Check if any heredocs remain unclosed
+        return any(d for d in heredoc_delimiters if not d['closed'])
+    
+    def _collect_heredoc_content(self, command_buffer: str, input_source) -> Optional[str]:
+        """Collect heredoc content from input source until all delimiters are satisfied."""
+        import re
+        
+        # Extract heredoc information from current command
+        heredoc_pattern = r'<<(-?)\s*([\'"]?)(\\\s*)?(\w+)\2'
+        lines = command_buffer.split('\n')
+        heredoc_delimiters = []
+        
+        # Find all heredoc start markers in the current command
+        for line in lines:
+            for match in re.finditer(heredoc_pattern, line):
+                strip_tabs = bool(match.group(1))  # '-' present
+                quoted = bool(match.group(2))      # Delimiter is quoted
+                has_backslash = bool(match.group(3))  # Escaped delimiter
+                word = match.group(4)
+                heredoc_delimiters.append({
+                    'word': word,
+                    'strip_tabs': strip_tabs,
+                    'quoted': quoted,
+                    'closed': False,
+                    'escaped': has_backslash
+                })
+        
+        # If no heredocs found, return current buffer
+        if not heredoc_delimiters:
+            return command_buffer
+        
+        # Continue reading lines until all heredocs are closed
+        result_buffer = command_buffer
+        
+        while True:
+            # Check if all heredocs are closed
+            if all(d['closed'] for d in heredoc_delimiters):
+                break
+            
+            # Read next line
+            line = input_source.read_line()
+            if line is None:  # EOF
+                return None
+            
+            # Add line to buffer
+            if not result_buffer.endswith('\n'):
+                result_buffer += '\n'
+            result_buffer += line
+            
+            # Check if this line closes any open heredocs
+            for delimiter in heredoc_delimiters:
+                if not delimiter['closed']:
+                    # For <<- style, strip leading tabs from delimiter check
+                    check_line = line.lstrip('\t') if delimiter['strip_tabs'] else line
+                    if check_line.rstrip() == delimiter['word']:
+                        delimiter['closed'] = True
+                        break
+        
+        return result_buffer
+    
+    def _is_inside_expansion(self, line: str, position: int) -> bool:
+        """Check if the position is inside an arithmetic expression or command substitution."""
+        # Check for arithmetic expressions $((..))
+        arith_start = -1
+        paren_depth = 0
+        i = 0
+        while i < len(line):
+            if i + 2 < len(line) and line[i:i+3] == '$((': 
+                if i <= position:
+                    arith_start = i
+                    paren_depth = 2
+                    i += 3
+                    continue
+                else:
+                    break
+            elif line[i] == '(' and arith_start >= 0:
+                paren_depth += 1
+            elif line[i] == ')' and arith_start >= 0:
+                paren_depth -= 1
+                if paren_depth == 0:
+                    # End of arithmetic expression
+                    if arith_start <= position <= i:
+                        return True
+                    arith_start = -1
+            i += 1
+        
+        # Check for command substitution $(..)
+        cmd_sub_start = -1
+        paren_depth = 0
+        i = 0
+        while i < len(line):
+            if i + 1 < len(line) and line[i:i+2] == '$(':
+                if i <= position:
+                    cmd_sub_start = i
+                    paren_depth = 1
+                    i += 2
+                    continue
+                else:
+                    break
+            elif line[i] == '(' and cmd_sub_start >= 0:
+                paren_depth += 1
+            elif line[i] == ')' and cmd_sub_start >= 0:
+                paren_depth -= 1
+                if paren_depth == 0:
+                    # End of command substitution
+                    if cmd_sub_start <= position <= i:
+                        return True
+                    cmd_sub_start = -1
+            i += 1
+        
+        # Check for backtick command substitution
+        backtick_start = -1
+        i = 0
+        while i < len(line):
+            if line[i] == '`':
+                if backtick_start == -1:
+                    if i <= position:
+                        backtick_start = i
+                else:
+                    # End of backtick substitution
+                    if backtick_start <= position <= i:
+                        return True
+                    backtick_start = -1
+            i += 1
+        
+        return False
+    
+    def _extract_heredoc_content(self, command_text: str) -> dict:
+        """Extract heredoc content from complete command text and return a mapping."""
+        import re
+        
+        heredoc_map = {}
+        heredoc_pattern = r'<<(-?)\s*([\'"]?)(\\\s*)?(\w+)\2'
+        lines = command_text.split('\n')
+        
+        # Track delimiters and their content
+        current_heredocs = []  # Stack of active heredocs
+        line_idx = 0
+        
+        while line_idx < len(lines):
+            line = lines[line_idx]
+            
+            # Check if this line closes any active heredocs
+            if current_heredocs:
+                for i in range(len(current_heredocs) - 1, -1, -1):  # Check in reverse order (LIFO)
+                    delimiter_info = current_heredocs[i]
+                    # For <<- style, strip leading tabs from delimiter check
+                    check_line = line.lstrip('\t') if delimiter_info['strip_tabs'] else line
+                    if check_line.rstrip() == delimiter_info['word']:
+                        # Found closing delimiter
+                        delimiter_info['end_line'] = line_idx
+                        # Extract content between start and end
+                        content_lines = lines[delimiter_info['start_line'] + 1:line_idx]
+                        if delimiter_info['strip_tabs']:
+                            # Strip leading tabs from content for <<-
+                            content_lines = [l.lstrip('\t') for l in content_lines]
+                        content = '\n'.join(content_lines)
+                        if content_lines:  # Add final newline if there was content
+                            content += '\n'
+                        heredoc_map[delimiter_info['delimiter']] = {
+                            'content': content,
+                            'quoted': delimiter_info['quoted'],
+                            'strip_tabs': delimiter_info['strip_tabs'],
+                            'delimiter': delimiter_info['delimiter']
+                        }
+                        current_heredocs.pop(i)
+                        break
+            
+            # Look for new heredoc markers in this line
+            potential_matches = list(re.finditer(heredoc_pattern, line))
+            for match in potential_matches:
+                # Check if this << is inside an arithmetic expression or command substitution
+                start_pos = match.start()
+                if self._is_inside_expansion(line, start_pos):
+                    continue  # Skip this match
+                
+                strip_tabs = bool(match.group(1))  # '-' present
+                quoted = bool(match.group(2))      # Delimiter is quoted
+                has_backslash = bool(match.group(3))  # Escaped delimiter
+                word = match.group(4)
+                
+                current_heredocs.append({
+                    'word': word,
+                    'delimiter': word,  # Keep original for mapping
+                    'strip_tabs': strip_tabs,
+                    'quoted': quoted,
+                    'start_line': line_idx,
+                    'escaped': has_backslash
+                })
+            
+            line_idx += 1
+        
+        return heredoc_map
+    
+    def _remove_heredoc_content_from_command(self, command_text: str) -> str:
+        """Remove heredoc content lines from command text, leaving only the shell commands."""
+        import re
+        
+        heredoc_pattern = r'<<(-?)\s*([\'"]?)(\\\s*)?(\w+)\2'
+        lines = command_text.split('\n')
+        result_lines = []
+        
+        # Track delimiters and skip their content
+        current_heredocs = []
+        line_idx = 0
+        
+        while line_idx < len(lines):
+            line = lines[line_idx]
+            skip_line = False
+            
+            # Check if this line closes any active heredocs
+            if current_heredocs:
+                for i in range(len(current_heredocs) - 1, -1, -1):
+                    delimiter_info = current_heredocs[i]
+                    # For <<- style, strip leading tabs from delimiter check
+                    check_line = line.lstrip('\t') if delimiter_info['strip_tabs'] else line
+                    if check_line.rstrip() == delimiter_info['word']:
+                        # Found closing delimiter - skip this line and close heredoc
+                        current_heredocs.pop(i)
+                        skip_line = True
+                        break
+                
+                # If we're inside a heredoc and this isn't a closing delimiter, skip content
+                if current_heredocs and not skip_line:
+                    skip_line = True
+            
+            # Look for new heredoc markers in this line
+            if not skip_line:
+                potential_matches = list(re.finditer(heredoc_pattern, line))
+                for match in potential_matches:
+                    # Check if this << is inside an arithmetic expression or command substitution
+                    start_pos = match.start()
+                    if self._is_inside_expansion(line, start_pos):
+                        continue  # Skip this match
+                    
+                    strip_tabs = bool(match.group(1))
+                    word = match.group(4)
+                    current_heredocs.append({
+                        'word': word,
+                        'strip_tabs': strip_tabs
+                    })
+                # Keep this line since it contains the command with heredoc redirect
+                result_lines.append(line)
+            
+            line_idx += 1
+        
+        return '\n'.join(result_lines)

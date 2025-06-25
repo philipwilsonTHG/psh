@@ -13,7 +13,7 @@ from typing import List, Optional, Dict, Any
 from contextlib import contextmanager
 
 from .executor_visitor import ExecutorVisitor
-from ..ast_nodes import SimpleCommand
+from ..ast_nodes import SimpleCommand, Redirect
 
 
 class MockExecutorVisitor(ExecutorVisitor):
@@ -112,11 +112,11 @@ class MockExecutorVisitor(ExecutorVisitor):
             self.shell.stderr = saved_stderr
             self.shell.stdin = saved_stdin
     
-    def _execute_external(self, args: List[str], background: bool = False) -> int:
+    def _execute_external(self, args: List[str], background: bool = False, redirects: List[Redirect] = None) -> int:
         """Execute an external command with output capture."""
         if not self.capture_output or self._in_pipeline:
             # Use normal execution if not capturing or in pipeline
-            return super()._execute_external(args, background)
+            return super()._execute_external(args, background, redirects)
         
         # Use subprocess for output capture
         try:

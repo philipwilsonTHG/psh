@@ -544,7 +544,7 @@ class ExecutorVisitor(ASTVisitor[int]):
                             self.state.stderr.flush()
                         
                         # Execute based on command type
-                        exit_status = self._execute_command(cmd_name, cmd_args, node.background)
+                        exit_status = self._execute_command(cmd_name, cmd_args, node.background, node.redirects)
                         
                         # Clear background job reference
                         if node.background and self._background_job:
@@ -574,7 +574,7 @@ class ExecutorVisitor(ASTVisitor[int]):
             print(f"psh: {e}", file=sys.stderr)
             return 1
     
-    def _execute_command(self, cmd_name: str, args: List[str], background: bool = False) -> int:
+    def _execute_command(self, cmd_name: str, args: List[str], background: bool = False, redirects: List[Redirect] = None) -> int:
         """Execute a command by name."""
         # Check builtins first
         if self.builtin_registry.has(cmd_name):
@@ -595,7 +595,7 @@ class ExecutorVisitor(ASTVisitor[int]):
             return self._execute_function(cmd_name, args)
         
         # Execute external command
-        return self._execute_external([cmd_name] + args, background)
+        return self._execute_external([cmd_name] + args, background, redirects)
     
     def _execute_builtin(self, name: str, args: List[str]) -> int:
         """Execute a builtin command."""
@@ -688,11 +688,18 @@ class ExecutorVisitor(ASTVisitor[int]):
                 except:
                     pass
     
-    def _execute_external(self, args: List[str], background: bool = False) -> int:
+    def _execute_external(self, args: List[str], background: bool = False, redirects: List[Redirect] = None) -> int:
         """Execute an external command."""
         if self._in_pipeline:
             # In pipeline, use exec to replace current process
             try:
+                # Set up redirections if any
+                if redirects:
+                    # Create a dummy command object for the io_manager
+                    from ..ast_nodes import SimpleCommand
+                    temp_command = SimpleCommand(args=args, redirects=redirects)
+                    self.io_manager.setup_child_redirections(temp_command)
+                
                 os.execvp(args[0], args)
             except OSError as e:
                 print(f"psh: {args[0]}: {e}", file=sys.stderr)
@@ -721,6 +728,13 @@ class ExecutorVisitor(ASTVisitor[int]):
                 signal.signal(signal.SIGTSTP, signal.SIG_DFL)
                 signal.signal(signal.SIGTTOU, signal.SIG_DFL)
                 signal.signal(signal.SIGTTIN, signal.SIG_DFL)
+                
+                # Set up redirections if any
+                if redirects:
+                    # Create a dummy command object for the io_manager
+                    from ..ast_nodes import SimpleCommand
+                    temp_command = SimpleCommand(args=args, redirects=redirects)
+                    self.io_manager.setup_child_redirections(temp_command)
                 
                 # Execute the command
                 os.execvp(args[0], args)

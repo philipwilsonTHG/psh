@@ -1,3 +1,4 @@
+import sys
 from typing import List, Optional, Union, Tuple, Set
 from .token_types import Token, TokenType
 from .token_stream import TokenStream
@@ -1653,3 +1654,54 @@ def parse(tokens: List[Token]) -> Union[CommandList, TopLevel]:
     """Parse a list of tokens into an AST."""
     parser = Parser(tokens)
     return parser.parse()
+
+
+def parse_with_heredocs(tokens: List[Token], heredoc_map: dict) -> Union[CommandList, TopLevel]:
+    """Parse a list of tokens into an AST with pre-collected heredoc content."""
+    parser = Parser(tokens)
+    parser.heredoc_map = heredoc_map
+    ast = parser.parse()
+    # Populate heredoc content in the AST
+    _populate_heredoc_content(ast, heredoc_map)
+    return ast
+
+
+def _populate_heredoc_content(node, heredoc_map: dict):
+    """Recursively populate heredoc content in AST nodes."""
+    if hasattr(node, 'redirects') and node.redirects:
+        for redirect in node.redirects:
+            if redirect.type in ('<<', '<<-') and redirect.target in heredoc_map:
+                heredoc_info = heredoc_map[redirect.target]
+                redirect.heredoc_content = heredoc_info['content']
+                # Store whether the delimiter was quoted for expansion decisions
+                redirect.heredoc_quoted = heredoc_info['quoted']
+    
+    # Recursively process child nodes
+    if hasattr(node, 'statements') and node.statements:
+        for stmt in node.statements:
+            _populate_heredoc_content(stmt, heredoc_map)
+    
+    if hasattr(node, 'commands') and node.commands:
+        for cmd in node.commands:
+            _populate_heredoc_content(cmd, heredoc_map)
+    
+    if hasattr(node, 'pipelines') and node.pipelines:
+        for pipeline in node.pipelines:
+            _populate_heredoc_content(pipeline, heredoc_map)
+    
+    # Handle control structures
+    if hasattr(node, 'condition'):
+        _populate_heredoc_content(node.condition, heredoc_map)
+    if hasattr(node, 'then_part'):
+        _populate_heredoc_content(node.then_part, heredoc_map)
+    if hasattr(node, 'else_part') and node.else_part:
+        _populate_heredoc_content(node.else_part, heredoc_map)
+    if hasattr(node, 'elif_parts'):
+        for elif_condition, elif_then in node.elif_parts:
+            _populate_heredoc_content(elif_condition, heredoc_map)
+            _populate_heredoc_content(elif_then, heredoc_map)
+    if hasattr(node, 'body'):
+        _populate_heredoc_content(node.body, heredoc_map)
+    if hasattr(node, 'items') and hasattr(node.items, '__iter__'):
+        for item in node.items:
+            _populate_heredoc_content(item, heredoc_map)

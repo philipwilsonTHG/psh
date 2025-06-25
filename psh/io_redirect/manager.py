@@ -151,14 +151,22 @@ class IOManager:
                 # Also need to redirect the actual file descriptor
                 stdin_fd_backup = os.dup(0)
                 r, w = os.pipe()
+                
+                # Apply variable expansion to heredoc content based on delimiter quoting
+                content = redirect.heredoc_content or ''
+                heredoc_quoted = getattr(redirect, 'heredoc_quoted', False)
+                if content and not heredoc_quoted:
+                    # Delimiter was not quoted, so expand variables
+                    content = self.shell.expansion_manager.expand_string_variables(content)
+                
                 # Write heredoc content to pipe
-                os.write(w, (redirect.heredoc_content or '').encode())
+                os.write(w, content.encode())
                 os.close(w)
                 # Redirect stdin to read end
                 os.dup2(r, 0)
                 os.close(r)
                 # Create a StringIO object from heredoc content
-                sys.stdin = io.StringIO(redirect.heredoc_content or '')
+                sys.stdin = io.StringIO(content)
             elif redirect.type == '<<<':
                 stdin_backup = sys.stdin
                 # Also need to redirect the actual file descriptor
@@ -286,8 +294,16 @@ class IOManager:
             elif redirect.type in ('<<', '<<-'):
                 # Create a pipe for heredoc
                 r, w = os.pipe()
+                
+                # Apply variable expansion to heredoc content based on delimiter quoting
+                content = redirect.heredoc_content or ''
+                heredoc_quoted = getattr(redirect, 'heredoc_quoted', False)
+                if content and not heredoc_quoted:
+                    # Delimiter was not quoted, so expand variables
+                    content = self.shell.expansion_manager.expand_string_variables(content)
+                
                 # Write heredoc content to pipe
-                os.write(w, (redirect.heredoc_content or '').encode())
+                os.write(w, content.encode())
                 os.close(w)
                 # Redirect stdin to read end
                 os.dup2(r, 0)
@@ -379,3 +395,9 @@ class IOManager:
             return True
         except (OSError, IOError):
             return False
+    
+    def _is_heredoc_delimiter_quoted(self, delimiter: str) -> bool:
+        """Check if heredoc delimiter was originally quoted."""
+        # For now, this is a simple check - in a full implementation,
+        # this information should be passed from the parser
+        return delimiter.startswith(("'", '"')) and delimiter.endswith(("'", '"'))
