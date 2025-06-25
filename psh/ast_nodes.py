@@ -24,6 +24,7 @@ class Redirect(ASTNode):
     dup_fd: Optional[int] = None  # For duplications like 2>&1
     heredoc_content: Optional[str] = None  # For here documents
     quote_type: Optional[str] = None  # Quote type used (' or " or None) for here strings
+    heredoc_quoted: bool = False  # Whether heredoc delimiter was quoted (disables variable expansion)
 
 
 @dataclass

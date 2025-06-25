@@ -1391,15 +1391,20 @@ class Parser(BaseParser):
     
     def _parse_heredoc(self, token: Token) -> Redirect:
         """Parse here document redirect."""
-        if not self.match(TokenType.WORD):
+        if not self.match(TokenType.WORD, TokenType.STRING):
             raise self._error("Expected delimiter after here document operator")
         
-        delimiter = self.advance().value
+        delimiter_token = self.advance()
+        delimiter = delimiter_token.value
+        
+        # Determine if delimiter was quoted (disables variable expansion)
+        heredoc_quoted = delimiter_token.type == TokenType.STRING
         
         return Redirect(
             type=token.value,
             target=delimiter,
-            heredoc_content=None  # Content filled later
+            heredoc_content=None,  # Content filled later
+            heredoc_quoted=heredoc_quoted
         )
     
     def _parse_here_string(self, token: Token) -> Redirect:
