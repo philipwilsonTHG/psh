@@ -337,8 +337,12 @@ class Shell:
                 return 1 if error_count > 0 else 0
             
             # Add to history if requested (for interactive or testing)
+            # Don't add history expansion commands to history
             if add_to_history and command_string.strip():
-                self.interactive_manager.history_manager.add_to_history(command_string.strip())
+                import re
+                history_pattern = r'(?:^|\s)!(?:!|[0-9]+|-[0-9]+|[a-zA-Z][a-zA-Z0-9]*|\?[^?]*\?)(?:\s|$)'
+                if not re.search(history_pattern, command_string):
+                    self.interactive_manager.history_manager.add_to_history(command_string.strip())
             
             # Increment command number for successful parse
             self.command_number += 1

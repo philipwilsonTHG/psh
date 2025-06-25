@@ -75,31 +75,43 @@ class SourceProcessor(ScriptComponent):
                     if expanded_test is not None:
                         test_command = expanded_test
                 
-                # Check if command is complete by trying to parse it
-                try:
-                    tokens = tokenize(test_command)
-                    # Try parsing to see if command is complete
-                    parse(tokens)
-                    # If parsing succeeds, execute the command
+                # Check if command contains history expansion - if so, treat as complete
+                import re
+                history_pattern = r'(?:^|\s)!(?:!|[0-9]+|-[0-9]+|[a-zA-Z][a-zA-Z0-9]*|\?[^?]*\?)(?:\s|$)'
+                if re.search(history_pattern, test_command):
+                    # Skip parse testing for history expansions - let execution handle them
                     exit_code = self._execute_buffered_command(
                         command_buffer.rstrip('\n'), input_source, command_start_line, add_to_history
                     )
                     # Reset buffer for next command
                     command_buffer = ""
                     command_start_line = 0
-                except ParseError as e:
-                    # Check if this is an incomplete command
-                    if self._is_incomplete_command(e):
-                        # Command is incomplete, continue reading
-                        continue
-                    else:
-                        # It's a real parse error, report it and reset
-                        filename = input_source.get_name() if hasattr(input_source, 'get_name') else 'stdin'
-                        print(f"{filename}:{command_start_line}: {e}", file=sys.stderr)
+                else:
+                    # Check if command is complete by trying to parse it
+                    try:
+                        tokens = tokenize(test_command)
+                        # Try parsing to see if command is complete
+                        parse(tokens)
+                        # If parsing succeeds, execute the command
+                        exit_code = self._execute_buffered_command(
+                            command_buffer.rstrip('\n'), input_source, command_start_line, add_to_history
+                        )
+                        # Reset buffer for next command
                         command_buffer = ""
                         command_start_line = 0
-                        exit_code = 1
-                        self.state.last_exit_code = 1
+                    except ParseError as e:
+                        # Check if this is an incomplete command
+                        if self._is_incomplete_command(e):
+                            # Command is incomplete, continue reading
+                            continue
+                        else:
+                            # It's a real parse error, report it and reset
+                            filename = input_source.get_name() if hasattr(input_source, 'get_name') else 'stdin'
+                            print(f"{filename}:{command_start_line}: {e}", file=sys.stderr)
+                            command_buffer = ""
+                            command_start_line = 0
+                            exit_code = 1
+                            self.state.last_exit_code = 1
         
         return exit_code
     
@@ -184,7 +196,7 @@ class SourceProcessor(ScriptComponent):
             if hasattr(self.shell, 'history_expander'):
                 expanded_command = self.shell.history_expander.expand_history(command_string)
                 if expanded_command is None:
-                    # History expansion failed
+                    # History expansion failed - this is the proper error path
                     self.state.last_exit_code = 1
                     return 1
                 command_string = expanded_command
@@ -234,8 +246,12 @@ class SourceProcessor(ScriptComponent):
                 return 0
             
             # Add to history if requested (for interactive or testing)
+            # Don't add history expansion commands to history
             if add_to_history and command_string.strip():
-                self.shell.interactive_manager.history_manager.add_to_history(command_string.strip())
+                import re
+                history_pattern = r'(?:^|\s)!(?:!|[0-9]+|-[0-9]+|[a-zA-Z][a-zA-Z0-9]*|\?[^?]*\?)(?:\s|$)'
+                if not re.search(history_pattern, command_string):
+                    self.shell.interactive_manager.history_manager.add_to_history(command_string.strip())
             
             # Increment command number for successful parse
             self.state.command_number += 1

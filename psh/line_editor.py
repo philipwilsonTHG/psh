@@ -111,7 +111,11 @@ class LineEditor:
                         sys.stdout.flush()
                         line = ''.join(self.buffer)
                         if line.strip():
-                            self.history.append(line)
+                            # Don't add history expansion commands to history
+                            import re
+                            history_pattern = r'(?:^|\s)!(?:!|[0-9]+|-[0-9]+|[a-zA-Z][a-zA-Z0-9]*|\?[^?]*\?)(?:\s|$)'
+                            if not re.search(history_pattern, line):
+                                self.history.append(line)
                         return line
                     elif result == 'eof':
                         sys.stdout.write('\r\n')

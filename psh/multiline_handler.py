@@ -98,7 +98,8 @@ class MultiLineInputHandler:
         # Check for history expansion patterns that should be treated as complete
         # These will be expanded during execution, not during completeness testing
         import re
-        if re.search(r'(?:^|\s)!(?:!|[0-9]+|-[0-9]+|[a-zA-Z][a-zA-Z0-9]*|\?[^?]*\?)(?:\s|$)', command):
+        history_pattern = r'(?:^|\s)!(?:!|[0-9]+|-[0-9]+|[a-zA-Z][a-zA-Z0-9]*|\?[^?]*\?)(?:\s|$)'
+        if re.search(history_pattern, command):
             # Contains history expansion - treat as complete and let execution handle it
             return True
         
