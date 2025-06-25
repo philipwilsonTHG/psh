@@ -2,10 +2,20 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.58.2"
+__version__ = "0.58.3"
 
 # Version history
 VERSION_HISTORY = """
+0.58.3 (2025-01-28) - Lexer Performance Optimization: Dispatch Table Implementation
+  - Optimized state handler dispatch from O(n) if-elif chain to O(1) dictionary lookup
+  - Implemented dispatch table in StateMachineLexer.__init__ for all 10 lexer states
+  - Improved tokenization performance with direct method dispatch via state_handlers dictionary
+  - Enhanced error recovery with cleaner fallback to NORMAL state for unknown states
+  - Maintained full backward compatibility with no API changes
+  - All 42+ lexer tests continue to pass with performance improvement
+  - Recommended optimization from docs/lexer_refactoring_recommendations.md implemented
+  - Educational benefit: demonstrates performance optimization patterns in state machines
+
 0.58.2 (2025-01-28) - Lexer Package Self-Containment: Position Module Integration
   - Moved psh/lexer_position.py into lexer package as psh/lexer/position.py
   - Completed lexer package encapsulation with all supporting classes contained within package

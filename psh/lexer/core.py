@@ -43,6 +43,21 @@ class StateMachineLexer(LexerHelpers, StateHandlers):
         
         # Heredoc tracking
         self.heredoc_delimiters: List[str] = []
+        
+        # State handler dispatch table for O(1) lookup (optimization from v0.58.3)
+        # Replaces O(n) if-elif chain with dictionary lookup for better performance
+        self.state_handlers = {
+            LexerState.NORMAL: self.handle_normal_state,
+            LexerState.IN_WORD: self.handle_word_state,
+            LexerState.IN_DOUBLE_QUOTE: self.handle_double_quote_state,
+            LexerState.IN_SINGLE_QUOTE: self.handle_single_quote_state,
+            LexerState.IN_VARIABLE: self.handle_variable_state,
+            LexerState.IN_BRACE_VAR: self.handle_brace_var_state,
+            LexerState.IN_COMMAND_SUB: self.handle_command_sub_state,
+            LexerState.IN_ARITHMETIC: self.handle_arithmetic_state,
+            LexerState.IN_BACKTICK: self.handle_backtick_state,
+            LexerState.IN_COMMENT: self.handle_comment_state,
+        }
     
     @property
     def position(self) -> int:
@@ -368,30 +383,15 @@ class StateMachineLexer(LexerHelpers, StateHandlers):
     def tokenize(self) -> List[Token]:
         """Main tokenization method - interface compatible with existing tokenizer."""
         while self.position < len(self.input) or self.state != LexerState.NORMAL:
-            # Dispatch based on current state
-            if self.state == LexerState.NORMAL:
-                self.handle_normal_state()
-            elif self.state == LexerState.IN_WORD:
-                self.handle_word_state()
-            elif self.state == LexerState.IN_DOUBLE_QUOTE:
-                self.handle_double_quote_state()
-            elif self.state == LexerState.IN_SINGLE_QUOTE:
-                self.handle_single_quote_state()
-            elif self.state == LexerState.IN_VARIABLE:
-                self.handle_variable_state()
-            elif self.state == LexerState.IN_BRACE_VAR:
-                self.handle_brace_var_state()
-            elif self.state == LexerState.IN_COMMAND_SUB:
-                self.handle_command_sub_state()
-            elif self.state == LexerState.IN_ARITHMETIC:
-                self.handle_arithmetic_state()
-            elif self.state == LexerState.IN_BACKTICK:
-                self.handle_backtick_state()
-            elif self.state == LexerState.IN_COMMENT:
-                self.handle_comment_state()
+            # Use dispatch table for O(1) state handler lookup (v0.58.3 optimization)
+            # This replaces the previous if-elif chain for better performance
+            handler = self.state_handlers.get(self.state)
+            if handler:
+                handler()
             else:
-                # Shouldn't happen, but recover
+                # Unknown state - advance and reset to normal for recovery
                 self.advance()
+                self.state = LexerState.NORMAL
         
         # Check for unclosed quotes or other incomplete states
         if self.state == LexerState.IN_SINGLE_QUOTE:
