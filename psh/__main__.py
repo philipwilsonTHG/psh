@@ -99,9 +99,6 @@ def main():
             # Show version
             from .version import get_version_info
             print(get_version_info())
-
-            print("\nEnvironment Variables:")
-            print("  (Note: PSH_USE_VISITOR_EXECUTOR is deprecated and ignored)")
             sys.exit(0)
         elif sys.argv[1] in ("--help", "-h"):
             # Show help

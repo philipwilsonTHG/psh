@@ -64,9 +64,20 @@ class SourceProcessor(ScriptComponent):
             
             # Try to parse and execute the command
             if command_buffer.strip():
+                # Process line continuations and history expansion before testing completeness
+                test_command = command_buffer
+                from ..input_preprocessing import process_line_continuations
+                test_command = process_line_continuations(test_command)
+                
+                # Apply history expansion for completeness testing
+                if hasattr(self.shell, 'history_expander'):
+                    expanded_test = self.shell.history_expander.expand_history(test_command)
+                    if expanded_test is not None:
+                        test_command = expanded_test
+                
                 # Check if command is complete by trying to parse it
                 try:
-                    tokens = tokenize(command_buffer)
+                    tokens = tokenize(test_command)
                     # Try parsing to see if command is complete
                     parse(tokens)
                     # If parsing succeeds, execute the command
