@@ -321,7 +321,78 @@ class VariableExpander:
                         from ..core.variables import IndexedArray, AssociativeArray
                         var = self.state.scope_manager.get_variable_object(array_name)
                         
-                        if var and isinstance(var.value, IndexedArray):
+                        # Handle special indices @ and * for whole-array operations
+                        if index_expr in ('@', '*'):
+                            if var and isinstance(var.value, (IndexedArray, AssociativeArray)):
+                                elements = var.value.all_elements()
+                            elif var and var.value:
+                                # Regular variable treated as single-element array
+                                elements = [str(var.value)]
+                            else:
+                                elements = []
+                            
+                            # Apply parameter expansion to each element
+                            results = []
+                            for element in elements:
+                                # Apply the operation to this element
+                                if operator == '#' and not operand:
+                                    # Length operation
+                                    result = self.param_expansion.get_length(element)
+                                elif operator == '#' and operand:
+                                    # Remove shortest prefix
+                                    result = self.param_expansion.remove_shortest_prefix(element, operand)
+                                elif operator == '##':
+                                    # Remove longest prefix
+                                    result = self.param_expansion.remove_longest_prefix(element, operand)
+                                elif operator == '%%':
+                                    # Remove longest suffix
+                                    result = self.param_expansion.remove_longest_suffix(element, operand)
+                                elif operator == '%':
+                                    # Remove shortest suffix
+                                    result = self.param_expansion.remove_shortest_suffix(element, operand)
+                                elif operator == '//':
+                                    # Replace all
+                                    pattern, replacement = self._split_pattern_replacement(operand)
+                                    if pattern is not None:
+                                        result = self.param_expansion.substitute_all(element, pattern, replacement)
+                                    else:
+                                        result = element
+                                elif operator == '/':
+                                    # Replace first
+                                    pattern, replacement = self._split_pattern_replacement(operand)
+                                    if pattern is not None:
+                                        result = self.param_expansion.substitute_first(element, pattern, replacement)
+                                    else:
+                                        result = element
+                                elif operator == '/#':
+                                    # Replace prefix
+                                    pattern, replacement = self._split_pattern_replacement(operand)
+                                    if pattern is not None:
+                                        result = self.param_expansion.substitute_prefix(element, pattern, replacement)
+                                    else:
+                                        result = element
+                                elif operator == '/%':
+                                    # Replace suffix
+                                    pattern, replacement = self._split_pattern_replacement(operand)
+                                    if pattern is not None:
+                                        result = self.param_expansion.substitute_suffix(element, pattern, replacement)
+                                    else:
+                                        result = element
+                                else:
+                                    # Default: return element unchanged for unknown operators
+                                    result = element
+                                results.append(result)
+                            
+                            # Join results (@ uses space, * uses first char of IFS)
+                            if index_expr == '@':
+                                return ' '.join(results)
+                            else:  # index_expr == '*'
+                                ifs = self.state.get_variable('IFS', ' \t\n')
+                                separator = ifs[0] if ifs else ' '
+                                return separator.join(results)
+                        
+                        # Handle regular indexed/associative array access
+                        elif var and isinstance(var.value, IndexedArray):
                             # Evaluate index
                             expanded_index = self.expand_string_variables(index_expr)
                             try:

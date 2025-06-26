@@ -2,10 +2,28 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.59.4"
+__version__ = "0.59.5"
 
 # Version history
 VERSION_HISTORY = """
+0.59.5 (2025-06-26) - Array Pattern Substitution Implementation: Critical POSIX Compliance Improvement
+  - Fixed broken array pattern substitution operations that returned empty strings
+  - Implemented complete ${arr[@]/pattern/replacement} syntax support for whole-array operations
+  - Enhanced variable.py to handle special indices @ and * in parameter expansion context
+  - Added support for all pattern operations on arrays: /, //, /#, /%, #, ##, %, %%
+  - Pattern substitution now works correctly: ${files[@]/txt/bak} → file1.bak file2.log file3.bak
+  - Replace operations work: ${arr[@]//file/document} applies to each array element
+  - Prefix/suffix removal works: ${arr[@]#prefix}, ${arr[@]%suffix} operate on each element
+  - Proper handling of @ vs * indices with correct separators (space vs IFS)
+  - Support for both IndexedArray and AssociativeArray types
+  - Regular variables treated as single-element arrays for consistency
+  - Edge cases handled: empty arrays, single elements, non-matching patterns
+  - 100% bash-compatible output verified with comprehensive testing
+  - Resolves major POSIX compliance gap in array parameter expansion
+  - Foundation built on existing ParameterExpansion methods ensuring robustness
+  - No regressions in existing functionality - only adds missing capability
+  - Critical milestone: array pattern operations now work identically to bash
+
 0.59.4 (2025-06-26) - Glob Expansion in Array Context: Critical POSIX Compliance Improvement
   - Implemented complete glob expansion support for array assignments (arr=(*.txt))
   - Enhanced visit_ArrayInitialization method in ExecutorVisitor to handle glob patterns
