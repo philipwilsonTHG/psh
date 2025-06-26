@@ -2,10 +2,25 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.59.3"
+__version__ = "0.59.4"
 
 # Version history
 VERSION_HISTORY = """
+0.59.4 (2025-06-26) - Glob Expansion in Array Context: Critical POSIX Compliance Improvement
+  - Implemented complete glob expansion support for array assignments (arr=(*.txt))
+  - Enhanced visit_ArrayInitialization method in ExecutorVisitor to handle glob patterns
+  - Added _add_expanded_element_to_array helper method with glob expansion logic
+  - Glob patterns in arrays now expand to actual filenames like bash: arr=(*.log) → arr[0]=file1.log arr[1]=file2.log
+  - Works with all array element types: WORD, COMPOSITE, COMMAND_SUB, ARITH_EXPANSION, VARIABLE
+  - Proper handling of non-matching patterns (stays literal like bash behavior)
+  - Multiple glob patterns in same array work correctly: arr=(*.log *.txt literal)
+  - Mixed glob and literal elements work correctly: arr=(literal *.log another)
+  - Comprehensive testing shows all glob expansion scenarios working correctly
+  - Resolves major POSIX compliance gap where array assignments didn't expand glob patterns
+  - Foundation built on existing glob expansion logic from for loops ensuring consistency
+  - No regressions in existing array functionality or other glob expansion contexts
+  - Critical milestone: arrays now handle pathname expansion identically to bash behavior
+
 0.59.3 (2025-06-26) - Brace Expansion Shell Context Fix: Critical Shell Compatibility Improvement
   - Fixed brace expansion to work correctly in for loops, array assignments, and complex shell constructs
   - Removed sequence-only restriction from suffix detachment logic enabling lists to work in shell contexts

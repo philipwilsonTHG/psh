@@ -1339,18 +1339,44 @@ class ExecutorVisitor(ASTVisitor[int]):
             start_index = 0
         
         # Expand and add elements
+        next_sequential_index = start_index
+        
         for i, element in enumerate(node.elements):
-            expanded = self.expansion_manager.expand_string_variables(element)
-            # Check if we should split on whitespace
-            if i < len(node.element_types) and node.element_types[i] == 'WORD':
-                # Split unquoted words on whitespace
-                words = expanded.split()
-                for j, word in enumerate(words):
-                    array.set(start_index + i + j, word)
-                start_index += len(words) - 1
+            element_type = node.element_types[i] if i < len(node.element_types) else 'WORD'
+            
+            # Check if this is an explicit index assignment: [index]=value
+            if element_type in ('COMPOSITE', 'COMPOSITE_QUOTED') and self._is_explicit_array_assignment(element):
+                # Parse explicit index assignment (this will handle expansion internally)
+                index, value = self._parse_explicit_array_assignment(element)
+                if index is not None:
+                    # Evaluate arithmetic in index (bash always evaluates indices as arithmetic)
+                    try:
+                        from ..arithmetic import evaluate_arithmetic
+                        evaluated_index = evaluate_arithmetic(str(index), self.shell)
+                        array.set(evaluated_index, value)
+                        # Update next sequential index to be after this explicit index
+                        next_sequential_index = max(next_sequential_index, evaluated_index + 1)
+                    except (ValueError, Exception):
+                        # If index evaluation fails, treat as regular sequential element
+                        next_sequential_index = self._add_expanded_element_to_array(
+                            array, element, next_sequential_index, split_words=False)
+                else:
+                    # Failed to parse as explicit assignment, treat as regular element
+                    next_sequential_index = self._add_expanded_element_to_array(
+                        array, element, next_sequential_index, split_words=False)
+            elif element_type in ('WORD', 'COMPOSITE'):
+                # Split unquoted words/composites on whitespace for sequential assignment with glob expansion
+                next_sequential_index = self._add_expanded_element_to_array(
+                    array, element, next_sequential_index, split_words=True)
+            elif element_type in ('COMMAND_SUB', 'ARITH_EXPANSION', 'VARIABLE'):
+                # Command substitution, arithmetic expansion, and variables should be word-split in arrays
+                next_sequential_index = self._add_expanded_element_to_array(
+                    array, element, next_sequential_index, split_words=True)
             else:
-                # Keep as single element
-                array.set(start_index + i, expanded)
+                # Keep as single element for sequential assignment (STRING, etc.)
+                # Quoted strings should not be glob expanded or word split
+                next_sequential_index = self._add_expanded_element_to_array(
+                    array, element, next_sequential_index, split_words=False)
         
         # Set array in shell state
         self.state.scope_manager.set_variable(node.name, array, attributes=VarAttributes.ARRAY)
@@ -1543,6 +1569,75 @@ class ExecutorVisitor(ASTVisitor[int]):
                 return full_path
         
         return None
+    
+    # Array assignment helper methods
+    
+    def _add_expanded_element_to_array(self, array, element: str, start_index: int, split_words: bool = True) -> int:
+        """
+        Add expanded element to array with glob expansion.
+        
+        Args:
+            array: The array to add elements to
+            element: The element to expand and add
+            start_index: Starting index for sequential assignment
+            split_words: Whether to split on whitespace after expansion
+            
+        Returns:
+            Next available index after adding elements
+        """
+        # Expand variables first  
+        expanded = self.expansion_manager.expand_string_variables(element)
+        
+        if split_words:
+            # Split on whitespace for WORD and command substitution elements
+            words = expanded.split()
+        else:
+            # Keep as single element for STRING and composite elements
+            words = [expanded] if expanded else ['']
+        
+        # Handle glob expansion on each word (like for loops do)
+        import glob
+        next_index = start_index
+        for word in words:
+            matches = glob.glob(word)
+            if matches:
+                # Glob pattern matched files - add all matches
+                for match in sorted(matches):
+                    array.set(next_index, match)
+                    next_index += 1
+            else:
+                # No matches, add literal word
+                array.set(next_index, word)
+                next_index += 1
+        
+        return next_index
+    
+    def _is_explicit_array_assignment(self, element: str) -> bool:
+        """Check if element has explicit array assignment syntax: [index]=value"""
+        import re
+        # Match [anything]=anything pattern
+        return bool(re.match(r'^\[[^\]]*\]=', element))
+    
+    def _parse_explicit_array_assignment(self, element: str) -> tuple:
+        """
+        Parse explicit array assignment: [index]=value
+        
+        Returns:
+            tuple: (index, value) or (None, None) if parsing fails
+        """
+        import re
+        match = re.match(r'^\[([^\]]*)\]=(.*)$', element)
+        if match:
+            index_str = match.group(1)
+            value = match.group(2)
+            
+            # Expand any variables in the index
+            expanded_index = self.expansion_manager.expand_string_variables(index_str)
+            expanded_value = self.expansion_manager.expand_string_variables(value)
+            
+            return expanded_index, expanded_value
+        
+        return None, None
     
     # Fallback for unimplemented nodes
     
