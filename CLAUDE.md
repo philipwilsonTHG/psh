@@ -175,3 +175,7 @@ class MyVisitor(ASTVisitor[T]):
 - The visitor executor is now the default (legacy executor was removed)
 - All source code has been written by Claude using Sonnet 4 and Opus 4 models
 - Educational focus means clarity over performance in implementation choices
+
+## Development Principles
+
+- If we assert that a feature of psh is POSIX or bash conformant in the user's guide (docs/user_guide/*) then we must have a test in conformance_tests which proves it.
