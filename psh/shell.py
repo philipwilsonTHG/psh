@@ -200,9 +200,13 @@ class Shell:
         if expr.operator == '=':
             return left == right
         elif expr.operator == '==':
-            return left == right
+            # Shell pattern matching (not string equality)
+            import fnmatch
+            return fnmatch.fnmatch(left, right)
         elif expr.operator == '!=':
-            return left != right
+            # Shell pattern non-matching
+            import fnmatch
+            return not fnmatch.fnmatch(left, right)
         elif expr.operator == '<':
             # Lexicographic comparison
             return left < right
