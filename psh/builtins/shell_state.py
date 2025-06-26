@@ -110,20 +110,63 @@ class LocalBuiltin(Builtin):
                 # Variable with assignment: local var=value
                 var_name, var_value = arg.split('=', 1)
                 
-                # Expand variables in the value
-                if '$' in var_value:
-                    from ..expansion.variable import VariableExpander
-                    expander = VariableExpander(shell)
-                    var_value = expander.expand_string_variables(var_value)
-                
-                # Create local variable with value
-                shell.state.scope_manager.create_local(var_name, var_value)
+                # Check if this is an array assignment: var=(value1 value2 ...)
+                if var_value.startswith('(') and var_value.endswith(')'):
+                    # Parse array initialization
+                    from ..core.variables import IndexedArray, VarAttributes
+                    array = IndexedArray()
+                    array_values = self._parse_array_init(var_value, shell)
+                    for i, val in enumerate(array_values):
+                        array.set(i, val)
+                    # Create local array variable
+                    shell.state.scope_manager.create_local(var_name, array, VarAttributes.ARRAY)
+                else:
+                    # Regular variable assignment
+                    # Expand variables in the value
+                    if '$' in var_value:
+                        from ..expansion.variable import VariableExpander
+                        expander = VariableExpander(shell)
+                        var_value = expander.expand_string_variables(var_value)
+                    
+                    # Create local variable with value
+                    shell.state.scope_manager.create_local(var_name, var_value)
             else:
                 # Variable without assignment: local var
                 # Creates unset local variable (shadows global but has no value)
                 shell.state.scope_manager.create_local(arg, "")
         
         return 0
+    
+    def _parse_array_init(self, value: str, shell: 'Shell') -> List[str]:
+        """Parse array initialization: (val1 "val2" val3)"""
+        # Remove parentheses
+        content = value[1:-1].strip()
+        if not content:
+            return []
+        
+        # Use the shell's expansion manager to properly parse quoted strings
+        # This handles quotes, variable expansion, and proper word splitting
+        from ..expansion.variable import VariableExpander
+        expander = VariableExpander(shell)
+        
+        # Split on whitespace while respecting quotes
+        # For now, do simple splitting - a full implementation would use the tokenizer
+        import shlex
+        try:
+            # Use shlex to handle quoted strings properly
+            parsed_values = shlex.split(content)
+            # Expand variables in each value
+            result = []
+            for val in parsed_values:
+                if '$' in val:
+                    expanded = expander.expand_string_variables(val)
+                    result.append(expanded)
+                else:
+                    result.append(val)
+            return result
+        except ValueError:
+            # Fallback to simple splitting if shlex fails
+            return content.split()
     
     @property
     def help(self) -> str:

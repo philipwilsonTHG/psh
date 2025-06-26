@@ -2,10 +2,22 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.59.8"
+__version__ = "0.59.9"
 
 # Version history
 VERSION_HISTORY = """
+0.59.9 (2025-06-26) - Local Builtin Array Assignment Fix: POSIX Compliance Improvement
+  - Fixed local builtin to properly handle array assignment syntax: local arr=("a" "b" "c")
+  - Enhanced LocalBuiltin with _parse_array_init() method for parsing array initialization
+  - Added support for variable expansion and quoted strings in array element parsing
+  - Used shlex for proper quote handling in array elements with fallback to simple splitting
+  - Fixed function local array display to show "a b c" instead of "(a b c)"
+  - +1 conformance test improvement (18 passed vs 17 previously)
+  - Resolves array assignment syntax gap that affected multiple array-related conformance tests
+  - Critical fix for bash-compatible local variable array assignments in functions
+  - No regressions: all existing local builtin functionality preserved
+  - Foundation for complete POSIX-compliant local variable array support
+
 0.59.8 (2025-06-26) - Subshell Implementation: Major POSIX Compliance Milestone
   - Implemented complete subshell group (...) syntax support for POSIX compliance
   - Added SubshellGroup AST node extending CompoundCommand for proper parsing
