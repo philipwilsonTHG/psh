@@ -56,6 +56,16 @@ class BraceExpander:
         This method handles the complexity of expanding braces while
         preserving the structure of the command line.
         """
+        # Check if this is an array assignment pattern: var_name=(content)
+        import re
+        array_match = re.match(r'^([a-zA-Z_][a-zA-Z0-9_]*(?:\+)?=)\((.*)\)$', segment)
+        if array_match:
+            var_assignment = array_match.group(1)  # e.g., "arr=" or "arr+="
+            array_content = array_match.group(2)   # e.g., "{a..e} {1..3}"
+            
+            # Expand braces in the array content independently
+            expanded_content = self._expand_array_content(array_content)
+            return var_assignment + '(' + expanded_content + ')'
         # We need to split the segment into tokens, but we must be careful
         # to keep brace expressions with their attached content (like {a,b}>out.txt)
         # together for proper expansion.
@@ -429,6 +439,53 @@ class BraceExpander:
                 return True
         
         return False
+    
+    def _expand_array_content(self, content: str) -> str:
+        """Expand brace expressions in array assignment content.
+        
+        In array assignments like arr=({a..e} {1..3}), we need to expand
+        each brace expression independently and join with spaces.
+        """
+        # Split the content into tokens, respecting spaces as separators
+        tokens = []
+        current_token = []
+        i = 0
+        in_braces = 0
+        
+        while i < len(content):
+            char = content[i]
+            
+            if char == '{':
+                in_braces += 1
+                current_token.append(char)
+            elif char == '}':
+                in_braces -= 1
+                current_token.append(char)
+            elif char in ' \t' and in_braces == 0:
+                # Space outside braces - token boundary
+                if current_token:
+                    tokens.append(''.join(current_token))
+                    current_token = []
+                # Skip consecutive spaces
+                while i < len(content) and content[i] in ' \t':
+                    i += 1
+                continue
+            else:
+                current_token.append(char)
+            
+            i += 1
+        
+        # Don't forget the last token
+        if current_token:
+            tokens.append(''.join(current_token))
+        
+        # Expand each token independently
+        expanded_tokens = []
+        for token in tokens:
+            expanded = self._expand_braces(token)
+            expanded_tokens.extend(expanded)
+        
+        return ' '.join(expanded_tokens)
     
     def _split_respecting_quotes(self, line: str) -> List[Tuple[str, bool]]:
         """Split line into segments, tracking which are inside quotes.
