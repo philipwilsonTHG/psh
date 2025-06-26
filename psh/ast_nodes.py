@@ -91,6 +91,14 @@ class CompoundCommand(Command):
 
 
 @dataclass
+class SubshellGroup(CompoundCommand):
+    """Represents a subshell group (...) that executes in an isolated environment."""
+    statements: 'CommandList'
+    redirects: List[Redirect] = field(default_factory=list)
+    background: bool = False
+
+
+@dataclass
 class Pipeline(ASTNode):
     commands: List[Command] = field(default_factory=list)  # Now accepts both SimpleCommand and CompoundCommand
     negated: bool = False  # True if pipeline is prefixed with !

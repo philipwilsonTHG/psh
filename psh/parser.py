@@ -387,6 +387,8 @@ class Parser(BaseParser):
             return self.parse_break_statement()
         elif self.match(TokenType.CONTINUE):
             return self.parse_continue_statement()
+        elif self.match(TokenType.LPAREN):
+            return self.parse_subshell_group()
         else:
             # Fall back to simple command
             return self.parse_command()
@@ -1115,6 +1117,33 @@ class Parser(BaseParser):
         self.expect(TokenType.CONTINUE)
         level = self._parse_loop_control_level()
         return ContinueStatement(level=level)
+    
+    def parse_subshell_group(self) -> 'SubshellGroup':
+        """Parse subshell group (...) that executes in isolated environment."""
+        from .ast_nodes import SubshellGroup
+        
+        self.expect(TokenType.LPAREN)
+        self.skip_newlines()
+        
+        # Parse statements inside the subshell
+        statements = self.parse_command_list()
+        
+        self.skip_newlines()
+        self.expect(TokenType.RPAREN)
+        
+        # Parse any redirections after the subshell
+        redirects = self.parse_redirects()
+        
+        # Check for background operator
+        background = self.match(TokenType.AMPERSAND)
+        if background:
+            self.advance()
+        
+        return SubshellGroup(
+            statements=statements,
+            redirects=redirects,
+            background=background
+        )
     
     # === Functions ===
     

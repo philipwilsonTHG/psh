@@ -36,7 +36,7 @@ from ..ast_nodes import (
     ArrayInitialization, ArrayElementAssignment,
     
     # Other
-    ProcessSubstitution
+    ProcessSubstitution, SubshellGroup
 )
 from ..core.exceptions import LoopBreak, LoopContinue, UnboundVariableError
 from ..builtins.function_support import FunctionReturn
@@ -985,6 +985,10 @@ class ExecutorVisitor(ASTVisitor[int]):
             raise LoopContinue(node.level)
         raise LoopContinue(node.level)
     
+    def visit_SubshellGroup(self, node: SubshellGroup) -> int:
+        """Execute subshell group (...) in isolated environment."""
+        return self._execute_in_subshell(node.statements, node.redirects, node.background)
+    
     def visit_FunctionDef(self, node: FunctionDef) -> int:
         """Define a function."""
         self.function_manager.define_function(node.name, node.body)
@@ -1501,17 +1505,7 @@ class ExecutorVisitor(ASTVisitor[int]):
                 print(f"exec: {e}", file=sys.stderr)
                 return 1
         
-        # Check if command is a builtin first
-        if self.builtin_registry.has(cmd_name):
-            print(f"exec: {cmd_name}: cannot exec a builtin", file=sys.stderr)
-            return 1
-        
-        # Check if command is a function
-        if self.function_manager.get_function(cmd_name):
-            print(f"exec: {cmd_name}: cannot exec a function", file=sys.stderr) 
-            return 1
-        
-        # Find the command in PATH
+        # exec bypasses builtins and functions - look for external command in PATH
         command_path = self._find_command_in_path(cmd_name)
         if not command_path:
             print(f"exec: {cmd_name}: command not found", file=sys.stderr)
@@ -1638,6 +1632,56 @@ class ExecutorVisitor(ASTVisitor[int]):
             return expanded_index, expanded_value
         
         return None, None
+    
+    def _execute_in_subshell(self, statements: 'CommandList', redirects: List['Redirect'], background: bool) -> int:
+        """Execute statements in an isolated subshell environment."""
+        if background:
+            # Handle background subshell - for now, treat as foreground
+            # TODO: Implement proper background job management for subshells
+            pass
+        
+        # Execute in foreground subshell with proper isolation
+        return self._execute_foreground_subshell(statements, redirects)
+    
+    def _execute_foreground_subshell(self, statements: 'CommandList', redirects: List['Redirect']) -> int:
+        """Execute subshell in foreground with proper isolation."""
+        pid = os.fork()
+        
+        if pid == 0:
+            # Child process - create isolated shell
+            try:
+                # Import Shell here to avoid circular import
+                from ..shell import Shell
+                
+                # Create new shell instance with copied environment
+                subshell = Shell(
+                    debug_ast=self.shell.state.debug_ast,
+                    debug_tokens=self.shell.state.debug_tokens,
+                    parent_shell=self.shell,  # Copy variables/functions
+                    norc=True
+                )
+                subshell.state._in_forked_child = True
+                
+                # Apply redirections if any
+                saved_fds = None
+                if redirects:
+                    saved_fds = subshell.io_manager.apply_redirections(redirects)
+                
+                # Execute statements in isolated environment  
+                exit_code = subshell.execute_command_list(statements)
+                os._exit(exit_code)
+                
+            except Exception as e:
+                print(f"psh: subshell error: {e}", file=sys.stderr)
+                os._exit(1)
+        else:
+            # Parent process - wait for child
+            try:
+                _, status = os.waitpid(pid, 0)
+                return os.WEXITSTATUS(status) if os.WIFEXITED(status) else 1
+            except OSError:
+                # Child process might have been reaped by signal handler
+                return 1
     
     # Fallback for unimplemented nodes
     

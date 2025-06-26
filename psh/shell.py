@@ -3,7 +3,7 @@ import sys
 from typing import List, Tuple
 from .lexer import tokenize
 from .parser import parse, ParseError
-from .ast_nodes import Command, SimpleCommand, Pipeline, StatementList, AndOrList, TopLevel, FunctionDef, BreakStatement, ContinueStatement, EnhancedTestStatement, TestExpression, BinaryTestExpression, UnaryTestExpression, CompoundTestExpression, NegatedTestExpression, WhileLoop, ForLoop, CStyleForLoop, IfConditional, CaseConditional, SelectLoop, ArithmeticEvaluation
+from .ast_nodes import Command, SimpleCommand, Pipeline, StatementList, AndOrList, TopLevel, FunctionDef, BreakStatement, ContinueStatement, EnhancedTestStatement, TestExpression, BinaryTestExpression, UnaryTestExpression, CompoundTestExpression, NegatedTestExpression, WhileLoop, ForLoop, CStyleForLoop, IfConditional, CaseConditional, SelectLoop, ArithmeticEvaluation, SubshellGroup
 from .aliases import AliasManager
 from .functions import FunctionManager
 from .job_control import JobManager, JobState
