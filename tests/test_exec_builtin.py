@@ -121,24 +121,25 @@ class TestExecBuiltin:
         assert exit_code == 126
         assert "Permission denied" in captured.err
     
-    def test_exec_with_builtin_error(self, shell, capsys):
-        """Test exec with builtin command (should fail)."""
-        # Test with a definitely internal builtin
-        exit_code = shell.run_command('exec pwd')
-        captured = capsys.readouterr()
-        
-        assert exit_code == 1
-        assert "cannot exec a builtin" in captured.err
+    @pytest.mark.skip(reason="exec with existing command replaces the shell process - cannot test in unit tests")
+    def test_exec_with_builtin_bypassed(self, shell):
+        """Test exec bypasses builtins and uses external commands (POSIX behavior)."""
+        # exec should bypass the builtin pwd and use /bin/pwd
+        # This is the correct POSIX behavior - exec replaces with external commands
+        # However, testing this would terminate the test process, so we skip it
+        pass
     
     def test_exec_with_function_error(self, shell, capsys):
-        """Test exec with function (should fail)."""
+        """Test exec with function (should fail with command not found)."""
         shell.run_command('test_func() { echo "test"; }')
         
+        # exec bypasses functions and looks only for external commands
+        # This is the correct POSIX behavior - same as bash
         exit_code = shell.run_command('exec test_func')
         captured = capsys.readouterr()
         
-        assert exit_code == 1
-        assert "cannot exec a function" in captured.err
+        assert exit_code == 127  # Command not found
+        assert "command not found" in captured.err
     
     def test_exec_with_environment_variables(self, shell, tmp_path):
         """Test exec with environment variable assignments."""
