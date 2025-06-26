@@ -76,8 +76,14 @@ class LexerHelpers:
             self.advance()  # Skip the escaped character
             return '\\' + next_char
     
-    def read_balanced_parens(self) -> str:
-        """Read content until balanced parentheses."""
+    def read_balanced_parens(self) -> Tuple[str, bool]:
+        """
+        Read content until balanced parentheses.
+        
+        Returns:
+            Tuple of (content, is_closed) where is_closed indicates if
+            the parentheses were properly balanced.
+        """
         content = ""
         depth = 1
         
@@ -93,14 +99,24 @@ class LexerHelpers:
             content += char
             self.advance()
         
-        # Check if we hit EOF with unbalanced parens
-        if depth > 0:
+        is_closed = (depth == 0)
+        
+        # If we hit EOF with unbalanced parentheses, we still need to error
+        # for batch mode, but allow the lexer to handle it gracefully for
+        # interactive mode through the end-of-input state checks.
+        if not is_closed and self.config.strict_mode:
             self._error("Unclosed parenthesis")
             
-        return content
+        return content, is_closed
     
-    def read_balanced_double_parens(self) -> str:
-        """Read content until balanced double parentheses for arithmetic."""
+    def read_balanced_double_parens(self) -> Tuple[str, bool]:
+        """
+        Read content until balanced double parentheses for arithmetic.
+        
+        Returns:
+            Tuple of (content, is_closed) where is_closed indicates if
+            the double parentheses were properly closed.
+        """
         content = ""
         depth = 0  # Track individual parens, not pairs
         found_closing = False
@@ -126,11 +142,12 @@ class LexerHelpers:
             content += char
             self.advance()
         
-        # Check if we found the closing )) or hit EOF
-        if not found_closing:
+        # If we hit EOF without finding closing )), error in strict mode but
+        # allow the lexer to handle it gracefully in interactive mode.
+        if not found_closing and self.config.strict_mode:
             self._error("Unclosed arithmetic expansion")
             
-        return content
+        return content, found_closing
     
     def _check_for_operator(self) -> Optional[Tuple[str, TokenType]]:
         """Check if current position starts an operator."""

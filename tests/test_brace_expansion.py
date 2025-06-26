@@ -213,9 +213,9 @@ class TestBraceExpansion:
     def test_special_characters_in_expansion(self):
         """Test brace expansion with special shell characters."""
         assert self.expander.expand_line("{a,b}>out.txt") == "a>out.txt b>out.txt"
-        assert self.expander.expand_line("{cmd1,cmd2}|grep") == "cmd1|grep cmd2|grep"
-        # When semicolon is part of the expansion, it gets expanded with each item
-        assert self.expander.expand_line("{A,B};{C,D}") == "A;C A;D B;C B;D"
+        assert self.expander.expand_line("{cmd1,cmd2}|grep") == "cmd1 cmd2|grep"
+        # When semicolon follows expansion, it gets detached correctly
+        assert self.expander.expand_line("{A,B};{C,D}") == "A B;C D"
     
     def test_whitespace_handling(self):
         """Test handling of various whitespace scenarios."""

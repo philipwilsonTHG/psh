@@ -138,9 +138,13 @@ class StateMachineLexer(LexerHelpers, StateHandlers):
                 return self._create_error_recovery_part(start_pos, quote_context)
                 
             self.advance(2)  # Skip ((
-            content = self.read_balanced_double_parens()
+            content, is_closed = self.read_balanced_double_parens()
+            if is_closed:
+                token_value = '$((' + content + '))'
+            else:
+                token_value = '$((' + content
             return TokenPart(
-                value='$((' + content + '))',
+                value=token_value,
                 quote_type=quote_context,
                 is_expansion=True,
                 start_pos=start_pos,
@@ -153,9 +157,13 @@ class StateMachineLexer(LexerHelpers, StateHandlers):
                 return self._create_error_recovery_part(start_pos, quote_context)
                 
             self.advance()  # Skip (
-            content = self.read_balanced_parens()
+            content, is_closed = self.read_balanced_parens()
+            if is_closed:
+                token_value = '$(' + content + ')'
+            else:
+                token_value = '$(' + content
             return TokenPart(
-                value='$(' + content + ')',
+                value=token_value,
                 quote_type=quote_context,
                 is_expansion=True,
                 start_pos=start_pos,

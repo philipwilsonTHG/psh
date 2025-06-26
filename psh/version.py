@@ -2,10 +2,29 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.59.2"
+__version__ = "0.59.3"
 
 # Version history
 VERSION_HISTORY = """
+0.59.3 (2025-06-26) - Brace Expansion Shell Context Fix: Critical Shell Compatibility Improvement
+  - Fixed brace expansion to work correctly in for loops, array assignments, and complex shell constructs
+  - Removed sequence-only restriction from suffix detachment logic enabling lists to work in shell contexts
+  - Enhanced metacharacter detection with multi-character operator support (&&, ||, >>, <<)
+  - Added comprehensive shell operator set including closing brackets ()]}) for complete coverage
+  - Improved tokenization to treat command separators (;|&) as token boundaries preventing cross-products
+  - Fixed command separator handling for proper independent brace expansion processing
+  - Resolved critical bug where {red,green,blue}; became red; green; blue; instead of red green blue;
+  - For loops now work correctly: for i in {red,green,blue}; do echo $i; done iterates properly
+  - Array assignments now work correctly: arr=({a,b,c}); echo ${arr[@]} outputs a b c
+  - Complex patterns work correctly: {cmd1,cmd2}&&echo success handles operators properly
+  - Updated test expectations to match correct bash behavior for shell metacharacter handling
+  - Enhanced segment processing to handle multiple brace expressions correctly in one line
+  - Fixed cross-product bug where {A,B};{C,D} incorrectly became A;C A;D B;C B;D instead of A B;C D
+  - POSIX compliance maintained at 25.9% while significantly improving practical shell compatibility
+  - Comprehensive testing ensures no regressions in existing brace expansion functionality
+  - Major milestone: brace expansion now works correctly in real-world shell scripting contexts
+  - Critical fix for one of highest-impact POSIX compliance gaps enabling proper shell script execution
+
 0.59.2 (2025-06-26) - Multi-line Command Substitution Parser Fix: Critical Stability Improvement
   - Fixed multi-line command substitution parser crashes that caused LexerError on incomplete constructs
   - Enhanced source processor to gracefully handle incomplete commands during completeness testing

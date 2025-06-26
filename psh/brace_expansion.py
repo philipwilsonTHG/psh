@@ -74,8 +74,8 @@ class BraceExpander:
             
             char = segment[i]
             
-            # Check if we're at a word boundary (space or start of segment)
-            if char in ' \t\n':
+            # Check if we're at a word boundary (space, tab, newline, or command separator)
+            if char in ' \t\n;|&':
                 if current_token:
                     tokens.append(''.join(current_token))
                     current_token = []
@@ -189,12 +189,26 @@ class BraceExpander:
         attach_suffix = suffix
         detached_suffix = ""
         
-        # Check if suffix starts with a metacharacter that should be detached
-        # from the brace expansion (only for sequences, not lists)
-        if suffix and '..' in brace_content and suffix[0] in ';|&':
-            # For sequences followed by shell operators, detach them
-            attach_suffix = ""
-            detached_suffix = suffix
+        # Check if suffix starts with a shell metacharacter that should be detached
+        # from the brace expansion (applies to both sequences and lists)
+        if suffix:
+            # Check for multi-character operators first
+            multi_char_operators = ['&&', '||', '>>', '<<']
+            detach_operator = None
+            
+            for op in multi_char_operators:
+                if suffix.startswith(op):
+                    detach_operator = op
+                    break
+            
+            # Check for single-character operators
+            if not detach_operator and suffix[0] in ';|&)]}':
+                detach_operator = suffix[0]
+            
+            if detach_operator:
+                # For brace expansions followed by shell operators, detach them
+                attach_suffix = ""
+                detached_suffix = suffix
         
         # Determine brace type and expand
         # Check if it's a list (has comma at top level) or pure sequence

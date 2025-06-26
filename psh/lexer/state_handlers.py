@@ -134,16 +134,26 @@ class StateHandlers:
     
     def handle_command_sub_state(self) -> None:
         """Handle reading $(...) command substitution."""
-        content = self.read_balanced_parens()
-        # Include the $( and ) in the token value to match original tokenizer
-        self.emit_token(TokenType.COMMAND_SUB, '$(' + content + ')', self.token_start_pos)
+        content, is_closed = self.read_balanced_parens()
+        # Include the $( and ) only if properly closed to match original tokenizer
+        if is_closed:
+            token_value = '$(' + content + ')'
+        else:
+            # For unclosed command substitution, include what we have without adding closing paren
+            token_value = '$(' + content
+        self.emit_token(TokenType.COMMAND_SUB, token_value, self.token_start_pos)
         self.state = LexerState.NORMAL
     
     def handle_arithmetic_state(self) -> None:
         """Handle reading $((...)) arithmetic expansion."""
-        content = self.read_balanced_double_parens()
-        # Include the $(( and )) in the token value to match original tokenizer
-        self.emit_token(TokenType.ARITH_EXPANSION, '$((' + content + '))', self.token_start_pos)
+        content, is_closed = self.read_balanced_double_parens()
+        # Include the $(( and )) only if properly closed to match original tokenizer
+        if is_closed:
+            token_value = '$((' + content + '))'
+        else:
+            # For unclosed arithmetic expansion, include what we have without adding closing parens
+            token_value = '$((' + content
+        self.emit_token(TokenType.ARITH_EXPANSION, token_value, self.token_start_pos)
         self.state = LexerState.NORMAL
     
     def handle_backtick_state(self) -> None:
@@ -186,9 +196,13 @@ class StateHandlers:
         self.advance()  # Skip < or >
         self.advance()  # Skip (
         
-        content = self.read_balanced_parens()
+        content, is_closed = self.read_balanced_parens()
         # Include the full syntax in the token value to match original tokenizer
-        self.emit_token(token_type, prefix + '(' + content + ')', start_pos)
+        if is_closed:
+            token_value = prefix + '(' + content + ')'
+        else:
+            token_value = prefix + '(' + content
+        self.emit_token(token_type, token_value, start_pos)
     
     def handle_dollar(self) -> None:
         """Handle $ character - variables, command sub, arithmetic."""
