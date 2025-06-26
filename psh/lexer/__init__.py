@@ -32,7 +32,7 @@ from .state_handlers import StateHandlers
 __version__ = "0.58.0"
 
 
-def tokenize(input_string: str) -> List[Token]:
+def tokenize(input_string: str, strict: bool = True) -> List[Token]:
     """
     Drop-in replacement for the existing tokenize function.
     
@@ -41,6 +41,7 @@ def tokenize(input_string: str) -> List[Token]:
     
     Args:
         input_string: The shell command string to tokenize
+        strict: If True, use strict mode (batch); if False, use interactive mode
         
     Returns:
         List of tokens representing the parsed command
@@ -48,17 +49,23 @@ def tokenize(input_string: str) -> List[Token]:
     from ..brace_expansion import BraceExpander, BraceExpansionError
     from ..token_transformer import TokenTransformer
     
+    # Create appropriate lexer config based on strict mode
+    if strict:
+        config = LexerConfig.create_batch_config()  # strict_mode=True
+    else:
+        config = LexerConfig.create_interactive_config()  # strict_mode=False
+    
     try:
         # Expand braces first (same as original)
         expander = BraceExpander()
         expanded_string = expander.expand_line(input_string)
     except BraceExpansionError:
         # If brace expansion fails, use original string
-        lexer = StateMachineLexer(input_string)
+        lexer = StateMachineLexer(input_string, config=config)
         tokens = lexer.tokenize()
     else:
         # Run state machine lexer on expanded string
-        lexer = StateMachineLexer(expanded_string)
+        lexer = StateMachineLexer(expanded_string, config=config)
         tokens = lexer.tokenize()
     
     # Apply token transformations (same as original)

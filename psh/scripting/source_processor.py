@@ -2,7 +2,7 @@
 import sys
 from typing import Optional
 from .base import ScriptComponent
-from ..lexer import tokenize
+from ..lexer import tokenize, LexerError
 from ..parser import parse, parse_with_heredocs, ParseError
 from ..ast_nodes import TopLevel
 
@@ -113,7 +113,7 @@ class SourceProcessor(ScriptComponent):
                         # Reset buffer for next command
                         command_buffer = ""
                         command_start_line = 0
-                    except ParseError as e:
+                    except (ParseError, LexerError) as e:
                         # Check if this is an incomplete command
                         if self._is_incomplete_command(e):
                             # Command is incomplete, continue reading
@@ -129,11 +129,26 @@ class SourceProcessor(ScriptComponent):
         
         return exit_code
     
-    def _is_incomplete_command(self, parse_error: ParseError) -> bool:
-        """Check if a parse error indicates an incomplete command."""
-        error_msg = str(parse_error)
+    def _is_incomplete_command(self, error) -> bool:
+        """Check if a parse or lexer error indicates an incomplete command."""
+        error_msg = str(error)
         
-        # Updated patterns to match the new human-readable error messages
+        # Handle lexer errors from incomplete constructs
+        lexer_incomplete_patterns = [
+            "Unclosed parenthesis",
+            "Unclosed double parentheses", 
+            "Unclosed arithmetic expansion",
+            "Unclosed brace",
+            "Unclosed quote",
+            "Unclosed single quote",
+            "Unclosed double quote"
+        ]
+        
+        for pattern in lexer_incomplete_patterns:
+            if pattern in error_msg:
+                return True
+        
+        # Handle parser errors - updated patterns to match the new human-readable error messages
         incomplete_patterns = [
             # Control structure keywords
             ("Expected 'do'", "got end of input"),

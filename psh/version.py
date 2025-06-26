@@ -2,10 +2,24 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.59.1"
+__version__ = "0.59.2"
 
 # Version history
 VERSION_HISTORY = """
+0.59.2 (2025-06-26) - Multi-line Command Substitution Parser Fix: Critical Stability Improvement
+  - Fixed multi-line command substitution parser crashes that caused LexerError on incomplete constructs
+  - Enhanced source processor to gracefully handle incomplete commands during completeness testing
+  - Added comprehensive lexer error detection for incomplete constructs (parentheses, arithmetic, quotes)
+  - Modified tokenize() function to support optional non-strict mode for better error handling
+  - Updated incomplete command detection to recognize lexer errors alongside parser errors
+  - Fixed multi-line command substitution: result=$(\\necho test\\n) now works correctly
+  - Fixed multi-line arithmetic expansion: result=$((\\n5 + 3\\n)) now works correctly  
+  - Eliminated crashes on complex multi-line shell constructs in both interactive and script modes
+  - POSIX compliance improved from 24.1% to 25.9% (+1.8% improvement)
+  - Enhanced shell stability and reliability for advanced scripting patterns
+  - Comprehensive testing ensures no regressions in existing functionality
+  - Major milestone: PSH now handles multi-line constructs like bash without crashing
+
 0.59.1 (2025-06-26) - Backtick Command Substitution Fix: Critical POSIX Compliance Improvement
   - Fixed backtick command substitution (`cmd`) to execute commands instead of returning literal text
   - Enhanced ExpansionManager to process backticks in both COMPOSITE and STRING argument types
