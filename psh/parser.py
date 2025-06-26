@@ -754,7 +754,11 @@ class Parser(BaseParser):
         iterable = []
         for token in tokens:
             if token.type in valid_types:
-                iterable.append(token.value)
+                # For VARIABLE tokens, preserve the $ prefix for expansion
+                if token.type == TokenType.VARIABLE:
+                    iterable.append(f"${token.value}")
+                else:
+                    iterable.append(token.value)
             else:
                 # Stop at first invalid token
                 break

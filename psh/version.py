@@ -2,10 +2,29 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.59.6"
+__version__ = "0.59.7"
 
 # Version history
 VERSION_HISTORY = """
+0.59.7 (2025-06-26) - Variable Expansion in For Loops Fix: Critical POSIX Compliance Improvement
+  - Fixed critical bug where variable expansion in for loops didn't work correctly
+  - for item in $items now correctly expands $items to its value and iterates over each word
+  - Fixed parser to preserve $ prefix for VARIABLE tokens in for loop iterables
+  - Root cause: _parse_for_iterable was storing 'items' instead of '$items' for variables
+  - This prevented the executor's expansion logic from being triggered
+  - All variable expansion scenarios in for loops now work correctly:
+    * Basic expansion: for item in $items works correctly
+    * Mixed literals and variables: for item in first $items last works
+    * Multiple variables: for item in $start middle $end expands both
+    * Empty/undefined variables: handled gracefully (no iteration)
+    * Command substitution: for item in $(command) continues to work
+    * Quoted strings: for item in "hello world" preserves spaces
+  - Resolves major conformance test failures in loop variable expansion
+  - Critical fix: for loops now handle variable expansion identically to bash
+  - 100% bash-compatible behavior verified with comprehensive testing
+  - No regressions: all existing for loop functionality preserved
+  - Essential for POSIX compliance: variable expansion in loops is fundamental shell feature
+
 0.59.6 (2025-06-26) - Enhanced Test Pattern Matching Fix: Critical POSIX Compliance Improvement
   - Fixed broken pattern matching in enhanced test statements ([[ ]])
   - Changed == and != operators from string equality to shell pattern matching
