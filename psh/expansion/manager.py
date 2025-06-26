@@ -77,7 +77,7 @@ class ExpansionManager:
             
             if arg_type == 'STRING':
                 # Handle quoted strings
-                if quote_type == '"' and '$' in arg:
+                if quote_type == '"' and ('$' in arg or '`' in arg):
                     # Double-quoted string with variables - expand them
                     # Special handling for "$@"
                     if arg == '$@':
@@ -135,8 +135,8 @@ class ExpansionManager:
                 # Composite argument - already concatenated in parser
                 # If it's COMPOSITE_QUOTED, it had quoted parts and shouldn't be glob expanded
                 
-                # First, expand variables if present
-                if '$' in arg:
+                # First, expand variables and command substitutions if present
+                if '$' in arg or '`' in arg:
                     arg = self.expand_string_variables(arg)
                 
                 # Only expand globs for non-quoted composites (unless noglob is set)
