@@ -403,9 +403,17 @@ class DeclareBuiltin(Builtin):
         if not content:
             return []
         
-        # Simple word splitting for now
-        # TODO: Proper shell word parsing with quotes
-        return content.split()
+        # Simple word splitting with quote handling
+        parts = content.split()
+        result = []
+        for part in parts:
+            # Remove surrounding quotes if present
+            if (part.startswith('"') and part.endswith('"')) or \
+               (part.startswith("'") and part.endswith("'")):
+                result.append(part[1:-1])
+            else:
+                result.append(part)
+        return result
     
     def _parse_assoc_array_init(self, value: str) -> List[tuple[str, str]]:
         """Parse associative array initialization: ([key]=val [key2]=val2)"""

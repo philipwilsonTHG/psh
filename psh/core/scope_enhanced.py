@@ -222,15 +222,8 @@ class EnhancedScopeManager:
         # Remove whitespace
         expr = expr.strip()
         
-        # Try direct conversion first
-        try:
-            result = int(expr)
-            return result
-        except ValueError:
-            pass
-        
-        # If not a simple integer, use the shell's arithmetic evaluator
-        # This requires access to the shell instance
+        # Always use the shell's arithmetic evaluator if available
+        # This properly handles octal (010), hex (0x10), and arithmetic expressions
         if hasattr(self, '_shell') and self._shell:
             from ..arithmetic import evaluate_arithmetic
             try:
@@ -241,18 +234,32 @@ class EnhancedScopeManager:
                 # If evaluation fails, return 0
                 return 0
         
-        # Fallback for simple expressions without shell context
-        # Only allow safe arithmetic operations
+        # Fallback when no shell context: try to use the arithmetic tokenizer
+        # to handle octal and hex properly
         try:
-            # Replace variable names with their values
-            # This is a limited fallback when shell context isn't available
-            if re.match(r'^[0-9+\-*/() ]+$', expr):
-                result = int(eval(expr))
-                return result
+            from ..arithmetic import ArithTokenizer, ArithParser, ArithmeticEvaluator
+            
+            # Create a minimal evaluator without shell context
+            class MinimalShell:
+                def __init__(self, scope_manager):
+                    self.state = type('State', (), {'get_variable': lambda _, name, default='0': scope_manager.get_variable(name, default)})()
+            
+            tokenizer = ArithTokenizer(expr)
+            tokens = tokenizer.tokenize()
+            parser = ArithParser(tokens)
+            ast = parser.parse()
+            
+            # Use minimal evaluator
+            minimal_shell = MinimalShell(self)
+            evaluator = ArithmeticEvaluator(minimal_shell)
+            return evaluator.evaluate(ast)
+            
         except Exception:
-            pass
-        
-        return 0
+            # Last resort: simple conversion, but this loses octal support
+            try:
+                return int(expr)
+            except ValueError:
+                return 0
     
     @property
     def current_scope(self) -> VariableScope:
