@@ -857,9 +857,13 @@ class ExecutorVisitor(ASTVisitor[int]):
         exit_status = 0
         self._loop_depth += 1
         
-        # Expand items - handle all types of expansion
+        # Expand items - handle all types of expansion, respecting quote types
         expanded_items = []
-        for item in node.items:
+        quote_types = getattr(node, 'item_quote_types', [None] * len(node.items))
+        
+        for i, item in enumerate(node.items):
+            quote_type = quote_types[i] if i < len(quote_types) else None
+            
             # Check if this is an array expansion
             if '$' in item and self.expansion_manager.variable_expander.is_array_expansion(item):
                 # Expand array to list of items
@@ -867,44 +871,79 @@ class ExecutorVisitor(ASTVisitor[int]):
                 expanded_items.extend(array_items)
             else:
                 # Perform full expansion on the item
-                # Determine the type of the item
-                if item.startswith('$(') and item.endswith(')'):
+                # Determine the type of the item (check arithmetic first since it starts with $()
+                if item.startswith('$((') and item.endswith('))'):
+                    # Arithmetic expansion
+                    result = self.expansion_manager.execute_arithmetic_expansion(item)
+                    # Arithmetic expansion always produces a single value
+                    expanded_items.append(str(result))
+                elif item.startswith('$(') and item.endswith(')'):
                     # Command substitution
                     output = self.expansion_manager.execute_command_substitution(item)
-                    # Split on whitespace for word splitting
-                    if output:
-                        words = output.split()
-                        expanded_items.extend(words)
+                    # For quoted command substitution, don't word split
+                    if quote_type == '"':
+                        expanded_items.append(output if output else "")
+                    else:
+                        # Split on whitespace for word splitting
+                        if output:
+                            words = output.split()
+                            expanded_items.extend(words)
                 elif item.startswith('`') and item.endswith('`'):
                     # Backtick command substitution
                     output = self.expansion_manager.execute_command_substitution(item)
-                    # Split on whitespace for word splitting
-                    if output:
-                        words = output.split()
-                        expanded_items.extend(words)
+                    # For quoted command substitution, don't word split
+                    if quote_type == '"':
+                        expanded_items.append(output if output else "")
+                    else:
+                        # Split on whitespace for word splitting
+                        if output:
+                            words = output.split()
+                            expanded_items.extend(words)
                 elif '$' in item:
                     # Variable expansion
                     expanded = self.expansion_manager.expand_string_variables(item)
-                    # Word splitting - split on whitespace
-                    import re
-                    words = re.split(r'\s+', expanded.strip()) if expanded.strip() else []
                     
-                    # Handle glob expansion on each word
-                    import glob
-                    for word in words:
-                        matches = glob.glob(word)
+                    if quote_type == '"':
+                        # Double-quoted: no word splitting, no glob expansion
+                        expanded_items.append(expanded if expanded else "")
+                    elif quote_type == "'":
+                        # Single-quoted: no expansion at all (but shouldn't happen here since we have $)
+                        expanded_items.append(item)
+                    else:
+                        # Unquoted: word splitting and glob expansion
+                        import re
+                        # Get IFS for field splitting
+                        ifs = self.state.get_variable('IFS', ' \t\n')
+                        if ifs:
+                            # Create regex pattern from IFS characters
+                            ifs_pattern = '[' + re.escape(ifs) + ']+'
+                            words = re.split(ifs_pattern, expanded.strip()) if expanded.strip() else []
+                        else:
+                            # No IFS means no field splitting
+                            words = [expanded] if expanded else []
+                        
+                        # Handle glob expansion on each word
+                        import glob
+                        for word in words:
+                            if word:  # Skip empty words
+                                matches = glob.glob(word)
+                                if matches:
+                                    expanded_items.extend(matches)
+                                else:
+                                    expanded_items.append(word)
+                else:
+                    # No expansion needed
+                    if quote_type:
+                        # Quoted literal
+                        expanded_items.append(item)
+                    else:
+                        # Unquoted literal - check for glob expansion
+                        import glob
+                        matches = glob.glob(item)
                         if matches:
                             expanded_items.extend(matches)
                         else:
-                            expanded_items.append(word)
-                else:
-                    # No expansion needed, just handle glob
-                    import glob
-                    matches = glob.glob(item)
-                    if matches:
-                        expanded_items.extend(matches)
-                    else:
-                        expanded_items.append(item)
+                            expanded_items.append(item)
         
         # Apply redirections for entire loop
         with self._apply_redirections(node.redirects):
@@ -1650,6 +1689,9 @@ class ExecutorVisitor(ASTVisitor[int]):
         if pid == 0:
             # Child process - create isolated shell
             try:
+                # Create new process group for the subshell
+                os.setpgid(0, 0)
+                
                 # Import Shell here to avoid circular import
                 from ..shell import Shell
                 
@@ -1662,6 +1704,11 @@ class ExecutorVisitor(ASTVisitor[int]):
                 )
                 subshell.state._in_forked_child = True
                 
+                # Inherit I/O streams from parent shell for test compatibility
+                subshell.stdout = self.shell.stdout
+                subshell.stderr = self.shell.stderr
+                subshell.stdin = self.shell.stdin
+                
                 # Apply redirections if any
                 saved_fds = None
                 if redirects:
@@ -1671,17 +1718,34 @@ class ExecutorVisitor(ASTVisitor[int]):
                 exit_code = subshell.execute_command_list(statements)
                 os._exit(exit_code)
                 
+            except SystemExit as e:
+                # Handle explicit exit calls
+                os._exit(e.code if e.code is not None else 0)
             except Exception as e:
                 print(f"psh: subshell error: {e}", file=sys.stderr)
                 os._exit(1)
         else:
-            # Parent process - wait for child
+            # Parent process - use job manager to wait for child
             try:
-                _, status = os.waitpid(pid, 0)
-                return os.WEXITSTATUS(status) if os.WIFEXITED(status) else 1
+                # Set the child's process group 
+                os.setpgid(pid, pid)
             except OSError:
-                # Child process might have been reaped by signal handler
-                return 1
+                # Race condition - child may have already done it
+                pass
+            
+            # Create job for tracking the subshell
+            job = self.job_manager.create_job(pid, "<subshell>")
+            job.add_process(pid, "subshell")
+            job.foreground = True
+            
+            # Use job manager to wait (handles SIGCHLD properly)
+            exit_status = self.job_manager.wait_for_job(job)
+            
+            # Clean up job
+            if job.state.name == 'DONE':
+                self.job_manager.remove_job(job.job_id)
+            
+            return exit_status
     
     # Fallback for unimplemented nodes
     

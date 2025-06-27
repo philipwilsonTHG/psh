@@ -432,12 +432,31 @@ class Parser(BaseParser):
                         word_token = self.advance()
                         lparen = self.advance()  # consume LPAREN
                         
-                        # Collect elements until RPAREN
+                        # Collect elements until RPAREN, preserving original representation
                         elements = []
+                        element_start_pos = self.current
+                        
                         while not self.match(TokenType.RPAREN) and not self.at_end():
                             if self.match_any(TokenGroups.WORD_LIKE):
+                                # Parse the composite argument normally
                                 elem_value, _, _ = self.parse_composite_argument()
-                                elements.append(elem_value)
+                                
+                                # Now reconstruct original representation by examining the consumed tokens
+                                element_end_pos = self.current
+                                original_tokens = self.tokens[element_start_pos:element_end_pos]
+                                
+                                # Reconstruct the original representation with proper quoting
+                                original_repr_parts = []
+                                for token in original_tokens:
+                                    if token.type == TokenType.STRING and token.quote_type:
+                                        # Reconstruct quoted string
+                                        original_repr_parts.append(token.quote_type + token.value + token.quote_type)
+                                    else:
+                                        # Use token value as-is
+                                        original_repr_parts.append(token.value)
+                                
+                                elements.append(''.join(original_repr_parts))
+                                element_start_pos = self.current
                             else:
                                 raise self._error("Expected array element")
                         
@@ -721,7 +740,7 @@ class Parser(BaseParser):
         self.expect(TokenType.IN)
         self.skip_newlines()
         
-        items = self._parse_for_iterable()
+        items, quote_types = self._parse_for_iterable()
         self.skip_separators()
         self.expect(TokenType.DO)
         self.skip_newlines()
@@ -735,11 +754,12 @@ class Parser(BaseParser):
             items=items,
             body=body,
             redirects=redirects,
-            background=False
+            background=False,
+            item_quote_types=quote_types
         )
     
-    def _parse_for_iterable(self) -> List[str]:
-        """Parse the iterable list in a for statement."""
+    def _parse_for_iterable(self) -> tuple[List[str], List[Optional[str]]]:
+        """Parse the iterable list in a for statement. Returns (items, quote_types)."""
         # Create TokenStream from current position
         stream = TokenStream(self.tokens, self.current)
         
@@ -750,10 +770,12 @@ class Parser(BaseParser):
         # Filter and convert valid tokens to values
         valid_types = {
             TokenType.WORD, TokenType.STRING, TokenType.VARIABLE,
-            TokenType.COMMAND_SUB, TokenType.COMMAND_SUB_BACKTICK
+            TokenType.COMMAND_SUB, TokenType.COMMAND_SUB_BACKTICK,
+            TokenType.ARITH_EXPANSION
         }
         
         iterable = []
+        quote_types = []
         for token in tokens:
             if token.type in valid_types:
                 # For VARIABLE tokens, preserve the $ prefix for expansion
@@ -761,6 +783,12 @@ class Parser(BaseParser):
                     iterable.append(f"${token.value}")
                 else:
                     iterable.append(token.value)
+                
+                # Track quote type for proper expansion behavior
+                if hasattr(token, 'quote_type') and token.quote_type:
+                    quote_types.append(token.quote_type)
+                else:
+                    quote_types.append(None)
             else:
                 # Stop at first invalid token
                 break
@@ -775,7 +803,7 @@ class Parser(BaseParser):
                 break
         self.current += valid_count
         
-        return iterable
+        return iterable, quote_types
     
     def _parse_c_style_for(self) -> CStyleForLoop:
         """Parse C-style for loop: for ((init; condition; update))"""
@@ -1076,7 +1104,7 @@ class Parser(BaseParser):
         self.expect(TokenType.IN)
         self.skip_newlines()
         
-        items = self._parse_for_iterable()
+        items, quote_types = self._parse_for_iterable()
         
         self.skip_separators()
         self.expect(TokenType.DO)
@@ -1314,26 +1342,53 @@ class Parser(BaseParser):
         return UnaryTestExpression('-n', left)
     
     def _parse_test_operand(self) -> str:
-        """Parse a test operand."""
+        """Parse a test operand, handling concatenated tokens for patterns."""
         if not self.match_any(TokenGroups.WORD_LIKE):
             raise self._error("Expected test operand")
         
+        result_parts = []
+        
+        # Get first token
         token = self.advance()
-        result = f"${token.value}" if token.type == TokenType.VARIABLE else token.value
         
-        # Concatenate words for regex patterns
-        if self.context.in_context('regex_rhs'):
-            while self.match(TokenType.WORD) and not self._is_binary_test_operator(self.peek().value):
-                result += self.advance().value
+        # Add token value, preserving variable syntax
+        if token.type == TokenType.VARIABLE:
+            result_parts.append(f"${token.value}")
+        else:
+            result_parts.append(token.value)
         
-        return result
+        # Look ahead to see if we should concatenate more tokens
+        # Only concatenate if they're immediately adjacent (no operators)
+        while (self.current < len(self.tokens) and 
+               self.match_any(TokenGroups.WORD_LIKE)):
+            
+            next_token = self.peek()
+            
+            # Stop if next token is a binary test operator
+            if (next_token.type == TokenType.WORD and 
+                self._is_binary_test_operator(next_token.value)):
+                break
+                
+            # Stop at logical operators or closing brackets
+            if next_token.type in (TokenType.AND_AND, TokenType.OR_OR, 
+                                 TokenType.DOUBLE_RBRACKET, TokenType.RPAREN):
+                break
+            
+            # Consume and add the token
+            token = self.advance()
+            if token.type == TokenType.VARIABLE:
+                result_parts.append(f"${token.value}")
+            else:
+                result_parts.append(token.value)
+        
+        return ''.join(result_parts)
     
     def _is_unary_test_operator(self, value: str) -> bool:
         """Check if a word is a unary test operator."""
         return value in {
             '-a', '-b', '-c', '-d', '-e', '-f', '-g', '-h', '-k', '-p',
             '-r', '-s', '-t', '-u', '-w', '-x', '-G', '-L', '-N', '-O',
-            '-S', '-z', '-n', '-o'
+            '-S', '-z', '-n', '-o', '-v'
         }
     
     def _is_binary_test_operator(self, value: str) -> bool:

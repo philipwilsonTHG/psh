@@ -269,6 +269,7 @@ class ForLoop(UnifiedControlStructure):
     redirects: List[Redirect] = field(default_factory=list)
     execution_context: ExecutionContext = ExecutionContext.STATEMENT
     background: bool = False  # Only used in pipeline context
+    item_quote_types: List[Optional[str]] = field(default_factory=list)  # Quote types for items
 
 
 @dataclass
