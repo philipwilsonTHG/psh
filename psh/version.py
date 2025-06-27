@@ -2,10 +2,50 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.59.13"
+__version__ = "0.60.0"
 
 # Version history
 VERSION_HISTORY = """
+0.60.0 (2025-06-27) - Parser Package Refactoring: Modular Architecture and Enhanced Functionality
+  - Transformed monolithic 1806-line parser.py into modular package structure
+  - Created 8 focused parser modules with clean separation of concerns:
+    - psh/parser/main.py: Main Parser class with delegation orchestration (244 lines)
+    - psh/parser/commands.py: Command and pipeline parsing (280 lines)
+    - psh/parser/statements.py: Statement list and control flow parsing (90 lines)
+    - psh/parser/control_structures.py: All control structures (if, while, for, case, select) (418 lines)
+    - psh/parser/tests.py: Enhanced test expression parsing with regex support (177 lines)
+    - psh/parser/arithmetic.py: Arithmetic command and expression parsing (131 lines)
+    - psh/parser/redirections.py: I/O redirection parsing (120 lines)
+    - psh/parser/arrays.py: Array initialization and assignment parsing (76 lines)
+    - psh/parser/functions.py: Function definition parsing (90 lines)
+    - psh/parser/utils.py: Utility functions and heredoc handling (25 lines)
+    - psh/parser/base.py: Base parser class with token management (moved from parser_base.py)
+    - psh/parser/helpers.py: Helper classes and token groups (moved from parser_helpers.py)
+  - Delegation-based architecture enabling clean component interaction and backward compatibility
+  - Enhanced test expression parser with complete operator precedence and regex matching (=~)
+  - Implemented proper context stack management for regex_rhs and other parsing contexts
+  - Fixed C-style for loop parsing with proper arithmetic section handling:
+    - Fixed double RPAREN consumption in parse_arithmetic_section_until_double_rparen()
+    - Added proper semicolon handling between arithmetic sections
+    - Fixed AST field names (init_expr, condition_expr, update_expr)
+    - Added support for empty sections and DOUBLE_SEMICOLON tokens
+    - Made DO keyword optional in C-style for loops
+  - Fixed stderr redirection parsing to separate operator from file descriptor:
+    - Fixed REDIRECT_ERR tokens (2>, 2>>) to extract operator (>, >>) and fd (2) separately
+    - Fixed file descriptor duplication parsing for both single-token (2>&1) and two-token (>&, 2) forms
+    - Fixed condition order in _parse_dup_redirect to handle >& before general >&* patterns
+  - Enhanced pipeline component parsing to support [[ ]] expressions in control structures
+  - Fixed function body context integration for proper in_function_body tracking
+  - Comprehensive test fixes reducing failing tests from 64 to ~40+:
+    - C-style for loops: 19/19 tests now passing (was 0/19)
+    - Stderr redirections: 4/4 tests now passing (was 0/4)
+    - File descriptor duplication: 4/4 tests now passing (was 0/4)
+    - Enhanced test context integration: 7/7 tests now passing
+  - Maintained 100% backward compatibility with existing parser API
+  - All existing functionality preserved while enabling new parsing capabilities
+  - Major architectural milestone: parser now fully modular and extensible
+  - Foundation for future parser enhancements and improved maintainability
+
 0.59.13 (2025-06-27) - Test Suite Stabilization: Major XFAIL/XPASS Marker Updates and Feature Validation
   - Updated pytest test markers to reflect significantly improved functionality
   - Removed 36 outdated @pytest.mark.visitor_xfail markers for tests that now pass reliably

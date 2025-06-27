@@ -1,7 +1,7 @@
 """Tests for enhanced ParseContext functionality."""
 
 import pytest
-from psh.parser_helpers import ParseContext
+from psh.parser.helpers import ParseContext
 from psh.token_types import TokenType
 
 

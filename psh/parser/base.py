@@ -1,8 +1,8 @@
 """Base parser class with common functionality."""
 
 from typing import List, Optional, Set, Tuple
-from .token_types import Token, TokenType
-from .parser_helpers import ParseContext, ErrorContext, ParseError, TokenGroups
+from ..token_types import Token, TokenType
+from .helpers import ParseContext, ErrorContext, ParseError, TokenGroups
 
 
 class BaseParser:

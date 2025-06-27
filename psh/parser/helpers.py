@@ -2,7 +2,7 @@
 
 from typing import Set, Optional, List, Dict
 from dataclasses import dataclass, field
-from .token_types import Token, TokenType
+from ..token_types import Token, TokenType
 
 
 class TokenGroups:
