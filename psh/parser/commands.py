@@ -322,7 +322,7 @@ class CommandParser:
         self.parser.skip_newlines()
         
         # Parse statements inside the subshell
-        statements = self.parser.statements.parse_command_list()
+        statements = self.parser.statements.parse_command_list_until(TokenType.RPAREN)
         
         self.parser.skip_newlines()
         self.parser.expect(TokenType.RPAREN)

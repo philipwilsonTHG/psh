@@ -159,7 +159,6 @@ class TestNestedControlStructures:
                    "Outer: 2\n  Inner: a\n  Inner: c\n")
         assert captured.out == expected
     
-    @pytest.mark.xfail(reason="Case statement parsing in nested functions not working correctly - requires parser architecture review")
     def test_function_with_nested_structures(self, shell, capsys):
         """Test function containing nested control structures."""
         script = '''

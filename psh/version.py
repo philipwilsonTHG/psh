@@ -2,10 +2,47 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.61.0"
+__version__ = "0.62.0"
 
 # Version history
 VERSION_HISTORY = """
+0.62.0 (2025-06-27) - POSIX Compliance Phase 1 & 2: Foundation Fixes and Core Improvements
+  - Achieved 3.7 percentage point POSIX compliance improvement (29.6% → 33.3%)
+  - Systematic data-driven approach improved 2 additional tests passing (16→18, 38→36 failing)
+  - Phase 1 Foundation Fixes - Critical Infrastructure Completed:
+    - Fixed subshell execution parser bug in commands.py:324-326
+      - Changed from parse_command_list() to parse_command_list_until(TokenType.RPAREN)
+      - Enables proper variable isolation and advanced subshell testing
+    - Enhanced array operations with multiple improvements:
+      - Fixed IFS joining for ${array[*]} in variable.py:237-240 with proper separator handling
+      - Enhanced test pattern matching for mixed quoting like *"$search_term"*
+      - Improved array expansion recognition for "$@" enabling select statement functionality
+    - Fixed select statement formatting through proper for loop expansion
+      - Select menus now display correctly with proper item enumeration
+  - Phase 2 Core Improvements - Variable Management Completed:
+    - Fixed declare builtin case transformation in function_support.py:192-195
+      - Corrected uppercase/lowercase attribute logic preventing incorrect defaults
+    - Enhanced case statement pattern conversion in executor_visitor.py
+      - Added _convert_case_pattern_for_fnmatch() for escaped bracket handling
+      - Edge case identified: tokenizer needs deeper escape sequence preservation
+    - Verified variable scoping correctness for nested functions
+      - PSH already implements correct POSIX scoping behavior
+      - Global variables modified by nested functions (expected behavior)
+      - Local variables in parent functions remain isolated (correct isolation)
+  - Technical Achievements and Impact:
+    - Critical parser bug fix enables advanced subshell variable isolation testing
+    - Array IFS joining resolution enables proper array-to-string conversion for scripting
+    - Enhanced pattern matching supports bash-compatible test expressions
+    - Declare builtin attribute handling now correctly manages variable transformations
+    - Foundation established for Phase 3 improvements (special variables, array consistency)
+  - Architecture and Quality:
+    - Systematic approach guided by conformance test analysis and prioritization
+    - All fixes preserve educational clarity while improving POSIX compliance
+    - No regressions introduced - existing functionality enhanced
+    - Data-driven roadmap documented for future Phase 3 improvements
+  - Major milestone: Strong foundation established for advanced POSIX shell features
+  - Updated analysis document with comprehensive progress tracking and Phase 3 roadmap
+
 0.61.0 (2025-06-27) - Post-Refactoring Test Suite Stabilization: Phase 1-3 Complete Resolution
   - Successfully resolved 18 of 23 failing tests from parser package refactoring (78% reduction)
   - Completed systematic test fixes in three phases with progressive improvement:

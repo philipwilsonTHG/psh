@@ -969,6 +969,23 @@ class ExecutorVisitor(ASTVisitor[int]):
             
         return exit_status
     
+    def _convert_case_pattern_for_fnmatch(self, pattern: str) -> str:
+        """
+        Convert a shell case pattern with escaped brackets to an fnmatch-compatible pattern.
+        
+        Shell patterns use \[ and \] to represent literal brackets.
+        fnmatch needs [[] and []] to represent literal brackets.
+        
+        Args:
+            pattern: Shell case pattern that may contain escaped brackets
+            
+        Returns:
+            Pattern suitable for use with fnmatch.fnmatch()
+        """
+        # Replace escaped brackets with fnmatch bracket classes
+        converted = pattern.replace('\\[', '[[]').replace('\\]', '[]]')
+        return converted
+    
     def visit_CaseConditional(self, node: CaseConditional) -> int:
         """Execute case statement."""
         # Expand the expression
@@ -988,7 +1005,10 @@ class ExecutorVisitor(ASTVisitor[int]):
                     if '$' in pattern_str:
                         expanded_pattern = self.expansion_manager.expand_string_variables(pattern_str)
                     
-                    if fnmatch.fnmatch(expr, expanded_pattern):
+                    # Convert escaped brackets for fnmatch compatibility
+                    fnmatch_pattern = self._convert_case_pattern_for_fnmatch(expanded_pattern)
+                    
+                    if fnmatch.fnmatch(expr, fnmatch_pattern):
                         # Execute the commands for this case
                         exit_status = self.visit(case_item.commands)
                         
@@ -1237,20 +1257,93 @@ class ExecutorVisitor(ASTVisitor[int]):
         exit_status = 0
         self._loop_depth += 1
         
-        # Expand items
+        # Expand items - handle all types of expansion, respecting quote types
         expanded_items = []
-        for item in node.items:
-            # Expand variables and globs in the item
-            if '$' in item:
-                item = self.expansion_manager.expand_string_variables(item)
+        quote_types = getattr(node, 'item_quote_types', [None] * len(node.items))
+        
+        for i, item in enumerate(node.items):
+            quote_type = quote_types[i] if i < len(quote_types) else None
             
-            # Handle glob expansion
-            import glob
-            matches = glob.glob(item)
-            if matches:
-                expanded_items.extend(matches)
+            # Check if this is an array expansion
+            if '$' in item and self.expansion_manager.variable_expander.is_array_expansion(item):
+                # Expand array to list of items
+                array_items = self.expansion_manager.variable_expander.expand_array_to_list(item)
+                expanded_items.extend(array_items)
             else:
-                expanded_items.append(item)
+                # Perform full expansion on the item
+                # Determine the type of the item (check arithmetic first since it starts with $()
+                if item.startswith('$((') and item.endswith('))'):
+                    # Arithmetic expansion
+                    result = self.expansion_manager.execute_arithmetic_expansion(item)
+                    # Arithmetic expansion always produces a single value
+                    expanded_items.append(str(result))
+                elif item.startswith('$(') and item.endswith(')'):
+                    # Command substitution
+                    output = self.expansion_manager.execute_command_substitution(item)
+                    # For quoted command substitution, don't word split
+                    if quote_type == '"':
+                        expanded_items.append(output if output else "")
+                    else:
+                        # Split on whitespace for word splitting
+                        if output:
+                            words = output.split()
+                            expanded_items.extend(words)
+                elif item.startswith('`') and item.endswith('`'):
+                    # Backtick command substitution
+                    output = self.expansion_manager.execute_command_substitution(item)
+                    # For quoted command substitution, don't word split
+                    if quote_type == '"':
+                        expanded_items.append(output if output else "")
+                    else:
+                        # Split on whitespace for word splitting
+                        if output:
+                            words = output.split()
+                            expanded_items.extend(words)
+                elif '$' in item:
+                    # Variable expansion
+                    expanded = self.expansion_manager.expand_string_variables(item)
+                    
+                    if quote_type == '"':
+                        # Double-quoted: no word splitting, no glob expansion
+                        expanded_items.append(expanded if expanded else "")
+                    elif quote_type == "'":
+                        # Single-quoted: no expansion at all (but shouldn't happen here since we have $)
+                        expanded_items.append(item)
+                    else:
+                        # Unquoted: word splitting and glob expansion
+                        import re
+                        # Get IFS for field splitting
+                        ifs = self.state.get_variable('IFS', ' \t\n')
+                        if ifs:
+                            # Create regex pattern from IFS characters
+                            ifs_pattern = '[' + re.escape(ifs) + ']+'
+                            words = re.split(ifs_pattern, expanded.strip()) if expanded.strip() else []
+                        else:
+                            # No IFS means no field splitting
+                            words = [expanded] if expanded else []
+                        
+                        # Handle glob expansion on each word
+                        import glob
+                        for word in words:
+                            if word:  # Skip empty words
+                                matches = glob.glob(word)
+                                if matches:
+                                    expanded_items.extend(matches)
+                                else:
+                                    expanded_items.append(word)
+                else:
+                    # No special expansion needed
+                    import glob
+                    if quote_type in ['"', "'"]:
+                        # Quoted: no glob expansion
+                        expanded_items.append(item)
+                    else:
+                        # Unquoted: try glob expansion
+                        matches = glob.glob(item)
+                        if matches:
+                            expanded_items.extend(matches)
+                        else:
+                            expanded_items.append(item)
         
         # Empty list - exit immediately
         if not expanded_items:

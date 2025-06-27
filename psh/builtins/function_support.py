@@ -191,7 +191,7 @@ class DeclareBuiltin(Builtin):
                                 last_case = 'upper'
             if last_case == 'lower':
                 attributes |= VarAttributes.LOWERCASE
-            else:
+            elif last_case == 'upper':
                 attributes |= VarAttributes.UPPERCASE
         elif options['lowercase']:
             attributes |= VarAttributes.LOWERCASE

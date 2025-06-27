@@ -234,8 +234,10 @@ class VariableExpander:
                             # In string context, join with spaces
                             return ' '.join(elements)
                         else:
-                            # ${arr[*]} - all elements as single word
-                            return ' '.join(elements)
+                            # ${arr[*]} - all elements as single word joined with IFS
+                            ifs = self.state.get_variable('IFS', ' \t\n')
+                            separator = ifs[0] if ifs else ' '
+                            return separator.join(elements)
                     elif var and var.value:
                         # Regular variable accessed as array - return the value
                         return str(var.value)
@@ -728,6 +730,10 @@ class VariableExpander:
         
         var_expr = var_expr[1:]  # Remove $
         
+        # Check for $@ (positional parameters expansion)
+        if var_expr == '@':
+            return True
+        
         # Check for ${arr[@]} syntax
         if var_expr.startswith('{') and var_expr.endswith('}'):
             var_content = var_expr[1:-1]
@@ -751,6 +757,10 @@ class VariableExpander:
             return [var_expr]
         
         var_expr = var_expr[1:]  # Remove $
+        
+        # Handle $@ (positional parameters)
+        if var_expr == '@':
+            return list(self.state.positional_params)
         
         # Handle ${var} syntax
         if var_expr.startswith('{') and var_expr.endswith('}'):

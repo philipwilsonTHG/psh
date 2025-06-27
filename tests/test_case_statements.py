@@ -187,3 +187,69 @@ def test_case_keyword_patterns():
         result = shell.run_command('case $test_var in if|then|while) echo "control keyword" ;; *) echo "other" ;; esac')
         assert result == 0
         assert mock_stdout.getvalue().strip() == 'control keyword'
+
+
+def test_case_escaped_bracket_patterns():
+    """Test case statement with escaped bracket patterns for literal bracket matching."""
+    import tempfile
+    import os
+    
+    shell = Shell()
+    
+    # Test escaped brackets should match literal brackets using a script file
+    # (File-based execution preserves escape sequences better than direct command execution)
+    script_content = '''test_var="[test]"
+case "$test_var" in
+    \\[*\\]) echo "escaped brackets match" ;;
+    *) echo "no match" ;;
+esac'''
+    
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.sh', delete=False) as f:
+        f.write(script_content)
+        script_path = f.name
+    
+    try:
+        with patch('sys.stdout', new=StringIO()) as mock_stdout:
+            result = shell.run_script(script_path)
+            assert result == 0
+            assert mock_stdout.getvalue().strip() == 'escaped brackets match'
+    finally:
+        os.unlink(script_path)
+    
+    # Test character class [*] should NOT match literal brackets (using script file)
+    script_content2 = '''test_var="[test]"
+case "$test_var" in
+    [*]) echo "char class match" ;;
+    *) echo "char class no match" ;;
+esac'''
+    
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.sh', delete=False) as f:
+        f.write(script_content2)
+        script_path2 = f.name
+    
+    try:
+        with patch('sys.stdout', new=StringIO()) as mock_stdout:
+            result = shell.run_script(script_path2)
+            assert result == 0
+            assert mock_stdout.getvalue().strip() == 'char class no match'
+    finally:
+        os.unlink(script_path2)
+    
+    # Test character class should still work for its intended purpose (using script file)
+    script_content3 = '''test_var="x"
+case "$test_var" in
+    [xyz]) echo "char class works" ;;
+    *) echo "char class fails" ;;
+esac'''
+    
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.sh', delete=False) as f:
+        f.write(script_content3)
+        script_path3 = f.name
+    
+    try:
+        with patch('sys.stdout', new=StringIO()) as mock_stdout:
+            result = shell.run_script(script_path3)
+            assert result == 0
+            assert mock_stdout.getvalue().strip() == 'char class works'
+    finally:
+        os.unlink(script_path3)

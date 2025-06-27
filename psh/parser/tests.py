@@ -137,12 +137,16 @@ class TestParser:
         
         Returns:
             tuple: (operand_string, quote_type) where quote_type is None, '"', or "'"
+                  - None means treat as unquoted (glob pattern)
+                  - '"' or "'" means treat as quoted (literal string)
+                  - Mixed quoting (quoted + unquoted parts) is treated as unquoted
         """
         if not self.parser.match_any(TokenGroups.WORD_LIKE):
             raise self.parser._error("Expected test operand")
         
         result_parts = []
         has_quoted_part = False
+        has_unquoted_part = False
         quote_type = None
         
         # Get first token
@@ -151,7 +155,10 @@ class TestParser:
         # Track if this token was quoted
         if token.type == TokenType.STRING and hasattr(token, 'quote_type') and token.quote_type:
             has_quoted_part = True
-            quote_type = token.quote_type
+            if quote_type is None:
+                quote_type = token.quote_type
+        else:
+            has_unquoted_part = True
         
         # Add token value, preserving variable syntax
         if token.type == TokenType.VARIABLE:
@@ -184,13 +191,21 @@ class TestParser:
                 has_quoted_part = True
                 if quote_type is None:
                     quote_type = token.quote_type
+            else:
+                has_unquoted_part = True
             
             if token.type == TokenType.VARIABLE:
                 result_parts.append(f"${token.value}")
             else:
                 result_parts.append(token.value)
         
-        return ''.join(result_parts), quote_type if has_quoted_part else None
+        # Quote type determination:
+        # - If all parts are quoted, use the quote type
+        # - If any part is unquoted (mixed or all unquoted), treat as unquoted (None)
+        if has_quoted_part and not has_unquoted_part:
+            return ''.join(result_parts), quote_type
+        else:
+            return ''.join(result_parts), None
     
     def _is_unary_test_operator(self, value: str) -> bool:
         """Check if a word is a unary test operator."""

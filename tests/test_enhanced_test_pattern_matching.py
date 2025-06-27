@@ -246,6 +246,26 @@ class TestEnhancedTestEdgeCases:
         exit_code = self.shell.run_command('[[ "$filename" == "$pattern" ]]')
         assert exit_code == 1  # Quoted pattern should not match
     
+    def test_enhanced_test_mixed_quoting_patterns(self):
+        """Test patterns with mixed quoting (quoted and unquoted parts)."""
+        self.shell.run_command('search_term="app"')
+        self.shell.run_command('element="myapp"')
+        
+        # Mixed quoting should be treated as unquoted (glob pattern)
+        exit_code = self.shell.run_command('[[ "$element" == *"$search_term"* ]]')
+        assert exit_code == 0  # Mixed quoting should work as pattern
+        
+        # Fully quoted should be literal
+        exit_code = self.shell.run_command('[[ "$element" == "*$search_term*" ]]')
+        assert exit_code == 1  # Fully quoted should not pattern match
+        
+        # Test other mixed patterns
+        exit_code = self.shell.run_command('[[ "test.txt" == *".txt" ]]')
+        assert exit_code == 0  # Mixed: unquoted * + quoted .txt
+        
+        exit_code = self.shell.run_command('[[ "test.txt" == "test".* ]]')
+        assert exit_code == 0  # Mixed: quoted test + unquoted .*
+    
     def test_enhanced_test_with_spaces_in_patterns(self):
         """Test patterns containing spaces."""
         exit_code = self.shell.run_command('[[ "hello world" == "hello world" ]]')
