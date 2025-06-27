@@ -200,6 +200,8 @@ class BinaryTestExpression(TestExpression):
     left: str
     operator: str  # =, !=, <, >, =~, -eq, -ne, etc.
     right: str
+    left_quote_type: Optional[str] = None  # Quote type for left operand
+    right_quote_type: Optional[str] = None  # Quote type for right operand
 
 
 @dataclass

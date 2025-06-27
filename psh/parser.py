@@ -1313,11 +1313,11 @@ class Parser(BaseParser):
         if self.match(TokenType.WORD) and self._is_unary_test_operator(self.peek().value):
             operator = self.advance().value
             self.skip_newlines()
-            operand = self._parse_test_operand()
+            operand, _ = self._parse_test_operand()  # Ignore quote type for unary
             return UnaryTestExpression(operator, operand)
         
         # Binary expression or single value
-        left = self._parse_test_operand()
+        left, left_quote_type = self._parse_test_operand()
         self.skip_newlines()
         
         # Check for binary operators
@@ -1331,25 +1331,30 @@ class Parser(BaseParser):
                 if operator == '=~':
                     self.context.push_context('regex_rhs')
                 
-                right = self._parse_test_operand()
+                right, right_quote_type = self._parse_test_operand()
                 
                 if operator == '=~':
                     self.context.pop_context()
                 
-                return BinaryTestExpression(left, operator, right)
+                return BinaryTestExpression(left, operator, right, left_quote_type, right_quote_type)
         
         # Single value test
         return UnaryTestExpression('-n', left)
     
-    def _parse_test_operand(self) -> str:
-        """Parse a test operand, handling concatenated tokens for patterns."""
+    def _parse_test_operand(self) -> tuple[str, Optional[str]]:
+        """Parse a test operand, handling concatenated tokens for patterns. Returns (value, quote_type)."""
         if not self.match_any(TokenGroups.WORD_LIKE):
             raise self._error("Expected test operand")
         
         result_parts = []
+        quote_type = None
         
         # Get first token
         token = self.advance()
+        
+        # Track quote type from the first token
+        if hasattr(token, 'quote_type') and token.quote_type:
+            quote_type = token.quote_type
         
         # Add token value, preserving variable syntax
         if token.type == TokenType.VARIABLE:
@@ -1381,7 +1386,7 @@ class Parser(BaseParser):
             else:
                 result_parts.append(token.value)
         
-        return ''.join(result_parts)
+        return ''.join(result_parts), quote_type
     
     def _is_unary_test_operator(self, value: str) -> bool:
         """Check if a word is a unary test operator."""

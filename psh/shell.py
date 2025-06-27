@@ -65,6 +65,8 @@ class Shell:
                 # Copy the entire Variable object to preserve attributes
                 self.state.scope_manager.global_scope.variables[name] = var.copy()
             self.function_manager = parent_shell.function_manager.copy()
+            # Copy positional parameters for subshells
+            self.state.positional_params = parent_shell.state.positional_params.copy()
             # Note: We don't copy aliases or jobs - those are shell-specific
         
         # Now create managers that need references to the shell
@@ -201,12 +203,26 @@ class Shell:
             return left == right
         elif expr.operator == '==':
             # Shell pattern matching (not string equality)
-            import fnmatch
-            return fnmatch.fnmatch(left, right)
+            # If the right operand was quoted, treat it as literal string
+            right_quote_type = getattr(expr, 'right_quote_type', None)
+            if right_quote_type:
+                # Quoted pattern should be treated literally
+                return left == right
+            else:
+                # Unquoted pattern should be treated as glob pattern
+                import fnmatch
+                return fnmatch.fnmatch(left, right)
         elif expr.operator == '!=':
             # Shell pattern non-matching
-            import fnmatch
-            return not fnmatch.fnmatch(left, right)
+            # If the right operand was quoted, treat it as literal string
+            right_quote_type = getattr(expr, 'right_quote_type', None)
+            if right_quote_type:
+                # Quoted pattern should be treated literally
+                return left != right
+            else:
+                # Unquoted pattern should be treated as glob pattern
+                import fnmatch
+                return not fnmatch.fnmatch(left, right)
         elif expr.operator == '<':
             # Lexicographic comparison
             return left < right
@@ -256,7 +272,13 @@ class Shell:
     
     def _evaluate_unary_test(self, expr: UnaryTestExpression) -> bool:
         """Evaluate unary test expression."""
-        # Expand variables in operand
+        # Handle -v operator specially since it needs shell state
+        if expr.operator == '-v':
+            # Check if variable is set (including array elements)
+            operand = expr.operand  # Don't expand for -v, we want the variable name
+            return self._is_variable_set(operand)
+        
+        # Expand variables in operand for other operators
         operand = self.expansion_manager.expand_string_variables(expr.operand)
         
         # Import test command's unary operators
@@ -285,6 +307,44 @@ class Shell:
             return self._evaluate_test_expression(expr.right)
         else:
             raise ValueError(f"unknown compound operator: {expr.operator}")
+    
+    def _is_variable_set(self, var_ref: str) -> bool:
+        """Check if a variable is set, including array element syntax.
+        
+        Supports:
+        - var: check if variable is set
+        - array[key]: check if array element exists
+        """
+        # Check for array element syntax: var[key]
+        if '[' in var_ref and var_ref.endswith(']'):
+            var_name = var_ref[:var_ref.index('[')]
+            key_expr = var_ref[var_ref.index('[') + 1:-1]
+            
+            # Expand the key expression
+            key = self.expansion_manager.expand_string_variables(key_expr)
+            
+            # Get the array variable
+            var_obj = self.state.scope_manager.get_variable_object(var_name)
+            if not var_obj:
+                return False
+                
+            # Check if it's an array and if the key exists
+            from .core.variables import IndexedArray, AssociativeArray
+            if isinstance(var_obj.value, AssociativeArray):
+                return key in var_obj.value._elements
+            elif isinstance(var_obj.value, IndexedArray):
+                try:
+                    index = int(key)
+                    return index in var_obj.value._elements
+                except ValueError:
+                    return False
+            else:
+                # Not an array, so array[key] syntax doesn't apply
+                return False
+        else:
+            # Simple variable check
+            var_obj = self.state.scope_manager.get_variable_object(var_ref)
+            return var_obj is not None
     
     
     
