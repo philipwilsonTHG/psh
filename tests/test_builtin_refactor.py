@@ -94,7 +94,6 @@ class TestBuiltinRefactor:
         assert exit_code == 0
         assert shell.variables['x'] == '1'
     
-    @pytest.mark.visitor_xfail(reason="Visitor executor output capture doesn't work with file redirections in forked processes")
     def test_builtin_with_redirection(self, tmp_path):
         """Test that builtins work with redirection."""
         shell = Shell()

@@ -88,14 +88,12 @@ class TestLineContinuationInQuotes:
 class TestLineContinuationEdgeCases:
     """Test edge cases that might behave differently."""
     
-    @pytest.mark.xfail(reason="PSH doesn't handle double backslash + newline in quotes correctly")
     def test_double_backslash_newline(self):
         """Test double backslash followed by newline."""
         # This creates a literal backslash then a real newline
         # PSH currently treats this as unclosed quote
         bash_compare.assert_shells_match(r'echo "Double\\' + '\n' + 'backslash"')
         
-    @pytest.mark.xfail(reason="PSH doesn't handle backslash + space + newline in quotes correctly")
     def test_space_after_backslash(self):
         """Test space after backslash (not a continuation)."""
         # PSH currently treats this as unclosed quote

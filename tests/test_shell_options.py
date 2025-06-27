@@ -164,7 +164,6 @@ echo "Should not print"
         finally:
             os.unlink(script_path)
     
-    @pytest.mark.xfail(reason="Conditional context detection needs more work")
     def test_errexit_conditionals(self, shell):
         """Test errexit doesn't trigger in conditionals."""
         script = '''#!/usr/bin/env psh
@@ -211,7 +210,6 @@ echo "End"
         assert shell.run_command("true | false | true") == 1
         assert shell.run_command("true | true | true") == 0
     
-    @pytest.mark.xfail(reason="Pipefail exit code handling needs refinement")
     def test_pipefail_exit_codes(self, shell):
         """Test pipefail returns correct exit code."""
         shell.run_command("set -o pipefail")
@@ -439,7 +437,6 @@ exit 42
         finally:
             os.unlink(script_path)
     
-    @pytest.mark.xfail(reason="NoExec error handling has edge case with incomplete command detection")
     def test_noexec_syntax_error(self, shell):
         """Test -n (noexec) catches syntax errors."""
         script_content = '''set -n

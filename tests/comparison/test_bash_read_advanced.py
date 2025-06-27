@@ -56,7 +56,6 @@ class TestReadAdvanced:
             'echo "test" | read -n 3 -p "Enter: " var 2>/dev/null; echo "Got: $var"'
         )
         
-    @pytest.mark.xfail(reason="PSH read doesn't support -a array option yet")
     def test_read_array_support(self):
         """Test read with -a array option."""
         bash_compare.assert_shells_match(

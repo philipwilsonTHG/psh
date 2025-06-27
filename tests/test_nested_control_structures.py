@@ -159,7 +159,6 @@ class TestNestedControlStructures:
                    "Outer: 2\n  Inner: a\n  Inner: c\n")
         assert captured.out == expected
     
-    @pytest.mark.visitor_xfail(reason="Visitor executor needs proper function argument handling with nested structures")
     def test_function_with_nested_structures(self, shell, capsys):
         """Test function containing nested control structures."""
         script = '''
@@ -276,7 +275,6 @@ class TestNestedControlStructures:
             expected = "Read: line1\nRead: line2\nRead: line3\n"
             assert actual_output == expected
     
-    @pytest.mark.visitor_xfail(reason="Visitor executor needs proper handling of read builtin with file redirection in loops")
     def test_read_in_nested_loops(self, shell, capsys):
         """Test read builtin in nested loops without while read pattern."""
         

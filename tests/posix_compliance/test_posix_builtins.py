@@ -33,9 +33,6 @@ class TestPOSIXSpecialBuiltins:
         output = captured.out
         assert output.strip() == "ok"
     
-    @pytest.mark.xfail(reason="Echo builtin redirection captures literal output")
-
-    
     def test_dot_command(self, shell, capsys):
         """Test . (dot) source command."""
         # Create a script to source

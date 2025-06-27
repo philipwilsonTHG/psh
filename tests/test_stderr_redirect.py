@@ -122,7 +122,6 @@ print("This is stderr", file=sys.stderr)
                 assert "This is stdout" in content
                 assert "This is stderr" in content
     
-    @pytest.mark.visitor_xfail(reason="Visitor executor needs proper stderr redirection for builtins")
     def test_stderr_redirect_with_builtin(self):
         """Test stderr redirection with built-in commands"""
         shell = Shell()

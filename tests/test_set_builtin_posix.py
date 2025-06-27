@@ -191,7 +191,6 @@ echo "command 2"
         finally:
             os.unlink(script_path)
     
-    @pytest.mark.xfail(reason="Subprocess test environment module import issue")
     def test_allexport_with_noglob(self, shell, tmp_path):
         """Test allexport works with noglob."""
         test_file = tmp_path / "test.txt"

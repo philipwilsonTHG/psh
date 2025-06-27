@@ -76,7 +76,6 @@ class TestFunctionRedirections:
             rm -f /tmp/psh_func_input.txt
         """)
     
-    @pytest.mark.xfail(reason="Multi-line here document parsing issue")
     def test_function_here_document(self):
         """Test function with here document."""
         bash_compare.assert_shells_match("""

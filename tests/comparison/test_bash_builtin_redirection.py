@@ -16,12 +16,10 @@ from bash_comparison_framework import bash_compare
 class TestBuiltinRedirection:
     """Test builtin redirection behavior."""
     
-    @pytest.mark.xfail(reason="pwd builtin doesn't redirect properly in command substitution")
     def test_pwd_in_command_substitution(self):
         """Test pwd builtin in command substitution."""
         bash_compare.assert_shells_match('x=$(pwd); echo "path=[$x]"')
     
-    @pytest.mark.xfail(reason="Builtin redirection in command substitution not implemented")
     def test_builtin_redirect_in_command_sub(self):
         """Test builtin redirection within command substitution."""
         bash_compare.assert_shells_match('result=$(pwd 2>&1); echo "[$result]"')

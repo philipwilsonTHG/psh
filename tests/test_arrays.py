@@ -99,6 +99,32 @@ class TestArrays:
             shell.run_command('echo ${arr[$((i+1))]}')
         assert 'three' in ''.join(output)
     
+    def test_array_element_access_bare_variables(self, shell):
+        """Test array element access with bare variable names (no $ prefix)."""
+        shell.run_command('arr=(zero one two three four)')
+        shell.run_command('i=1')
+        shell.run_command('j=3')
+        
+        # Test bare variable name in array index
+        output = []
+        with patch('sys.stdout.write') as mock_out:
+            mock_out.side_effect = lambda x: output.append(x)
+            shell.run_command('echo ${arr[i]}')
+        assert 'one' in ''.join(output)
+        
+        output = []
+        with patch('sys.stdout.write') as mock_out:
+            mock_out.side_effect = lambda x: output.append(x)
+            shell.run_command('echo ${arr[j]}')
+        assert 'three' in ''.join(output)
+        
+        # Test in arithmetic context within array index
+        output = []
+        with patch('sys.stdout.write') as mock_out:
+            mock_out.side_effect = lambda x: output.append(x)
+            shell.run_command('echo ${arr[i+1]}')
+        assert 'two' in ''.join(output)
+    
     def test_array_element_access_negative(self, shell):
         """Test array element access with negative indices."""
         shell.run_command('arr=(first second third last)')
