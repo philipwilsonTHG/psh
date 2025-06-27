@@ -4,14 +4,14 @@
 
 Python Shell (psh) is designed with a clean, component-based architecture that separates concerns and makes the codebase easy to understand, test, and extend. The shell follows a traditional interpreter pipeline: lexing → parsing → expansion → execution, with each phase carefully designed for educational clarity and correctness.
 
-**Current Version**: 0.50.0 (as of 2025-01-14)
+**Current Version**: 0.60.0 (as of 2025-06-27)
 
 **Note:** For LLM-optimized architecture documentation, see `ARCHITECTURE.llm`
 
 **Key Architectural Features**:
 - **Visitor Pattern Executor** (default as of v0.50.0): Clean separation between AST and operations
+- **Modular Parser Package** (v0.60.0): Delegation-based parser with 8 focused modules
 - **State Machine Lexer**: Handles complex tokenization with rich metadata
-- **Recursive Descent Parser**: Educational clarity with clean grammar implementation
 - **Multi-phase Expansion**: POSIX-compliant expansion ordering
 - **Component-based Design**: Each subsystem has clear boundaries and responsibilities
 
@@ -40,9 +40,9 @@ Python Shell (psh) is designed with a clean, component-based architecture that s
                              ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                    Syntactic Analysis (Parsing)                 │
-│                   Recursive Descent Parser                      │
+│                 Modular Parser Package (v0.60.0)                │
 │                                                                 │
-│  Token Stream → Grammar Rules → Abstract Syntax Tree (AST)     │
+│  Token Stream → Delegation Architecture → Abstract Syntax Tree │
 └─────────────────────────────┬───────────────────────────────────┘
                              │
                              ▼
@@ -186,10 +186,43 @@ This preserves quote information for each part, enabling correct expansion behav
 
 ## Phase 3: Syntactic Analysis (Parsing)
 
-The parser converts tokens into an Abstract Syntax Tree (AST) using recursive descent.
+The parser converts tokens into an Abstract Syntax Tree (AST) using a modular delegation architecture.
 
-### 3.1 Grammar Overview
-**File**: `parser.py`
+### 3.1 Parser Package Architecture (v0.60.0)
+**Package**: `psh/parser/`
+
+The parser is implemented as a modular package with clean separation of concerns:
+
+- **`psh/parser/main.py`** - Main Parser class with delegation orchestration
+- **`psh/parser/commands.py`** - Command and pipeline parsing  
+- **`psh/parser/statements.py`** - Statement list and control flow parsing
+- **`psh/parser/control_structures.py`** - All control structures (if, while, for, case, select)
+- **`psh/parser/tests.py`** - Enhanced test expression parsing with regex support
+- **`psh/parser/arithmetic.py`** - Arithmetic command and expression parsing
+- **`psh/parser/redirections.py`** - I/O redirection parsing
+- **`psh/parser/arrays.py`** - Array initialization and assignment parsing
+- **`psh/parser/functions.py`** - Function definition parsing
+- **`psh/parser/utils.py`** - Utility functions and heredoc handling
+- **`psh/parser/base.py`** - Base parser class with token management (moved from parser_base.py)
+- **`psh/parser/helpers.py`** - Helper classes and token groups (moved from parser_helpers.py)
+- **`psh/parser/__init__.py`** - Clean public API with backward compatibility
+
+### 3.2 Delegation Architecture
+
+The main parser orchestrates specialized parsers through delegation:
+```python
+class Parser(BaseParser):
+    """Main parser with delegation to specialized parsers"""
+    def __init__(self, tokens: List[Token]):
+        super().__init__(tokens)
+        # Initialize specialized parsers
+        self.commands = CommandParser(self)
+        self.statements = StatementParser(self)
+        self.control_structures = ControlStructureParser(self)
+        # ... other specialized parsers
+```
+
+### 3.3 Grammar Overview
 
 The shell grammar (simplified):
 ```
@@ -206,22 +239,32 @@ simple_command → word+ redirect* ['&']
 compound_command → control_structure redirect* ['&']
 ```
 
-### 3.2 Recursive Descent Implementation
+### 3.4 Modular Design Benefits
 
-Each grammar rule has a corresponding parse method:
+The package structure provides several advantages:
+- **Separation of Concerns**: Each parser module handles a focused aspect of shell syntax
+- **Delegation Architecture**: Clean component interaction through main parser orchestration
+- **Enhanced Maintainability**: Smaller, focused files easier to understand and modify
+- **Improved Testability**: Each component can be tested in isolation
+- **Backward Compatibility**: Existing parser API is fully preserved
+- **Extensibility**: New parsing features can be added incrementally
+
+### 3.5 Recursive Descent Implementation
+
+Each grammar rule has a corresponding parse method across specialized parsers:
 ```python
-def parse_statement(self):
-    """Parse any statement type"""
-    if self._current_token_is(TokenType.IF):
-        return self.parse_if_statement()
-    elif self._current_token_is(TokenType.WHILE):
-        return self.parse_while_statement()
-    # ... other control structures
-    else:
-        return self.parse_command_list()
+# In ControlStructureParser
+def parse_if_statement(self):
+    """Parse if/then/else/fi statement"""
+    # Delegate to control structure parser
+    
+# In CommandParser  
+def parse_command(self):
+    """Parse simple command with arguments"""
+    # Delegate to command parser
 ```
 
-### 3.3 AST Node Hierarchy
+### 3.6 AST Node Hierarchy
 **File**: `ast_nodes.py`
 
 The AST uses a clean class hierarchy:
@@ -254,15 +297,18 @@ class IfConditional(Statement, CompoundCommand):
     else_stmt: Optional[StatementList]
 ```
 
-### 3.4 Error Recovery
+### 3.7 Error Recovery
 
-The parser provides helpful error messages:
+The parser provides helpful error messages with enhanced context:
 ```python
-def _expect(self, token_type):
-    if not self._current_token_is(token_type):
-        # Human-readable token names
-        expected = TOKEN_DISPLAY_NAMES.get(token_type, token_type.name)
-        raise ParseError(f"Expected {expected}")
+def _error(self, message: str) -> ParseError:
+    """Create ParseError with current context"""
+    error_context = ErrorContext(
+        token=self.peek(),
+        message=message,
+        position=self.peek().position
+    )
+    return ParseError(error_context)
 ```
 
 ## Phase 4: Execution
@@ -612,6 +658,15 @@ The architecture prioritizes clarity and correctness:
 - Complex features are broken into understandable pieces
 
 ## Recent Architectural Improvements
+
+### Version 0.60.0 - Parser Package Refactoring
+- Transformed monolithic 1806-line parser.py into modular package structure
+- Created 8 focused parser modules with clean separation of concerns
+- Delegation-based architecture enabling clean component interaction
+- Enhanced test expression parser with complete operator precedence
+- Fixed C-style for loop parsing with proper arithmetic section handling
+- Fixed stderr redirection parsing to separate operator from file descriptor
+- Maintained 100% backward compatibility with existing parser API
 
 ### Version 0.50.0 - Visitor Pattern Default
 - Visitor executor now the primary execution model

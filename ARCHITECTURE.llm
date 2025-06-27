@@ -1,6 +1,6 @@
 # PSH Architecture Reference for Large Language Models
 
-Version: 0.58.0 (2025-01-28) - Lexer Package Refactoring
+Version: 0.60.0 (2025-06-27) - Parser Package Refactoring  
 Purpose: Optimized reference for LLMs working with PSH codebase
 
 ## Quick Start
@@ -16,6 +16,11 @@ Purpose: Optimized reference for LLMs working with PSH codebase
 1. Add to `psh/core/options.py` OPTION_HANDLERS
 2. Update `psh/core/state.py` if needed
 3. Add tests in `tests/test_shell_options.py`
+
+**Modify parsing behavior:**
+1. Edit relevant file in `psh/parser/` package
+2. Update delegation in `psh/parser/main.py` if new parser modules added
+3. Add tests in `tests/test_parser_*.py`
 
 **Modify expansion behavior:**
 1. Edit relevant file in `psh/expansion/`
@@ -49,7 +54,20 @@ psh/
 │   ├── token_parts.py     # TokenPart and RichToken classes
 │   └── position.py        # Position tracking, error handling, and lexer configuration
 ├── token_types.py          # Token type definitions and Token dataclass
-├── parser.py               # Recursive descent parser
+├── parser/                  # Modular parser package with delegation architecture
+│   ├── __init__.py         # Clean public API with backward compatibility
+│   ├── main.py            # Main Parser class with delegation orchestration
+│   ├── base.py            # Base parser class with token management
+│   ├── helpers.py         # Helper classes and token groups
+│   ├── commands.py        # Command and pipeline parsing
+│   ├── statements.py      # Statement list and control flow parsing
+│   ├── control_structures.py # All control structures (if, while, for, case, select)
+│   ├── tests.py           # Enhanced test expression parsing with regex support
+│   ├── arithmetic.py      # Arithmetic command and expression parsing
+│   ├── redirections.py    # I/O redirection parsing
+│   ├── arrays.py          # Array initialization and assignment parsing
+│   ├── functions.py       # Function definition parsing
+│   └── utils.py           # Utility functions and heredoc handling
 ├── ast_nodes.py            # AST node definitions
 ├── visitor/                # Visitor pattern operations
 │   ├── base.py            # Base visitor classes
@@ -99,10 +117,14 @@ Input → Preprocessing → Tokenization → Parsing → AST → Visitor Executi
    - Preserves quote information for expansion
    - Clean separation of concerns: core, helpers, state handlers, constants
 
-3. Parsing (parser.py):
-   - Recursive descent parser
-   - Produces AST (ast_nodes.py)
-   - Handles all shell constructs
+3. Parsing (parser/ package):
+   - Modular parser package with delegation architecture
+   - 8 focused modules with clean separation of concerns
+   - Delegation-based main parser orchestrating specialized parsers
+   - Enhanced context management and error handling
+   - Complete backward compatibility with existing API
+   - Produces AST (ast_nodes.py) 
+   - Handles all shell constructs with improved robustness
 
 4. Execution (visitor/executor_visitor.py):
    - Visitor pattern traversal
@@ -373,7 +395,7 @@ class MyBuiltin(BuiltinCommand):
 
 ### File Locations
 - **Add builtin:** `psh/builtins/` + register in `registry.py`
-- **Modify parsing:** `psh/parser.py` + `ast_nodes.py`
+- **Modify parsing:** `psh/parser/` package + update delegation in `main.py` if needed
 - **Change expansion:** `psh/expansion/` + `manager.py`
 - **Add shell option:** `psh/core/options.py`
 - **Modify tokenization:** `psh/lexer/` package (core.py for main logic, helpers.py for utilities, etc.)
@@ -381,13 +403,17 @@ class MyBuiltin(BuiltinCommand):
 - **Unicode support:** `psh/lexer/unicode_support.py`
 - **Position tracking:** `psh/lexer/position.py`
 - **Configure lexer features:** `LexerConfig` class in `psh/lexer/position.py`
+- **Parser components:** `psh/parser/commands.py`, `psh/parser/control_structures.py`, etc.
+- **Parser helpers:** `psh/parser/helpers.py` (TokenGroups, ParseError, etc.)
 
 ### Key Classes
 - `Shell` - Main orchestrator
 - `ShellState` - Central state
 - `ExecutorVisitor` - Default executor
 - `ExpansionManager` - Expansion orchestrator
-- `Parser` - Recursive descent parser
+- `Parser` - Modular parser with delegation architecture
+- `CommandParser` - Command and pipeline parsing
+- `ControlStructureParser` - Control structure parsing
 - `StateMachineLexer` - Modular tokenizer with mixin architecture
 - `LexerHelpers` - Mixin with utility methods
 - `StateHandlers` - Mixin with state machine logic
@@ -397,7 +423,7 @@ class MyBuiltin(BuiltinCommand):
 ### Important Methods
 - `shell.run_command(cmd)` - Execute command
 - `expansion_manager.expand_argument(arg, type)` - Expand argument
-- `parser.parse()` - Parse tokens to AST
+- `parser.parse()` - Parse tokens to AST (delegates to specialized parsers)
 - `visitor.visit(node)` - Execute AST node
 
 ## Maintenance
