@@ -181,6 +181,11 @@ class TestBuiltin(Builtin):
                 return 0 if os.isatty(fd) else 1
             except (ValueError, OSError):
                 return 1
+        elif op == '-v':
+            # True if variable is set (bash nameref support)
+            # This requires access to shell state to check variables
+            # For now, we'll need to handle this specially in the shell
+            return 2  # Indicate special handling needed
         else:
             return 2  # Unknown operator
     

@@ -361,12 +361,28 @@ class BraceExpander:
         Valid expressions have either:
         - A comma at the top level (not inside nested braces)
         - A '..' sequence (for range expansion)
+        
+        BUT NOT if the content contains variables that should be expanded first.
         """
         if not content:
             return False
         
+        # Check if content contains variables - if so, don't expand braces yet
+        # Variables like $var, ${var}, $(cmd), $((expr)) should prevent brace expansion
+        if '$' in content:
+            return False
+        
         # Check for sequence (Phase 2 - recognize but don't expand yet)
         if '..' in content:
+            # Additional validation for sequences
+            parts = content.split('..')
+            if len(parts) < 2 or len(parts) > 3:
+                return False
+            # Start and end must not be empty
+            start = parts[0]
+            end = parts[1]
+            if not start or not end:
+                return False
             return True
         
         # Check for list (must have comma not inside nested braces)
@@ -569,6 +585,10 @@ class BraceExpander:
         start = parts[0]
         end = parts[1]
         increment = parts[2] if len(parts) == 3 else '1'
+        
+        # Validate that start and end are not empty (invalid sequences like {1..} or {..5})
+        if not start or not end:
+            return None
         
         # Try numeric sequence first
         numeric_result = self._try_numeric_sequence(start, end, increment)

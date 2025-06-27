@@ -58,7 +58,7 @@ class VariableExpander:
                     
                     if var and isinstance(var.value, IndexedArray):
                         # Evaluate the index
-                        expanded_index = self.expand_string_variables(index_expr)
+                        expanded_index = self.expand_array_index(index_expr)
                         try:
                             # Check if it's arithmetic
                             if any(op in expanded_index for op in ['+', '-', '*', '/', '%', '(', ')']):
@@ -73,13 +73,13 @@ class VariableExpander:
                             return '0'
                     elif var and isinstance(var.value, AssociativeArray):
                         # For associative arrays
-                        expanded_key = self.expand_string_variables(index_expr)
+                        expanded_key = self.expand_array_index(index_expr)
                         element = var.value.get(expanded_key)
                         return str(len(element)) if element else '0'
                     elif var and var.value:
                         # Regular variable - check if index is 0
                         try:
-                            index = int(self.expand_string_variables(index_expr))
+                            index = int(self.expand_array_index(index_expr))
                             if index == 0:
                                 return str(len(str(var.value)))
                             else:
@@ -246,7 +246,7 @@ class VariableExpander:
                 # Handle regular indexed access
                 if var and isinstance(var.value, IndexedArray):
                     # Evaluate the index expression (might contain variables or arithmetic)
-                    expanded_index = self.expand_string_variables(index_expr)
+                    expanded_index = self.expand_array_index(index_expr)
                     
                     try:
                         # Check if it's an arithmetic expression
@@ -268,12 +268,12 @@ class VariableExpander:
                         return ''
                 elif var and isinstance(var.value, AssociativeArray):
                     # For associative arrays, use the key as-is
-                    expanded_key = self.expand_string_variables(index_expr)
+                    expanded_key = self.expand_array_index(index_expr)
                     result = var.value.get(expanded_key)
                     return result if result is not None else ''
                 elif var and var.value:
                     # Regular variable - treat as single element array
-                    expanded_index = self.expand_string_variables(index_expr)
+                    expanded_index = self.expand_array_index(index_expr)
                     try:
                         index = int(expanded_index)
                         # Only index 0 is valid for regular variables
@@ -394,7 +394,7 @@ class VariableExpander:
                         # Handle regular indexed/associative array access
                         elif var and isinstance(var.value, IndexedArray):
                             # Evaluate index
-                            expanded_index = self.expand_string_variables(index_expr)
+                            expanded_index = self.expand_array_index(index_expr)
                             try:
                                 if any(op in expanded_index for op in ['+', '-', '*', '/', '%', '(', ')']):
                                     from ..arithmetic import evaluate_arithmetic
@@ -405,7 +405,7 @@ class VariableExpander:
                             except:
                                 value = ''
                         elif var and isinstance(var.value, AssociativeArray):
-                            expanded_key = self.expand_string_variables(index_expr)
+                            expanded_key = self.expand_array_index(index_expr)
                             value = var.value.get(expanded_key) or ''
                         else:
                             value = ''
@@ -576,6 +576,27 @@ class VariableExpander:
         
         return result
     
+    def expand_array_index(self, index_expr: str) -> str:
+        """Expand variables in array index expressions.
+        
+        In array subscripts, bare variable names should be expanded as variables.
+        For example, in ${arr[i]}, 'i' should be expanded to its value.
+        """
+        # First try normal variable expansion in case it has $
+        expanded = self.expand_string_variables(index_expr)
+        
+        # If no $ was found in the index, check if the whole thing is a variable name
+        if expanded == index_expr:
+            # Check if it's a valid variable name (letters, digits, underscore)
+            if index_expr and (index_expr[0].isalpha() or index_expr[0] == '_'):
+                if all(c.isalnum() or c == '_' for c in index_expr):
+                    # It's a valid variable name, expand it
+                    var_value = self.state.get_variable(index_expr, '')
+                    if var_value:
+                        return var_value
+        
+        return expanded
+
     def expand_string_variables(self, text: str) -> str:
         """Expand variables and arithmetic in a string (for here strings and quoted strings)"""
         

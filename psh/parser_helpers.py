@@ -14,7 +14,7 @@ class TokenGroups:
         TokenType.COMMAND_SUB, TokenType.COMMAND_SUB_BACKTICK,
         TokenType.ARITH_EXPANSION, TokenType.PROCESS_SUB_IN,
         TokenType.PROCESS_SUB_OUT, TokenType.LBRACKET, TokenType.RBRACKET,
-        TokenType.COMPOSITE
+        TokenType.LBRACE, TokenType.RBRACE, TokenType.COMPOSITE
     })
     
     # Redirect operators

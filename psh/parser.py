@@ -631,6 +631,8 @@ class Parser(BaseParser):
             TokenType.WORD: ('WORD', lambda t: t.value),
             TokenType.LBRACKET: ('WORD', lambda t: t.value),
             TokenType.RBRACKET: ('WORD', lambda t: t.value),
+            TokenType.LBRACE: ('WORD', lambda t: t.value),
+            TokenType.RBRACE: ('WORD', lambda t: t.value),
         }
         
         arg_type, value_fn = type_map.get(token.type, ('WORD', lambda t: t.value))

@@ -825,8 +825,11 @@ class ArithmeticError(Exception):
 def evaluate_arithmetic(expr: str, shell) -> int:
     """Evaluate an arithmetic expression with the given shell context"""
     try:
-        # Tokenize
-        tokenizer = ArithTokenizer(expr)
+        # First, expand all shell variables and parameter expansions
+        expanded_expr = shell.expansion_manager.expand_string_variables(expr)
+        
+        # Tokenize the expanded expression
+        tokenizer = ArithTokenizer(expanded_expr)
         tokens = tokenizer.tokenize()
         
         # Parse

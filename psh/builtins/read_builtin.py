@@ -26,11 +26,12 @@ class ReadBuiltin(Builtin):
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Execute the read builtin.
         
-        read [-r] [-p prompt] [-s] [-t timeout] [-n chars] [-d delim] [var...]
+        read [-r] [-a array] [-p prompt] [-s] [-t timeout] [-n chars] [-d delim] [var...]
         
         Read a line from standard input and split it into fields.
         Options:
           -r: Raw mode (no backslash interpretation)
+          -a array: Read into indexed array instead of individual variables
           -p prompt: Display prompt on stderr
           -s: Silent mode (no echo)
           -t timeout: Timeout after N seconds
@@ -82,8 +83,12 @@ class ReadBuiltin(Builtin):
             # Get IFS value (default is space, tab, newline)
             ifs = shell.variables.get('IFS', shell.env.get('IFS', ' \t\n'))
             
-            # Handle assignment based on number of variables
-            if len(var_names) == 1:
+            # Handle assignment based on array option or number of variables
+            if options['array_name']:
+                # Array assignment: always split on IFS
+                fields = self._split_with_ifs(line, ifs)
+                self._assign_to_array(fields, options['array_name'], shell)
+            elif len(var_names) == 1:
                 # Single variable: trim leading/trailing IFS whitespace only
                 # Don't split the line
                 ifs_whitespace = [c for c in ifs if c in ' \t\n']
@@ -233,6 +238,29 @@ class ReadBuiltin(Builtin):
             
             shell.state.set_variable(var_name, value)
     
+    def _assign_to_array(self, fields: List[str], array_name: str, shell: 'Shell'):
+        """Assign fields to an indexed array.
+        
+        Creates or replaces an indexed array with the given fields.
+        Each field becomes an array element with sequential indices starting from 0.
+        """
+        from ..core.variables import IndexedArray, VarAttributes
+        
+        # Create new indexed array
+        array = IndexedArray()
+        
+        # Handle empty input case: if only field is empty string, create empty array
+        if len(fields) == 1 and fields[0] == '':
+            # Empty input should create empty array (bash behavior)
+            pass  # Don't add any elements
+        else:
+            # Assign each field to sequential indices
+            for i, field in enumerate(fields):
+                array.set(i, field)
+        
+        # Set the array in shell state
+        shell.state.scope_manager.set_variable(array_name, array, attributes=VarAttributes.ARRAY)
+    
     def _parse_options(self, args: List[str]) -> Tuple[Dict[str, any], List[str]]:
         """Parse read command options.
         
@@ -246,7 +274,8 @@ class ReadBuiltin(Builtin):
             'timeout': None,
             'max_chars': None,
             'delimiter': '\n',
-            'fd': 0
+            'fd': 0,
+            'array_name': None  # New option for array assignment
         }
         
         i = 1
@@ -255,6 +284,30 @@ class ReadBuiltin(Builtin):
                 options['raw_mode'] = True
             elif args[i] == '-s':
                 options['silent'] = True
+            elif args[i] == '-a':
+                if i + 1 < len(args):
+                    options['array_name'] = args[i + 1]
+                    i += 1
+                else:
+                    raise ValueError("read: -a: option requires an argument")
+            elif args[i].startswith('-') and len(args[i]) > 2:
+                # Handle combined options like -ra, -rs, etc.
+                option_chars = args[i][1:]
+                for char in option_chars:
+                    if char == 'r':
+                        options['raw_mode'] = True
+                    elif char == 's':
+                        options['silent'] = True
+                    elif char == 'a':
+                        # -a in combined form requires next argument
+                        if i + 1 < len(args):
+                            options['array_name'] = args[i + 1]
+                            i += 1
+                        else:
+                            raise ValueError("read: -a: option requires an argument")
+                    else:
+                        raise ValueError(f"read: -{char}: invalid option")
+                break  # Combined options processed, continue to remaining args
             elif args[i] == '-p':
                 if i + 1 < len(args):
                     options['prompt'] = args[i + 1]
@@ -296,7 +349,12 @@ class ReadBuiltin(Builtin):
                 break
             i += 1
         
-        var_names = args[i:] if i < len(args) else ['REPLY']
+        # Variable names are ignored when using -a option
+        if options['array_name']:
+            var_names = []  # Array name takes precedence
+        else:
+            var_names = args[i:] if i < len(args) else ['REPLY']
+        
         return options, var_names
     
     def _read_normal(self, fd: int, delimiter: str) -> Optional[str]:

@@ -181,6 +181,7 @@ class LexerHelpers:
         # ] is always treated as RBRACKET when it's an operator context
         # But let the word handler deal with it when part of a word
         
+        
         # Check operators from longest to shortest
         for length in sorted(OPERATORS_BY_LENGTH.keys(), reverse=True):
             if length > len(self.input) - self.position:
