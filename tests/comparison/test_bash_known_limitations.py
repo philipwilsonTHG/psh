@@ -16,7 +16,6 @@ from bash_comparison_framework import bash_compare
 class TestKnownLimitations:
     """Test cases that document known PSH limitations."""
     
-    @pytest.mark.xfail(reason="Backticks in variable assignments not parsed correctly")
     def test_backtick_in_assignment(self):
         """Backtick command substitution in assignments."""
         bash_compare.assert_shells_match('x=`echo hello`; echo $x')
@@ -35,13 +34,11 @@ class TestKnownLimitations:
         bash_compare.assert_shells_match('{ echo one; echo two; }')
         bash_compare.assert_shells_match('echo test | { read x; echo "Read: $x"; }')
     
-    @pytest.mark.xfail(reason="Subshell syntax with parentheses not implemented")  
     def test_subshell_syntax(self):
         """Subshell execution with ( ) syntax."""
         bash_compare.assert_shells_match('(echo in subshell)')
         bash_compare.assert_shells_match('x=1; (x=2); echo $x')
     
-    @pytest.mark.xfail(reason="Multi-line strings in commands not supported")
     def test_multiline_string_literals(self):
         """Multi-line string literals in commands."""
         bash_compare.assert_shells_match('''echo "line1
@@ -55,7 +52,6 @@ test
 EOF
 ); echo "$result"''')
     
-    @pytest.mark.xfail(reason="Process substitution combined with redirection")
     def test_process_substitution_with_redirection(self):
         """Complex process substitution scenarios."""
         bash_compare.assert_shells_match('cat <(echo test) > /tmp/out && cat /tmp/out && rm /tmp/out')

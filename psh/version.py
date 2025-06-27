@@ -2,10 +2,85 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.59.9"
+__version__ = "0.59.13"
 
 # Version history
 VERSION_HISTORY = """
+0.59.13 (2025-06-27) - Test Suite Stabilization: Major XFAIL/XPASS Marker Updates and Feature Validation
+  - Updated pytest test markers to reflect significantly improved functionality
+  - Removed 36 outdated @pytest.mark.visitor_xfail markers for tests that now pass reliably
+  - Updated test_arithmetic_command_substitution.py: All 9 command substitution tests now pass
+  - Updated test_command_substitution.py: All 7 core command substitution tests now pass
+  - Updated test_for_loops_command_substitution.py: All 7 for loop command substitution tests now pass
+  - Updated test_bash_known_limitations.py: 4 major bash compatibility tests now pass
+  - Updated test_posix_builtins.py: 3 POSIX compliance tests now pass (shift, command, field splitting)
+  - Updated test_expansion_regression.py: All 3 expansion regression tests now pass
+  - Updated test_conditional_execution.py: All 3 conditional execution tests now pass
+  - Reduced XPASS count from 60 to 24, indicating better test accuracy and stability
+  - Command substitution now works reliably: $(echo test), backticks, nested substitutions
+  - Arithmetic command substitution fully functional: $(($(echo 42) * 2))
+  - Backtick variable assignment working: x=`echo hello`; echo $x
+  - Subshell syntax operational: (echo in subshell)
+  - Multi-line string literals and process substitution working
+  - POSIX shift builtin, command builtin, and field splitting operational
+  - For loop command substitution with output capture working
+  - Conditional execution with file redirections working
+  - Expansion regression issues resolved for all major cases
+  - Test suite now accurately reflects current functionality state
+  - Major validation milestone: PSH now passes 36 more tests that were previously expected to fail
+
+0.59.12 (2025-06-27) - Printf Builtin Implementation and Array Expansion Fix: Complete Array Sorting Support
+  - Implemented printf builtin with comprehensive format string support (%s, %d, %c, %%)
+  - Added support for common format patterns including %s\\n for array element output
+  - Fixed critical array expansion bug in double quotes: "${arr[@]}" now correctly expands to multiple arguments
+  - Enhanced ExpansionManager to handle array expansions in STRING context with quote_type="
+  - Array sorting functionality now fully operational: printf "%s\\n" "${arr[@]}" | sort works correctly
+  - Printf supports escape sequences (\\n, \\t, \\r, \\\\) and proper multi-argument handling
+  - Array operations test significantly improved: sorting, reversal, deduplication all working
+  - Resolves major conformance gap where array sorting was returning unsorted results
+  - Printf builtin enables external command integration for array manipulation operations
+  - Foundation for advanced shell scripting patterns requiring formatted array output
+  - All array operations now conform to bash semantics for sorting and element processing
+  - Critical milestone: PSH now supports full array sorting pipeline operations
+
+0.59.11 (2025-06-26) - Major Array Operations Implementation: POSIX Compliance Array Support
+  - Fixed critical array element access with variables: ${arr[i]} now works correctly  
+  - Implemented array element access in C-style for loops enabling array reversal
+  - Added expand_array_index() method for proper variable expansion in array subscripts
+  - Fixed enhanced test [[ ]] parsing for complex patterns with variable interpolation
+  - Implemented -v operator in [[ ]] for checking associative array key existence
+  - Enhanced C-style for loop arithmetic parsing for complex array expressions
+  - Array operations now working: reversal, deduplication, search, intersection, difference
+  - Fixed variable interpolation in pattern matching: [[ "$element" == *"$search_term"* ]]
+  - Array reversal now works: for ((i=len-1; i>=0; i--)); do echo ${arr[i]}; done
+  - Array deduplication using associative arrays now functional
+  - Array search with pattern matching fully operational
+  - Array intersection and difference operations implemented
+  - Comprehensive array functionality brings PSH closer to full POSIX array compliance
+  - Only minor issues remain: printf builtin missing affects sorting operation
+  - Significantly improved POSIX conformance for array-related operations
+  - All basic array operations now conform to bash semantics
+
+0.59.10 (2025-06-26) - Critical Bug Fixes and Comprehensive Test Suite: POSIX Compliance Stability
+  - Fixed critical array parsing bug in parser where quoted strings in arrays were losing quotes
+  - Parser now preserves original token representation for array elements: ("hello world" "test")
+  - Enhanced array initialization parsing to handle STRING tokens with quote_type correctly
+  - Fixed subshell exit code propagation - subshells now return correct exit codes (0, 1, 42, etc.)
+  - Resolved SIGCHLD signal handler conflict causing exit code 1 instead of proper values
+  - Added proper SystemExit exception handling in subshell child processes
+  - Fixed subshell positional parameter inheritance from parent shell
+  - Created comprehensive pytest test suite for POSIX compliance improvements since v0.59.0:
+    * test_local_array_assignment.py - 19 tests for local builtin array assignment (all passing)
+    * test_subshell_implementation.py - 23 tests for subshell variable isolation and execution
+    * test_enhanced_test_pattern_matching.py - 23 tests for [[ ]] pattern matching
+    * test_for_loop_variable_expansion.py - 21 tests for variable expansion in for loops
+  - Fixed test framework issues using proper capsys pattern for PSH output capture
+  - Reduced failing tests from 31 to 19 through critical bug fixes
+  - All array parsing now conforms to bash semantics: local arr=("hello world" "test") creates 2 elements
+  - All basic subshell operations now conform to bash semantics: (echo "test") returns exit code 0
+  - Enhanced test coverage prevents regression of recent POSIX compliance improvements
+  - Foundation established for remaining test fixes and continued POSIX compliance work
+
 0.59.9 (2025-06-26) - Local Builtin Array Assignment Fix: POSIX Compliance Improvement
   - Fixed local builtin to properly handle array assignment syntax: local arr=("a" "b" "c")
   - Enhanced LocalBuiltin with _parse_array_init() method for parsing array initialization

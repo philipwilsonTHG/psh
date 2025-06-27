@@ -194,7 +194,6 @@ class TestPOSIXSpecialBuiltins:
         result = shell.run_command("test_func")
         assert result == 127  # Command not found
     
-    @pytest.mark.xfail(reason="shift not implemented in PSH")
     def test_shift_command(self, shell, capsys):
         """Test shift command."""
         shell.run_command("set -- one two three four")
@@ -375,7 +374,6 @@ class TestPOSIXRegularBuiltins:
         result = shell.run_command("wait")
         assert result == 0
     
-    @pytest.mark.xfail(reason="command builtin not implemented in PSH")
     def test_command_builtin(self, shell, capsys):
         """Test command builtin."""
         # command -v should show command location/type
@@ -424,9 +422,6 @@ class TestPOSIXCompliance:
         output = captured.out
         # Should use built-in set, not function
         assert "function set" not in output
-    
-    @pytest.mark.xfail(reason="Command substitution field splitting")
-
     
     def test_field_splitting(self, shell, capsys):
         """Test IFS field splitting compliance."""

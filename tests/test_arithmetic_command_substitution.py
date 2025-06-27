@@ -9,7 +9,6 @@ class TestArithmeticCommandSubstitution:
     @pytest.fixture
     def shell(self):
         return Shell()
-    @pytest.mark.visitor_xfail(reason="Visitor executor does not support command substitution in arithmetic expansion")
     def test_simple_command_sub_in_arithmetic(self, shell, capsys):
         """Test basic command substitution in arithmetic."""
         # Disable debug for cleaner test
@@ -24,7 +23,6 @@ class TestArithmeticCommandSubstitution:
         captured = capsys.readouterr()
         assert captured.out.strip() == "84"
     
-    @pytest.mark.visitor_xfail(reason="Visitor executor does not support command substitution in arithmetic expansion")
     def test_multiple_command_subs_in_arithmetic(self, shell, capsys):
         """Test multiple command substitutions in one expression."""
         # Reset stderr to avoid parse error interfering with test
@@ -36,7 +34,6 @@ class TestArithmeticCommandSubstitution:
         finally:
             sys.stderr = old_stderr
     
-    @pytest.mark.visitor_xfail(reason="Visitor executor does not support command substitution in arithmetic expansion")
     def test_nested_command_subs_in_arithmetic(self, shell, capsys):
         """Test nested command substitutions."""
         shell.run_command('result=$(($(echo $(echo 5)) * 3))')
@@ -44,7 +41,6 @@ class TestArithmeticCommandSubstitution:
         captured = capsys.readouterr()
         assert captured.out.strip() == "15"
     
-    @pytest.mark.visitor_xfail(reason="Visitor executor does not support command substitution in arithmetic expansion")
     def test_command_sub_with_arithmetic_inside(self, shell, capsys):
         """Test command substitution containing arithmetic."""
         shell.run_command('result=$(($(echo $((2+3))) * 4))')
@@ -52,7 +48,6 @@ class TestArithmeticCommandSubstitution:
         captured = capsys.readouterr()
         assert captured.out.strip() == "20"  # (2+3) * 4 = 5 * 4
     
-    @pytest.mark.visitor_xfail(reason="Visitor executor does not support command substitution in arithmetic expansion")
     def test_non_numeric_command_output(self, shell, capsys):
         """Test non-numeric output treated as 0."""
         shell.run_command('result=$(($(echo "hello") + 5))')
@@ -68,7 +63,6 @@ class TestArithmeticCommandSubstitution:
         captured = capsys.readouterr()
         assert captured.out.strip() == "10"  # Empty output treated as 0
     
-    @pytest.mark.visitor_xfail(reason="Visitor executor does not support command substitution in arithmetic expansion")
     def test_command_sub_with_whitespace(self, shell, capsys):
         """Test command output with whitespace is trimmed."""
         shell.run_command('spaced() { echo "  42  "; }')
@@ -77,7 +71,6 @@ class TestArithmeticCommandSubstitution:
         captured = capsys.readouterr()
         assert captured.out.strip() == "21"
     
-    @pytest.mark.visitor_xfail(reason="Visitor executor does not support command substitution in arithmetic expansion")
     def test_complex_expression_with_functions(self, shell, capsys):
         """Test complex arithmetic with function calls."""
         shell.run_command('''
@@ -91,7 +84,6 @@ class TestArithmeticCommandSubstitution:
         captured = capsys.readouterr()
         assert captured.out.strip() == "44"  # (7 * 2) + 30 = 14 + 30
     
-    @pytest.mark.visitor_xfail(reason="Visitor executor does not support command substitution in arithmetic expansion")
     def test_recursive_function_in_arithmetic(self, shell, capsys):
         """Test recursive function called within arithmetic."""
         shell.run_command('''
@@ -111,7 +103,6 @@ class TestArithmeticCommandSubstitution:
         captured = capsys.readouterr()
         assert captured.out.strip() == "12"  # 120 / 10
     
-    @pytest.mark.visitor_xfail(reason="Visitor executor does not support command substitution in arithmetic expansion")
     def test_command_sub_with_error(self, shell, capsys):
         """Test command substitution that fails."""
         shell.run_command('result=$(($(false; echo $?) + 10))')

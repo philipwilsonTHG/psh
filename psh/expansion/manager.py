@@ -86,6 +86,14 @@ class ExpansionManager:
                             print(f"[EXPANSION]     Expanding \"$@\" to: {self.state.positional_params}", file=self.state.stderr)
                         args.extend(self.state.positional_params)
                         continue
+                    # Special handling for "${arr[@]}" - array expansions in double quotes
+                    elif self.variable_expander.is_array_expansion(arg):
+                        # Array expansion in double quotes should produce multiple arguments
+                        expanded_list = self.variable_expander.expand_array_to_list(arg)
+                        if self.state.options.get('debug-expansion-detail'):
+                            print(f"[EXPANSION]     Array expansion in quotes: '{arg}' -> {expanded_list}", file=self.state.stderr)
+                        args.extend(expanded_list)
+                        continue
                     else:
                         # Expand variables within the string
                         original = arg

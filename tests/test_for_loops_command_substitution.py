@@ -3,7 +3,6 @@
 import pytest
 from psh.shell import Shell
 
-@pytest.mark.visitor_xfail(reason="Output capture doesn't work with forked processes")
 def test_command_substitution_in_for_loop(capsys):
     """Test basic command substitution in for loop."""
     shell = Shell()
@@ -11,7 +10,6 @@ def test_command_substitution_in_for_loop(capsys):
     captured = capsys.readouterr()
     assert captured.out == "num:1\nnum:2\nnum:3\n"
 
-@pytest.mark.visitor_xfail(reason="Output capture doesn't work with forked processes")
 def test_backtick_substitution_in_for_loop(capsys):
     """Test backtick command substitution in for loop."""
     shell = Shell()
@@ -19,7 +17,6 @@ def test_backtick_substitution_in_for_loop(capsys):
     captured = capsys.readouterr()
     assert captured.out == "char:a\nchar:b\nchar:c\n"
 
-@pytest.mark.visitor_xfail(reason="Output capture doesn't work with forked processes")
 def test_mixed_for_loop_items(capsys):
     """Test for loop with mixed literal and command substitution."""
     shell = Shell()
@@ -27,7 +24,6 @@ def test_mixed_for_loop_items(capsys):
     captured = capsys.readouterr()
     assert captured.out == "start\nmid1\nmid2\nend\n"
 
-@pytest.mark.visitor_xfail(reason="Output capture doesn't work with forked processes")
 def test_command_substitution_with_variables(capsys):
     """Test command substitution that uses variables."""
     shell = Shell()
@@ -44,7 +40,6 @@ def test_empty_command_substitution():
     exit_code = shell.run_command('for i in $(echo -n); do echo "should not print"; done')
     assert exit_code == 0
 
-@pytest.mark.visitor_xfail(reason="Output capture doesn't work with forked processes")
 def test_nested_command_substitution_in_for(capsys):
     """Test nested structures with command substitution in for loop."""
     shell = Shell()
@@ -61,7 +56,6 @@ def test_nested_command_substitution_in_for(capsys):
     captured = capsys.readouterr()
     assert captured.out == "first\nsecond\n"
 
-@pytest.mark.visitor_xfail(reason="Output capture doesn't work with forked processes")
 def test_command_substitution_with_glob_patterns(capsys):
     """Test command substitution that outputs glob patterns."""
     shell = Shell()
@@ -85,7 +79,6 @@ def test_command_substitution_with_glob_patterns(capsys):
         finally:
             os.chdir(old_cwd)
 
-@pytest.mark.visitor_xfail(reason="Output capture doesn't work with forked processes")
 def test_multiline_command_substitution_in_for(capsys):
     """Test command substitution that outputs multiple lines."""
     shell = Shell()

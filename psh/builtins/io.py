@@ -210,6 +210,153 @@ class EchoBuiltin(Builtin):
 
 
 @builtin
+class PrintfBuiltin(Builtin):
+    """Format and print data."""
+    
+    @property
+    def name(self) -> str:
+        return "printf"
+    
+    @property
+    def synopsis(self) -> str:
+        return "printf format [arguments ...]"
+    
+    @property
+    def description(self) -> str:
+        return "Format and print data according to the format string"
+    
+    def execute(self, args: List[str], shell: 'Shell') -> int:
+        """Format and print data according to the format string."""
+        if len(args) < 2:
+            self.error("usage: printf format [arguments ...]", shell)
+            return 2
+        
+        format_str = args[1]
+        arguments = args[2:]
+        
+        
+        try:
+            # Handle the most common case needed for array sorting: %s\n
+            # Note: format_str might be '%s\\n' due to shell escaping
+            if format_str == '%s\n' or format_str == '%s\\n':
+                # Simple case: print each argument on a new line
+                for arg in arguments:
+                    self._write_output(arg + '\n', shell)
+            else:
+                # For other format strings, we need to cycle through arguments
+                # if format specifiers exceed available arguments
+                output = self._process_format_string(format_str, arguments)
+                self._write_output(output, shell)
+            
+            return 0
+        except Exception as e:
+            self.error(f"printf: {str(e)}", shell)
+            return 1
+    
+    def _process_format_string(self, format_str: str, arguments: list) -> str:
+        """Process a format string with arguments."""
+        result = []
+        arg_index = 0
+        i = 0
+        
+        while i < len(format_str):
+            if format_str[i] == '%' and i + 1 < len(format_str):
+                if format_str[i + 1] == '%':
+                    # Literal %
+                    result.append('%')
+                    i += 2
+                elif format_str[i + 1] == 's':
+                    # String format
+                    if arg_index < len(arguments):
+                        result.append(arguments[arg_index])
+                        arg_index += 1
+                    else:
+                        result.append('')  # No more arguments
+                    i += 2
+                elif format_str[i + 1] == 'd':
+                    # Integer format
+                    if arg_index < len(arguments):
+                        try:
+                            value = int(arguments[arg_index])
+                            result.append(str(value))
+                        except ValueError:
+                            result.append('0')  # Default for invalid numbers
+                        arg_index += 1
+                    else:
+                        result.append('0')  # No more arguments
+                    i += 2
+                elif format_str[i + 1] == 'c':
+                    # Character format
+                    if arg_index < len(arguments):
+                        arg = arguments[arg_index]
+                        if arg:
+                            result.append(arg[0])  # First character
+                        else:
+                            result.append('')
+                        arg_index += 1
+                    else:
+                        result.append('')  # No more arguments
+                    i += 2
+                else:
+                    # Unknown format specifier, treat as literal
+                    result.append(format_str[i])
+                    i += 1
+            elif format_str[i] == '\\' and i + 1 < len(format_str):
+                # Handle escape sequences
+                next_char = format_str[i + 1]
+                if next_char == 'n':
+                    result.append('\n')
+                elif next_char == 't':
+                    result.append('\t')
+                elif next_char == 'r':
+                    result.append('\r')
+                elif next_char == '\\':
+                    result.append('\\')
+                else:
+                    result.append(next_char)
+                i += 2
+            else:
+                result.append(format_str[i])
+                i += 1
+        
+        return ''.join(result)
+    
+    def _write_output(self, text: str, shell: 'Shell'):
+        """Write output to appropriate file descriptor."""
+        # Check if we're in a child process (forked for pipeline/background)
+        if hasattr(shell.state, '_in_forked_child') and shell.state._in_forked_child:
+            # In child process, write directly to fd 1
+            output_bytes = text.encode('utf-8', errors='replace')
+            os.write(1, output_bytes)
+        else:
+            # In parent process, use shell.stdout to respect redirections
+            output = shell.stdout if hasattr(shell, 'stdout') else sys.stdout
+            output.write(text)
+            output.flush()
+    
+    @property
+    def help(self) -> str:
+        return """printf: printf format [arguments ...]
+    
+    Format and print data according to the format string.
+    
+    Format specifiers:
+        %s    String
+        %d    Integer
+        %c    Character
+        %%    Literal %
+    
+    Escape sequences:
+        \\n    Newline
+        \\t    Tab
+        \\r    Carriage return
+        \\\\    Backslash
+    
+    Exit Status:
+    Returns 0 on success, 1 on format error, 2 on usage error."""
+
+
+@builtin
 class PwdBuiltin(Builtin):
     """Print working directory."""
     
