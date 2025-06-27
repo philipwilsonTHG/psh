@@ -60,15 +60,16 @@ class RedirectionParser:
     
     def _parse_here_string(self, token: Token) -> Redirect:
         """Parse here string redirect."""
-        if not self.parser.match(TokenType.WORD, TokenType.STRING, TokenType.VARIABLE):
+        if not self.parser.match_any(TokenGroups.WORD_LIKE):
             raise self.parser._error("Expected string after here string operator")
         
-        content_token = self.parser.advance()
+        # Use composite argument parsing to handle variables and quotes properly
+        content_value, content_type, quote_type = self.parser.commands.parse_composite_argument()
         
         return Redirect(
             type=token.value,
-            target=content_token.value,
-            quote_type=content_token.quote_type if content_token.type == TokenType.STRING else None
+            target=content_value,
+            quote_type=quote_type
         )
     
     def _parse_dup_redirect(self, token: Token) -> Redirect:
@@ -127,9 +128,10 @@ class RedirectionParser:
         if not self.parser.match_any(TokenGroups.WORD_LIKE):
             raise self.parser._error("Expected file name")
         
-        target_token = self.parser.advance()
+        # Use composite argument parsing to handle quoted composites like test'file'.txt
+        target_value, _, _ = self.parser.commands.parse_composite_argument()
         
         return Redirect(
             type=token.value,
-            target=target_token.value
+            target=target_value
         )

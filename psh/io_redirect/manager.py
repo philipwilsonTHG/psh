@@ -311,8 +311,15 @@ class IOManager:
             elif redirect.type == '<<<':
                 # Create a pipe for here string
                 r, w = os.pipe()
+                # For here string, expand variables unless single quoted
+                if redirect.quote_type == "'":
+                    # Single quotes - no expansion
+                    expanded_content = redirect.target
+                else:
+                    # Double quotes or no quotes - expand variables
+                    expanded_content = self.shell.expansion_manager.expand_string_variables(redirect.target)
                 # Write here string content with newline
-                content = redirect.target + '\n'
+                content = expanded_content + '\n'
                 os.write(w, content.encode())
                 os.close(w)
                 # Redirect stdin to read end

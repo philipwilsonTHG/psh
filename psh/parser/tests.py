@@ -4,6 +4,7 @@ Test expression parsing for PSH shell.
 This module handles parsing of enhanced test expressions ([[ ... ]]).
 """
 
+from typing import Optional
 from ..token_types import TokenType
 from ..ast_nodes import EnhancedTestStatement, TestExpression, BinaryTestExpression, UnaryTestExpression, CompoundTestExpression, NegatedTestExpression
 from .helpers import TokenGroups
@@ -97,11 +98,11 @@ class TestParser:
         if self.parser.match(TokenType.WORD) and self._is_unary_test_operator(self.parser.peek().value):
             operator = self.parser.advance().value
             self.parser.skip_newlines()
-            operand = self._parse_test_operand()
+            operand, _ = self._parse_test_operand()  # Ignore quote type for unary
             return UnaryTestExpression(operator, operand)
         
         # Binary expression or single value
-        left = self._parse_test_operand()
+        left, left_quote_type = self._parse_test_operand()
         self.parser.skip_newlines()
         
         # Check for binary operators
@@ -115,25 +116,42 @@ class TestParser:
                 if operator == '=~':
                     self.parser.context.push_context('regex_rhs')
                 
-                right = self._parse_test_operand()
+                right, right_quote_type = self._parse_test_operand()
                 
                 if operator == '=~':
                     self.parser.context.pop_context()
                 
-                return BinaryTestExpression(left, operator, right)
+                return BinaryTestExpression(
+                    left=left, 
+                    operator=operator, 
+                    right=right,
+                    left_quote_type=left_quote_type,
+                    right_quote_type=right_quote_type
+                )
         
         # Single value test
         return UnaryTestExpression('-n', left)
     
-    def _parse_test_operand(self) -> str:
-        """Parse a test operand, handling concatenated tokens for patterns."""
+    def _parse_test_operand(self) -> tuple[str, Optional[str]]:
+        """Parse a test operand, handling concatenated tokens for patterns.
+        
+        Returns:
+            tuple: (operand_string, quote_type) where quote_type is None, '"', or "'"
+        """
         if not self.parser.match_any(TokenGroups.WORD_LIKE):
             raise self.parser._error("Expected test operand")
         
         result_parts = []
+        has_quoted_part = False
+        quote_type = None
         
         # Get first token
         token = self.parser.advance()
+        
+        # Track if this token was quoted
+        if token.type == TokenType.STRING and hasattr(token, 'quote_type') and token.quote_type:
+            has_quoted_part = True
+            quote_type = token.quote_type
         
         # Add token value, preserving variable syntax
         if token.type == TokenType.VARIABLE:
@@ -160,12 +178,19 @@ class TestParser:
             
             # Consume and add the token
             token = self.parser.advance()
+            
+            # Track if this token was quoted
+            if token.type == TokenType.STRING and hasattr(token, 'quote_type') and token.quote_type:
+                has_quoted_part = True
+                if quote_type is None:
+                    quote_type = token.quote_type
+            
             if token.type == TokenType.VARIABLE:
                 result_parts.append(f"${token.value}")
             else:
                 result_parts.append(token.value)
         
-        return ''.join(result_parts)
+        return ''.join(result_parts), quote_type if has_quoted_part else None
     
     def _is_unary_test_operator(self, value: str) -> bool:
         """Check if a word is a unary test operator."""
