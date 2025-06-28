@@ -4,6 +4,9 @@ from typing import Dict, Optional, List, Any, Union
 from .variables import Variable, VarAttributes, ReadonlyVariableError, IndexedArray, AssociativeArray
 from .exceptions import UnboundVariableError
 import re
+import os
+import time
+import random
 
 
 class VariableScope:
@@ -26,6 +29,10 @@ class EnhancedScopeManager:
         self.scope_stack: List[VariableScope] = [self.global_scope]
         self._debug = False
         self._shell = None  # Reference to shell for arithmetic evaluation
+        
+        # Special variable state
+        self._shell_start_time = time.time()
+        self._current_line_number = 1
         
     def set_shell(self, shell):
         """Set reference to shell instance for arithmetic evaluation."""
@@ -73,10 +80,19 @@ class EnhancedScopeManager:
     
     def get_variable_object(self, name: str) -> Optional[Variable]:
         """Get the full Variable object through scope chain."""
+        # Check for special variables first
+        special_var = self._get_special_variable(name)
+        if special_var is not None:
+            return special_var
+            
         # Search from innermost to outermost scope
         for scope in reversed(self.scope_stack):
             if name in scope.variables:
                 var = scope.variables[name]
+                # Skip unset variables (tombstones)
+                if var.is_unset:
+                    self._debug_print(f"Variable lookup: {name} found unset tombstone in scope '{scope.name}', skipping")
+                    return None
                 self._debug_print(f"Variable lookup: {name} found in scope '{scope.name}' = {var.value}")
                 return var
         
@@ -118,13 +134,16 @@ class EnhancedScopeManager:
             scope_name = target_scope.name
         else:
             # In a function, not explicitly local
-            # Check if variable exists in current scope (was declared local)
-            if name in self.current_scope.variables:
-                # Update existing local variable
-                target_scope = self.current_scope
-                scope_name = target_scope.name
-            else:
-                # Set in global scope (bash behavior for non-local assignments)
+            # Search for existing variable in scope chain (bash behavior)
+            target_scope = None
+            for scope in reversed(self.scope_stack):
+                if name in scope.variables:
+                    target_scope = scope
+                    scope_name = scope.name
+                    break
+            
+            if target_scope is None:
+                # Variable doesn't exist anywhere, create in global scope
                 target_scope = self.global_scope
                 scope_name = "global"
         
@@ -180,10 +199,34 @@ class EnhancedScopeManager:
                 raise ReadonlyVariableError(name)
             del self.current_scope.variables[name]
             self._debug_print(f"Unsetting variable in scope '{self.current_scope.name}': {name}")
+            
+            # If we're in a function scope, create an unset tombstone
+            # to prevent fallback to parent scopes
+            if len(self.scope_stack) > 1:
+                unset_var = Variable(name=name, value="", attributes=VarAttributes.UNSET)
+                self.current_scope.variables[name] = unset_var
+                self._debug_print(f"Creating unset tombstone for {name} in scope '{self.current_scope.name}'")
             return
         
-        # If not in current scope and we're in a function, check global
-        if len(self.scope_stack) > 1 and name in self.global_scope.variables:
+        # If not in current scope and we're in a function, check parent scopes
+        if len(self.scope_stack) > 1:
+            # Search for the variable in parent scopes
+            for scope in reversed(self.scope_stack[:-1]):  # Skip current scope
+                if name in scope.variables:
+                    var = scope.variables[name]
+                    if var.is_readonly:
+                        raise ReadonlyVariableError(name)
+                    del scope.variables[name]
+                    self._debug_print(f"Unsetting variable in parent scope '{scope.name}': {name}")
+                    
+                    # Create unset tombstone in current scope
+                    unset_var = Variable(name=name, value="", attributes=VarAttributes.UNSET)
+                    self.current_scope.variables[name] = unset_var
+                    self._debug_print(f"Creating unset tombstone for {name} in current scope")
+                    return
+        
+        # Check global scope as fallback
+        if name in self.global_scope.variables:
             var = self.global_scope.variables[name]
             if var.is_readonly:
                 raise ReadonlyVariableError(name)
@@ -265,6 +308,33 @@ class EnhancedScopeManager:
     def current_scope(self) -> VariableScope:
         """Get the current (innermost) scope."""
         return self.scope_stack[-1]
+    
+    def _get_special_variable(self, name: str) -> Optional[Variable]:
+        """Handle special shell variables that are computed dynamically."""
+        if name == 'LINENO':
+            # Return current line number (simplified implementation)
+            return Variable(name='LINENO', value=str(self._current_line_number))
+        elif name == 'SECONDS':
+            # Return seconds since shell start
+            elapsed = int(time.time() - self._shell_start_time)
+            return Variable(name='SECONDS', value=str(elapsed))
+        elif name == 'RANDOM':
+            # Return random number between 0 and 32767 (bash compatible)
+            return Variable(name='RANDOM', value=str(random.randint(0, 32767)))
+        elif name == 'FUNCNAME':
+            # Return current function name if in function
+            if self._shell and hasattr(self._shell, 'state') and self._shell.state.function_stack:
+                func_name = self._shell.state.function_stack[-1]
+                return Variable(name='FUNCNAME', value=func_name)
+            else:
+                # Not in a function, return empty string (bash behavior)
+                return Variable(name='FUNCNAME', value='')
+        
+        return None
+    
+    def set_current_line_number(self, line_number: int):
+        """Update the current line number for LINENO variable."""
+        self._current_line_number = line_number
     
     def is_in_function(self) -> bool:
         """Check if we're currently in a function scope."""

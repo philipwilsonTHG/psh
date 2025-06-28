@@ -2,10 +2,27 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.62.0"
+__version__ = "0.63.0"
 
 # Version history
 VERSION_HISTORY = """
+0.63.0 (2025-06-28) - POSIX Compliance Phase 4: Array System and Variable Attribute Enhancements
+  - Major array system improvements for POSIX compliance:
+    - Fixed array indices expansion ${!array[@]} in for loops with proper quote handling
+    - Support both indexed arrays (returns "0" "1" "2"...) and associative arrays (returns keys)
+    - Enabled bash-compatible array iteration patterns: for i in "${!array[@]}"
+    - Resolved critical POSIX compliance gap preventing array-dependent scripts
+  - Comprehensive variable attribute system overhaul:
+    - Enhanced local builtin with full attribute support (-a, -A, -i, -l, -r, -u, -x)
+    - Fixed case conversion attributes (-l, -u) persistence across all assignments
+    - Implemented proper integer arithmetic evaluation for -i attribute variables
+    - Resolved function-scoped attribute handling gaps affecting conformance tests
+  - Parameter expansion improvements:
+    - Fixed IFS handling in $* expansion to join with first character of IFS
+    - Proper separator usage: IFS="," makes $* join with commas instead of spaces
+  - Impact: Maintains 21 passed conformance tests while fixing critical array and variable functionality
+  - Unblocks array-dependent shell scripts and improves overall bash compatibility
+
 0.62.0 (2025-06-27) - POSIX Compliance Phase 1 & 2: Foundation Fixes and Core Improvements
   - Achieved 3.7 percentage point POSIX compliance improvement (29.6% → 33.3%)
   - Systematic data-driven approach improved 2 additional tests passing (16→18, 38→36 failing)

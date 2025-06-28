@@ -23,6 +23,7 @@ class VarAttributes(Flag):
     ASSOC_ARRAY = auto() # -A: Associative array
     NAMEREF = auto()     # -n: Name reference (indirect)
     TRACE = auto()       # -t: Function tracing enabled
+    UNSET = auto()       # Variable explicitly unset in this scope
 
 
 @dataclass
@@ -77,6 +78,11 @@ class Variable:
     def is_uppercase(self) -> bool:
         """Check if variable converts to uppercase."""
         return bool(self.attributes & VarAttributes.UPPERCASE)
+    
+    @property
+    def is_unset(self) -> bool:
+        """Check if variable is explicitly unset in current scope."""
+        return bool(self.attributes & VarAttributes.UNSET)
     
     @property
     def is_nameref(self) -> bool:

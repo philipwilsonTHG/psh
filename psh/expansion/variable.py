@@ -554,8 +554,10 @@ class VariableExpander:
             # The quotes are only added when $@ is unquoted
             return ' '.join(self.state.positional_params)
         elif var_name == '*':
-            # Expand to single word
-            return ' '.join(self.state.positional_params)
+            # Expand to single word joined with first character of IFS
+            ifs = self.state.get_variable('IFS', ' \t\n')
+            separator = ifs[0] if ifs else ' '
+            return separator.join(self.state.positional_params)
         elif var_name.isdigit():
             # Positional parameter
             index = int(var_name) - 1
