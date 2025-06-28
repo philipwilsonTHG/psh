@@ -601,8 +601,14 @@ class VariableExpander:
         
         return expanded
 
-    def expand_string_variables(self, text: str) -> str:
-        """Expand variables and arithmetic in a string (for here strings and quoted strings)"""
+    def expand_string_variables(self, text: str, process_escapes: bool = True) -> str:
+        """Expand variables and arithmetic in a string (for here strings and quoted strings)
+        
+        Args:
+            text: The text to expand
+            process_escapes: Whether to process escape sequences like \\n, \\t (default True)
+                           Set to False for array contexts where escapes should be literal
+        """
         
         result = []
         i = 0
@@ -701,8 +707,8 @@ class VariableExpander:
             elif text[i] == '\\' and i + 1 < len(text):
                 # Handle escape sequences
                 next_char = text[i + 1]
-                if next_char in 'abfnrtv':
-                    # Standard escape sequences
+                if process_escapes and next_char in 'abfnrtv':
+                    # Standard escape sequences (only if processing escapes)
                     escape_map = {
                         'a': '\a', 'b': '\b', 'f': '\f',
                         'n': '\n', 'r': '\r', 't': '\t', 'v': '\v'

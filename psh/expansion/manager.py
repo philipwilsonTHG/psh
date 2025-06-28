@@ -216,12 +216,16 @@ class ExpansionManager:
         
         return args
     
-    def expand_string_variables(self, text: str) -> str:
+    def expand_string_variables(self, text: str, process_escapes: bool = True) -> str:
         """
         Expand variables and arithmetic in a string.
         Used for here strings and double-quoted strings.
+        
+        Args:
+            text: The text to expand
+            process_escapes: Whether to process escape sequences (default True)
         """
-        return self.variable_expander.expand_string_variables(text)
+        return self.variable_expander.expand_string_variables(text, process_escapes)
     
     def expand_variable(self, var_expr: str) -> str:
         """Expand a variable expression."""

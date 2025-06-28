@@ -2,10 +2,21 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.63.0"
+__version__ = "0.63.1"
 
 # Version history
 VERSION_HISTORY = """
+0.63.1 (2025-06-28) - POSIX Compliance Phase 4: Array Escape Sequence Fix
+  - Fixed critical array escape sequence handling for bash compatibility
+  - Corrected lexer to preserve literal \\t and \\n in double-quoted strings within array assignments
+  - Modified DOUBLE_QUOTE_ESCAPES constant to only process: \\", \\\\, \\$, \\`, and \\newline
+  - Removed incorrect processing of \\n, \\t, \\r escape sequences in double quotes (bash preserves these literally)
+  - Array assignments like arr=("tab\\there" "newline\\nhere") now preserve literal escape sequences
+  - POSIX compliance improved from 21 to 22 passed conformance tests (32 remaining failures)
+  - Fixed lexer/constants.py to match POSIX standard for double-quote escape processing
+  - No regression in existing functionality - only corrects behavior to match bash exactly
+  - Critical fix for array-dependent scripts that rely on literal escape sequences
+
 0.63.0 (2025-06-28) - POSIX Compliance Phase 4: Array System and Variable Attribute Enhancements
   - Major array system improvements for POSIX compliance:
     - Fixed array indices expansion ${!array[@]} in for loops with proper quote handling

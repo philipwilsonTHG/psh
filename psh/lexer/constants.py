@@ -10,13 +10,14 @@ SPECIAL_VARIABLES = set('?$!#@*-') | set(string.digits)
 VARIABLE_NAME_PATTERN = None  # Will be imported from re module when needed
 
 # Escape sequences in different contexts
+# In double quotes, bash only processes: \", \\, \$, \`, and \newline
+# Other sequences like \n, \t, \r are preserved literally
 DOUBLE_QUOTE_ESCAPES = {
     '\"': '\"',
     '\\': '\\',
     '`': '`',
-    'n': '\n',
-    't': '\t',
-    'r': '\r',
+    # Note: \n, \t, \r are NOT processed in double quotes in bash
+    # They are preserved as literal \n, \t, \r
 }
 
 # Terminal characters for word boundaries

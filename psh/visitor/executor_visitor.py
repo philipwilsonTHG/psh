@@ -1521,7 +1521,7 @@ class ExecutorVisitor(ASTVisitor[int]):
             index_str = node.index
         
         # Expand any remaining variables in the index (e.g., ${var})
-        expanded_index = self.expansion_manager.expand_string_variables(index_str)
+        expanded_index = self.expansion_manager.expand_string_variables(index_str, process_escapes=False)
         
         # Get the variable to check if it's an associative array
         from ..core.variables import IndexedArray, AssociativeArray, VarAttributes
@@ -1544,7 +1544,7 @@ class ExecutorVisitor(ASTVisitor[int]):
                 return 1
         
         # Expand value
-        expanded_value = self.expansion_manager.expand_string_variables(node.value)
+        expanded_value = self.expansion_manager.expand_string_variables(node.value, process_escapes=False)
         
         # Get or create array
         if var_obj and (isinstance(var_obj.value, IndexedArray) or isinstance(var_obj.value, AssociativeArray)):
@@ -1695,8 +1695,8 @@ class ExecutorVisitor(ASTVisitor[int]):
         Returns:
             Next available index after adding elements
         """
-        # Expand variables first  
-        expanded = self.expansion_manager.expand_string_variables(element)
+        # Expand variables first (don't process escape sequences in array context)
+        expanded = self.expansion_manager.expand_string_variables(element, process_escapes=False)
         
         if split_words:
             # Split on whitespace for WORD and command substitution elements
@@ -1742,8 +1742,8 @@ class ExecutorVisitor(ASTVisitor[int]):
             value = match.group(2)
             
             # Expand any variables in the index
-            expanded_index = self.expansion_manager.expand_string_variables(index_str)
-            expanded_value = self.expansion_manager.expand_string_variables(value)
+            expanded_index = self.expansion_manager.expand_string_variables(index_str, process_escapes=False)
+            expanded_value = self.expansion_manager.expand_string_variables(value, process_escapes=False)
             
             return expanded_index, expanded_value
         
