@@ -928,7 +928,7 @@ class ExecutorVisitor(ASTVisitor[int]):
                             if word:  # Skip empty words
                                 matches = glob.glob(word)
                                 if matches:
-                                    expanded_items.extend(matches)
+                                    expanded_items.extend(sorted(matches))
                                 else:
                                     expanded_items.append(word)
                 else:
@@ -941,7 +941,7 @@ class ExecutorVisitor(ASTVisitor[int]):
                         import glob
                         matches = glob.glob(item)
                         if matches:
-                            expanded_items.extend(matches)
+                            expanded_items.extend(sorted(matches))
                         else:
                             expanded_items.append(item)
         
@@ -969,22 +969,6 @@ class ExecutorVisitor(ASTVisitor[int]):
             
         return exit_status
     
-    def _convert_case_pattern_for_fnmatch(self, pattern: str) -> str:
-        """
-        Convert a shell case pattern with escaped brackets to an fnmatch-compatible pattern.
-        
-        Shell patterns use \[ and \] to represent literal brackets.
-        fnmatch needs [[] and []] to represent literal brackets.
-        
-        Args:
-            pattern: Shell case pattern that may contain escaped brackets
-            
-        Returns:
-            Pattern suitable for use with fnmatch.fnmatch()
-        """
-        # Replace escaped brackets with fnmatch bracket classes
-        converted = pattern.replace('\\[', '[[]').replace('\\]', '[]]')
-        return converted
     
     def visit_CaseConditional(self, node: CaseConditional) -> int:
         """Execute case statement."""
@@ -1005,8 +989,8 @@ class ExecutorVisitor(ASTVisitor[int]):
                     if '$' in pattern_str:
                         expanded_pattern = self.expansion_manager.expand_string_variables(pattern_str)
                     
-                    # Convert escaped brackets for fnmatch compatibility
-                    fnmatch_pattern = self._convert_case_pattern_for_fnmatch(expanded_pattern)
+                    # Use pattern as-is for fnmatch
+                    fnmatch_pattern = expanded_pattern
                     
                     if fnmatch.fnmatch(expr, fnmatch_pattern):
                         # Execute the commands for this case
@@ -1328,7 +1312,7 @@ class ExecutorVisitor(ASTVisitor[int]):
                             if word:  # Skip empty words
                                 matches = glob.glob(word)
                                 if matches:
-                                    expanded_items.extend(matches)
+                                    expanded_items.extend(sorted(matches))
                                 else:
                                     expanded_items.append(word)
                 else:
@@ -1341,7 +1325,7 @@ class ExecutorVisitor(ASTVisitor[int]):
                         # Unquoted: try glob expansion
                         matches = glob.glob(item)
                         if matches:
-                            expanded_items.extend(matches)
+                            expanded_items.extend(sorted(matches))
                         else:
                             expanded_items.append(item)
         
@@ -1727,7 +1711,7 @@ class ExecutorVisitor(ASTVisitor[int]):
         for word in words:
             matches = glob.glob(word)
             if matches:
-                # Glob pattern matched files - add all matches
+                # Glob pattern matched files - add all matches (already sorted)
                 for match in sorted(matches):
                     array.set(next_index, match)
                     next_index += 1

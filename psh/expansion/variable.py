@@ -739,9 +739,22 @@ class VariableExpander:
             var_content = var_expr[1:-1]
             
             # Special expansions that don't produce multiple words
-            if var_content.startswith('#') or var_content.startswith('!'):
-                # ${#arr[@]} and ${!arr[@]} produce single words
+            if var_content.startswith('#'):
+                # ${#arr[@]} produces single word
                 return False
+            
+            # ${!arr[@]} produces multiple words (array indices)
+            # Handle escaped ! if present
+            check_content = var_content
+            if check_content.startswith('\\!'):
+                check_content = check_content[1:]  # Remove the backslash
+            
+            if check_content.startswith('!') and '[' in check_content and check_content.endswith(']'):
+                bracket_pos = check_content.find('[')
+                index_expr = check_content[bracket_pos+1:-1]
+                if index_expr == '@' or index_expr == '*':
+                    return True  # This is array indices expansion
+                return False  # Other ! expansions are single words
             
             # Check for array subscript with @ 
             if '[' in var_content and var_content.endswith(']'):
@@ -765,6 +778,37 @@ class VariableExpander:
         # Handle ${var} syntax
         if var_expr.startswith('{') and var_expr.endswith('}'):
             var_content = var_expr[1:-1]
+            
+            # Check for array indices expansion: ${!arr[@]}
+            # Handle escaped ! if present
+            check_content = var_content
+            if check_content.startswith('\\!'):
+                check_content = check_content[1:]  # Remove the backslash
+            
+            if check_content.startswith('!') and '[' in check_content and check_content.endswith(']'):
+                array_part = check_content[1:]  # Remove the !
+                bracket_pos = array_part.find('[')
+                array_name = array_part[:bracket_pos]
+                index_expr = array_part[bracket_pos+1:-1]  # Remove [ and ]
+                
+                if index_expr == '@' or index_expr == '*':
+                    # Get the array variable
+                    from ..core.variables import IndexedArray, AssociativeArray
+                    var = self.state.scope_manager.get_variable_object(array_name)
+                    
+                    if var and isinstance(var.value, IndexedArray):
+                        # Return the indices as list of strings
+                        indices = var.value.indices()
+                        return [str(i) for i in indices]
+                    elif var and isinstance(var.value, AssociativeArray):
+                        # Return the keys as list
+                        return var.value.keys()
+                    elif var and var.value:
+                        # Regular variable - has index 0
+                        return ['0']
+                    else:
+                        # Not an array or no value, return empty
+                        return []
             
             # Check for array subscript syntax: ${arr[index]}
             if '[' in var_content and var_content.endswith(']'):
