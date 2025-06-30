@@ -279,9 +279,19 @@ class DeclareBuiltin(Builtin):
             else:
                 # Just declaring with attributes, no assignment
                 if options['array']:
+                    # Check for array type conflict first
+                    existing = self._get_variable_with_attributes(shell, arg)
+                    if existing and existing.is_assoc_array:
+                        self.error(f"{arg}: cannot convert associative to indexed array", shell)
+                        return 1
                     # Create empty indexed array
                     self._set_variable_with_attributes(shell, arg, IndexedArray(), attributes)
                 elif options['assoc_array']:
+                    # Check for array type conflict first  
+                    existing = self._get_variable_with_attributes(shell, arg)
+                    if existing and existing.is_indexed_array:
+                        self.error(f"{arg}: cannot convert indexed to associative array", shell)
+                        return 1
                     # Create empty associative array
                     self._set_variable_with_attributes(shell, arg, AssociativeArray(), attributes)
                 else:

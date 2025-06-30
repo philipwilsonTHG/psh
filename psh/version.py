@@ -2,10 +2,19 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.64.0"
+__version__ = "0.64.1"
 
 # Version history
 VERSION_HISTORY = """
+0.64.1 (2025-06-30) - Array Type Conflict Detection and POSIX Compliance Improvements
+  - Fixed declare builtin to properly detect and prevent array type conversions (indexed ↔ associative) 
+  - Added error messages matching bash behavior: "cannot convert indexed to associative array"
+  - Improved POSIX compliance for associative array operations
+  - Enhanced declare -A and declare -a conflict detection to match bash semantics
+  - Fixed edge case where PSH silently converted array types instead of failing like bash
+  - Resolves associative array conformance test issues with config array initialization
+  - Maintains backward compatibility while enforcing proper array type constraints
+
 0.64.0 (2025-06-30) - POSIX Brace Command Groups Implementation and Compliance Improvements
   - Implemented complete POSIX-style brace command groups { ... } syntax support
   - Added BraceGroup AST node extending CompoundCommand for proper parsing integration
