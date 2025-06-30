@@ -141,18 +141,27 @@ class EnhancedScopeManager:
             scope_name = target_scope.name
         else:
             # In a function, not explicitly local
-            # Search for existing variable in scope chain (bash behavior)
-            target_scope = None
-            for scope in reversed(self.scope_stack):
-                if name in scope.variables:
-                    target_scope = scope
-                    scope_name = scope.name
-                    break
-            
-            if target_scope is None:
-                # Variable doesn't exist anywhere, create in global scope
-                target_scope = self.global_scope
-                scope_name = "global"
+            # Check if there's an unset tombstone in current scope first
+            if name in self.current_scope.variables and self.current_scope.variables[name].is_unset:
+                # Replace unset tombstone in current scope
+                target_scope = self.current_scope
+                scope_name = self.current_scope.name
+            else:
+                # Search for existing variable in scope chain (bash behavior)
+                target_scope = None
+                for scope in reversed(self.scope_stack):
+                    if name in scope.variables:
+                        var = scope.variables[name]
+                        # Skip unset tombstones when searching for existing variables
+                        if not var.is_unset:
+                            target_scope = scope
+                            scope_name = scope.name
+                            break
+                
+                if target_scope is None:
+                    # Variable doesn't exist anywhere, create in global scope
+                    target_scope = self.global_scope
+                    scope_name = "global"
         
         # Create or update variable
         if name in target_scope.variables:
@@ -162,7 +171,9 @@ class EnhancedScopeManager:
                 raise ReadonlyVariableError(name)
             
             # Merge attributes (some attributes like EXPORT are additive)
-            new_attributes = var.attributes | attributes
+            # But clear UNSET attribute when setting a value
+            base_attributes = var.attributes & ~VarAttributes.UNSET  # Remove UNSET flag
+            new_attributes = base_attributes | attributes
             var.value = transformed_value  # Use the already-transformed value
             var.attributes = new_attributes
             self._debug_print(f"Updating variable in scope '{scope_name}': {name} = {var.value}")
