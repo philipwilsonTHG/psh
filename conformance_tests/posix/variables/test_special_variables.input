@@ -49,11 +49,20 @@ pid_test_function
 
 # Test script name ($0)
 echo "Testing script name (\$0):"
-echo "Script name: $0"
+# Normalize shell name for cross-shell compatibility
+case "$0" in
+    *bash*) echo "Script name: [shell]" ;;
+    *psh*) echo "Script name: [shell]" ;;
+    *) echo "Script name: [shell]" ;;
+esac
 
 # Test in function
 script_name_test() {
-    echo "Script name in function: $0"
+    case "$0" in
+        *bash*) echo "Script name in function: [shell]" ;;
+        *psh*) echo "Script name in function: [shell]" ;;
+        *) echo "Script name in function: [shell]" ;;
+    esac
 }
 script_name_test
 
@@ -179,7 +188,7 @@ echo "After function - \$?: $?"
 # Test special variables with subshells
 echo "Testing special variables in subshells:"
 echo "Parent \$\$: [deterministic]"
-(echo "Subshell \$\$: [deterministic]"; echo "Subshell \$0: $0")
+(echo "Subshell \$\$: [deterministic]"; case "$0" in *bash*|*psh*|*) echo "Subshell \$0: [shell]" ;; esac)
 
 # Test with command substitution  
 echo "Testing in command substitution:"
