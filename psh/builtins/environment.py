@@ -54,10 +54,17 @@ class ExportBuiltin(Builtin):
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Export variables to environment."""
         if len(args) == 1:
-            # No arguments, print all exported variables
+            # No arguments, print all exported variables in declare -x format
             for key, value in sorted(shell.env.items()):
-                print(f'export {key}="{value}"', 
-                      file=shell.stdout if hasattr(shell, 'stdout') else sys.stdout)
+                output_line = f'declare -x {key}="{value}"\n'
+                # Check if we're in a child process (forked for pipeline/background)
+                if hasattr(shell.state, '_in_forked_child') and shell.state._in_forked_child:
+                    # In child process, write directly to fd 1
+                    os.write(1, output_line.encode('utf-8', errors='replace'))
+                else:
+                    # In parent process, use shell.stdout to respect redirections
+                    print(f'declare -x {key}="{value}"', 
+                          file=shell.stdout if hasattr(shell, 'stdout') else sys.stdout)
         else:
             for arg in args[1:]:
                 if '=' in arg:

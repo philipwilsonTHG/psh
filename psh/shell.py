@@ -64,9 +64,15 @@ class Shell:
             for name, var in parent_shell.state.scope_manager.global_scope.variables.items():
                 # Copy the entire Variable object to preserve attributes
                 self.state.scope_manager.global_scope.variables[name] = var.copy()
+            # Copy all scopes to inherit local variables and their attributes
+            for scope in parent_shell.state.scope_manager.scope_stack[1:]:  # Skip global, already copied
+                new_scope = scope.copy()
+                self.state.scope_manager.scope_stack.append(new_scope)
             self.function_manager = parent_shell.function_manager.copy()
             # Copy positional parameters for subshells
             self.state.positional_params = parent_shell.state.positional_params.copy()
+            # Sync all exported variables (including local exports) to environment
+            self.state.scope_manager.sync_exports_to_environment(self.env)
             # Note: We don't copy aliases or jobs - those are shell-specific
         
         # Now create managers that need references to the shell

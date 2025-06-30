@@ -989,8 +989,8 @@ class ExecutorVisitor(ASTVisitor[int]):
                     if '$' in pattern_str:
                         expanded_pattern = self.expansion_manager.expand_string_variables(pattern_str)
                     
-                    # Use pattern as-is for fnmatch
-                    fnmatch_pattern = expanded_pattern
+                    # Convert bash-style escape sequences for fnmatch
+                    fnmatch_pattern = self._convert_case_pattern_for_fnmatch(expanded_pattern)
                     
                     if fnmatch.fnmatch(expr, fnmatch_pattern):
                         # Execute the commands for this case
@@ -1011,6 +1011,34 @@ class ExecutorVisitor(ASTVisitor[int]):
             
             # No pattern matched
             return 0
+    
+    def _convert_case_pattern_for_fnmatch(self, pattern: str) -> str:
+        """Convert bash-style case pattern escapes to fnmatch format.
+        
+        In bash case patterns:
+        - \\[ means literal [, not character class
+        - \\] means literal ], not character class  
+        - \\* means literal *, not wildcard
+        - \\? means literal ?, not single char wildcard
+        """
+        result = []
+        i = 0
+        while i < len(pattern):
+            if pattern[i] == '\\' and i + 1 < len(pattern):
+                next_char = pattern[i + 1]
+                if next_char in '[]*?':
+                    # Escape these special characters for fnmatch
+                    result.append('[' + next_char + ']')
+                    i += 2
+                else:
+                    # Other backslash sequences, keep as-is
+                    result.append(pattern[i])
+                    i += 1
+            else:
+                result.append(pattern[i])
+                i += 1
+        
+        return ''.join(result)
     
     def visit_BreakStatement(self, node: BreakStatement) -> int:
         """Execute break statement."""

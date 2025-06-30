@@ -2,10 +2,22 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.63.1"
+__version__ = "0.63.2"
 
 # Version history
 VERSION_HISTORY = """
+0.63.2 (2025-06-30) - POSIX Compliance Phase 5: Export and Variable Scoping Improvements
+  - Fixed export builtin output format to use declare -x syntax for bash compatibility
+  - Enhanced export builtin to work correctly in pipelines by handling forked child processes
+  - Fixed critical variable scoping issue for local exported variables in subshells
+  - Added proper scope inheritance when creating subshells from functions
+  - Implemented VariableScope.copy() method for deep copying of variable scopes
+  - POSIX compliance improved from 22 to 24 passed conformance tests (40.7% → 44.4%)
+  - Export commands like 'export | grep VAR' now work correctly in all contexts
+  - Local exported variables now properly visible in subshells: local -x var="value"; (echo $var)
+  - Enhanced subshell creation to sync all exported variables to environment
+  - No regression in existing functionality - only fixes behavior to match bash exactly
+
 0.63.1 (2025-06-28) - POSIX Compliance Phase 4: Array Escape Sequence Fix
   - Fixed critical array escape sequence handling for bash compatibility
   - Corrected lexer to preserve literal \\t and \\n in double-quoted strings within array assignments

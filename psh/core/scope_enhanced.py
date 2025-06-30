@@ -19,6 +19,13 @@ class VariableScope:
         
     def __repr__(self):
         return f"VariableScope(name={self.name}, vars={list(self.variables.keys())})"
+    
+    def copy(self) -> 'VariableScope':
+        """Create a deep copy of this scope."""
+        new_scope = VariableScope(parent=None, name=self.name)
+        for name, var in self.variables.items():
+            new_scope.variables[name] = var.copy()
+        return new_scope
 
 
 class EnhancedScopeManager:
