@@ -2,10 +2,17 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.63.6"
+__version__ = "0.63.7"
 
 # Version history
 VERSION_HISTORY = """
+0.63.7 (2025-06-30) - POSIX Compliance Phase 10: Readonly Builtin and Path Handling  
+  - Implemented complete readonly builtin with full POSIX compliance (delegating to declare -r)
+  - Fixed path canonicalization: cd builtin now uses logical paths, preserving symlinks (/tmp vs /private/tmp)
+  - Made emacs mode context-dependent: interactive=on, non-interactive=off (matching bash behavior)
+  - All builtin category tests now pass (3/3), significant readonly functionality improvement
+  - Enhanced cross-platform compatibility with proper path handling
+
 0.63.6 (2025-06-30) - POSIX Compliance Phase 9: Control Structures, Emacs Mode, and Variable Attributes
   - Fixed control structures in pipelines by temporarily disabling _in_pipeline flag for commands inside control structures
   - Fixed emacs editing mode to be enabled by default, matching bash behavior  
