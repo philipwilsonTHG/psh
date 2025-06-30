@@ -44,6 +44,14 @@ class DeclareBuiltin(Builtin):
             return self._handle_functions(options, positional, shell)
         elif options['print']:
             return self._print_variables(options, positional, shell)
+        elif not positional and any([
+            options['readonly'], options['export'], options['integer'],
+            options['lowercase'], options['uppercase'], options['array'],
+            options['assoc_array'], options['trace']
+        ]):
+            # When attribute flags are specified without arguments, list matching variables
+            # This handles cases like "declare -r" (list readonly vars)
+            return self._print_variables(options, positional, shell)
         else:
             # Pass original args for mutually exclusive attribute handling
             return self._declare_variables(options, positional, shell, args[1:])
@@ -70,6 +78,7 @@ class DeclareBuiltin(Builtin):
             'remove_array': False,   # +a
             'remove_assoc_array': False,# +A
             'remove_trace': False,   # +t
+            'last_case_attr': None,  # Track last case attribute for "last wins" behavior
         }
         positional = []
         
@@ -94,6 +103,7 @@ class DeclareBuiltin(Builtin):
                         options['integer'] = True
                     elif flag == 'l':
                         options['lowercase'] = True
+                        options['last_case_attr'] = 'lowercase'
                     elif flag == 'p':
                         options['print'] = True
                     elif flag == 'r':
@@ -102,6 +112,7 @@ class DeclareBuiltin(Builtin):
                         options['trace'] = True
                     elif flag == 'u':
                         options['uppercase'] = True
+                        options['last_case_attr'] = 'uppercase'
                     elif flag == 'x':
                         options['export'] = True
                     else:
@@ -177,11 +188,14 @@ class DeclareBuiltin(Builtin):
             attributes |= VarAttributes.EXPORT
         if options['integer']:
             attributes |= VarAttributes.INTEGER
-        # Handle mutually exclusive -l and -u (bash ignores both when both are present)
+        # Handle mutually exclusive -l and -u (bash uses "last wins" behavior)
         if options['lowercase'] and options['uppercase']:
-            # When both -l and -u are specified, bash ignores both transformations
-            # (neither lowercase nor uppercase attribute is applied)
-            pass
+            # When both -l and -u are specified, apply the last one seen
+            if options['last_case_attr'] == 'lowercase':
+                attributes |= VarAttributes.LOWERCASE
+            elif options['last_case_attr'] == 'uppercase':
+                attributes |= VarAttributes.UPPERCASE
+            # If somehow last_case_attr is None, ignore both (fallback)
         elif options['lowercase']:
             attributes |= VarAttributes.LOWERCASE
         elif options['uppercase']:
@@ -454,8 +468,41 @@ class DeclareBuiltin(Builtin):
     
     def _matches_filter(self, var: Variable, options: dict) -> bool:
         """Check if variable matches filter criteria."""
-        # For now, show all variables
-        # Could add filtering by attribute type later
+        from ..core.variables import VarAttributes
+        
+        # If no specific attribute options are set, show all variables
+        has_attribute_filter = any([
+            options.get('readonly', False),
+            options.get('export', False),
+            options.get('integer', False),
+            options.get('lowercase', False),
+            options.get('uppercase', False),
+            options.get('array', False),
+            options.get('assoc_array', False),
+            options.get('trace', False),
+        ])
+        
+        if not has_attribute_filter:
+            return True
+        
+        # Check specific attributes
+        if options.get('readonly', False) and not (var.attributes & VarAttributes.READONLY):
+            return False
+        if options.get('export', False) and not (var.attributes & VarAttributes.EXPORT):
+            return False
+        if options.get('integer', False) and not (var.attributes & VarAttributes.INTEGER):
+            return False
+        if options.get('lowercase', False) and not (var.attributes & VarAttributes.LOWERCASE):
+            return False
+        if options.get('uppercase', False) and not (var.attributes & VarAttributes.UPPERCASE):
+            return False
+        if options.get('array', False) and not (var.attributes & VarAttributes.ARRAY):
+            return False
+        if options.get('assoc_array', False) and not (var.attributes & VarAttributes.ASSOC_ARRAY):
+            return False
+        if options.get('trace', False) and not (var.attributes & VarAttributes.TRACE):
+            return False
+        
         return True
     
     # Methods to interact with shell's enhanced variable storage

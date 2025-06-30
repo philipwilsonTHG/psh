@@ -11,7 +11,7 @@ from ..ast_nodes import (
     SimpleCommand, Pipeline, Command, Statement, AndOrList,
     WhileLoop, ForLoop, CStyleForLoop, IfConditional, CaseConditional, 
     SelectLoop, ArithmeticEvaluation, BreakStatement, ContinueStatement,
-    SubshellGroup, ExecutionContext, ArrayAssignment
+    SubshellGroup, BraceGroup, ExecutionContext, ArrayAssignment
 )
 from .helpers import TokenGroups, ParseError, ErrorContext
 
@@ -192,6 +192,8 @@ class CommandParser:
             return self.parse_continue_statement()
         elif self.parser.match(TokenType.LPAREN):
             return self.parse_subshell_group()
+        elif self.parser.match(TokenType.LBRACE):
+            return self.parse_brace_group()
         else:
             # Fall back to simple command
             return self.parse_command()
@@ -260,8 +262,7 @@ class CommandParser:
             TokenType.WORD: ('WORD', lambda t: t.value),
             TokenType.LBRACKET: ('WORD', lambda t: t.value),
             TokenType.RBRACKET: ('WORD', lambda t: t.value),
-            TokenType.LBRACE: ('WORD', lambda t: t.value),
-            TokenType.RBRACE: ('WORD', lambda t: t.value),
+            # Note: LBRACE and RBRACE are now handled as grouping operators, not words
         }
         
         arg_type, value_fn = type_map.get(token.type, ('WORD', lambda t: t.value))
@@ -336,6 +337,36 @@ class CommandParser:
             self.parser.advance()
         
         return SubshellGroup(
+            statements=statements,
+            redirects=redirects,
+            background=background
+        )
+
+    def parse_brace_group(self) -> BraceGroup:
+        """Parse brace group {...} that executes in current environment.
+        
+        POSIX syntax rules:
+        - Space required after {
+        - Semicolon or newline required before }
+        """
+        self.parser.expect(TokenType.LBRACE)
+        self.parser.skip_newlines()
+        
+        # Parse statements inside the brace group
+        statements = self.parser.statements.parse_command_list_until(TokenType.RBRACE)
+        
+        self.parser.skip_newlines()
+        self.parser.expect(TokenType.RBRACE)
+        
+        # Parse any redirections after the brace group
+        redirects = self.parser.redirections.parse_redirects()
+        
+        # Check for background operator
+        background = self.parser.match(TokenType.AMPERSAND)
+        if background:
+            self.parser.advance()
+        
+        return BraceGroup(
             statements=statements,
             redirects=redirects,
             background=background

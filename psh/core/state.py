@@ -29,6 +29,12 @@ class ShellState:
         for name, value in self.env.items():
             self.scope_manager.set_variable(name, value, attributes=VarAttributes.EXPORT, local=False)
         
+        # Ensure PWD is set to current working directory if not already in environment
+        if 'PWD' not in self.env:
+            current_dir = os.getcwd()
+            self.env['PWD'] = current_dir
+            self.scope_manager.set_variable('PWD', current_dir, attributes=VarAttributes.EXPORT, local=False)
+        
         # Positional parameters and script info
         self.positional_params = args if args else []
         self.script_name = script_name or "psh"

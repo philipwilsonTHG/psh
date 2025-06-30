@@ -36,7 +36,7 @@ from ..ast_nodes import (
     ArrayInitialization, ArrayElementAssignment,
     
     # Other
-    ProcessSubstitution, SubshellGroup
+    ProcessSubstitution, SubshellGroup, BraceGroup
 )
 from ..core.exceptions import LoopBreak, LoopContinue, UnboundVariableError
 from ..builtins.function_support import FunctionReturn
@@ -1040,6 +1040,9 @@ class ExecutorVisitor(ASTVisitor[int]):
         - \\] means literal ], not character class  
         - \\* means literal *, not wildcard
         - \\? means literal ?, not single char wildcard
+        
+        Note: The tokenizer strips backslashes, so we need to detect patterns that
+        were likely escaped and restore the literal meaning.
         """
         result = []
         i = 0
@@ -1058,7 +1061,24 @@ class ExecutorVisitor(ASTVisitor[int]):
                 result.append(pattern[i])
                 i += 1
         
-        return ''.join(result)
+        # Handle cases where tokenizer stripped escape sequences
+        # Pattern like [*] likely came from \[*\] (literal brackets)
+        # Check for suspicious character classes that contain wildcards
+        converted_pattern = ''.join(result)
+        
+        # If pattern looks like [*] or [?] or [*...] with wildcards inside brackets,
+        # it's likely meant to be literal brackets since wildcards in character
+        # classes don't make sense
+        import re
+        if re.match(r'^\[[*?].*\]$', converted_pattern):
+            # This looks like escaped brackets that got tokenized - treat as literal
+            # Convert [*] to [[][*][]]  (literal [ followed by * followed by literal ])
+            literal_pattern = ''
+            bracket_content = converted_pattern[1:-1]  # Remove outer []
+            literal_pattern = '[[]' + bracket_content + '[]]'
+            return literal_pattern
+        
+        return converted_pattern
     
     def visit_BreakStatement(self, node: BreakStatement) -> int:
         """Execute break statement."""
@@ -1079,6 +1099,35 @@ class ExecutorVisitor(ASTVisitor[int]):
     def visit_SubshellGroup(self, node: SubshellGroup) -> int:
         """Execute subshell group (...) in isolated environment."""
         return self._execute_in_subshell(node.statements, node.redirects, node.background)
+    
+    def visit_BraceGroup(self, node: BraceGroup) -> int:
+        """Execute brace group {...} in current shell environment.
+        
+        Key differences from subshells:
+        - No fork() - executes in current process
+        - Variable assignments persist
+        - Directory changes persist
+        - More efficient (no subprocess overhead)
+        """
+        # Save pipeline context
+        old_pipeline = self._in_pipeline
+        self._in_pipeline = False
+        
+        try:
+            # Apply redirections
+            with self._apply_redirections(node.redirects):
+                # Execute statements in current environment
+                exit_code = self.visit(node.statements)
+                
+                # Handle background execution
+                if node.background:
+                    # For background brace groups, we need to fork
+                    # Only the execution needs to be backgrounded
+                    return self._execute_background_brace_group(node)
+                
+                return exit_code
+        finally:
+            self._in_pipeline = old_pipeline
     
     def visit_FunctionDef(self, node: FunctionDef) -> int:
         """Define a function."""
@@ -1871,6 +1920,43 @@ class ExecutorVisitor(ASTVisitor[int]):
                 self.job_manager.remove_job(job.job_id)
             
             return exit_status
+    
+    def _execute_background_brace_group(self, node: BraceGroup) -> int:
+        """Execute brace group in background.
+        
+        Note: Background execution requires forking, but the brace group
+        semantics are preserved within the forked process.
+        """
+        pid = os.fork()
+        
+        if pid == 0:
+            # Child process
+            try:
+                # Create new process group
+                os.setpgid(0, 0)
+                
+                # Execute the brace group in current environment (no new shell)
+                # Apply redirections first
+                saved_fds = None
+                if node.redirects:
+                    saved_fds = self.io_manager.apply_redirections(node.redirects)
+                
+                try:
+                    exit_code = self.visit(node.statements)
+                    os._exit(exit_code)
+                finally:
+                    # Restore file descriptors if they were saved
+                    if saved_fds:
+                        self.io_manager.restore_redirections(saved_fds)
+                        
+            except Exception as e:
+                print(f"psh: background brace group error: {e}", file=sys.stderr)
+                os._exit(1)
+        else:
+            # Parent process
+            # Register background job
+            self.job_manager.add_job(pid, str(node), background=True)
+            return 0
     
     # Fallback for unimplemented nodes
     

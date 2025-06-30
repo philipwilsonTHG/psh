@@ -183,16 +183,31 @@ class SetBuiltin(Builtin):
             # Handle -o without argument (show options)
             elif arg == '-o' and i + 1 == len(args):
                 # Show current options
-                stdout = shell.stdout if hasattr(shell, 'stdout') else sys.stdout
-                # Don't sync edit mode to options - let options show their explicit state
-                # bash shows vi/emacs as 'off' unless explicitly set with 'set -o vi/emacs'
-                # Show all shell options from the centralized dict
-                for opt_name, opt_value in sorted(shell.state.options.items()):
-                    status = 'on' if opt_value else 'off'
-                    print(f"{opt_name:<20} {status}", file=stdout)
-                
-                # Show edit_mode separately (expected by tests)
-                print(f"{'edit_mode':<20} {shell.edit_mode}", file=stdout)
+                # Check if we're in a child process (forked for pipeline/background)
+                if hasattr(shell.state, '_in_forked_child') and shell.state._in_forked_child:
+                    # In child process, write directly to fd 1
+                    output_lines = []
+                    # Show all shell options including debug options
+                    for opt_name, opt_value in sorted(shell.state.options.items()):
+                        status = 'on' if opt_value else 'off'
+                        output_lines.append(f"{opt_name:<20} {status}\n")
+                    
+                    # Show edit_mode separately (expected by tests)
+                    output_lines.append(f"{'edit_mode':<20} {shell.edit_mode}\n")
+                    
+                    # Write all lines to fd 1
+                    for line in output_lines:
+                        os.write(1, line.encode('utf-8', errors='replace'))
+                else:
+                    # In parent process, use shell.stdout to respect redirections
+                    stdout = shell.stdout if hasattr(shell, 'stdout') else sys.stdout
+                    # Show all shell options including debug options
+                    for opt_name, opt_value in sorted(shell.state.options.items()):
+                        status = 'on' if opt_value else 'off'
+                        print(f"{opt_name:<20} {status}", file=stdout)
+                    
+                    # Show edit_mode separately (expected by tests)
+                    print(f"{'edit_mode':<20} {shell.edit_mode}", file=stdout)
                 return 0
             
             # Handle +o without argument (show as set commands)

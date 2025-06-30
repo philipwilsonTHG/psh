@@ -99,6 +99,25 @@ class SubshellGroup(CompoundCommand):
 
 
 @dataclass
+class BraceGroup(CompoundCommand):
+    """Represents a brace group {...} that executes in the current shell environment.
+    
+    Unlike subshells, brace groups:
+    - Execute in the current shell process (no fork)
+    - Variable assignments persist to the parent environment
+    - Directory changes (cd) affect the parent shell
+    - Are more efficient (no subprocess overhead)
+    
+    POSIX syntax requirements:
+    - Must have space after opening brace: { command
+    - Must have semicolon or newline before closing brace: command; }
+    """
+    statements: 'CommandList'
+    redirects: List[Redirect] = field(default_factory=list)
+    background: bool = False
+
+
+@dataclass
 class Pipeline(ASTNode):
     commands: List[Command] = field(default_factory=list)  # Now accepts both SimpleCommand and CompoundCommand
     negated: bool = False  # True if pipeline is prefixed with !

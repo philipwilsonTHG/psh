@@ -175,7 +175,6 @@ class TestForLoops(unittest.TestCase):
         result = self.shell.run_command("for i in a b; do test $i = b && false; done")
         self.assertEqual(result, 1)
 
-    @unittest.skip("Nested control structures not yet supported - requires AST architecture changes")
     def test_for_with_conditional_commands(self):
         """Test for loop with conditional commands in body."""
         result = self.shell.run_command("for i in 1 2 3; do if [ $i = 2 ]; then echo found_two; fi; done")
@@ -238,7 +237,6 @@ done""")
             tokens = tokenize("for in a b; do echo test; done")
             parse(tokens)
 
-    @unittest.skip("Nested control structures not yet supported - requires AST architecture changes")
     def test_for_nested_in_other_constructs(self):
         """Test for loop nested in other control structures."""
         result = self.shell.run_command("if true; then for i in nested; do echo $i; done; fi")
