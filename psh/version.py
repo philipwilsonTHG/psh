@@ -2,10 +2,20 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.64.1"
+__version__ = "0.64.2"
 
 # Version history
 VERSION_HISTORY = """
+0.64.2 (2025-06-30) - Set Options Display Formatting and POSIX Compliance Improvements
+  - Fixed set -o output formatting to match bash style with tab separation instead of space padding
+  - Implemented bash-compatible option filtering to show only standard POSIX/bash options by default
+  - Added PSH_SHOW_ALL_OPTIONS environment variable to show all options including PSH debug features
+  - Improved POSIX compliance from 55.6% to 57.4% (+1.8% improvement, 30→31 passed tests)
+  - Enhanced set -o output to use proper 15-character field width with tab separators
+  - Resolved conformance test differences in test_set_options.input
+  - Maintains PSH functionality while improving bash compatibility for conformance testing
+  - Debug options (debug-ast, debug-tokens, etc.) still accessible but filtered from default display
+
 0.64.1 (2025-06-30) - Array Type Conflict Detection and POSIX Compliance Improvements
   - Fixed declare builtin to properly detect and prevent array type conversions (indexed ↔ associative) 
   - Added error messages matching bash behavior: "cannot convert indexed to associative array"

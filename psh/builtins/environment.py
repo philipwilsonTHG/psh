@@ -182,32 +182,8 @@ class SetBuiltin(Builtin):
             
             # Handle -o without argument (show options)
             elif arg == '-o' and i + 1 == len(args):
-                # Show current options
-                # Check if we're in a child process (forked for pipeline/background)
-                if hasattr(shell.state, '_in_forked_child') and shell.state._in_forked_child:
-                    # In child process, write directly to fd 1
-                    output_lines = []
-                    # Show all shell options including debug options
-                    for opt_name, opt_value in sorted(shell.state.options.items()):
-                        status = 'on' if opt_value else 'off'
-                        output_lines.append(f"{opt_name:<20} {status}\n")
-                    
-                    # Show edit_mode separately (expected by tests)
-                    output_lines.append(f"{'edit_mode':<20} {shell.edit_mode}\n")
-                    
-                    # Write all lines to fd 1
-                    for line in output_lines:
-                        os.write(1, line.encode('utf-8', errors='replace'))
-                else:
-                    # In parent process, use shell.stdout to respect redirections
-                    stdout = shell.stdout if hasattr(shell, 'stdout') else sys.stdout
-                    # Show all shell options including debug options
-                    for opt_name, opt_value in sorted(shell.state.options.items()):
-                        status = 'on' if opt_value else 'off'
-                        print(f"{opt_name:<20} {status}", file=stdout)
-                    
-                    # Show edit_mode separately (expected by tests)
-                    print(f"{'edit_mode':<20} {shell.edit_mode}", file=stdout)
+                # Show current options with bash-compatible formatting
+                self._show_all_options(shell)
                 return 0
             
             # Handle +o without argument (show as set commands)
@@ -294,6 +270,68 @@ class SetBuiltin(Builtin):
       +o <option>       Disable the specified option
     
     With arguments, set positional parameters ($1, $2, etc.)."""
+    
+    def _show_all_options(self, shell: 'Shell'):
+        """Show all shell options with bash-compatible formatting."""
+        # Define standard POSIX/bash options to show (exclude PSH debug options for conformance)
+        standard_options = {
+            'allexport', 'braceexpand', 'emacs', 'errexit', 'errtrace', 'functrace',
+            'hashall', 'histexpand', 'history', 'ignoreeof', 'interactive-comments',
+            'keyword', 'monitor', 'noclobber', 'noexec', 'noglob', 'nolog',
+            'notify', 'nounset', 'onecmd', 'physical', 'pipefail', 'posix',
+            'privileged', 'verbose', 'vi', 'xtrace'
+        }
+        
+        # If PSH_SHOW_ALL_OPTIONS environment variable is set, show all options including debug
+        show_all = shell.state.env.get('PSH_SHOW_ALL_OPTIONS', '').lower() in ('1', 'true', 'yes')
+        if show_all:
+            # Show all options including PSH-specific debug options
+            options_to_show = shell.state.options.keys()
+        else:
+            # Show only standard bash-compatible options for conformance
+            options_to_show = [opt for opt in standard_options if opt in shell.state.options]
+        
+        # Check if we're in a child process (forked for pipeline/background)
+        if hasattr(shell.state, '_in_forked_child') and shell.state._in_forked_child:
+            # In child process, write directly to fd 1
+            output_lines = []
+            
+            # Show options based on mode (standard vs all)
+            for opt_name in sorted(options_to_show):
+                opt_value = shell.state.options[opt_name]
+                status = 'on' if opt_value else 'off'
+                output_lines.append(f"{opt_name:<15}\t{status}\n")
+            
+            # Add edit mode info using standard option names
+            if hasattr(shell, 'edit_mode'):
+                if shell.edit_mode == 'emacs':
+                    output_lines.append(f"{'emacs':<15}\ton\n")
+                    output_lines.append(f"{'vi':<15}\toff\n")
+                else:  # vi mode
+                    output_lines.append(f"{'emacs':<15}\toff\n")
+                    output_lines.append(f"{'vi':<15}\ton\n")
+            
+            # Write all lines to fd 1
+            for line in output_lines:
+                os.write(1, line.encode('utf-8', errors='replace'))
+        else:
+            # In parent process, use shell.stdout to respect redirections
+            stdout = shell.stdout if hasattr(shell, 'stdout') else sys.stdout
+            
+            # Show options based on mode (standard vs all)
+            for opt_name in sorted(options_to_show):
+                opt_value = shell.state.options[opt_name]
+                status = 'on' if opt_value else 'off'
+                print(f"{opt_name:<15}\t{status}", file=stdout)
+            
+            # Add edit mode info using standard option names
+            if hasattr(shell, 'edit_mode'):
+                if shell.edit_mode == 'emacs':
+                    print(f"{'emacs':<15}\ton", file=stdout)
+                    print(f"{'vi':<15}\toff", file=stdout)
+                else:  # vi mode
+                    print(f"{'emacs':<15}\toff", file=stdout)
+                    print(f"{'vi':<15}\ton", file=stdout)
 
 
 @builtin
