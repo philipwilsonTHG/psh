@@ -94,9 +94,6 @@ class TestPipelines:
         finally:
             os.unlink(temp_file)
     
-    @pytest.mark.xfail(reason="Control structures in pipelines")
-
-    
     def test_pipeline_control_structures(self):
         """Test control structures in pipelines."""
         bash_compare.assert_shells_match("echo -e '1\\n2\\n3' | while read n; do echo \"Number: $n\"; done")
