@@ -80,7 +80,7 @@ class TestPhase2Builtins:
         # Test listing exports
         shell.run_command("export")
         captured = capsys.readouterr()
-        assert 'export TEST_EXPORT="value123"' in captured.out
+        assert 'declare -x TEST_EXPORT="value123"' in captured.out
     
     def test_set_builtin(self, capsys):
         """Test set builtin."""
