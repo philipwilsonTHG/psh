@@ -34,16 +34,16 @@ class TestStringLength:
         assert captured.out.strip() == "3"
     
     def test_positional_params_length(self, shell, capsys):
-        """Test ${#*} and ${#@} for length of all params."""
-        # Set positional params: "one two three" = 13 chars
+        """Test ${#*} and ${#@} for count of positional parameters."""
+        # Set positional params: 3 parameters
         shell.run_command('set -- one two three')
         shell.run_command('echo ${#*}')
         captured = capsys.readouterr()
-        assert captured.out.strip() == "13"
+        assert captured.out.strip() == "3"
         
         shell.run_command('echo ${#@}')
         captured = capsys.readouterr()
-        assert captured.out.strip() == "13"
+        assert captured.out.strip() == "3"
     
     def test_unicode_length(self, shell, capsys):
         """Test length with unicode characters."""

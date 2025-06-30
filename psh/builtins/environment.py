@@ -190,6 +190,9 @@ class SetBuiltin(Builtin):
                 for opt_name, opt_value in sorted(shell.state.options.items()):
                     status = 'on' if opt_value else 'off'
                     print(f"{opt_name:<20} {status}", file=stdout)
+                
+                # Show edit_mode separately (expected by tests)
+                print(f"{'edit_mode':<20} {shell.edit_mode}", file=stdout)
                 return 0
             
             # Handle +o without argument (show as set commands)
