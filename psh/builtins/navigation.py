@@ -20,8 +20,8 @@ class CdBuiltin(Builtin):
     
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Change the current working directory."""
-        # Store current directory as the old directory
-        current_dir = os.getcwd()
+        # Store current directory as the old directory (use logical path if available)
+        current_dir = shell.state.get_variable('PWD') or os.getcwd()
         
         if len(args) > 1:
             path = args[1]
@@ -47,15 +47,28 @@ class CdBuiltin(Builtin):
             path = shell._expand_tilde(path)
         
         try:
+            # Compute the logical new directory path
+            if os.path.isabs(path):
+                # Absolute path - use as-is
+                logical_new_dir = path
+            else:
+                # Relative path - resolve logically from current PWD
+                logical_current = shell.state.get_variable('PWD') or os.getcwd()
+                logical_new_dir = os.path.normpath(os.path.join(logical_current, path))
+            
+            # Change to the actual directory
             os.chdir(path)
-            # Update PWD and OLDPWD environment variables
-            new_dir = os.getcwd()
+            
+            # Update PWD and OLDPWD environment variables and shell variables
             shell.env['OLDPWD'] = current_dir
-            shell.env['PWD'] = new_dir
+            shell.env['PWD'] = logical_new_dir
+            # Also update shell state variables so they're available for expansion
+            shell.state.set_variable('OLDPWD', current_dir)
+            shell.state.set_variable('PWD', logical_new_dir)
             
             # Print new directory for cd - command
             if print_new_dir:
-                print(new_dir)
+                print(logical_new_dir)
             
             return 0
         except FileNotFoundError:

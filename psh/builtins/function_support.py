@@ -557,6 +557,42 @@ class TypesetBuiltin(DeclareBuiltin):
 
 
 @builtin
+class ReadonlyBuiltin(Builtin):
+    """Make variables readonly."""
+    
+    @property
+    def name(self) -> str:
+        return "readonly"
+    
+    def execute(self, args: List[str], shell: 'Shell') -> int:
+        """Execute the readonly builtin."""
+        if len(args) == 1:
+            # No arguments - list all readonly variables (same as declare -pr)
+            declare_builtin = DeclareBuiltin()
+            return declare_builtin.execute(['declare', '-pr'], shell)
+        
+        # Process arguments - readonly is equivalent to declare -r
+        declare_args = ['declare', '-r'] + args[1:]
+        declare_builtin = DeclareBuiltin()
+        return declare_builtin.execute(declare_args, shell)
+    
+    @property
+    def help(self) -> str:
+        return """readonly: readonly [name[=value] ...]
+    
+    Mark variables as readonly.
+    
+    Mark each name as readonly; the values of these names may not be changed
+    by subsequent assignment. If value is supplied, assign value before
+    marking as readonly.
+    
+    With no arguments, display all readonly variables.
+    
+    Exit Status:
+    Returns success unless an invalid option is given or name is invalid."""
+
+
+@builtin
 class ReturnBuiltin(Builtin):
     """Return from a function with optional exit code."""
     

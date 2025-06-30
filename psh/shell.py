@@ -102,6 +102,11 @@ class Shell:
         # Load RC file for interactive shells
         # Allow force_interactive for testing purposes
         is_interactive = getattr(self, '_force_interactive', sys.stdin.isatty())
+        
+        # Set emacs mode based on interactive status (bash behavior)
+        # Interactive: emacs on (for line editing), Non-interactive: emacs off
+        self.state.options['emacs'] = is_interactive and not self.is_script_mode
+        
         if not self.is_script_mode and is_interactive and not self.norc:
             self._load_rc_file()
     

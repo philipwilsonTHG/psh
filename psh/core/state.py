@@ -62,7 +62,7 @@ class ShellState:
             'nolog': False,        # -o nolog: don't log function definitions
             # Bash compatibility options
             'braceexpand': True,   # -o braceexpand: enable brace expansion (default on)
-            'emacs': True,         # -o emacs: emacs key bindings (default on)
+            'emacs': False,        # -o emacs: emacs key bindings (context-dependent)
             'vi': False,           # -o vi: vi key bindings (off for set -o display)
         }
         
