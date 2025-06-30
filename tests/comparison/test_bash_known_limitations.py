@@ -28,7 +28,6 @@ class TestKnownLimitations:
         bash_compare.assert_shells_match('$(false); echo $?')
         bash_compare.assert_shells_match('$(exit 42); echo $?')
     
-    @pytest.mark.xfail(reason="Command grouping with braces not implemented")
     def test_command_grouping(self):
         """Command grouping with { } syntax."""
         bash_compare.assert_shells_match('{ echo one; echo two; }')

@@ -55,16 +55,11 @@ class TestPipelines:
         bash_compare.assert_shells_match("echo hello | cat | cat")
         bash_compare.assert_shells_match("echo test | while read line; do echo \"Got: $line\"; done")
     
-    @pytest.mark.xfail(reason="Variable scope in pipelines")
-
     
     def test_pipeline_with_variables(self):
         """Test pipelines with variable assignments."""
         bash_compare.assert_shells_match("x=hello; echo $x | cat")
         bash_compare.assert_shells_match("echo test | { read x; echo \"Read: $x\"; }")
-    
-    @pytest.mark.xfail(reason="Subshell variable isolation")
-
     
     def test_pipeline_subshell_isolation(self):
         """Test that pipeline commands run in subshells."""
