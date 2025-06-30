@@ -2,10 +2,20 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.63.3"
+__version__ = "0.63.4"
 
 # Version history
 VERSION_HISTORY = """
+0.63.4 (2025-06-30) - POSIX Compliance Phase 7: Control Structures in Pipelines Fix
+  - Fixed critical bug where commands inside control structures didn't receive piped input correctly
+  - Enhanced control structure execution (if, while, for, case) to temporarily disable _in_pipeline flag
+  - Commands inside control structures now properly inherit stdin when structure is part of pipeline
+  - Pattern "echo test | if grep -q test; then echo Found; fi" now works correctly
+  - POSIX conformance tests improved with "Found test in input" output now appearing as expected
+  - Fixed executor_visitor.py control structure methods to handle pipeline context properly
+  - No regression in existing functionality - only fixes stdin inheritance for commands in control structures
+  - Major improvement in bash compatibility for complex pipeline patterns with control structures
+
 0.63.3 (2025-06-30) - POSIX Compliance Phase 6: Parameter Expansion and Special Variables Improvements
   - Fixed ${#@} and ${#*} parameter expansions to return count of positional parameters, not string length
   - Added comprehensive POSIX set option support (allexport, braceexpand, emacs, vi options)

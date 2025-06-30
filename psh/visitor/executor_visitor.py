@@ -803,23 +803,29 @@ class ExecutorVisitor(ASTVisitor[int]):
         """Execute if/then/else statement."""
         # Apply redirections to entire if statement
         with self._apply_redirections(node.redirects):
-            # Evaluate main condition
-            condition_status = self.visit(node.condition)
-            
-            if condition_status == 0:
-                return self.visit(node.then_part)
-            
-            # Check elif conditions
-            for elif_condition, elif_then in node.elif_parts:
-                elif_status = self.visit(elif_condition)
-                if elif_status == 0:
-                    return self.visit(elif_then)
-            
-            # Execute else part if present
-            if node.else_part:
-                return self.visit(node.else_part)
-            
-            return 0
+            # Temporarily disable pipeline context for commands inside control structure
+            old_pipeline = self._in_pipeline
+            self._in_pipeline = False
+            try:
+                # Evaluate main condition
+                condition_status = self.visit(node.condition)
+                
+                if condition_status == 0:
+                    return self.visit(node.then_part)
+                
+                # Check elif conditions
+                for elif_condition, elif_then in node.elif_parts:
+                    elif_status = self.visit(elif_condition)
+                    if elif_status == 0:
+                        return self.visit(elif_then)
+                
+                # Execute else part if present
+                if node.else_part:
+                    return self.visit(node.else_part)
+                
+                return 0
+            finally:
+                self._in_pipeline = old_pipeline
     
     def visit_WhileLoop(self, node: WhileLoop) -> int:
         """Execute while loop."""
@@ -828,6 +834,9 @@ class ExecutorVisitor(ASTVisitor[int]):
         
         # Apply redirections for entire loop
         with self._apply_redirections(node.redirects):
+            # Temporarily disable pipeline context for commands inside control structure
+            old_pipeline = self._in_pipeline
+            self._in_pipeline = False
             try:
                 while True:
                     # Evaluate condition
@@ -848,8 +857,9 @@ class ExecutorVisitor(ASTVisitor[int]):
                         break
                         
             finally:
-                self._loop_depth -= 1
-            
+                self._in_pipeline = old_pipeline
+        
+        self._loop_depth -= 1
         return exit_status
     
     def visit_ForLoop(self, node: ForLoop) -> int:
@@ -947,6 +957,9 @@ class ExecutorVisitor(ASTVisitor[int]):
         
         # Apply redirections for entire loop
         with self._apply_redirections(node.redirects):
+            # Temporarily disable pipeline context for commands inside control structure
+            old_pipeline = self._in_pipeline
+            self._in_pipeline = False
             try:
                 for item in expanded_items:
                     # Set loop variable
@@ -965,8 +978,9 @@ class ExecutorVisitor(ASTVisitor[int]):
                         break
                         
             finally:
-                self._loop_depth -= 1
-            
+                self._in_pipeline = old_pipeline
+        
+        self._loop_depth -= 1
         return exit_status
     
     
@@ -979,38 +993,44 @@ class ExecutorVisitor(ASTVisitor[int]):
         
         # Apply redirections
         with self._apply_redirections(node.redirects):
-            # Try each case item
-            for case_item in node.items:
-                # Check if any pattern matches
-                for pattern_obj in case_item.patterns:
-                    # Expand pattern
-                    pattern_str = pattern_obj.pattern
-                    expanded_pattern = pattern_str
-                    if '$' in pattern_str:
-                        expanded_pattern = self.expansion_manager.expand_string_variables(pattern_str)
-                    
-                    # Convert bash-style escape sequences for fnmatch
-                    fnmatch_pattern = self._convert_case_pattern_for_fnmatch(expanded_pattern)
-                    
-                    if fnmatch.fnmatch(expr, fnmatch_pattern):
-                        # Execute the commands for this case
-                        exit_status = self.visit(case_item.commands)
+            # Temporarily disable pipeline context for commands inside control structure
+            old_pipeline = self._in_pipeline
+            self._in_pipeline = False
+            try:
+                # Try each case item
+                for case_item in node.items:
+                    # Check if any pattern matches
+                    for pattern_obj in case_item.patterns:
+                        # Expand pattern
+                        pattern_str = pattern_obj.pattern
+                        expanded_pattern = pattern_str
+                        if '$' in pattern_str:
+                            expanded_pattern = self.expansion_manager.expand_string_variables(pattern_str)
                         
-                        # Handle terminator
-                        if case_item.terminator == ';;':
-                            # Normal termination
+                        # Convert bash-style escape sequences for fnmatch
+                        fnmatch_pattern = self._convert_case_pattern_for_fnmatch(expanded_pattern)
+                        
+                        if fnmatch.fnmatch(expr, fnmatch_pattern):
+                            # Execute the commands for this case
+                            exit_status = self.visit(case_item.commands)
+                            
+                            # Handle terminator
+                            if case_item.terminator == ';;':
+                                # Normal termination
+                                return exit_status
+                            elif case_item.terminator == ';&':
+                                # Fall through to next case
+                                break
+                            elif case_item.terminator == ';;&':
+                                # Continue testing patterns
+                                continue
+                            
                             return exit_status
-                        elif case_item.terminator == ';&':
-                            # Fall through to next case
-                            break
-                        elif case_item.terminator == ';;&':
-                            # Continue testing patterns
-                            continue
-                        
-                        return exit_status
-            
-            # No pattern matched
-            return 0
+                
+                # No pattern matched
+                return 0
+            finally:
+                self._in_pipeline = old_pipeline
     
     def _convert_case_pattern_for_fnmatch(self, pattern: str) -> str:
         """Convert bash-style case pattern escapes to fnmatch format.
