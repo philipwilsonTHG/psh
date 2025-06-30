@@ -177,22 +177,11 @@ class DeclareBuiltin(Builtin):
             attributes |= VarAttributes.EXPORT
         if options['integer']:
             attributes |= VarAttributes.INTEGER
-        # Handle mutually exclusive -l and -u (last one wins)
+        # Handle mutually exclusive -l and -u (bash ignores both when both are present)
         if options['lowercase'] and options['uppercase']:
-            # Check which was specified last by looking at original args
-            last_case = None
-            if original_args:
-                for arg in original_args:
-                    if arg.startswith('-') and len(arg) > 1:
-                        for flag in arg[1:]:
-                            if flag == 'l':
-                                last_case = 'lower'
-                            elif flag == 'u':
-                                last_case = 'upper'
-            if last_case == 'lower':
-                attributes |= VarAttributes.LOWERCASE
-            elif last_case == 'upper':
-                attributes |= VarAttributes.UPPERCASE
+            # When both -l and -u are specified, bash ignores both transformations
+            # (neither lowercase nor uppercase attribute is applied)
+            pass
         elif options['lowercase']:
             attributes |= VarAttributes.LOWERCASE
         elif options['uppercase']:
