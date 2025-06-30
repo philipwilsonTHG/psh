@@ -157,6 +157,9 @@ class SetBuiltin(Builtin):
                 # Editor modes
                 if option in ('vi', 'emacs'):
                     shell.edit_mode = option
+                    # Set the corresponding option
+                    shell.state.options['vi'] = (option == 'vi')
+                    shell.state.options['emacs'] = (option == 'emacs')
                     print(f"Edit mode set to {option}", 
                           file=shell.stdout if hasattr(shell, 'stdout') else sys.stdout)
                     return 0
@@ -181,7 +184,8 @@ class SetBuiltin(Builtin):
             elif arg == '-o' and i + 1 == len(args):
                 # Show current options
                 stdout = shell.stdout if hasattr(shell, 'stdout') else sys.stdout
-                print(f"edit_mode            {shell.edit_mode}", file=stdout)
+                # Don't sync edit mode to options - let options show their explicit state
+                # bash shows vi/emacs as 'off' unless explicitly set with 'set -o vi/emacs'
                 # Show all shell options from the centralized dict
                 for opt_name, opt_value in sorted(shell.state.options.items()):
                     status = 'on' if opt_value else 'off'

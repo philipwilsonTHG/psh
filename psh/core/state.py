@@ -60,6 +60,10 @@ class ShellState:
             'verbose': False,      # -v: echo input lines as read
             'ignoreeof': False,    # -o ignoreeof: don't exit on EOF
             'nolog': False,        # -o nolog: don't log function definitions
+            # Bash compatibility options
+            'braceexpand': True,   # -o braceexpand: enable brace expansion (default on)
+            'emacs': False,        # -o emacs: emacs key bindings (off for set -o display)
+            'vi': False,           # -o vi: vi key bindings (off for set -o display)
         }
         
         # Enable debug mode on scope manager if debug-scopes is set

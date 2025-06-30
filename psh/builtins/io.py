@@ -265,42 +265,20 @@ class PrintfBuiltin(Builtin):
                     # Literal %
                     result.append('%')
                     i += 2
-                elif format_str[i + 1] == 's':
-                    # String format
-                    if arg_index < len(arguments):
-                        result.append(arguments[arg_index])
-                        arg_index += 1
-                    else:
-                        result.append('')  # No more arguments
-                    i += 2
-                elif format_str[i + 1] == 'd':
-                    # Integer format
-                    if arg_index < len(arguments):
-                        try:
-                            value = int(arguments[arg_index])
-                            result.append(str(value))
-                        except ValueError:
-                            result.append('0')  # Default for invalid numbers
-                        arg_index += 1
-                    else:
-                        result.append('0')  # No more arguments
-                    i += 2
-                elif format_str[i + 1] == 'c':
-                    # Character format
-                    if arg_index < len(arguments):
-                        arg = arguments[arg_index]
-                        if arg:
-                            result.append(arg[0])  # First character
-                        else:
-                            result.append('')
-                        arg_index += 1
-                    else:
-                        result.append('')  # No more arguments
-                    i += 2
                 else:
-                    # Unknown format specifier, treat as literal
-                    result.append(format_str[i])
-                    i += 1
+                    # Parse format specifier with width/precision
+                    fmt_spec, end_pos = self._parse_format_specifier(format_str, i)
+                    if fmt_spec:
+                        # Valid format specifier found
+                        formatted_value = self._format_argument(fmt_spec, arguments, arg_index)
+                        result.append(formatted_value)
+                        if fmt_spec['type'] in 'sdc':  # Only consume arg for these types
+                            arg_index += 1
+                        i = end_pos
+                    else:
+                        # Unknown format specifier, treat as literal
+                        result.append(format_str[i])
+                        i += 1
             elif format_str[i] == '\\' and i + 1 < len(format_str):
                 # Handle escape sequences
                 next_char = format_str[i + 1]
@@ -333,6 +311,100 @@ class PrintfBuiltin(Builtin):
             output = shell.stdout if hasattr(shell, 'stdout') else sys.stdout
             output.write(text)
             output.flush()
+    
+    def _parse_format_specifier(self, format_str: str, start: int) -> tuple:
+        """Parse a format specifier starting at '%'.
+        
+        Returns:
+            tuple: (spec_dict, end_position) or (None, 0) if invalid
+        """
+        if format_str[start] != '%':
+            return None, 0
+        
+        i = start + 1
+        spec = {'flags': '', 'width': '', 'precision': '', 'type': ''}
+        
+        # Parse flags (-+# 0)
+        while i < len(format_str) and format_str[i] in '-+# 0':
+            spec['flags'] += format_str[i]
+            i += 1
+        
+        # Parse width
+        while i < len(format_str) and format_str[i].isdigit():
+            spec['width'] += format_str[i]
+            i += 1
+        
+        # Parse precision (.number)
+        if i < len(format_str) and format_str[i] == '.':
+            spec['precision'] = '.'
+            i += 1
+            while i < len(format_str) and format_str[i].isdigit():
+                spec['precision'] += format_str[i]
+                i += 1
+        
+        # Parse type specifier
+        if i < len(format_str) and format_str[i] in 'sdcfgGexX':
+            spec['type'] = format_str[i]
+            i += 1
+            return spec, i
+        
+        return None, 0
+    
+    def _format_argument(self, spec: dict, arguments: list, arg_index: int) -> str:
+        """Format an argument according to the format specifier."""
+        if spec['type'] == 's':
+            # String format
+            value = arguments[arg_index] if arg_index < len(arguments) else ''
+            return self._apply_string_formatting(value, spec)
+        elif spec['type'] == 'd':
+            # Integer format
+            if arg_index < len(arguments):
+                try:
+                    value = int(arguments[arg_index])
+                except ValueError:
+                    value = 0
+            else:
+                value = 0
+            return self._apply_integer_formatting(value, spec)
+        elif spec['type'] == 'c':
+            # Character format
+            if arg_index < len(arguments):
+                arg = arguments[arg_index]
+                value = arg[0] if arg else ''
+            else:
+                value = ''
+            return value
+        else:
+            # Other formats not implemented yet
+            return ''
+    
+    def _apply_string_formatting(self, value: str, spec: dict) -> str:
+        """Apply string formatting (width, alignment)."""
+        width = int(spec['width']) if spec['width'] else 0
+        if width <= 0:
+            return value
+        
+        # Check for left alignment flag
+        if '-' in spec['flags']:
+            return value.ljust(width)
+        else:
+            return value.rjust(width)
+    
+    def _apply_integer_formatting(self, value: int, spec: dict) -> str:
+        """Apply integer formatting (width, padding)."""
+        formatted = str(value)
+        width = int(spec['width']) if spec['width'] else 0
+        
+        if width <= 0:
+            return formatted
+        
+        # Check for zero padding
+        if '0' in spec['flags'] and '-' not in spec['flags']:
+            return formatted.zfill(width)
+        elif '-' in spec['flags']:
+            return formatted.ljust(width)
+        else:
+            return formatted.rjust(width)
     
     @property
     def help(self) -> str:

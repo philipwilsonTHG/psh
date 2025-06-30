@@ -211,6 +211,10 @@ class SourceProcessor(ScriptComponent):
         if not command_string.strip() or command_string.strip().startswith('#'):
             return 0
         
+        # Update LINENO special variable with current line number
+        if start_line > 0:
+            self.shell.state.scope_manager.set_current_line_number(start_line)
+        
         # Verbose mode: echo input lines as they are read
         if self.state.options.get('verbose', False):
             # Echo the command to stderr before execution

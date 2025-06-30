@@ -211,15 +211,18 @@ class AssociativeArray:
             del self._elements[key]
     
     def all_elements(self) -> List[str]:
-        """Get all values in no particular order."""
+        """Get all values in insertion order for bash compatibility."""
+        # Return values in insertion order (Python 3.7+ dict behavior matches bash)
         return list(self._elements.values())
     
     def keys(self) -> List[str]:
-        """Get all keys."""
+        """Get all keys in insertion order for bash compatibility."""
+        # Return keys in insertion order (Python 3.7+ dict behavior matches bash)
         return list(self._elements.keys())
     
     def items(self) -> List[tuple[str, str]]:
-        """Get all key-value pairs."""
+        """Get all key-value pairs in insertion order for bash compatibility."""
+        # Return items in insertion order (Python 3.7+ dict behavior matches bash)
         return list(self._elements.items())
     
     def length(self) -> int:

@@ -2,10 +2,22 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.63.2"
+__version__ = "0.63.3"
 
 # Version history
 VERSION_HISTORY = """
+0.63.3 (2025-06-30) - POSIX Compliance Phase 6: Parameter Expansion and Special Variables Improvements
+  - Fixed ${#@} and ${#*} parameter expansions to return count of positional parameters, not string length
+  - Added comprehensive POSIX set option support (allexport, braceexpand, emacs, vi options)
+  - Fixed LINENO special variable to track current script line number during execution
+  - Improved associative array key ordering to use insertion order (Python 3.7+ dict behavior matches bash)
+  - Enhanced set builtin to display all standard POSIX options with proper on/off status
+  - POSIX compliance improved from 24 to 25 passed tests (44.4% → 46.3%)
+  - Fixed core parameter expansion bugs affecting positional parameter length calculations
+  - Added proper line number tracking in script execution engine for accurate LINENO values
+  - Enhanced shell option infrastructure with bash-compatible option names and defaults
+  - All associative array operations now preserve bash-compatible insertion order
+
 0.63.2 (2025-06-30) - POSIX Compliance Phase 5: Export and Variable Scoping Improvements
   - Fixed export builtin output format to use declare -x syntax for bash compatibility
   - Enhanced export builtin to work correctly in pipelines by handling forked child processes

@@ -301,14 +301,14 @@ class VariableExpander:
                         # Special case: ${#} is number of positional params
                         return str(len(self.state.positional_params))
                     elif var_name == '*':
-                        # ${#*} - length of all positional params as string
+                        # ${#*} - number of positional parameters
                         if operator == '#':
-                            return str(len(' '.join(self.state.positional_params)))
+                            return str(len(self.state.positional_params))
                         value = ' '.join(self.state.positional_params)
                     elif var_name == '@':
-                        # ${#@} - length of all positional params as string
+                        # ${#@} - number of positional parameters
                         if operator == '#':
-                            return str(len(' '.join(self.state.positional_params)))
+                            return str(len(self.state.positional_params))
                         value = ' '.join(self.state.positional_params)
                     elif var_name.isdigit():
                         # Positional parameter
