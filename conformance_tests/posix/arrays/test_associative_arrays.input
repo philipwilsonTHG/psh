@@ -23,10 +23,13 @@ echo "colors[red]: ${colors[red]}"
 echo "colors[green]: ${colors[green]}"
 echo "colors[blue]: ${colors[blue]}"
 
-# Test accessing all values and keys
+# Test accessing all values and keys (order-independent)
 echo "Testing array expansion:"
-echo "All values: ${colors[@]}"
-echo "All keys: ${!colors[@]}"
+# Sort values and keys for consistent output across implementations
+sorted_values=($(printf '%s\n' "${colors[@]}" | sort))
+sorted_keys=($(printf '%s\n' "${!colors[@]}" | sort))
+echo "All values: ${sorted_values[@]}"
+echo "All keys: ${sorted_keys[@]}"
 
 # Test array length
 echo "Testing array length:"
@@ -49,9 +52,11 @@ echo "Key with underscores: ${special_keys[key_with_underscores]}"
 echo "Key with dots: ${special_keys[key.with.dots]}"
 echo "Key with symbol: ${special_keys[key@symbol]}"
 
-# Test accessing all special keys
-echo "All special keys: ${!special_keys[@]}"
-echo "All special values: ${special_keys[@]}"
+# Test accessing all special keys (order-independent)
+sorted_special_keys=($(printf '%s\n' "${!special_keys[@]}" | sort))
+sorted_special_values=($(printf '%s\n' "${special_keys[@]}" | sort))
+echo "All special keys: ${sorted_special_keys[@]}"
+echo "All special values: ${sorted_special_values[@]}"
 
 # Test key modification and deletion
 echo "Testing key modification:"
@@ -61,8 +66,11 @@ config["host"]="localhost"
 config["port"]="8080"
 config["debug"]="true"
 
-echo "Original config: ${config[@]}"
-echo "Config keys: ${!config[@]}"
+# Sort config output for order-independence
+sorted_config_values=($(printf '%s\n' "${config[@]}" | sort))
+sorted_config_keys=($(printf '%s\n' "${!config[@]}" | sort))
+echo "Original config: ${sorted_config_values[@]}"
+echo "Config keys: ${sorted_config_keys[@]}"
 
 # Modify existing key
 config["port"]="9090"
@@ -70,12 +78,15 @@ echo "After port change: ${config[port]}"
 
 # Add new key
 config["ssl"]="false"
-echo "After adding ssl: ${config[@]}"
+sorted_config_ssl=($(printf '%s\n' "${config[@]}" | sort))
+echo "After adding ssl: ${sorted_config_ssl[@]}"
 
 # Delete a key
 unset config["debug"]
-echo "After removing debug: ${config[@]}"
-echo "Keys after removal: ${!config[@]}"
+sorted_config_final=($(printf '%s\n' "${config[@]}" | sort))
+sorted_keys_final=($(printf '%s\n' "${!config[@]}" | sort))
+echo "After removing debug: ${sorted_config_final[@]}"
+echo "Keys after removal: ${sorted_keys_final[@]}"
 
 # Test complex key expressions
 echo "Testing complex keys:"
@@ -89,22 +100,27 @@ complex["$(echo computed)"]="computed value"
 echo "Dynamic key: ${complex[dynamic_key]}"
 echo "Computed key: ${complex[computed]}"
 
-# Test associative array in loops
+# Test associative array in loops (order-independent)
 echo "Testing associative array iteration:"
 declare -A fruits=([apple]="red" [banana]="yellow" [grape]="purple" [orange]="orange")
 
 echo "Iterating over values:"
-for fruit_color in "${fruits[@]}"; do
+# Sort values for consistent output
+sorted_fruit_values=($(printf '%s\n' "${fruits[@]}" | sort))
+for fruit_color in "${sorted_fruit_values[@]}"; do
     echo "  Color: $fruit_color"
 done
 
 echo "Iterating over keys:"
-for fruit_name in "${!fruits[@]}"; do
+# Sort keys for consistent output
+sorted_fruit_keys=($(printf '%s\n' "${!fruits[@]}" | sort))
+for fruit_name in "${sorted_fruit_keys[@]}"; do
     echo "  Fruit: $fruit_name"
 done
 
 echo "Iterating over key-value pairs:"
-for fruit in "${!fruits[@]}"; do
+# Sort keys then iterate
+for fruit in "${sorted_fruit_keys[@]}"; do
     echo "  $fruit is ${fruits[$fruit]}"
 done
 
@@ -153,7 +169,9 @@ with_empty["normal_key"]="normal value"
 echo "Empty key: [${with_empty[empty_key]}]"
 echo "Null key: [${with_empty[null_key]}]"
 echo "Normal key: [${with_empty[normal_key]}]"
-echo "All keys: ${!with_empty[@]}"
+# Sort keys for consistent output
+sorted_empty_keys=($(printf '%s\n' "${!with_empty[@]}" | sort))
+echo "All keys: ${sorted_empty_keys[@]}"
 
 # Test array copying and assignment
 echo "Testing array copying:"
@@ -165,28 +183,39 @@ for key in "${!original[@]}"; do
     copy["$key"]="${original[$key]}"
 done
 
-echo "Original: ${original[@]}"
-echo "Copy: ${copy[@]}"
+# Sort outputs for consistent order
+sorted_original=($(printf '%s\n' "${original[@]}" | sort))
+sorted_copy=($(printf '%s\n' "${copy[@]}" | sort))
+echo "Original: ${sorted_original[@]}"
+echo "Copy: ${sorted_copy[@]}"
 
 # Modify copy to verify independence
 copy["b"]="modified"
 echo "After modifying copy:"
-echo "Original: ${original[@]}"
-echo "Copy: ${copy[@]}"
+sorted_original_after=($(printf '%s\n' "${original[@]}" | sort))
+sorted_copy_after=($(printf '%s\n' "${copy[@]}" | sort))
+echo "Original: ${sorted_original_after[@]}"
+echo "Copy: ${sorted_copy_after[@]}"
 
 # Test associative arrays with functions
 echo "Testing associative arrays in functions:"
 process_assoc_array() {
     local -A local_array=([func_key1]="func_val1" [func_key2]="func_val2")
-    echo "Local associative array: ${local_array[@]}"
-    echo "Local keys: ${!local_array[@]}"
+    # Sort local array outputs
+    local sorted_local_values=($(printf '%s\n' "${local_array[@]}" | sort))
+    local sorted_local_keys=($(printf '%s\n' "${!local_array[@]}" | sort))
+    echo "Local associative array: ${sorted_local_values[@]}"
+    echo "Local keys: ${sorted_local_keys[@]}"
     
     # Access global associative array
-    echo "Global array from function: ${global_assoc[@]}"
+    local sorted_global_values=($(printf '%s\n' "${global_assoc[@]}" | sort))
+    echo "Global array from function: ${sorted_global_values[@]}"
 }
 
 declare -A global_assoc=([global1]="value1" [global2]="value2")
-echo "Before function call: ${global_assoc[@]}"
+# Sort global array output
+sorted_global_before=($(printf '%s\n' "${global_assoc[@]}" | sort))
+echo "Before function call: ${sorted_global_before[@]}"
 process_assoc_array
 
 # Test associative array with numeric-like keys
@@ -201,7 +230,9 @@ echo "Key '1': ${numeric_keys[1]}"
 echo "Key '2': ${numeric_keys[2]}"
 echo "Key '10': ${numeric_keys[10]}"
 echo "Key '01': ${numeric_keys[01]}"
-echo "All numeric keys: ${!numeric_keys[@]}"
+# Sort numeric keys for consistent output
+sorted_numeric_keys=($(printf '%s\n' "${!numeric_keys[@]}" | sort))
+echo "All numeric keys: ${sorted_numeric_keys[@]}"
 
 # Test case sensitivity
 echo "Testing case sensitivity:"
@@ -238,6 +269,8 @@ mixed[""]="empty key"
 echo "String key: ${mixed[string_key]}"
 echo "Numeric string key: ${mixed[123]}"
 echo "Empty key: ${mixed[]}"
-echo "All mixed keys: ${!mixed[@]}"
+# Sort mixed keys for consistent output
+sorted_mixed_keys=($(printf '%s\n' "${!mixed[@]}" | sort))
+echo "All mixed keys: ${sorted_mixed_keys[@]}"
 
 echo "Associative arrays test completed"

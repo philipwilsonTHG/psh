@@ -2,10 +2,19 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.63.4"
+__version__ = "0.63.5"
 
 # Version history
 VERSION_HISTORY = """
+0.63.5 (2025-06-30) - POSIX Compliance Phase 8: Associative Array Test Order Independence
+  - Made associative array conformance tests order-independent for better compliance
+  - Fixed test expectations to sort array keys/values for consistent cross-implementation results
+  - POSIX compliance improved from 26 to 27 passed tests (48.1% → 50.0%)
+  - Updated test_associative_arrays.input, test_variable_attributes.input, test_variable_scoping.input
+  - Associative array ordering is implementation-dependent, not specified by POSIX
+  - Engineering principle: fix test assumptions rather than force arbitrary implementation details
+  - Crossed 50% compliance threshold milestone with proper test design improvements
+
 0.63.4 (2025-06-30) - POSIX Compliance Phase 7: Control Structures in Pipelines Fix
   - Fixed critical bug where commands inside control structures didn't receive piped input correctly
   - Enhanced control structure execution (if, while, for, case) to temporarily disable _in_pipeline flag

@@ -208,19 +208,25 @@ echo "Testing associative array scoping:"
 declare -A global_assoc=([key1]="global1" [key2]="global2")
 
 assoc_scope_test() {
-    echo "global_assoc in function: ${global_assoc[@]}"
+    # Sort outputs for consistent order
+    sorted_global_in_func=($(printf '%s\n' "${global_assoc[@]}" | sort))
+    echo "global_assoc in function: ${sorted_global_in_func[@]}"
     
     local -A local_assoc=([lkey1]="local1" [lkey2]="local2")
-    echo "local_assoc: ${local_assoc[@]}"
+    sorted_local=($(printf '%s\n' "${local_assoc[@]}" | sort))
+    echo "local_assoc: ${sorted_local[@]}"
     
     # Modify global associative array
     global_assoc[key1]="modified_global1"
-    echo "modified global_assoc: ${global_assoc[@]}"
+    sorted_modified=($(printf '%s\n' "${global_assoc[@]}" | sort))
+    echo "modified global_assoc: ${sorted_modified[@]}"
 }
 
-echo "Before function: ${global_assoc[@]}"
+sorted_before=($(printf '%s\n' "${global_assoc[@]}" | sort))
+echo "Before function: ${sorted_before[@]}"
 assoc_scope_test
-echo "After function: ${global_assoc[@]}"
+sorted_after=($(printf '%s\n' "${global_assoc[@]}" | sort))
+echo "After function: ${sorted_after[@]}"
 
 # Test variable scoping with recursion
 echo "Testing scoping with recursion:"

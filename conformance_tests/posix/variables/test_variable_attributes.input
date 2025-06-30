@@ -58,7 +58,9 @@ echo "array_var[1]: ${array_var[1]}"
 # Test associative array attribute (-A)
 echo "Testing associative array attribute (-A):"
 declare -A assoc_var=([key1]="value1" [key2]="value2")
-echo "assoc_var keys: ${!assoc_var[@]}"
+# Sort keys for consistent output
+sorted_assoc_keys=($(printf '%s\n' "${!assoc_var[@]}" | sort))
+echo "assoc_var keys: ${sorted_assoc_keys[@]}"
 echo "assoc_var[key1]: ${assoc_var[key1]}"
 
 # Test combining attributes

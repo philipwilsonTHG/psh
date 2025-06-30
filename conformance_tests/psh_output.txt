@@ -1,0 +1,2 @@
+Escaped array: escaped\ space tab	here newline
+here quote"here
