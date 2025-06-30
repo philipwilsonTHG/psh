@@ -2,10 +2,16 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.63.5"
+__version__ = "0.63.6"
 
 # Version history
 VERSION_HISTORY = """
+0.63.6 (2025-06-30) - POSIX Compliance Phase 9: Control Structures, Emacs Mode, and Variable Attributes
+  - Fixed control structures in pipelines by temporarily disabling _in_pipeline flag for commands inside control structures
+  - Fixed emacs editing mode to be enabled by default, matching bash behavior  
+  - Fixed variable attribute conflicts: declare -lu now ignores both transformations as in bash
+  - Improved POSIX compliance with multiple conformance test fixes
+
 0.63.5 (2025-06-30) - POSIX Compliance Phase 8: Associative Array Test Order Independence
   - Made associative array conformance tests order-independent for better compliance
   - Fixed test expectations to sort array keys/values for consistent cross-implementation results
