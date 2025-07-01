@@ -713,7 +713,7 @@ class ExecutorVisitor(ASTVisitor[int]):
                     temp_command = SimpleCommand(args=args, redirects=redirects)
                     self.io_manager.setup_child_redirections(temp_command)
                 
-                os.execvp(args[0], args)
+                os.execvpe(args[0], args, self.shell.env)
             except OSError as e:
                 print(f"psh: {args[0]}: {e}", file=sys.stderr)
                 os._exit(127)
@@ -749,8 +749,10 @@ class ExecutorVisitor(ASTVisitor[int]):
                     temp_command = SimpleCommand(args=args, redirects=redirects)
                     self.io_manager.setup_child_redirections(temp_command)
                 
-                # Execute the command
-                os.execvp(args[0], args)
+                # Execute the command with proper environment
+                if self.state.options.get('debug-exec'):
+                    print(f"DEBUG ExecutorVisitor: execvpe {args[0]} with PATH={self.shell.env.get('PATH', 'NOT_SET')[:50]}...", file=sys.stderr)
+                os.execvpe(args[0], args, self.shell.env)
             except FileNotFoundError:
                 # Write to stderr file descriptor
                 error_msg = f"psh: {args[0]}: command not found\n"

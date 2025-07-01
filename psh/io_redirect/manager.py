@@ -287,6 +287,14 @@ class IOManager:
             if target and redirect.type in ('<', '>', '>>') and target.startswith('~'):
                 target = self.shell.expansion_manager.expand_tilde(target)
             
+            # Handle process substitution as redirect target
+            if target and target.startswith(('<(', '>(')) and target.endswith(')'):
+                # This is a process substitution used as a redirect target
+                # We need to set it up here in the child process
+                path, fd_to_close, pid = self.process_sub_handler.handle_redirect_process_sub(target)
+                target = path
+                # Note: We don't track these for cleanup since we're in the child that will exec
+            
             if redirect.type == '<':
                 fd = os.open(target, os.O_RDONLY)
                 os.dup2(fd, 0)
@@ -326,6 +334,13 @@ class IOManager:
                 os.dup2(r, 0)
                 os.close(r)
             elif redirect.type == '>':
+                # Check noclobber option
+                if self.state.options.get('noclobber', False) and os.path.exists(target):
+                    # Write error directly to stderr fd
+                    error_msg = f"psh: cannot overwrite existing file: {target}\n"
+                    os.write(2, error_msg.encode('utf-8'))
+                    os._exit(1)
+                
                 fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)
                 target_fd = redirect.fd if redirect.fd is not None else 1
                 os.dup2(fd, target_fd)
