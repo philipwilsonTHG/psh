@@ -86,12 +86,15 @@ class TestDebugScopesToggle:
     
     def test_set_o_shows_debug_scopes(self, shell):
         """Test that 'set -o' shows debug-scopes status."""
+        # Set environment variable to show all options including PSH debug options
+        shell.state.env['PSH_SHOW_ALL_OPTIONS'] = '1'
+        
         # Test when off
         f = StringIO()
         with redirect_stdout(f):
             shell.run_command("set -o")
         output = f.getvalue()
-        assert "debug-scopes         off" in output
+        assert "debug-scopes   \toff" in output
         
         # Enable and test again
         shell.run_command("set -o debug-scopes")
@@ -99,7 +102,7 @@ class TestDebugScopesToggle:
         with redirect_stdout(f):
             shell.run_command("set -o")
         output = f.getvalue()
-        assert "debug-scopes         on" in output
+        assert "debug-scopes   \ton" in output
     
     def test_set_plus_o_shows_debug_scopes(self, shell):
         """Test that 'set +o' shows debug-scopes as set commands."""

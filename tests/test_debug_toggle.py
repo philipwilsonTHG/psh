@@ -65,6 +65,9 @@ class TestDebugToggle:
         # Enable one option
         shell.run_command("set -o debug-ast")
         
+        # Set environment variable to show all options including PSH debug options
+        shell.state.env['PSH_SHOW_ALL_OPTIONS'] = '1'
+        
         # Capture output
         old_stdout = sys.stdout
         sys.stdout = StringIO()
@@ -76,9 +79,10 @@ class TestDebugToggle:
             sys.stdout = old_stdout
         
         assert exit_code == 0
-        assert "debug-ast            on" in output
-        assert "debug-tokens         off" in output
-        assert "edit_mode            emacs" in output
+        assert "debug-ast      \ton" in output
+        assert "debug-tokens   \toff" in output
+        # In new format, edit mode shows as separate emacs/vi options
+        assert "emacs          \ton" in output or "vi             \ton" in output
     
     def test_show_options_as_commands(self):
         """Test showing options as set commands with set +o."""

@@ -2,10 +2,36 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.64.2"
+__version__ = "0.65.0"
 
 # Version history
 VERSION_HISTORY = """
+0.65.0 (2025-07-01) - Associative Array Bash Compatibility and Declare Builtin Enhancements
+  - Fixed critical associative array access issue where PSH returned empty values instead of stored values
+  - Implemented bash compatibility for string indices on indexed arrays (treats as index 0)
+  - Enhanced declare builtin to properly convert indexed arrays to associative arrays with declare -A
+  - Added array type conversion with proper attribute management (removes ARRAY, adds ASSOC_ARRAY)
+  - Fixed bash compatibility quirk where config=(); declare -A config creates usable associative array
+  - Improved array element assignment, reading, and unsetting with bash-compatible fallback behavior
+  - Applied fixes to executor_visitor.py, variable.py expansion, and environment.py unset builtin
+  - Resolves major bash compatibility gap where associative array syntax would fail with "bad array subscript"
+  - Enhanced POSIX compliance for array operations while maintaining educational code clarity
+  - Fixed string key handling in associative arrays to work with bash-style mixed type declarations
+  - All array functionality now works correctly for core use cases with only minor edge cases remaining
+  - Foundation established for Phase 3 POSIX compliance improvements targeting remaining conformance gaps
+
+0.64.3 (2025-06-30) - Pipeline Output, Readonly Variables, and Shell Variable Improvements
+  - Fixed declare -p output capture in pipelines and command substitution contexts
+  - Implemented pipeline-aware output for declare builtin using _in_forked_child detection
+  - Added proper ReadonlyVariableError handling in variable assignments with stderr redirection support
+  - Fixed readonly variable error messages to appear immediately during assignment, not at script end
+  - Applied redirections before processing variable assignments in visit_SimpleCommand
+  - Added PSH_VERSION shell variable initialization to shell state for compatibility testing
+  - Improved POSIX compliance from 57.4% to 57.4% (maintained with PSH_VERSION fix offsetting other issues)
+  - Enhanced declare builtin to work correctly in pipelines, fixing readonly detection functions
+  - Improved readonly variable error handling for pure assignments and command-prefixed assignments
+  - Fixed stderr redirection for readonly variable errors in simple assignments
+
 0.64.2 (2025-06-30) - Set Options Display Formatting and POSIX Compliance Improvements
   - Fixed set -o output formatting to match bash style with tab separation instead of space padding
   - Implemented bash-compatible option filtering to show only standard POSIX/bash options by default

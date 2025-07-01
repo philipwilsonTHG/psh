@@ -266,8 +266,9 @@ class VariableExpander:
                         result = var.value.get(index)
                         return result if result is not None else ''
                     except ValueError:
-                        # Invalid index
-                        return ''
+                        # Bash compatibility: treat string indices on indexed arrays as index 0
+                        result = var.value.get(0)
+                        return result if result is not None else ''
                 elif var and isinstance(var.value, AssociativeArray):
                     # For associative arrays, use the key as-is
                     expanded_key = self.expand_array_index(index_expr)

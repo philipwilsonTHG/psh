@@ -4,6 +4,7 @@ import sys
 from typing import List, Dict, Optional, Any
 from .scope_enhanced import EnhancedScopeManager
 from .variables import VarAttributes
+from ..version import __version__
 
 class ShellState:
     """Container for shell state that can be shared across components."""
@@ -23,6 +24,9 @@ class ShellState:
         # Default prompt variables (set in global scope)
         self.scope_manager.set_variable('PS1', 'psh$ ')
         self.scope_manager.set_variable('PS2', '> ')
+        
+        # Shell version variable for compatibility
+        self.scope_manager.set_variable('PSH_VERSION', __version__)
         
         # Import environment variables into scope manager with EXPORT attribute
         # This ensures they're properly tracked as exported variables

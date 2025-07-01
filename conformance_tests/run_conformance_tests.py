@@ -121,7 +121,7 @@ def main():
 
     # List categories if requested
     if args.list_categories:
-        posix_dir = "conformance_tests/posix"
+        posix_dir = "posix"
         if os.path.exists(posix_dir):
             categories = [d for d in os.listdir(posix_dir) if os.path.isdir(os.path.join(posix_dir, d))]
             print("Available categories:")
@@ -145,9 +145,9 @@ def main():
     base_dirs = []
     
     if args.mode == "all":
-        base_dirs = [("posix", "conformance_tests/posix"), ("bash", "conformance_tests/bash")]
+        base_dirs = [("posix", "posix"), ("bash", "bash")]
     else:
-        base_dirs = [(args.mode, f"conformance_tests/{args.mode}")]
+        base_dirs = [(args.mode, args.mode)]
 
     for mode, directory in base_dirs:
         if not os.path.exists(directory):

@@ -38,7 +38,7 @@ from ..ast_nodes import (
     # Other
     ProcessSubstitution, SubshellGroup, BraceGroup
 )
-from ..core.exceptions import LoopBreak, LoopContinue, UnboundVariableError
+from ..core.exceptions import LoopBreak, LoopContinue, UnboundVariableError, ReadonlyVariableError
 from ..builtins.function_support import FunctionReturn
 from ..job_control import JobState
 import fnmatch
@@ -428,27 +428,32 @@ class ExecutorVisitor(ASTVisitor[int]):
             # Check for variable assignments
             assignments = self._extract_assignments(expanded_args)
             if assignments and len(expanded_args) == len(assignments):
-                # Pure assignment (no command)
-                # Handle xtrace for assignments
-                if self.state.options.get('xtrace'):
-                    ps4 = self.state.get_variable('PS4', '+ ')
+                # Pure assignment (no command) - apply redirections first
+                with self._apply_redirections(node.redirects):
+                    # Handle xtrace for assignments
+                    if self.state.options.get('xtrace'):
+                        ps4 = self.state.get_variable('PS4', '+ ')
+                        for var, value in assignments:
+                            trace_line = ps4 + f"{var}={value}\n"
+                            self.state.stderr.write(trace_line)
+                            self.state.stderr.flush()
+                    
+                    # Save the current exit code before expansions
+                    saved_exit_code = self.state.last_exit_code
+                    
                     for var, value in assignments:
-                        trace_line = ps4 + f"{var}={value}\n"
-                        self.state.stderr.write(trace_line)
-                        self.state.stderr.flush()
-                
-                # Save the current exit code before expansions
-                saved_exit_code = self.state.last_exit_code
-                
-                for var, value in assignments:
-                    # Apply all expansions to assignment values
-                    value = self._expand_assignment_value(value)
-                    self.state.set_variable(var, value)
-                
-                # If any command substitution happened during expansion, it will have set last_exit_code
-                # Return the current exit code (which will be from command substitution if any)
-                # Otherwise return the saved exit code
-                return self.state.last_exit_code
+                        # Apply all expansions to assignment values
+                        value = self._expand_assignment_value(value)
+                        try:
+                            self.state.set_variable(var, value)
+                        except ReadonlyVariableError as e:
+                            print(f"psh: {var}: readonly variable", file=self.state.stderr)
+                            return 1
+                    
+                    # If any command substitution happened during expansion, it will have set last_exit_code
+                    # Return the current exit code (which will be from command substitution if any)
+                    # Otherwise return the saved exit code
+                    return self.state.last_exit_code
             
             # Apply assignments for this command
             saved_vars = {}
@@ -456,7 +461,11 @@ class ExecutorVisitor(ASTVisitor[int]):
                 saved_vars[var] = self.state.get_variable(var)
                 # Apply all expansions to assignment values
                 value = self._expand_assignment_value(value)
-                self.state.set_variable(var, value)
+                try:
+                    self.state.set_variable(var, value)
+                except ReadonlyVariableError as e:
+                    print(f"psh: {var}: readonly variable", file=self.state.stderr)
+                    return 1
             
             try:
                 # Remove assignments from args
@@ -570,6 +579,10 @@ class ExecutorVisitor(ASTVisitor[int]):
         except SystemExit:
             # Exit must propagate
             raise
+        except ReadonlyVariableError as e:
+            # Readonly variable errors should be handled immediately, not here
+            print(f"psh: {e.name}: readonly variable", file=self.state.stderr)
+            return 1
         except Exception as e:
             print(f"psh: {e}", file=sys.stderr)
             return 1
@@ -963,7 +976,11 @@ class ExecutorVisitor(ASTVisitor[int]):
             try:
                 for item in expanded_items:
                     # Set loop variable
-                    self.state.set_variable(node.variable, item)
+                    try:
+                        self.state.set_variable(node.variable, item)
+                    except ReadonlyVariableError as e:
+                        print(f"psh: {node.variable}: readonly variable", file=self.state.stderr)
+                        return 1
                     
                     # Execute body
                     try:
@@ -1637,8 +1654,9 @@ class ExecutorVisitor(ASTVisitor[int]):
                 else:
                     index = int(expanded_index)
             except (ValueError, Exception):
-                print(f"psh: {node.name}[{index_str}]: bad array subscript", file=sys.stderr)
-                return 1
+                # Bash compatibility: when string indices are used on indexed arrays
+                # (often due to failed declare -A conversion), treat as index 0
+                index = 0
         
         # Expand value
         expanded_value = self.expansion_manager.expand_string_variables(node.value, process_escapes=False)

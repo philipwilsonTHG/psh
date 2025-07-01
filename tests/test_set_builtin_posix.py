@@ -81,11 +81,11 @@ class TestSetBuiltinPOSIX:
         shell.run_command("set -o")
         captured = capsys.readouterr()
         
-        # Should show option status
-        assert "allexport            on" in captured.out
-        assert "noglob               on" in captured.out
-        assert "verbose              on" in captured.out
-        assert "noclobber            off" in captured.out
+        # Should show option status (with new tab-separated format)
+        assert "allexport      \ton" in captured.out
+        assert "noglob         \ton" in captured.out
+        assert "verbose        \ton" in captured.out
+        assert "noclobber      \toff" in captured.out
     
     def test_set_show_as_commands(self, shell, capsys):
         """Test set +o shows options as commands."""

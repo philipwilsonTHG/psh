@@ -290,10 +290,21 @@ class DeclareBuiltin(Builtin):
                     # Check for array type conflict first  
                     existing = self._get_variable_with_attributes(shell, arg)
                     if existing and existing.is_indexed_array:
+                        # Bash behavior: print error but continue, convert to associative array
                         self.error(f"{arg}: cannot convert indexed to associative array", shell)
-                        return 1
-                    # Create empty associative array
-                    self._set_variable_with_attributes(shell, arg, AssociativeArray(), attributes)
+                        # Convert indexed array content to associative array
+                        new_assoc = AssociativeArray()
+                        if hasattr(existing.value, '_elements'):
+                            # Copy indexed array elements as string keys
+                            for index, value in existing.value._elements.items():
+                                new_assoc.set(str(index), value)
+                        # Completely replace the variable with new associative array
+                        # Remove old attributes and set only the new ones
+                        shell.state.scope_manager.unset_variable(arg)
+                        self._set_variable_with_attributes(shell, arg, new_assoc, attributes)
+                    else:
+                        # Create empty associative array
+                        self._set_variable_with_attributes(shell, arg, AssociativeArray(), attributes)
                 else:
                     # Apply attributes to existing variable or create new one
                     existing = self._get_variable_with_attributes(shell, arg)
@@ -316,16 +327,14 @@ class DeclareBuiltin(Builtin):
         return 0
     
     def _print_variables(self, options: dict, names: List[str], shell: 'Shell') -> int:
-        """Print variables with attributes using declare -p format."""
-        stdout = shell.stdout if hasattr(shell, 'stdout') else sys.stdout
-        
+        """Print variables with attributes using declare -p format."""        
         if names:
             # Print specific variables
             exit_code = 0
             for name in names:
                 var = self._get_variable_with_attributes(shell, name)
                 if var:
-                    self._print_declaration(var, stdout)
+                    self._print_declaration_with_pipeline_support(var, shell)
                 else:
                     self.error(f"{name}: not found", shell)
                     exit_code = 1
@@ -335,7 +344,7 @@ class DeclareBuiltin(Builtin):
             variables = self._get_all_variables_with_attributes(shell)
             for var in sorted(variables, key=lambda v: v.name):
                 if self._matches_filter(var, options):
-                    self._print_declaration(var, stdout)
+                    self._print_declaration_with_pipeline_support(var, shell)
             return 0
     
     def _print_simple_declaration(self, var: Variable, file):
@@ -347,8 +356,29 @@ class DeclareBuiltin(Builtin):
             # Simple format without quotes or escaping
             print(f"{var.name}={var.value}", file=file)
     
+    def _print_declaration_with_pipeline_support(self, var: Variable, shell: 'Shell'):
+        """Print variable declaration with pipeline support."""
+        # Build the declaration string
+        declaration_str = self._format_declaration(var)
+        
+        # Use pipeline-aware output (like echo builtin)
+        import os
+        if hasattr(shell.state, '_in_forked_child') and shell.state._in_forked_child:
+            # In child process (pipeline), write directly to fd 1
+            output_bytes = (declaration_str + '\n').encode('utf-8', errors='replace')
+            os.write(1, output_bytes)
+        else:
+            # In parent process, use shell.stdout to respect redirections
+            stdout = shell.stdout if hasattr(shell, 'stdout') else sys.stdout
+            print(declaration_str, file=stdout)
+
     def _print_declaration(self, var: Variable, file):
         """Print variable declaration in reusable format."""
+        declaration_str = self._format_declaration(var)
+        print(declaration_str, file=file)
+    
+    def _format_declaration(self, var: Variable) -> str:
+        """Format variable declaration string."""
         # Build flags string
         flags = []
         if var.attributes & VarAttributes.ARRAY:
@@ -398,7 +428,7 @@ class DeclareBuiltin(Builtin):
             # Regular variable
             value_str = f'="{self._escape_value(str(var.value))}"'
         
-        print(f"declare {flag_str} {var.name}{value_str}", file=file)
+        return f"declare {flag_str} {var.name}{value_str}"
     
     def _escape_value(self, value: str) -> str:
         """Escape special characters in value for shell output."""

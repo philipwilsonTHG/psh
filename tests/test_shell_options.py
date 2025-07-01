@@ -65,10 +65,10 @@ class TestShellOptions:
         # Show with -o
         shell.run_command("set -o")
         captured = capsys.readouterr()
-        assert "errexit              on" in captured.out
-        assert "nounset              off" in captured.out
-        assert "xtrace               on" in captured.out
-        assert "pipefail             off" in captured.out
+        assert "errexit        \ton" in captured.out
+        assert "nounset        \toff" in captured.out
+        assert "xtrace         \ton" in captured.out
+        assert "pipefail       \toff" in captured.out
     
     def test_xtrace_basic(self, shell, capsys):
         """Test basic xtrace functionality."""

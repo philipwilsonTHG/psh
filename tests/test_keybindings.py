@@ -281,11 +281,15 @@ class TestSetCommand:
     def test_show_options(self, shell, capsys):
         """Test showing current options."""
         shell.edit_mode = 'vi'
+        # Set environment variable to show all options including PSH debug options
+        shell.state.env['PSH_SHOW_ALL_OPTIONS'] = '1'
         result = shell.run_command('set -o')
         assert result == 0
         captured = capsys.readouterr()
-        assert 'edit_mode            vi' in captured.out
-        # Also check that debug options are shown
+        # In new format, edit mode shows as separate emacs/vi options
+        assert 'vi             \ton' in captured.out
+        assert 'emacs          \toff' in captured.out
+        # Also check that debug options are shown when PSH_SHOW_ALL_OPTIONS is set
         assert 'debug-ast' in captured.out
         assert 'debug-tokens' in captured.out
     
