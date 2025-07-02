@@ -1,0 +1,240 @@
+"""
+Execution strategies for different command types.
+
+This module implements the Strategy pattern for command execution,
+providing different strategies for builtins, functions, and external commands.
+"""
+
+import os
+import sys
+import signal
+from abc import ABC, abstractmethod
+from typing import List, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ..shell import Shell
+    from ..ast_nodes import SimpleCommand, Redirect
+    from .context import ExecutionContext
+    from ..job_control import Job
+
+
+class ExecutionStrategy(ABC):
+    """Abstract base class for command execution strategies."""
+    
+    @abstractmethod
+    def can_execute(self, cmd_name: str, shell: 'Shell') -> bool:
+        """Check if this strategy can execute the given command."""
+        pass
+    
+    @abstractmethod
+    def execute(self, cmd_name: str, args: List[str], 
+                shell: 'Shell', context: 'ExecutionContext',
+                redirects: Optional[List['Redirect']] = None,
+                background: bool = False) -> int:
+        """Execute the command and return exit status."""
+        pass
+
+
+class BuiltinExecutionStrategy(ExecutionStrategy):
+    """Strategy for executing builtin commands."""
+    
+    def can_execute(self, cmd_name: str, shell: 'Shell') -> bool:
+        """Check if command is a builtin."""
+        return shell.builtin_registry.has(cmd_name)
+    
+    def execute(self, cmd_name: str, args: List[str], 
+                shell: 'Shell', context: 'ExecutionContext',
+                redirects: Optional[List['Redirect']] = None,
+                background: bool = False) -> int:
+        """Execute a builtin command."""
+        if background:
+            # Builtins can't run in background
+            print(f"psh: {cmd_name}: builtin commands cannot be run in background", 
+                  file=sys.stderr)
+            return 1
+        
+        builtin = shell.builtin_registry.get(cmd_name)
+        if not builtin:
+            return 127  # Command not found
+        
+        # DEBUG: Log builtin execution
+        if shell.state.options.get('debug-exec'):
+            print(f"DEBUG BuiltinStrategy: executing builtin '{cmd_name}' with args {args}", 
+                  file=sys.stderr)
+            print(f"DEBUG BuiltinStrategy: in_pipeline={context.in_pipeline}, "
+                  f"in_forked_child={context.in_forked_child}", file=sys.stderr)
+        
+        try:
+            # Use the builtin's execute method
+            # The builtin will check context.in_forked_child to determine output method
+            # Builtins expect the command name as the first argument
+            return builtin.execute([cmd_name] + args, shell)
+        except SystemExit as e:
+            # Some builtins like 'exit' raise SystemExit
+            raise
+        except Exception as e:
+            # Import FunctionReturn here to avoid circular imports
+            from ..builtins.function_support import FunctionReturn
+            if isinstance(e, FunctionReturn):
+                # FunctionReturn must propagate to be caught by function execution
+                raise
+            print(f"psh: {cmd_name}: {e}", file=sys.stderr)
+            return 1
+
+
+class FunctionExecutionStrategy(ExecutionStrategy):
+    """Strategy for executing shell functions."""
+    
+    def can_execute(self, cmd_name: str, shell: 'Shell') -> bool:
+        """Check if command is a defined function."""
+        return shell.function_manager.get_function(cmd_name) is not None
+    
+    def execute(self, cmd_name: str, args: List[str], 
+                shell: 'Shell', context: 'ExecutionContext',
+                redirects: Optional[List['Redirect']] = None,
+                background: bool = False) -> int:
+        """Execute a shell function."""
+        if background:
+            # Functions can't run in background (in current implementation)
+            print(f"psh: {cmd_name}: functions cannot be run in background", 
+                  file=sys.stderr)
+            return 1
+        
+        # Import here to avoid circular imports
+        from .function import FunctionOperationExecutor
+        from .core import ExecutorVisitor
+        
+        # We need to create a new executor visitor for the function execution
+        # This ensures proper context isolation
+        visitor = ExecutorVisitor(shell)
+        
+        # Use the function executor from the visitor to ensure consistency
+        return visitor.function_executor.execute_function_call(
+            cmd_name, args, visitor.context, visitor, redirects
+        )
+
+
+class ExternalExecutionStrategy(ExecutionStrategy):
+    """Strategy for executing external commands."""
+    
+    def can_execute(self, cmd_name: str, shell: 'Shell') -> bool:
+        """External commands are the fallback - always return True."""
+        return True
+    
+    def execute(self, cmd_name: str, args: List[str], 
+                shell: 'Shell', context: 'ExecutionContext',
+                redirects: Optional[List['Redirect']] = None,
+                background: bool = False) -> int:
+        """Execute an external command."""
+        full_args = [cmd_name] + args
+        
+        if context.in_pipeline:
+            # In pipeline, use exec to replace current process
+            try:
+                # Set up redirections if any
+                if redirects:
+                    # Create a dummy command object for the io_manager
+                    from ..ast_nodes import SimpleCommand
+                    temp_command = SimpleCommand(args=full_args, redirects=redirects)
+                    shell.io_manager.setup_child_redirections(temp_command)
+                
+                os.execvpe(full_args[0], full_args, shell.env)
+            except OSError as e:
+                print(f"psh: {full_args[0]}: {e}", file=sys.stderr)
+                os._exit(127)
+        
+        # Save current terminal foreground process group
+        try:
+            original_pgid = os.tcgetpgrp(0)
+        except:
+            original_pgid = None
+        
+        # Normal execution - fork a child process
+        pid = os.fork()
+        
+        if pid == 0:
+            # Child process
+            try:
+                # Set flag to indicate we're in a forked child
+                shell.state._in_forked_child = True
+                
+                # Create new process group
+                os.setpgid(0, 0)
+                
+                # Reset signal handlers to default
+                signal.signal(signal.SIGINT, signal.SIG_DFL)
+                signal.signal(signal.SIGTSTP, signal.SIG_DFL)
+                signal.signal(signal.SIGTTOU, signal.SIG_DFL)
+                signal.signal(signal.SIGTTIN, signal.SIG_DFL)
+                
+                # Set up redirections if any
+                if redirects:
+                    # Create a dummy command object for the io_manager
+                    from ..ast_nodes import SimpleCommand
+                    temp_command = SimpleCommand(args=full_args, redirects=redirects)
+                    shell.io_manager.setup_child_redirections(temp_command)
+                
+                # Execute the command with proper environment
+                if shell.state.options.get('debug-exec'):
+                    print(f"DEBUG ExternalStrategy: execvpe {full_args[0]} with PATH={shell.env.get('PATH', 'NOT_SET')[:50]}...", 
+                          file=sys.stderr)
+                os.execvpe(full_args[0], full_args, shell.env)
+            except FileNotFoundError:
+                # Write to stderr file descriptor
+                error_msg = f"psh: {full_args[0]}: command not found\n"
+                os.write(2, error_msg.encode('utf-8'))
+                os._exit(127)
+            except OSError as e:
+                # Write to stderr file descriptor
+                error_msg = f"psh: {full_args[0]}: {e}\n"
+                os.write(2, error_msg.encode('utf-8'))
+                os._exit(126)
+        else:
+            # Parent process
+            # Set child's process group
+            try:
+                os.setpgid(pid, pid)
+            except:
+                pass  # Race condition - child may have already done it
+            
+            # Create job for tracking
+            job = shell.job_manager.create_job(pid, " ".join(str(arg) for arg in full_args))
+            job.add_process(pid, str(full_args[0]))
+            
+            if background:
+                # Background job
+                job.foreground = False
+                # Note: context.background_job should be set by caller
+                shell.state.last_bg_pid = pid
+                print(f"[{job.job_id}] {pid}")
+                return 0
+            else:
+                # Foreground job - give it terminal control
+                job.foreground = True
+                shell.job_manager.set_foreground_job(job)
+                
+                if original_pgid is not None:
+                    shell.state.foreground_pgid = pid
+                    try:
+                        os.tcsetpgrp(0, pid)
+                    except:
+                        pass
+                
+                # Use job manager to wait (it handles SIGCHLD)
+                exit_status = shell.job_manager.wait_for_job(job)
+                
+                # Restore terminal control
+                if original_pgid is not None:
+                    shell.state.foreground_pgid = None
+                    shell.job_manager.set_foreground_job(None)
+                    try:
+                        os.tcsetpgrp(0, original_pgid)
+                    except:
+                        pass
+                
+                # Clean up
+                from ..job_control import JobState
+                if job.state == JobState.DONE:
+                    shell.job_manager.remove_job(job.job_id)
+                
+                return exit_status

@@ -4,14 +4,14 @@
 
 Python Shell (psh) is designed with a clean, component-based architecture that separates concerns and makes the codebase easy to understand, test, and extend. The shell follows a traditional interpreter pipeline: lexing → parsing → expansion → execution, with each phase carefully designed for educational clarity and correctness.
 
-**Current Version**: 0.60.0 (as of 2025-06-27)
+**Current Version**: 0.68.0 (as of 2025-07-02)
 
 **Note:** For LLM-optimized architecture documentation, see `ARCHITECTURE.llm`
 
 **Key Architectural Features**:
-- **Visitor Pattern Executor** (default as of v0.50.0): Clean separation between AST and operations
+- **Modular Executor Package** (v0.68.0): Visitor pattern with 9 specialized executor modules
 - **Modular Parser Package** (v0.60.0): Delegation-based parser with 8 focused modules
-- **State Machine Lexer**: Handles complex tokenization with rich metadata
+- **Modular Lexer Package** (v0.58.0): State machine lexer with clean component separation
 - **Multi-phase Expansion**: POSIX-compliant expansion ordering
 - **Component-based Design**: Each subsystem has clear boundaries and responsibilities
 
@@ -315,125 +315,198 @@ def _error(self, message: str) -> ParseError:
 
 The execution phase traverses the AST and performs the actual work.
 
-### 4.1 Visitor Pattern Architecture (Default)
-**Directory**: `visitor/`
+### 4.1 Modular Executor Package Architecture (v0.68.0)
+**Directory**: `executor/`
 
-As of v0.50.0, the visitor pattern executor is the default:
+As of v0.68.0, the executor uses a modular package architecture with specialized executors:
 
-```python
-class ASTVisitor(Generic[T]):
-    """Base visitor class for AST traversal"""
-    def visit(self, node: ASTNode) -> T:
-        method_name = f'visit_{node.__class__.__name__}'
-        visitor = getattr(self, method_name, self.generic_visit)
-        return visitor(node)
-
-class ExecutorVisitor(ASTVisitor[int]):
-    """Executes AST nodes, returning exit status"""
-    def visit_SimpleCommand(self, node: SimpleCommand) -> int:
-        # Expand arguments
-        # Apply redirections
-        # Execute command
-        # Return exit status
+#### Package Structure
+```
+executor/
+├── __init__.py          # Public API exports
+├── core.py              # Main ExecutorVisitor (542 lines, down from ~2000)
+├── command.py           # Simple command execution with strategies
+├── pipeline.py          # Pipeline execution and process management  
+├── control_flow.py      # Control structures (if, loops, case, select)
+├── array.py             # Array initialization and element operations
+├── function.py          # Function definition and execution
+├── subshell.py          # Subshell and brace group execution
+├── context.py           # ExecutionContext state management
+└── strategies.py        # Command type execution strategies
 ```
 
-### 4.2 Execution Flow
+#### Core Architecture
+```python
+class ExecutorVisitor(ASTVisitor[int]):
+    """Main executor that delegates to specialized components"""
+    
+    def __init__(self, shell: Shell):
+        super().__init__()
+        self.shell = shell
+        self.context = ExecutionContext()
+        
+        # Initialize specialized executors
+        self.command_executor = CommandExecutor(shell)
+        self.pipeline_executor = PipelineExecutor(shell) 
+        self.control_flow_executor = ControlFlowExecutor(shell)
+        self.array_executor = ArrayOperationExecutor(shell)
+        self.function_executor = FunctionOperationExecutor(shell)
+        self.subshell_executor = SubshellExecutor(shell)
+    
+    def visit_SimpleCommand(self, node: SimpleCommand) -> int:
+        # Delegate to CommandExecutor
+        return self.command_executor.execute(node, self.context)
+    
+    def visit_Pipeline(self, node: Pipeline) -> int:
+        # Delegate to PipelineExecutor
+        return self.pipeline_executor.execute(node, self.context, self)
+```
 
-The executor follows these steps for each command:
+#### Execution Context
+```python
+@dataclass
+class ExecutionContext:
+    """Encapsulates execution state for cleaner parameter passing"""
+    in_pipeline: bool = False
+    in_subshell: bool = False
+    in_forked_child: bool = False
+    loop_depth: int = 0
+    current_function: Optional[str] = None
+    pipeline_context: Optional[PipelineContext] = None
+    background_job: Optional[Job] = None
+```
 
-1. **Variable Assignment Processing**
-   ```python
-   # Handle VAR=value assignments
-   for assignment in assignments:
-       var, value = assignment.split('=', 1)
-       value = self._expand_assignment_value(value)
-       self.state.set_variable(var, value)
-   ```
+### 4.2 Specialized Executors
 
-2. **Argument Expansion**
-   ```python
-   # Expand all arguments
-   expanded_args = []
-   for arg, arg_type in zip(node.args, node.arg_types):
-       expanded = self.expansion_manager.expand_argument(arg, arg_type)
-       expanded_args.extend(expanded)
-   ```
+#### CommandExecutor
+Handles simple command execution with the Strategy pattern:
+```python
+class CommandExecutor:
+    def __init__(self, shell: Shell):
+        self.strategies = [
+            BuiltinExecutionStrategy(),
+            FunctionExecutionStrategy(),
+            ExternalExecutionStrategy()
+        ]
+    
+    def execute(self, node: SimpleCommand, context: ExecutionContext) -> int:
+        # Expand arguments
+        # Extract assignments
+        # Find appropriate strategy
+        # Execute command
+```
 
-3. **Command Resolution**
-   ```python
-   # Resolution order:
-   # 1. Builtins
-   # 2. Functions  
-   # 3. External commands
-   if self.builtin_registry.has(cmd_name):
-       return self._execute_builtin(cmd_name, args)
-   elif self.function_manager.has_function(cmd_name):
-       return self._execute_function(cmd_name, args)
-   else:
-       return self._execute_external(cmd_name, args)
-   ```
+#### PipelineExecutor
+Manages pipeline execution with process forking and pipe management:
+```python
+class PipelineExecutor:
+    def execute(self, node: Pipeline, context: ExecutionContext, 
+                visitor: ASTVisitor[int]) -> int:
+        # Create pipes
+        # Fork processes
+        # Set up process groups
+        # Manage job control
+        # Wait for completion
+```
 
-4. **Process Management**
-   - Fork for external commands
-   - Set up process groups for job control
-   - Handle terminal control for foreground processes
-   - Manage background jobs
+#### ControlFlowExecutor
+Handles all control structures:
+- If/elif/else conditionals
+- While and for loops (including C-style)
+- Case statements
+- Select loops
+- Break and continue statements
 
-### 4.3 Control Structure Execution
+#### FunctionOperationExecutor
+Manages function definition and execution:
+```python
+class FunctionOperationExecutor:
+    def execute_function_call(self, name: str, args: List[str], 
+                             context: ExecutionContext,
+                             visitor: ASTVisitor[int]) -> int:
+        # Set up positional parameters
+        # Manage function stack
+        # Execute function body
+        # Handle return builtin
+```
 
-Control structures use specialized visitor methods:
+### 4.3 Command Execution Strategy Pattern
+
+The CommandExecutor uses strategies for different command types:
 
 ```python
-def visit_WhileLoop(self, node: WhileLoop) -> int:
-    exit_status = 0
-    while True:
-        # Evaluate condition
-        condition_status = self.visit(node.condition)
-        if condition_status != 0:
-            break
-        
-        # Execute body
-        try:
-            exit_status = self.visit(node.body)
-        except LoopBreak:
-            break
-        except LoopContinue:
-            continue
+class ExecutionStrategy(ABC):
+    @abstractmethod
+    def can_execute(self, cmd_name: str, shell: Shell) -> bool:
+        pass
     
-    return exit_status
+    @abstractmethod
+    def execute(self, cmd_name: str, args: List[str], 
+                shell: Shell, context: ExecutionContext) -> int:
+        pass
+
+class BuiltinExecutionStrategy(ExecutionStrategy):
+    # Handles builtin commands
+
+class FunctionExecutionStrategy(ExecutionStrategy):
+    # Handles shell functions
+
+class ExternalExecutionStrategy(ExecutionStrategy):
+    # Handles external commands with fork/exec
 ```
 
 ### 4.4 Pipeline Execution
 
-Pipelines create connected processes:
+Pipeline execution is handled by the PipelineExecutor:
 
 ```python
-def visit_Pipeline(self, node: Pipeline) -> int:
+def _execute_pipeline(self, node: Pipeline, context: ExecutionContext,
+                     visitor: ASTVisitor[int]) -> int:
     if len(node.commands) == 1:
-        # Simple command
-        return self.visit(node.commands[0])
+        # Single command optimization
+        return visitor.visit(node.commands[0])
+    
+    # Multi-command pipeline
+    pipeline_ctx = PipelineContext(self.job_manager)
     
     # Create pipes
-    pipes = []
     for i in range(len(node.commands) - 1):
-        pipes.append(os.pipe())
+        pipeline_ctx.add_pipe()
     
-    # Fork processes
-    pids = []
+    # Fork processes for each command
     for i, command in enumerate(node.commands):
         pid = os.fork()
         if pid == 0:
             # Child: set up pipes and execute
-            self._setup_pipe_redirects(i, pipes)
-            exit_status = self.visit(command)
-            sys.exit(exit_status)
+            self._setup_pipeline_redirections(i, pipeline_ctx)
+            exit_status = visitor.visit(command)
+            os._exit(exit_status)
         else:
-            # Parent: track pid
-            pids.append(pid)
+            # Parent: track process
+            pipeline_ctx.add_process(pid)
     
-    # Wait for all processes
-    return self._wait_for_pipeline(pids)
+    # Create job and wait for completion
+    job = self.job_manager.create_job(pgid, command_string)
+    return self._wait_for_foreground_pipeline(job, node)
 ```
+
+### 4.5 Benefits of Modular Architecture
+
+The refactored executor package provides:
+
+1. **Separation of Concerns**: Each executor handles one aspect of execution
+2. **Reduced Complexity**: Core visitor reduced from ~2000 to 542 lines (73% reduction)
+3. **Improved Testability**: Isolated components with clear interfaces
+4. **Better Maintainability**: Focused modules easier to understand and modify
+5. **Extensibility**: New execution features can be added to specific modules
+6. **Clean Delegation**: Main visitor coordinates specialized executors
+
+### 4.6 Execution Statistics
+
+- **Original ExecutorVisitor**: ~1994 lines in single file
+- **Refactored Package**: 9 modules with clear responsibilities
+- **Code Reduction**: 73% in core module
+- **New Architecture**: Strategy pattern for commands, delegation for all operations
 
 ## Phase 5: Expansion
 

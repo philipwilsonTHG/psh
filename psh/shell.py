@@ -148,13 +148,13 @@ class Shell:
     
     def execute_command_list(self, command_list: StatementList):
         """Execute a command list"""
-        from .visitor.executor_visitor import ExecutorVisitor
+        from .executor import ExecutorVisitor
         executor = ExecutorVisitor(self)
         return executor.visit(command_list)
     
     def execute_toplevel(self, toplevel: TopLevel):
         """Execute a top-level script/input containing functions and commands."""
-        from .visitor.executor_visitor import ExecutorVisitor
+        from .executor import ExecutorVisitor
         executor = ExecutorVisitor(self)
         return executor.visit(toplevel)
     

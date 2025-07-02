@@ -2,10 +2,30 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.67.0"
+__version__ = "0.68.1"
 
 # Version history
 VERSION_HISTORY = """
+0.68.1 (2025-07-02) - Architecture Documentation Updates
+  - Updated ARCHITECTURE.md to reflect new executor package design from v0.68.0
+  - Updated ARCHITECTURE.llm with complete executor package structure and delegation
+  - Documented the 73% code reduction and modular architecture benefits
+  - Added detailed descriptions of all 9 specialized executor modules
+  - Included ExecutionContext and Strategy pattern documentation
+  - Fixed outdated references to visitor/executor_visitor.py
+  - Added new executor classes to Key Classes quick reference
+  - No code changes - documentation updates only
+
+0.68.0 (2025-07-02) - Major Executor Package Refactoring
+  - Complete refactoring of monolithic ExecutorVisitor (~2000 lines) into modular package
+  - Created 7 specialized executor modules with clear separation of concerns
+  - Implemented full function execution with proper positional parameter handling
+  - Reduced core.py from 1994 to 542 lines (73% reduction)
+  - Maintained full backward compatibility with all existing tests
+  - Improved maintainability, testability, and extensibility
+  - Package structure: core, command, pipeline, control_flow, array, function, subshell
+  - Fixed function execution including $0, $1, return builtin, and function_stack
+
 0.67.0 (2025-07-02) - Documentation Updates and Bash Compatibility Analysis
   - Comprehensive update to docs/user_guide/17_differences_from_bash.md reflecting current feature set
   - Updated compatibility documentation to reflect 95%+ bash compatibility for common scripts

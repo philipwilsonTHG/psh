@@ -1,6 +1,6 @@
 # PSH Architecture Reference for Large Language Models
 
-Version: 0.60.0 (2025-06-27) - Parser Package Refactoring  
+Version: 0.68.0 (2025-07-02) - Executor Package Refactoring  
 Purpose: Optimized reference for LLMs working with PSH codebase
 
 ## Quick Start
@@ -44,7 +44,7 @@ psh/
 │   ├── exceptions.py       # Control flow exceptions
 │   └── options.py          # Shell option handlers
 ├── input_preprocessing.py   # Line continuation handling
-├── lexer/                   # Modular lexer package with mixin architecture
+├── lexer/                   # Modular lexer package (v0.58.0)
 │   ├── __init__.py         # Clean public API
 │   ├── core.py            # Main StateMachineLexer class
 │   ├── helpers.py         # LexerHelpers mixin with utility methods
@@ -78,7 +78,17 @@ psh/
 │   ├── command_sub.py     # Command substitution
 │   ├── tilde.py          # Tilde expansion
 │   └── glob.py           # Pathname expansion
-# executor/ directory removed - visitor pattern is now the only executor
+├── executor/               # Modular executor package (v0.68.0)
+│   ├── __init__.py        # Public API exports
+│   ├── core.py            # Main ExecutorVisitor (542 lines)
+│   ├── command.py         # Simple command execution
+│   ├── pipeline.py        # Pipeline execution
+│   ├── control_flow.py    # Control structures
+│   ├── array.py           # Array operations
+│   ├── function.py        # Function execution
+│   ├── subshell.py        # Subshell/brace groups
+│   ├── context.py         # ExecutionContext
+│   └── strategies.py      # Command strategies
 ├── io_redirect/            # I/O redirection
 │   ├── manager.py        # Orchestrates redirections
 │   ├── file_redirect.py  # File redirections
@@ -126,10 +136,11 @@ Input → Preprocessing → Tokenization → Parsing → AST → Visitor Executi
    - Produces AST (ast_nodes.py) 
    - Handles all shell constructs with improved robustness
 
-4. Execution (visitor/executor_visitor.py):
-   - Visitor pattern traversal
-   - Calls expansion manager
-   - Delegates to component managers
+4. Execution (executor/ package):
+   - Modular executor package with delegation architecture
+   - Main ExecutorVisitor delegates to specialized executors
+   - ExecutionContext manages execution state
+   - Strategy pattern for command execution
    - Returns exit status
 ```
 
@@ -167,15 +178,32 @@ self.script_manager = ScriptManager(self)
 - `last_bg_pid: Optional[int]` - $!
 - `options: Dict[str, bool]` - Shell options
 
-### ExecutorVisitor (visitor/executor_visitor.py)
-**Purpose:** Default execution engine using visitor pattern
-**Key Methods:**
+### ExecutorVisitor (executor/core.py)
+**Purpose:** Main execution engine using visitor pattern with delegation
+**Architecture:**
+- Core visitor (~542 lines) delegates to specialized executors
+- ExecutionContext manages execution state
+- Strategy pattern for command type execution
+
+**Specialized Executors:**
 ```python
-def visit_SimpleCommand(self, node: SimpleCommand) -> int
-def visit_Pipeline(self, node: Pipeline) -> int
-def visit_WhileLoop(self, node: WhileLoop) -> int
-def visit_IfConditional(self, node: IfConditional) -> int
-# ... one method per AST node type
+# executor/command.py - Simple command execution
+self.command_executor = CommandExecutor(shell)
+
+# executor/pipeline.py - Pipeline execution  
+self.pipeline_executor = PipelineExecutor(shell)
+
+# executor/control_flow.py - Control structures
+self.control_flow_executor = ControlFlowExecutor(shell)
+
+# executor/array.py - Array operations
+self.array_executor = ArrayOperationExecutor(shell)
+
+# executor/function.py - Function execution
+self.function_executor = FunctionOperationExecutor(shell)
+
+# executor/subshell.py - Subshells and brace groups
+self.subshell_executor = SubshellExecutor(shell)
 ```
 
 ### ExpansionManager (expansion/manager.py)
@@ -262,7 +290,6 @@ class ASTVisitor(Generic[T], ABC):
         return visitor(node)
 ```
 
-# ExecutorComponent removed - visitor pattern is now the only executor
 
 ## Data Flow Examples
 
@@ -409,7 +436,10 @@ class MyBuiltin(BuiltinCommand):
 ### Key Classes
 - `Shell` - Main orchestrator
 - `ShellState` - Central state
-- `ExecutorVisitor` - Default executor
+- `ExecutorVisitor` - Main executor with delegation
+- `ExecutionContext` - Execution state management
+- `CommandExecutor` - Simple command execution
+- `PipelineExecutor` - Pipeline execution
 - `ExpansionManager` - Expansion orchestrator
 - `Parser` - Modular parser with delegation architecture
 - `CommandParser` - Command and pipeline parsing

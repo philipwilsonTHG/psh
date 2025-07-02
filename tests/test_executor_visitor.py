@@ -12,7 +12,7 @@ from io import StringIO
 from contextlib import contextmanager
 
 from psh.shell import Shell
-from psh.visitor.executor_visitor import ExecutorVisitor
+from psh.executor import ExecutorVisitor
 from psh.visitor.testable_executor_visitor import MockExecutorVisitor
 from psh.lexer import tokenize
 from psh.parser import parse

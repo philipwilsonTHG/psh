@@ -9,7 +9,7 @@ import io
 import subprocess
 from typing import List, Optional
 from contextlib import redirect_stdout, redirect_stderr
-from .executor_visitor import ExecutorVisitor
+from ..executor import ExecutorVisitor
 
 
 class TestExecutorVisitor(ExecutorVisitor):

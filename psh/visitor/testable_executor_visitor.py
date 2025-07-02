@@ -12,7 +12,7 @@ import tempfile
 from typing import List, Optional, Dict, Any
 from contextlib import contextmanager
 
-from .executor_visitor import ExecutorVisitor
+from ..executor import ExecutorVisitor
 from ..ast_nodes import SimpleCommand, Redirect
 
 

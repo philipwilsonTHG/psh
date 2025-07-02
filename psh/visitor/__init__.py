@@ -6,19 +6,20 @@ performed on the AST, following the visitor design pattern.
 """
 
 from .base import ASTVisitor, ASTTransformer
-from .executor_visitor import ExecutorVisitor
 from .formatter_visitor import FormatterVisitor
 from .validator_visitor import ValidatorVisitor
 from .debug_ast_visitor import DebugASTVisitor
 from .enhanced_validator_visitor import EnhancedValidatorVisitor, ValidatorConfig, VariableTracker
 from .metrics_visitor import MetricsVisitor
-from .testing_executor_visitor import TestExecutorVisitor
 from .linter_visitor import LinterVisitor, LinterConfig, LintLevel
+
+# Testing visitors are imported separately to avoid circular imports
+# from .testing_executor_visitor import TestExecutorVisitor
+# from .testable_executor_visitor import MockExecutorVisitor
 
 __all__ = [
     'ASTVisitor',
     'ASTTransformer',
-    'ExecutorVisitor',
     'FormatterVisitor',
     'ValidatorVisitor',
     'DebugASTVisitor',
@@ -26,7 +27,6 @@ __all__ = [
     'ValidatorConfig',
     'VariableTracker',
     'MetricsVisitor',
-    'TestExecutorVisitor',
     'LinterVisitor',
     'LinterConfig',
     'LintLevel',
