@@ -78,6 +78,9 @@ class FunctionOperationExecutor:
         # Set up function context
         context.current_function = name
         
+        # Push new variable scope for the function
+        self.shell.state.scope_manager.push_scope(name)
+        
         # Set up positional parameters ($1, $2, etc.)
         # Note: $0 is handled separately by state.script_name
         self.shell.state.positional_params = args
@@ -108,6 +111,9 @@ class FunctionOperationExecutor:
             print(f"psh: {name}: {e}", file=sys.stderr)
             return 1
         finally:
+            # Pop function scope
+            self.shell.state.scope_manager.pop_scope()
+            
             # Pop function from stack
             if self.shell.state.function_stack:
                 self.shell.state.function_stack.pop()

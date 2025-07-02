@@ -324,16 +324,18 @@ class CommandExecutor:
     
     def _handle_array_assignment(self, assignment):
         """Handle array initialization or element assignment."""
-        # This will be moved to array.py in Phase 6
-        # For now, delegate back to the shell's executor
-        # This is a temporary solution to maintain functionality
         from ..ast_nodes import ArrayInitialization, ArrayElementAssignment
+        from .array import ArrayOperationExecutor
+        
+        # Create array executor for this operation
+        array_executor = ArrayOperationExecutor(self.shell)
+        
         if isinstance(assignment, ArrayInitialization):
-            # TODO: Move to array.py
-            pass
+            return array_executor.execute_array_initialization(assignment)
         elif isinstance(assignment, ArrayElementAssignment):
-            # TODO: Move to array.py
-            pass
+            return array_executor.execute_array_element_assignment(assignment)
+        else:
+            return 0
     
     def _handle_exec_builtin(self, node: 'SimpleCommand', command_args: List[str], 
                             assignments: List[tuple]) -> int:
