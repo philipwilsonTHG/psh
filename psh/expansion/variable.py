@@ -708,24 +708,33 @@ class VariableExpander:
             elif text[i] == '\\' and i + 1 < len(text):
                 # Handle escape sequences
                 next_char = text[i + 1]
-                if process_escapes and next_char in 'abfnrtv':
-                    # Standard escape sequences (only if processing escapes)
-                    escape_map = {
-                        'a': '\a', 'b': '\b', 'f': '\f',
-                        'n': '\n', 'r': '\r', 't': '\t', 'v': '\v'
-                    }
-                    result.append(escape_map[next_char])
-                    i += 2
-                    continue
-                elif next_char == '\\':
+                # Note: Standard C escape sequences like \n, \t are NOT processed in shell strings
+                # They remain as literal \n, \t for compatibility with prompt expansion
+                # Only backslash before special shell characters is processed
+                if next_char == '\\':
                     result.append('\\')
                     i += 2
                     continue
                 elif next_char in '"$`':
-                    # In double quotes, only these need escaping
-                    result.append(next_char)
-                    i += 2
-                    continue
+                    # In double quotes, these characters can be escaped
+                    # But for $ and `, we need to check if they're actually escaping something
+                    if next_char == '$':
+                        # Check if this is escaping a variable expansion
+                        if i + 2 < len(text) and (text[i + 2].isalpha() or text[i + 2] == '_' or text[i + 2] in '{(@'):
+                            # This is escaping a variable expansion, remove the backslash
+                            result.append(next_char)
+                            i += 2
+                            continue
+                        else:
+                            # Not escaping a variable, keep the backslash (for PS1 compatibility)
+                            result.append(text[i])
+                            i += 1
+                            continue
+                    else:
+                        # For " and `, always remove the backslash
+                        result.append(next_char)
+                        i += 2
+                        continue
             
             result.append(text[i])
             i += 1
