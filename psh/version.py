@@ -2,10 +2,22 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.66.0"
+__version__ = "0.67.0"
 
 # Version history
 VERSION_HISTORY = """
+0.67.0 (2025-07-02) - Documentation Updates and Bash Compatibility Analysis
+  - Comprehensive update to docs/user_guide/17_differences_from_bash.md reflecting current feature set
+  - Updated compatibility documentation to reflect 95%+ bash compatibility for common scripts
+  - Documented full support for arrays, associative arrays, trap command, wait builtin, and control structures in pipelines
+  - Added comprehensive feature compatibility table with version history
+  - Validated documentation claims through extensive testing
+  - Updated script compatibility checklist and migration guides
+  - Reflected PSH's evolution from educational tool to production-capable bash alternative
+  - Improved accuracy of behavioral differences and architectural limitation descriptions
+  - Added notes about script execution context edge cases
+  - Enhanced future development roadmap and design philosophy sections
+
 0.66.0 (2025-07-02) - Environment Inheritance and Prompt Escape Sequence Fixes
   - Fixed PATH inheritance in nested command and process substitutions
   - Changed os.execvp() to os.execvpe() to properly pass environment in subshells

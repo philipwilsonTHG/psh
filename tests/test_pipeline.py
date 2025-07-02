@@ -150,7 +150,6 @@ class TestPipeline:
         exit_code = self.shell.run_command("echo hello | nonexistentcmd 2>/dev/null | cat > /dev/null")
         assert exit_code == 0  # cat succeeds, so exit code is 0
     
-    @pytest.mark.visitor_xfail(reason="Visitor executor needs proper environment variable propagation in pipelines")
     def test_pipeline_environment_inheritance(self):
         """Test that environment variables are passed through pipeline"""
         self.shell.env['TEST_PIPE_VAR'] = 'test_value'
