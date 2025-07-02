@@ -720,7 +720,7 @@ class VariableExpander:
                     # But for $ and `, we need to check if they're actually escaping something
                     if next_char == '$':
                         # Check if this is escaping a variable expansion
-                        if i + 2 < len(text) and (text[i + 2].isalpha() or text[i + 2] == '_' or text[i + 2] in '{(@'):
+                        if i + 2 < len(text) and (text[i + 2].isalnum() or text[i + 2] in '_${(@#*!?'):
                             # This is escaping a variable expansion, remove the backslash
                             result.append(next_char)
                             i += 2
