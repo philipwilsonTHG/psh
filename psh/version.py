@@ -2,10 +2,22 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.65.0"
+__version__ = "0.66.0"
 
 # Version history
 VERSION_HISTORY = """
+0.66.0 (2025-07-02) - Environment Inheritance and Prompt Escape Sequence Fixes
+  - Fixed PATH inheritance in nested command and process substitutions
+  - Changed os.execvp() to os.execvpe() to properly pass environment in subshells
+  - Resolved "command not found" errors in complex nested substitutions like $(cat < <(echo "test"))
+  - Fixed prompt escape sequence processing to preserve backslash sequences
+  - Corrected handling of \\$ and \\t in double quotes for PS1/PS2 compatibility
+  - Enhanced escape sequence detection to properly handle \\$1, \\$2, etc. in function definitions
+  - Fixed eval builtin test failure related to escaped positional parameters
+  - Improved bash compatibility for prompt string handling while maintaining educational clarity
+  - Added process substitution support in child process redirections
+  - All nested substitution tests now pass, matching bash behavior exactly
+
 0.65.0 (2025-07-01) - Associative Array Bash Compatibility and Declare Builtin Enhancements
   - Fixed critical associative array access issue where PSH returned empty values instead of stored values
   - Implemented bash compatibility for string indices on indexed arrays (treats as index 0)
