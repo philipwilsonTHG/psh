@@ -136,6 +136,7 @@ The order of operations is crucial:
 | SIGTTOU | Background write to terminal | Ignored in shell and pipeline children |
 | SIGTTIN | Background read from terminal | Ignored in shell, default in children |
 | SIGCHLD | Child process state change | Custom handler for job tracking |
+| SIGPIPE | Broken pipe | Default behavior in both modes for clean exits |
 
 ### Interactive Mode Signal Setup
 
@@ -149,6 +150,26 @@ def _setup_interactive_mode_handlers(self):
     # Custom handlers for user signals
     signal.signal(signal.SIGINT, self._handle_signal_with_trap_check)
     signal.signal(signal.SIGCHLD, self._handle_sigchld)
+    
+    # Default SIGPIPE handling for clean broken pipe exits
+    signal.signal(signal.SIGPIPE, signal.SIG_DFL)
+```
+
+### Script Mode Signal Setup
+
+```python
+def _setup_script_mode_handlers(self):
+    # Script mode uses default behaviors for most signals
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
+    signal.signal(signal.SIGTSTP, signal.SIG_DFL)
+    signal.signal(signal.SIGCHLD, signal.SIG_DFL)
+    
+    # Still ignore terminal control signals for robustness
+    signal.signal(signal.SIGTTOU, signal.SIG_IGN)
+    signal.signal(signal.SIGTTIN, signal.SIG_IGN)
+    
+    # Default SIGPIPE handling for clean broken pipe exits
+    signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 ```
 
 ### Child Process Signal Setup
@@ -257,6 +278,19 @@ class JobState(Enum):
 **Problem:** Shell signal handlers affect child processes.
 
 **Solution:** Children always reset signal handlers to default on fork.
+
+### Issue 4: Broken Pipe Handling (Recently Fixed)
+
+**Problem:** PSH would throw Python `BrokenPipeError` exceptions when output was piped to commands that exit early (like `less` or `head`), instead of handling SIGPIPE gracefully.
+
+**Root Cause:** PSH wasn't setting up proper SIGPIPE signal handling, causing Python to raise exceptions instead of allowing the process to exit cleanly.
+
+**Solution:** 
+1. Set `signal.signal(signal.SIGPIPE, signal.SIG_DFL)` in both interactive and script modes
+2. This allows PSH to handle broken pipes the same way bash does - with clean process termination
+3. Enables proper pipeline behavior when PSH output is consumed by tools like `less`, `head`, or `grep`
+
+**Example:** Before fix, `python3 script.py | less` would show Python traceback. After fix, it exits cleanly when `less` is quit.
 
 ## Script vs Interactive Mode Differences
 
