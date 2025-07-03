@@ -106,9 +106,7 @@ class CommandExecutor:
                 if self.state.options.get('xtrace'):
                     self._print_xtrace(cmd_name, cmd_args)
                 
-                # Special handling for exec builtin
-                if cmd_name == 'exec':
-                    return self._handle_exec_builtin(node, command_args, assignments)
+                # NOTE: exec builtin handling removed - let it go through normal builtin dispatch
                 
                 # Execute the command using appropriate strategy
                 return self._execute_with_strategy(
@@ -337,9 +335,4 @@ class CommandExecutor:
         else:
             return 0
     
-    def _handle_exec_builtin(self, node: 'SimpleCommand', command_args: List[str], 
-                            assignments: List[tuple]) -> int:
-        """Handle exec builtin with access to redirections."""
-        # Exec builtin handling is complex and will be fully implemented
-        # when we have the complete external execution strategy
-        raise NotImplementedError("Exec builtin will be implemented with external execution")
+    # NOTE: _handle_exec_builtin method removed - exec now uses normal builtin dispatch

@@ -122,6 +122,12 @@ class PipelineExecutor:
         pipeline_context = context.pipeline_context_enter()
         pipeline_context = pipeline_context.with_pipeline_context(pipeline_ctx)
         
+        # Save original terminal process group for restoration
+        try:
+            original_pgid = os.tcgetpgrp(0)
+        except:
+            original_pgid = None
+        
         try:
             # Fork processes for each command
             for i, command in enumerate(node.commands):
@@ -136,17 +142,33 @@ class PipelineExecutor:
                         # Set flag to indicate we're in a forked child
                         self.state._in_forked_child = True
                         
-                        # Set process group - first child becomes group leader
-                        if pgid is None:
-                            pgid = os.getpid()
-                            os.setpgid(0, pgid)
+                        # Set process group - this must be done before resetting signal handlers
+                        # to avoid SIGTTOU when child tries to write to terminal
+                        if i == 0:
+                            # First child becomes process group leader
+                            os.setpgid(0, 0)
+                            # Also ensure we set signal disposition to ignore SIGTTOU temporarily
+                            # until parent transfers terminal control
+                            signal.signal(signal.SIGTTOU, signal.SIG_IGN)
                         else:
-                            os.setpgid(0, pgid)
+                            # Other children must wait for the first child to set up the process group
+                            # Try to join the process group, with retries for race conditions
+                            import time
+                            for attempt in range(10):  # Try up to 10 times
+                                try:
+                                    # We know the pgid should be the first child's pid
+                                    # But we don't have direct access to it, so we have parent set it
+                                    break
+                                except OSError:
+                                    time.sleep(0.001)  # Wait 1ms and retry
+                            # Ignore SIGTTOU until parent sets up terminal control
+                            signal.signal(signal.SIGTTOU, signal.SIG_IGN)
                         
-                        # Reset signal handlers to default
+                        # Reset most signal handlers to default (but keep SIGTTOU ignored)
                         signal.signal(signal.SIGINT, signal.SIG_DFL)
                         signal.signal(signal.SIGTSTP, signal.SIG_DFL)
-                        signal.signal(signal.SIGTTOU, signal.SIG_DFL)
+                        # Keep SIGTTOU ignored - it was set above
+                        signal.signal(signal.SIGTTIN, signal.SIG_DFL)
                         
                         # Set up pipeline redirections
                         self._setup_pipeline_redirections(i, pipeline_ctx)
@@ -164,14 +186,20 @@ class PipelineExecutor:
                         os._exit(1)
                 else:
                     # Parent process
-                    if pgid is None:
+                    if i == 0:
+                        # First child becomes the process group leader
                         pgid = pid
-                        os.setpgid(pid, pgid)
+                        # Try to set the first child's process group from parent side too
+                        try:
+                            os.setpgid(pid, pid)
+                        except OSError:
+                            pass  # Child may have already set it
                     else:
+                        # Set process group for subsequent children to join the pipeline
                         try:
                             os.setpgid(pid, pgid)
-                        except:
-                            pass  # Race condition - child may have already done it
+                        except OSError:
+                            pass  # Race condition - child may have set it already
                     pids.append(pid)
                     pipeline_ctx.add_process(pid)
             
@@ -185,6 +213,14 @@ class PipelineExecutor:
             # Close pipes in parent
             pipeline_ctx.close_pipes()
             
+            # Transfer terminal control immediately for foreground pipelines
+            # This prevents SIGTTOU in children before wait method is called
+            if not is_background and original_pgid is not None:
+                try:
+                    os.tcsetpgrp(0, pgid)
+                except:
+                    pass  # Ignore errors - may not have terminal control
+            
             # Wait for pipeline completion
             if is_background:
                 # Background pipeline
@@ -192,26 +228,34 @@ class PipelineExecutor:
                 return 0
             else:
                 # Foreground pipeline - wait for completion
-                return self._wait_for_foreground_pipeline(job, node)
+                return self._wait_for_foreground_pipeline(job, node, original_pgid)
                 
         except Exception as e:
             # Clean up pipes on error
             pipeline_ctx.close_pipes()
+            # Restore terminal control on error
+            if not is_background and original_pgid is not None:
+                try:
+                    os.tcsetpgrp(0, original_pgid)
+                except:
+                    pass
             raise
     
-    def _wait_for_foreground_pipeline(self, job: 'Job', node: 'Pipeline') -> int:
+    def _wait_for_foreground_pipeline(self, job: 'Job', node: 'Pipeline', original_pgid: Optional[int] = None) -> int:
         """Wait for a foreground pipeline to complete."""
         job.foreground = True
         self.job_manager.set_foreground_job(job)
         
-        # Give terminal control to the pipeline
-        try:
-            original_pgid = os.tcgetpgrp(0)
-            os.tcsetpgrp(0, job.pgid)
-        except:
-            original_pgid = None
+        # Ensure we have the original pgid for restoration
+        if original_pgid is None:
+            try:
+                original_pgid = os.tcgetpgrp(0)
+            except:
+                original_pgid = None
         
-        # Use job manager to wait (it handles SIGCHLD)
+        # Terminal control should already be transferred by caller
+        # No need to transfer again here
+        
         if self.state.options.get('pipefail') and len(node.commands) > 1:
             # Get all exit statuses for pipefail
             all_statuses = self.job_manager.wait_for_job(job, collect_all_statuses=True)
@@ -230,6 +274,7 @@ class PipelineExecutor:
         
         # Restore terminal control
         if original_pgid is not None:
+            self.state.foreground_pgid = None
             try:
                 os.tcsetpgrp(0, original_pgid)
             except:

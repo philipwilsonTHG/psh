@@ -102,15 +102,21 @@ class FunctionExecutionStrategy(ExecutionStrategy):
         
         # Import here to avoid circular imports
         from .function import FunctionOperationExecutor
+        
+        # Create a function executor to handle the call
+        # Pass the current context to preserve loop depth and other state
+        function_executor = FunctionOperationExecutor(shell)
+        
+        # We need a visitor for function execution, but we need to preserve the context
+        # The issue is that we need the visitor that called this strategy
+        # For now, create a new visitor but use the passed context
         from .core import ExecutorVisitor
-        
-        # We need to create a new executor visitor for the function execution
-        # This ensures proper context isolation
         visitor = ExecutorVisitor(shell)
+        # Override the context to preserve loop depth
+        visitor.context = context
         
-        # Use the function executor from the visitor to ensure consistency
-        return visitor.function_executor.execute_function_call(
-            cmd_name, args, visitor.context, visitor, redirects
+        return function_executor.execute_function_call(
+            cmd_name, args, context, visitor, redirects
         )
 
 

@@ -122,11 +122,16 @@ class SignalManager(InteractiveComponent):
                 
     def ensure_foreground(self):
         """Ensure shell is in its own process group and is foreground."""
-        shell_pgid = os.getpid()
+        shell_pid = os.getpid()
+        shell_pgid = os.getpgrp()
+        
         try:
-            os.setpgid(0, shell_pgid)
+            # Only set process group if we're not already the leader
+            if shell_pgid != shell_pid:
+                os.setpgid(0, shell_pid)
+            
             # Make shell the foreground process group
-            os.tcsetpgrp(0, shell_pgid)
+            os.tcsetpgrp(0, shell_pid)
         except OSError:
             # Not a terminal or already set
             pass

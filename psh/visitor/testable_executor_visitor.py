@@ -47,11 +47,26 @@ class MockExecutorVisitor(ExecutorVisitor):
         
         if self.capture_output:
             self._setup_capture_files()
+            # Replace the external execution strategy with our capturing version
+            self._replace_external_strategy()
     
     def _setup_capture_files(self):
         """Set up temporary files for output capture."""
         self._stdout_file = tempfile.NamedTemporaryFile(mode='w+', delete=False)
         self._stderr_file = tempfile.NamedTemporaryFile(mode='w+', delete=False)
+    
+    def _replace_external_strategy(self):
+        """Replace the external execution strategy with a capturing version."""
+        from ..executor.strategies import ExternalExecutionStrategy
+        
+        # Create our capturing external strategy
+        capturing_strategy = CapturingExternalStrategy(self)
+        
+        # Replace the external strategy in the command executor
+        for i, strategy in enumerate(self.command_executor.strategies):
+            if isinstance(strategy, ExternalExecutionStrategy):
+                self.command_executor.strategies[i] = capturing_strategy
+                break
     
     def _cleanup_capture_files(self):
         """Clean up temporary files."""
@@ -204,3 +219,66 @@ class MockExecutorVisitor(ExecutorVisitor):
                 self._stdout_file.flush()
             if self._stderr_file:
                 self._stderr_file.flush()
+
+
+class CapturingExternalStrategy:
+    """External execution strategy that captures output for testing."""
+    
+    def __init__(self, mock_executor: MockExecutorVisitor):
+        self.mock_executor = mock_executor
+    
+    def can_execute(self, cmd_name: str, shell: 'Shell') -> bool:
+        """External commands are the fallback - always return True."""
+        return True
+    
+    def execute(self, cmd_name: str, args: List[str], 
+                shell: 'Shell', context,
+                redirects: Optional[List['Redirect']] = None,
+                background: bool = False) -> int:
+        """Execute an external command with output capture."""
+        full_args = [cmd_name] + args
+        
+        if context.in_pipeline:
+            # In pipeline, we still need to use the original strategy
+            # as pipelines require actual processes
+            from ..executor.strategies import ExternalExecutionStrategy
+            original_strategy = ExternalExecutionStrategy()
+            return original_strategy.execute(cmd_name, args, shell, context, redirects, background)
+        
+        # Use subprocess for output capture
+        try:
+            result = subprocess.run(
+                full_args,
+                capture_output=True,
+                text=True,
+                shell=False,
+                env=shell.env
+            )
+            
+            # Capture output
+            if result.stdout:
+                self.mock_executor.captured_stdout.append(result.stdout)
+                # Also write to shell's stdout for compatibility
+                shell.stdout.write(result.stdout)
+                shell.stdout.flush()
+            
+            if result.stderr:
+                self.mock_executor.captured_stderr.append(result.stderr)
+                # Also write to shell's stderr for compatibility
+                shell.stderr.write(result.stderr)
+                shell.stderr.flush()
+            
+            return result.returncode
+            
+        except FileNotFoundError:
+            error_msg = f"psh: {cmd_name}: command not found\n"
+            self.mock_executor.captured_stderr.append(error_msg)
+            shell.stderr.write(error_msg)
+            shell.stderr.flush()
+            return 127
+        except Exception as e:
+            error_msg = f"psh: {cmd_name}: {e}\n"
+            self.mock_executor.captured_stderr.append(error_msg)
+            shell.stderr.write(error_msg)
+            shell.stderr.flush()
+            return 126

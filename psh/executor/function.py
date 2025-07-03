@@ -8,7 +8,7 @@ from typing import List, Optional, TYPE_CHECKING
 import sys
 
 from ..builtins.function_support import FunctionReturn
-from ..core.exceptions import UnboundVariableError
+from ..core.exceptions import UnboundVariableError, LoopBreak, LoopContinue
 
 if TYPE_CHECKING:
     from ..shell import Shell
@@ -104,6 +104,9 @@ class FunctionOperationExecutor:
         except FunctionReturn as fr:
             # Handle return statement
             return fr.exit_code
+        except (LoopBreak, LoopContinue):
+            # Let break/continue exceptions propagate to calling loop context
+            raise
         except UnboundVariableError:
             # Let unbound variable errors propagate
             raise

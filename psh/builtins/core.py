@@ -177,12 +177,30 @@ class ExecBuiltin(Builtin):
     
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Execute command or apply redirections."""
-        # This is a placeholder implementation for registration.
-        # The actual exec logic is handled specially in the executor
-        # before normal builtin dispatch, since exec needs access to
-        # the original SimpleCommand node with redirections.
-        self.error("exec: internal error - should be handled by executor", shell)
-        return 1
+        # Remove 'exec' from args
+        args = args[1:] if args and args[0] == 'exec' else args
+        
+        if not args:
+            # exec without arguments - just succeed
+            # Note: redirections would be handled by the executor/io_manager
+            return 0
+        
+        # For now, implement basic functionality
+        # Full exec implementation would need to handle:
+        # 1. Permanent redirections when no command given
+        # 2. Process replacement when command given
+        # 3. File descriptor manipulation
+        
+        # Basic implementation: execute the command normally
+        try:
+            import os
+            os.execvpe(args[0], args, shell.env)
+        except FileNotFoundError:
+            self.error(f"exec: {args[0]}: command not found", shell)
+            return 127
+        except OSError as e:
+            self.error(f"exec: {args[0]}: {e}", shell)
+            return 126
     
     @property
     def help(self) -> str:

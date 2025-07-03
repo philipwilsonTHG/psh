@@ -1,6 +1,7 @@
 """Job control functionality for psh."""
 
 import os
+import sys
 import signal
 import termios
 from typing import Dict, List, Optional, Tuple
