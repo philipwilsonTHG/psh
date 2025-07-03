@@ -5,6 +5,13 @@ import subprocess
 import os
 import difflib
 import sys
+import signal
+
+# Handle SIGPIPE gracefully for piping to less, head, etc.
+signal.signal(signal.SIGPIPE, signal.SIG_DFL)
+
+# Get the directory where this script is located
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def run_test(test_input_path, mode, update_golden=False, compare_shell=None):
     golden_file = os.path.splitext(test_input_path)[0] + ".golden"
@@ -150,11 +157,13 @@ def main():
         base_dirs = [(args.mode, args.mode)]
 
     for mode, directory in base_dirs:
-        if not os.path.exists(directory):
+        # Use absolute path relative to script directory
+        abs_directory = os.path.join(SCRIPT_DIR, directory)
+        if not os.path.exists(abs_directory):
             print(f"Warning: Directory {directory} does not exist. Skipping.")
             continue
         
-        mode_failures, mode_passed = run_tests_in_dir(directory, mode, args.category, args.update_golden, compare_shell)
+        mode_failures, mode_passed = run_tests_in_dir(abs_directory, mode, args.category, args.update_golden, compare_shell)
         failures.update(mode_failures)
         total_passed += mode_passed
         
