@@ -106,7 +106,9 @@ class CommandExecutor:
                 if self.state.options.get('xtrace'):
                     self._print_xtrace(cmd_name, cmd_args)
                 
-                # NOTE: exec builtin handling removed - let it go through normal builtin dispatch
+                # Special handling for exec builtin (needs access to redirections)
+                if cmd_name == 'exec':
+                    return self._handle_exec_builtin(node, command_args, assignments)
                 
                 # Execute the command using appropriate strategy
                 return self._execute_with_strategy(
@@ -335,4 +337,30 @@ class CommandExecutor:
         else:
             return 0
     
-    # NOTE: _handle_exec_builtin method removed - exec now uses normal builtin dispatch
+    def _handle_exec_builtin(self, node: 'SimpleCommand', command_args: List[str], 
+                            assignments: List[tuple]) -> int:
+        """Handle exec builtin with access to redirections."""
+        # Get the exec builtin for command execution
+        exec_builtin = self.builtin_registry.get('exec')
+        if not exec_builtin:
+            print("psh: exec: builtin not found", file=sys.stderr)
+            return 127
+        
+        # Remove 'exec' from command args
+        args = command_args[1:] if command_args and command_args[0] == 'exec' else command_args
+        
+        if not args:
+            # exec without command - apply redirections permanently
+            if node.redirects:
+                try:
+                    self.io_manager.apply_permanent_redirections(node.redirects)
+                    return 0
+                except Exception as e:
+                    print(f"psh: exec: {e}", file=sys.stderr)
+                    return 1
+            else:
+                # No redirections, just succeed
+                return 0
+        else:
+            # exec with command - use the builtin's execute method
+            return exec_builtin.execute(['exec'] + args, self.shell)

@@ -34,6 +34,7 @@ class SignalManager(InteractiveComponent):
         signal.signal(signal.SIGTTOU, signal.SIG_IGN)  # Still ignore terminal output stops
         signal.signal(signal.SIGTTIN, signal.SIG_IGN)  # Still ignore terminal input stops
         signal.signal(signal.SIGCHLD, signal.SIG_DFL)  # Default child handling
+        signal.signal(signal.SIGPIPE, signal.SIG_DFL)  # Handle broken pipes properly
         
     def _setup_interactive_mode_handlers(self):
         """Set up full signal handling for interactive mode."""
@@ -46,6 +47,7 @@ class SignalManager(InteractiveComponent):
         self._original_handlers[signal.SIGTTOU] = signal.signal(signal.SIGTTOU, signal.SIG_IGN)
         self._original_handlers[signal.SIGTTIN] = signal.signal(signal.SIGTTIN, signal.SIG_IGN)
         self._original_handlers[signal.SIGCHLD] = signal.signal(signal.SIGCHLD, self._handle_sigchld)
+        self._original_handlers[signal.SIGPIPE] = signal.signal(signal.SIGPIPE, signal.SIG_DFL)
         
     def restore_default_handlers(self):
         """Restore default signal handlers."""
