@@ -2,10 +2,24 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.68.1"
+__version__ = "0.69.0"
 
 # Version history
 VERSION_HISTORY = """
+0.69.0 (2025-07-03) - Bash-Compatible Builtin Background Execution and SIGPIPE Handling
+  - Implemented bash-compatible builtin background execution by forking subshells
+  - Builtin commands can now run in background with proper isolation (e.g., cd /tmp & doesn't affect parent)
+  - Background builtins create separate process groups and handle signals correctly
+  - Fixed script mode detection for -c flag to suppress job notifications in script mode
+  - Interactive mode shows job assignment notifications, script mode suppresses them (matching bash)
+  - Added comprehensive SIGPIPE signal handling for both interactive and script modes
+  - PSH now handles broken pipes gracefully like bash (no more BrokenPipeError exceptions)
+  - Conformance test script can now be piped to commands like 'less' without errors
+  - Updated process control documentation with SIGPIPE handling and broken pipe issue resolution
+  - Enhanced job notification system to work correctly across different execution modes
+  - All existing job control tests pass with new background builtin functionality
+  - Major bash compatibility milestone: builtin background execution now works identically to bash
+
 0.68.1 (2025-07-02) - Architecture Documentation Updates
   - Updated ARCHITECTURE.md to reflect new executor package design from v0.68.0
   - Updated ARCHITECTURE.llm with complete executor package structure and delegation

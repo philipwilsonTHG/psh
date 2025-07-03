@@ -89,7 +89,8 @@ def main():
     
     if len(sys.argv) > 1:
         if sys.argv[1] == "-c" and len(sys.argv) > 2:
-            # Execute command with -c flag
+            # Execute command with -c flag (script mode)
+            shell.state.is_script_mode = True
             command = sys.argv[2]
             # Set positional parameters from remaining arguments
             shell.set_positional_params(sys.argv[3:])
