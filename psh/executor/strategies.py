@@ -211,6 +211,19 @@ class ExternalExecutionStrategy(ExecutionStrategy):
                     temp_command = SimpleCommand(args=full_args, redirects=redirects)
                     shell.io_manager.setup_child_redirections(temp_command)
                 
+                # Ensure we're in the correct process group before exec
+                # This is important for commands that might fork after exec
+                current_pgid = os.getpgrp()
+                current_pid = os.getpid()
+                
+                if shell.state.options.get('debug-exec'):
+                    print(f"DEBUG ExternalStrategy: Before exec - PID={current_pid}, PGID={current_pgid}", 
+                          file=sys.stderr)
+                
+                # Always explicitly set the process group to ensure it's inherited
+                # This helps when execvpe creates a new process
+                os.setpgid(0, current_pgid)
+                
                 os.execvpe(full_args[0], full_args, shell.env)
             except OSError as e:
                 print(f"psh: {full_args[0]}: {e}", file=sys.stderr)

@@ -2,10 +2,26 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.69.0"
+__version__ = "0.69.2"
 
 # Version history
 VERSION_HISTORY = """
+0.69.2 (2025-07-04) - Fix Pipeline Context Passing for External Commands
+  - Fixed bug where pipeline execution context wasn't passed to child processes
+  - External commands now correctly receive in_pipeline=True flag
+  - Process group reinforcement now works for all external commands in pipelines
+  - Improved debugging output for process group operations
+  - This partially addresses the 'less' terminal control issue (more work needed)
+
+0.69.1 (2025-07-03) - Fix Pipeline Terminal Control for Interactive Commands
+  - Fixed race condition where pipeline processes executed before joining proper process group
+  - Non-first pipeline children now wait for parent to set process group before executing
+  - Added explicit SIGTTIN signal restoration for last command in pipeline
+  - Fixed interactive commands like 'less' not entering full-screen mode in pipelines
+  - Commands in pipelines now properly synchronize process group membership
+  - Resolves regression introduced in v0.69.0 SIGTTOU fix
+  - All pipeline tests continue to pass with improved terminal control handling
+
 0.69.0 (2025-07-03) - Bash-Compatible Builtin Background Execution and SIGPIPE Handling
   - Implemented bash-compatible builtin background execution by forking subshells
   - Builtin commands can now run in background with proper isolation (e.g., cd /tmp & doesn't affect parent)

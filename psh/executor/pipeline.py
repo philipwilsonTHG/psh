@@ -125,12 +125,17 @@ class PipelineExecutor:
         # Save original terminal process group for restoration
         try:
             original_pgid = os.tcgetpgrp(0)
-        except:
+            if self.state.options.get('debug-exec'):
+                print(f"DEBUG Pipeline: Original terminal PGID: {original_pgid}", file=sys.stderr)
+        except Exception as e:
+            if self.state.options.get('debug-exec'):
+                print(f"DEBUG Pipeline: Cannot get original PGID: {e}", file=sys.stderr)
             original_pgid = None
         
         try:
             # Fork processes for each command
             for i, command in enumerate(node.commands):
+                is_last_command = (i == len(node.commands) - 1)
                 pid = os.fork()
                 
                 if pid == 0:
@@ -151,16 +156,26 @@ class PipelineExecutor:
                             # until parent transfers terminal control
                             signal.signal(signal.SIGTTOU, signal.SIG_IGN)
                         else:
-                            # Other children must wait for the first child to set up the process group
-                            # Try to join the process group, with retries for race conditions
+                            # Other children must join the process group of the first child
+                            # We need to wait for the parent to set our process group
+                            # Check if we're already in a process group (parent may have set it)
                             import time
-                            for attempt in range(10):  # Try up to 10 times
+                            for attempt in range(50):  # Try for up to 50ms
                                 try:
-                                    # We know the pgid should be the first child's pid
-                                    # But we don't have direct access to it, so we have parent set it
-                                    break
+                                    current_pgid = os.getpgrp()
+                                    # If we're not in our own process group, we've been moved
+                                    if current_pgid != os.getpid():
+                                        if self.state.options.get('debug-exec'):
+                                            print(f"DEBUG Pipeline: Child {os.getpid()} joined pgid {current_pgid} after {attempt} attempts", file=sys.stderr)
+                                        break
                                 except OSError:
-                                    time.sleep(0.001)  # Wait 1ms and retry
+                                    pass
+                                time.sleep(0.001)  # Wait 1ms
+                            else:
+                                # If we get here, we timed out
+                                if self.state.options.get('debug-exec'):
+                                    final_pgid = os.getpgrp()
+                                    print(f"DEBUG Pipeline: Child {os.getpid()} timed out, pgid is {final_pgid}", file=sys.stderr)
                             # Ignore SIGTTOU until parent sets up terminal control
                             signal.signal(signal.SIGTTOU, signal.SIG_IGN)
                         
@@ -173,9 +188,18 @@ class PipelineExecutor:
                         # Set up pipeline redirections
                         self._setup_pipeline_redirections(i, pipeline_ctx)
                         
+                        # For the last command in foreground pipeline, ensure terminal access
+                        if is_last_command and not is_background:
+                            # Restore terminal signal handling for interactive commands
+                            signal.signal(signal.SIGTTOU, signal.SIG_DFL)
+                            signal.signal(signal.SIGTTIN, signal.SIG_DFL)
+                        
                         # Execute command with pipeline context
                         # Note: visitor is a special parameter because we need the
                         # ExecutorVisitor instance to execute commands
+                        # IMPORTANT: Update visitor's context to use the child_context
+                        original_context = visitor.context
+                        visitor.context = child_context
                         exit_status = visitor.visit(command)
                         os._exit(exit_status)
                     except SystemExit as e:
@@ -198,7 +222,11 @@ class PipelineExecutor:
                         # Set process group for subsequent children to join the pipeline
                         try:
                             os.setpgid(pid, pgid)
-                        except OSError:
+                            if self.state.options.get('debug-exec'):
+                                print(f"DEBUG Pipeline: Parent set child {pid} to pgid {pgid}", file=sys.stderr)
+                        except OSError as e:
+                            if self.state.options.get('debug-exec'):
+                                print(f"DEBUG Pipeline: Parent failed to set pgid for {pid}: {e}", file=sys.stderr)
                             pass  # Race condition - child may have set it already
                     pids.append(pid)
                     pipeline_ctx.add_process(pid)
@@ -217,8 +245,14 @@ class PipelineExecutor:
             # This prevents SIGTTOU in children before wait method is called
             if not is_background and original_pgid is not None:
                 try:
+                    if self.state.options.get('debug-exec'):
+                        print(f"DEBUG Pipeline: Transferring terminal control from {original_pgid} to {pgid}", file=sys.stderr)
                     os.tcsetpgrp(0, pgid)
-                except:
+                    if self.state.options.get('debug-exec'):
+                        print(f"DEBUG Pipeline: Terminal control transferred successfully", file=sys.stderr)
+                except Exception as e:
+                    if self.state.options.get('debug-exec'):
+                        print(f"DEBUG Pipeline: Failed to transfer terminal control: {e}", file=sys.stderr)
                     pass  # Ignore errors - may not have terminal control
             
             # Wait for pipeline completion
