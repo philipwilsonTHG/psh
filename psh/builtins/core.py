@@ -196,10 +196,10 @@ class ExecBuiltin(Builtin):
             import os
             os.execvpe(args[0], args, shell.env)
         except FileNotFoundError:
-            self.error(f"exec: {args[0]}: command not found", shell)
+            self.error(f"{args[0]}: command not found", shell)
             return 127
         except OSError as e:
-            self.error(f"exec: {args[0]}: {e}", shell)
+            self.error(f"{args[0]}: {e}", shell)
             return 126
     
     @property

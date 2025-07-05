@@ -101,18 +101,13 @@ class TestCommandExecutor:
         
         assert exit_status == 0
     
-    def test_xtrace_option(self, executor, context, shell, capsys):
+    def test_xtrace_option(self, shell, capsys):
         """Test xtrace option prints commands."""
-        # Enable xtrace
-        shell.state.options['xtrace'] = True
-        
-        # Create command
-        cmd = SimpleCommand(args=['echo', 'test'])
-        
-        # Execute
-        exit_status = executor.execute(cmd, context)
+        # Use the same approach as test_shell_options.py
+        shell.run_command("set -x")
+        shell.run_command("echo test")
         
         # Check stderr for trace output
         captured = capsys.readouterr()
-        assert '+ echo test' in captured.err
-        assert exit_status == 0
+        assert 'test\n' in captured.out
+        assert '+ echo test\n' in captured.err

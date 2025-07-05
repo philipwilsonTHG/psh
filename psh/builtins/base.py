@@ -53,4 +53,6 @@ class Builtin(ABC):
     def error(self, message: str, shell: 'Shell') -> None:
         """Print an error message to stderr."""
         import sys
-        print(f"{self.name}: {message}", file=shell.stderr if hasattr(shell, 'stderr') else sys.stderr)
+        stderr = shell.stderr if hasattr(shell, 'stderr') else sys.stderr
+        print(f"{self.name}: {message}", file=stderr)
+        stderr.flush()

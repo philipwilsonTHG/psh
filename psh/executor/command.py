@@ -351,6 +351,16 @@ class CommandExecutor:
         
         if not args:
             # exec without command - apply redirections permanently
+            # and make variable assignments permanent
+            if assignments:
+                # Make assignments permanent by exporting them
+                for var, value in assignments:
+                    self.state.set_variable(var, value)
+                    # Also export to environment
+                    self.shell.env[var] = value
+                    import os
+                    os.environ[var] = value
+            
             if node.redirects:
                 try:
                     self.io_manager.apply_permanent_redirections(node.redirects)
