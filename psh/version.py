@@ -2,10 +2,18 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.69.2"
+__version__ = "0.69.3"
 
 # Version history
 VERSION_HISTORY = """
+0.69.3 (2025-07-04) - Fix Failing Tests and Improve Exec Builtin
+  - Fixed xtrace test to use shell.run_command() for proper stderr capture
+  - Fixed exec builtin double "exec:" prefix in error messages
+  - Added stderr flush in builtin error() method for reliable test output
+  - Fixed exec builtin to preserve variable assignments when no command given
+  - Updated exec tests to use subprocess for consistent error capture
+  - All pytest tests now pass reliably
+
 0.69.2 (2025-07-04) - Fix Pipeline Context Passing for External Commands
   - Fixed bug where pipeline execution context wasn't passed to child processes
   - External commands now correctly receive in_pipeline=True flag
