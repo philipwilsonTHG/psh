@@ -13,6 +13,7 @@ from ..token_types import Token
 
 # Core lexer components
 from .core import StateMachineLexer
+from .enhanced_core import EnhancedStateMachineLexer
 from .position import (
     Position, LexerState, LexerConfig, LexerError, RecoverableLexerError,
     LexerErrorHandler, PositionTracker
@@ -28,6 +29,10 @@ from .unicode_support import (
 from .token_parts import TokenPart, RichToken
 from .helpers import LexerHelpers
 from .state_handlers import StateHandlers
+
+# New unified state management components
+from .state_context import LexerContext
+from .transitions import StateTransition, TransitionTable, StateManager
 
 __version__ = "0.58.0"
 
@@ -77,7 +82,7 @@ def tokenize(input_string: str, strict: bool = True) -> List[Token]:
 
 __all__ = [
     # Main lexer interface
-    'StateMachineLexer', 'tokenize',
+    'StateMachineLexer', 'EnhancedStateMachineLexer', 'tokenize',
     # Position and configuration
     'Position', 'LexerState', 'LexerConfig', 'LexerError', 'RecoverableLexerError',
     'LexerErrorHandler', 'PositionTracker',
@@ -90,5 +95,7 @@ __all__ = [
     # Token classes
     'TokenPart', 'RichToken',
     # Mixin classes (for advanced usage)
-    'LexerHelpers', 'StateHandlers'
+    'LexerHelpers', 'StateHandlers',
+    # New state management components
+    'LexerContext', 'StateTransition', 'TransitionTable', 'StateManager'
 ]
