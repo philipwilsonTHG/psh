@@ -71,6 +71,10 @@ class ArrayParser:
         if self.parser.match(TokenType.LBRACKET):
             self.parser.current = saved_pos
             return True
+        # Also check for WORD token containing just "[" (from ModularLexer)
+        elif self.parser.match(TokenType.WORD) and self.parser.peek().value == '[':
+            self.parser.current = saved_pos
+            return True
         
         self.parser.current = saved_pos
         return False
@@ -102,6 +106,12 @@ class ArrayParser:
                 index_str = name_token.value[bracket_pos+1:close_bracket_pos]
                 value = name_token.value[equals_pos+(2 if is_append else 1):]
                 
+                # If value is empty, check for value in next token
+                value_type = 'WORD'
+                quote_type = None
+                if not value and self.parser.match_any(TokenGroups.WORD_LIKE):
+                    value, value_type, quote_type = self.parser.commands.parse_composite_argument()
+                
                 # Create tokens for the index
                 index_tokens = [Token(TokenType.WORD, index_str, 0)]
                 
@@ -109,8 +119,8 @@ class ArrayParser:
                     name=name,
                     index=index_tokens,
                     value=value,
-                    value_type='WORD',
-                    value_quote_type=None,
+                    value_type=value_type,
+                    value_quote_type=quote_type,
                     is_append=is_append
                 )
             else:
@@ -158,6 +168,10 @@ class ArrayParser:
         if self.parser.match(TokenType.LBRACKET):
             name = name_token.value
             return self._parse_array_element_assignment(name)
+        # Also check for WORD token containing just "[" (from ModularLexer)
+        elif self.parser.match(TokenType.WORD) and self.parser.peek().value == '[':
+            name = name_token.value
+            return self._parse_array_element_assignment(name)
         
         # Otherwise it's array initialization: name=(elements) or name+=(elements)
         # The name token might end with '=' or '+=' (old lexer) or be followed by separate tokens (new lexer)
@@ -194,47 +208,92 @@ class ArrayParser:
         without evaluation, allowing the executor to determine whether to
         evaluate as arithmetic (indexed arrays) or string (associative arrays).
         """
-        # Create a TokenStream from current position
-        stream = TokenStream(self.parser.tokens, self.parser.current)
+        tokens = []
+        bracket_count = 0
         
-        # Collect tokens until balanced RBRACKET
-        tokens = stream.collect_until_balanced(
-            TokenType.LBRACKET, 
-            TokenType.RBRACKET,
-            respect_quotes=True,
-            include_delimiters=False
-        )
-        
-        # Validate tokens
-        valid_key_tokens = {
-            TokenType.WORD, TokenType.STRING, TokenType.VARIABLE,
-            TokenType.COMMAND_SUB, TokenType.COMMAND_SUB_BACKTICK,
-            TokenType.ARITH_EXPANSION, TokenType.LPAREN, TokenType.RPAREN
-        }
-        
-        for token in tokens:
-            if token.type not in valid_key_tokens:
-                raise self.parser._error(f"Invalid token in array key: {token.type}")
-        
-        # Update parser position
-        self.parser.current = stream.pos
+        # Collect tokens until we find the closing bracket
+        while not self.parser.at_end():
+            current_token = self.parser.peek()
+            
+            # Handle different token types
+            if current_token.type == TokenType.LBRACKET:
+                bracket_count += 1
+                tokens.append(current_token)
+                self.parser.advance()
+            elif current_token.type == TokenType.RBRACKET:
+                bracket_count -= 1
+                if bracket_count < 0:
+                    # This is our closing bracket
+                    self.parser.advance()
+                    break
+                else:
+                    tokens.append(current_token)
+                    self.parser.advance()
+            elif current_token.type == TokenType.WORD and ']' in current_token.value:
+                # Handle case where ]=value is a single token
+                bracket_pos = current_token.value.find(']')
+                if bracket_pos == 0:
+                    # Token starts with ], this is our closing bracket
+                    # DON'T advance here - leave the token for the equals parsing logic
+                    break
+                else:
+                    # ] is in the middle, extract the part before ]
+                    index_part = current_token.value[:bracket_pos]
+                    if index_part:
+                        # Create a token for the index part
+                        index_token = Token(TokenType.WORD, index_part, current_token.position)
+                        tokens.append(index_token)
+                    # DON'T advance here - leave the token for the equals parsing logic
+                    break
+            else:
+                # Regular token, add to index
+                valid_key_tokens = {
+                    TokenType.WORD, TokenType.STRING, TokenType.VARIABLE,
+                    TokenType.COMMAND_SUB, TokenType.COMMAND_SUB_BACKTICK,
+                    TokenType.ARITH_EXPANSION, TokenType.LPAREN, TokenType.RPAREN
+                }
+                
+                if current_token.type not in valid_key_tokens:
+                    raise self.parser._error(f"Invalid token in array key: {current_token.type}")
+                
+                tokens.append(current_token)
+                self.parser.advance()
         
         return tokens
     
     def _parse_array_element_assignment(self, name: str) -> ArrayElementAssignment:
         """Parse array element assignment: name[index]=value"""
-        self.parser.expect(TokenType.LBRACKET)
+        # Handle both LBRACKET token and WORD "[" token
+        if self.parser.match(TokenType.LBRACKET):
+            self.parser.advance()
+        elif self.parser.match(TokenType.WORD) and self.parser.peek().value == '[':
+            self.parser.advance()
+        else:
+            raise self.parser._error("Expected '[' after array name")
         
         # Parse index as list of tokens for late binding (associative vs indexed array evaluation)
         index_tokens = self._parse_array_key_tokens()
         
         # Note: _parse_array_key_tokens already consumed the RBRACKET
         
-        # Next token should be a WORD starting with '='
-        if not self.parser.match(TokenType.WORD):
+        # Handle different cases for the equals token
+        equals_token = None
+        if self.parser.match(TokenType.WORD):
+            current_token = self.parser.peek()
+            if current_token.value.startswith('=') or current_token.value.startswith('+='):
+                # Case: separate token starting with = (like "=value")
+                equals_token = current_token
+            elif current_token.value.startswith(']=') or current_token.value.startswith(']+='):
+                # Case: token like "]=value" - extract the part after ]
+                bracket_pos = current_token.value.find(']')
+                equals_part = current_token.value[bracket_pos + 1:]
+                # Create a new token for the equals part
+                equals_token = Token(TokenType.WORD, equals_part, current_token.position + bracket_pos + 1)
+            else:
+                raise self.parser._error("Expected '=' or '+=' after array index")
+        else:
             raise self.parser._error("Expected '=' after array index")
         
-        equals_token = self.parser.peek()
         if not (equals_token.value.startswith('=') or equals_token.value.startswith('+=')):
             raise self.parser._error("Expected '=' or '+=' after array index")
         

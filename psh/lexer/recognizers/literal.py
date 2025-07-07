@@ -19,6 +19,7 @@ class LiteralRecognizer(ContextualRecognizer):
         ' ', '\t', '\n', '\r', '\f', '\v',  # Whitespace
         '|', '&', ';', '(', ')', '{', '}',       # Operators
         '<', '>', '!', '=', '+',                 # More operators  
+        '[', ']',                                # Bracket operators
         '$', '`', "'",  '"',                     # Special characters
     }
     
@@ -117,6 +118,24 @@ class LiteralRecognizer(ContextualRecognizer):
                 # Special case: don't terminate on = if this looks like a variable assignment
                 elif char == '=' and self._is_variable_assignment_start(value):
                     # Include the = and continue reading the value part
+                    value += char
+                    pos += 1
+                    continue
+                # Special case: don't terminate on [ if this looks like start of array assignment
+                elif char == '[' and self._is_potential_array_assignment_start(value, input_text, pos):
+                    # Include the [ and continue reading the array assignment
+                    value += char
+                    pos += 1
+                    continue
+                # Special case: don't terminate on ] if we're inside an array assignment
+                elif char == ']' and self._is_inside_array_assignment(value):
+                    # Include the ] and continue reading
+                    value += char
+                    pos += 1
+                    continue
+                # Special case: don't terminate on + if this looks like array assignment and next char is =
+                elif char == '+' and self._looks_like_array_assignment_before_plus_equals(value, input_text, pos):
+                    # Include the + and continue (the = will be handled by next iteration)
                     value += char
                     pos += 1
                     continue
@@ -294,12 +313,16 @@ class LiteralRecognizer(ContextualRecognizer):
         return any(c in special_chars for c in value)
     
     def _is_variable_assignment_start(self, value: str) -> bool:
-        """Check if value looks like the start of a variable assignment (NAME=...)."""
+        """Check if value looks like the start of a variable assignment (NAME=... or NAME[INDEX]=...)."""
         if not value:
             return False
         
         # Get posix_mode from config
         posix_mode = self.config.posix_mode if self.config else False
+        
+        # Check for array assignment pattern: NAME[...]
+        if '[' in value:
+            return self._is_array_assignment_start(value, posix_mode)
         
         # Variable names must start with letter or underscore
         if not is_identifier_start(value[0], posix_mode):
@@ -307,6 +330,27 @@ class LiteralRecognizer(ContextualRecognizer):
         
         # Rest must be valid identifier characters (valid shell variable name)
         return all(is_identifier_char(c, posix_mode) for c in value)
+    
+    def _is_array_assignment_start(self, value: str, posix_mode: bool) -> bool:
+        """Check if value looks like the start of an array assignment (NAME[INDEX])."""
+        bracket_pos = value.find('[')
+        if bracket_pos == -1:
+            return False
+        
+        # Extract the variable name before the bracket
+        var_name = value[:bracket_pos]
+        if not var_name:
+            return False
+        
+        # Variable name must be valid
+        if not is_identifier_start(var_name[0], posix_mode):
+            return False
+        if not all(is_identifier_char(c, posix_mode) for c in var_name):
+            return False
+        
+        # The rest after '[' can contain any characters (index expression)
+        # We don't validate the index contents here, just that it's an array pattern
+        return True
     
     def _can_start_valid_expansion(self, input_text: str, pos: int) -> bool:
         """Check if $ at given position can start a valid expansion."""
@@ -338,3 +382,109 @@ class LiteralRecognizer(ContextualRecognizer):
             # Regular variable names
             posix_mode = self.config.posix_mode if self.config else False
             return is_identifier_start(next_char, posix_mode)
+    
+    def _is_potential_array_assignment_start(self, value: str, input_text: str, pos: int) -> bool:
+        """Check if [ at current position starts an array assignment pattern."""
+        if not value:
+            return False
+        
+        # Get posix_mode from config
+        posix_mode = self.config.posix_mode if self.config else False
+        
+        # Check if the value so far is a valid variable name
+        if not is_identifier_start(value[0], posix_mode):
+            return False
+        if not all(is_identifier_char(c, posix_mode) for c in value):
+            return False
+        
+        # Look ahead to see if this looks like arr[...]=... pattern
+        # We're at position of '[', scan forward to look for ]=
+        remaining = input_text[pos:]
+        bracket_count = 0
+        i = 0
+        has_expansions = False
+        
+        while i < len(remaining):
+            char = remaining[i]
+            if char == '[':
+                bracket_count += 1
+            elif char == ']':
+                bracket_count -= 1
+                if bracket_count == 0:
+                    # Found closing bracket, check if followed by = or +=
+                    if i + 1 < len(remaining):
+                        if remaining[i + 1] == '=':
+                            # Only keep [ as part of word if no expansions inside
+                            return not has_expansions
+                        elif i + 2 < len(remaining) and remaining[i + 1:i + 3] == '+=':
+                            # Only keep [ as part of word if no expansions inside
+                            return not has_expansions
+                    return False
+            elif char in [' ', '\t', '\n', '\r']:
+                # Whitespace breaks the pattern
+                return False
+            elif char in ['$', '`', "'", '"']:
+                # This indicates expansions/quotes inside brackets
+                has_expansions = True
+            i += 1
+        
+        return False
+    
+    def _is_inside_array_assignment(self, value: str) -> bool:
+        """Check if we're currently inside an array assignment pattern."""
+        if not value or '[' not in value:
+            return False
+        
+        # Check if we have unmatched opening bracket and this looks like array pattern
+        bracket_count = 0
+        has_opening_bracket = False
+        
+        for char in value:
+            if char == '[':
+                bracket_count += 1
+                has_opening_bracket = True
+            elif char == ']':
+                bracket_count -= 1
+        
+        # We're inside array assignment if we have unmatched opening brackets
+        return has_opening_bracket and bracket_count > 0
+    
+    def _looks_like_array_assignment_before_plus_equals(self, value: str, input_text: str, pos: int) -> bool:
+        """Check if + at current position is part of array assignment += pattern."""
+        if not value or not value.endswith(']'):
+            return False
+        
+        # Check if next character is =
+        if pos + 1 >= len(input_text) or input_text[pos + 1] != '=':
+            return False
+        
+        # Check if value looks like array assignment pattern (var[...])
+        if '[' not in value:
+            return False
+        
+        # Extract variable name before first [
+        bracket_pos = value.find('[')
+        var_name = value[:bracket_pos]
+        
+        if not var_name:
+            return False
+        
+        # Get posix_mode from config
+        posix_mode = self.config.posix_mode if self.config else False
+        
+        # Variable name must be valid
+        if not is_identifier_start(var_name[0], posix_mode):
+            return False
+        if not all(is_identifier_char(c, posix_mode) for c in var_name):
+            return False
+        
+        # Check brackets are balanced
+        bracket_count = 0
+        for char in value:
+            if char == '[':
+                bracket_count += 1
+            elif char == ']':
+                bracket_count -= 1
+        
+        # Should have balanced brackets ending with ]
+        return bracket_count == 0 and value.endswith(']')

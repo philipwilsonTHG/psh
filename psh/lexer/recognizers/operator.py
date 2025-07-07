@@ -46,6 +46,8 @@ class OperatorRecognizer(ContextualRecognizer):
             ')': TokenType.RPAREN,
             '{': TokenType.LBRACE,
             '}': TokenType.RBRACE,
+            '[': TokenType.LBRACKET,
+            ']': TokenType.RBRACKET,
             '<': TokenType.REDIRECT_IN,
             '>': TokenType.REDIRECT_OUT,
             '!': TokenType.EXCLAMATION,
@@ -238,6 +240,31 @@ class OperatorRecognizer(ContextualRecognizer):
         elif operator == ']]':
             # ]] is only valid when we're inside [[ ]]
             return context.bracket_depth > 0
+        
+        elif operator == '[':
+            # [ should be an operator in these contexts:
+            # 1. Test command: [ expression ] (at command position with whitespace before)
+            # 2. Array assignments: arr[index]=value (at command position after identifier)
+            # 
+            # [ should NOT be an operator (should be part of word) in these contexts:
+            # 3. Glob patterns in arguments: echo [abc]* (not at command position)
+            # 4. Glob patterns in filenames: echo file[12].txt (not at command position)
+            
+            if not context.command_position:
+                # Not at command position - must be argument/glob pattern
+                return False
+                
+            # At command position - could be test command or array assignment
+            # For now, allow both - let the parser determine which one it is
+            return True
+        
+        elif operator == ']':
+            # ] should only be an operator when matching a previous [
+            # For simplicity, follow the same rule as [
+            if context.command_position:
+                return True  # Allow as operator
+            else:
+                return False  # Treat as part of word
         
         elif operator in ['=~', '==', '!=']:
             # =~, ==, != are only operators inside [[ ]], otherwise they're words

@@ -2,10 +2,39 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.70.0"
+__version__ = "0.71.0"
 
 # Version history
 VERSION_HISTORY = """
+0.71.0 (2025-07-07) - Comprehensive Test Suite Fixes and Parser Enhancement
+  - Fixed critical multiline handler for unclosed expansions detection
+    - Enhanced _has_unclosed_expansion() to handle parameter expansions ${...}
+    - Fixed token type comparison from string to TokenType enum
+    - Added support for command substitution, arithmetic expansion, and parameter expansion detection
+  - Fixed array assignment tokenization for proper bracket recognition
+    - Enhanced array assignment parsing to handle mixed tokenization patterns
+    - Added context-aware bracket handling in lexer recognizers
+    - Fixed array assignments with variable indices like arr[$i]=value
+  - Fixed test builtin to handle split operators like != from tokenization
+    - Added logic to reconstruct split operators (! + = → !=) in test command
+    - Enhanced simple command parser to include EXCLAMATION tokens for test commands
+    - Fixed operator precedence issues outside of [[ ]] brackets
+  - Fixed bracket tokenization to distinguish between array assignments and glob patterns
+    - Implemented context-aware operator recognition for [ and ] tokens
+    - Array assignments at command position: arr[0]=value (brackets as operators)
+    - Glob patterns in arguments: echo [Rt]*.md (brackets as part of words)
+    - Enhanced operator recognizer with command position detection
+  - Achieved 100% test suite success with comprehensive parser improvements
+    - All array tests passing (29/29): proper array element assignment and access
+    - All glob tests passing (9/9): bracket wildcards work correctly
+    - All control structure tests passing (24/24): test command operators functional
+    - All multiline tests passing (43/43): unclosed expansion detection working
+  - Major milestone: Complete lexer and parser enhancement with zero failing tests
+    - Fixed complex interaction between array parsing and glob expansion
+    - Enhanced context-aware tokenization for shell metacharacters
+    - Improved operator recognition based on lexical context
+    - Foundation for advanced shell scripting capabilities
+
 0.70.0 (2025-07-07) - Phase D: StateMachineLexer Deprecated
   - Major milestone: Completed deprecation of StateMachineLexer
   - ModularLexer is now the sole lexer implementation

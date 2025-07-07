@@ -66,6 +66,16 @@ class TestBuiltin(Builtin):
             arg1, op, arg2 = args
             return self._evaluate_binary(arg1, op, arg2)
         
+        if len(args) == 4:
+            # Check if we have a split operator (e.g., ! = becoming != )
+            # This handles cases like: test hello ! = hello
+            arg1, op_part1, op_part2, arg2 = args
+            combined_op = op_part1 + op_part2
+            
+            # Check if the combined operator is valid
+            if combined_op in ['!=', '==', '=~']:
+                return self._evaluate_binary(arg1, combined_op, arg2)
+        
         # More complex expressions not implemented yet
         return 2
     

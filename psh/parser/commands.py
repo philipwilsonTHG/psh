@@ -51,7 +51,10 @@ class CommandParser:
         has_parsed_regular_args = False
         
         # Parse arguments and redirections
-        while self.parser.match_any(TokenGroups.WORD_LIKE | TokenGroups.REDIRECTS):
+        while (self.parser.match_any(TokenGroups.WORD_LIKE | TokenGroups.REDIRECTS) or
+               (command.args and len(command.args) > 0 and 
+                command.args[0] in ('test', '[') and 
+                self.parser.match(TokenType.EXCLAMATION))):
             if self.parser.match_any(TokenGroups.REDIRECTS):
                 redirect = self.parser.redirections.parse_redirect()
                 command.redirects.append(redirect)
@@ -59,6 +62,13 @@ class CommandParser:
                 # Handle fd duplication like >&2, 2>&1 that come as WORD tokens
                 redirect = self.parser.redirections.parse_fd_dup_word()
                 command.redirects.append(redirect)
+            elif self.parser.match(TokenType.EXCLAMATION):
+                # Handle exclamation tokens as arguments for test commands
+                token = self.parser.advance()
+                command.args.append(token.value)
+                command.arg_types.append('EXCLAMATION')
+                command.quote_types.append(None)
+                has_parsed_regular_args = True
             else:
                 # Only check for array assignments if we haven't parsed any regular args yet
                 if not has_parsed_regular_args and self.parser.arrays.is_array_assignment():
@@ -164,6 +174,7 @@ class CommandParser:
             pipeline.commands.append(command)
         
         return pipeline
+    
     
     def parse_pipeline_with_initial_component(self, initial_component: Command) -> Statement:
         """Parse a pipeline starting with an already-parsed component."""

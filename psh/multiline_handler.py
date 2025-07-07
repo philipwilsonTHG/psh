@@ -10,6 +10,7 @@ from .lexer import tokenize
 from .parser import parse, ParseError
 from .line_editor import LineEditor
 from .prompt import PromptExpander
+from .token_types import TokenType
 
 
 class MultiLineInputHandler:
@@ -112,7 +113,9 @@ class MultiLineInputHandler:
             
             # Check for incomplete expansions in tokens
             for token in tokens:
-                if token.type == 'WORD':
+                # Check tokens that might contain unclosed expansions
+                if token.type in (TokenType.WORD, TokenType.COMMAND_SUB, TokenType.COMMAND_SUB_BACKTICK, 
+                                TokenType.VARIABLE, TokenType.ARITH_EXPANSION):
                     # Check for unclosed expansions
                     if self._has_unclosed_expansion(token.value):
                         return False
@@ -302,6 +305,25 @@ class MultiLineInputHandler:
                 i += 1
         if brace_depth > 0:
             return True
+        
+        # Parameter expansion ${...}
+        i = 0
+        while i < len(text):
+            if i + 1 < len(text) and text[i:i+2] == '${':
+                # Find the closing }
+                j = i + 2
+                brace_count = 1
+                while j < len(text) and brace_count > 0:
+                    if text[j] == '{':
+                        brace_count += 1
+                    elif text[j] == '}':
+                        brace_count -= 1
+                    j += 1
+                if brace_count > 0:
+                    return True
+                i = j
+            else:
+                i += 1
         
         # Backtick command substitution
         backtick_count = text.count('`')
