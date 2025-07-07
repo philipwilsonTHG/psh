@@ -32,7 +32,7 @@ class WhitespaceRecognizer(TokenRecognizer):
             return False
         
         # Check for whitespace (excluding newlines)
-        return is_whitespace(char, posix_mode=getattr(context, 'posix_mode', False))
+        return is_whitespace(char, posix_mode=context.posix_mode)
     
     def recognize(
         self, 
@@ -56,7 +56,7 @@ class WhitespaceRecognizer(TokenRecognizer):
                 break
             
             # Stop at non-whitespace
-            if not is_whitespace(char, posix_mode=getattr(context, 'posix_mode', False)):
+            if not is_whitespace(char, posix_mode=context.posix_mode):
                 break
             
             whitespace += char

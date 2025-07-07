@@ -38,6 +38,9 @@ class ModularLexer:
         self.state_manager = StateManager()
         self.context = self.state_manager.context
         
+        # Set posix_mode in context from config
+        self.context.posix_mode = self.config.posix_mode
+        
         # Token recognizer system
         self.registry = RecognizerRegistry()
         self._setup_recognizers()
@@ -211,6 +214,17 @@ class ModularLexer:
             self.context.enter_arithmetic()
         elif token_type == TokenType.DOUBLE_RPAREN:
             self.context.exit_arithmetic()
+        
+        # Track control keywords for context-sensitive parsing
+        elif token_type == TokenType.FOR:
+            self.context.recent_control_keyword = 'for'
+        elif token_type == TokenType.CASE:
+            self.context.recent_control_keyword = 'case'
+        elif token_type == TokenType.SELECT:
+            self.context.recent_control_keyword = 'select'
+        elif token_type in {TokenType.SEMICOLON, TokenType.DO, TokenType.THEN}:
+            # Clear recent control keyword when we move to the body
+            self.context.recent_control_keyword = None
     
     def _update_command_position_context(self, token_type: TokenType) -> None:
         """Update command position tracking based on token type."""
@@ -325,6 +339,10 @@ class ModularLexer:
         expansion_part, new_pos = self.expansion_context.parse_expansion_at_position(
             self.position
         )
+        
+        # If it's not actually an expansion (just a literal), let other recognizers handle it
+        if not expansion_part.is_expansion:
+            return False
         
         # Update position
         self.position = new_pos

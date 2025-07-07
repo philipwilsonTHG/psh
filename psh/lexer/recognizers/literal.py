@@ -49,6 +49,8 @@ class LiteralRecognizer(ContextualRecognizer):
                 return True  # Can be part of word
             if char == '$' and self.config and not self.config.enable_variable_expansion:
                 return True  # Can be part of word
+            if char == '$' and self.config and self.config.enable_variable_expansion and not self._can_start_valid_expansion(input_text, pos):
+                return True  # Can be part of word (invalid expansion)
             if char == '`' and self.config and not self.config.enable_command_substitution:
                 return True  # Can be part of word
             if char == '|' and self.config and not self.config.enable_pipes:
@@ -62,9 +64,13 @@ class LiteralRecognizer(ContextualRecognizer):
                 return True  # Can be part of word
             return False
         
-        # Skip quotes and expansions based on configuration
+        # Skip quotes and expansions based on configuration, but only if they can be fully handled
+        # For $ and `, we need to check if they can actually form valid expansions
         if char == '$' and self.config and self.config.enable_variable_expansion:
-            return False  # Let expansion parser handle it
+            # Only skip if this can actually start a valid expansion
+            # Otherwise, let literal recognizer handle it as a regular character
+            if self._can_start_valid_expansion(input_text, pos):
+                return False  # Let expansion parser handle it
         if char == '`' and self.config and self.config.enable_command_substitution:
             return False  # Let expansion parser handle it
         if char == "'" and self.config and self.config.enable_single_quotes:
@@ -92,11 +98,25 @@ class LiteralRecognizer(ContextualRecognizer):
         while pos < len(input_text):
             char = input_text[pos]
             
+            # Special case: if this is a $ that can't start a valid expansion,
+            # include it in the word even though it's normally a terminator
+            if (char == '$' and self.config and self.config.enable_variable_expansion and 
+                not self._can_start_valid_expansion(input_text, pos)):
+                value += char
+                pos += 1
+                continue
+            
             # Check for word terminators
             if self._is_word_terminator(char, context):
                 # Special case: don't terminate on = if we just collected + for +=
                 if char == '=' and value.endswith('+'):
                     # Include the = in +=
+                    value += char
+                    pos += 1
+                    continue
+                # Special case: don't terminate on = if this looks like a variable assignment
+                elif char == '=' and self._is_variable_assignment_start(value):
+                    # Include the = and continue reading the value part
                     value += char
                     pos += 1
                     continue
@@ -123,7 +143,7 @@ class LiteralRecognizer(ContextualRecognizer):
             
             # Handle escape sequences
             if char == '\\' and pos + 1 < len(input_text):
-                # Include the escaped character
+                # Include the escaped character (preserve the backslash for later processing)
                 value += char + input_text[pos + 1]
                 pos += 2
                 continue
@@ -173,6 +193,10 @@ class LiteralRecognizer(ContextualRecognizer):
                 return True
             else:
                 return False
+        
+        # Check for Unicode whitespace (which should terminate words)
+        if is_whitespace(char, posix_mode=context.posix_mode):
+            return True
         
         # Basic word terminators, but check configuration for quotes
         if char in self.WORD_TERMINATORS:
@@ -254,14 +278,63 @@ class LiteralRecognizer(ContextualRecognizer):
         if not value:
             return False
         
+        # Get posix_mode from config
+        posix_mode = self.config.posix_mode if self.config else False
+        
         # Must start with valid identifier start character
-        if not is_identifier_start(value[0]):
+        if not is_identifier_start(value[0], posix_mode):
             return False
         
         # Rest must be valid identifier characters
-        return all(is_identifier_char(c) for c in value[1:])
+        return all(is_identifier_char(c, posix_mode) for c in value[1:])
     
     def _contains_special_chars(self, value: str) -> bool:
         """Check if value contains shell special characters."""
         special_chars = {'*', '?', '[', ']', '{', '}', '~'}
         return any(c in special_chars for c in value)
+    
+    def _is_variable_assignment_start(self, value: str) -> bool:
+        """Check if value looks like the start of a variable assignment (NAME=...)."""
+        if not value:
+            return False
+        
+        # Get posix_mode from config
+        posix_mode = self.config.posix_mode if self.config else False
+        
+        # Variable names must start with letter or underscore
+        if not is_identifier_start(value[0], posix_mode):
+            return False
+        
+        # Rest must be valid identifier characters (valid shell variable name)
+        return all(is_identifier_char(c, posix_mode) for c in value)
+    
+    def _can_start_valid_expansion(self, input_text: str, pos: int) -> bool:
+        """Check if $ at given position can start a valid expansion."""
+        if pos >= len(input_text) or input_text[pos] != '$':
+            return False
+        
+        if pos + 1 >= len(input_text):
+            # Lone $ at end cannot start a valid expansion
+            return False
+        
+        next_char = input_text[pos + 1]
+        
+        # Check for specific expansion patterns
+        if next_char == '(':
+            # Command substitution $(...) or arithmetic $((...))
+            return True
+        elif next_char == '{':
+            # Parameter expansion ${...}
+            return True
+        else:
+            # Simple variable $VAR - check if next character can start a variable name
+            from ..constants import SPECIAL_VARIABLES
+            from ..unicode_support import is_identifier_start
+            
+            # Special single-character variables
+            if next_char in SPECIAL_VARIABLES:
+                return True
+            
+            # Regular variable names
+            posix_mode = self.config.posix_mode if self.config else False
+            return is_identifier_start(next_char, posix_mode)

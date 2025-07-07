@@ -294,6 +294,8 @@ def extract_variable_name(
     Returns:
         Tuple of (variable_name, new_position)
     """
+    from .unicode_support import is_identifier_start, is_identifier_char
+    
     if start_pos >= len(input_text):
         return "", start_pos
     
@@ -308,14 +310,14 @@ def extract_variable_name(
     pos = start_pos
     
     # First character must be letter or underscore (not digit)
-    if pos < len(input_text) and (char.isalpha() or char == '_'):
+    if pos < len(input_text) and is_identifier_start(char, posix_mode):
         var_name += char
         pos += 1
         
-        # Subsequent characters can be alphanumeric or underscore
+        # Subsequent characters can be letters, numbers, marks, or underscore
         while pos < len(input_text):
             char = input_text[pos]
-            if char.isalnum() or char == '_':
+            if is_identifier_char(char, posix_mode):
                 var_name += char
                 pos += 1
             else:

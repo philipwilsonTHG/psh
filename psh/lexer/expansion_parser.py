@@ -41,7 +41,7 @@ class ExpansionParser:
             return self._create_literal_part('$', start_pos, start_pos + 1, quote_context), start_pos + 1
         
         if start_pos + 1 >= len(input_text):
-            # Lone $ at end
+            # Lone $ at end - treat as literal
             return self._create_literal_part('$', start_pos, start_pos + 1, quote_context), start_pos + 1
         
         next_char = input_text[start_pos + 1]
@@ -198,9 +198,15 @@ class ExpansionParser:
         )
         
         if not var_name:
-            # No valid variable name - treat $ as literal
-            return self._create_literal_part(
-                '$', start_pos, start_pos + 1, quote_context
+            # No valid variable name - create empty variable
+            return TokenPart(
+                value='',
+                quote_type=quote_context,
+                is_variable=True,
+                is_expansion=True,
+                expansion_type='variable',
+                start_pos=Position(start_pos, 0, 0),
+                end_pos=Position(start_pos + 1, 0, 0)
             ), start_pos + 1
         
         # Normalize variable name if configured

@@ -132,8 +132,11 @@ class TestUnicodeLexerBehavior:
     
     def test_unicode_variables_disabled_posix(self):
         """Test that Unicode variables don't work in POSIX mode."""
-        # POSIX mode via strict=True
-        tokens = tokenize('echo $тест', strict=True)
+        # POSIX mode using POSIX config
+        from psh.lexer import LexerConfig, ModularLexer
+        config = LexerConfig.create_posix_config()
+        lexer = ModularLexer('echo $тест', config=config)
+        tokens = lexer.tokenize()
         
         # Creates empty variable + word (as expected)
         # TODO: Could improve to treat entire $тест as literal word  
@@ -162,8 +165,11 @@ class TestUnicodeLexerBehavior:
         """Test that Unicode whitespace is treated as word chars in POSIX mode."""
         unicode_space = '\u00A0'  # Non-breaking space
         
-        # POSIX mode
-        tokens = tokenize(f'echo{unicode_space}hello', strict=True)
+        # POSIX mode using POSIX config
+        from psh.lexer import LexerConfig, ModularLexer
+        config = LexerConfig.create_posix_config()
+        lexer = ModularLexer(f'echo{unicode_space}hello', config=config)
+        tokens = lexer.tokenize()
         
         # Unicode space should be part of the word in POSIX mode (treated as single word)
         assert len(tokens) == 2  # echo{unicode_space}hello, EOF
@@ -189,9 +195,12 @@ class TestUnicodeLexerBehavior:
     
     def test_case_insensitive_unicode(self):
         """Test case-insensitive Unicode identifiers."""
-        # Case-insensitive Unicode
-        # Note: case sensitivity config not directly supported yet
-        tokens = tokenize('echo $ΑΒΓΔ', strict=False)
+        # Case-insensitive Unicode using config
+        from psh.lexer import LexerConfig, ModularLexer
+        config = LexerConfig.create_interactive_config()
+        config.case_sensitive = False
+        lexer = ModularLexer('echo $ΑΒΓΔ', config=config)
+        tokens = lexer.tokenize()
         
         assert len(tokens) == 3
         assert tokens[1].type == TokenType.VARIABLE
