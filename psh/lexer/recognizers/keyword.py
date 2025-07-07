@@ -24,7 +24,7 @@ class KeywordRecognizer(ContextualRecognizer):
     # Keywords that have special context rules
     CONTEXTUAL_KEYWORDS = {
         'in': ['for', 'case', 'select'],  # 'in' after these keywords
-        'esac': [';;', ';&', ';|', '&;'],  # 'esac' after case patterns
+        'esac': [';;', ';&', ';;&'],  # 'esac' after case patterns
     }
     
     @property
@@ -146,10 +146,20 @@ class KeywordRecognizer(ContextualRecognizer):
     
     def _is_in_keyword_valid(self, context: LexerContext) -> bool:
         """Check if 'in' keyword is valid in current context."""
-        # This would require looking at previous tokens, which isn't available
-        # in the current context. For now, we'll assume it's valid at command position
-        # The parser will handle the semantic validation.
-        return context.command_position
+        # 'in' is valid as a keyword in these contexts:
+        # 1. At command position (like any keyword)
+        # 2. After 'for variable' (for loops)
+        # 3. After 'case expression' (case statements)
+        # 4. After 'select variable' (select statements)
+        
+        if context.command_position:
+            return True
+            
+        # Check if we recently saw a control keyword that uses 'in'
+        if context.recent_control_keyword in {'for', 'case', 'select'}:
+            return True
+            
+        return False
     
     def _is_esac_keyword_valid(self, context: LexerContext) -> bool:
         """Check if 'esac' keyword is valid in current context."""

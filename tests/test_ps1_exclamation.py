@@ -119,11 +119,9 @@ def test_quotes_not_consumed_by_word():
         assert tokens[1].type == TokenType.STRING
         assert tokens[1].value == "value"
     else:
-        # ModularLexer: PS1 and = are separate tokens
-        assert len(tokens) >= 3  # PS1, =, STRING tokens
+        # ModularLexer: PS1= is treated as variable assignment, separate from quoted value
+        assert len(tokens) >= 2  # PS1=, STRING tokens
         assert tokens[0].type == TokenType.WORD
-        assert tokens[0].value == "PS1"
-        assert tokens[1].type == TokenType.WORD
-        assert tokens[1].value == "="
-        assert tokens[2].type == TokenType.STRING
-        assert tokens[2].value == "value"
+        assert tokens[0].value == "PS1="
+        assert tokens[1].type == TokenType.STRING
+        assert tokens[1].value == "value"

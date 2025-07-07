@@ -192,23 +192,41 @@ class ExpansionManager:
                     if self.state.options.get('debug-expansion-detail') and original != arg:
                         print(f"[EXPANSION]     Tilde expansion: '{original}' -> '{arg}'", file=self.state.stderr)
                 
-                # Check if the argument contains glob characters and wasn't quoted (unless noglob is set)
-                if (any(c in arg for c in ['*', '?', '[']) and arg_type != 'STRING' 
+                # Escape sequence processing (only for unquoted words)
+                if arg_type == 'WORD' and '\\' in arg:
+                    original = arg
+                    arg = self.process_escape_sequences(arg)
+                    if self.state.options.get('debug-expansion-detail') and original != arg:
+                        print(f"[EXPANSION]     Escape processing: '{original}' -> '{arg}'", file=self.state.stderr)
+                
+                # Check if the argument contains unescaped glob characters and wasn't quoted (unless noglob is set)
+                # Only expand if there are glob characters not preceded by NULL markers
+                has_unescaped_globs = any(
+                    c in arg and not (i > 0 and arg[i-1] == '\x00')
+                    for i, c in enumerate(arg) 
+                    if c in ['*', '?', '[']
+                )
+                
+                if (has_unescaped_globs and arg_type != 'STRING' 
                     and not self.state.options.get('noglob', False)):
-                    # Perform glob expansion
-                    matches = glob.glob(arg)
+                    # Perform glob expansion (but clean NULL markers first for glob matching)
+                    clean_arg = arg.replace('\x00', '')
+                    matches = glob.glob(clean_arg)
                     if matches:
                         # Sort matches for consistent output
                         if self.state.options.get('debug-expansion-detail'):
-                            print(f"[EXPANSION]     Glob expansion: '{arg}' -> {sorted(matches)}", file=self.state.stderr)
+                            print(f"[EXPANSION]     Glob expansion: '{clean_arg}' -> {sorted(matches)}", file=self.state.stderr)
                         args.extend(sorted(matches))
                     else:
                         # No matches, use literal argument (bash behavior)
                         if self.state.options.get('debug-expansion-detail'):
-                            print(f"[EXPANSION]     Glob expansion: '{arg}' -> no matches", file=self.state.stderr)
-                        args.append(arg)
+                            print(f"[EXPANSION]     Glob expansion: '{clean_arg}' -> no matches", file=self.state.stderr)
+                        # Clean NULL markers before adding
+                        args.append(clean_arg)
                 else:
-                    args.append(arg)
+                    # Clean NULL markers before adding
+                    clean_arg = arg.replace('\x00', '')
+                    args.append(clean_arg)
         
         # Debug: show post-expansion args
         if self.state.options.get('debug-expansion'):
@@ -226,6 +244,33 @@ class ExpansionManager:
             process_escapes: Whether to process escape sequences (default True)
         """
         return self.variable_expander.expand_string_variables(text, process_escapes)
+    
+    def process_escape_sequences(self, text: str) -> str:
+        """Process escape sequences in unquoted words."""
+        if not text or '\\' not in text:
+            return text
+        
+        result = []
+        i = 0
+        while i < len(text):
+            if text[i] == '\\' and i + 1 < len(text):
+                next_char = text[i + 1]
+                # Special handling for glob characters to prevent expansion
+                if next_char in '*?[':
+                    # Use NULL marker to prevent glob expansion
+                    result.append(f'\x00{next_char}')
+                elif next_char == '$':
+                    # Use NULL marker to prevent variable expansion
+                    result.append('\x00$')
+                else:
+                    # Regular escape processing (removes backslash)
+                    result.append(next_char)
+                i += 2
+            else:
+                result.append(text[i])
+                i += 1
+        
+        return ''.join(result)
     
     def expand_variable(self, var_expr: str) -> str:
         """Expand a variable expression."""

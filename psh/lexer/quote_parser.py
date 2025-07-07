@@ -162,8 +162,8 @@ class UnifiedQuoteParser:
                 part_start = pos
                 continue
             
-            # Handle escape sequences
-            if char == '\\' and pos + 1 < len(input_text):
+            # Handle escape sequences (only if allowed by the quote rules)
+            if char == '\\' and pos + 1 < len(input_text) and rules.escape_sequences:
                 escaped_str, new_pos = pure_helpers.handle_escape_sequence(
                     input_text, pos, rules.quote_char
                 )

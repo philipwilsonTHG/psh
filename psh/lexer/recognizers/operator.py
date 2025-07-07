@@ -20,6 +20,7 @@ class OperatorRecognizer(ContextualRecognizer):
             '<<<': TokenType.HERE_STRING,
             '<<-': TokenType.HEREDOC_STRIP,
             '2>>': TokenType.REDIRECT_ERR_APPEND,
+            ';;&': TokenType.AMP_SEMICOLON,
         },
         2: {
             '>>': TokenType.REDIRECT_APPEND,
@@ -35,7 +36,6 @@ class OperatorRecognizer(ContextualRecognizer):
             '!=': TokenType.NOT_EQUAL,
             ';;': TokenType.DOUBLE_SEMICOLON,
             ';&': TokenType.SEMICOLON_AMP,
-            '&;': TokenType.AMP_SEMICOLON,
             '2>': TokenType.REDIRECT_ERR,
         },
         1: {
@@ -227,7 +227,7 @@ class OperatorRecognizer(ContextualRecognizer):
         # Inside arithmetic context, some operators should not be recognized
         if context.arithmetic_depth > 0:
             # Inside ((...)), don't tokenize these as redirects/operators
-            if operator in ['<', '>', '<<', '>>', ';&', '&;']:
+            if operator in ['<', '>', '<<', '>>', ';&', ';;&']:
                 return False
         
         # [[ and ]] have special context rules
