@@ -106,10 +106,22 @@ class TestParser:
         self.parser.skip_newlines()
         
         # Check for binary operators
-        if self.parser.match(TokenType.WORD, TokenType.REGEX_MATCH):
+        if self.parser.match(TokenType.WORD, TokenType.REGEX_MATCH, TokenType.EQUAL, TokenType.NOT_EQUAL):
             token = self.parser.peek()
-            if token.type == TokenType.REGEX_MATCH or self._is_binary_test_operator(token.value):
-                operator = self.parser.advance().value
+            if (token.type == TokenType.REGEX_MATCH or 
+                token.type == TokenType.EQUAL or 
+                token.type == TokenType.NOT_EQUAL or
+                self._is_binary_test_operator(token.value)):
+                
+                # Map token types to operator strings
+                if token.type == TokenType.EQUAL:
+                    operator = '=='
+                elif token.type == TokenType.NOT_EQUAL:
+                    operator = '!='
+                else:
+                    operator = token.value
+                    
+                self.parser.advance()
                 self.parser.skip_newlines()
                 
                 # Special handling for regex patterns
@@ -175,7 +187,8 @@ class TestParser:
             
             # Stop if next token is a binary test operator
             if (next_token.type == TokenType.WORD and 
-                self._is_binary_test_operator(next_token.value)):
+                self._is_binary_test_operator(next_token.value)) or \
+               next_token.type in (TokenType.EQUAL, TokenType.NOT_EQUAL, TokenType.REGEX_MATCH):
                 break
                 
             # Stop at logical operators or closing brackets
