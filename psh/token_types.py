@@ -46,6 +46,7 @@ class TokenType(Enum):
     LBRACKET = auto()
     RBRACKET = auto()
     DOUBLE_LPAREN = auto()  # ((
+    DOUBLE_RPAREN = auto()  # ))
     
     # Keywords
     FUNCTION = auto()

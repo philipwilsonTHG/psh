@@ -1,19 +1,18 @@
 """Advanced lexer package with Unicode support.
 
-This package provides a state machine-based lexer for shell tokenization
+This package provides a modular lexer for shell tokenization
 with comprehensive Unicode support, configurable features, and enhanced
 error handling.
 
-The main entry point is the StateMachineLexer class and the tokenize() function
-for drop-in compatibility with the original tokenizer.
+The main entry point is the tokenize() function which uses the ModularLexer
+for improved tokenization with preserved context.
 """
 
 from typing import List
 from ..token_types import Token
 
 # Core lexer components
-from .core import StateMachineLexer
-from .enhanced_core import EnhancedStateMachineLexer
+from .modular_lexer import ModularLexer
 from .position import (
     Position, LexerState, LexerConfig, LexerError, RecoverableLexerError,
     LexerErrorHandler, PositionTracker
@@ -38,30 +37,14 @@ from .transitions import StateTransition, TransitionTable, StateManager
 from . import pure_helpers
 from .enhanced_helpers import EnhancedLexerHelpers
 
-__version__ = "0.58.0"
-
-
-import os
-
-# Configuration flag for choosing lexer implementation
-# Phase C: ModularLexer is now the default, can be disabled with PSH_USE_LEGACY_LEXER=true
-USE_LEGACY_LEXER = os.environ.get('PSH_USE_LEGACY_LEXER', 'false').lower() == 'true'
-
-# For backward compatibility, still check PSH_USE_MODULAR_LEXER
-USE_MODULAR_LEXER = os.environ.get('PSH_USE_MODULAR_LEXER', 'true').lower() == 'true'
-
-# Phase B: Enable ModularLexer for interactive mode by default (kept for compatibility)
-ENABLE_MODULAR_FOR_INTERACTIVE = os.environ.get('PSH_MODULAR_INTERACTIVE', 'true').lower() == 'true'
+__version__ = "0.59.0"  # Phase D: StateMachineLexer deprecated, ModularLexer is the only implementation
 
 def tokenize(input_string: str, strict: bool = True) -> List[Token]:
     """
-    Drop-in replacement for the existing tokenize function.
+    Tokenize a shell command string using the ModularLexer.
     
-    This maintains the same interface but uses the state machine lexer
-    for better tokenization with preserved context.
-    
-    Can be configured to use the new ModularLexer by setting the
-    PSH_USE_MODULAR_LEXER environment variable to 'true'.
+    This function provides the main entry point for shell tokenization
+    with comprehensive Unicode support and enhanced error handling.
     
     Args:
         input_string: The shell command string to tokenize
@@ -79,36 +62,17 @@ def tokenize(input_string: str, strict: bool = True) -> List[Token]:
     else:
         config = LexerConfig.create_interactive_config()  # strict_mode=False
     
-    # Determine which lexer to use
-    # Phase C: ModularLexer is the default unless explicitly disabled
-    if USE_LEGACY_LEXER:
-        use_modular = False
-    elif not USE_MODULAR_LEXER:
-        # PSH_USE_MODULAR_LEXER=false explicitly disables it
-        use_modular = False
-    else:
-        # Default is to use ModularLexer
-        use_modular = True
-    
     try:
         # Expand braces first (same as original)
         expander = BraceExpander()
         expanded_string = expander.expand_line(input_string)
     except BraceExpansionError:
         # If brace expansion fails, use original string
-        if use_modular:
-            from .modular_lexer import ModularLexer
-            lexer = ModularLexer(input_string, config=config)
-        else:
-            lexer = StateMachineLexer(input_string, config=config)
+        lexer = ModularLexer(input_string, config=config)
         tokens = lexer.tokenize()
     else:
-        # Run state machine lexer on expanded string
-        if use_modular:
-            from .modular_lexer import ModularLexer
-            lexer = ModularLexer(expanded_string, config=config)
-        else:
-            lexer = StateMachineLexer(expanded_string, config=config)
+        # Run modular lexer on expanded string
+        lexer = ModularLexer(expanded_string, config=config)
         tokens = lexer.tokenize()
     
     # Apply token transformations (same as original)
@@ -120,7 +84,7 @@ def tokenize(input_string: str, strict: bool = True) -> List[Token]:
 
 __all__ = [
     # Main lexer interface
-    'StateMachineLexer', 'EnhancedStateMachineLexer', 'tokenize',
+    'ModularLexer', 'tokenize',
     # Position and configuration
     'Position', 'LexerState', 'LexerConfig', 'LexerError', 'RecoverableLexerError',
     'LexerErrorHandler', 'PositionTracker',

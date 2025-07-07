@@ -5,7 +5,7 @@ import pytest
 import sys
 import os
 
-from psh.lexer import StateMachineLexer
+from psh.lexer import tokenize
 from psh.parser import Parser
 from psh.shell import Shell
 from psh.core.variables import AssociativeArray, VarAttributes
@@ -17,8 +17,7 @@ class TestAssociativeArrays:
         """Test declare -A command."""
         shell = Shell()
         # Test declare -A command
-        lexer = StateMachineLexer('declare -A colors')
-        tokens = lexer.tokenize()
+        tokens = tokenize('declare -A colors')
         parser = Parser(tokens)
         ast = parser.parse()
         result = shell.execute(ast)
@@ -35,15 +34,13 @@ class TestAssociativeArrays:
         """Test array element assignment for associative arrays."""
         shell = Shell()
         # First declare the associative array
-        lexer = StateMachineLexer('declare -A colors')
-        tokens = lexer.tokenize()
+        tokens = tokenize('declare -A colors')
         parser = Parser(tokens)
         ast = parser.parse()
         shell.execute(ast)
         
         # Test array element assignment
-        lexer = StateMachineLexer('colors[red]="#FF0000"')
-        tokens = lexer.tokenize()
+        tokens = tokenize('colors[red]="#FF0000"')
         parser = Parser(tokens)
         ast = parser.parse()
         
@@ -71,11 +68,10 @@ class TestAssociativeArrays:
         """Test associative array with key containing spaces."""
         shell = Shell()
         # Declare associative array
-        shell.execute(Parser(StateMachineLexer('declare -A colors').tokenize()).parse())
+        shell.execute(Parser(tokenize('declare -A colors')).parse())
         
         # Test assignment with quoted key containing spaces
-        lexer = StateMachineLexer('colors["light blue"]="#ADD8E6"')
-        tokens = lexer.tokenize()
+        tokens = tokenize('colors["light blue"]="#ADD8E6"')
         parser = Parser(tokens)
         ast = parser.parse()
         
@@ -91,12 +87,11 @@ class TestAssociativeArrays:
         """Test associative array with variable as key."""
         shell = Shell()
         # Set up variables
-        shell.execute(Parser(StateMachineLexer('declare -A colors').tokenize()).parse())
-        shell.execute(Parser(StateMachineLexer('key_var="red"').tokenize()).parse())
+        shell.execute(Parser(tokenize('declare -A colors')).parse())
+        shell.execute(Parser(tokenize('key_var="red"')).parse())
         
         # Test assignment with variable key
-        lexer = StateMachineLexer('colors[$key_var]="#FF0000"')
-        tokens = lexer.tokenize()
+        tokens = tokenize('colors[$key_var]="#FF0000"')
         parser = Parser(tokens)
         ast = parser.parse()
         
@@ -113,8 +108,7 @@ class TestAssociativeArrays:
         shell = Shell()
         # Test initialization with declare -A arr=([key]=value)
         cmd = 'declare -A fruits=([apple]="red" [banana]="yellow")'
-        lexer = StateMachineLexer(cmd)
-        tokens = lexer.tokenize()
+        tokens = tokenize(cmd)
         parser = Parser(tokens)
         ast = parser.parse()
         
@@ -133,12 +127,12 @@ class TestAssociativeArrays:
         """Test that indexed and associative arrays are properly distinguished."""
         shell = Shell()
         # Create indexed array
-        shell.execute(Parser(StateMachineLexer('declare -a indexed').tokenize()).parse())
-        shell.execute(Parser(StateMachineLexer('indexed[0]="zero"').tokenize()).parse())
+        shell.execute(Parser(tokenize('declare -a indexed')).parse())
+        shell.execute(Parser(tokenize('indexed[0]="zero"')).parse())
         
         # Create associative array
-        shell.execute(Parser(StateMachineLexer('declare -A assoc').tokenize()).parse())
-        shell.execute(Parser(StateMachineLexer('assoc[key]="value"').tokenize()).parse())
+        shell.execute(Parser(tokenize('declare -A assoc')).parse())
+        shell.execute(Parser(tokenize('assoc[key]="value"')).parse())
         
         # Check types
         indexed_var = shell.state.scope_manager.get_variable_object('indexed')
@@ -158,14 +152,14 @@ class TestAssociativeArrays:
         """Test ${!array[@]} expansion for associative arrays."""
         shell = Shell()
         # Create associative array with multiple keys
-        shell.execute(Parser(StateMachineLexer('declare -A colors=([red]="#FF0000" [green]="#00FF00" [blue]="#0000FF")').tokenize()).parse())
+        shell.execute(Parser(tokenize('declare -A colors=([red]="#FF0000" [green]="#00FF00" [blue]="#0000FF")')).parse())
         
         # Test ${!colors[@]} expansion
         from unittest.mock import patch
         output = []
         with patch('sys.stdout.write') as mock_out:
             mock_out.side_effect = lambda x: output.append(x)
-            shell.execute(Parser(StateMachineLexer('echo "${!colors[@]}"').tokenize()).parse())
+            shell.execute(Parser(tokenize('echo "${!colors[@]}"')).parse())
         
         result = ''.join(output)
         # Keys should be present (order not guaranteed in associative arrays)
@@ -174,21 +168,21 @@ class TestAssociativeArrays:
         assert 'blue' in result, f"'blue' should be in keys output: '{result}'"
         
         # Test with empty associative array
-        shell.execute(Parser(StateMachineLexer('declare -A empty').tokenize()).parse())
+        shell.execute(Parser(tokenize('declare -A empty')).parse())
         output.clear()
         with patch('sys.stdout.write') as mock_out:
             mock_out.side_effect = lambda x: output.append(x)
-            shell.execute(Parser(StateMachineLexer('echo "[${!empty[@]}]"').tokenize()).parse())
+            shell.execute(Parser(tokenize('echo "[${!empty[@]}]"')).parse())
         
         result = ''.join(output).strip()
         assert result == '[]', f"Empty array keys should be empty: '{result}'"
         
         # Test with single key
-        shell.execute(Parser(StateMachineLexer('declare -A single=([only]="value")').tokenize()).parse())
+        shell.execute(Parser(tokenize('declare -A single=([only]="value")')).parse())
         output.clear()
         with patch('sys.stdout.write') as mock_out:
             mock_out.side_effect = lambda x: output.append(x)
-            shell.execute(Parser(StateMachineLexer('echo "${!single[@]}"').tokenize()).parse())
+            shell.execute(Parser(tokenize('echo "${!single[@]}"')).parse())
         
         result = ''.join(output).strip()
         assert result == 'only', f"Single key should be 'only': '{result}'"

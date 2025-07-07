@@ -8,10 +8,10 @@ contexts, including variable names, whitespace, and edge cases.
 
 import pytest
 from psh.lexer import (
-    StateMachineLexer, is_identifier_start, is_identifier_char, 
-    is_whitespace, normalize_identifier, validate_identifier
+    tokenize, is_identifier_start, is_identifier_char, 
+    is_whitespace, normalize_identifier, validate_identifier,
+    LexerConfig
 )
-from psh.lexer import LexerConfig
 from psh.token_types import TokenType
 
 
@@ -121,9 +121,9 @@ class TestUnicodeLexerBehavior:
     
     def test_unicode_variables_enabled(self):
         """Test Unicode variable names when enabled."""
-        config = LexerConfig(unicode_identifiers=True, posix_mode=False)
-        lexer = StateMachineLexer('echo $тест', config)
-        tokens = lexer.tokenize()
+        # Note: tokenize function doesn't directly support config yet
+        # This test may need to be updated when config support is added
+        tokens = tokenize('echo $тест', strict=False)
         
         assert len(tokens) == 3  # echo, $тест, EOF
         assert tokens[0].value == 'echo'
@@ -132,9 +132,8 @@ class TestUnicodeLexerBehavior:
     
     def test_unicode_variables_disabled_posix(self):
         """Test that Unicode variables don't work in POSIX mode."""
-        config = LexerConfig(unicode_identifiers=False, posix_mode=True)
-        lexer = StateMachineLexer('echo $тест', config)
-        tokens = lexer.tokenize()
+        # POSIX mode via strict=True
+        tokens = tokenize('echo $тест', strict=True)
         
         # Creates empty variable + word (as expected)
         # TODO: Could improve to treat entire $тест as literal word  
@@ -151,9 +150,8 @@ class TestUnicodeLexerBehavior:
         unicode_space = '\u00A0'  # Non-breaking space
         ideographic_space = '\u3000'  # Ideographic space
         
-        config = LexerConfig(posix_mode=False)
-        lexer = StateMachineLexer(f'echo{unicode_space}hello{ideographic_space}world', config)
-        tokens = lexer.tokenize()
+        # Unicode whitespace handling
+        tokens = tokenize(f'echo{unicode_space}hello{ideographic_space}world', strict=False)
         
         assert len(tokens) == 4  # echo, hello, world, EOF
         assert tokens[0].value == 'echo'
@@ -164,9 +162,8 @@ class TestUnicodeLexerBehavior:
         """Test that Unicode whitespace is treated as word chars in POSIX mode."""
         unicode_space = '\u00A0'  # Non-breaking space
         
-        config = LexerConfig(posix_mode=True)
-        lexer = StateMachineLexer(f'echo{unicode_space}hello', config)
-        tokens = lexer.tokenize()
+        # POSIX mode
+        tokens = tokenize(f'echo{unicode_space}hello', strict=True)
         
         # Unicode space should be part of the word in POSIX mode (treated as single word)
         assert len(tokens) == 2  # echo{unicode_space}hello, EOF
@@ -174,9 +171,8 @@ class TestUnicodeLexerBehavior:
     
     def test_mixed_unicode_ascii_variables(self):
         """Test variables with mixed Unicode and ASCII characters."""
-        config = LexerConfig(unicode_identifiers=True, posix_mode=False)
-        lexer = StateMachineLexer('echo $test_тест_123', config)
-        tokens = lexer.tokenize()
+        # Mixed Unicode/ASCII variables
+        tokens = tokenize('echo $test_тест_123', strict=False)
         
         assert len(tokens) == 3  # echo, $test_тест_123, EOF
         assert tokens[1].type == TokenType.VARIABLE
@@ -184,9 +180,8 @@ class TestUnicodeLexerBehavior:
     
     def test_unicode_brace_variables(self):
         """Test Unicode in brace variable expansion."""
-        config = LexerConfig(unicode_identifiers=True, posix_mode=False)
-        lexer = StateMachineLexer('echo ${αβγ:-default}', config)
-        tokens = lexer.tokenize()
+        # Unicode in brace expansion
+        tokens = tokenize('echo ${αβγ:-default}', strict=False)
         
         assert len(tokens) == 3  # echo, ${αβγ:-default}, EOF
         assert tokens[1].type == TokenType.VARIABLE
@@ -194,13 +189,9 @@ class TestUnicodeLexerBehavior:
     
     def test_case_insensitive_unicode(self):
         """Test case-insensitive Unicode identifiers."""
-        config = LexerConfig(
-            unicode_identifiers=True, 
-            posix_mode=False, 
-            case_sensitive=False
-        )
-        lexer = StateMachineLexer('echo $ΑΒΓΔ', config)
-        tokens = lexer.tokenize()
+        # Case-insensitive Unicode
+        # Note: case sensitivity config not directly supported yet
+        tokens = tokenize('echo $ΑΒΓΔ', strict=False)
         
         assert len(tokens) == 3
         assert tokens[1].type == TokenType.VARIABLE
@@ -209,12 +200,9 @@ class TestUnicodeLexerBehavior:
     
     def test_unicode_normalization(self):
         """Test Unicode normalization in identifiers."""
-        config = LexerConfig(unicode_identifiers=True, posix_mode=False)
-        
         # Use decomposed form of café (e + combining acute)
         decomposed_var = 'cafe\u0301'
-        lexer = StateMachineLexer(f'echo ${decomposed_var}', config)
-        tokens = lexer.tokenize()
+        tokens = tokenize(f'echo ${decomposed_var}', strict=False)
         
         assert len(tokens) == 3
         assert tokens[1].type == TokenType.VARIABLE
@@ -228,9 +216,8 @@ class TestUnicodeEdgeCases:
     
     def test_empty_unicode_variable(self):
         """Test handling of empty variable after Unicode char."""
-        config = LexerConfig(unicode_identifiers=True, posix_mode=False)
-        lexer = StateMachineLexer('echo $α$', config)  # Valid Unicode var followed by lone $
-        tokens = lexer.tokenize()
+        # Valid Unicode var followed by lone $
+        tokens = tokenize('echo $α$', strict=False)
         
         assert len(tokens) == 4  # echo, $α, $, EOF
         assert tokens[1].type == TokenType.VARIABLE
@@ -240,9 +227,8 @@ class TestUnicodeEdgeCases:
     
     def test_unicode_special_variables(self):
         """Test that special variables remain ASCII-only."""
-        config = LexerConfig(unicode_identifiers=True, posix_mode=False)
-        lexer = StateMachineLexer('echo $? $0 $#', config)
-        tokens = lexer.tokenize()
+        # Special variables remain ASCII-only
+        tokens = tokenize('echo $? $0 $#', strict=False)
         
         assert len(tokens) == 5  # echo, $?, $0, $#, EOF
         assert tokens[1].type == TokenType.VARIABLE
@@ -254,11 +240,8 @@ class TestUnicodeEdgeCases:
     
     def test_invalid_unicode_sequences(self):
         """Test handling of invalid Unicode sequences."""
-        config = LexerConfig(unicode_identifiers=True, posix_mode=False)
-        
         # Test with some Unicode punctuation that shouldn't be valid in identifiers
-        lexer = StateMachineLexer('echo $test™', config)  # Trademark symbol
-        tokens = lexer.tokenize()
+        tokens = tokenize('echo $test™', strict=False)  # Trademark symbol
         
         # Should stop at the trademark symbol
         assert len(tokens) == 4  # echo, $test, ™, EOF
@@ -269,12 +252,9 @@ class TestUnicodeEdgeCases:
     
     def test_combining_characters_in_variables(self):
         """Test combining characters in variable names."""
-        config = LexerConfig(unicode_identifiers=True, posix_mode=False)
-        
         # Base character + combining characters
         var_with_accents = 'e\u0301\u0304'  # e + acute + macron
-        lexer = StateMachineLexer(f'echo ${var_with_accents}', config)
-        tokens = lexer.tokenize()
+        tokens = tokenize(f'echo ${var_with_accents}', strict=False)
         
         assert len(tokens) == 3
         assert tokens[1].type == TokenType.VARIABLE

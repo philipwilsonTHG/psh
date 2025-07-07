@@ -3,7 +3,7 @@
 
 import pytest
 from psh.lexer import (
-    StateMachineLexer, tokenize, TokenPart, RichToken,
+    tokenize, TokenPart, RichToken,
     KEYWORDS, OPERATORS_BY_LENGTH,
     is_identifier_start, is_whitespace
 )
@@ -15,7 +15,6 @@ class TestLexerPackageAPI:
     
     def test_main_imports(self):
         """Test that main components can be imported."""
-        assert StateMachineLexer is not None
         assert tokenize is not None
         assert TokenPart is not None
         assert RichToken is not None
@@ -42,9 +41,13 @@ class TestLexerPackageAPI:
         assert tokens[0].value == 'echo'
         assert tokens[1].value == 'hello'
     
-    def test_lexer_class(self):
-        """Test the StateMachineLexer class."""
-        lexer = StateMachineLexer('echo test')
+    def test_modular_lexer_import(self):
+        """Test that ModularLexer can be imported."""
+        from psh.lexer import ModularLexer
+        assert ModularLexer is not None
+        
+        # Test it can be instantiated
+        lexer = ModularLexer('echo test')
         tokens = lexer.tokenize()
         assert len(tokens) == 3  # echo, test, EOF
         assert tokens[0].value == 'echo'

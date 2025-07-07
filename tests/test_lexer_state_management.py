@@ -4,7 +4,7 @@ import pytest
 from psh.lexer.state_context import LexerContext
 from psh.lexer.transitions import StateTransition, TransitionTable, StateManager
 from psh.lexer.position import LexerState, LexerConfig
-from psh.lexer.enhanced_core import EnhancedStateMachineLexer
+from psh.lexer.modular_lexer import ModularLexer
 from psh.token_types import TokenType
 
 
@@ -228,29 +228,22 @@ class TestStateManager:
         assert history[1] == (LexerState.IN_WORD, 5)
 
 
-class TestEnhancedLexer:
-    """Test the enhanced lexer with unified state management."""
+class TestModularLexer:
+    """Test the modular lexer with unified state management."""
     
-    def test_backward_compatibility(self):
-        """Test that enhanced lexer maintains backward compatibility."""
-        lexer = EnhancedStateMachineLexer('echo "hello"')
+    def test_state_management(self):
+        """Test that modular lexer has proper state management."""
+        lexer = ModularLexer('echo "hello"')
         
-        # Test property access compatibility
-        assert lexer.state == LexerState.NORMAL
-        assert lexer.command_position is True
-        assert lexer.in_double_brackets == 0
-        assert lexer.after_regex_match is False
-        
-        # Test property setting
-        lexer.command_position = False
-        assert lexer.context.command_position is False
-        
-        lexer.after_regex_match = True
-        assert lexer.context.after_regex_match is True
+        # Test context access
+        assert lexer.context.state == LexerState.NORMAL
+        assert lexer.context.command_position is True
+        assert lexer.context.bracket_depth == 0
+        assert lexer.context.after_regex_match is False
     
     def test_state_summary(self):
         """Test state summary functionality."""
-        lexer = EnhancedStateMachineLexer('echo "hello"')
+        lexer = ModularLexer('echo "hello"')
         
         # Initial state summary
         summary = lexer.get_state_summary()
@@ -267,7 +260,7 @@ class TestEnhancedLexer:
     
     def test_nesting_info(self):
         """Test nesting information."""
-        lexer = EnhancedStateMachineLexer('echo "hello"')
+        lexer = ModularLexer('echo "hello"')
         
         info = lexer.get_nesting_info()
         assert all(v == 0 for v in info.values() if v != info['quotes'])
@@ -307,17 +300,17 @@ class TestEnhancedLexer:
     
     def test_context_updates_during_tokenization(self):
         """Test that context is properly updated during tokenization."""
-        lexer = EnhancedStateMachineLexer('[[ $var == "test" ]]')
+        lexer = ModularLexer('[[ $var == "test" ]]')
         
         # Track initial state
-        assert lexer.command_position is True
+        assert lexer.context.command_position is True
         assert not lexer.context.in_double_brackets()
         
         # Tokenize - this should update context appropriately
         tokens = lexer.tokenize()
         
         # After tokenization, should be back to normal state
-        assert lexer.state == LexerState.NORMAL
+        assert lexer.context.state == LexerState.NORMAL
         
         # Should have found [[ and ]] tokens
         token_types = [t.type for t in tokens]
@@ -325,28 +318,23 @@ class TestEnhancedLexer:
         assert TokenType.DOUBLE_RBRACKET in token_types
 
 
-# Integration test - simplified for now
-def test_enhanced_lexer_integration():
-    """Integration test comparing enhanced lexer with original."""
-    from psh.lexer.core import StateMachineLexer
+# Integration test with tokenize function
+def test_tokenize_function_integration():
+    """Integration test using the tokenize function."""
+    from psh.lexer import tokenize
     
-    # Test just simple cases for now
+    # Test various inputs
     test_inputs = [
         'echo hello',
-        'echo "hello world"'
+        'echo "hello world"',
+        '[[ $var == "test" ]]',
+        'for i in 1 2 3; do echo $i; done'
     ]
     
     for input_str in test_inputs:
-        # Compare outputs
-        original_lexer = StateMachineLexer(input_str)
-        enhanced_lexer = EnhancedStateMachineLexer(input_str)
+        # Should tokenize without errors
+        tokens = tokenize(input_str)
         
-        original_tokens = original_lexer.tokenize()
-        enhanced_tokens = enhanced_lexer.tokenize()
-        
-        # Should produce same token types and values
-        assert len(original_tokens) == len(enhanced_tokens)
-        
-        for orig, enhanced in zip(original_tokens, enhanced_tokens):
-            assert orig.type == enhanced.type
-            assert orig.value == enhanced.value
+        # Basic validation
+        assert len(tokens) > 0
+        assert tokens[-1].type == TokenType.EOF

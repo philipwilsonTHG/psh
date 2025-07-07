@@ -23,6 +23,13 @@ class CommandParser:
         """Initialize with reference to main parser."""
         self.parser = main_parser
     
+    def _is_fd_duplication(self, value: str) -> bool:
+        """Check if a WORD token is actually a file descriptor duplication."""
+        import re
+        # Patterns: >&N, <&N, N>&M, N<&M, >&-, <&-
+        fd_dup_pattern = re.compile(r'^(\d*)[><]&(-|\d+)$')
+        return bool(fd_dup_pattern.match(value))
+    
     def parse_command(self) -> SimpleCommand:
         """Parse a single command with its arguments and redirections."""
         command = SimpleCommand()
@@ -48,18 +55,38 @@ class CommandParser:
             if self.parser.match_any(TokenGroups.REDIRECTS):
                 redirect = self.parser.redirections.parse_redirect()
                 command.redirects.append(redirect)
+            elif self.parser.match(TokenType.WORD) and self._is_fd_duplication(self.parser.peek().value):
+                # Handle fd duplication like >&2, 2>&1 that come as WORD tokens
+                redirect = self.parser.redirections.parse_fd_dup_word()
+                command.redirects.append(redirect)
             else:
                 # Only check for array assignments if we haven't parsed any regular args yet
                 if not has_parsed_regular_args and self.parser.arrays.is_array_assignment():
                     array_assignment = self.parser.arrays.parse_array_assignment()
                     command.array_assignments.append(array_assignment)
                 else:
-                    # Special case: check if this is arr=(...) syntax for declare
-                    if (self.parser.match(TokenType.WORD) and self.parser.peek().value.endswith('=') and 
-                        self.parser.peek_ahead(1) and self.parser.peek_ahead(1).type == TokenType.LPAREN):
+                    # Special case: check if this is arr=(...) syntax for declare/local
+                    # Handle both old lexer (arr=) and new lexer (arr =) patterns
+                    is_array_init = False
+                    word_token = None
+                    
+                    if self.parser.match(TokenType.WORD):
+                        word_token = self.parser.peek()
+                        if word_token.value.endswith('=') and self.parser.peek_ahead(1) and self.parser.peek_ahead(1).type == TokenType.LPAREN:
+                            # Old lexer: arr=(...)
+                            is_array_init = True
+                            self.parser.advance()
+                        elif (self.parser.peek_ahead(1) and self.parser.peek_ahead(1).type == TokenType.WORD and 
+                              self.parser.peek_ahead(1).value == '=' and
+                              self.parser.peek_ahead(2) and self.parser.peek_ahead(2).type == TokenType.LPAREN):
+                            # New lexer: arr = (...)
+                            is_array_init = True
+                            word_token = self.parser.advance()
+                            self.parser.advance()  # consume =
+                    
+                    if is_array_init:
                         # This is array initialization syntax like arr=(...)
                         # Parse it as a single argument
-                        word_token = self.parser.advance()
                         lparen = self.parser.advance()  # consume LPAREN
                         
                         # Collect elements until RPAREN, preserving original representation
@@ -93,8 +120,13 @@ class CommandParser:
                         if not self.parser.consume_if_match(TokenType.RPAREN):
                             raise self.parser._error("Expected ')' to close array initialization")
                         
-                        # Build the complete argument
-                        arg_value = word_token.value + '(' + ' '.join(elements) + ')'
+                        # Build the complete argument - need to include the '=' sign!
+                        if word_token.value.endswith('='):
+                            # Old lexer: word already contains =
+                            arg_value = word_token.value + '(' + ' '.join(elements) + ')'
+                        else:
+                            # New lexer: need to add the = sign
+                            arg_value = word_token.value + '=(' + ' '.join(elements) + ')'
                         command.args.append(arg_value)
                         command.arg_types.append('WORD')
                         command.quote_types.append(None)

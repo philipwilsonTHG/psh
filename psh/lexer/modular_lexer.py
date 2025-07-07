@@ -200,6 +200,10 @@ class ModularLexer:
             self.context.bracket_depth += 1
         elif token_type == TokenType.DOUBLE_RBRACKET:
             self.context.bracket_depth -= 1
+        elif token_type == TokenType.DOUBLE_LPAREN:
+            self.context.enter_arithmetic()
+        elif token_type == TokenType.DOUBLE_RPAREN:
+            self.context.exit_arithmetic()
         
         if token_type in command_starting_tokens:
             self.context.set_command_position()

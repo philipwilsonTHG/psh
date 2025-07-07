@@ -105,10 +105,19 @@ class StringInput(InputSource):
     """Input source for reading commands from a string."""
     
     def __init__(self, command: str, name: str = "<command>"):
-        # Process line continuations before splitting into lines
+        # Process line continuations before storing
         from .input_preprocessing import process_line_continuations
         processed_command = process_line_continuations(command)
-        self.lines = processed_command.split('\n')
+        
+        # For single commands (e.g., from run_command), don't split on newlines
+        # to preserve multi-line strings in quotes
+        if name == "<command>":
+            # Single command mode - return the whole command as one line
+            self.lines = [processed_command] if processed_command else []
+        else:
+            # Script mode - split into lines for multi-line processing
+            self.lines = processed_command.split('\n')
+        
         self.current = 0
         self.name = name
         self.line_number = 0

@@ -211,11 +211,13 @@ def setup_default_recognizers() -> RecognizerRegistry:
     from .literal import LiteralRecognizer
     from .whitespace import WhitespaceRecognizer
     from .comment import CommentRecognizer
+    from .process_sub import ProcessSubstitutionRecognizer
     
     registry = get_default_registry()
     registry.clear()
     
     # Register recognizers in order (priority determines actual order)
+    registry.register(ProcessSubstitutionRecognizer())  # Priority 160
     registry.register(OperatorRecognizer())
     registry.register(KeywordRecognizer())
     registry.register(LiteralRecognizer())

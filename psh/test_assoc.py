@@ -7,7 +7,7 @@ import os
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from psh.lexer import StateMachineLexer
+from psh.lexer import tokenize
 from psh.parser import Parser
 from psh.shell import Shell
 
@@ -20,8 +20,7 @@ def test_associative_array_basic():
     # Test 1: declare -A
     print("\n1. Testing declare -A command")
     try:
-        lexer = StateMachineLexer('declare -A colors')
-        tokens = lexer.tokenize()
+        tokens = tokenize('declare -A colors')
         parser = Parser(tokens)
         ast = parser.parse()
         result = shell.executor_manager.execute(ast)
@@ -41,8 +40,7 @@ def test_associative_array_basic():
     # Test 2: Array element assignment
     print("\n2. Testing array element assignment")
     try:
-        lexer = StateMachineLexer('colors[red]="#FF0000"')
-        tokens = lexer.tokenize()
+        tokens = tokenize('colors[red]="#FF0000"')
         print(f"Tokens: {[(t.type.name, t.value) for t in tokens]}")
         parser = Parser(tokens)
         ast = parser.parse()

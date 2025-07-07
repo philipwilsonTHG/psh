@@ -24,6 +24,41 @@ class RedirectionParser:
             redirects.append(self.parse_redirect())
         return redirects
     
+    def parse_fd_dup_word(self) -> Redirect:
+        """Parse file descriptor duplication from a WORD token."""
+        # This is called when we have a WORD token like ">&2" or "2>&1"
+        token = self.parser.advance()
+        value = token.value
+        
+        import re
+        match = re.match(r'^(\d*)([><])&(-|\d+)$', value)
+        if not match:
+            raise self.parser._error(f"Invalid fd duplication syntax: {value}")
+        
+        source_fd_str, direction, target = match.groups()
+        
+        # Default source fd is 1 for > and 0 for <
+        if source_fd_str:
+            source_fd = int(source_fd_str)
+        else:
+            source_fd = 1 if direction == '>' else 0
+        
+        # Handle closing fd with >&- or <&-
+        if target == '-':
+            return Redirect(
+                type=direction + '&-',
+                target=None,
+                fd=source_fd
+            )
+        else:
+            # Regular fd duplication
+            return Redirect(
+                type=direction + '&',
+                target=None,
+                fd=source_fd,
+                dup_fd=int(target)
+            )
+    
     def parse_redirect(self) -> Redirect:
         """Parse a single redirection."""
         redirect_token = self.parser.advance()

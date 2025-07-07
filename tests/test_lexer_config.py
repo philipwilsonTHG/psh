@@ -4,8 +4,7 @@ Unit tests for LexerConfig and configuration-driven lexer behavior.
 """
 
 import pytest
-from psh.lexer import LexerConfig, LexerState
-from psh.lexer import StateMachineLexer
+from psh.lexer import LexerConfig, LexerState, tokenize, ModularLexer
 from psh.token_types import TokenType
 
 
@@ -104,7 +103,7 @@ class TestConfigurationDrivenBehavior:
     def test_disable_single_quotes(self):
         """Test disabling single quote processing."""
         config = LexerConfig(enable_single_quotes=False)
-        lexer = StateMachineLexer("echo 'hello'", config)
+        lexer = ModularLexer("echo 'hello'", config)
         tokens = lexer.tokenize()
         
         # Should treat quotes as part of words
@@ -116,7 +115,7 @@ class TestConfigurationDrivenBehavior:
     def test_disable_variable_expansion(self):
         """Test disabling variable expansion."""
         config = LexerConfig(enable_variable_expansion=False)
-        lexer = StateMachineLexer("echo $HOME", config)
+        lexer = ModularLexer("echo $HOME", config)
         tokens = lexer.tokenize()
         
         # Should treat $ as part of word
@@ -128,7 +127,7 @@ class TestConfigurationDrivenBehavior:
     def test_disable_pipes(self):
         """Test disabling pipe operator."""
         config = LexerConfig(enable_pipes=False)
-        lexer = StateMachineLexer("cat | grep", config)
+        lexer = ModularLexer("cat | grep", config)
         tokens = lexer.tokenize()
         
         # Pipe should be treated as a word
@@ -141,7 +140,7 @@ class TestConfigurationDrivenBehavior:
     def test_disable_redirections(self):
         """Test disabling redirection operators."""
         config = LexerConfig(enable_redirections=False)
-        lexer = StateMachineLexer("echo > file", config)
+        lexer = ModularLexer("echo > file", config)
         tokens = lexer.tokenize()
         
         # > should be treated as a word
@@ -153,7 +152,7 @@ class TestConfigurationDrivenBehavior:
         """Test disabling command substitution."""
         # When variable expansion is entirely disabled, $ should be literal
         config = LexerConfig(enable_variable_expansion=False, strict_mode=False)
-        lexer = StateMachineLexer("echo dollar$sign", config)
+        lexer = ModularLexer("echo dollar$sign", config)
         tokens = lexer.tokenize()
         
         # Should treat $ as literal part of the word
@@ -163,7 +162,7 @@ class TestConfigurationDrivenBehavior:
     def test_disable_background_operator(self):
         """Test disabling background operator."""
         config = LexerConfig(enable_background=False)
-        lexer = StateMachineLexer("sleep 10 &", config)
+        lexer = ModularLexer("sleep 10 &", config)
         tokens = lexer.tokenize()
         
         # & should be treated as a word
@@ -174,7 +173,7 @@ class TestConfigurationDrivenBehavior:
     def test_disable_logical_operators(self):
         """Test disabling logical operators."""
         config = LexerConfig(enable_logical_operators=False)
-        lexer = StateMachineLexer("true && false", config)
+        lexer = ModularLexer("true && false", config)
         tokens = lexer.tokenize()
         
         # && should be treated as a word (not split into two & tokens)
@@ -205,7 +204,7 @@ class TestErrorHandlingConfiguration:
     def test_strict_mode(self):
         """Test strict mode error handling."""
         config = LexerConfig(strict_mode=True)
-        lexer = StateMachineLexer("echo 'unclosed", config)
+        lexer = ModularLexer("echo 'unclosed", config)
         
         # Should raise exception in strict mode
         with pytest.raises(Exception):
@@ -214,7 +213,7 @@ class TestErrorHandlingConfiguration:
     def test_recovery_mode(self):
         """Test recovery mode error handling."""
         config = LexerConfig(strict_mode=False, recovery_mode=True)
-        lexer = StateMachineLexer("echo hello", config)  # Valid input
+        lexer = ModularLexer("echo hello", config)  # Valid input
         
         # Should complete successfully
         tokens = lexer.tokenize()

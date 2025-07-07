@@ -14,8 +14,7 @@ class LiteralRecognizer(ContextualRecognizer):
     WORD_TERMINATORS = {
         ' ', '\t', '\n', '\r', '\f', '\v',  # Whitespace
         '|', '&', ';', '(', ')', '{', '}',       # Operators
-        '<', '>', '!', '=',                      # More operators  
-        '#',                                     # Comments
+        '<', '>', '!', '=', '+',                 # More operators  
         '$', '`', "'",  '"',                     # Special characters
     }
     
@@ -44,10 +43,6 @@ class LiteralRecognizer(ContextualRecognizer):
         if char in ['$', '`', "'", '"']:
             return False
         
-        # Skip comments
-        if char == '#':
-            return False
-        
         # If we get here, it might be a literal
         return True
     
@@ -70,10 +65,20 @@ class LiteralRecognizer(ContextualRecognizer):
             
             # Check for word terminators
             if self._is_word_terminator(char, context):
+                # Special case: don't terminate on = if we just collected + for +=
+                if char == '=' and value.endswith('+'):
+                    # Include the = in +=
+                    value += char
+                    pos += 1
+                    continue
                 break
             
             # Check for quotes or expansions that would end the word
             if char in ['$', '`', "'", '"']:
+                break
+            
+            # Check if # starts a comment (not part of word)
+            if char == '#' and self._is_comment_start(input_text, pos, context):
                 break
             
             # Handle escape sequences
@@ -101,8 +106,34 @@ class LiteralRecognizer(ContextualRecognizer):
         
         return token, pos
     
+    def _is_comment_start(self, input_text: str, pos: int, context: LexerContext) -> bool:
+        """Check if # at current position starts a comment."""
+        if pos == 0:
+            return True
+        
+        prev_char = input_text[pos - 1]
+        
+        # After whitespace
+        if prev_char in [' ', '\t', '\n', '\r']:
+            return True
+        
+        # After operators that can be followed by comments
+        comment_preceding_ops = {'|', '&', ';', '(', '{'}
+        if prev_char in comment_preceding_ops:
+            return True
+        
+        return False
+    
     def _is_word_terminator(self, char: str, context: LexerContext) -> bool:
         """Check if character terminates a word in current context."""
+        # In arithmetic context, only semicolon and parentheses are terminators
+        if context.arithmetic_depth > 0:
+            # Only these characters terminate words in arithmetic
+            if char in [';', '(', ')', '\n']:
+                return True
+            else:
+                return False
+        
         # Basic word terminators
         if char in self.WORD_TERMINATORS:
             return True

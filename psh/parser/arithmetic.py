@@ -38,8 +38,12 @@ class ArithmeticParser:
             
             expr = self.parser._parse_arithmetic_expression_until_double_rparen()
             
-            self.parser.expect(TokenType.RPAREN)
-            self.parser.expect(TokenType.RPAREN)
+            # Handle both old (two RPAREN) and new (DOUBLE_RPAREN) tokenization
+            if self.parser.match(TokenType.DOUBLE_RPAREN):
+                self.parser.advance()
+            else:
+                self.parser.expect(TokenType.RPAREN)
+                self.parser.expect(TokenType.RPAREN)
             
             redirects = self.parser.redirections.parse_redirects()
             
@@ -56,6 +60,10 @@ class ArithmeticParser:
         
         # Define stop condition for double RPAREN
         def stop_at_double_rparen(token, paren_depth):
+            # Check for DOUBLE_RPAREN token (new tokenization)
+            if paren_depth == 0 and token.type == TokenType.DOUBLE_RPAREN:
+                return True
+            # Check for two consecutive RPAREN tokens (old tokenization)
             if paren_depth == 0 and token.type == TokenType.RPAREN:
                 # Peek ahead to see if next is also RPAREN
                 next_token = stream.peek(1)
@@ -111,6 +119,10 @@ class ArithmeticParser:
         
         # Define stop condition for double RPAREN
         def stop_at_double_rparen(token, paren_depth):
+            # Check for DOUBLE_RPAREN token (new tokenization)
+            if paren_depth == 0 and token.type == TokenType.DOUBLE_RPAREN:
+                return True
+            # Check for two consecutive RPAREN tokens (old tokenization)
             if paren_depth == 0 and token.type == TokenType.RPAREN:
                 # Peek ahead to see if next is also RPAREN
                 next_token = stream.peek(1)
@@ -126,11 +138,14 @@ class ArithmeticParser:
         )
         
         # Consume the )) tokens if we stopped because of them
-        if (stream.pos < len(stream.tokens) and 
-            stream.tokens[stream.pos].type == TokenType.RPAREN and
-            stream.pos + 1 < len(stream.tokens) and
-            stream.tokens[stream.pos + 1].type == TokenType.RPAREN):
-            stream.advance(2)  # Consume both ) tokens
+        if stream.pos < len(stream.tokens):
+            current_token = stream.tokens[stream.pos]
+            if current_token.type == TokenType.DOUBLE_RPAREN:
+                stream.advance(1)  # Consume DOUBLE_RPAREN token
+            elif (current_token.type == TokenType.RPAREN and
+                  stream.pos + 1 < len(stream.tokens) and
+                  stream.tokens[stream.pos + 1].type == TokenType.RPAREN):
+                stream.advance(2)  # Consume both ) tokens
         
         # Update parser position
         self.parser.current = stream.pos

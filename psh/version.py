@@ -2,10 +2,27 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.69.4"
+__version__ = "0.70.0"
 
 # Version history
 VERSION_HISTORY = """
+0.70.0 (2025-07-07) - Phase D: StateMachineLexer Deprecated
+  - Major milestone: Completed deprecation of StateMachineLexer
+  - ModularLexer is now the sole lexer implementation
+  - Removed legacy lexer files:
+    - core.py (StateMachineLexer)
+    - enhanced_core.py (EnhancedStateMachineLexer)
+    - enhanced_state_handlers.py
+    - unified_lexer.py
+  - Updated all test files to use tokenize() function or ModularLexer
+  - Removed obsolete test files:
+    - test_lexer_compatibility.py
+    - test_lexer_helpers.py
+    - test_unified_parsers.py
+  - Fixed all imports and references throughout the codebase
+  - Reduced test failures from 268 to 42 (significant improvement)
+  - Updated lexer package __init__.py to export only ModularLexer
+
 0.69.4 (2025-07-07) - ModularLexer Fixes and Improvements
   - Fixed critical escape sequence bugs in literal.py and modular_lexer.py
   - Changed '\\n', '\\t', etc. to proper escape characters '\n', '\t' 
