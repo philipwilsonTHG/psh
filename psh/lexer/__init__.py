@@ -34,6 +34,10 @@ from .state_handlers import StateHandlers
 from .state_context import LexerContext
 from .transitions import StateTransition, TransitionTable, StateManager
 
+# Pure helper functions (Phase 2)
+from . import pure_helpers
+from .enhanced_helpers import EnhancedLexerHelpers
+
 __version__ = "0.58.0"
 
 
@@ -95,7 +99,9 @@ __all__ = [
     # Token classes
     'TokenPart', 'RichToken',
     # Mixin classes (for advanced usage)
-    'LexerHelpers', 'StateHandlers',
+    'LexerHelpers', 'StateHandlers', 'EnhancedLexerHelpers',
     # New state management components
-    'LexerContext', 'StateTransition', 'TransitionTable', 'StateManager'
+    'LexerContext', 'StateTransition', 'TransitionTable', 'StateManager',
+    # Pure helper functions
+    'pure_helpers'
 ]
