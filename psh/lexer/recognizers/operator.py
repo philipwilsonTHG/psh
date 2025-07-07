@@ -31,6 +31,8 @@ class OperatorRecognizer(ContextualRecognizer):
             '[[': TokenType.DOUBLE_LBRACKET,
             ']]': TokenType.DOUBLE_RBRACKET,
             '=~': TokenType.REGEX_MATCH,
+            '==': TokenType.EQUAL,
+            '!=': TokenType.NOT_EQUAL,
             ';;': TokenType.DOUBLE_SEMICOLON,
             ';&': TokenType.SEMICOLON_AMP,
             '&;': TokenType.AMP_SEMICOLON,
@@ -237,14 +239,15 @@ class OperatorRecognizer(ContextualRecognizer):
             # ]] is only valid when we're inside [[ ]]
             return context.bracket_depth > 0
         
-        elif operator == '=~':
-            # =~ is only an operator inside [[ ]], otherwise it's a word
+        elif operator in ['=~', '==', '!=']:
+            # =~, ==, != are only operators inside [[ ]], otherwise they're words
             return context.bracket_depth > 0
         
         elif operator in ['<', '>']:
             # Inside [[ ]], < and > are comparison operators, not redirections
-            # But we'll let the parser handle this distinction
-            return True
+            if context.bracket_depth > 0:
+                return False  # Don't recognize as redirect operators inside [[ ]]
+            return True  # Outside [[ ]], they are normal redirections
         
         # Most operators are valid in any context
         return True

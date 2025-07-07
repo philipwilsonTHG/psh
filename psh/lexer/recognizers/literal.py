@@ -57,6 +57,9 @@ class LiteralRecognizer(ContextualRecognizer):
                 return True  # Can be part of word
             if char == '&' and self.config and not self.config.enable_background:
                 return True  # Can be part of word
+            # Inside [[ ]], < and > are comparison operators that should be tokenized as words
+            if char in ['<', '>'] and context.bracket_depth > 0:
+                return True  # Can be part of word
             return False
         
         # Skip quotes and expansions based on configuration
@@ -187,6 +190,9 @@ class LiteralRecognizer(ContextualRecognizer):
             if char in ['<', '>'] and self.config and not self.config.enable_redirections:
                 return False  # Treat as word character
             if char == '&' and self.config and not self.config.enable_background:
+                return False  # Treat as word character
+            # Inside [[ ]], < and > are comparison operators that should be treated as word chars
+            if char in ['<', '>'] and context.bracket_depth > 0:
                 return False  # Treat as word character
             return True
         

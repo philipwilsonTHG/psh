@@ -200,6 +200,18 @@ class ModularLexer:
                 full_value += part.value
         return full_value
     
+    def _update_context_for_token(self, token_type: TokenType) -> None:
+        """Update lexer context based on recognized token."""
+        # Update bracket depth for [[ and ]]
+        if token_type == TokenType.DOUBLE_LBRACKET:
+            self.context.enter_double_brackets()
+        elif token_type == TokenType.DOUBLE_RBRACKET:
+            self.context.exit_double_brackets()
+        elif token_type == TokenType.DOUBLE_LPAREN:
+            self.context.enter_arithmetic()
+        elif token_type == TokenType.DOUBLE_RPAREN:
+            self.context.exit_arithmetic()
+    
     def _update_command_position_context(self, token_type: TokenType) -> None:
         """Update command position tracking based on token type."""
         command_starting_tokens = {
@@ -413,6 +425,9 @@ class ModularLexer:
             
             # Add token
             self.tokens.append(token)
+            
+            # Update context immediately for bracket tracking
+            self._update_context_for_token(token.type)
             
             # Update command position context
             self._update_command_position_context(token.type)
