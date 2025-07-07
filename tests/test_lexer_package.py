@@ -55,25 +55,26 @@ class TestLexerPackageAPI:
     
     def test_lexer_config(self):
         """Test lexer with configuration."""
+        from psh.lexer import ModularLexer
         config = LexerConfig(posix_mode=True)
-        lexer = StateMachineLexer('echo αtest', config)
+        lexer = ModularLexer('echo αtest', config)
         tokens = lexer.tokenize()
         # In POSIX mode, Unicode characters should be handled differently
         assert len(tokens) >= 2
 
 
-class TestBackwardCompatibility:
-    """Test backward compatibility with old imports."""
+class TestCurrentAPI:
+    """Test current API functionality."""
     
-    def test_old_import_still_works(self):
-        """Test that old import pattern still works."""
-        from psh.lexer import tokenize as old_tokenize
-        from psh.lexer import StateMachineLexer as OldLexer
+    def test_current_import_pattern(self):
+        """Test that current import pattern works."""
+        from psh.lexer import tokenize
+        from psh.lexer import ModularLexer
         
-        tokens = old_tokenize('echo hello')
+        tokens = tokenize('echo hello')
         assert len(tokens) == 3
         
-        lexer = OldLexer('echo test')
+        lexer = ModularLexer('echo test')
         tokens = lexer.tokenize()
         assert len(tokens) == 3
 
@@ -88,30 +89,31 @@ class TestPackageStructure:
         from psh.lexer.token_parts import TokenPart
         from psh.lexer.helpers import LexerHelpers
         from psh.lexer.state_handlers import StateHandlers
-        from psh.lexer.core import StateMachineLexer
+        from psh.lexer.modular_lexer import ModularLexer
         
         assert KEYWORDS is not None
         assert is_identifier_start is not None
         assert TokenPart is not None
         assert LexerHelpers is not None
         assert StateHandlers is not None
-        assert StateMachineLexer is not None
+        assert ModularLexer is not None
     
-    def test_mixin_inheritance(self):
-        """Test that the lexer properly inherits from mixins."""
-        lexer = StateMachineLexer('test')
-        
-        # Should have methods from LexerHelpers
-        assert hasattr(lexer, 'read_balanced_parens')
-        assert hasattr(lexer, '_check_for_operator')
-        
-        # Should have methods from StateHandlers  
-        assert hasattr(lexer, 'handle_normal_state')
-        assert hasattr(lexer, 'handle_word_state')
+    def test_modular_lexer_structure(self):
+        """Test that the modular lexer has the expected structure."""
+        from psh.lexer import ModularLexer
+        lexer = ModularLexer('test')
         
         # Should have core methods
         assert hasattr(lexer, 'tokenize')
         assert hasattr(lexer, 'emit_token')
+        
+        # Should have position management
+        assert hasattr(lexer, 'position')
+        assert hasattr(lexer, 'current_char')
+        
+        # Should have configuration
+        assert hasattr(lexer, 'config')
+        assert hasattr(lexer, 'context')
 
 
 if __name__ == '__main__':
