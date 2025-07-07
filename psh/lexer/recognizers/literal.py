@@ -10,6 +10,10 @@ from ..unicode_support import is_identifier_start, is_identifier_char, is_whites
 class LiteralRecognizer(ContextualRecognizer):
     """Recognizes literal tokens: strings, numbers, identifiers."""
     
+    def __init__(self):
+        super().__init__()
+        self.config = None  # Will be set by ModularLexer
+    
     # Characters that can terminate a word
     WORD_TERMINATORS = {
         ' ', '\t', '\n', '\r', '\f', '\v',  # Whitespace
@@ -36,12 +40,34 @@ class LiteralRecognizer(ContextualRecognizer):
         char = input_text[pos]
         
         # Skip whitespace and operators (handled by other recognizers)
+        # But allow disabled quotes to be part of words
         if char in self.WORD_TERMINATORS:
+            # Allow disabled quotes/expansions/operators to be recognized as word chars
+            if char == "'" and self.config and not self.config.enable_single_quotes:
+                return True  # Can be part of word
+            if char == '"' and self.config and not self.config.enable_double_quotes:
+                return True  # Can be part of word
+            if char == '$' and self.config and not self.config.enable_variable_expansion:
+                return True  # Can be part of word
+            if char == '`' and self.config and not self.config.enable_command_substitution:
+                return True  # Can be part of word
+            if char == '|' and self.config and not self.config.enable_pipes:
+                return True  # Can be part of word
+            if char in ['<', '>'] and self.config and not self.config.enable_redirections:
+                return True  # Can be part of word
+            if char == '&' and self.config and not self.config.enable_background:
+                return True  # Can be part of word
             return False
         
-        # Skip quotes and expansions (handled by quote/expansion parsers)
-        if char in ['$', '`', "'", '"']:
-            return False
+        # Skip quotes and expansions based on configuration
+        if char == '$' and self.config and self.config.enable_variable_expansion:
+            return False  # Let expansion parser handle it
+        if char == '`' and self.config and self.config.enable_command_substitution:
+            return False  # Let expansion parser handle it
+        if char == "'" and self.config and self.config.enable_single_quotes:
+            return False  # Let quote parser handle it
+        if char == '"' and self.config and self.config.enable_double_quotes:
+            return False  # Let quote parser handle it
         
         # If we get here, it might be a literal
         return True
@@ -74,7 +100,18 @@ class LiteralRecognizer(ContextualRecognizer):
                 break
             
             # Check for quotes or expansions that would end the word
-            if char in ['$', '`', "'", '"']:
+            # (only if they are enabled in config)
+            should_break = False
+            if char == '$' and self.config and self.config.enable_variable_expansion:
+                should_break = True
+            elif char == '`' and self.config and self.config.enable_command_substitution:
+                should_break = True
+            elif char == "'" and self.config and self.config.enable_single_quotes:
+                should_break = True
+            elif char == '"' and self.config and self.config.enable_double_quotes:
+                should_break = True
+            
+            if should_break:
                 break
             
             # Check if # starts a comment (not part of word)
@@ -134,8 +171,23 @@ class LiteralRecognizer(ContextualRecognizer):
             else:
                 return False
         
-        # Basic word terminators
+        # Basic word terminators, but check configuration for quotes
         if char in self.WORD_TERMINATORS:
+            # Check if quotes/operators should be treated as word characters when disabled
+            if char == "'" and self.config and not self.config.enable_single_quotes:
+                return False  # Treat as word character
+            if char == '"' and self.config and not self.config.enable_double_quotes:
+                return False  # Treat as word character
+            if char == '$' and self.config and not self.config.enable_variable_expansion:
+                return False  # Treat as word character
+            if char == '`' and self.config and not self.config.enable_command_substitution:
+                return False  # Treat as word character
+            if char == '|' and self.config and not self.config.enable_pipes:
+                return False  # Treat as word character
+            if char in ['<', '>'] and self.config and not self.config.enable_redirections:
+                return False  # Treat as word character
+            if char == '&' and self.config and not self.config.enable_background:
+                return False  # Treat as word character
             return True
         
         # Context-specific terminators

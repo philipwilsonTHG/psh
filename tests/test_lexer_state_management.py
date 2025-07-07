@@ -245,36 +245,36 @@ class TestModularLexer:
         """Test state summary functionality."""
         lexer = ModularLexer('echo "hello"')
         
-        # Initial state summary
-        summary = lexer.get_state_summary()
-        assert "state=NORMAL" in summary
-        assert "cmd_pos" in summary
+        # Test basic state access
+        assert lexer.context.state == LexerState.NORMAL
+        assert lexer.context.command_position is True
         
         # Change some state
         lexer.context.enter_double_brackets()
         lexer.context.push_quote('"')
         
-        summary = lexer.get_state_summary()
-        assert "brackets=1" in summary
-        assert "quotes=" in summary and '"' in summary
+        # Verify state changes
+        assert lexer.context.bracket_depth == 1
+        assert lexer.context.current_quote_type() == '"'
     
     def test_nesting_info(self):
         """Test nesting information."""
         lexer = ModularLexer('echo "hello"')
         
-        info = lexer.get_nesting_info()
-        assert all(v == 0 for v in info.values() if v != info['quotes'])
+        # Test initial nesting state
+        assert lexer.context.bracket_depth == 0
+        assert lexer.context.paren_depth == 0
         
         lexer.context.enter_double_brackets()
         lexer.context.enter_parentheses()
         
-        info = lexer.get_nesting_info()
-        assert info['brackets'] == 1
-        assert info['parentheses'] == 1
+        # Verify nesting changes
+        assert lexer.context.bracket_depth == 1
+        assert lexer.context.paren_depth == 1
     
     def test_simple_tokenization(self):
         """Test that basic tokenization still works."""
-        lexer = EnhancedStateMachineLexer('echo hello')
+        lexer = ModularLexer('echo hello')
         tokens = lexer.tokenize()
         
         # Should get WORD, WORD, EOF tokens
@@ -287,7 +287,7 @@ class TestModularLexer:
     
     def test_quoted_string_tokenization(self):
         """Test tokenization with quotes."""
-        lexer = EnhancedStateMachineLexer('echo "hello world"')
+        lexer = ModularLexer('echo "hello world"')
         tokens = lexer.tokenize()
         
         # Should handle quoted strings

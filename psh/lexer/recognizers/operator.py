@@ -10,6 +10,10 @@ from ..position import Position
 class OperatorRecognizer(ContextualRecognizer):
     """Recognizes shell operators with context awareness."""
     
+    def __init__(self):
+        super().__init__()
+        self.config = None  # Will be set by ModularLexer
+    
     # Operators organized by length (longest first for greedy matching)
     OPERATORS = {
         3: {
@@ -172,6 +176,10 @@ class OperatorRecognizer(ContextualRecognizer):
                 candidate = input_text[pos:pos + length]
                 
                 if candidate in self.OPERATORS[length]:
+                    # Check configuration to see if this operator is enabled
+                    if not self._is_operator_enabled(candidate):
+                        continue
+                        
                     # Check if operator is valid in current context
                     if self.is_valid_in_context(candidate, context):
                         token_type = self.OPERATORS[length][candidate]
@@ -184,6 +192,29 @@ class OperatorRecognizer(ContextualRecognizer):
                         return token, pos + length
         
         return None
+    
+    def _is_operator_enabled(self, operator: str) -> bool:
+        """Check if operator is enabled by configuration."""
+        if not self.config:
+            return True  # No config means all enabled
+            
+        # Check pipes
+        if operator == '|' and not self.config.enable_pipes:
+            return False
+            
+        # Check redirections
+        if operator in ['<', '>', '>>', '<<', '<<<', '2>', '2>>'] and not self.config.enable_redirections:
+            return False
+            
+        # Check background operator
+        if operator == '&' and not self.config.enable_background:
+            return False
+            
+        # Check logical operators
+        if operator in ['&&', '||'] and not self.config.enable_logical_operators:
+            return False
+            
+        return True
     
     def is_valid_in_context(
         self, 

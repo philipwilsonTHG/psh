@@ -58,12 +58,34 @@ class ModularLexer:
         self.current_parts: List[TokenPart] = []
     
     def _setup_recognizers(self) -> None:
-        """Set up the token recognizers."""
-        setup_default_recognizers()
-        # Copy recognizers from default registry
-        default_registry = setup_default_recognizers()
-        for recognizer in default_registry.get_recognizers():
-            self.registry.register(recognizer)
+        """Set up the token recognizers based on configuration."""
+        from .recognizers.operator import OperatorRecognizer
+        from .recognizers.keyword import KeywordRecognizer
+        from .recognizers.literal import LiteralRecognizer
+        from .recognizers.whitespace import WhitespaceRecognizer
+        from .recognizers.comment import CommentRecognizer
+        from .recognizers.process_sub import ProcessSubstitutionRecognizer
+        
+        # Always add these core recognizers
+        self.registry.register(WhitespaceRecognizer())
+        self.registry.register(CommentRecognizer())
+        
+        # Create a custom operator recognizer that respects config
+        operator_recognizer = OperatorRecognizer()
+        operator_recognizer.config = self.config  # Pass config to recognizer
+        self.registry.register(operator_recognizer)
+        
+        # Add other recognizers
+        self.registry.register(KeywordRecognizer())
+        
+        # Create a custom literal recognizer that respects config
+        literal_recognizer = LiteralRecognizer()
+        literal_recognizer.config = self.config  # Pass config to recognizer
+        self.registry.register(literal_recognizer)
+        
+        # Process substitution (if enabled in config)
+        if self.config.enable_process_substitution:
+            self.registry.register(ProcessSubstitutionRecognizer())
     
     # Position management
     @property
@@ -265,16 +287,20 @@ class ModularLexer:
         if not char:
             return False
         
-        # Handle expansions
-        if char == '$' and self.expansion_context.is_expansion_start(self.position):
+        # Handle expansions (only if enabled)
+        if (char == '$' and self.config.enable_variable_expansion and 
+            self.expansion_context.is_expansion_start(self.position)):
             return self._handle_expansion()
         
-        # Handle backticks (command substitution)
-        if char == '`' and self.expansion_context.is_expansion_start(self.position):
+        # Handle backticks (command substitution, only if enabled)
+        if (char == '`' and self.config.enable_command_substitution and 
+            self.expansion_context.is_expansion_start(self.position)):
             return self._handle_backtick()
         
-        # Handle quotes (excluding backticks which are expansions)
-        if char in ['"', "'"] and self.quote_context.is_quote_character(char):
+        # Handle quotes (only if enabled)
+        if char == '"' and self.config.enable_double_quotes and self.quote_context.is_quote_character(char):
+            return self._handle_quote(char)
+        if char == "'" and self.config.enable_single_quotes and self.quote_context.is_quote_character(char):
             return self._handle_quote(char)
         
         return False
