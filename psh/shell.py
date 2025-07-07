@@ -376,7 +376,9 @@ class Shell:
             return 0
         
         try:
-            tokens = tokenize(command_string)
+            # Use strict=False for interactive mode, strict=True for script mode
+            strict_mode = self.state.is_script_mode
+            tokens = tokenize(command_string, strict=strict_mode)
             
             # Debug: Print tokens if requested
             if self.debug_tokens:

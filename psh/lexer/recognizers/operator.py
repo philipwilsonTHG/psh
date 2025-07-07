@@ -22,6 +22,7 @@ class OperatorRecognizer(ContextualRecognizer):
             '<<': TokenType.HEREDOC,
             '&&': TokenType.AND_AND,
             '||': TokenType.OR_OR,
+            '((': TokenType.DOUBLE_LPAREN,
             '[[': TokenType.DOUBLE_LBRACKET,
             ']]': TokenType.DOUBLE_RBRACKET,
             '=~': TokenType.REGEX_MATCH,

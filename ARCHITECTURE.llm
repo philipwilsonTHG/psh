@@ -44,7 +44,7 @@ psh/
 │   ├── exceptions.py       # Control flow exceptions
 │   └── options.py          # Shell option handlers
 ├── input_preprocessing.py   # Line continuation handling
-├── lexer/                   # Modular lexer package (v0.58.0)
+├── lexer/                   # Modular lexer package (v0.58.0+)
 │   ├── __init__.py         # Clean public API
 │   ├── core.py            # Main StateMachineLexer class
 │   ├── helpers.py         # LexerHelpers mixin with utility methods
@@ -52,7 +52,24 @@ psh/
 │   ├── constants.py       # All lexer constants and character sets
 │   ├── unicode_support.py # Unicode character classification
 │   ├── token_parts.py     # TokenPart and RichToken classes
-│   └── position.py        # Position tracking, error handling, and lexer configuration
+│   ├── position.py        # Position tracking, error handling, and lexer configuration
+│   ├── state_context.py   # Unified LexerContext (Phase 1)
+│   ├── transitions.py     # State transition management (Phase 1)
+│   ├── pure_helpers.py    # Stateless helper functions (Phase 2)
+│   ├── enhanced_helpers.py # API wrapper for pure helpers (Phase 2)
+│   ├── quote_parser.py    # Unified quote parsing (Phase 3)
+│   ├── expansion_parser.py # Expansion parsing (Phase 3)
+│   ├── unified_lexer.py   # Integrates unified parsers (Phase 3)
+│   ├── modular_lexer.py   # ModularLexer with all phases (Phase 4)
+│   └── recognizers/       # Token recognition system (Phase 4)
+│       ├── __init__.py
+│       ├── base.py        # TokenRecognizer interface
+│       ├── operator.py    # Operator recognition
+│       ├── keyword.py     # Keyword recognition
+│       ├── literal.py     # Literal recognition
+│       ├── whitespace.py  # Whitespace handling
+│       ├── comment.py     # Comment recognition
+│       └── registry.py    # Recognizer registry
 ├── token_types.py          # Token type definitions and Token dataclass
 ├── parser/                  # Modular parser package with delegation architecture
 │   ├── __init__.py         # Clean public API with backward compatibility
@@ -117,7 +134,12 @@ Input → Preprocessing → Tokenization → Parsing → AST → Visitor Executi
    - Brace expansion ({a,b}, {1..5})
 
 2. Tokenization (lexer/ package):
-   - Modular package with mixin-based architecture
+   - 4-phase refactored architecture:
+     - Phase 1: Unified state management (LexerContext)
+     - Phase 2: Pure function helpers (15+ functions)
+     - Phase 3: Unified quote/expansion parsing
+     - Phase 4: Modular token recognition system
+   - Priority-based recognizer dispatch
    - Advanced state machine with Unicode support
    - LexerConfig system for feature control
    - Position tracking with enhanced error handling
@@ -125,7 +147,7 @@ Input → Preprocessing → Tokenization → Parsing → AST → Visitor Executi
    - POSIX compatibility mode
    - Produces RichToken objects with metadata
    - Preserves quote information for expansion
-   - Clean separation of concerns: core, helpers, state handlers, constants
+   - Full backward compatibility maintained
 
 3. Parsing (parser/ package):
    - Modular parser package with delegation architecture
@@ -218,8 +240,8 @@ self.subshell_executor = SubshellExecutor(shell)
 7. Quote removal
 
 ### Lexer Package (lexer/)
-**Purpose:** Modular lexer with advanced tokenization, Unicode support, and mixin architecture
-**Key Components:**
+**Purpose:** Comprehensive modular lexer with 4-phase refactored architecture
+**Core Components (Original v0.58.0):**
 - **StateMachineLexer** (core.py): Main lexer class combining mixins
 - **LexerHelpers** (helpers.py): Utility methods for balanced parsing, operators, word termination
 - **StateHandlers** (state_handlers.py): All state machine transition logic
@@ -228,15 +250,38 @@ self.subshell_executor = SubshellExecutor(shell)
 - **Token Parts** (token_parts.py): TokenPart and RichToken definitions
 - **Position Tracking** (position.py): Position, LexerState, LexerConfig, error handling
 
+**Refactored Components (Phases 1-4):**
+- **Phase 1 - State Management:**
+  - `state_context.py`: Unified LexerContext with all state
+  - `transitions.py`: State transition management with history
+  - `enhanced_state_machine.py`: Enhanced lexer using unified state
+- **Phase 2 - Pure Helpers:**
+  - `pure_helpers.py`: 15+ stateless helper functions
+  - `enhanced_helpers.py`: Wrapper maintaining existing API
+- **Phase 3 - Unified Parsing:**
+  - `quote_parser.py`: Unified quote parsing with configurable rules
+  - `expansion_parser.py`: All expansion types ($VAR, ${VAR}, $(...), $((...)))
+  - `unified_lexer.py`: Integrates unified parsers
+- **Phase 4 - Token Recognition:**
+  - `recognizers/base.py`: TokenRecognizer abstract interface
+  - `recognizers/operator.py`: Shell operators with context awareness
+  - `recognizers/keyword.py`: Shell keywords with position validation
+  - `recognizers/literal.py`: Words, identifiers, and numbers
+  - `recognizers/whitespace.py`: Whitespace handling
+  - `recognizers/comment.py`: Comment recognition
+  - `recognizers/registry.py`: Priority-based recognizer dispatch
+  - `modular_lexer.py`: ModularLexer integrating all systems
+
 **Key Features:**
-- Mixin-based architecture for extensibility and maintainability
-- Unicode-aware character classification (letters, numbers, marks, whitespace)
+- 4-phase refactored architecture with backward compatibility
+- Unified state management with immutable snapshots
+- Pure function helpers for testability
+- Configurable quote and expansion parsing
+- Priority-based token recognition system
+- Unicode-aware character classification
 - POSIX compatibility mode for ASCII-only operation
 - Comprehensive error handling with position tracking
-- Configurable feature flags for different shell modes
-- State machine with contexts: NORMAL, IN_QUOTE, IN_VARIABLE, etc.
-- Enhanced operator precedence handling
-- Clean modular design with direct package imports
+- Clean modular design with extensibility points
 
 **Unicode Functions:**
 ```python
@@ -425,11 +470,18 @@ class MyBuiltin(BuiltinCommand):
 - **Modify parsing:** `psh/parser/` package + update delegation in `main.py` if needed
 - **Change expansion:** `psh/expansion/` + `manager.py`
 - **Add shell option:** `psh/core/options.py`
-- **Modify tokenization:** `psh/lexer/` package (core.py for main logic, helpers.py for utilities, etc.)
+- **Modify tokenization:** `psh/lexer/` package (see below for specific areas)
+- **Original lexer:** `psh/lexer/core.py`, `helpers.py`, `state_handlers.py`
 - **Lexer constants:** `psh/lexer/constants.py`
 - **Unicode support:** `psh/lexer/unicode_support.py`
 - **Position tracking:** `psh/lexer/position.py`
 - **Configure lexer features:** `LexerConfig` class in `psh/lexer/position.py`
+- **State management:** `psh/lexer/state_context.py`, `transitions.py` (Phase 1)
+- **Pure helpers:** `psh/lexer/pure_helpers.py` (Phase 2)
+- **Quote parsing:** `psh/lexer/quote_parser.py` (Phase 3)
+- **Expansion parsing:** `psh/lexer/expansion_parser.py` (Phase 3)
+- **Token recognizers:** `psh/lexer/recognizers/` (Phase 4)
+- **Integrated lexer:** `psh/lexer/modular_lexer.py` (Phase 4)
 - **Parser components:** `psh/parser/commands.py`, `psh/parser/control_structures.py`, etc.
 - **Parser helpers:** `psh/parser/helpers.py` (TokenGroups, ParseError, etc.)
 
@@ -444,11 +496,18 @@ class MyBuiltin(BuiltinCommand):
 - `Parser` - Modular parser with delegation architecture
 - `CommandParser` - Command and pipeline parsing
 - `ControlStructureParser` - Control structure parsing
-- `StateMachineLexer` - Modular tokenizer with mixin architecture
+- `StateMachineLexer` - Original tokenizer with mixin architecture
 - `LexerHelpers` - Mixin with utility methods
 - `StateHandlers` - Mixin with state machine logic
 - `LexerConfig` - Lexer configuration and feature control
 - `PositionTracker` - Position tracking for error handling
+- `LexerContext` - Unified state representation (Phase 1)
+- `StateManager` - State transition management (Phase 1)
+- `UnifiedQuoteParser` - Configurable quote parsing (Phase 3)
+- `ExpansionParser` - All expansion types (Phase 3)
+- `TokenRecognizer` - Base interface for recognizers (Phase 4)
+- `RecognizerRegistry` - Priority-based dispatch (Phase 4)
+- `ModularLexer` - Integrated lexer with all phases (Phase 4)
 
 ### Important Methods
 - `shell.run_command(cmd)` - Execute command
@@ -471,3 +530,5 @@ Related Documentation:
 - `PARSER_ARCHITECTURE.md` - Parser details
 - `docs/expansion_executor_architecture.md` - Expansion/execution details
 - `docs/visitor_pattern_implementation.md` - Visitor pattern details
+- `docs/architecture/lexer_architecture.md` - Comprehensive lexer architecture
+- `LEXER_REFACTORING_PLAN.md` - Lexer refactoring phases and timeline

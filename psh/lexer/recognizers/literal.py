@@ -12,7 +12,7 @@ class LiteralRecognizer(ContextualRecognizer):
     
     # Characters that can terminate a word
     WORD_TERMINATORS = {
-        ' ', '\\t', '\\n', '\\r', '\\f', '\\v',  # Whitespace
+        ' ', '\t', '\n', '\r', '\f', '\v',  # Whitespace
         '|', '&', ';', '(', ')', '{', '}',       # Operators
         '<', '>', '!', '=',                      # More operators  
         '#',                                     # Comments
@@ -77,7 +77,7 @@ class LiteralRecognizer(ContextualRecognizer):
                 break
             
             # Handle escape sequences
-            if char == '\\\\' and pos + 1 < len(input_text):
+            if char == '\\' and pos + 1 < len(input_text):
                 # Include the escaped character
                 value += char + input_text[pos + 1]
                 pos += 2

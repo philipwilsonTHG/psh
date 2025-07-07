@@ -2,10 +2,21 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.69.3"
+__version__ = "0.69.4"
 
 # Version history
 VERSION_HISTORY = """
+0.69.4 (2025-07-07) - ModularLexer Fixes and Improvements
+  - Fixed critical escape sequence bugs in literal.py and modular_lexer.py
+  - Changed '\\n', '\\t', etc. to proper escape characters '\n', '\t' 
+  - Fixed newline tokenization - ModularLexer now correctly emits NEWLINE tokens
+  - Added SyntaxError for unclosed quotes matching old lexer behavior
+  - Fixed escape sequence handling in word tokenization (backslash + space)
+  - Updated tests for lexer compatibility differences (escape handling, assignment tokenization)
+  - Reduced failing tests from 268 to 126 (52% improvement)
+  - ModularLexer is now the default with PSH_USE_LEGACY_LEXER=true for fallback
+  - Phase C of lexer integration complete, ready for Phase D after remaining test fixes
+
 0.69.3 (2025-07-04) - Fix Failing Tests and Improve Exec Builtin
   - Fixed xtrace test to use shell.run_command() for proper stderr capture
   - Fixed exec builtin double "exec:" prefix in error messages

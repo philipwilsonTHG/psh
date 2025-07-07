@@ -105,7 +105,8 @@ class MultiLineInputHandler:
         
         # Try to tokenize and parse
         try:
-            tokens = tokenize(command)
+            # Use interactive mode (strict=False) for multiline handling
+            tokens = tokenize(command, strict=False)
             if not tokens:
                 return True
             

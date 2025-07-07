@@ -166,6 +166,18 @@ class ModularLexer:
         # Update command position context
         self._update_command_position_context(token_type)
     
+    def _build_token_value(self, parts: List[TokenPart]) -> str:
+        """Build complete token value from parts."""
+        full_value = ""
+        for part in parts:
+            if part.is_variable and not part.value.startswith('$'):
+                # Only add $ if it's not already there (simple variables)
+                full_value += '$' + part.value
+            else:
+                # For expansions and literals, use value as-is
+                full_value += part.value
+        return full_value
+    
     def _update_command_position_context(self, token_type: TokenType) -> None:
         """Update command position tracking based on token type."""
         command_starting_tokens = {
@@ -182,6 +194,12 @@ class ModularLexer:
             TokenType.REDIRECT_ERR_APPEND, TokenType.HEREDOC,
             TokenType.HEREDOC_STRIP, TokenType.HERE_STRING
         }
+        
+        # Update bracket depth for [[ and ]]
+        if token_type == TokenType.DOUBLE_LBRACKET:
+            self.context.bracket_depth += 1
+        elif token_type == TokenType.DOUBLE_RBRACKET:
+            self.context.bracket_depth -= 1
         
         if token_type in command_starting_tokens:
             self.context.set_command_position()
@@ -226,7 +244,7 @@ class ModularLexer:
         
         while self.position < len(self.input):
             char = self.current_char()
-            if not char or char == '\\n':  # Stop at newlines
+            if not char or char == '\n':  # Stop at newlines
                 break
             
             from .unicode_support import is_whitespace
@@ -330,11 +348,15 @@ class ModularLexer:
             self.position_tracker
         )
         
+        # Check if quote was closed
+        if not found_closing:
+            raise SyntaxError(f"Unclosed {quote_char} quote at position {start_pos}")
+        
         # Update position
         self.position = new_pos
         
         # Build complete string value
-        full_value = ''.join(part.value for part in parts)
+        full_value = self._build_token_value(parts)
         
         # Store parts for later use
         self.current_parts = parts

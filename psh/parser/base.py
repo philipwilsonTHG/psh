@@ -38,6 +38,14 @@ class BaseParser:
     def expect(self, token_type: TokenType, message: Optional[str] = None) -> Token:
         """Consume a token of the expected type or raise an error."""
         token = self.peek()
+        
+        # Compatibility fix for ModularLexer: handle keywords tokenized as WORD
+        if token.type == TokenType.WORD:
+            if (token_type == TokenType.IN and token.value == "in"):
+                return self.advance()
+            elif (token_type == TokenType.ESAC and token.value == "esac"):
+                return self.advance()
+        
         if token.type != token_type:
             expected = self._token_type_to_string(token_type)
             error_context = ErrorContext(
@@ -64,7 +72,16 @@ class BaseParser:
     
     def match(self, *token_types: TokenType) -> bool:
         """Check if current token matches any of the given types."""
-        return self.peek().type in token_types
+        token = self.peek()
+        
+        # Compatibility fix for ModularLexer: handle keywords tokenized as WORD
+        if token.type == TokenType.WORD:
+            if (TokenType.IN in token_types and token.value == "in"):
+                return True
+            elif (TokenType.ESAC in token_types and token.value == "esac"):
+                return True
+            
+        return token.type in token_types
     
     def match_any(self, token_set: Set[TokenType]) -> bool:
         """Check if current token is in the given set."""

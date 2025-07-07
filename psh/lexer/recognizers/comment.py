@@ -47,7 +47,7 @@ class CommentRecognizer(ContextualRecognizer):
         comment_text = ""
         
         # Read until end of line
-        while pos < len(input_text) and input_text[pos] != '\\n':
+        while pos < len(input_text) and input_text[pos] != '\n':
             comment_text += input_text[pos]
             pos += 1
         
@@ -59,9 +59,9 @@ class CommentRecognizer(ContextualRecognizer):
             pos
         )
         
-        # Return None to indicate comment should be skipped
-        # The lexer will handle advancing the position
-        return None
+        # Return None token to indicate comment should be skipped
+        # But return the new position so lexer knows where to continue
+        return None, pos
     
     def _is_comment_start(
         self, 
@@ -83,7 +83,7 @@ class CommentRecognizer(ContextualRecognizer):
         prev_char = input_text[pos - 1]
         
         # After whitespace
-        if prev_char in [' ', '\\t', '\\n', '\\r']:
+        if prev_char in [' ', '\t', '\n', '\r']:
             return True
         
         # After operators that can be followed by comments
@@ -94,7 +94,7 @@ class CommentRecognizer(ContextualRecognizer):
         # At the start of a word (unlikely but possible)
         if pos > 0:
             # Look back for word boundaries
-            word_boundaries = {' ', '\\t', '\\n', '\\r', '|', '&', ';', '(', ')', '{', '}'}
+            word_boundaries = {' ', '\t', '\n', '\r', '|', '&', ';', '(', ')', '{', '}'}
             if prev_char in word_boundaries:
                 return True
         

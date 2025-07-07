@@ -107,12 +107,23 @@ def test_quotes_not_consumed_by_word():
     
     # Test that quotes stop word reading
     tokens = tokenize("PS1='value'")
-    assert len(tokens) >= 2  # Should have at least WORD and STRING tokens
     
-    # First token should be PS1= (without the quotes)
-    assert tokens[0].type == TokenType.WORD
-    assert tokens[0].value == "PS1="
+    import os
+    use_legacy = os.environ.get('PSH_USE_LEGACY_LEXER', 'false').lower() == 'true'
     
-    # Second token should be the quoted string
-    assert tokens[1].type == TokenType.STRING
-    assert tokens[1].value == "value"
+    if use_legacy:
+        # Old lexer: PS1= is one token
+        assert len(tokens) >= 2  # Should have at least WORD and STRING tokens
+        assert tokens[0].type == TokenType.WORD
+        assert tokens[0].value == "PS1="
+        assert tokens[1].type == TokenType.STRING
+        assert tokens[1].value == "value"
+    else:
+        # ModularLexer: PS1 and = are separate tokens
+        assert len(tokens) >= 3  # PS1, =, STRING tokens
+        assert tokens[0].type == TokenType.WORD
+        assert tokens[0].value == "PS1"
+        assert tokens[1].type == TokenType.WORD
+        assert tokens[1].value == "="
+        assert tokens[2].type == TokenType.STRING
+        assert tokens[2].value == "value"

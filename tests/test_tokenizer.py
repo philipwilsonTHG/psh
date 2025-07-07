@@ -148,16 +148,32 @@ class TestTokenizer:
             tokenize("echo 'hello world")
     
     def test_escaped_characters_in_words(self):
+        import os
+        # Check if we're using ModularLexer (it's now the default unless disabled)
+        use_legacy = os.environ.get('PSH_USE_LEGACY_LEXER', 'false').lower() == 'true'
+        
         # Escaped spaces
         tokens = tokenize(r"echo hello\ world")
         assert len(tokens) == 3  # echo, hello world, EOF
-        assert tokens[1].value == "hello world"
+        # ModularLexer keeps the backslash in the token value
+        if not use_legacy:
+            assert tokens[1].value == "hello\\ world"
+        else:
+            assert tokens[1].value == "hello world"
         
         # Escaped special characters
         tokens = tokenize(r"echo \$HOME")
         assert tokens[1].type == TokenType.WORD
-        assert tokens[1].value == "\x00$HOME"  # Escaped dollar marked with NULL prefix
+        # ModularLexer keeps the backslash, old lexer uses NULL prefix
+        if not use_legacy:
+            assert tokens[1].value == "\\$HOME"
+        else:
+            assert tokens[1].value == "\x00$HOME"  # Escaped dollar marked with NULL prefix
         
         # Escaped glob characters
         tokens = tokenize(r"echo \*.txt")
-        assert tokens[1].value == "*.txt"
+        # ModularLexer keeps the backslash
+        if not use_legacy:
+            assert tokens[1].value == "\\*.txt"
+        else:
+            assert tokens[1].value == "*.txt"

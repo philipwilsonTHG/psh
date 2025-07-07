@@ -335,9 +335,11 @@ class TestCommentRecognizer:
         recognizer = CommentRecognizer()
         context = LexerContext()
         
-        # Comments should return None to indicate skipping
+        # Comments should return (None, new_pos) to indicate skipping
         result = recognizer.recognize("# this is a comment", 0, context)
-        assert result is None
+        assert result is not None
+        assert result[0] is None  # Token is None (skip)
+        assert result[1] == 19    # Position advanced to end of comment
 
 
 class TestRecognizerRegistry:

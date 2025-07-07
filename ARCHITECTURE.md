@@ -101,8 +101,9 @@ The lexer converts character streams into meaningful tokens using a state machin
 ### 2.1 Lexer Package Architecture
 **Package**: `psh/lexer/`
 
-The lexer is implemented as a modular package with clean separation of concerns:
+The lexer has undergone a comprehensive 4-phase refactoring to create a modular, extensible architecture:
 
+#### Core Package Structure
 - **`psh/lexer/core.py`** - Main StateMachineLexer class
 - **`psh/lexer/helpers.py`** - LexerHelpers mixin with utility methods
 - **`psh/lexer/state_handlers.py`** - StateHandlers mixin with state machine logic
@@ -112,10 +113,41 @@ The lexer is implemented as a modular package with clean separation of concerns:
 - **`psh/lexer/position.py`** - Position tracking, error handling, and lexer configuration
 - **`psh/lexer/__init__.py`** - Clean public API
 
-The main lexer uses mixin classes for code organization:
+#### Phase 1: State Management Layer
+- **`psh/lexer/state_context.py`** - Unified LexerContext for all state
+- **`psh/lexer/transitions.py`** - State transition management with history tracking
+- **`psh/lexer/enhanced_state_machine.py`** - Enhanced lexer with unified state
+
+#### Phase 2: Pure Function Helpers
+- **`psh/lexer/pure_helpers.py`** - 15+ stateless helper functions
+- **`psh/lexer/enhanced_helpers.py`** - Wrapper maintaining existing API
+
+#### Phase 3: Unified Parsing
+- **`psh/lexer/quote_parser.py`** - Unified quote parsing with configurable rules
+- **`psh/lexer/expansion_parser.py`** - All expansion types ($VAR, ${VAR}, $(...), $((...)))
+- **`psh/lexer/unified_lexer.py`** - Integrates unified parsers
+
+#### Phase 4: Token Recognition
+- **`psh/lexer/recognizers/`** - Modular token recognition system
+  - `base.py` - TokenRecognizer abstract interface
+  - `operator.py` - Shell operators with context awareness
+  - `keyword.py` - Shell keywords with position validation
+  - `literal.py` - Words, identifiers, and numbers
+  - `whitespace.py` - Whitespace handling
+  - `comment.py` - Comment recognition
+  - `registry.py` - Priority-based recognizer dispatch
+- **`psh/lexer/modular_lexer.py`** - ModularLexer integrating all systems
+
+The architecture combines all components while maintaining backward compatibility:
 ```python
-class StateMachineLexer(LexerHelpers, StateHandlers):
-    """State machine-based lexer combining helper methods and state handlers"""
+class ModularLexer:
+    """Lexer integrating all refactored components"""
+    def __init__(self, input_string: str, config: Optional[LexerConfig] = None):
+        self.position_tracker = PositionTracker(input_string)
+        self.state_manager = StateManager()
+        self.registry = RecognizerRegistry()
+        self.expansion_parser = ExpansionParser(self.config)
+        self.quote_parser = UnifiedQuoteParser(self.expansion_parser)
 ```
 
 ### 2.2 State Machine Architecture
@@ -158,14 +190,39 @@ class RichToken:
     original_quotes: Optional[str]
 ```
 
-### 2.4 Modular Design Benefits
+### 2.4 Refactored Architecture Benefits
 
-The package structure provides several advantages:
-- **Separation of Concerns**: Helper methods, state handlers, constants, and core logic are cleanly separated
-- **Mixin Architecture**: Combines functionality from multiple mixins for extensibility
-- **Unicode Support**: Dedicated module for Unicode character classification and POSIX compatibility
+The 4-phase refactoring provides numerous advantages:
+
+#### Phase 1: Unified State Management
+- **Single Source of Truth**: All state in unified LexerContext
+- **History Tracking**: State transitions tracked for debugging
+- **Immutable Snapshots**: Support for backtracking and error recovery
+- **Validation**: Explicit state transition rules
+
+#### Phase 2: Pure Function Helpers
+- **Testability**: Pure functions with no side effects
+- **Reusability**: Functions can be used independently
+- **Performance**: Optimized algorithms for common operations
+- **Clarity**: Explicit inputs and outputs
+
+#### Phase 3: Unified Quote and Expansion Parsing
+- **Code Reuse**: Single parser for all quote types
+- **Configurable**: Rule-based system for different contexts
+- **Consistency**: Uniform handling of expansions
+- **Error Recovery**: Graceful handling of unclosed constructs
+
+#### Phase 4: Modular Token Recognition
+- **Extensibility**: Easy to add new token types
+- **Priority System**: Efficient recognition dispatch
+- **Context Awareness**: Tokens validated against current state
+- **Performance**: Fast path checks before expensive operations
+
+Overall benefits:
 - **Maintainability**: Clean modular design with focused components
-- **Clean API**: Direct imports from `psh.lexer` package with no compatibility layers needed
+- **Backward Compatibility**: All existing APIs preserved
+- **Performance**: Optimized recognition pipeline
+- **Clean API**: Direct imports from `psh.lexer` package
 
 ### 2.5 Context-Aware Tokenization
 
@@ -731,6 +788,16 @@ The architecture prioritizes clarity and correctness:
 - Complex features are broken into understandable pieces
 
 ## Recent Architectural Improvements
+
+### Version 0.58.0+ - Lexer Package Refactoring
+- Comprehensive 4-phase refactoring of the lexer subsystem:
+  - **Phase 1**: Unified state management with LexerContext
+  - **Phase 2**: Pure function helpers for testability
+  - **Phase 3**: Unified quote and expansion parsing
+  - **Phase 4**: Modular token recognition system
+- Created extensible architecture with backward compatibility
+- Added 136+ tests across all refactoring phases
+- Improved performance with priority-based recognition
 
 ### Version 0.60.0 - Parser Package Refactoring
 - Transformed monolithic 1806-line parser.py into modular package structure

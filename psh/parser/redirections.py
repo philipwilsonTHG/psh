@@ -109,6 +109,24 @@ class RedirectionParser:
     
     def _parse_err_redirect(self, token: Token) -> Redirect:
         """Parse stderr redirection."""
+        # Check for file descriptor duplication (2>&1)
+        if self.parser.match(TokenType.AMPERSAND):
+            self.parser.advance()  # consume &
+            if not self.parser.match(TokenType.WORD):
+                raise self.parser._error("Expected file descriptor after &")
+            
+            dup_token = self.parser.advance()
+            dup_fd = int(dup_token.value) if dup_token.value.isdigit() else None
+            
+            # Return as file descriptor duplication
+            return Redirect(
+                type='>&',
+                target=dup_token.value,
+                fd=2,  # stderr
+                dup_fd=dup_fd
+            )
+        
+        # Regular file redirection
         if not self.parser.match_any(TokenGroups.WORD_LIKE):
             raise self.parser._error("Expected target after stderr redirect")
         
