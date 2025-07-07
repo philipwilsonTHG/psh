@@ -14,6 +14,8 @@ class TokenPart:
     quote_type: Optional[str] = None  # None, "'" or '"'
     is_variable: bool = False
     is_expansion: bool = False
+    expansion_type: Optional[str] = None  # Type of expansion: 'variable', 'command', 'arithmetic', etc.
+    error_message: Optional[str] = None  # Error message for invalid expansions
     start_pos: Position = field(default_factory=lambda: Position(0, 1, 1))
     end_pos: Position = field(default_factory=lambda: Position(0, 1, 1))
 
