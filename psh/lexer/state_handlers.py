@@ -350,7 +350,8 @@ class StateHandlers:
             parts = self._read_literal_quoted_content(quote_char)
         
         # Ensure closing quote is present
-        error_msg = f"Unclosed {'double' if quote_char == '\"' else 'single'} quote"
+        quote_type = 'double' if quote_char == '"' else 'single'
+        error_msg = f"Unclosed {quote_type} quote"
         self._validate_closing_character(quote_char, error_msg)
         
         # Build complete string value

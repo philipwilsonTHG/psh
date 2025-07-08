@@ -94,7 +94,11 @@ def main():
             command = sys.argv[2]
             # Set positional parameters from remaining arguments
             shell.set_positional_params(sys.argv[3:])
-            exit_code = shell.run_command(command, add_to_history=False)
+            # Use StringInput with script mode to process line-by-line like bash -c
+            from .input_sources import StringInput
+            input_source = StringInput(command, "-c")
+            exit_code = shell.script_manager.source_processor.execute_from_source(
+                input_source, add_to_history=False)
             sys.exit(exit_code)
         elif sys.argv[1] in ("--version", "-V"):
             # Show version
@@ -161,7 +165,11 @@ def main():
             # Non-interactive mode - read all commands from stdin and execute as a script
             script_content = sys.stdin.read()
             if script_content.strip():
-                exit_code = shell.run_command(script_content, add_to_history=False)
+                # Use StringInput with script mode to process line-by-line like a script file
+                from .input_sources import StringInput
+                input_source = StringInput(script_content, "<stdin>")
+                exit_code = shell.script_manager.source_processor.execute_from_source(
+                    input_source, add_to_history=False)
                 sys.exit(exit_code)
             sys.exit(0)
 

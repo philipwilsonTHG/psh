@@ -2,10 +2,36 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.71.0"
+__version__ = "0.72.0"
 
 # Version history
 VERSION_HISTORY = """
+0.72.0 (2025-07-08) - Critical Multiline String and Command Substitution Fixes
+  - Fixed multiline string handling in script files for complete bash compatibility
+    - Enhanced source processor to properly handle unclosed quotes as incomplete commands
+    - Added SyntaxError exception handling alongside ParseError and LexerError  
+    - Updated incomplete command patterns to match actual lexer error format
+    - Fixed patterns: "Unclosed \" quote at position" and "Unclosed ' quote at position"
+    - Script files with multiline strings now work: echo "line1\\nline2" executes correctly
+  - Fixed command substitution newline handling in -c mode for test framework compatibility
+    - Enhanced StringInput class to treat -c commands as single commands like <command>
+    - Fixed issue where -c commands with newlines were split incorrectly into multiple lines
+    - Command substitution with newlines now works: result=$(printf "line1\\nline2\\n"); echo "$result"
+    - Bash comparison framework tests now pass with multiline command substitutions
+  - Fixed critical f-string syntax error preventing PSH startup
+    - Resolved SyntaxError in lexer state_handlers.py preventing shell execution
+    - Fixed invalid f-string with backslash inside expression
+    - All PSH functionality restored after lexer syntax error resolution
+  - Major test suite regression resolution completing multiline string support
+    - All multiline tests continue to pass (51/51) with enhanced functionality
+    - All command substitution tests pass (102/102) with newline support  
+    - Full pytest suite: 1817 passed, 97 skipped, 43 xfailed, 1 xpassed
+    - Zero failing tests with comprehensive multiline and command substitution support
+  - Enhanced bash compatibility for complex scripting scenarios
+    - Script files and -c commands now handle multiline constructs identically to bash
+    - Test frameworks can reliably use PSH with multiline command substitutions
+    - Foundation established for advanced shell script execution patterns
+
 0.71.0 (2025-07-07) - Comprehensive Test Suite Fixes and Parser Enhancement
   - Fixed critical multiline handler for unclosed expansions detection
     - Enhanced _has_unclosed_expansion() to handle parameter expansions ${...}

@@ -113,7 +113,7 @@ class SourceProcessor(ScriptComponent):
                         # Reset buffer for next command
                         command_buffer = ""
                         command_start_line = 0
-                    except (ParseError, LexerError) as e:
+                    except (ParseError, LexerError, SyntaxError) as e:
                         # Check if this is an incomplete command
                         if self._is_incomplete_command(e):
                             # Command is incomplete, continue reading
@@ -141,7 +141,9 @@ class SourceProcessor(ScriptComponent):
             "Unclosed brace",
             "Unclosed quote",
             "Unclosed single quote",
-            "Unclosed double quote"
+            "Unclosed double quote",
+            "Unclosed \" quote at position",
+            "Unclosed ' quote at position"
         ]
         
         for pattern in lexer_incomplete_patterns:

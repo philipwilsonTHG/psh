@@ -23,6 +23,9 @@ def run_test(test_input_path, mode, update_golden=False, compare_shell=None):
     env["PSH_MODE"] = mode
     # Clear OLDPWD to avoid inheriting previous directory changes
     env.pop("OLDPWD", None)
+    # Ensure we use the local development version of PSH
+    psh_root = os.path.dirname(SCRIPT_DIR)
+    env["PYTHONPATH"] = psh_root
     cmd = ["python3", "-m", "psh"]
     try:
         proc = subprocess.run(cmd, input=input_data, text=True, capture_output=True, check=True, env=env, cwd=os.getcwd())

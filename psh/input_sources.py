@@ -109,9 +109,9 @@ class StringInput(InputSource):
         from .input_preprocessing import process_line_continuations
         processed_command = process_line_continuations(command)
         
-        # For single commands (e.g., from run_command), don't split on newlines
+        # For single commands (e.g., from run_command or -c option), don't split on newlines
         # to preserve multi-line strings in quotes
-        if name == "<command>":
+        if name in ("<command>", "-c"):
             # Single command mode - return the whole command as one line
             self.lines = [processed_command] if processed_command else []
         else:
