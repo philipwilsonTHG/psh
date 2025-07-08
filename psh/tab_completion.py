@@ -19,10 +19,16 @@ class TerminalManager:
     
     def enter_raw_mode(self):
         """Put terminal in raw mode to capture individual keystrokes."""
+        # Skip raw mode for pseudo-terminals (like pexpect) as it can cause issues
+        # Only use raw mode for real TTYs
         if sys.stdin.isatty() and not self.is_raw:
-            self.old_settings = termios.tcgetattr(sys.stdin)
-            tty.setraw(sys.stdin.fileno())
-            self.is_raw = True
+            try:
+                self.old_settings = termios.tcgetattr(sys.stdin)
+                tty.setraw(sys.stdin.fileno())
+                self.is_raw = True
+            except (termios.error, OSError):
+                # If we can't set raw mode, continue without it
+                pass
     
     def exit_raw_mode(self):
         """Restore normal terminal mode."""

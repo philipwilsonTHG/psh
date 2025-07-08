@@ -18,6 +18,7 @@ def main():
     norc = False
     rcfile = None
     validate_only = False
+    force_interactive = False
     # Visitor executor is now the only executor
     args = sys.argv[1:]
     
@@ -50,6 +51,11 @@ def main():
     if "--validate" in args:
         validate_only = True
         args.remove("--validate")
+    
+    # Extract force-interactive flag
+    if "--force-interactive" in args:
+        force_interactive = True
+        args.remove("--force-interactive")
     
     # Legacy executor flags removed - visitor is the only executor
     if "--visitor-executor" in args:
@@ -87,6 +93,10 @@ def main():
                   norc=norc, rcfile=rcfile, validate_only=validate_only, 
                   )
     
+    # Set force interactive mode if requested
+    if force_interactive:
+        shell._force_interactive = True
+    
     if len(sys.argv) > 1:
         if sys.argv[1] == "-c" and len(sys.argv) > 2:
             # Execute command with -c flag (script mode)
@@ -116,6 +126,7 @@ def main():
             print("  -V, --version    Show version information and exit")
             print("  --norc           Do not read ~/.pshrc on startup")
             print("  --rcfile FILE    Read FILE instead of ~/.pshrc")
+            print("  --force-interactive Force interactive mode even if stdin is not a TTY")
             print("  --debug-ast      Print AST before execution (debugging)")
             print("  --debug-tokens   Print tokens before parsing (debugging)")
             print("  --debug-scopes   Print variable scope operations (debugging)")
@@ -157,8 +168,8 @@ def main():
             exit_code = shell.run_script(script_path, script_args)
             sys.exit(exit_code)
     else:
-        # Check if stdin is a terminal
-        if sys.stdin.isatty():
+        # Check if stdin is a terminal or force interactive mode
+        if sys.stdin.isatty() or force_interactive:
             # Interactive mode
             shell.interactive_loop()
         else:
