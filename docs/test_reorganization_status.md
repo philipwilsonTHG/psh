@@ -151,9 +151,11 @@ tests_new/
 ## Key Discoveries
 
 1. **PSH Test Model**: PSH uses `capsys` fixture for output capture, not custom I/O redirection
-2. **Interactive Tests**: Required fixes for prompt patterns and line endings
+2. **Interactive Tests**: Have pexpect process management issues - currently skipped
 3. **Parser Structure**: AST access needed updates for AndOrList → Pipeline → Command hierarchy
 4. **Test Count**: New structure has 643 tests vs 1,818 legacy tests - 35% migrated
+5. **Bugs Found**: 5 bugs identified and documented in BUGS_FOUND.md
+6. **Missing Features**: Properly categorized as xfail (84 tests)
 
 ## Next Steps
 
