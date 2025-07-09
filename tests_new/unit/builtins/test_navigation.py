@@ -129,7 +129,8 @@ class TestCdBuiltin:
         if os.path.exists('linkdir'):
             os.unlink('linkdir')
         if os.path.exists('realdir'):
-            os.rmdir('realdir')
+            import shutil
+            shutil.rmtree('realdir', ignore_errors=True)
             
         # Create test structure
         os.makedirs('realdir', exist_ok=True)
@@ -143,8 +144,11 @@ class TestCdBuiltin:
         
         # Clean up
         shell.run_command('cd ..')
-        os.unlink('linkdir')
-        os.rmdir('realdir')
+        if os.path.exists('linkdir'):
+            os.unlink('linkdir')
+        if os.path.exists('realdir'):
+            import shutil
+            shutil.rmtree('realdir', ignore_errors=True)
     
     def test_cd_updates_pwd(self, shell, capsys):
         """Test cd updates PWD environment variable."""
@@ -187,7 +191,8 @@ class TestPwdBuiltin:
         if os.path.exists('linkdir'):
             os.unlink('linkdir')
         if os.path.exists('realdir'):
-            os.rmdir('realdir')
+            import shutil
+            shutil.rmtree('realdir', ignore_errors=True)
             
         # Create symlink
         os.makedirs('realdir', exist_ok=True)
@@ -202,7 +207,8 @@ class TestPwdBuiltin:
         # Clean up
         shell.run_command('cd ..')
         os.unlink('linkdir')
-        os.rmdir('realdir')
+        import shutil
+        shutil.rmtree('realdir', ignore_errors=True)
     
     def test_pwd_physical(self, shell, capsys):
         """Test pwd -P (physical path)."""
@@ -210,7 +216,8 @@ class TestPwdBuiltin:
         if os.path.exists('linkdir'):
             os.unlink('linkdir')
         if os.path.exists('realdir'):
-            os.rmdir('realdir')
+            import shutil
+            shutil.rmtree('realdir', ignore_errors=True)
             
         # Create symlink
         os.makedirs('realdir', exist_ok=True)
@@ -224,8 +231,11 @@ class TestPwdBuiltin:
         
         # Clean up
         shell.run_command('cd ..')
-        os.unlink('linkdir')
-        os.rmdir('realdir')
+        if os.path.exists('linkdir'):
+            os.unlink('linkdir')
+        if os.path.exists('realdir'):
+            import shutil
+            shutil.rmtree('realdir', ignore_errors=True)
     
     def test_pwd_with_deleted_directory(self, shell, capsys):
         """Test pwd when current directory is deleted."""
