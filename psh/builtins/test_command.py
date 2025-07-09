@@ -74,7 +74,7 @@ class TestBuiltin(Builtin):
             
             # Check if the combined operator is valid
             if combined_op in ['!=', '==', '=~']:
-                return self._evaluate_binary(arg1, combined_op, arg2)
+                return self._evaluate_binary(arg1, combined_op, arg2, shell)
         
         # More complex expressions not implemented yet
         return 2
