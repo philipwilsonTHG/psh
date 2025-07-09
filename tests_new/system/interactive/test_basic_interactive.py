@@ -9,8 +9,7 @@ import pytest
 import pexpect
 import time
 
-# Skip all tests in this file until pexpect issues are resolved
-pytestmark = pytest.mark.skip(reason="Interactive tests have pexpect process management issues")
+# Remove blanket skip - let individual tests decide if they work
 
 
 class TestBasicInteractive:

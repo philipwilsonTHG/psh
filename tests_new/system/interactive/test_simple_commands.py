@@ -8,8 +8,7 @@ import pytest
 import sys
 from pathlib import Path
 
-# Skip all tests in this file until pexpect issues are resolved
-pytestmark = pytest.mark.skip(reason="Interactive tests have pexpect process management issues")
+# Remove blanket skip - let individual tests decide if they work
 
 # Add framework to path
 TEST_ROOT = Path(__file__).parent.parent.parent

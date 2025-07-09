@@ -41,43 +41,79 @@ class InteractivePSHTest:
         """Set up before each test."""
         self.shell = None
         # Use flexible prompt pattern to match any prompt ending with $
-        self.prompt = r'.*\$ '  # Matches any prompt ending with $
+        self.prompt = r'.*\$'  # Matches any prompt ending with $
         self.continuation_prompt = r'> '  # PS2 prompt pattern
         self.original_dir = os.getcwd()
         
     def teardown_method(self):
         """Clean up after each test."""
-        if self.shell and self.shell.isalive():
-            self.shell.terminate()
-            self.shell.wait()
+        self.safe_cleanup(self.shell)
         os.chdir(self.original_dir)
+    
+    def safe_cleanup(self, shell):
+        """Safely clean up a pexpect shell process."""
+        if shell is None:
+            return
         
-    def spawn_shell(self, env: Optional[dict] = None, timeout: int = 10,
-                   cwd: Optional[str] = None):
-        """Spawn an interactive PSH process."""
-        # Set up environment
-        spawn_env = os.environ.copy()
-        spawn_env['PYTHONPATH'] = str(PSH_ROOT)
-        if env:
-            spawn_env.update(env)
+        try:
+            # Check if process is still alive
+            if shell.isalive():
+                # Try graceful termination first
+                shell.sendline('exit')
+                try:
+                    shell.expect(pexpect.EOF, timeout=2)
+                except:
+                    pass
             
-        # Spawn shell with --norc and --force-interactive for PTY support
-        args = PSH_EXECUTABLE[1:] + ['--norc', '--force-interactive']
-        self.shell = pexpect.spawn(
-            PSH_EXECUTABLE[0],
-            args,
-            env=spawn_env,
-            timeout=timeout,
-            cwd=cwd or os.getcwd(),
-            encoding='utf-8'
+            # If still alive, force termination
+            if shell.isalive():
+                shell.terminate(force=True)
+                
+            # Wait for cleanup
+            try:
+                shell.wait()
+            except:
+                pass
+                
+        except Exception as e:
+            # If cleanup fails, try force kill
+            try:
+                if hasattr(shell, 'pid') and shell.pid:
+                    os.kill(shell.pid, signal.SIGKILL)
+            except:
+                pass
+    
+    def spawn_shell(self, env=None, extra_args=None):
+        """Spawn interactive PSH process with proper settings."""
+        if env is None:
+            env = os.environ.copy()
+        
+        # Ensure PSH can be found
+        env['PYTHONPATH'] = str(PSH_ROOT)
+        env['PYTHONUNBUFFERED'] = '1'  # Force unbuffered output
+        
+        args = ['-u', '-m', 'psh', '--norc', '--force-interactive']
+        if extra_args:
+            args.extend(extra_args)
+        
+        shell = pexpect.spawn(
+            sys.executable, args,
+            timeout=5,
+            encoding='utf-8',
+            env=env
         )
         
-        # Wait for initial prompt (PSH shows it immediately with --force-interactive)
-        # Add a small delay to ensure PSH is fully ready
-        import time
-        time.sleep(0.1)
-        self.expect_prompt()
-        return self.shell
+        # PSH needs a newline to show initial prompt in PTY mode
+        shell.send('\r')
+        
+        # Wait for initial prompt
+        index = shell.expect([self.prompt, pexpect.TIMEOUT], timeout=3)
+        if index != 0:
+            self.safe_cleanup(shell)
+            raise RuntimeError(f"Failed to get initial prompt. Buffer: '{shell.buffer}', Before: '{shell.before}'")
+        
+        self.shell = shell
+        return shell
         
     def send_line(self, line: str):
         """Send a line to the shell."""
@@ -108,7 +144,7 @@ class InteractivePSHTest:
         """Send special key sequences."""
         key_map = {
             'up': '\033[A',
-            'down': '\033[B',
+            'down': '\033[B', 
             'right': '\033[C',
             'left': '\033[D',
             'home': '\001',  # Ctrl-A
@@ -141,7 +177,7 @@ class InteractivePSHTest:
         
     def get_output(self) -> str:
         """Get all output since last expect."""
-        return self.shell.before
+        return self.shell.before if self.shell.before else ""
         
     def get_output_lines(self) -> List[str]:
         """Get output as list of lines."""
@@ -163,27 +199,6 @@ class InteractivePSHTest:
         self.send_line(command)
         self.expect_prompt()
         return self.get_output().strip()
-        
-    def test_interactive_sequence(self, commands: List[tuple]):
-        """
-        Test a sequence of interactive commands.
-        
-        Commands is a list of tuples: (input, expected_output_pattern)
-        """
-        for cmd, expected in commands:
-            if isinstance(cmd, str):
-                self.send_line(cmd)
-            else:
-                # Assume it's a special action method
-                cmd()
-                
-            if expected:
-                if isinstance(expected, str):
-                    self.expect_exact(expected)
-                else:
-                    self.expect(expected)
-                    
-            self.expect_prompt()
 
 
 class InteractiveTestHelpers:
@@ -235,29 +250,3 @@ class InteractiveTestHelpers:
         # Execute the navigated command
         test.send_key('enter')
         test.expect_prompt()
-        
-    @staticmethod
-    def test_tab_completion(test: InteractivePSHTest, 
-                          prefix: str, 
-                          expected_completions: List[str]):
-        """Test tab completion."""
-        # Create files/dirs for completion
-        for item in expected_completions:
-            if item.endswith('/'):
-                os.makedirs(item[:-1], exist_ok=True)
-            else:
-                Path(item).touch()
-                
-        # Type prefix and tab
-        test.send(prefix)
-        test.send_key('tab')
-        
-        # Check completions
-        if len(expected_completions) == 1:
-            # Should complete to the single match
-            test.send_key('enter')
-            test.expect_prompt()
-        else:
-            # Should show all completions
-            for completion in expected_completions:
-                test.assert_output_contains(completion)

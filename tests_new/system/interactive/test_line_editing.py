@@ -25,10 +25,9 @@ except ImportError:
     InteractivePSHTest = object  # Dummy for class inheritance
     InteractiveTestHelpers = None
 
-# Skip all tests in this file - pexpect issues and process management problems
+# Only skip if pexpect is not available
 pytestmark = [
-    pytest.mark.skipif(not HAS_PEXPECT, reason="pexpect not installed"),
-    pytest.mark.skip(reason="Interactive tests have pexpect process management issues")
+    pytest.mark.skipif(not HAS_PEXPECT, reason="pexpect not installed")
 ]
 
 
