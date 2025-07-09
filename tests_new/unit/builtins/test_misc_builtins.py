@@ -148,12 +148,17 @@ class TestEvalBuiltin:
         captured = capsys.readouterr()
         assert captured.out == ""
     
-    @pytest.mark.xfail(reason="BUG: eval doesn't handle escaped $ correctly")
     def test_eval_quoted_special_chars(self, shell, capsys):
         """Test eval with quoted special characters."""
+        # Test that eval properly expands variables
         shell.run_command('eval "echo \\$HOME"')
         captured = capsys.readouterr()
-        # Should print literal $HOME
+        # Should expand $HOME
+        assert "/Users/" in captured.out or "/home/" in captured.out
+        
+        # To get literal $HOME, use single quotes
+        shell.run_command("eval 'echo \\$HOME'")
+        captured = capsys.readouterr()
         assert "$HOME" in captured.out
     
     @pytest.mark.xfail(reason="BUG: eval output not captured properly by test framework")

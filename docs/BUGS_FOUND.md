@@ -22,7 +22,7 @@ This document lists bugs discovered during the test migration effort.
 
 ### 3. Readonly Builtin - Invalid Variable Names [FIXED]
 
-**Fixed in commit**: (pending)
+**Fixed in commit**: 5efa92d
 
 **Description**: The readonly builtin accepts invalid variable names that start with digits.
 
@@ -30,23 +30,17 @@ This document lists bugs discovered during the test migration effort.
 
 ## Open Bugs
 
-### 4. Eval Builtin - Escape Handling
+### 4. Eval Builtin - Escape Handling [NOT A BUG]
 
-**Description**: eval doesn't handle escaped $ correctly.
+**Resolution**: The test had incorrect expectations. PSH behavior matches bash.
 
-**Expected**:
-```bash
-$ eval "echo \$HOME"
-$HOME
-```
+**Description**: The test expected `eval "echo \$HOME"` to print literal `$HOME`, but this is not how bash works.
 
-**Actual**:
-```bash
-$ eval "echo \$HOME"
-/Users/username
-```
+**Correct behavior**:
+- `eval "echo \$HOME"` expands to `/Users/username` (correct)
+- `eval 'echo \$HOME'` prints literal `$HOME` (single quotes)
 
-**Test**: `tests_new/unit/builtins/test_misc_builtins.py::test_eval_quoted_special_chars`
+**Test**: Fixed in `tests_new/unit/builtins/test_misc_builtins.py::test_eval_quoted_special_chars`
 
 ### 5. Output Capture Issues
 
