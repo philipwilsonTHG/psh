@@ -22,9 +22,29 @@ class JobsBuiltin(Builtin):
     
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Execute the jobs builtin."""
-        # Use list_jobs() method from JobManager
-        for line in shell.job_manager.list_jobs():
-            print(line)
+        # Parse options
+        show_pids_only = False
+        show_long_format = False
+        
+        for arg in args[1:]:
+            if arg == '-p':
+                show_pids_only = True
+            elif arg == '-l':
+                show_long_format = True
+            elif arg.startswith('-'):
+                self.error(f"invalid option: {arg}", shell)
+                return 1
+        
+        if show_pids_only:
+            # Show only PIDs
+            for job_id in sorted(shell.job_manager.jobs.keys()):
+                job = shell.job_manager.jobs[job_id]
+                for proc in job.processes:
+                    print(proc.pid)
+        else:
+            # Use list_jobs() method from JobManager
+            for line in shell.job_manager.list_jobs():
+                print(line)
         return 0
 
 

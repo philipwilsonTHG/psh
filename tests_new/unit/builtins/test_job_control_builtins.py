@@ -56,7 +56,6 @@ class TestJobsBuiltin:
         # Clean up
         shell.run_command('kill %1 %2 2>/dev/null || true')
     
-    @pytest.mark.xfail(reason="BUG: PSH jobs -p shows full info instead of just PIDs")
     def test_jobs_with_options(self, shell, capsys):
         """Test jobs with various options."""
         shell.run_command('sleep 10 &')
