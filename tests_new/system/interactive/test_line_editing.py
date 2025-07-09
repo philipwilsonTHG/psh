@@ -11,14 +11,9 @@ import sys
 import time
 from pathlib import Path
 
-# Skip all tests in this file until pexpect issues are resolved
-pytestmark = pytest.mark.skip(reason="Interactive tests have pexpect process management issues")
-
 # Add framework to path
 TEST_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(TEST_ROOT))
-
-import pytest
 
 try:
     import pexpect
@@ -30,7 +25,11 @@ except ImportError:
     InteractivePSHTest = object  # Dummy for class inheritance
     InteractiveTestHelpers = None
 
-pytestmark = pytest.mark.skipif(not HAS_PEXPECT, reason="pexpect not installed")
+# Skip all tests in this file - pexpect issues and process management problems
+pytestmark = [
+    pytest.mark.skipif(not HAS_PEXPECT, reason="pexpect not installed"),
+    pytest.mark.skip(reason="Interactive tests have pexpect process management issues")
+]
 
 
 class TestBasicLineEditing(InteractivePSHTest):

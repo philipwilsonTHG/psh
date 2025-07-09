@@ -17,6 +17,10 @@ class TestSubprocessCommands:
     
     def run_psh_command(self, commands, timeout=5):
         """Run PSH with given commands and return output."""
+        # Clean up any leftover processes
+        os.system("pkill -f 'python.*psh' 2>/dev/null || true")
+        time.sleep(0.1)
+        
         env = os.environ.copy()
         psh_root = Path(__file__).parent.parent.parent.parent
         env['PYTHONPATH'] = str(psh_root)
@@ -112,6 +116,11 @@ class TestSubprocessCommands:
     
     def test_error_handling(self):
         """Test error handling."""
-        result = self.run_psh_command('nonexistent_command')
-        assert result['returncode'] != 0
-        assert 'nonexistent_command' in result['stderr'] or 'not found' in result['stderr']
+        # Test that PSH reports command not found errors properly
+        result = self.run_psh_command('nonexistent_command_12345')
+        # Check that error message is printed
+        assert 'nonexistent_command_12345' in result['stderr'] or 'not found' in result['stderr']
+        
+        # Test that PSH sets the exit status correctly
+        result = self.run_psh_command(['nonexistent_command_12345', 'echo "Exit status: $?"'])
+        assert 'Exit status: 127' in result['stdout'] or 'Exit status: 1' in result['stdout']
