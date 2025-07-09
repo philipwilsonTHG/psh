@@ -1,0 +1,241 @@
+"""
+Pytest configuration for the new PSH test suite.
+
+This provides fixtures and configuration specific to the organized test structure,
+avoiding conflicts with the main test suite's conftest.py.
+"""
+
+import pytest
+import os
+import sys
+from pathlib import Path
+from io import StringIO
+
+# Add PSH to path
+PSH_ROOT = Path(__file__).parent.parent
+sys.path.insert(0, str(PSH_ROOT))
+
+from psh.shell import Shell
+
+
+@pytest.fixture
+def shell():
+    """Create a fresh shell instance for testing.
+    
+    This fixture creates a new Shell instance with clean state for each test.
+    Unlike the main test suite, this doesn't capture output automatically.
+    """
+    shell = Shell()
+    # Reset to clean state if method exists
+    if hasattr(shell, 'reset_state'):
+        shell.reset_state()
+    return shell
+
+
+@pytest.fixture
+def clean_shell():
+    """Create a shell instance with completely fresh environment.
+    
+    This fixture creates a shell with minimal environment setup,
+    useful for testing core functionality without interference.
+    """
+    shell = Shell()
+    if hasattr(shell, 'reset_state'):
+        shell.reset_state()
+    # Clear environment variables except essentials
+    essential_vars = {'PATH', 'HOME', 'USER', 'SHELL'}
+    for var in list(shell.state.variables.keys()):
+        if var not in essential_vars:
+            del shell.state.variables[var]
+    return shell
+
+
+@pytest.fixture
+def temp_dir():
+    """Create a temporary directory for test files.
+    
+    This fixture creates a temporary directory that is automatically
+    cleaned up after the test completes.
+    """
+    import tempfile
+    import shutil
+    
+    temp_dir = tempfile.mkdtemp(prefix='psh_test_')
+    original_cwd = os.getcwd()
+    
+    yield temp_dir
+    
+    # Cleanup
+    os.chdir(original_cwd)
+    shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+@pytest.fixture
+def shell_with_temp_dir(shell, temp_dir):
+    """Shell instance with a temporary working directory.
+    
+    This fixture provides a shell instance that is already cd'd into
+    a temporary directory for tests that need file operations.
+    """
+    original_cwd = os.getcwd()
+    os.chdir(temp_dir)
+    shell.state.variables['PWD'] = temp_dir
+    
+    yield shell
+    
+    # Restore original directory
+    os.chdir(original_cwd)
+
+
+class MockStdout:
+    """Mock stdout that captures output for testing."""
+    
+    def __init__(self):
+        self.content = StringIO()
+        
+    def write(self, text):
+        self.content.write(text)
+        
+    def flush(self):
+        pass
+        
+    def getvalue(self):
+        return self.content.getvalue()
+
+
+class MockStderr:
+    """Mock stderr that captures error output for testing."""
+    
+    def __init__(self):
+        self.content = StringIO()
+        
+    def write(self, text):
+        self.content.write(text)
+        
+    def flush(self):
+        pass
+        
+    def getvalue(self):
+        return self.content.getvalue()
+
+
+@pytest.fixture
+def captured_shell(shell):
+    """Shell with output capture for testing.
+    
+    This fixture provides a shell instance where stdout and stderr
+    are captured to MockStdout/MockStderr instances for testing.
+    This avoids conflicts with pytest's capsys fixture.
+    """
+    # Store original streams
+    original_stdout = shell.stdout
+    original_stderr = shell.stderr
+    
+    # Replace with mock streams
+    mock_stdout = MockStdout()
+    mock_stderr = MockStderr()
+    shell.stdout = mock_stdout
+    shell.stderr = mock_stderr
+    
+    # Add helper methods to shell
+    shell.get_stdout = lambda: mock_stdout.getvalue()
+    shell.get_stderr = lambda: mock_stderr.getvalue()
+    shell.clear_output = lambda: (mock_stdout.content.truncate(0), 
+                                  mock_stdout.content.seek(0),
+                                  mock_stderr.content.truncate(0),
+                                  mock_stderr.content.seek(0))
+    
+    yield shell
+    
+    # Restore original streams
+    shell.stdout = original_stdout
+    shell.stderr = original_stderr
+
+
+@pytest.fixture(autouse=True)
+def reset_environment():
+    """Reset environment between tests.
+    
+    This fixture automatically runs before each test to ensure
+    a clean environment state.
+    """
+    # Store original environment
+    original_cwd = os.getcwd()
+    
+    yield
+    
+    # Restore original state
+    os.chdir(original_cwd)
+
+
+# Test markers for categorizing tests
+pytest_configure_node_id_parts = ["suite", "category", "component"]
+
+
+def pytest_configure(config):
+    """Configure pytest with custom markers."""
+    config.addinivalue_line(
+        "markers", "unit: Unit tests that test isolated components"
+    )
+    config.addinivalue_line(
+        "markers", "integration: Integration tests that test component interactions"
+    )
+    config.addinivalue_line(
+        "markers", "system: System tests that test end-to-end functionality"
+    )
+    config.addinivalue_line(
+        "markers", "conformance: Tests that verify bash compatibility"
+    )
+    config.addinivalue_line(
+        "markers", "performance: Performance and benchmark tests"
+    )
+    config.addinivalue_line(
+        "markers", "interactive: Tests that require interactive shell features"
+    )
+    config.addinivalue_line(
+        "markers", "slow: Tests that take more than 1 second to run"
+    )
+
+
+def pytest_collection_modifyitems(config, items):
+    """Modify test collection to add markers based on file paths."""
+    for item in items:
+        # Add markers based on test file location
+        if "unit/" in str(item.fspath):
+            item.add_marker(pytest.mark.unit)
+        elif "integration/" in str(item.fspath):
+            item.add_marker(pytest.mark.integration)
+        elif "system/" in str(item.fspath):
+            item.add_marker(pytest.mark.system)
+        elif "conformance/" in str(item.fspath):
+            item.add_marker(pytest.mark.conformance)
+        elif "performance/" in str(item.fspath):
+            item.add_marker(pytest.mark.performance)
+            
+        # Mark interactive tests
+        if "interactive/" in str(item.fspath):
+            item.add_marker(pytest.mark.interactive)
+
+
+# Skip interactive tests by default unless explicitly requested
+def pytest_runtest_setup(item):
+    """Skip interactive tests unless explicitly requested."""
+    if item.get_closest_marker("interactive"):
+        if not item.config.getoption("--run-interactive", default=False):
+            pytest.skip("Interactive tests skipped (use --run-interactive to run)")
+
+
+def pytest_addoption(parser):
+    """Add custom command line options."""
+    parser.addoption(
+        "--run-interactive",
+        action="store_true",
+        default=False,
+        help="Run interactive tests (requires pexpect and terminal)"
+    )
+    parser.addoption(
+        "--run-slow",
+        action="store_true", 
+        default=False,
+        help="Run slow tests (performance benchmarks)"
+    )

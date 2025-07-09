@@ -1,0 +1,95 @@
+{
+  "documented": {
+    "help": {
+      "id": "HELP_BUILTIN",
+      "description": "PSH provides help builtin, bash uses help as keyword",
+      "psh_behavior": "help command shows builtin help",
+      "bash_behavior": "help is shell builtin for builtin help",
+      "category": "builtin_differences"
+    },
+    "version": {
+      "id": "VERSION_BUILTIN", 
+      "description": "PSH provides version builtin, bash uses --version flag",
+      "psh_behavior": "version command shows PSH version",
+      "bash_behavior": "bash --version shows version",
+      "category": "builtin_differences"
+    },
+    "pushd": {
+      "id": "PUSHD_BEHAVIOR",
+      "description": "PSH pushd behavior may differ in directory stack handling",
+      "psh_behavior": "PSH directory stack implementation",
+      "bash_behavior": "Bash directory stack implementation", 
+      "category": "navigation_differences"
+    },
+    "popd": {
+      "id": "POPD_BEHAVIOR",
+      "description": "PSH popd behavior may differ in directory stack handling",
+      "psh_behavior": "PSH directory stack implementation",
+      "bash_behavior": "Bash directory stack implementation",
+      "category": "navigation_differences"
+    }
+  },
+  "psh_extensions": {
+    "enhanced_debug": {
+      "id": "DEBUG_FEATURES",
+      "description": "PSH provides enhanced debugging features",
+      "commands": ["--debug-ast", "--debug-tokens", "--debug-expansion"]
+    },
+    "validation_mode": {
+      "id": "VALIDATION_MODE", 
+      "description": "PSH supports validation without execution",
+      "commands": ["--validate"]
+    }
+  },
+  "bash_specific": {
+    "bash_arrays": {
+      "id": "BASH_ARRAYS",
+      "description": "Bash-specific array syntax",
+      "examples": ["declare -a arr", "arr[0]=value", "${arr[@]}"]
+    },
+    "bash_conditionals": {
+      "id": "BASH_CONDITIONALS", 
+      "description": "Bash-specific conditional constructs",
+      "examples": ["[[ condition ]]", "(( arithmetic ))"]
+    },
+    "bash_builtins": {
+      "id": "BASH_BUILTINS",
+      "description": "Bash-specific builtin commands",
+      "examples": ["declare", "local", "mapfile", "readarray"]
+    }
+  },
+  "posix_compliance": {
+    "required_features": [
+      "parameter_expansion",
+      "command_substitution", 
+      "arithmetic_expansion",
+      "tilde_expansion",
+      "pathname_expansion",
+      "quote_removal",
+      "simple_commands",
+      "pipelines", 
+      "lists",
+      "compound_commands",
+      "shell_functions",
+      "shell_parameters"
+    ],
+    "optional_features": [
+      "job_control",
+      "history_expansion", 
+      "brace_expansion",
+      "process_substitution"
+    ]
+  },
+  "known_issues": {
+    "heredoc_processing": {
+      "id": "HEREDOC_LIMITATIONS",
+      "description": "PSH heredoc processing has architectural limitations",
+      "status": "known_limitation"
+    },
+    "interactive_features": {
+      "id": "INTERACTIVE_LIMITATIONS", 
+      "description": "Some interactive features not fully implemented",
+      "status": "work_in_progress"
+    }
+  }
+}

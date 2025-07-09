@@ -16,8 +16,13 @@ TEST_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(TEST_ROOT))
 
 import pytest
-import pexpect
-from framework.interactive import InteractivePSHTest
+try:
+    import pexpect
+    from framework.interactive import InteractivePSHTest
+except ImportError:
+    # Framework not available, create dummy base class
+    class InteractivePSHTest:
+        pass
 
 
 class TestSimpleInteractiveCommands(InteractivePSHTest):
