@@ -2,43 +2,27 @@
 
 This document lists bugs discovered during the test migration effort.
 
-## 1. Test Builtin - Missing Error Messages
+## Fixed Bugs
 
-**Description**: The test/[ builtin doesn't print error messages for invalid operators.
+### 1. Test Builtin - Missing Error Messages [FIXED]
 
-**Expected**: 
-```bash
-$ test 5 -foo 10
-test: -foo: binary operator expected
-```
+**Fixed in commit**: 0d95925
 
-**Actual**:
-```bash
-$ test 5 -foo 10
-# No error message, just exits with code 2
-```
+**Description**: The test/[ builtin didn't print error messages for invalid operators.
 
-**Test**: `tests_new/unit/builtins/test_test_builtin.py::test_invalid_operator`
+**Fix**: Added error messages by passing shell object through to evaluation methods.
 
-## 2. Jobs Builtin - Incorrect -p Option
+### 2. Jobs Builtin - Incorrect -p Option [FIXED]
 
-**Description**: `jobs -p` shows full job information instead of just PIDs.
+**Fixed in commit**: 9c3a1c5
 
-**Expected**:
-```bash
-$ sleep 10 & jobs -p
-98765
-```
+**Description**: `jobs -p` showed full job information instead of just PIDs.
 
-**Actual**:
-```bash
-$ sleep 10 & jobs -p
-[1]   Running      sleep 10
-```
+**Fix**: Added option parsing to jobs builtin to handle -p flag correctly.
 
-**Test**: `tests_new/unit/builtins/test_job_control_builtins.py::test_jobs_with_options`
+## Open Bugs
 
-## 3. Readonly Builtin - Invalid Variable Names
+### 3. Readonly Builtin - Invalid Variable Names
 
 **Description**: The readonly builtin accepts invalid variable names that start with digits.
 
@@ -56,7 +40,7 @@ $ readonly 123VAR="test"
 
 **Test**: `tests_new/unit/builtins/test_function_builtins.py::test_readonly_invalid_name`
 
-## 4. Eval Builtin - Escape Handling
+### 4. Eval Builtin - Escape Handling
 
 **Description**: eval doesn't handle escaped $ correctly.
 
@@ -74,7 +58,7 @@ $ eval "echo \$HOME"
 
 **Test**: `tests_new/unit/builtins/test_misc_builtins.py::test_eval_quoted_special_chars`
 
-## 5. Output Capture Issues
+### 5. Output Capture Issues
 
 **Description**: Output from eval and subprocess commands bypasses PSH's output capture mechanism, making it impossible to test properly.
 
