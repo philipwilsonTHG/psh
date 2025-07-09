@@ -319,13 +319,13 @@ class TestSpecialCases:
         exit_code = shell.run_command('[ -n "test"')
         assert exit_code != 0
     
-    @pytest.mark.xfail(reason="BUG: PSH test builtin doesn't print error for invalid operators")
     def test_invalid_operator(self, shell, capsys):
         """Test invalid operators."""
         exit_code = shell.run_command('test 5 -foo 10')
         assert exit_code != 0
         captured = capsys.readouterr()
-        assert 'unknown' in captured.err or 'invalid' in captured.err
+        # Now checks for the actual error message
+        assert 'binary operator expected' in captured.err
     
     def test_file_comparison(self, shell, capsys):
         """Test file comparison operators."""

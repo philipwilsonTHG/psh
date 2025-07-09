@@ -23,9 +23,9 @@ class TestBuiltin(Builtin):
         """Execute the test builtin."""
         # Remove 'test' from args
         test_args = args[1:]
-        return self._evaluate_test(test_args)
+        return self._evaluate_test(test_args, shell)
     
-    def _evaluate_test(self, args: List[str]) -> int:
+    def _evaluate_test(self, args: List[str], shell: 'Shell') -> int:
         """Evaluate test expression."""
         if len(args) == 0:
             return 1  # False
@@ -39,7 +39,7 @@ class TestBuiltin(Builtin):
                 return 1  # ! with no args is false
         
         # Evaluate the expression
-        result = self._evaluate_expression(args)
+        result = self._evaluate_expression(args, shell)
         
         # Apply negation if needed
         if negate:
@@ -47,7 +47,7 @@ class TestBuiltin(Builtin):
         
         return result
     
-    def _evaluate_expression(self, args: List[str]) -> int:
+    def _evaluate_expression(self, args: List[str], shell: 'Shell') -> int:
         """Evaluate test expression without negation."""
         if len(args) == 0:
             return 1  # False
@@ -59,12 +59,12 @@ class TestBuiltin(Builtin):
         if len(args) == 2:
             # Unary operators
             op, arg = args
-            return self._evaluate_unary(op, arg)
+            return self._evaluate_unary(op, arg, shell)
         
         if len(args) == 3:
             # Binary operators
             arg1, op, arg2 = args
-            return self._evaluate_binary(arg1, op, arg2)
+            return self._evaluate_binary(arg1, op, arg2, shell)
         
         if len(args) == 4:
             # Check if we have a split operator (e.g., ! = becoming != )
@@ -79,7 +79,7 @@ class TestBuiltin(Builtin):
         # More complex expressions not implemented yet
         return 2
     
-    def _evaluate_unary(self, op: str, arg: str) -> int:
+    def _evaluate_unary(self, op: str, arg: str, shell: 'Shell') -> int:
         """Evaluate unary operators."""
         if op == '-z':
             # True if string is empty
@@ -197,9 +197,10 @@ class TestBuiltin(Builtin):
             # For now, we'll need to handle this specially in the shell
             return 2  # Indicate special handling needed
         else:
+            self.error(f"{op}: unary operator expected", shell)
             return 2  # Unknown operator
     
-    def _evaluate_binary(self, arg1: str, op: str, arg2: str) -> int:
+    def _evaluate_binary(self, arg1: str, op: str, arg2: str, shell: 'Shell') -> int:
         """Evaluate binary operators."""
         if op == '=':
             return 0 if arg1 == arg2 else 1
@@ -209,31 +210,37 @@ class TestBuiltin(Builtin):
             try:
                 return 0 if int(arg1) == int(arg2) else 1
             except ValueError:
+                self.error("integer expression expected", shell)
                 return 2
         elif op == '-ne':
             try:
                 return 0 if int(arg1) != int(arg2) else 1
             except ValueError:
+                self.error("integer expression expected", shell)
                 return 2
         elif op == '-lt':
             try:
                 return 0 if int(arg1) < int(arg2) else 1
             except ValueError:
+                self.error("integer expression expected", shell)
                 return 2
         elif op == '-le':
             try:
                 return 0 if int(arg1) <= int(arg2) else 1
             except ValueError:
+                self.error("integer expression expected", shell)
                 return 2
         elif op == '-gt':
             try:
                 return 0 if int(arg1) > int(arg2) else 1
             except ValueError:
+                self.error("integer expression expected", shell)
                 return 2
         elif op == '-ge':
             try:
                 return 0 if int(arg1) >= int(arg2) else 1
             except ValueError:
+                self.error("integer expression expected", shell)
                 return 2
         elif op == '-nt':
             # True if file1 is newer than file2 (modification time)
@@ -260,6 +267,7 @@ class TestBuiltin(Builtin):
             except (OSError, IOError):
                 return 1
         else:
+            self.error(f"{op}: binary operator expected", shell)
             return 2  # Unknown operator
 
 
@@ -275,9 +283,10 @@ class BracketBuiltin(Builtin):
         """Execute the [ builtin."""
         # For [ command, last argument must be ]
         if len(args) < 2 or args[-1] != ']':
+            self.error("missing ']'", shell)
             return 2  # Syntax error
         
         # Remove [ and ], then evaluate as test
         test_args = args[1:-1]
         test_builtin = TestBuiltin()
-        return test_builtin._evaluate_test(test_args)
+        return test_builtin._evaluate_test(test_args, shell)
