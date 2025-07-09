@@ -329,19 +329,22 @@ class TestSpecialCases:
     
     def test_file_comparison(self, shell, capsys):
         """Test file comparison operators."""
-        # Create test files
-        shell.run_command('touch file1')
-        shell.run_command('sleep 0.1')  # Ensure different timestamps
-        shell.run_command('touch file2')
-        
-        # file2 should be newer
-        exit_code = shell.run_command('[ file2 -nt file1 ]')
-        assert exit_code == 0
-        
-        # file1 should be older
-        exit_code = shell.run_command('test file1 -ot file2')
-        assert exit_code == 0
-        
-        # Clean up
-        os.remove('file1')
-        os.remove('file2')
+        try:
+            # Create test files
+            shell.run_command('touch file1')
+            shell.run_command('sleep 0.1')  # Ensure different timestamps
+            shell.run_command('touch file2')
+            
+            # file2 should be newer
+            exit_code = shell.run_command('[ file2 -nt file1 ]')
+            assert exit_code == 0
+            
+            # file1 should be older
+            exit_code = shell.run_command('test file1 -ot file2')
+            assert exit_code == 0
+        finally:
+            # Clean up
+            if os.path.exists('file1'):
+                os.remove('file1')
+            if os.path.exists('file2'):
+                os.remove('file2')
