@@ -198,23 +198,20 @@ class TestJobControlIntegration:
         # Might show "Done" notification
         assert 'trigger' in captured.out
     
+    @pytest.mark.xfail(reason="disown builtin not implemented")
     def test_disown_job(self, shell, capsys):
         """Test disowning a job."""
         # Start a background job
         shell.run_command('sleep 10 &')
         
-        # Disown it (if supported)
-        exit_code = shell.run_command('disown %1 2>/dev/null || echo "disown not supported"')
+        # Try to disown it
+        exit_code = shell.run_command('disown %1')
+        assert exit_code == 0
         
-        if exit_code == 0:
-            # Job should not appear in jobs list
-            shell.run_command('jobs')
-            captured = capsys.readouterr()
-            assert 'sleep' not in captured.out
-        else:
-            # disown not supported
-            captured = capsys.readouterr()
-            assert 'not supported' in captured.out
+        # Job should not appear in jobs list
+        shell.run_command('jobs')
+        captured = capsys.readouterr()
+        assert 'sleep' not in captured.out
         
         # Clean up (kill by searching process)
         shell.run_command('pkill -f "sleep 10" 2>/dev/null || true')
