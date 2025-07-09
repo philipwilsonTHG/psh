@@ -153,7 +153,6 @@ class TestReadonlyBuiltin:
             exit_code = shell.run_command('myfunc() { echo "new"; }')
             assert exit_code != 0
     
-    @pytest.mark.xfail(reason="BUG: PSH accepts invalid variable names in readonly")
     def test_readonly_invalid_name(self, shell, capsys):
         """Test readonly with invalid variable name."""
         exit_code = shell.run_command('readonly 123VAR="test"')

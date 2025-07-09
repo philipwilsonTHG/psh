@@ -20,25 +20,15 @@ This document lists bugs discovered during the test migration effort.
 
 **Fix**: Added option parsing to jobs builtin to handle -p flag correctly.
 
-## Open Bugs
+### 3. Readonly Builtin - Invalid Variable Names [FIXED]
 
-### 3. Readonly Builtin - Invalid Variable Names
+**Fixed in commit**: (pending)
 
 **Description**: The readonly builtin accepts invalid variable names that start with digits.
 
-**Expected**:
-```bash
-$ readonly 123VAR="test"
-readonly: `123VAR': not a valid identifier
-```
+**Fix**: Added `_is_valid_identifier()` method to DeclareBuiltin to validate variable names.
 
-**Actual**:
-```bash
-$ readonly 123VAR="test"
-# No error, accepts the invalid name
-```
-
-**Test**: `tests_new/unit/builtins/test_function_builtins.py::test_readonly_invalid_name`
+## Open Bugs
 
 ### 4. Eval Builtin - Escape Handling
 

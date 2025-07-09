@@ -178,6 +178,16 @@ class DeclareBuiltin(Builtin):
             return exit_code
         return 0
     
+    def _is_valid_identifier(self, name: str) -> bool:
+        """Check if a name is a valid shell identifier."""
+        if not name:
+            return False
+        # Must start with letter or underscore
+        if not (name[0].isalpha() or name[0] == '_'):
+            return False
+        # Rest must be alphanumeric or underscore
+        return all(c.isalnum() or c == '_' for c in name[1:])
+    
     def _declare_variables(self, options: dict, args: List[str], shell: 'Shell', original_args: List[str] = None) -> int:
         """Handle variable declarations."""
         # Build attributes from options
@@ -254,6 +264,11 @@ class DeclareBuiltin(Builtin):
                 # Variable assignment
                 name, value = arg.split('=', 1)
                 
+                # Validate variable name
+                if not self._is_valid_identifier(name):
+                    self.error(f"`{arg}': not a valid identifier", shell)
+                    return 1
+                
                 # Handle array initialization syntax
                 if options['array'] and value.startswith('(') and value.endswith(')'):
                     # Parse indexed array initialization
@@ -278,6 +293,11 @@ class DeclareBuiltin(Builtin):
                     
             else:
                 # Just declaring with attributes, no assignment
+                # Validate variable name
+                if not self._is_valid_identifier(arg):
+                    self.error(f"`{arg}': not a valid identifier", shell)
+                    return 1
+                
                 if options['array']:
                     # Check for array type conflict first
                     existing = self._get_variable_with_attributes(shell, arg)
