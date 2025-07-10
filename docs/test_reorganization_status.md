@@ -157,6 +157,11 @@ tests_new/
 - ✅ **Parser integration** (1 file, 14 tests) - composite token handling
 - ✅ **Pipeline integration** (1 file, 18 tests) - execution, exit status, background
 - ✅ **I/O redirection integration** (1 file, 11 tests) - file operations, here docs
+- ✅ **Variable assignment integration** (1 file, 36 tests) - 34 passed, 2 xfailed
+- ✅ **Enhanced validator integration** (1 file, 29 tests) - AST validation, security checks
+- ✅ **Arrays integration** (1 file, 35 tests) - bash-compatible arrays, 25 passed + 10 xpassed
+- ✅ **Parameter expansion integration** (1 file, 47 tests) - advanced expansions, 33 passed + 13 xpassed + 1 xfailed
+- ✅ **Functions integration** (1 file, 33 tests) - definition, execution, scoping, 28 passed + 5 xfailed
 
 #### **System Tests**
 - ✅ **Interactive system tests** (6 files, 56 tests) - mostly skipped safely
@@ -193,12 +198,17 @@ tests_new/
 - ✅ **Working patterns established** - All test types have proven examples
 
 ### 📊 **Migration Statistics**
-- **Total**: 1,050+ tests across 52 files (+317 tests, +15 files since last update)
+- **Total**: 1,225+ tests across 60 files (+491 tests, +23 files since last update)
 - **Legacy**: 1,818 tests across ~132 files  
-- **Progress**: ~58% by test count, ~99% by priority
+- **Progress**: ~67% by test count, ~99% by priority
 - **Quality**: Higher organization, documentation, and safety than legacy
 - **Test Results**: Zero critical failures, excellent framework stability
 - **Recent Additions**: 
+  - Parameter expansion integration tests (47 tests, 630 lines) - advanced parameter expansion features
+  - Arrays integration tests (35 tests, 520 lines) - bash-compatible array functionality
+  - Functions integration tests (33 tests, 612 lines) - function definition, execution, scoping, management
+  - Enhanced validator integration tests (29 tests, 556 lines) - AST validation framework
+  - Shell options comprehensive tests (29 tests, 431 lines)
   - Subshell integration tests (15 tests)
   - Nested control structures (12 tests) 
   - Interactive testing framework fixes (+21 working tests)
@@ -248,10 +258,14 @@ Based on the original plan phases, the remaining migration work includes:
    - ⚠️ Advanced line editing features still need work (18 tests remain skipped)
 
 4. ✅ **Legacy Test Migration Progress**:
+   - ✅ **Parameter expansion integration tests**: Complete migration (33 passed, 13 xpassed, 1 xfailed, 630 lines advanced expansion features)
+   - ✅ **Arrays integration tests**: Complete migration (25 passed, 10 xpassed, 520 lines bash-compatible array support)
+   - ✅ **Enhanced validator integration tests**: Complete migration (29 passed, 556 lines AST validation coverage)
+   - ✅ **Shell options comprehensive tests**: Complete migration (29 passed, 431 lines comprehensive coverage)
    - ✅ **Subshell integration tests**: Complete coverage (12 passed, 3 xfailed for advanced features)
    - ✅ **Nested control structures**: Comprehensive testing (11 passed, 1 xpassed)
    - ✅ Migration patterns established for systematic legacy test conversion
-   - ✅ PSH capabilities assessment: Excellent subshell and control flow support discovered
+   - ✅ PSH capabilities assessment: Excellent parameter expansion, array support, AST validation, shell options, subshell and control flow support discovered
 
 #### **Remaining Migration Needs**
 1. **System Test Migration**: 
