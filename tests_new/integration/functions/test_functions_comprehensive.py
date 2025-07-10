@@ -350,52 +350,80 @@ class TestFunctionPrecedence:
 class TestFunctionWithRedirection:
     """Test functions with I/O redirection."""
     
-    @pytest.mark.xfail(reason="Function redirection has test isolation issues in suite - works individually")
-    def test_function_output_redirection(self, shell_with_temp_dir):
+    def test_function_output_redirection(self, temp_dir):
         """Test redirecting function output to file."""
-        shell = shell_with_temp_dir
+        import subprocess
+        import sys
+        import os
         
-        result1 = shell.run_command('greet() { echo "Hello from function"; }')
-        assert result1 == 0
+        # Run PSH as subprocess to avoid pytest stream capture conflicts
+        script = '''
+greet() { echo "Hello from function"; }
+greet > function_output.txt
+'''
         
-        result2 = shell.run_command('greet > function_output.txt')
-        assert result2 == 0
+        result = subprocess.run([
+            sys.executable, '-m', 'psh', '-c', script
+        ], cwd=temp_dir, capture_output=True, text=True, 
+           env={**os.environ, 'PYTHONPATH': os.getcwd()})
         
-        with open('function_output.txt', 'r') as f:
+        assert result.returncode == 0
+        
+        output_path = os.path.join(temp_dir, 'function_output.txt')
+        with open(output_path, 'r') as f:
             content = f.read().strip()
         assert content == "Hello from function"
     
-    @pytest.mark.xfail(reason="Function input redirection has test isolation issues in suite")
-    def test_function_input_redirection(self, shell_with_temp_dir):
+    def test_function_input_redirection(self, temp_dir):
         """Test function with input redirection."""
-        shell = shell_with_temp_dir
+        import subprocess
+        import sys
+        import os
         
         # Create input file
-        with open('input.txt', 'w') as f:
+        input_path = os.path.join(temp_dir, 'input.txt')
+        with open(input_path, 'w') as f:
             f.write("test input\n")
         
-        result1 = shell.run_command('read_func() { read line; echo "Read: $line"; }')
-        assert result1 == 0
+        # Run PSH as subprocess to avoid pytest stream capture conflicts
+        script = '''
+read_func() { read line; echo "Read: $line"; }
+read_func < input.txt > output.txt
+'''
         
-        result2 = shell.run_command('read_func < input.txt > output.txt')
-        assert result2 == 0
+        result = subprocess.run([
+            sys.executable, '-m', 'psh', '-c', script
+        ], cwd=temp_dir, capture_output=True, text=True,
+           env={**os.environ, 'PYTHONPATH': os.getcwd()})
         
-        with open('output.txt', 'r') as f:
+        assert result.returncode == 0
+        
+        output_path = os.path.join(temp_dir, 'output.txt')
+        with open(output_path, 'r') as f:
             content = f.read().strip()
         assert content == "Read: test input"
     
-    @pytest.mark.xfail(reason="Function error redirection has test isolation issues in suite")
-    def test_function_error_redirection(self, shell_with_temp_dir):
+    def test_function_error_redirection(self, temp_dir):
         """Test function with error output redirection."""
-        shell = shell_with_temp_dir
+        import subprocess
+        import sys
+        import os
         
-        result1 = shell.run_command('error_func() { echo "error message" >&2; }')
-        assert result1 == 0
+        # Run PSH as subprocess to avoid pytest stream capture conflicts
+        script = '''
+error_func() { echo "error message" >&2; }
+error_func 2> error.txt
+'''
         
-        result2 = shell.run_command('error_func 2> error.txt')
-        assert result2 == 0
+        result = subprocess.run([
+            sys.executable, '-m', 'psh', '-c', script
+        ], cwd=temp_dir, capture_output=True, text=True,
+           env={**os.environ, 'PYTHONPATH': os.getcwd()})
         
-        with open('error.txt', 'r') as f:
+        assert result.returncode == 0
+        
+        error_path = os.path.join(temp_dir, 'error.txt')
+        with open(error_path, 'r') as f:
             content = f.read().strip()
         assert content == "error message"
 

@@ -74,17 +74,53 @@ def temp_dir():
 def shell_with_temp_dir(shell, temp_dir):
     """Shell instance with a temporary working directory.
     
-    This fixture provides a shell instance that is already cd'd into
-    a temporary directory for tests that need file operations.
+    This fixture provides a shell instance that operates in a temporary
+    directory without changing the global Python working directory.
+    This ensures thread safety for parallel test execution.
     """
-    original_cwd = os.getcwd()
-    os.chdir(temp_dir)
+    # Store original PWD
+    original_pwd = shell.state.variables.get('PWD', os.getcwd())
+    
+    # Set shell's working directory without changing global cwd
     shell.state.variables['PWD'] = temp_dir
     
     yield shell
     
-    # Restore original directory
-    os.chdir(original_cwd)
+    # Restore original PWD
+    shell.state.variables['PWD'] = original_pwd
+
+
+@pytest.fixture
+def isolated_shell_with_temp_dir(temp_dir):
+    """Shell instance isolated from pytest's stream capture for redirection tests.
+    
+    This fixture creates a completely fresh shell instance that doesn't
+    interfere with pytest's I/O capture, suitable for testing redirections.
+    """
+    from psh.shell import Shell
+    import sys
+    
+    # Create a completely fresh shell instance
+    shell = Shell()
+    
+    # Set up in temp directory
+    shell.state.variables['PWD'] = temp_dir
+    
+    # Store original file descriptors to ensure proper cleanup
+    original_stdin = sys.stdin
+    original_stdout = sys.stdout
+    original_stderr = sys.stderr
+    
+    yield shell
+    
+    # Ensure streams are restored (defensive cleanup)
+    sys.stdin = original_stdin
+    sys.stdout = original_stdout
+    sys.stderr = original_stderr
+    
+    # Reset shell state to prevent leakage
+    if hasattr(shell, 'reset_state'):
+        shell.reset_state()
 
 
 class MockStdout:
