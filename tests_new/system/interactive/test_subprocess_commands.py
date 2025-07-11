@@ -17,10 +17,6 @@ class TestSubprocessCommands:
     
     def run_psh_command(self, commands, timeout=5):
         """Run PSH with given commands and return output."""
-        # Clean up any leftover processes
-        os.system("pkill -f 'python.*psh' 2>/dev/null || true")
-        time.sleep(0.1)
-        
         env = os.environ.copy()
         psh_root = Path(__file__).parent.parent.parent.parent
         env['PYTHONPATH'] = str(psh_root)

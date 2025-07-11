@@ -160,11 +160,8 @@ class ConformanceTestFramework:
     def _analyze_conformance(self, psh_result: CommandResult, 
                            bash_result: CommandResult, command: str) -> ConformanceResult:
         """Analyze conformance between PSH and bash results."""
-        # Check for test execution errors
+        # Check for test execution errors (timeout)
         if psh_result.exit_code == 124 or bash_result.exit_code == 124:
-            return ConformanceResult.TEST_ERROR
-        
-        if psh_result.exit_code == 127 or bash_result.exit_code == 127:
             return ConformanceResult.TEST_ERROR
         
         # Check for identical behavior
@@ -177,13 +174,17 @@ class ConformanceTestFramework:
         if self._is_documented_difference(command, psh_result, bash_result):
             return ConformanceResult.DOCUMENTED_DIFFERENCE
         
-        # Check if this is a PSH extension
+        # Check if this is a PSH extension (check before command not found error)
         if self._is_psh_extension(command, psh_result, bash_result):
             return ConformanceResult.PSH_EXTENSION
         
         # Check if this is bash-specific behavior
         if self._is_bash_specific(command, psh_result, bash_result):
             return ConformanceResult.BASH_SPECIFIC
+        
+        # Check for command not found errors (after checking extensions)
+        if psh_result.exit_code == 127 or bash_result.exit_code == 127:
+            return ConformanceResult.TEST_ERROR
         
         # Otherwise, assume PSH bug
         return ConformanceResult.PSH_BUG

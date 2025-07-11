@@ -399,7 +399,7 @@ class TestSpecialKeySequences(InteractivePSHTest):
         
         # Start a long-running command
         self.send_line("sleep 30")
-        time.sleep(0.5)  # Let it start
+
         
         # Suspend with Ctrl-Z
         self.send_suspend()

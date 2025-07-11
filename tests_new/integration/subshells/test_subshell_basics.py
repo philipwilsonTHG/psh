@@ -165,12 +165,10 @@ def test_subshell_with_background_jobs(shell_with_temp_dir):
     shell = shell_with_temp_dir
     
     # Run subshell in background
-    result = shell.run_command('(echo "background subshell"; sleep 0.1; echo "done") > bg_output.txt &')
+    result = shell.run_command('(echo "background subshell"; echo "done") > bg_output.txt &')
     assert result == 0
     
     # Give it time to complete
-    import time
-    time.sleep(0.2)
     
     # Check output file was created and contains expected content
     if os.path.exists('bg_output.txt'):

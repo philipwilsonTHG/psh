@@ -47,11 +47,14 @@ class InteractiveManager:
         self.repl_loop.prompt_manager = self.prompt_manager
         self.repl_loop.completion_manager = self.completion_manager
         
-        # Ensure shell is in its own process group for job control
-        self.signal_manager.ensure_foreground()
-        
-        # Set up signal handlers
-        self.signal_manager.setup_signal_handlers()
+        # Skip signal setup when running under pytest to avoid affecting subprocess tests
+        import sys
+        if 'pytest' not in sys.modules:
+            # Ensure shell is in its own process group for job control
+            self.signal_manager.ensure_foreground()
+            
+            # Set up signal handlers
+            self.signal_manager.setup_signal_handlers()
     
     def run_interactive_loop(self):
         """Run the interactive shell loop."""

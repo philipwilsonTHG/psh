@@ -138,8 +138,6 @@ def test_redirection_with_background_job(shell_with_temp_dir):
     assert result == 0
     
     # Give the background job time to complete
-    import time
-    time.sleep(0.1)
     
     # Verify file was created
     assert os.path.exists(temp_file)

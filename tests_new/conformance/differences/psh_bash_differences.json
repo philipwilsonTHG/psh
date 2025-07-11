@@ -2,16 +2,9 @@
   "documented": {
     "help": {
       "id": "HELP_BUILTIN",
-      "description": "PSH provides help builtin, bash uses help as keyword",
-      "psh_behavior": "help command shows builtin help",
-      "bash_behavior": "help is shell builtin for builtin help",
-      "category": "builtin_differences"
-    },
-    "version": {
-      "id": "VERSION_BUILTIN", 
-      "description": "PSH provides version builtin, bash uses --version flag",
-      "psh_behavior": "version command shows PSH version",
-      "bash_behavior": "bash --version shows version",
+      "description": "PSH and bash both have help but with different output formats",
+      "psh_behavior": "help command shows PSH builtin help",
+      "bash_behavior": "help command shows bash builtin help",
       "category": "builtin_differences"
     },
     "pushd": {
@@ -30,6 +23,11 @@
     }
   },
   "psh_extensions": {
+    "version_builtin": {
+      "id": "VERSION_BUILTIN", 
+      "description": "PSH provides version builtin, bash uses --version flag",
+      "commands": ["version"]
+    },
     "enhanced_debug": {
       "id": "DEBUG_FEATURES",
       "description": "PSH provides enhanced debugging features",

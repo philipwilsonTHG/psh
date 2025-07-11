@@ -29,12 +29,19 @@ class SourceProcessor(ScriptComponent):
         
         while True:
             line = input_source.read_line()
+            if self.state.options.get('debug-exec', False):
+                print(f"DEBUG source_processor: read line: {repr(line)}", file=sys.stderr)
             if line is None:  # EOF
                 # Execute any remaining command in buffer
                 if command_buffer.strip():
                     exit_code = self._execute_buffered_command(
                         command_buffer, input_source, command_start_line, add_to_history
                     )
+                    # In non-interactive mode with errexit, exit on error
+                    if exit_code != 0 and not input_source.is_interactive() and self.state.options.get('errexit', False):
+                        if self.state.options.get('debug-exec', False):
+                            print(f"DEBUG: Exiting due to errexit with code {exit_code}", file=sys.stderr)
+                        return exit_code
                 # In validation mode, show final summary at end
                 if self.validation_visitor:
                     print(self.validation_visitor.get_summary())
@@ -100,6 +107,11 @@ class SourceProcessor(ScriptComponent):
                     # Reset buffer for next command
                     command_buffer = ""
                     command_start_line = 0
+                    # In non-interactive mode with errexit, exit on error
+                    if exit_code != 0 and not input_source.is_interactive() and self.state.options.get('errexit', False):
+                        if self.state.options.get('debug-exec', False):
+                            print(f"DEBUG: Exiting due to errexit with code {exit_code}", file=sys.stderr)
+                        return exit_code
                 else:
                     # Check if command is complete by trying to parse it
                     try:
@@ -113,6 +125,11 @@ class SourceProcessor(ScriptComponent):
                         # Reset buffer for next command
                         command_buffer = ""
                         command_start_line = 0
+                        # In non-interactive mode with errexit, exit on error
+                        if exit_code != 0 and not input_source.is_interactive() and self.state.options.get('errexit', False):
+                            if self.state.options.get('debug-exec', False):
+                                print(f"DEBUG: Exiting due to errexit with code {exit_code}", file=sys.stderr)
+                            return exit_code
                     except (ParseError, LexerError, SyntaxError) as e:
                         # Check if this is an incomplete command
                         if self._is_incomplete_command(e):
@@ -126,6 +143,10 @@ class SourceProcessor(ScriptComponent):
                             command_start_line = 0
                             exit_code = 1
                             self.state.last_exit_code = 1
+                            
+                            # In non-interactive mode, exit immediately on parse errors
+                            if not input_source.is_interactive():
+                                return exit_code
         
         return exit_code
     

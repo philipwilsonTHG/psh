@@ -54,10 +54,6 @@ def test_can_spawn_psh():
     """Test that we can spawn PSH with pexpect."""
     shell = None
     try:
-        # Clean up any leftover processes
-        os.system("pkill -f 'python.*psh' 2>/dev/null || true")
-        time.sleep(0.1)
-        
         # Try to spawn PSH
         shell = pexpect.spawn(
             sys.executable, ['-m', 'psh'],
@@ -66,7 +62,7 @@ def test_can_spawn_psh():
         )
     
         # Give it a moment to start
-        time.sleep(0.5)
+
         
         # Check if it's alive
         assert shell.isalive(), "PSH process died immediately"
@@ -96,10 +92,6 @@ def test_psh_prompt():
     """Test that PSH shows a prompt."""
     shell = None
     try:
-        # Clean up any leftover processes
-        os.system("pkill -f 'python.*psh' 2>/dev/null || true")
-        time.sleep(0.1)
-        
         shell = pexpect.spawn(
             sys.executable, ['-m', 'psh'],
             timeout=5,
@@ -139,10 +131,6 @@ def test_psh_with_norc():
     """Test PSH with --norc flag to skip startup files."""
     shell = None
     try:
-        # Clean up any leftover processes
-        os.system("pkill -f 'python.*psh' 2>/dev/null || true")
-        time.sleep(0.1)
-        
         shell = pexpect.spawn(
             sys.executable, ['-m', 'psh', '--norc'],
             timeout=5,
@@ -150,13 +138,13 @@ def test_psh_with_norc():
         )
         
         # Give it time to start
-        time.sleep(0.5)
+
         
         # Send a command
         shell.sendline('echo test')
         
         # Capture all output
-        time.sleep(1)
+
         shell.expect([pexpect.EOF, pexpect.TIMEOUT], timeout=1)
         
         print(f"Full output:\n{shell.before}")

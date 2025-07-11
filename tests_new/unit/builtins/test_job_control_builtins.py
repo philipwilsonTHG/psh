@@ -12,7 +12,6 @@ so some tests may need to be marked as xfail.
 """
 
 import pytest
-import time
 
 
 class TestJobsBuiltin:
@@ -87,7 +86,7 @@ class TestJobsBuiltin:
         assert 'Running' in captured.out or '&' in captured.out
         
         # Wait for completion
-        time.sleep(2)
+
         
         # Check status again
         shell.run_command('jobs')
@@ -190,7 +189,7 @@ class TestJobControlIntegration:
             job_id = 1
         
         # Wait for completion
-        time.sleep(0.5)
+
         
         # Run another command to trigger notification
         shell.run_command('echo "trigger"')

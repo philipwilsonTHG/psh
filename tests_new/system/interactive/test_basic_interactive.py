@@ -36,7 +36,7 @@ class TestBasicInteractive:
         
         # Small delay to ensure PSH is ready
         import time
-        time.sleep(0.1)
+
         
         try:
             # Wait for initial prompt - match any prompt ending with $

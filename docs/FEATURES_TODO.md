@@ -132,16 +132,63 @@ This document tracks features that should be added to PSH based on conformance t
    - Related to terminal mode setup in PTY environments
 3. **Line continuation in arithmetic expansion** - May have issues
 
+### Parser Enhancement Issues (from test analysis 2025-01-10)
+
+4. **Incomplete syntax detection** - Parser should detect malformed expressions as errors
+   - `echo $(incomplete` - Should fail with syntax error, currently succeeds with empty output
+   - `echo ${incomplete-var` - Should fail with syntax error, currently succeeds with empty output  
+   - `echo $((2 +` - Should fail with syntax error, currently succeeds with empty output
+   - These represent gaps in parser error detection that should be addressed for robustness
+
+5. **Type builtin function detection** - `type` command doesn't find user-defined functions
+   - Functions execute correctly but `type funcname` returns "not found"
+   - Affects command resolution testing and user experience
+   - Function registry may not be properly integrated with type builtin
+
+6. **Error message format inconsistency** - Error messages don't match standard expectations
+   - PSH uses "Parse error at position X" format
+   - Tests often expect "syntax error" or specific keywords
+   - Consider standardizing error message format for better user experience
+
+7. **Complex composite token parsing limitation** - Parser has issues with complex mixed quoted/unquoted tokens
+   - `echo prefix"quoted $VAR"suffix` incorrectly creates composite `prefixquoted $VARsuffix`
+   - Should parse as three parts: `prefix` + `"quoted $VAR"` + `suffix`
+   - Currently requires spaces to separate components: `echo prefix"quoted $VAR" suffix`
+   - Affects complex string concatenation scenarios with variable expansion
+
 ## Testing Infrastructure
 
 - [ ] **Complete test migration** - Migrate all 1800+ tests to new framework
 - [ ] **Performance benchmarks** - Add performance testing suite
 - [ ] **Fuzzing tests** - Add fuzzing for parser robustness
 
+### Test Analysis Improvements (2025-01-10)
+
+The following improvements were identified during comprehensive test failure analysis:
+
+**Parser Robustness (High Priority)**
+- [ ] **Syntax error detection for incomplete expressions** - Parser currently accepts malformed syntax
+  - Command substitution: `$(unclosed` should error, not produce empty output
+  - Variable expansion: `${unclosed` should error, not produce empty output
+  - Arithmetic expansion: `$((incomplete` should error, not produce empty output
+  - This affects script reliability and debugging experience
+
+**Command Resolution Integration (Medium Priority)**  
+- [ ] **Fix type builtin function lookup** - `type` should find user-defined functions
+  - Functions work but type command reports "not found"
+  - Integration between function registry and type builtin needed
+  - Important for shell introspection and debugging
+
+**Error Handling Consistency (Low Priority)**
+- [ ] **Standardize error message format** - Consider consistent error message style
+  - Current: "Parse error at position X: Expected Y"
+  - Alternative: "syntax error" or other conventional formats
+  - Would improve user experience and test compatibility
+
 ---
 
-*Last updated: 2025-01-08*
-*Version: 0.72.0*
+*Last updated: 2025-01-10*
+*Version: 0.72.0 (updated with test analysis findings)*
 
 ## Notes
 

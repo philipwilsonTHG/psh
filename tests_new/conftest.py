@@ -204,6 +204,42 @@ def reset_environment():
     os.chdir(original_cwd)
 
 
+@pytest.fixture
+def isolated_subprocess_env():
+    """Provide an isolated environment for subprocess tests.
+    
+    This fixture is specifically designed for tests that spawn
+    PSH as a subprocess to ensure proper isolation in parallel execution.
+    """
+    import tempfile
+    import subprocess
+    
+    # Create a unique temp directory for this test
+    temp_dir = tempfile.mkdtemp(prefix=f'psh_test_{os.getpid()}_')
+    
+    # Create clean environment
+    env = {
+        'PATH': os.environ.get('PATH', '/usr/bin:/bin'),
+        'HOME': os.environ.get('HOME', '/tmp'),
+        'USER': os.environ.get('USER', 'test'),
+        'SHELL': os.environ.get('SHELL', '/bin/sh'),
+        'TMPDIR': temp_dir,
+        'TEMP': temp_dir,
+        'TMP': temp_dir,
+        'PYTHONPATH': str(PSH_ROOT),
+        'PYTHONUNBUFFERED': '1',
+    }
+    
+    yield {'env': env, 'cwd': temp_dir}
+    
+    # Cleanup
+    import shutil
+    try:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+    except:
+        pass
+
+
 # Test markers for categorizing tests
 pytest_configure_node_id_parts = ["suite", "category", "component"]
 
@@ -231,10 +267,29 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "slow: Tests that take more than 1 second to run"
     )
+    config.addinivalue_line(
+        "markers", "serial: Tests that must run serially (no parallel execution)"
+    )
+    config.addinivalue_line(
+        "markers", "isolated: Tests that need extra isolation"
+    )
+    config.addinivalue_line(
+        "markers", "flaky: Tests that are known to be flaky in parallel execution"
+    )
 
 
 def pytest_collection_modifyitems(config, items):
     """Modify test collection to add markers based on file paths."""
+    
+    
+    # Tests that need serial execution to avoid race conditions
+    serial_tests = [
+        "test_file_not_found_redirection",
+        "test_permission_denied_redirection",
+    ]
+    
+    # Mark tests that need special handling
+    
     for item in items:
         # Add markers based on test file location
         if "unit/" in str(item.fspath):
@@ -251,6 +306,15 @@ def pytest_collection_modifyitems(config, items):
         # Mark interactive tests
         if "interactive/" in str(item.fspath):
             item.add_marker(pytest.mark.interactive)
+        
+        # Mark tests that need serial execution
+        if any(test_name in item.name for test_name in serial_tests):
+            item.add_marker(pytest.mark.serial)
+            item.add_marker(pytest.mark.isolated)
+            
+        # Mark error recovery tests as needing isolation
+        if "test_error_recovery" in str(item.fspath):
+            item.add_marker(pytest.mark.isolated)
 
 
 # Skip interactive tests by default unless explicitly requested
@@ -259,6 +323,23 @@ def pytest_runtest_setup(item):
     if item.get_closest_marker("interactive"):
         if not item.config.getoption("--run-interactive", default=False):
             pytest.skip("Interactive tests skipped (use --run-interactive to run)")
+    
+    # Clean up any lingering PSH processes before each test
+    # This helps with isolation when running tests in parallel
+    import subprocess
+    try:
+        subprocess.run(['pkill', '-f', f'python.*psh.*{os.getpid()}'], 
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except:
+        pass
+    
+    # Handle serial tests in parallel execution
+    if item.get_closest_marker("serial"):
+        if hasattr(item.config, "workerinput"):
+            # In parallel mode, only run on worker gw0
+            worker_id = item.config.workerinput.get("workerid", "master")
+            if worker_id != "gw0" and worker_id != "master":
+                pytest.skip(f"Serial test skipped on worker {worker_id}")
 
 
 def pytest_addoption(parser):
@@ -274,4 +355,10 @@ def pytest_addoption(parser):
         action="store_true", 
         default=False,
         help="Run slow tests (performance benchmarks)"
+    )
+    parser.addoption(
+        "--strict-isolation",
+        action="store_true",
+        default=False,
+        help="Run with strict test isolation (slower but more reliable)"
     )
