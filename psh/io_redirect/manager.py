@@ -227,13 +227,25 @@ class IOManager:
                     # 1>&2 or >&2: stdout to stderr
                     stdout_backup = sys.stdout
                     sys.stdout = sys.stderr
-                # Note: Other fd combinations would require more complex handling
+                else:
+                    # For other fd combinations, use the general file_redirector
+                    # This will validate the file descriptor and raise OSError if invalid
+                    saved_fds = self.file_redirector.apply_redirections([redirect])
+                    # Store saved_fds for restoration
+                    if not hasattr(self, '_saved_fds_list'):
+                        self._saved_fds_list = []
+                    self._saved_fds_list.extend(saved_fds)
         
         return stdin_backup, stdout_backup, stderr_backup, stdin_fd_backup
     
     def restore_builtin_redirections(self, stdin_backup, stdout_backup, stderr_backup, stdin_fd_backup=None):
         """Restore original stdin/stdout/stderr after built-in execution"""
         import io
+        
+        # Restore any file descriptors saved by file_redirector
+        if hasattr(self, '_saved_fds_list'):
+            self.file_redirector.restore_redirections(self._saved_fds_list)
+            del self._saved_fds_list
         
         # Restore in reverse order
         if stderr_backup is not None:
@@ -353,6 +365,16 @@ class IOManager:
             elif redirect.type == '>&':
                 # Handle fd duplication like 2>&1
                 if redirect.fd is not None and redirect.dup_fd is not None:
+                    # Validate that the source file descriptor exists
+                    try:
+                        # Try to get the file descriptor flags to check if it exists
+                        import fcntl
+                        fcntl.fcntl(redirect.dup_fd, fcntl.F_GETFD)
+                    except OSError:
+                        error_msg = f"psh: {redirect.dup_fd}: bad file descriptor\n"
+                        os.write(2, error_msg.encode('utf-8'))
+                        os._exit(1)
+                    
                     os.dup2(redirect.dup_fd, redirect.fd)
     
     def collect_heredocs(self, node):

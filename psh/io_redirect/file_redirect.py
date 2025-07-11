@@ -106,6 +106,13 @@ class FileRedirector:
             elif redirect.type == '>&':
                 # FD duplication (e.g., 2>&1)
                 if redirect.fd is not None and redirect.dup_fd is not None:
+                    # Validate that the source file descriptor exists
+                    try:
+                        # Try to get the file descriptor flags to check if it exists
+                        fcntl.fcntl(redirect.dup_fd, fcntl.F_GETFD)
+                    except OSError:
+                        raise OSError(f"psh: {redirect.dup_fd}: bad file descriptor")
+                    
                     saved_fds.append((redirect.fd, os.dup(redirect.fd)))
                     os.dup2(redirect.dup_fd, redirect.fd)
         
@@ -225,6 +232,13 @@ class FileRedirector:
             elif redirect.type == '>&':
                 # FD duplication (e.g., 2>&1) - duplicate permanently
                 if redirect.fd is not None and redirect.dup_fd is not None:
+                    # Validate that the source file descriptor exists
+                    try:
+                        # Try to get the file descriptor flags to check if it exists
+                        fcntl.fcntl(redirect.dup_fd, fcntl.F_GETFD)
+                    except OSError:
+                        raise OSError(f"psh: {redirect.dup_fd}: bad file descriptor")
+                    
                     os.dup2(redirect.dup_fd, redirect.fd)
                     # Update shell streams to use new file descriptor
                     if redirect.fd == 1:
@@ -239,6 +253,13 @@ class FileRedirector:
             elif redirect.type == '<&':
                 # FD duplication for input
                 if redirect.fd is not None and redirect.dup_fd is not None:
+                    # Validate that the source file descriptor exists
+                    try:
+                        # Try to get the file descriptor flags to check if it exists
+                        fcntl.fcntl(redirect.dup_fd, fcntl.F_GETFD)
+                    except OSError:
+                        raise OSError(f"psh: {redirect.dup_fd}: bad file descriptor")
+                    
                     os.dup2(redirect.dup_fd, redirect.fd)
                 elif redirect.fd is not None and redirect.target == '-':
                     # Close the file descriptor

@@ -2,10 +2,19 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.72.0"
+__version__ = "0.73.0"
 
 # Version history
 VERSION_HISTORY = """
+0.73.0 (2025-01-11) - Quality Improvements Phase 1 & 2
+  - Implemented POSIX parameter expansion operators := and :?
+  - Added ExpansionError exception for proper error handling  
+  - Fixed Bug #14: Added file descriptor validation for redirections
+  - Fixed Bug #15: Errexit mode now properly stops on redirection failures
+  - Improved POSIX compliance and error handling robustness
+  - Phase 1: Parameter expansion complete (70%)
+  - Phase 2: Error handling improvements (40%)
+
 0.72.0 (2025-07-08) - Critical Multiline String and Command Substitution Fixes
   - Fixed multiline string handling in script files for complete bash compatibility
     - Enhanced source processor to properly handle unclosed quotes as incomplete commands

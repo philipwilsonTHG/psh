@@ -89,16 +89,18 @@ PSH version 0.72.0 has made significant progress as an educational shell with 1,
 **Goal**: Make PSH more reliable for production use
 
 1. **Exit Code Propagation**
-   - Fix errexit mode enforcement (Bug #15)
+   - ✅ Fix errexit mode enforcement (Bug #15) - **COMPLETED**
    - Properly propagate exit codes from subshells
-   - Validate file descriptors before operations (Bug #14)
-   - Estimated effort: 3 days
+   - ✅ Validate file descriptors before operations (Bug #14) - **COMPLETED**
+   - Estimated effort: 3 days (1.5 days completed)
+   - **Progress**: Major error handling improvements completed
 
 2. **Parser Error Detection**
    - Detect unclosed expansions
    - Improve error messages with context
    - Fix array syntax parsing (Bug #13)
    - Estimated effort: 2 days
+   - **Progress**: Not started
 
 ### Phase 3: Shell Language Features (Weeks 4-5)
 **Goal**: Add missing bash features for broader compatibility

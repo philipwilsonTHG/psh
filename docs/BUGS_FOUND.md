@@ -197,9 +197,9 @@ declare -a array
 
 ## Summary of Current Status
 
-**Total Issues Found**: 13  
-**Fixed**: 8  
-**Active Bugs**: 3 (parameter expansion, quote processing, array syntax parsing)  
+**Total Issues Found**: 15  
+**Fixed**: 12  
+**Active Bugs**: 2 (quote processing, array syntax parsing)  
 **Test Issues**: 2 (framework expectations)  
 **Expected Differences**: 1 (process ID)  
 
@@ -241,53 +241,69 @@ echo [$VAR]
 
 **Resolution Status**: Bug documented, tests fixed to work around limitation
 
-### 14. Invalid File Descriptor Redirection Not Validated [ACTIVE]
+### 14. Invalid File Descriptor Redirection Not Validated [FIXED]
 
-**Status**: Active Bug  
+**Status**: Fixed  
 **Severity**: Low  
 **Discovery Date**: 2025-01-11  
+**Fixed**: 2025-01-11
 **Location**: I/O redirection handling
 
-**Description**: PSH doesn't validate file descriptor numbers before attempting duplication operations.
+**Description**: PSH didn't validate file descriptor numbers before attempting duplication operations.
 
 **Test Cases**:
 ```bash
 echo "test" 1>&999
 # Expected: Error - bad file descriptor  
-# PSH Result: Success (exit code 0)
+# PSH Result (before fix): Success (exit code 0)
+# PSH Result (after fix): Error with exit code 1 ✓
 ```
 
-**Expected Behavior**: When attempting to duplicate from a non-existent file descriptor (e.g., `1>&999`), the shell should detect that fd 999 doesn't exist and return an error with exit code 1.
+**Fix**: Added file descriptor validation in three locations:
+1. `FileRedirector.apply_redirections()` - for temporary redirections
+2. `FileRedirector.apply_permanent_redirections()` - for exec builtin
+3. `IOManager.setup_child_redirections()` - for external commands
+4. `IOManager.setup_builtin_redirections()` - delegated to FileRedirector for non-standard cases
+
+Uses `fcntl.fcntl(fd, fcntl.F_GETFD)` to check if file descriptor exists before attempting `dup2()`.
 
 **Impact**:
-- Scripts may not detect redirection errors properly
-- Differs from POSIX/bash behavior which validates fd numbers
+- Scripts now properly detect redirection errors
+- POSIX/bash compliance restored
+- Exit code correctly set to 1 on invalid fd
 
 **Location**: `tests_new/integration/redirection/test_advanced_redirection.py::test_invalid_file_descriptor`
 
-### 15. Errexit Mode Doesn't Stop Execution on Redirection Failures [ACTIVE]
+### 15. Errexit Mode Doesn't Stop Execution on Redirection Failures [FIXED]
 
-**Status**: Active Bug  
+**Status**: Fixed  
 **Severity**: Medium  
 **Discovery Date**: 2025-01-11  
+**Fixed**: 2025-01-11
 **Location**: Error handling with errexit mode
 
-**Description**: When `set -e` (errexit) is enabled, redirection failures don't cause script execution to stop.
+**Description**: When `set -e` (errexit) was enabled, redirection failures didn't cause script execution to stop.
 
 **Test Cases**:
 ```bash
 set -e
 echo "test" > /nonexistent/file; echo "should not reach"
 # Expected: Script stops after redirection error
-# PSH Result: Continues execution, prints "should not reach"
+# PSH Result (before fix): Continues execution, prints "should not reach"
+# PSH Result (after fix): Exits with code 1, doesn't print "should not reach" ✓
 ```
 
-**Expected Behavior**: With errexit enabled, any command failure (including redirection failures) should cause the script to exit immediately.
+**Fix**: Added errexit checking in `ExecutorVisitor.visit_CommandList()` after each statement execution. When a command returns non-zero exit code and errexit is enabled in non-interactive mode, the shell exits with that exit code.
+
+**Implementation Details**:
+- Check added after `self.state.last_exit_code = exit_status`
+- Only triggers in non-interactive mode (when `is_script_mode` is True)
+- Uses `sys.exit(exit_status)` to preserve the error exit code
 
 **Impact**:
-- Scripts relying on errexit for error handling may continue after failures
-- Can lead to data corruption or incomplete operations
-- Differs from POSIX/bash behavior
+- Scripts relying on errexit now properly stop on any command failure
+- POSIX/bash compliance restored
+- Prevents unintended continuation after errors
 
 **Location**: `tests_new/integration/redirection/test_advanced_redirection.py::test_redirection_with_errexit`
 

@@ -150,6 +150,16 @@ class ExecutorVisitor(ASTVisitor[int]):
                 exit_status = self.visit(statement)
                 # Update $? after each statement
                 self.state.last_exit_code = exit_status
+                
+                # Check errexit mode (only in non-interactive mode)
+                # In script mode, errexit should cause exit
+                if (exit_status != 0 and 
+                    self.state.options.get('errexit', False) and
+                    hasattr(self.shell, 'is_script_mode') and
+                    self.shell.is_script_mode):
+                    # Exit on error in script mode with errexit
+                    import sys
+                    sys.exit(exit_status)
             except FunctionReturn:
                 # Function return should propagate up
                 raise
