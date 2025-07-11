@@ -21,3 +21,7 @@ class ReadonlyVariableError(Exception):
     def __init__(self, name: str):
         self.name = name
         super().__init__(f"readonly variable: {name}")
+
+class ExpansionError(Exception):
+    """Raised when parameter expansion fails (e.g., :? operator)."""
+    pass

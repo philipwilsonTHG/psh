@@ -121,7 +121,7 @@ class CommandExecutor:
                 
         except Exception as e:
             # Import these here to avoid circular imports
-            from ..core.exceptions import LoopBreak, LoopContinue, ReadonlyVariableError
+            from ..core.exceptions import LoopBreak, LoopContinue, ReadonlyVariableError, ExpansionError
             from ..builtins.function_support import FunctionReturn
             
             # Re-raise control flow exceptions
@@ -131,6 +131,13 @@ class CommandExecutor:
             # Handle other exceptions
             if isinstance(e, ReadonlyVariableError):
                 print(f"psh: {e.name}: readonly variable", file=self.state.stderr)
+                return 1
+            
+            if isinstance(e, ExpansionError):
+                # Error message already printed by the expansion code
+                # In script mode, we should exit the shell
+                if self.shell.is_script_mode:
+                    sys.exit(1)
                 return 1
             
             print(f"psh: {e}", file=sys.stderr)

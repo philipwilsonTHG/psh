@@ -513,13 +513,47 @@ class VariableExpander:
             # Handle ${var:-default} syntax
             if ':-' in var_content:
                 var_name, default = var_content.split(':-', 1)
-                value = self.state.get_variable(var_name, '')
-                return value if value else default
+                value = self._get_var_or_positional(var_name)
+                if not value:
+                    # Expand variables in the default value
+                    return self.expand_string_variables(default)
+                return value
+            # Handle ${var:=default} syntax (assign default if unset)
+            elif ':=' in var_content:
+                var_name, default = var_content.split(':=', 1)
+                value = self._get_var_or_positional(var_name)
+                if not value:
+                    # Expand the default value first
+                    expanded_default = self.expand_string_variables(default)
+                    # Can't assign to positional parameters
+                    if not var_name.isdigit():
+                        self.state.set_variable(var_name, expanded_default)
+                    return expanded_default
+                return value
+            # Handle ${var:?message} syntax (error if unset)
+            elif ':?' in var_content:
+                var_name, message = var_content.split(':?', 1)
+                value = self._get_var_or_positional(var_name)
+                if not value:
+                    # Expand the error message
+                    expanded_message = self.expand_string_variables(message) if message else "parameter null or not set"
+                    # Write error to stderr and set exit code
+                    import sys
+                    print(f"psh: {var_name}: {expanded_message}", file=sys.stderr)
+                    self.state.last_exit_code = 1
+                    # In a non-interactive shell, this should exit
+                    # For now, just return empty string and let the caller handle the error
+                    from ..core.exceptions import ExpansionError
+                    raise ExpansionError(f"{var_name}: {expanded_message}")
+                return value
             # Handle ${var:+alternative} syntax
             elif ':+' in var_content:
                 var_name, alternative = var_content.split(':+', 1)
-                value = self.state.get_variable(var_name, '')
-                return alternative if value else ''
+                value = self._get_var_or_positional(var_name)
+                if value:
+                    # Expand variables in the alternative value
+                    return self.expand_string_variables(alternative)
+                return ''
             else:
                 var_name = var_content
                 
@@ -580,6 +614,16 @@ class VariableExpander:
                 raise UnboundVariableError(f"psh: ${var_name}: unbound variable")
         
         return result
+    
+    def _get_var_or_positional(self, var_name: str) -> str:
+        """Get value of a variable or positional parameter."""
+        if var_name.isdigit():
+            index = int(var_name) - 1
+            if 0 <= index < len(self.state.positional_params):
+                return self.state.positional_params[index]
+            return ''
+        else:
+            return self.state.get_variable(var_name, '')
     
     def expand_array_index(self, index_expr: str) -> str:
         """Expand variables in array index expressions.
