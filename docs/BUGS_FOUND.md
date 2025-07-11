@@ -58,31 +58,35 @@ This document lists bugs discovered during the test migration effort.
 
 The following issues were discovered during comprehensive conformance testing against bash and POSIX standards:
 
-### 6. Parameter Expansion Syntax Errors [CRITICAL]
+### 6. Parameter Expansion Syntax Errors [FIXED]
 
-**Status**: Active Bug  
+**Status**: Fixed (2025-01-11)  
 **Severity**: High  
 **Location**: Parameter expansion engine  
 
-**Description**: PSH fails to parse advanced parameter expansion syntax correctly.
+**Description**: PSH failed to parse advanced parameter expansion syntax correctly.
 
 **Test Cases**:
 ```bash
 # Assignment with default - should assign and echo twice
 unset x; echo ${x:=default}; echo $x
 # Expected: "default\ndefault"  
-# PSH Result: Error - "psh: ${var:=default}: invalid offset"
+# PSH Result (before fix): Error - "psh: ${var:=default}: invalid offset"
+# PSH Result (after fix): "default\ndefault" ✓
 
 # Error expansion - should fail with non-zero exit
 unset x; echo ${x:?undefined}
 # Expected: Exit code != 0
-# PSH Result: Exit code 0 (should be non-zero)
+# PSH Result (before fix): Exit code 0 (should be non-zero)
+# PSH Result (after fix): Exit code 1 with error message ✓
 ```
 
+**Fix**: Implemented `:=` (assign default) and `:?` (error if unset) operators in `psh/expansion/variable.py`
+
 **Impact**: 
-- POSIX compliance violation
-- Breaks scripts using parameter expansion
-- Error handling inconsistency
+- POSIX compliance restored
+- Scripts using parameter expansion now work correctly
+- Error handling fixed
 
 **Location**: `tests_new/conformance/posix/test_posix_compliance.py::TestPOSIXParameterExpansion`
 
@@ -90,7 +94,7 @@ unset x; echo ${x:?undefined}
 
 **Status**: Active Bug  
 **Severity**: Medium  
-**Location**: Quote processing/lexer  
+**Location**: Lexer/Parser interaction  
 
 **Description**: PSH handles backslash escaping differently from bash.
 
@@ -101,10 +105,22 @@ echo \$(echo test)
 # PSH: Executes command substitution, outputs "$\ntest"
 ```
 
+**Root Cause Analysis** (2025-01-11):
+- The lexer correctly tokenizes `\$` as a WORD containing the escaped dollar sign
+- However, `(` is tokenized as a separate LPAREN token
+- The parser sees: WORD('\$') followed by LPAREN and interprets this as two separate constructs:
+  1. A word argument `\$` 
+  2. A subshell starting with `(`
+- This results in PSH executing the command substitution instead of treating it as literal text
+
+**Fix Required**:
+- The parser needs to be modified to recognize that a WORD ending with `\$` followed by LPAREN should not start a subshell
+- Alternatively, the lexer could be modified to keep `\$(` together as a single token when escaped
+
 **Impact**:
 - Different behavior from bash for escaped characters
-- Potential security implications
-- POSIX compliance concern
+- Potential security implications (unintended command execution)
+- POSIX compliance violation
 
 **Location**: `tests_new/conformance/posix/test_posix_compliance.py::TestPOSIXQuoteRemoval`
 
