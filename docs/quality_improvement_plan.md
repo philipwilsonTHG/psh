@@ -80,8 +80,10 @@ PSH version 0.72.0 has made significant progress as an educational shell with 1,
 3. **Quote Processing** (MEDIUM PRIORITY)
    - Fix backslash escaping in command substitution
    - Resolve Bug #7 (quote removal issues)
-   - Estimated effort: 2 days
+   - Estimated effort: 2 days (Investigation: 1 day completed)
    - Impact: Improves script parsing reliability
+   - **Progress**: Root cause analyzed - requires fundamental lexer/parser changes
+   - **Status**: Complex architectural issue, documented in BUGS_FOUND.md
 
 ### Phase 2: Error Handling & Robustness (Week 3)
 **Goal**: Make PSH more reliable for production use

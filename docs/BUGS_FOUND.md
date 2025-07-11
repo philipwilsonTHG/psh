@@ -113,9 +113,19 @@ echo \$(echo test)
   2. A subshell starting with `(`
 - This results in PSH executing the command substitution instead of treating it as literal text
 
+**Fix Attempted**:
+- Tried modifying parser to check if previous token ends with `\$` before parsing LPAREN as subshell
+- This approach doesn't work cleanly because:
+  1. LPAREN is not a WORD_LIKE token, so parse_command() can't handle it
+  2. The real issue is deeper - bash's behavior where `\$` disables the special meaning of the following `(`
+  
 **Fix Required**:
-- The parser needs to be modified to recognize that a WORD ending with `\$` followed by LPAREN should not start a subshell
-- Alternatively, the lexer could be modified to keep `\$(` together as a single token when escaped
+- This requires a more fundamental change to how escaping affects subsequent characters
+- In bash, when `\` escapes a character, it can also affect the interpretation of following characters
+- Possible solutions:
+  1. Modify lexer to recognize `\$(` as a single token when escaped
+  2. Add a lexer state that tracks when previous token ended with certain escapes
+  3. Implement proper quote removal phase that handles these edge cases
 
 **Impact**:
 - Different behavior from bash for escaped characters
