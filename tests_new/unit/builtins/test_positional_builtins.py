@@ -72,7 +72,6 @@ def test_shift_no_params(shell):
     assert result != 0
 
 
-@pytest.mark.xfail(reason="Set builtin may not be fully implemented")
 def test_set_positional_params(shell):
     """Test setting positional parameters with set builtin."""
     result = shell.run_command('set one two three')

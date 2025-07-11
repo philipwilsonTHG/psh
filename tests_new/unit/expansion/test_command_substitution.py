@@ -63,7 +63,6 @@ def test_nested_dollar_paren_substitution(shell, capsys):
     captured = capsys.readouterr()
     assert captured.out.strip() == 'hello'
 
-@pytest.mark.xfail(reason="Complex nested backtick escaping may not be supported")
 def test_nested_backtick_substitution(shell, capsys):
     """Test nested `command` substitutions."""
     # Note: This requires escaping the inner backticks
@@ -147,7 +146,6 @@ def test_substitution_with_builtin(shell, capsys):
     assert captured.out.strip().isdigit()
 
 
-@pytest.mark.xfail(reason="PSH may not handle complex arithmetic in substitution")
 def test_substitution_with_arithmetic(shell, capsys):
     """Test command substitution with arithmetic."""
     shell.run_command('echo $(echo $((2 + 3)))')
@@ -177,7 +175,6 @@ def test_dollar_paren_in_string(shell, capsys):
     assert captured.out.strip() == 'prefix middle suffix'
 
 
-@pytest.mark.xfail(reason="Complex redirection in substitution may not be supported")
 def test_substitution_with_redirection(shell, capsys):
     """Test command substitution with redirection."""
     shell.run_command('echo $(echo hello >&1)')
@@ -241,7 +238,6 @@ def test_deeply_nested_substitution(shell, capsys):
     captured = capsys.readouterr()
     assert captured.out.strip() == 'hello'
 
-@pytest.mark.xfail(reason="Complex variable expansion in substitution may not be supported")
 def test_substitution_with_complex_expansion(shell, capsys):
     """Test command substitution with complex parameter expansion."""
     shell.run_command('x=hello; echo $(echo ${x:-default})')

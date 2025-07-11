@@ -44,7 +44,6 @@ class TestAliasBuiltin:
         assert 'mytest=' in captured.out
         assert 'echo test' in captured.out
     
-    @pytest.mark.xfail(reason="Aliases may not expand in non-interactive mode")
     def test_use_alias(self, shell, capsys):
         """Test using an alias."""
         shell.run_command('alias greet="echo Hello"')
@@ -52,7 +51,6 @@ class TestAliasBuiltin:
         captured = capsys.readouterr()
         assert captured.out.strip() == "Hello World"
     
-    @pytest.mark.xfail(reason="Aliases may not expand in non-interactive mode")
     def test_alias_with_quotes(self, shell, capsys):
         """Test alias with quotes in command."""
         shell.run_command('alias say=\'echo "Hello World"\'')
@@ -68,7 +66,6 @@ class TestAliasBuiltin:
         captured = capsys.readouterr()
         assert captured.out.strip() == "3"
     
-    @pytest.mark.xfail(reason="Aliases may not expand in non-interactive mode")
     def test_alias_expansion_at_start_only(self, shell, capsys):
         """Test alias expansion only happens at command start."""
         shell.run_command('alias myecho="echo"')
@@ -80,7 +77,6 @@ class TestAliasBuiltin:
         captured = capsys.readouterr()
         assert captured.out.strip() == "myecho"
     
-    @pytest.mark.xfail(reason="Aliases may not expand in non-interactive mode")
     def test_alias_recursive_prevention(self, shell, capsys):
         """Test prevention of recursive alias expansion."""
         shell.run_command('alias ls="ls -a"')
@@ -88,7 +84,6 @@ class TestAliasBuiltin:
         shell.run_command('ls')
         # Command should complete (not hang)
     
-    @pytest.mark.xfail(reason="Aliases may not expand in non-interactive mode")
     def test_alias_overwrite(self, shell, capsys):
         """Test overwriting an existing alias."""
         shell.run_command('alias test="echo old"')
@@ -106,7 +101,6 @@ class TestAliasBuiltin:
         # Names with dashes might be accepted by some shells
         # PSH accepts them, which is okay
     
-    @pytest.mark.xfail(reason="PSH may not check for alias name validity")
     def test_alias_reserved_word(self, shell, capsys):
         """Test aliasing reserved words."""
         # Should not be able to alias reserved words
@@ -128,7 +122,6 @@ class TestUnaliasBuiltin:
         assert exit_code != 0
         # Note: error message may not be captured due to output handling issue
     
-    @pytest.mark.xfail(reason="Aliases may not expand in non-interactive mode")
     def test_unalias_multiple(self, shell, capsys):
         """Test removing multiple aliases."""
         # Create multiple aliases
@@ -196,7 +189,6 @@ class TestAliasExpansion:
         # Clean up
         shell.run_command('rm -f file1 file2')
     
-    @pytest.mark.xfail(reason="Aliases may not expand in non-interactive mode")
     def test_alias_chain(self, shell, capsys):
         """Test chained aliases."""
         shell.run_command('alias a1="echo"')
@@ -205,7 +197,6 @@ class TestAliasExpansion:
         captured = capsys.readouterr()
         assert captured.out.strip() == "test"
     
-    @pytest.mark.xfail(reason="PSH may not support complex alias expansion")
     def test_alias_trailing_space(self, shell, capsys):
         """Test alias with trailing space for further expansion."""
         # Trailing space should enable expansion of next word

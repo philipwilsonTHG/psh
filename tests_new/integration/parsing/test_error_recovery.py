@@ -351,7 +351,6 @@ class TestErrorPropagation:
         # Shell should continue after function error
         assert 'after function error' in result['stdout']
     
-    @pytest.mark.xfail(reason="errexit option is not being enforced in execution engine")
     def test_error_with_errexit_option(self):
         """Test error handling with set -e (errexit)."""
         commands = [

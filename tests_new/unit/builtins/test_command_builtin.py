@@ -58,7 +58,6 @@ def test_command_with_options(shell):
     assert result == 0
 
 
-@pytest.mark.xfail(reason="Command -p option may not be implemented")
 def test_command_default_path(shell):
     """Test command with -p option (default PATH)."""
     result = shell.run_command('command -p echo hello')
@@ -79,7 +78,6 @@ def test_command_with_arguments(shell, capsys):
     assert 'one two three' in captured.out
 
 
-@pytest.mark.xfail(reason="Complex command options may not be implemented")
 def test_command_verbose_option(shell, capsys):
     """Test command -v option for command identification."""
     result = shell.run_command('command -v echo')
@@ -89,7 +87,6 @@ def test_command_verbose_option(shell, capsys):
     assert 'echo' in captured.out
 
 
-@pytest.mark.xfail(reason="Command -V option may not be implemented")
 def test_command_verbose_description(shell, capsys):
     """Test command -V option for verbose description."""
     result = shell.run_command('command -V echo')
@@ -111,7 +108,6 @@ def test_command_error_handling(shell):
     assert result != 0
 
 
-@pytest.mark.xfail(reason="Command search behavior may not be fully implemented")
 def test_command_search_order(shell):
     """Test that command searches in correct order."""
     # Should find builtins before external commands
@@ -130,7 +126,6 @@ def test_command_with_redirection(shell_with_temp_dir):
     assert os.path.exists(output_file)
 
 
-@pytest.mark.xfail(reason="Command environment handling may not be implemented")
 def test_command_with_environment(shell, capsys):
     """Test command with environment variable assignment."""
     result = shell.run_command('VAR=test command echo "$VAR"')

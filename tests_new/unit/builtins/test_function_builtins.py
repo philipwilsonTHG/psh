@@ -213,7 +213,6 @@ class TestDeclareBuiltin:
         captured = capsys.readouterr()
         assert captured.out.strip() == "two"
     
-    @pytest.mark.xfail(reason="PSH may not support associative arrays")
     def test_declare_associative_array(self, shell, capsys):
         """Test declare -A for associative arrays."""
         shell.run_command('declare -A HASH')

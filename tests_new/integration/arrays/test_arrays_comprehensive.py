@@ -158,7 +158,6 @@ class TestArrayElementAccess:
             content = f.read()
         assert 'two' in content
     
-    @pytest.mark.xfail(reason="Negative array indices may not be implemented")
     def test_array_element_access_negative(self, shell_with_temp_dir):
         """Test array element access with negative indices."""
         shell = shell_with_temp_dir
@@ -228,7 +227,6 @@ class TestArrayExpansion:
             content = f.read()
         assert '3' in content
     
-    @pytest.mark.xfail(reason="Array indices expansion may not be implemented")
     def test_array_indices(self, shell_with_temp_dir):
         """Test ${!arr[@]} for array indices."""
         shell = shell_with_temp_dir
@@ -249,7 +247,6 @@ class TestArrayExpansion:
 class TestArraySlicing:
     """Test array slicing operations."""
     
-    @pytest.mark.xfail(reason="Array slicing may not be fully implemented")
     def test_array_slice_basic(self, shell_with_temp_dir):
         """Test basic array slicing ${arr[@]:start:length}."""
         shell = shell_with_temp_dir
@@ -261,7 +258,6 @@ class TestArraySlicing:
             content = f.read()
         assert 'two three four' in content
     
-    @pytest.mark.xfail(reason="Array slicing may not be fully implemented")
     def test_array_slice_from_start(self, shell_with_temp_dir):
         """Test array slicing from start."""
         shell = shell_with_temp_dir
@@ -273,7 +269,6 @@ class TestArraySlicing:
             content = f.read()
         assert 'a b c' in content
     
-    @pytest.mark.xfail(reason="Array slicing may not be fully implemented")
     def test_array_slice_to_end(self, shell_with_temp_dir):
         """Test array slicing to end."""
         shell = shell_with_temp_dir
@@ -305,7 +300,6 @@ class TestArrayParameterExpansion:
             content = f.read()
         assert '5' in content
     
-    @pytest.mark.xfail(reason="Advanced parameter expansion on arrays may not be implemented")
     def test_array_element_substitution(self, shell_with_temp_dir):
         """Test parameter expansion on array elements."""
         shell = shell_with_temp_dir
@@ -328,7 +322,6 @@ class TestArrayParameterExpansion:
 class TestArrayDeclare:
     """Test array integration with declare builtin."""
     
-    @pytest.mark.xfail(reason="declare -p array output may not be implemented")
     def test_declare_p_indexed_array(self, shell_with_temp_dir):
         """Test declare -p output for indexed arrays."""
         shell = shell_with_temp_dir
@@ -342,7 +335,6 @@ class TestArrayDeclare:
         assert 'declare -a arr=' in content
         assert '([0]="one" [1]="two" [2]="three")' in content
     
-    @pytest.mark.xfail(reason="declare -p array output may not be implemented")
     def test_declare_p_sparse_array(self, shell_with_temp_dir):
         """Test declare -p output for sparse arrays."""
         shell = shell_with_temp_dir
@@ -401,7 +393,6 @@ class TestArrayInLoops:
 class TestArrayAppend:
     """Test array append operations."""
     
-    @pytest.mark.xfail(reason="Array append with += may not be implemented")
     def test_array_append_element(self, shell_with_temp_dir):
         """Test appending to array using +=."""
         shell = shell_with_temp_dir
@@ -471,7 +462,6 @@ class TestArrayEdgeCases:
         # Should be empty or just whitespace
         assert len(content) == 0 or content.isspace()
     
-    @pytest.mark.xfail(reason="Variable to array conversion behavior may differ from bash")
     def test_array_variable_conversion(self, shell_with_temp_dir):
         """Test converting regular variable to array."""
         shell = shell_with_temp_dir

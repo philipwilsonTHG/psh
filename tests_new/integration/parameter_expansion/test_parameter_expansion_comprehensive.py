@@ -195,7 +195,6 @@ class TestPatternSubstitution:
             content = f.read().strip()
         assert content == "/usr/local/bin,/usr/bin"
     
-    @pytest.mark.xfail(reason="Prefix/suffix pattern substitution may not be implemented")
     def test_prefix_replacement(self, shell_with_temp_dir):
         """Test ${var/#pattern/string} for prefix match."""
         shell = shell_with_temp_dir
@@ -206,7 +205,6 @@ class TestPatternSubstitution:
             content = f.read().strip()
         assert content == "/opt/bin"
     
-    @pytest.mark.xfail(reason="Prefix/suffix pattern substitution may not be implemented")
     def test_suffix_replacement(self, shell_with_temp_dir):
         """Test ${var/%pattern/string} for suffix match."""
         shell = shell_with_temp_dir
@@ -251,7 +249,6 @@ class TestSubstringExtraction:
             content = f.read().strip()
         assert content == "World!"
     
-    @pytest.mark.xfail(reason="Negative offset syntax may not be implemented")
     def test_negative_offset(self, shell_with_temp_dir):
         """Test ${var:offset} with negative offset."""
         shell = shell_with_temp_dir
@@ -272,7 +269,6 @@ class TestSubstringExtraction:
             content = f.read().strip()
         assert content == "World"
     
-    @pytest.mark.xfail(reason="Negative length syntax may not be implemented")
     def test_negative_length(self, shell_with_temp_dir):
         """Test with negative length."""
         shell = shell_with_temp_dir
@@ -302,7 +298,6 @@ class TestSubstringExtraction:
 class TestVariableNameMatching:
     """Test variable name matching operations."""
     
-    @pytest.mark.xfail(reason="Variable name matching ${!prefix*} may not be implemented")
     def test_prefix_matching(self, shell_with_temp_dir):
         """Test ${!prefix*} for matching variable names."""
         shell = shell_with_temp_dir
@@ -317,7 +312,6 @@ class TestVariableNameMatching:
         assert "USER_ID" in content
         assert "USER_HOME" in content
     
-    @pytest.mark.xfail(reason="Variable name matching ${!prefix@} may not be implemented")
     def test_quoted_output(self, shell_with_temp_dir):
         """Test ${!prefix@} for quoted output."""
         shell = shell_with_temp_dir
@@ -334,7 +328,6 @@ class TestVariableNameMatching:
 class TestCaseModification:
     """Test case modification operations."""
     
-    @pytest.mark.xfail(reason="Case modification may not be fully implemented")
     def test_first_char_upper(self, shell_with_temp_dir):
         """Test ${var^} for first character uppercase."""
         shell = shell_with_temp_dir
@@ -345,7 +338,6 @@ class TestCaseModification:
             content = f.read().strip()
         assert content == "Hello world"
     
-    @pytest.mark.xfail(reason="Case modification may not be fully implemented")
     def test_all_chars_upper(self, shell_with_temp_dir):
         """Test ${var^^} for all uppercase."""
         shell = shell_with_temp_dir
@@ -356,7 +348,6 @@ class TestCaseModification:
             content = f.read().strip()
         assert content == "HELLO WORLD"
     
-    @pytest.mark.xfail(reason="Case modification may not be fully implemented")
     def test_first_char_lower(self, shell_with_temp_dir):
         """Test ${var,} for first character lowercase."""
         shell = shell_with_temp_dir
@@ -367,7 +358,6 @@ class TestCaseModification:
             content = f.read().strip()
         assert content == "hELLO WORLD"
     
-    @pytest.mark.xfail(reason="Case modification may not be fully implemented")
     def test_all_chars_lower(self, shell_with_temp_dir):
         """Test ${var,,} for all lowercase."""
         shell = shell_with_temp_dir
@@ -378,7 +368,6 @@ class TestCaseModification:
             content = f.read().strip()
         assert content == "hello world"
     
-    @pytest.mark.xfail(reason="Pattern-based case modification may not be implemented")
     def test_pattern_based_modification(self, shell_with_temp_dir):
         """Test case modification with patterns."""
         shell = shell_with_temp_dir
@@ -390,7 +379,6 @@ class TestCaseModification:
             content = f.read().strip()
         assert content == "hEllO wOrld"
     
-    @pytest.mark.xfail(reason="Case modification may not be fully implemented")
     def test_empty_string(self, shell_with_temp_dir):
         """Test case modification on empty string."""
         shell = shell_with_temp_dir
@@ -401,7 +389,6 @@ class TestCaseModification:
             content = f.read().strip()
         assert content == ""
     
-    @pytest.mark.xfail(reason="Unicode case modification may not be implemented")
     def test_unicode_handling(self, shell_with_temp_dir):
         """Test case modification with unicode."""
         shell = shell_with_temp_dir

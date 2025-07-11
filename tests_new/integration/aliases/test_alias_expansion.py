@@ -72,7 +72,6 @@ class TestBasicAliasDefinition:
     def teardown_method(self):
         """Clean up any leftover processes after each test."""
     
-    @pytest.mark.xfail(reason="Alias support may not be fully implemented yet")
     def test_simple_alias_definition(self):
         """Test defining and using a simple alias."""
         result = AliasTestHelper.run_psh_command([
@@ -84,7 +83,6 @@ class TestBasicAliasDefinition:
         assert 'll' in result['stdout']
         assert 'ls -l' in result['stdout']
     
-    @pytest.mark.xfail(reason="Alias support may not be fully implemented yet")
     def test_alias_execution(self):
         """Test executing an alias."""
         result = AliasTestHelper.run_psh_command([
@@ -95,7 +93,6 @@ class TestBasicAliasDefinition:
         assert result['success']
         assert 'hello world' in result['stdout']
     
-    @pytest.mark.xfail(reason="Alias support may not be fully implemented yet")
     def test_alias_with_arguments(self):
         """Test alias that accepts arguments."""
         result = AliasTestHelper.run_psh_command([
@@ -106,7 +103,6 @@ class TestBasicAliasDefinition:
         assert result['success']
         assert 'Hello World' in result['stdout']
     
-    @pytest.mark.xfail(reason="Alias support may not be fully implemented yet")
     def test_alias_case_sensitivity(self):
         """Test that aliases are case-sensitive."""
         result = AliasTestHelper.run_psh_command([
@@ -120,7 +116,6 @@ class TestBasicAliasDefinition:
         assert 'lowercase' in result['stdout']
         assert 'uppercase' in result['stdout']
     
-    @pytest.mark.xfail(reason="Alias support may not be fully implemented yet")
     def test_alias_redefinition(self):
         """Test redefining an existing alias."""
         result = AliasTestHelper.run_psh_command([
@@ -134,7 +129,6 @@ class TestBasicAliasDefinition:
         assert 'first' in result['stdout']
         assert 'second' in result['stdout']
     
-    @pytest.mark.xfail(reason="Alias support may not be fully implemented yet")
     def test_alias_list_all(self):
         """Test listing all defined aliases."""
         result = AliasTestHelper.run_psh_command([
@@ -159,7 +153,6 @@ class TestAliasRemoval:
     def teardown_method(self):
         """Clean up any leftover processes after each test."""
     
-    @pytest.mark.xfail(reason="Alias unalias command may not be implemented yet")
     def test_unalias_command(self):
         """Test removing an alias with unalias."""
         result = AliasTestHelper.run_psh_command([
@@ -172,7 +165,6 @@ class TestAliasRemoval:
         # First execution should succeed, second should fail
         assert 'echo test' in result['stdout'] or 'test' in result['stdout']
     
-    @pytest.mark.xfail(reason="Alias unalias command may not be implemented yet")
     def test_unalias_nonexistent(self):
         """Test unalias on non-existent alias."""
         result = AliasTestHelper.run_psh_command('unalias nonexistent_alias')
@@ -180,7 +172,6 @@ class TestAliasRemoval:
         # Should handle gracefully or show error
         assert isinstance(result['returncode'], int)
     
-    @pytest.mark.xfail(reason="Alias unalias command may not be implemented yet")
     def test_unalias_all(self):
         """Test removing all aliases."""
         result = AliasTestHelper.run_psh_command([
@@ -230,7 +221,6 @@ class TestAliasPrecedence:
         assert 'function' in result['stdout']
         assert 'alias' not in result['stdout']
     
-    @pytest.mark.xfail(reason="Alias precedence may not be fully implemented yet")
     def test_alias_vs_external_command(self):
         """Test that aliases override external commands."""
         result = AliasTestHelper.run_psh_command([
@@ -242,7 +232,6 @@ class TestAliasPrecedence:
         # Alias should override external ls command
         assert 'ALIAS_LS' in result['stdout']
     
-    @pytest.mark.xfail(reason="Alias precedence may not be fully implemented yet") 
     def test_bypass_alias_with_backslash(self):
         """Test bypassing alias with backslash escape."""
         result = AliasTestHelper.run_psh_command([
@@ -288,7 +277,6 @@ class TestAliasExpansion:
         # Variable expansion should happen first, so alias not expanded
         assert result['success']
     
-    @pytest.mark.xfail(reason="Alias expansion may not be fully implemented yet")
     def test_alias_recursive_prevention(self):
         """Test prevention of recursive alias expansion."""
         result = AliasTestHelper.run_psh_command([
@@ -300,7 +288,6 @@ class TestAliasExpansion:
         # Should not infinitely recurse
         # Exact behavior varies: might use external ls or fail gracefully
     
-    @pytest.mark.xfail(reason="Alias expansion may not be fully implemented yet")
     def test_alias_with_pipes(self):
         """Test alias expansion in pipelines."""
         result = AliasTestHelper.run_psh_command([
@@ -311,7 +298,6 @@ class TestAliasExpansion:
         assert result['success']
         # Alias should expand before pipe processing
     
-    @pytest.mark.xfail(reason="Alias expansion may not be fully implemented yet")
     def test_alias_with_redirection(self):
         """Test alias expansion with I/O redirection."""
         result = AliasTestHelper.run_psh_command([
@@ -329,7 +315,6 @@ class TestAliasExpansion:
         except:
             pass
     
-    @pytest.mark.xfail(reason="Alias expansion may not be fully implemented yet")
     def test_alias_with_background_execution(self):
         """Test alias expansion with background execution."""
         result = AliasTestHelper.run_psh_command([
@@ -351,7 +336,6 @@ class TestComplexAliases:
     def teardown_method(self):
         """Clean up any leftover processes after each test."""
     
-    @pytest.mark.xfail(reason="Complex alias features may not be implemented yet")
     def test_alias_with_multiple_commands(self):
         """Test alias containing multiple commands."""
         result = AliasTestHelper.run_psh_command([
@@ -363,7 +347,6 @@ class TestComplexAliases:
         assert 'first' in result['stdout']
         assert 'second' in result['stdout']
     
-    @pytest.mark.xfail(reason="Complex alias features may not be implemented yet")
     def test_alias_with_conditionals(self):
         """Test alias containing conditional statements."""
         result = AliasTestHelper.run_psh_command([
@@ -374,7 +357,6 @@ class TestComplexAliases:
         assert result['success']
         assert 'found' in result['stdout']
     
-    @pytest.mark.xfail(reason="Complex alias features may not be implemented yet")
     def test_alias_with_variables(self):
         """Test alias containing variable references."""
         result = AliasTestHelper.run_psh_command([
@@ -386,7 +368,6 @@ class TestComplexAliases:
         assert result['success']
         assert 'test' in result['stdout']
     
-    @pytest.mark.xfail(reason="Complex alias features may not be implemented yet")
     def test_alias_with_command_substitution(self):
         """Test alias containing command substitution."""
         result = AliasTestHelper.run_psh_command([
@@ -410,7 +391,6 @@ class TestComplexAliases:
         assert 'quoted' in result['stdout']
         assert '$escaped' in result['stdout']
     
-    @pytest.mark.xfail(reason="Complex alias features may not be implemented yet")
     def test_nested_alias_expansion(self):
         """Test aliases that expand to other aliases."""
         result = AliasTestHelper.run_psh_command([
@@ -432,7 +412,6 @@ class TestAliasInDifferentContexts:
     def teardown_method(self):
         """Clean up any leftover processes after each test."""
     
-    @pytest.mark.xfail(reason="Alias context behavior may not be fully implemented yet")
     def test_alias_in_subshell(self):
         """Test alias expansion in subshells."""
         result = AliasTestHelper.run_psh_command([
@@ -456,7 +435,6 @@ class TestAliasInDifferentContexts:
         assert result['success']
         assert 'from alias' in result['stdout']
     
-    @pytest.mark.xfail(reason="Alias context behavior may not be fully implemented yet")
     def test_alias_in_script_vs_interactive(self):
         """Test alias behavior differences between script and interactive mode."""
         # This test runs in non-interactive mode by default
@@ -469,7 +447,6 @@ class TestAliasInDifferentContexts:
         # Behavior varies between shells
         assert isinstance(result['returncode'], int)
     
-    @pytest.mark.xfail(reason="Alias context behavior may not be fully implemented yet")
     def test_alias_with_for_loop(self):
         """Test alias expansion in for loops."""
         result = AliasTestHelper.run_psh_command([
@@ -505,7 +482,6 @@ class TestAliasErrorHandling:
     def teardown_method(self):
         """Clean up any leftover processes after each test."""
     
-    @pytest.mark.xfail(reason="Alias error handling may not be fully implemented yet")
     def test_invalid_alias_syntax(self):
         """Test error handling for invalid alias syntax."""
         result = AliasTestHelper.run_psh_command('alias invalid syntax')
@@ -514,7 +490,6 @@ class TestAliasErrorHandling:
         assert not result['success']
         assert 'syntax' in result['stderr'].lower() or 'alias' in result['stderr'].lower()
     
-    @pytest.mark.xfail(reason="Alias error handling may not be fully implemented yet")
     def test_alias_name_with_special_chars(self):
         """Test alias names with special characters."""
         result = AliasTestHelper.run_psh_command('alias "invalid name"="echo test"')
@@ -522,7 +497,6 @@ class TestAliasErrorHandling:
         # Should handle appropriately (fail or accept)
         assert isinstance(result['returncode'], int)
     
-    @pytest.mark.xfail(reason="Alias error handling may not be fully implemented yet")
     def test_empty_alias_name(self):
         """Test alias with empty name."""
         result = AliasTestHelper.run_psh_command('alias =""')
@@ -530,7 +504,6 @@ class TestAliasErrorHandling:
         # Should fail appropriately
         assert not result['success']
     
-    @pytest.mark.xfail(reason="Alias error handling may not be fully implemented yet")
     def test_alias_circular_reference(self):
         """Test handling of circular alias references."""
         result = AliasTestHelper.run_psh_command([
@@ -543,7 +516,6 @@ class TestAliasErrorHandling:
         # Should detect and handle circular reference
         assert isinstance(result['returncode'], int)
     
-    @pytest.mark.xfail(reason="Alias error handling may not be fully implemented yet")
     def test_very_long_alias(self):
         """Test very long alias definitions."""
         long_command = 'echo ' + 'very_long_' * 1000
@@ -565,7 +537,6 @@ class TestAliasCompatibility:
     def teardown_method(self):
         """Clean up any leftover processes after each test."""
     
-    @pytest.mark.xfail(reason="Full alias compatibility may not be implemented yet")
     def test_bash_style_aliases(self):
         """Test bash-style alias behavior."""
         result = AliasTestHelper.run_psh_command([
@@ -580,7 +551,6 @@ class TestAliasCompatibility:
         assert 'la' in result['stdout']
         assert 'l=' in result['stdout']
     
-    @pytest.mark.xfail(reason="Full alias compatibility may not be implemented yet")
     def test_posix_alias_compliance(self):
         """Test POSIX compliance for aliases."""
         result = AliasTestHelper.run_psh_command([
@@ -591,7 +561,6 @@ class TestAliasCompatibility:
         assert result['success']
         assert 'posix' in result['stdout']
     
-    @pytest.mark.xfail(reason="Full alias compatibility may not be implemented yet")
     def test_alias_export_behavior(self):
         """Test that aliases are not exported to subprocesses."""
         result = AliasTestHelper.run_psh_command([
@@ -612,7 +581,6 @@ class TestAliasAdvancedFeatures:
     def teardown_method(self):
         """Clean up any leftover processes after each test."""
     
-    @pytest.mark.xfail(reason="Advanced alias features may not be implemented yet")
     def test_alias_with_positional_parameters(self):
         """Test aliases that use positional parameters."""
         # Note: Traditional aliases don't support parameters

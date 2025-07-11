@@ -349,7 +349,6 @@ def test_nested_structures_with_variables(shell, capsys):
     assert "After loop - Inner: inner_value" in output
 
 
-@pytest.mark.xfail(reason="Very deep nesting may hit parser or execution limits")
 def test_very_deep_nesting(shell, capsys):
     """Test very deep nesting to check limits."""
     script = '''

@@ -66,7 +66,6 @@ def test_function_multiple_parameters(shell, capsys):
     assert '8' in captured.out
 
 
-@pytest.mark.xfail(reason="Complex arithmetic may not be implemented")
 def test_function_arithmetic_operations(shell, capsys):
     """Test function with arithmetic operations."""
     shell.run_command('calc() { echo "$((($1 + $2) * $3))"; }')
@@ -123,7 +122,6 @@ def test_function_variable_scope(shell, capsys):
     # Variable modification in function may affect global scope
 
 
-@pytest.mark.xfail(reason="Local variable declaration may not be implemented")
 def test_function_local_variables(shell, capsys):
     """Test local variable declaration in functions."""
     shell.run_command('VAR=global')
@@ -232,7 +230,6 @@ def test_undefined_function_call(shell):
     assert result != 0
 
 
-@pytest.mark.xfail(reason="Function unset may not be implemented")
 def test_function_unset(shell):
     """Test unsetting a function."""
     shell.run_command('temp_func() { echo "temporary"; }')
@@ -265,7 +262,6 @@ def test_function_name_collision(shell, capsys):
     assert 'Custom echo: test' in captured.out
 
 
-@pytest.mark.xfail(reason="Export of functions may not be implemented")
 def test_function_export(shell):
     """Test exporting functions to subshells."""
     shell.run_command('export_func() { echo "exported"; }')

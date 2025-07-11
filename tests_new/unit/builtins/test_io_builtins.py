@@ -175,7 +175,6 @@ class TestPrintfBuiltin:
         captured = capsys.readouterr()
         # Should use shorter of %f or %e
     
-    @pytest.mark.xfail(reason="PSH printf doesn't support format specifiers")
     def test_printf_width_precision(self, shell, capsys):
         """Test printf width and precision."""
         shell.run_command('printf "%10s\\n" "right"')
@@ -224,7 +223,6 @@ class TestPrintfBuiltin:
         # Second %s might be empty or show special behavior
         assert "one" in captured.out
     
-    @pytest.mark.xfail(reason="PSH printf doesn't support format specifiers")
     def test_printf_char_format(self, shell, capsys):
         """Test printf %c character format."""
         shell.run_command('printf "%c\\n" A')

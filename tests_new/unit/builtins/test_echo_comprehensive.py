@@ -71,7 +71,6 @@ def test_echo_e_flag_basic(shell, capsys):
     assert captured.out == "a\tb\nc\n"
 
 
-@pytest.mark.xfail(reason="Advanced escape sequences may not be fully implemented")
 def test_echo_e_flag_all_escapes(shell, capsys):
     """Test -e flag with all supported escape sequences."""
     # Alert (bell)
@@ -117,7 +116,6 @@ def test_echo_e_flag_all_escapes(shell, capsys):
     assert captured.out == "\x1b[31mRed\x1b[0m\n"
 
 
-@pytest.mark.xfail(reason="\\c terminator may not be implemented")
 def test_echo_e_flag_c_terminator(shell, capsys):
     """Test -e flag with \\c terminator."""
     # \c suppresses further output
@@ -133,7 +131,6 @@ def test_echo_e_flag_c_terminator(shell, capsys):
     assert captured.out == "test"
 
 
-@pytest.mark.xfail(reason="Octal escape sequences may not be implemented")
 def test_echo_e_flag_octal(shell, capsys):
     """Test -e flag with octal sequences."""
     # Octal with leading 0 (A = 0101 octal)
@@ -161,7 +158,6 @@ def test_echo_e_flag_octal(shell, capsys):
     assert captured.out == "start\0end\n"
 
 
-@pytest.mark.xfail(reason="Hex escape sequences may not be implemented")
 def test_echo_e_flag_hex(shell, capsys):
     """Test -e flag with hex sequences."""
     # Single hex digit
@@ -183,7 +179,6 @@ def test_echo_e_flag_hex(shell, capsys):
     assert captured.out == "\n\n"
 
 
-@pytest.mark.xfail(reason="Unicode escape sequences may not be implemented")
 def test_echo_e_flag_unicode(shell, capsys):
     """Test -e flag with unicode sequences."""
     # 4-digit unicode (smiley face)
@@ -220,7 +215,6 @@ def test_echo_combined_flags(shell, capsys):
     assert captured.out == "test\n"
 
 
-@pytest.mark.xfail(reason="-E flag may not be implemented")
 def test_echo_E_flag(shell, capsys):
     """Test -E flag disables escape interpretation."""
     # -E disables escapes (default behavior)
@@ -349,7 +343,6 @@ def test_echo_with_redirections(shell_with_temp_dir):
     assert content == "line1\nline2\ntest"
 
 
-@pytest.mark.xfail(reason="Pipeline output capture may have issues")
 def test_echo_in_pipeline(shell_with_temp_dir):
     """Test echo in pipelines."""
     temp_file = "echo_pipeline_test.txt"

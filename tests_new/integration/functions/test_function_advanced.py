@@ -96,7 +96,6 @@ def test_function_with_while_loop(shell, capsys):
     assert 'Done!' in captured.out
 
 
-@pytest.mark.xfail(reason="Complex function features may not be implemented")
 def test_function_with_trap(shell, capsys):
     """Test function with signal traps."""
     shell.run_command('''trapped_func() {
@@ -142,7 +141,6 @@ def test_function_variable_assignment(shell, capsys):
     assert 'set by function' in captured.out
 
 
-@pytest.mark.xfail(reason="Function debugging may not be implemented")
 def test_function_debug_mode(shell):
     """Test function execution in debug mode."""
     shell.run_command('set -x')
@@ -181,7 +179,6 @@ def test_function_with_background_job(shell):
     assert result == 0
 
 
-@pytest.mark.xfail(reason="Function aliasing may not be implemented")
 def test_function_vs_alias(shell, capsys):
     """Test function vs alias precedence."""
     shell.run_command('alias test_cmd="echo alias"')
@@ -216,7 +213,6 @@ def test_function_parameter_shift(shell, capsys):
     assert 'After shift: two' in captured.out
 
 
-@pytest.mark.xfail(reason="Complex function features may not be implemented")
 def test_function_getopts(shell, capsys):
     """Test function using getopts for option parsing."""
     shell.run_command('''parse_opts() {

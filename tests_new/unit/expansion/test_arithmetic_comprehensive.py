@@ -124,7 +124,6 @@ class TestArithmeticParser:
         assert ast.op.name == 'MULTIPLY'
         assert ast.left.op.name == 'PLUS'
     
-    @pytest.mark.xfail(reason="Ternary operator may not be implemented")
     def test_ternary_operator(self):
         """Test ternary operator parsing."""
         from psh.arithmetic import ArithTokenizer, ArithParser
@@ -218,7 +217,6 @@ class TestArithmeticEvaluator:
         evaluate_arithmetic("x *= 2", shell)
         assert shell.state.get_variable('x') == '30'
     
-    @pytest.mark.xfail(reason="Increment/decrement operators may not be implemented")
     def test_increment_decrement(self, shell):
         """Test increment and decrement operators."""
         from psh.arithmetic import evaluate_arithmetic
@@ -241,7 +239,6 @@ class TestArithmeticEvaluator:
         assert evaluate_arithmetic("x--", shell) == 6
         assert shell.state.get_variable('x') == '5'
     
-    @pytest.mark.xfail(reason="Ternary operator may not be implemented")
     def test_ternary_operator(self, shell):
         """Test ternary conditional operator."""
         from psh.arithmetic import evaluate_arithmetic
@@ -255,7 +252,6 @@ class TestArithmeticEvaluator:
         shell.state.set_variable('x', '-3')
         assert evaluate_arithmetic("x > 0 ? x : -x", shell) == 3
     
-    @pytest.mark.xfail(reason="Comma operator may not be implemented")
     def test_comma_operator(self, shell):
         """Test comma operator."""
         from psh.arithmetic import evaluate_arithmetic

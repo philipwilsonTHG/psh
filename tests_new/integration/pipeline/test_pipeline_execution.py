@@ -107,7 +107,6 @@ def test_pipeline_error_in_middle(shell, capsys):
     assert result != 0
 
 
-@pytest.mark.xfail(reason="Pipeline SIGPIPE handling may not be complete")
 def test_pipeline_sigpipe_handling(shell, capsys):
     """Test SIGPIPE handling in pipelines."""
     # This should not hang even if the pipeline is broken

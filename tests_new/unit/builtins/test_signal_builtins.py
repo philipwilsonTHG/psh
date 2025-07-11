@@ -57,7 +57,6 @@ def test_trap_exit_handler(shell):
     assert result == 0
 
 
-@pytest.mark.xfail(reason="Special trap signals may not be implemented")
 def test_trap_debug_handler(shell):
     """Test trap with DEBUG signal."""
     result = shell.run_command('trap "echo debug" DEBUG')
@@ -65,7 +64,6 @@ def test_trap_debug_handler(shell):
     assert result == 0
 
 
-@pytest.mark.xfail(reason="Special trap signals may not be implemented") 
 def test_trap_err_handler(shell):
     """Test trap with ERR signal."""
     result = shell.run_command('trap "echo error" ERR')
@@ -107,7 +105,6 @@ def test_trap_numeric_signal(shell):
     assert result == 0
 
 
-@pytest.mark.xfail(reason="Complex trap syntax may not be supported")
 def test_trap_command_substitution(shell):
     """Test trap with command substitution in handler."""
     result = shell.run_command('trap "echo $(date)" TERM')
@@ -151,7 +148,6 @@ def test_trap_unix_signals(shell):
     # Should work on Unix systems
 
 
-@pytest.mark.xfail(reason="Trap state persistence may not be implemented")
 def test_trap_persistence(shell, capsys):
     """Test that traps persist across commands."""
     shell.run_command('trap "echo persistent" TERM')
@@ -171,7 +167,6 @@ def test_trap_in_subshell(shell):
     assert result == 0
 
 
-@pytest.mark.xfail(reason="Script mode trap behavior may differ")
 def test_trap_script_mode(shell):
     """Test trap behavior in script mode vs interactive."""
     # This may behave differently in script vs interactive mode

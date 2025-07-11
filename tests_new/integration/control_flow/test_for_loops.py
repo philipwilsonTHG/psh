@@ -123,7 +123,6 @@ class TestForLoops:
         assert "B1" in captured.out
         assert "B2" in captured.out
     
-    @pytest.mark.xfail(reason="PSH may not support C-style for loops")
     def test_c_style_for_loop(self, shell, capsys):
         """Test C-style for loop."""
         cmd = '''

@@ -51,7 +51,6 @@ class TestHistoryBuiltin:
         captured = capsys.readouterr()
         assert captured.out.strip() == "" or "no history" in captured.out.lower()
     
-    @pytest.mark.xfail(reason="PSH may not support history expansion")
     def test_history_expansion(self, shell, capsys):
         """Test history expansion with !."""
         shell.run_command('echo "first command"')

@@ -61,7 +61,6 @@ def test_exec_with_command_replacement(shell):
     pass
 
 
-@pytest.mark.xfail(reason="Complex exec redirection may not be implemented")
 def test_exec_with_error_redirection(shell_with_temp_dir):
     """Test exec with stderr redirection."""
     error_file = "exec_error.txt"
@@ -85,7 +84,6 @@ def test_exec_error_handling(shell):
     assert result != 0
 
 
-@pytest.mark.xfail(reason="Complex exec environments may not be implemented")
 def test_exec_with_environment(shell):
     """Test exec with environment variable assignment."""
     result = shell.run_command('VAR=value exec')
@@ -106,7 +104,6 @@ def test_exec_syntax_error(shell):
     assert result != 0
 
 
-@pytest.mark.xfail(reason="Exec state persistence may be complex")
 def test_exec_redirection_persistence(shell_with_temp_dir):
     """Test that exec redirections persist across commands."""
     output_file = "persistent_output.txt"

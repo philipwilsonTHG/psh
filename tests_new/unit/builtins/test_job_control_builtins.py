@@ -98,7 +98,6 @@ class TestJobsBuiltin:
 class TestFgBuiltin:
     """Test fg builtin functionality."""
     
-    @pytest.mark.xfail(reason="fg requires interactive terminal")
     def test_fg_bring_to_foreground(self, shell, capsys):
         """Test bringing a background job to foreground."""
         # This test requires interactive terminal support
@@ -123,7 +122,6 @@ class TestFgBuiltin:
         captured = capsys.readouterr()
         assert 'no such job' in captured.err.lower() or 'not found' in captured.err
     
-    @pytest.mark.xfail(reason="fg may not work in non-interactive mode")
     def test_fg_specific_job(self, shell, capsys):
         """Test fg with specific job number."""
         # Start multiple jobs
@@ -140,7 +138,6 @@ class TestFgBuiltin:
 class TestBgBuiltin:
     """Test bg builtin functionality."""
     
-    @pytest.mark.xfail(reason="bg requires job control support")
     def test_bg_resume_stopped_job(self, shell, capsys):
         """Test resuming a stopped job in background."""
         # This requires ability to stop jobs (Ctrl-Z), which

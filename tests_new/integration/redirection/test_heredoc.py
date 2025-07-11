@@ -118,7 +118,6 @@ def test_here_string_empty(shell_with_temp_dir):
     assert content == "\n"  # Just a newline
 
 
-@pytest.mark.xfail(reason="Pipeline output capture needs improvement")
 def test_here_string_in_pipeline(shell_with_temp_dir):
     """Test here string in a pipeline."""
     output_file = "herestring_pipeline_test.txt"
@@ -130,7 +129,6 @@ def test_here_string_in_pipeline(shell_with_temp_dir):
     assert "3" in content
 
 
-@pytest.mark.xfail(reason="Variable expansion in here strings may not be implemented")
 def test_here_string_with_variable(shell_with_temp_dir):
     """Test here string with variable expansion."""
     shell_with_temp_dir.state.set_variable('NAME', 'World')
