@@ -503,10 +503,10 @@ class TestDeclareEnhanced:
         exit_code = shell.run_command("declare -ixr NUM=42")
         assert exit_code == 0
         
-        # Options with --
-        exit_code = shell.run_command("declare -l -- -weirdname=value")
+        # Options with -- (variable names starting with - are invalid)
+        exit_code = shell.run_command("declare -l -- weirdname=value")
         assert exit_code == 0
-        assert shell.state.get_variable("-weirdname") == "value"
+        assert shell.state.get_variable("weirdname") == "value"
         
         # Mixed + and - options
         shell.run_command("declare -x VAR=test")

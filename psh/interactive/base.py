@@ -48,8 +48,13 @@ class InteractiveManager:
         self.repl_loop.completion_manager = self.completion_manager
         
         # Skip signal setup when running under pytest to avoid affecting subprocess tests
+        # UNLESS we're specifically testing signal handling
         import sys
-        if 'pytest' not in sys.modules:
+        import os
+        skip_signals = ('pytest' in sys.modules and 
+                       os.environ.get('PSH_TEST_SIGNALS') != '1')
+        
+        if not skip_signals:
             # Ensure shell is in its own process group for job control
             self.signal_manager.ensure_foreground()
             

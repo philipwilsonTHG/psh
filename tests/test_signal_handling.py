@@ -9,9 +9,16 @@ from psh.shell import Shell
 
 class TestSignalHandling:
     def setup_method(self):
+        # Enable signal handling for these tests
+        os.environ['PSH_TEST_SIGNALS'] = '1'
         self.shell = Shell()
         self.shell.history = []
         self.shell.history_file = "/tmp/test_psh_history"
+    
+    def teardown_method(self):
+        # Clean up environment
+        if 'PSH_TEST_SIGNALS' in os.environ:
+            del os.environ['PSH_TEST_SIGNALS']
     
     def test_signal_handler_setup(self):
         """Test that signal handlers are properly set up"""

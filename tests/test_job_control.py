@@ -12,9 +12,16 @@ from psh.job_control import JobManager, Job, JobState
 
 class TestJobControl:
     def setup_method(self):
+        # Enable signal handling for job control tests
+        os.environ['PSH_TEST_SIGNALS'] = '1'
         self.shell = Shell()
         self.shell.history = []
         self.shell.history_file = "/tmp/test_psh_history"
+    
+    def teardown_method(self):
+        # Clean up environment
+        if 'PSH_TEST_SIGNALS' in os.environ:
+            del os.environ['PSH_TEST_SIGNALS']
     
     def test_job_manager_creation(self):
         """Test that JobManager is properly initialized."""
@@ -124,7 +131,7 @@ class TestJobControl:
         
         # SIGCHLD should have our handler
         handler = signal.getsignal(signal.SIGCHLD)
-        assert handler == self.shell._handle_sigchld
+        assert handler == self.shell.interactive_manager.signal_manager._handle_sigchld
         
         # SIGTTOU and SIGTTIN should be ignored
         assert signal.getsignal(signal.SIGTTOU) == signal.SIG_IGN
