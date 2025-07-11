@@ -78,7 +78,6 @@ def test_set_positional_params(shell):
     assert result == 0
 
 
-@pytest.mark.xfail(reason="Positional parameter access may not be implemented")
 def test_positional_parameter_access(captured_shell):
     """Test accessing positional parameters."""
     captured_shell.run_command('set first second third')
@@ -87,7 +86,6 @@ def test_positional_parameter_access(captured_shell):
     assert 'first second third' in output
 
 
-@pytest.mark.xfail(reason="$# parameter may not be implemented")
 def test_positional_parameter_count(captured_shell):
     """Test $# parameter for positional parameter count."""
     captured_shell.run_command('set a b c d')
@@ -96,7 +94,6 @@ def test_positional_parameter_count(captured_shell):
     assert '4' in output
 
 
-@pytest.mark.xfail(reason="$* parameter may not be implemented") 
 def test_positional_parameter_star(captured_shell):
     """Test $* parameter for all positional parameters."""
     captured_shell.run_command('set alpha beta gamma')
@@ -105,7 +102,6 @@ def test_positional_parameter_star(captured_shell):
     assert 'alpha beta gamma' in output
 
 
-@pytest.mark.xfail(reason="$@ parameter may not be implemented")
 def test_positional_parameter_at(captured_shell):
     """Test $@ parameter for all positional parameters."""
     captured_shell.run_command('set one two "three four"')
