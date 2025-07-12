@@ -50,9 +50,10 @@ class CommandExecutor:
         self.function_manager = shell.function_manager
         
         # Initialize execution strategies
+        # Order matters: functions should override builtins
         self.strategies = [
-            BuiltinExecutionStrategy(),
             FunctionExecutionStrategy(),
+            BuiltinExecutionStrategy(),
             ExternalExecutionStrategy()
         ]
     

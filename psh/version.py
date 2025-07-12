@@ -2,10 +2,17 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.73.1"
+__version__ = "0.73.2"
 
 # Version history
 VERSION_HISTORY = """
+0.73.2 (2025-01-12) - Function Precedence Fix
+  - Fixed command execution order: functions now properly override builtins
+  - Command builtin correctly bypasses functions to access builtins
+  - Reordered execution strategies to match bash behavior
+  - Shell functions can now shadow builtin commands as expected
+  - No regression in existing functionality
+
 0.73.1 (2025-01-12) - Bug Fixes and Test Builtin Enhancements
   - Fixed Bug #13: Array syntax over-eager parsing in square brackets
   - Fixed test builtin to support -a (logical AND) and -o (logical OR) operators
