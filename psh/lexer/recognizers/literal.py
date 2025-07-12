@@ -139,6 +139,24 @@ class LiteralRecognizer(ContextualRecognizer):
                     value += char
                     pos += 1
                     continue
+                # Special case: don't terminate on $ if we're inside an array assignment
+                elif char == '$' and self._is_inside_array_assignment(value):
+                    # Include the $ and continue reading the variable inside array assignment
+                    value += char
+                    pos += 1
+                    continue
+                # Special case: don't terminate on ( or ) if we're inside an array assignment
+                elif char in ['(', ')'] and self._is_inside_array_assignment(value):
+                    # Include the parentheses and continue reading (for arithmetic expansion)
+                    value += char
+                    pos += 1
+                    continue
+                # Special case: don't terminate on arithmetic operators if we're inside an array assignment
+                elif char in ['+', '-', '*', '/', '%'] and self._is_inside_array_assignment(value):
+                    # Include the arithmetic operators and continue reading
+                    value += char
+                    pos += 1
+                    continue
                 # Special case: don't terminate on $ if this is ANSI-C quote in variable assignment or concatenation
                 elif (char == '$' and pos + 1 < len(input_text) and input_text[pos + 1] == "'" and 
                       (self._is_in_variable_assignment_value(value) or self._is_in_string_concatenation(value))):
@@ -439,11 +457,11 @@ class LiteralRecognizer(ContextualRecognizer):
                     # Found closing bracket, check if followed by = or +=
                     if i + 1 < len(remaining):
                         if remaining[i + 1] == '=':
-                            # Only keep [ as part of word if no expansions inside
-                            return not has_expansions
+                            # Array assignment pattern found
+                            return True
                         elif i + 2 < len(remaining) and remaining[i + 1:i + 3] == '+=':
-                            # Only keep [ as part of word if no expansions inside
-                            return not has_expansions
+                            # Array append assignment pattern found
+                            return True
                     return False
             elif char in [' ', '\t', '\n', '\r']:
                 # Whitespace breaks the pattern

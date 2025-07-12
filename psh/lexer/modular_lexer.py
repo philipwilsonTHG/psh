@@ -323,9 +323,12 @@ class ModularLexer:
             self.input[self.position + 1] == "'"):
             return self._handle_ansi_c_quote()
         
-        # Handle expansions (only if enabled)
+        # Handle expansions (only if enabled and not in array assignment context)
         if (char == '$' and self.config.enable_variable_expansion and 
             self.expansion_context.is_expansion_start(self.position)):
+            # Check if we're inside a potential array assignment - if so, let literal recognizer handle it
+            if self._is_inside_potential_array_assignment():
+                return False
             return self._handle_expansion()
         
         # Handle backticks (command substitution, only if enabled)
@@ -338,6 +341,78 @@ class ModularLexer:
             return self._handle_quote(char)
         if char == "'" and self.config.enable_single_quotes and self.quote_context.is_quote_character(char):
             return self._handle_quote(char)
+        
+        return False
+    
+    def _is_inside_potential_array_assignment(self) -> bool:
+        """Check if current position is inside a potential array assignment pattern."""
+        # Look backwards to see if we're inside arr[...] pattern that could be array assignment
+        
+        # Find the most recent unmatched opening bracket before current position
+        bracket_pos = -1
+        bracket_count = 0
+        
+        for i in range(self.position - 1, -1, -1):
+            char = self.input[i]
+            if char == ']':
+                bracket_count += 1
+            elif char == '[':
+                bracket_count -= 1
+                if bracket_count < 0:
+                    # Found unmatched opening bracket
+                    bracket_pos = i
+                    break
+            elif char in [' ', '\t', '\n', '\r', ';', '|', '&', '(', ')']:
+                # Word boundary - stop searching
+                break
+        
+        if bracket_pos == -1:
+            return False  # No unmatched opening bracket found
+        
+        # Check if text before [ looks like a valid variable name
+        var_start = bracket_pos - 1
+        while var_start >= 0:
+            char = self.input[var_start]
+            if char in [' ', '\t', '\n', '\r', ';', '|', '&', '(', ')']:
+                var_start += 1
+                break
+            var_start -= 1
+        else:
+            var_start = 0
+        
+        if var_start >= bracket_pos:
+            return False  # No variable name before [
+        
+        var_name = self.input[var_start:bracket_pos]
+        
+        # Check if it's a valid variable name
+        if not var_name or not var_name[0].isalpha() and var_name[0] != '_':
+            return False
+        if not all(c.isalnum() or c == '_' for c in var_name):
+            return False
+        
+        # Look ahead from current position to see if this could end with ]=... pattern
+        ahead_pos = self.position
+        bracket_count = 1  # We're inside brackets already
+        
+        while ahead_pos < len(self.input):
+            char = self.input[ahead_pos]
+            if char == '[':
+                bracket_count += 1
+            elif char == ']':
+                bracket_count -= 1
+                if bracket_count == 0:
+                    # Found closing bracket - check if followed by =
+                    if (ahead_pos + 1 < len(self.input) and 
+                        self.input[ahead_pos + 1] == '='):
+                        return True
+                    elif (ahead_pos + 2 < len(self.input) and 
+                          self.input[ahead_pos + 1:ahead_pos + 3] == '+='):
+                        return True
+                    return False
+            elif char in [' ', '\t', '\n', '\r']:
+                return False  # Whitespace breaks the pattern
+            ahead_pos += 1
         
         return False
     

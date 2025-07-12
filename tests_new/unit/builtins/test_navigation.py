@@ -423,6 +423,9 @@ class TestNavigationEdgeCases:
     def test_cd_with_spaces(self, shell, capsys):
         """Test cd with directory names containing spaces."""
         dirname = 'dir with spaces'
+        # Clean up any leftover directory first
+        if os.path.exists(dirname):
+            os.rmdir(dirname)
         os.mkdir(dirname)
         
         shell.run_command(f'cd "{dirname}"')

@@ -12,7 +12,7 @@ VERSION_HISTORY = """
     - All POSIX format specifiers: %d,%i,%o,%u,%x,%X,%f,%F,%e,%E,%g,%G,%a,%A,%c,%s,%%
     - Complete flags support: -,+,#,0,(space) with width and precision
     - POSIX argument cycling behavior for format string reuse
-    - Comprehensive escape sequence support (\n,\t,\r,\b,\f,\a,\v,\e,\E,\\,\xhh,\uhhhh,\Uhhhhhhhh,\nnn)
+    - Comprehensive escape sequence support (\\n,\\t,\\r,\\b,\\f,\\a,\\v,\\e,\\E,\\\\,\\xhh,\\uhhhh,\\Uhhhhhhhh,\\nnn)
     - Only 1 edge case failure (backslash literal handling) marked as expected failure
   - Implemented pushd/popd/dirs directory stack builtins (100% success rate: 27/27 tests passing)
     - Complete bash-compatible directory stack operations with rotation and indexing
@@ -40,8 +40,8 @@ VERSION_HISTORY = """
   - Enhanced lexer to properly handle ANSI_C_QUOTED tokens in all assignment contexts
   - Fixed string concatenation: echo $'hello' $'world' now correctly outputs "hello world"
   - Added comprehensive ANSI-C quoting support with proper tokenization and escape processing
-  - All escape sequences working: \n, \t, \x41, \0101, \u0041, \U00000041, etc.
-  - Variable assignments now work: var=$'line1\nline2' correctly stores multi-line content
+  - All escape sequences working: \\n, \\t, \\x41, \\0101, \\u0041, \\U00000041, etc.
+  - Variable assignments now work: var=$'line1\\nline2' correctly stores multi-line content
   - No variable/command expansion inside $'...' quotes (correct POSIX behavior)
   - Complete ANSI-C quoting functionality with 100% bash compatibility
   - Fixed lexer constants and enhanced modular lexer package integration
@@ -180,7 +180,7 @@ VERSION_HISTORY = """
 
 0.69.4 (2025-07-07) - ModularLexer Fixes and Improvements
   - Fixed critical escape sequence bugs in literal.py and modular_lexer.py
-  - Changed '\\n', '\\t', etc. to proper escape characters '\n', '\t' 
+  - Changed '\\\\n', '\\\\t', etc. to proper escape characters '\\n', '\\t' 
   - Fixed newline tokenization - ModularLexer now correctly emits NEWLINE tokens
   - Added SyntaxError for unclosed quotes matching old lexer behavior
   - Fixed escape sequence handling in word tokenization (backslash + space)
@@ -264,8 +264,8 @@ VERSION_HISTORY = """
   - Changed os.execvp() to os.execvpe() to properly pass environment in subshells
   - Resolved "command not found" errors in complex nested substitutions like $(cat < <(echo "test"))
   - Fixed prompt escape sequence processing to preserve backslash sequences
-  - Corrected handling of \\$ and \\t in double quotes for PS1/PS2 compatibility
-  - Enhanced escape sequence detection to properly handle \\$1, \\$2, etc. in function definitions
+  - Corrected handling of \\\\$ and \\\\t in double quotes for PS1/PS2 compatibility
+  - Enhanced escape sequence detection to properly handle \\\\$1, \\\\$2, etc. in function definitions
   - Fixed eval builtin test failure related to escaped positional parameters
   - Improved bash compatibility for prompt string handling while maintaining educational clarity
   - Added process substitution support in child process redirections
@@ -394,10 +394,10 @@ VERSION_HISTORY = """
 
 0.63.1 (2025-06-28) - POSIX Compliance Phase 4: Array Escape Sequence Fix
   - Fixed critical array escape sequence handling for bash compatibility
-  - Corrected lexer to preserve literal \\t and \\n in double-quoted strings within array assignments
-  - Modified DOUBLE_QUOTE_ESCAPES constant to only process: \\", \\\\, \\$, \\`, and \\newline
-  - Removed incorrect processing of \\n, \\t, \\r escape sequences in double quotes (bash preserves these literally)
-  - Array assignments like arr=("tab\\there" "newline\\nhere") now preserve literal escape sequences
+  - Corrected lexer to preserve literal \\\\t and \\\\n in double-quoted strings within array assignments
+  - Modified DOUBLE_QUOTE_ESCAPES constant to only process: \\\", \\\\\\\\, \\\\$, \\\\`, and \\\\newline
+  - Removed incorrect processing of \\\\n, \\\\t, \\\\r escape sequences in double quotes (bash preserves these literally)
+  - Array assignments like arr=("tab\\\\there" "newline\\\\nhere") now preserve literal escape sequences
   - POSIX compliance improved from 21 to 22 passed conformance tests (32 remaining failures)
   - Fixed lexer/constants.py to match POSIX standard for double-quote escape processing
   - No regression in existing functionality - only corrects behavior to match bash exactly
@@ -553,11 +553,11 @@ VERSION_HISTORY = """
 
 0.59.12 (2025-06-27) - Printf Builtin Implementation and Array Expansion Fix: Complete Array Sorting Support
   - Implemented printf builtin with comprehensive format string support (%s, %d, %c, %%)
-  - Added support for common format patterns including %s\\n for array element output
+  - Added support for common format patterns including %s\\\\n for array element output
   - Fixed critical array expansion bug in double quotes: "${arr[@]}" now correctly expands to multiple arguments
   - Enhanced ExpansionManager to handle array expansions in STRING context with quote_type="
-  - Array sorting functionality now fully operational: printf "%s\\n" "${arr[@]}" | sort works correctly
-  - Printf supports escape sequences (\\n, \\t, \\r, \\\\) and proper multi-argument handling
+  - Array sorting functionality now fully operational: printf "%s\\\\n" "${arr[@]}" | sort works correctly
+  - Printf supports escape sequences (\\\\n, \\\\t, \\\\r, \\\\\\\\) and proper multi-argument handling
   - Array operations test significantly improved: sorting, reversal, deduplication all working
   - Resolves major conformance gap where array sorting was returning unsorted results
   - Printf builtin enables external command integration for array manipulation operations
