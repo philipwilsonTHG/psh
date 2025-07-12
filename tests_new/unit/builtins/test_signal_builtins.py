@@ -39,16 +39,46 @@ def test_trap_set_signal_handler(shell):
     assert result == 0
 
 
-@pytest.mark.skip(reason="Signal execution test sends SIGTERM to test process - unsafe")
-def test_trap_signal_execution(shell, capsys):
-    """Test that trap handler executes when signal is received."""
-    # Set trap handler
-    # shell.run_command('trap "echo caught signal" SIGTERM')
+def test_trap_signal_execution():
+    """Test that trap handler executes when signal is received using subprocess."""
+    import subprocess
+    import sys
     
-    # This test sends SIGTERM to the test runner process itself, which kills it
-    # Cannot safely test actual signal delivery in this context
-    # result = shell.run_command('kill -TERM $$')
-    pass
+    # Test trap handling in isolated process
+    script = '''
+trap "echo 'caught TERM signal'" TERM
+echo "PID: $$"
+kill -TERM $$
+echo "after signal"
+'''
+    
+    result = subprocess.run(
+        [sys.executable, '-m', 'psh', '-c', script],
+        capture_output=True,
+        text=True
+    )
+    
+    # Check that trap was executed
+    assert "caught TERM signal" in result.stdout
+    # Process should continue after trap
+    assert "after signal" in result.stdout
+    
+    # Test with INT signal
+    script2 = '''
+trap "echo 'caught INT signal'; exit 0" INT
+kill -INT $$
+echo "should not see this"
+'''
+    
+    result2 = subprocess.run(
+        [sys.executable, '-m', 'psh', '-c', script2],
+        capture_output=True,
+        text=True
+    )
+    
+    assert "caught INT signal" in result2.stdout
+    assert "should not see this" not in result2.stdout
+    assert result2.returncode == 0
 
 
 def test_trap_exit_handler(shell):

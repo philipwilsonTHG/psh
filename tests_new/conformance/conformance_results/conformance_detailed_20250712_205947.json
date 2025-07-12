@@ -1,0 +1,4600 @@
+{
+  "summary": {
+    "total_tests": 238,
+    "execution_time": 17.5677969455719,
+    "timestamp": "2025-07-12T20:59:47.195878",
+    "by_conformance": {
+      "identical": 208,
+      "documented_difference": 1,
+      "psh_extension": 2,
+      "psh_bug": 7,
+      "bash_specific": 0,
+      "test_error": 20
+    },
+    "by_category": {
+      "POSIX": {
+        "total": 129,
+        "identical": 125,
+        "documented_differences": 0,
+        "psh_extensions": 0,
+        "bash_specific": 0,
+        "psh_bugs": 2,
+        "test_errors": 2
+      },
+      "Bash": {
+        "total": 109,
+        "identical": 83,
+        "documented_differences": 1,
+        "psh_extensions": 2,
+        "bash_specific": 0,
+        "psh_bugs": 5,
+        "test_errors": 18
+      }
+    },
+    "posix_compliance": {
+      "total_tests": 129,
+      "compliant_tests": 125,
+      "compliance_percentage": 96.89922480620154
+    },
+    "bash_compatibility": {
+      "total_tests": 109,
+      "compatible_tests": 84,
+      "compatibility_percentage": 77.06422018348624
+    },
+    "areas_of_concern": [
+      {
+        "type": "potential_bugs",
+        "count": 7,
+        "commands": [
+          "echo \\$(echo test)",
+          "echo $$",
+          "sleep 1 & jobs",
+          "history",
+          "alias ll=\"ls -l\"; type ll",
+          "export VAR=value; env | grep VAR",
+          "pushd /tmp"
+        ]
+      },
+      {
+        "type": "test_errors",
+        "count": 20,
+        "commands": [
+          "unset x; echo ${x:?undefined}",
+          "x=; echo ${x:?empty}",
+          "TestBashConditionals.test_arithmetic_conditionals",
+          "TestBashConditionals.test_double_bracket_conditionals",
+          "TestBashArrays.test_array_operations",
+          "TestBashArrays.test_associative_arrays",
+          "TestBashArrays.test_indexed_arrays",
+          "TestBashParameterExpansion.test_case_modification",
+          "TestBashCommandSubstitution.test_process_substitution",
+          "shopt -s extglob; echo ?(pattern)"
+        ]
+      }
+    ]
+  },
+  "detailed_results": [
+    {
+      "command": "x=hello; echo ${x:+alternative}",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "alternative\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06187915802001953
+      },
+      "bash_result": {
+        "stdout": "alternative\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0040721893310546875
+      }
+    },
+    {
+      "command": "x=; echo ${x:+alternative}",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06139707565307617
+      },
+      "bash_result": {
+        "stdout": "\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0038399696350097656
+      }
+    },
+    {
+      "command": "unset x; echo ${x:+alternative}",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0611879825592041
+      },
+      "bash_result": {
+        "stdout": "\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0037789344787597656
+      }
+    },
+    {
+      "command": "unset x; echo ${x:=default}; echo $x",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "default\ndefault\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06250619888305664
+      },
+      "bash_result": {
+        "stdout": "default\ndefault\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0038878917694091797
+      }
+    },
+    {
+      "command": "x=; echo ${x:=default}; echo $x",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "default\ndefault\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06211495399475098
+      },
+      "bash_result": {
+        "stdout": "default\ndefault\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.00406193733215332
+      }
+    },
+    {
+      "command": "x=hello; echo ${x}",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0608830451965332
+      },
+      "bash_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003749847412109375
+      }
+    },
+    {
+      "command": "x=\"hello world\"; echo ${x}",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06108999252319336
+      },
+      "bash_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0037751197814941406
+      }
+    },
+    {
+      "command": "x=; echo ${x}",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06185173988342285
+      },
+      "bash_result": {
+        "stdout": "\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004163026809692383
+      }
+    },
+    {
+      "command": "x=hello; echo ${x:-default}",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.061837196350097656
+      },
+      "bash_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003885030746459961
+      }
+    },
+    {
+      "command": "x=; echo ${x:-default}",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "default\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.061312198638916016
+      },
+      "bash_result": {
+        "stdout": "default\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0035440921783447266
+      }
+    },
+    {
+      "command": "unset x; echo ${x:-default}",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "default\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06193900108337402
+      },
+      "bash_result": {
+        "stdout": "default\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003680706024169922
+      }
+    },
+    {
+      "command": "unset x; echo ${x:?undefined}",
+      "category": "POSIX",
+      "conformance": "test_error",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "",
+        "stderr": "psh: x: undefined\n",
+        "exit_code": 1,
+        "execution_time": 0.06139111518859863
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "bash: line 1: x: undefined\n",
+        "exit_code": 127,
+        "execution_time": 0.0036427974700927734
+      }
+    },
+    {
+      "command": "x=; echo ${x:?empty}",
+      "category": "POSIX",
+      "conformance": "test_error",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "",
+        "stderr": "psh: x: empty\n",
+        "exit_code": 1,
+        "execution_time": 0.06074690818786621
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "bash: line 1: x: empty\n",
+        "exit_code": 127,
+        "execution_time": 0.0037848949432373047
+      }
+    },
+    {
+      "command": "x=hello.txt; echo ${x#*.}",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "txt\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.061164140701293945
+      },
+      "bash_result": {
+        "stdout": "txt\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003583192825317383
+      }
+    },
+    {
+      "command": "x=hello.world.txt; echo ${x#*.}",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "world.txt\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0614161491394043
+      },
+      "bash_result": {
+        "stdout": "world.txt\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003907680511474609
+      }
+    },
+    {
+      "command": "x=hello.world.txt; echo ${x##*.}",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "txt\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06217312812805176
+      },
+      "bash_result": {
+        "stdout": "txt\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003715991973876953
+      }
+    },
+    {
+      "command": "x=hello; echo ${#x}",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "5\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0609591007232666
+      },
+      "bash_result": {
+        "stdout": "5\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0039560794830322266
+      }
+    },
+    {
+      "command": "x=\"hello world\"; echo ${#x}",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "11\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06151771545410156
+      },
+      "bash_result": {
+        "stdout": "11\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003608226776123047
+      }
+    },
+    {
+      "command": "x=; echo ${#x}",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "0\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.061669111251831055
+      },
+      "bash_result": {
+        "stdout": "0\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003940105438232422
+      }
+    },
+    {
+      "command": "x=hello.txt; echo ${x%.txt}",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.061949968338012695
+      },
+      "bash_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003831148147583008
+      }
+    },
+    {
+      "command": "x=hello.world.txt; echo ${x%.*}",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello.world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.062111854553222656
+      },
+      "bash_result": {
+        "stdout": "hello.world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003589153289794922
+      }
+    },
+    {
+      "command": "x=hello.world.txt; echo ${x%%.*}",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.061061859130859375
+      },
+      "bash_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0036530494689941406
+      }
+    },
+    {
+      "command": "echo `echo hello`",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06458234786987305
+      },
+      "bash_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003896951675415039
+      }
+    },
+    {
+      "command": "echo `echo \"hello world\"`",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06533312797546387
+      },
+      "bash_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004282236099243164
+      }
+    },
+    {
+      "command": "echo `true`",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06455683708190918
+      },
+      "bash_result": {
+        "stdout": "\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003949165344238281
+      }
+    },
+    {
+      "command": "x=$(false); echo $?",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06513714790344238
+      },
+      "bash_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004138946533203125
+      }
+    },
+    {
+      "command": "x=$(true); echo $?",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "0\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06527400016784668
+      },
+      "bash_result": {
+        "stdout": "0\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004217863082885742
+      }
+    },
+    {
+      "command": "x=hello; echo $(echo $x)",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0654149055480957
+      },
+      "bash_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004168987274169922
+      }
+    },
+    {
+      "command": "x=world; echo $(echo \"hello $x\")",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06675410270690918
+      },
+      "bash_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0045506954193115234
+      }
+    },
+    {
+      "command": "echo $(echo hello)",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06608200073242188
+      },
+      "bash_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0044269561767578125
+      }
+    },
+    {
+      "command": "echo $(echo \"hello world\")",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06548309326171875
+      },
+      "bash_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004194974899291992
+      }
+    },
+    {
+      "command": "echo $(true)",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06441998481750488
+      },
+      "bash_result": {
+        "stdout": "\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004058837890625
+      }
+    },
+    {
+      "command": "echo $(false)",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0655519962310791
+      },
+      "bash_result": {
+        "stdout": "\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004343986511230469
+      }
+    },
+    {
+      "command": "echo $(echo $(echo nested))",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "nested\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06771183013916016
+      },
+      "bash_result": {
+        "stdout": "nested\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0046770572662353516
+      }
+    },
+    {
+      "command": "echo $(echo `echo mixed`)",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "mixed\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06956100463867188
+      },
+      "bash_result": {
+        "stdout": "mixed\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.00486302375793457
+      }
+    },
+    {
+      "command": "echo $((5 > 3))",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.07175683975219727
+      },
+      "bash_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004209995269775391
+      }
+    },
+    {
+      "command": "echo $((3 > 5))",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "0\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0633852481842041
+      },
+      "bash_result": {
+        "stdout": "0\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0038521289825439453
+      }
+    },
+    {
+      "command": "echo $((5 >= 5))",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.061910152435302734
+      },
+      "bash_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004006862640380859
+      }
+    },
+    {
+      "command": "echo $((5 <= 5))",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.062287092208862305
+      },
+      "bash_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004024982452392578
+      }
+    },
+    {
+      "command": "echo $((5 == 5))",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06226301193237305
+      },
+      "bash_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.00384521484375
+      }
+    },
+    {
+      "command": "echo $((5 != 3))",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06164693832397461
+      },
+      "bash_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0037069320678710938
+      }
+    },
+    {
+      "command": "echo $((1 && 1))",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06126594543457031
+      },
+      "bash_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003656148910522461
+      }
+    },
+    {
+      "command": "echo $((1 && 0))",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "0\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06147599220275879
+      },
+      "bash_result": {
+        "stdout": "0\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003854990005493164
+      }
+    },
+    {
+      "command": "echo $((0 || 1))",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0625
+      },
+      "bash_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003960132598876953
+      }
+    },
+    {
+      "command": "echo $((0 || 0))",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "0\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06197094917297363
+      },
+      "bash_result": {
+        "stdout": "0\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0037457942962646484
+      }
+    },
+    {
+      "command": "echo $((2 + 3 * 4))",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "14\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06168985366821289
+      },
+      "bash_result": {
+        "stdout": "14\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0035920143127441406
+      }
+    },
+    {
+      "command": "echo $((2 * 3 + 4))",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "10\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06201505661010742
+      },
+      "bash_result": {
+        "stdout": "10\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0037729740142822266
+      }
+    },
+    {
+      "command": "echo $(((2 + 3) * 4))",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "20\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06099891662597656
+      },
+      "bash_result": {
+        "stdout": "20\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.00339508056640625
+      }
+    },
+    {
+      "command": "echo $((2 * (3 + 4)))",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "14\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06178593635559082
+      },
+      "bash_result": {
+        "stdout": "14\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003732919692993164
+      }
+    },
+    {
+      "command": "x=5; echo $((x + 3))",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "8\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.061212778091430664
+      },
+      "bash_result": {
+        "stdout": "8\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0040400028228759766
+      }
+    },
+    {
+      "command": "x=10; y=3; echo $((x * y))",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "30\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06212019920349121
+      },
+      "bash_result": {
+        "stdout": "30\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0036742687225341797
+      }
+    },
+    {
+      "command": "x=0; echo $((x || 1))",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06193113327026367
+      },
+      "bash_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0038650035858154297
+      }
+    },
+    {
+      "command": "echo $((2 + 3))",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "5\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06190824508666992
+      },
+      "bash_result": {
+        "stdout": "5\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003696918487548828
+      }
+    },
+    {
+      "command": "echo $((10 - 4))",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "6\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06124114990234375
+      },
+      "bash_result": {
+        "stdout": "6\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0038318634033203125
+      }
+    },
+    {
+      "command": "echo $((3 * 4))",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "12\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0634150505065918
+      },
+      "bash_result": {
+        "stdout": "12\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0047149658203125
+      }
+    },
+    {
+      "command": "echo $((15 / 3))",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "5\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06436610221862793
+      },
+      "bash_result": {
+        "stdout": "5\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0037620067596435547
+      }
+    },
+    {
+      "command": "echo $((17 % 5))",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "2\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06181788444519043
+      },
+      "bash_result": {
+        "stdout": "2\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0038940906524658203
+      }
+    },
+    {
+      "command": "echo ~",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "/Users/pwilson\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0625607967376709
+      },
+      "bash_result": {
+        "stdout": "/Users/pwilson\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004043102264404297
+      }
+    },
+    {
+      "command": "echo ~root",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "/var/root\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06454825401306152
+      },
+      "bash_result": {
+        "stdout": "/var/root\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004834651947021484
+      }
+    },
+    {
+      "command": "echo ~/test",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "/Users/pwilson/test\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0619351863861084
+      },
+      "bash_result": {
+        "stdout": "/Users/pwilson/test\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0037260055541992188
+      }
+    },
+    {
+      "command": "touch a.txt b.txt; echo *.txt",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "a.txt b.txt\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06542515754699707
+      },
+      "bash_result": {
+        "stdout": "a.txt b.txt\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.005763053894042969
+      }
+    },
+    {
+      "command": "touch a1 a2 b1 b2; echo [ab]*",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "a1 a2 b1 b2\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06640815734863281
+      },
+      "bash_result": {
+        "stdout": "a1 a2 b1 b2\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.005677938461303711
+      }
+    },
+    {
+      "command": "echo *.nonexistent",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "*.nonexistent\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06260895729064941
+      },
+      "bash_result": {
+        "stdout": "*.nonexistent\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003981113433837891
+      }
+    },
+    {
+      "command": "touch a b c; echo ?",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "a b c\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06516361236572266
+      },
+      "bash_result": {
+        "stdout": "a b c\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.005545854568481445
+      }
+    },
+    {
+      "command": "echo hello\\ world",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06387090682983398
+      },
+      "bash_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004087924957275391
+      }
+    },
+    {
+      "command": "echo \\$USER",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "$USER\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06328892707824707
+      },
+      "bash_result": {
+        "stdout": "$USER\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0038890838623046875
+      }
+    },
+    {
+      "command": "echo \\$(echo test)",
+      "category": "POSIX",
+      "conformance": "psh_bug",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "$\ntest\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06534981727600098
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "bash: -c: line 1: syntax error near unexpected token `('\nbash: -c: line 1: `echo \\$(echo test)'\n",
+        "exit_code": 2,
+        "execution_time": 0.0041179656982421875
+      }
+    },
+    {
+      "command": "echo \"hello world\"",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06226611137390137
+      },
+      "bash_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003914833068847656
+      }
+    },
+    {
+      "command": "echo \"hello $USER\"",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello pwilson\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06182599067687988
+      },
+      "bash_result": {
+        "stdout": "hello pwilson\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0036859512329101562
+      }
+    },
+    {
+      "command": "echo \"hello $(echo world)\"",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0650019645690918
+      },
+      "bash_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004190921783447266
+      }
+    },
+    {
+      "command": "echo \"hello\" world",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0618288516998291
+      },
+      "bash_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0037140846252441406
+      }
+    },
+    {
+      "command": "echo 'hello' world",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.061514854431152344
+      },
+      "bash_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003965854644775391
+      }
+    },
+    {
+      "command": "echo \"hello 'world'\"",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello 'world'\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06203317642211914
+      },
+      "bash_result": {
+        "stdout": "hello 'world'\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0038139820098876953
+      }
+    },
+    {
+      "command": "echo 'hello world'",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06283807754516602
+      },
+      "bash_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.00411534309387207
+      }
+    },
+    {
+      "command": "echo 'hello $USER'",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello $USER\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06198310852050781
+      },
+      "bash_result": {
+        "stdout": "hello $USER\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0037238597869873047
+      }
+    },
+    {
+      "command": "echo 'hello $(echo world)'",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello $(echo world)\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.061879873275756836
+      },
+      "bash_result": {
+        "stdout": "hello $(echo world)\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003922939300537109
+      }
+    },
+    {
+      "command": "echo hello",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.061614036560058594
+      },
+      "bash_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003876209259033203
+      }
+    },
+    {
+      "command": "true",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06178784370422363
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0036520957946777344
+      }
+    },
+    {
+      "command": "false",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 1,
+        "execution_time": 0.06122398376464844
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 1,
+        "execution_time": 0.0038199424743652344
+      }
+    },
+    {
+      "command": "echo hello world",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0635530948638916
+      },
+      "bash_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0038139820098876953
+      }
+    },
+    {
+      "command": "echo -n hello",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06327319145202637
+      },
+      "bash_result": {
+        "stdout": "hello",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0038030147552490234
+      }
+    },
+    {
+      "command": "printf \"%s\\n\" hello",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06209397315979004
+      },
+      "bash_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0035660266876220703
+      }
+    },
+    {
+      "command": "echo hello > /dev/null",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0621340274810791
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003801107406616211
+      }
+    },
+    {
+      "command": "echo hello 2> /dev/null",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06175088882446289
+      },
+      "bash_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0038919448852539062
+      }
+    },
+    {
+      "command": "cat < /dev/null",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06651592254638672
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.005416154861450195
+      }
+    },
+    {
+      "command": "VAR=value echo $VAR",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06154584884643555
+      },
+      "bash_result": {
+        "stdout": "\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003968954086303711
+      }
+    },
+    {
+      "command": "A=1 B=2 echo $A$B",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.062001943588256836
+      },
+      "bash_result": {
+        "stdout": "\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0036559104919433594
+      }
+    },
+    {
+      "command": "echo hello | cat | cat",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06734609603881836
+      },
+      "bash_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.005618095397949219
+      }
+    },
+    {
+      "command": "echo -e \"a\\nb\\nc\" | sort | uniq",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "a\nb\nc\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06765508651733398
+      },
+      "bash_result": {
+        "stdout": "a\nb\nc\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.005669832229614258
+      }
+    },
+    {
+      "command": "true | false; echo $?",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06438875198364258
+      },
+      "bash_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004405021667480469
+      }
+    },
+    {
+      "command": "false | true; echo $?",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "0\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06393694877624512
+      },
+      "bash_result": {
+        "stdout": "0\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0044710636138916016
+      }
+    },
+    {
+      "command": "echo hello | cat",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06620478630065918
+      },
+      "bash_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.005293130874633789
+      }
+    },
+    {
+      "command": "echo hello | wc -c",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "       6\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06576943397521973
+      },
+      "bash_result": {
+        "stdout": "       6\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0055751800537109375
+      }
+    },
+    {
+      "command": "true && echo success",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "success\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0617830753326416
+      },
+      "bash_result": {
+        "stdout": "success\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.00397491455078125
+      }
+    },
+    {
+      "command": "false && echo never",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 1,
+        "execution_time": 0.0638277530670166
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 1,
+        "execution_time": 0.0040209293365478516
+      }
+    },
+    {
+      "command": "true && false; echo $?",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06285285949707031
+      },
+      "bash_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0039179325103759766
+      }
+    },
+    {
+      "command": "false && true; echo $?",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06317710876464844
+      },
+      "bash_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004038810729980469
+      }
+    },
+    {
+      "command": "false || echo success",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "success\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06177997589111328
+      },
+      "bash_result": {
+        "stdout": "success\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003929853439331055
+      }
+    },
+    {
+      "command": "true || echo never",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06197810173034668
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003606081008911133
+      }
+    },
+    {
+      "command": "false || true; echo $?",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "0\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.061370134353637695
+      },
+      "bash_result": {
+        "stdout": "0\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003641843795776367
+      }
+    },
+    {
+      "command": "true || false; echo $?",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "0\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06214189529418945
+      },
+      "bash_result": {
+        "stdout": "0\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003668069839477539
+      }
+    },
+    {
+      "command": "echo first; echo second",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "first\nsecond\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06244921684265137
+      },
+      "bash_result": {
+        "stdout": "first\nsecond\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004043102264404297
+      }
+    },
+    {
+      "command": "true; false; echo done",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "done\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0633249282836914
+      },
+      "bash_result": {
+        "stdout": "done\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0039370059967041016
+      }
+    },
+    {
+      "command": "true; false; echo $?",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06310105323791504
+      },
+      "bash_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003777027130126953
+      }
+    },
+    {
+      "command": "case hello in hello) echo match;; esac",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "match\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06213808059692383
+      },
+      "bash_result": {
+        "stdout": "match\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003809690475463867
+      }
+    },
+    {
+      "command": "case test in hello) echo no;; *) echo yes;; esac",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "yes\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06297111511230469
+      },
+      "bash_result": {
+        "stdout": "yes\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004258155822753906
+      }
+    },
+    {
+      "command": "case abc in a*) echo starts_with_a;; esac",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "starts_with_a\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0628819465637207
+      },
+      "bash_result": {
+        "stdout": "starts_with_a\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0038907527923583984
+      }
+    },
+    {
+      "command": "for i in 1 2 3; do echo $i; done",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "1\n2\n3\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.061907291412353516
+      },
+      "bash_result": {
+        "stdout": "1\n2\n3\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0036699771881103516
+      }
+    },
+    {
+      "command": "for word in hello world; do echo $word; done",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello\nworld\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06239199638366699
+      },
+      "bash_result": {
+        "stdout": "hello\nworld\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004016876220703125
+      }
+    },
+    {
+      "command": "if true; then echo yes; fi",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "yes\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06259799003601074
+      },
+      "bash_result": {
+        "stdout": "yes\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0036458969116210938
+      }
+    },
+    {
+      "command": "if false; then echo no; fi",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06194925308227539
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0037529468536376953
+      }
+    },
+    {
+      "command": "if true; then echo yes; else echo no; fi",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "yes\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.062049150466918945
+      },
+      "bash_result": {
+        "stdout": "yes\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003615856170654297
+      }
+    },
+    {
+      "command": "if false; then echo no; else echo yes; fi",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "yes\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.062425851821899414
+      },
+      "bash_result": {
+        "stdout": "yes\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0036089420318603516
+      }
+    },
+    {
+      "command": "i=0; while [ $i -lt 3 ]; do echo $i; i=$((i+1)); done",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "0\n1\n2\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06343603134155273
+      },
+      "bash_result": {
+        "stdout": "0\n1\n2\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0037660598754882812
+      }
+    },
+    {
+      "command": "while false; do echo never; done",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06290268898010254
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004058122634887695
+      }
+    },
+    {
+      "command": "f() { echo function; }; f",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "function\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06320476531982422
+      },
+      "bash_result": {
+        "stdout": "function\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0037641525268554688
+      }
+    },
+    {
+      "command": "greet() { echo hello $1; }; greet world",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06290102005004883
+      },
+      "bash_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0036449432373046875
+      }
+    },
+    {
+      "command": "show() { echo $# $1 $2; }; show a b c",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "3 a b\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0652768611907959
+      },
+      "bash_result": {
+        "stdout": "3 a b\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004172086715698242
+      }
+    },
+    {
+      "command": "show_all() { echo \"$@\"; }; show_all one two three",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "one two three\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06346678733825684
+      },
+      "bash_result": {
+        "stdout": "one two three\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003988027572631836
+      }
+    },
+    {
+      "command": "success() { return 0; }; success; echo $?",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "0\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06212496757507324
+      },
+      "bash_result": {
+        "stdout": "0\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003907918930053711
+      }
+    },
+    {
+      "command": "failure() { return 1; }; failure; echo $?",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06231403350830078
+      },
+      "bash_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0035898685455322266
+      }
+    },
+    {
+      "command": "x=global; f() { x=local; }; f; echo $x",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "local\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06231188774108887
+      },
+      "bash_result": {
+        "stdout": "local\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0040280818939208984
+      }
+    },
+    {
+      "command": "set a b c; echo $1; shift; echo $1",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "a\nb\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06271886825561523
+      },
+      "bash_result": {
+        "stdout": "a\nb\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003705739974975586
+      }
+    },
+    {
+      "command": "x=value; echo $x; unset x; echo $x",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "value\n\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06383919715881348
+      },
+      "bash_result": {
+        "stdout": "value\n\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004138946533203125
+      }
+    },
+    {
+      "command": "echo $#",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "0\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06398797035217285
+      },
+      "bash_result": {
+        "stdout": "0\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0037980079650878906
+      }
+    },
+    {
+      "command": "set a b c; echo $# $1 $2 $3",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "3 a b c\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06358003616333008
+      },
+      "bash_result": {
+        "stdout": "3 a b c\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0038390159606933594
+      }
+    },
+    {
+      "command": "echo $$",
+      "category": "POSIX",
+      "conformance": "psh_bug",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.062032222747802734
+      },
+      "bash_result": {
+        "stdout": "96332\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0039370059967041016
+      }
+    },
+    {
+      "command": "true; echo $?",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "0\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06177806854248047
+      },
+      "bash_result": {
+        "stdout": "0\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0035529136657714844
+      }
+    },
+    {
+      "command": "false; echo $?",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06197309494018555
+      },
+      "bash_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004055023193359375
+      }
+    },
+    {
+      "command": "echo hello",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06174206733703613
+      },
+      "bash_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0037310123443603516
+      }
+    },
+    {
+      "command": "echo -n hello",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0626988410949707
+      },
+      "bash_result": {
+        "stdout": "hello",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003984928131103516
+      }
+    },
+    {
+      "command": "echo -e \"hello\\nworld\"",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello\nworld\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.061373233795166016
+      },
+      "bash_result": {
+        "stdout": "hello\nworld\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0039081573486328125
+      }
+    },
+    {
+      "command": "printf \"hello\\n\"",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06355786323547363
+      },
+      "bash_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0040225982666015625
+      }
+    },
+    {
+      "command": "printf \"%s %s\\n\" hello world",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06244492530822754
+      },
+      "bash_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0036821365356445312
+      }
+    },
+    {
+      "command": "printf \"%d\\n\" 42",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "42\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06241798400878906
+      },
+      "bash_result": {
+        "stdout": "42\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0037031173706054688
+      }
+    },
+    {
+      "command": "echo \"test\" | read var; echo $var",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06581711769104004
+      },
+      "bash_result": {
+        "stdout": "\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004505157470703125
+      }
+    },
+    {
+      "command": "test \"hello\" = \"hello\"",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06258320808410645
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0038619041442871094
+      }
+    },
+    {
+      "command": "[ \"hello\" = \"hello\" ]",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.062402963638305664
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004086732864379883
+      }
+    },
+    {
+      "command": "test 5 -gt 3",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06226491928100586
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003988027572631836
+      }
+    },
+    {
+      "command": "[ 5 -gt 3 ]",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06298398971557617
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0041730403900146484
+      }
+    },
+    {
+      "command": "test -f /dev/null",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 1,
+        "execution_time": 0.06299877166748047
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 1,
+        "execution_time": 0.004012107849121094
+      }
+    },
+    {
+      "command": "test -d /tmp",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06188392639160156
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003812074661254883
+      }
+    },
+    {
+      "command": "true",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0626220703125
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003730297088623047
+      }
+    },
+    {
+      "command": "false",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 1,
+        "execution_time": 0.06223893165588379
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 1,
+        "execution_time": 0.0038139820098876953
+      }
+    },
+    {
+      "command": "true; echo $?",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "0\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06125497817993164
+      },
+      "bash_result": {
+        "stdout": "0\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0038237571716308594
+      }
+    },
+    {
+      "command": "false; echo $?",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06199502944946289
+      },
+      "bash_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0038139820098876953
+      }
+    },
+    {
+      "command": "(( 5 > 3 ))",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06265664100646973
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0041849613189697266
+      }
+    },
+    {
+      "command": "TestBashConditionals.test_arithmetic_conditionals",
+      "category": "Bash",
+      "conformance": "test_error",
+      "difference_id": null,
+      "notes": "Test execution error: Expected bash-specific behavior for: (( 5 > 3 ))\nActual conformance: ConformanceResult.IDENTICAL",
+      "psh_result": {
+        "stdout": "",
+        "stderr": "Expected bash-specific behavior for: (( 5 > 3 ))\nActual conformance: ConformanceResult.IDENTICAL",
+        "exit_code": 1,
+        "execution_time": 0.0
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0
+      }
+    },
+    {
+      "command": "[[ \"hello\" == \"hello\" ]]",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06263303756713867
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004108905792236328
+      }
+    },
+    {
+      "command": "TestBashConditionals.test_double_bracket_conditionals",
+      "category": "Bash",
+      "conformance": "test_error",
+      "difference_id": null,
+      "notes": "Test execution error: Expected bash-specific behavior for: [[ \"hello\" == \"hello\" ]]\nActual conformance: ConformanceResult.IDENTICAL",
+      "psh_result": {
+        "stdout": "",
+        "stderr": "Expected bash-specific behavior for: [[ \"hello\" == \"hello\" ]]\nActual conformance: ConformanceResult.IDENTICAL",
+        "exit_code": 1,
+        "execution_time": 0.0
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0
+      }
+    },
+    {
+      "command": "if [ \"hello\" = \"hello\" ]; then echo yes; fi",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "yes\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06592202186584473
+      },
+      "bash_result": {
+        "stdout": "yes\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004450798034667969
+      }
+    },
+    {
+      "command": "if [ 5 -gt 3 ]; then echo yes; fi",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "yes\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06471490859985352
+      },
+      "bash_result": {
+        "stdout": "yes\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0040988922119140625
+      }
+    },
+    {
+      "command": "if [ -f /dev/null ]; then echo yes; fi",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.062489986419677734
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003885030746459961
+      }
+    },
+    {
+      "command": "arr=(a b c); echo ${arr[@]}",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "a b c\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0625460147857666
+      },
+      "bash_result": {
+        "stdout": "a b c\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003880023956298828
+      }
+    },
+    {
+      "command": "TestBashArrays.test_array_operations",
+      "category": "Bash",
+      "conformance": "test_error",
+      "difference_id": null,
+      "notes": "Test execution error: Expected bash-specific behavior for: arr=(a b c); echo ${arr[@]}\nActual conformance: ConformanceResult.IDENTICAL",
+      "psh_result": {
+        "stdout": "",
+        "stderr": "Expected bash-specific behavior for: arr=(a b c); echo ${arr[@]}\nActual conformance: ConformanceResult.IDENTICAL",
+        "exit_code": 1,
+        "execution_time": 0.0
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0
+      }
+    },
+    {
+      "command": "declare -A arr; arr[key]=value; echo ${arr[key]}",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "value\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06312799453735352
+      },
+      "bash_result": {
+        "stdout": "value\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004000186920166016
+      }
+    },
+    {
+      "command": "TestBashArrays.test_associative_arrays",
+      "category": "Bash",
+      "conformance": "test_error",
+      "difference_id": null,
+      "notes": "Test execution error: Expected bash-specific behavior for: declare -A arr; arr[key]=value; echo ${arr[key]}\nActual conformance: ConformanceResult.IDENTICAL",
+      "psh_result": {
+        "stdout": "",
+        "stderr": "Expected bash-specific behavior for: declare -A arr; arr[key]=value; echo ${arr[key]}\nActual conformance: ConformanceResult.IDENTICAL",
+        "exit_code": 1,
+        "execution_time": 0.0
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0
+      }
+    },
+    {
+      "command": "arr=(a b c); echo ${arr[0]}",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "a\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06606698036193848
+      },
+      "bash_result": {
+        "stdout": "a\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004263877868652344
+      }
+    },
+    {
+      "command": "TestBashArrays.test_indexed_arrays",
+      "category": "Bash",
+      "conformance": "test_error",
+      "difference_id": null,
+      "notes": "Test execution error: Expected bash-specific behavior for: arr=(a b c); echo ${arr[0]}\nActual conformance: ConformanceResult.IDENTICAL",
+      "psh_result": {
+        "stdout": "",
+        "stderr": "Expected bash-specific behavior for: arr=(a b c); echo ${arr[0]}\nActual conformance: ConformanceResult.IDENTICAL",
+        "exit_code": 1,
+        "execution_time": 0.0
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0
+      }
+    },
+    {
+      "command": "x=hello; echo ${x}",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06458401679992676
+      },
+      "bash_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003916025161743164
+      }
+    },
+    {
+      "command": "x=hello; echo ${x:-default}",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06283998489379883
+      },
+      "bash_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003796100616455078
+      }
+    },
+    {
+      "command": "x=hello; echo ${x:+set}",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "set\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0629417896270752
+      },
+      "bash_result": {
+        "stdout": "set\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0042760372161865234
+      }
+    },
+    {
+      "command": "x=hello; echo ${x^}",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "Hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06188511848449707
+      },
+      "bash_result": {
+        "stdout": "Hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0039520263671875
+      }
+    },
+    {
+      "command": "TestBashParameterExpansion.test_case_modification",
+      "category": "Bash",
+      "conformance": "test_error",
+      "difference_id": null,
+      "notes": "Test execution error: Expected bash-specific behavior for: x=hello; echo ${x^}\nActual conformance: ConformanceResult.IDENTICAL",
+      "psh_result": {
+        "stdout": "",
+        "stderr": "Expected bash-specific behavior for: x=hello; echo ${x^}\nActual conformance: ConformanceResult.IDENTICAL",
+        "exit_code": 1,
+        "execution_time": 0.0
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0
+      }
+    },
+    {
+      "command": "x=hello; echo ${x/l/L}",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "heLlo\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06199812889099121
+      },
+      "bash_result": {
+        "stdout": "heLlo\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003917217254638672
+      }
+    },
+    {
+      "command": "x=hello; echo ${x//l/L}",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "heLLo\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0624539852142334
+      },
+      "bash_result": {
+        "stdout": "heLLo\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0036170482635498047
+      }
+    },
+    {
+      "command": "x=hello; echo ${x:1:3}",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "ell\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06254076957702637
+      },
+      "bash_result": {
+        "stdout": "ell\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004190921783447266
+      }
+    },
+    {
+      "command": "x=hello; echo ${x:2}",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "llo\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.062355995178222656
+      },
+      "bash_result": {
+        "stdout": "llo\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003973245620727539
+      }
+    },
+    {
+      "command": "echo `echo hello`",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06601500511169434
+      },
+      "bash_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0044498443603515625
+      }
+    },
+    {
+      "command": "echo `date +%Y`",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "2025\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06928420066833496
+      },
+      "bash_result": {
+        "stdout": "2025\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.005597114562988281
+      }
+    },
+    {
+      "command": "echo $(echo hello)",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06618404388427734
+      },
+      "bash_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004436969757080078
+      }
+    },
+    {
+      "command": "echo $(date +%Y)",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "2025\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06971430778503418
+      },
+      "bash_result": {
+        "stdout": "2025\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.005639791488647461
+      }
+    },
+    {
+      "command": "echo $(echo $(echo nested))",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "nested\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06880307197570801
+      },
+      "bash_result": {
+        "stdout": "nested\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004462718963623047
+      }
+    },
+    {
+      "command": "cat <(echo hello)",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06657886505126953
+      },
+      "bash_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.00533604621887207
+      }
+    },
+    {
+      "command": "TestBashCommandSubstitution.test_process_substitution",
+      "category": "Bash",
+      "conformance": "test_error",
+      "difference_id": null,
+      "notes": "Test execution error: Expected bash-specific behavior for: cat <(echo hello)\nActual conformance: ConformanceResult.IDENTICAL",
+      "psh_result": {
+        "stdout": "",
+        "stderr": "Expected bash-specific behavior for: cat <(echo hello)\nActual conformance: ConformanceResult.IDENTICAL",
+        "exit_code": 1,
+        "execution_time": 0.0
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0
+      }
+    },
+    {
+      "command": "echo {a,b,c}",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "a b c\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06273484230041504
+      },
+      "bash_result": {
+        "stdout": "a b c\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0037441253662109375
+      }
+    },
+    {
+      "command": "echo pre{fix1,fix2}",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "prefix1 prefix2\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06296205520629883
+      },
+      "bash_result": {
+        "stdout": "prefix1 prefix2\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0037658214569091797
+      }
+    },
+    {
+      "command": "echo {a,b,c}",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "a b c\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06218767166137695
+      },
+      "bash_result": {
+        "stdout": "a b c\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0036780834197998047
+      }
+    },
+    {
+      "command": "echo {a,b{1,2}}",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "a b1 b2\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0618138313293457
+      },
+      "bash_result": {
+        "stdout": "a b1 b2\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0037000179290771484
+      }
+    },
+    {
+      "command": "echo {1..3}",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "1 2 3\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06283712387084961
+      },
+      "bash_result": {
+        "stdout": "1 2 3\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003821134567260742
+      }
+    },
+    {
+      "command": "echo {a..c}",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "a b c\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06260824203491211
+      },
+      "bash_result": {
+        "stdout": "a b c\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004070281982421875
+      }
+    },
+    {
+      "command": "echo {1..3}",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "1 2 3\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06322264671325684
+      },
+      "bash_result": {
+        "stdout": "1 2 3\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003875255584716797
+      }
+    },
+    {
+      "command": "echo $((2 ** 3))",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "8\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06254410743713379
+      },
+      "bash_result": {
+        "stdout": "8\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003834962844848633
+      }
+    },
+    {
+      "command": "echo $((17 % 5))",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "2\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06361794471740723
+      },
+      "bash_result": {
+        "stdout": "2\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003996849060058594
+      }
+    },
+    {
+      "command": "echo $((5 & 3))",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06291890144348145
+      },
+      "bash_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003690958023071289
+      }
+    },
+    {
+      "command": "echo $((5 | 3))",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "7\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06235909461975098
+      },
+      "bash_result": {
+        "stdout": "7\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004169940948486328
+      }
+    },
+    {
+      "command": "echo $((x = 5 + 3)); echo $x",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "8\n8\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06254887580871582
+      },
+      "bash_result": {
+        "stdout": "8\n8\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003824949264526367
+      }
+    },
+    {
+      "command": "x=5; echo $((x += 3)); echo $x",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "8\n8\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06304097175598145
+      },
+      "bash_result": {
+        "stdout": "8\n8\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0037419795989990234
+      }
+    },
+    {
+      "command": "echo $((2 + 3))",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "5\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06302690505981445
+      },
+      "bash_result": {
+        "stdout": "5\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003831148147583008
+      }
+    },
+    {
+      "command": "echo $((10 - 4))",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "6\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06855082511901855
+      },
+      "bash_result": {
+        "stdout": "6\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.00500178337097168
+      }
+    },
+    {
+      "command": "echo $((3 * 4))",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "12\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.07035708427429199
+      },
+      "bash_result": {
+        "stdout": "12\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0045871734619140625
+      }
+    },
+    {
+      "command": "echo $((15 / 3))",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "5\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06455492973327637
+      },
+      "bash_result": {
+        "stdout": "5\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004197835922241211
+      }
+    },
+    {
+      "command": "touch a.txt b.txt; echo *.txt",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "a.txt b.txt\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06625103950500488
+      },
+      "bash_result": {
+        "stdout": "a.txt b.txt\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.005789041519165039
+      }
+    },
+    {
+      "command": "touch a1 a2 b1 b2; echo {a,b}*",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "a1 a2 b1 b2\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06631088256835938
+      },
+      "bash_result": {
+        "stdout": "a1 a2 b1 b2\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0057909488677978516
+      }
+    },
+    {
+      "command": "shopt -s extglob; echo ?(pattern)",
+      "category": "Bash",
+      "conformance": "test_error",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "?\n",
+        "stderr": "psh: shopt: command not found\npsh: pattern: command not found\n",
+        "exit_code": 127,
+        "execution_time": 0.06971907615661621
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "bash: -c: line 1: syntax error near unexpected token `('\nbash: -c: line 1: `shopt -s extglob; echo ?(pattern)'\n",
+        "exit_code": 2,
+        "execution_time": 0.003960132598876953
+      }
+    },
+    {
+      "command": "TestBashGlobbing.test_extended_globbing",
+      "category": "Bash",
+      "conformance": "test_error",
+      "difference_id": null,
+      "notes": "Test execution error: Expected bash-specific behavior for: shopt -s extglob; echo ?(pattern)\nActual conformance: ConformanceResult.TEST_ERROR",
+      "psh_result": {
+        "stdout": "",
+        "stderr": "Expected bash-specific behavior for: shopt -s extglob; echo ?(pattern)\nActual conformance: ConformanceResult.TEST_ERROR",
+        "exit_code": 1,
+        "execution_time": 0.0
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0
+      }
+    },
+    {
+      "command": "sleep 0.1 &",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.1638808250427246
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.11333799362182617
+      }
+    },
+    {
+      "command": "jobs",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.08655619621276855
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004353761672973633
+      }
+    },
+    {
+      "command": "sleep 1 & jobs",
+      "category": "Bash",
+      "conformance": "psh_bug",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "[1]   Running      sleep 1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 1.0667879581451416
+      },
+      "bash_result": {
+        "stdout": "[1]+  Running                 sleep 1 &\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 1.0235748291015625
+      }
+    },
+    {
+      "command": "history",
+      "category": "Bash",
+      "conformance": "psh_bug",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "  991  exxit\n  992  exit\n  993  set_title flubber\n  994  set_title testing\n  995  pytest > ~/pytest.out\n  996  tail ~/pytest.out\n  997  tail -50 ~/pytest.out\n  998  emacs ~/.pshrc\n  999  tail -60 ~/pytest.out\n 1000  exit\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.09257984161376953
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004464149475097656
+      }
+    },
+    {
+      "command": "echo hello; !!",
+      "category": "Bash",
+      "conformance": "psh_extension",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06314611434936523
+      },
+      "bash_result": {
+        "stdout": "hello\n",
+        "stderr": "bash: line 1: !!: command not found\n",
+        "exit_code": 127,
+        "execution_time": 0.003922939300537109
+      }
+    },
+    {
+      "command": "TestBashHistory.test_history_expansion",
+      "category": "Bash",
+      "conformance": "test_error",
+      "difference_id": null,
+      "notes": "Test execution error: Expected bash-specific behavior for: echo hello; !!\nActual conformance: ConformanceResult.PSH_EXTENSION",
+      "psh_result": {
+        "stdout": "",
+        "stderr": "Expected bash-specific behavior for: echo hello; !!\nActual conformance: ConformanceResult.PSH_EXTENSION",
+        "exit_code": 1,
+        "execution_time": 0.0
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0
+      }
+    },
+    {
+      "command": "set -e; true",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06214714050292969
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.00397491455078125
+      }
+    },
+    {
+      "command": "set -o pipefail; true",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.061927080154418945
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0037202835083007812
+      }
+    },
+    {
+      "command": "set -u; true",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06217789649963379
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0038080215454101562
+      }
+    },
+    {
+      "command": "shopt -s extglob",
+      "category": "Bash",
+      "conformance": "test_error",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "",
+        "stderr": "psh: shopt: command not found\n",
+        "exit_code": 127,
+        "execution_time": 0.06368589401245117
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003687143325805664
+      }
+    },
+    {
+      "command": "TestBashOptions.test_shopt_options",
+      "category": "Bash",
+      "conformance": "test_error",
+      "difference_id": null,
+      "notes": "Test execution error: Expected bash-specific behavior for: shopt -s extglob\nActual conformance: ConformanceResult.TEST_ERROR",
+      "psh_result": {
+        "stdout": "",
+        "stderr": "Expected bash-specific behavior for: shopt -s extglob\nActual conformance: ConformanceResult.TEST_ERROR",
+        "exit_code": 1,
+        "execution_time": 0.0
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0
+      }
+    },
+    {
+      "command": "exec 3> file.txt",
+      "category": "Bash",
+      "conformance": "test_error",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "",
+        "stderr": "exec: 3: command not found\n",
+        "exit_code": 127,
+        "execution_time": 0.06325101852416992
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003982067108154297
+      }
+    },
+    {
+      "command": "TestBashRedirection.test_advanced_redirection",
+      "category": "Bash",
+      "conformance": "test_error",
+      "difference_id": null,
+      "notes": "Test execution error: Expected bash-specific behavior for: exec 3> file.txt\nActual conformance: ConformanceResult.TEST_ERROR",
+      "psh_result": {
+        "stdout": "",
+        "stderr": "Expected bash-specific behavior for: exec 3> file.txt\nActual conformance: ConformanceResult.TEST_ERROR",
+        "exit_code": 1,
+        "execution_time": 0.0
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0
+      }
+    },
+    {
+      "command": "echo hello > /dev/null",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06379270553588867
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004318952560424805
+      }
+    },
+    {
+      "command": "echo hello 2> /dev/null",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06381368637084961
+      },
+      "bash_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004235029220581055
+      }
+    },
+    {
+      "command": "cat < /dev/null",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06671595573425293
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0059278011322021484
+      }
+    },
+    {
+      "command": "cat << EOF\nhello\nEOF",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06821990013122559
+      },
+      "bash_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.005586147308349609
+      }
+    },
+    {
+      "command": "function f { echo function; }; f",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "function\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06294822692871094
+      },
+      "bash_result": {
+        "stdout": "function\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003957986831665039
+      }
+    },
+    {
+      "command": "function greet() { echo hello $1; }; greet world",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06208395957946777
+      },
+      "bash_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0036869049072265625
+      }
+    },
+    {
+      "command": "f() { return 42; }; f; echo $?",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "42\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06355524063110352
+      },
+      "bash_result": {
+        "stdout": "42\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004083871841430664
+      }
+    },
+    {
+      "command": "f() { true; }; f; echo $?",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "0\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06205916404724121
+      },
+      "bash_result": {
+        "stdout": "0\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0038709640502929688
+      }
+    },
+    {
+      "command": "f() { local x=local; echo $x; }; x=global; f; echo $x",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "local\nglobal\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06291985511779785
+      },
+      "bash_result": {
+        "stdout": "local\nglobal\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003582000732421875
+      }
+    },
+    {
+      "command": "TestBashFunctions.test_local_variables",
+      "category": "Bash",
+      "conformance": "test_error",
+      "difference_id": null,
+      "notes": "Test execution error: Expected bash-specific behavior for: f() { local x=local; echo $x; }; x=global; f; echo $x\nActual conformance: ConformanceResult.IDENTICAL",
+      "psh_result": {
+        "stdout": "",
+        "stderr": "Expected bash-specific behavior for: f() { local x=local; echo $x; }; x=global; f; echo $x\nActual conformance: ConformanceResult.IDENTICAL",
+        "exit_code": 1,
+        "execution_time": 0.0
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0
+      }
+    },
+    {
+      "command": "f() { echo function; }; f",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "function\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06205105781555176
+      },
+      "bash_result": {
+        "stdout": "function\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0037970542907714844
+      }
+    },
+    {
+      "command": "greet() { echo hello $1; }; greet world",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06295490264892578
+      },
+      "bash_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0036537647247314453
+      }
+    },
+    {
+      "command": "alias greet=\"echo hello\"; greet world",
+      "category": "Bash",
+      "conformance": "test_error",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "",
+        "stderr": "psh: greet: command not found\n",
+        "exit_code": 127,
+        "execution_time": 0.06585311889648438
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "bash: line 1: greet: command not found\n",
+        "exit_code": 127,
+        "execution_time": 0.004037141799926758
+      }
+    },
+    {
+      "command": "TestBashAliases.test_alias_with_arguments",
+      "category": "Bash",
+      "conformance": "test_error",
+      "difference_id": null,
+      "notes": "Test execution error: ",
+      "psh_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 1,
+        "execution_time": 0.0
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0
+      }
+    },
+    {
+      "command": "alias ll=\"ls -l\"; type ll",
+      "category": "Bash",
+      "conformance": "psh_bug",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "",
+        "stderr": "/usr/bin/type: line 4: type: ll: not found\n",
+        "exit_code": 1,
+        "execution_time": 0.07043695449829102
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "bash: line 1: type: ll: not found\n",
+        "exit_code": 1,
+        "execution_time": 0.003956794738769531
+      }
+    },
+    {
+      "command": "alias test_alias=\"echo aliased\"; alias test_alias",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "alias test_alias='echo aliased'\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06292510032653809
+      },
+      "bash_result": {
+        "stdout": "alias test_alias='echo aliased'\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004114866256713867
+      }
+    },
+    {
+      "command": "alias test=\"echo test\"; unalias test; test 2>/dev/null || echo gone",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "gone\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0631568431854248
+      },
+      "bash_result": {
+        "stdout": "gone\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003782987594604492
+      }
+    },
+    {
+      "command": "alias echo=\"echo aliased\"; command echo normal",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "normal\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06388092041015625
+      },
+      "bash_result": {
+        "stdout": "normal\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003998994827270508
+      }
+    },
+    {
+      "command": "export VAR=value; env | grep VAR",
+      "category": "Bash",
+      "conformance": "psh_bug",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 1,
+        "execution_time": 0.06677794456481934
+      },
+      "bash_result": {
+        "stdout": "VAR=value\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.005859851837158203
+      }
+    },
+    {
+      "command": "readonly VAR=value; echo $VAR",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "value\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06257915496826172
+      },
+      "bash_result": {
+        "stdout": "value\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0040340423583984375
+      }
+    },
+    {
+      "command": "readonly TEST=test; readonly | grep TEST",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "declare -r TEST=\"test\"\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06693696975708008
+      },
+      "bash_result": {
+        "stdout": "declare -r TEST=\"test\"\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.005586147308349609
+      }
+    },
+    {
+      "command": "x=value; echo $x",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "value\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0623621940612793
+      },
+      "bash_result": {
+        "stdout": "value\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0038361549377441406
+      }
+    },
+    {
+      "command": "x=\"value with spaces\"; echo $x",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "value with spaces\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.062422990798950195
+      },
+      "bash_result": {
+        "stdout": "value with spaces\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004068136215209961
+      }
+    },
+    {
+      "command": "x=$(echo dynamic); echo $x",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "dynamic\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06778597831726074
+      },
+      "bash_result": {
+        "stdout": "dynamic\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004334211349487305
+      }
+    },
+    {
+      "command": "declare -a array",
+      "category": "Bash",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06363105773925781
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003821134567260742
+      }
+    },
+    {
+      "command": "TestDocumentedDifferences.test_bash_specific_features",
+      "category": "Bash",
+      "conformance": "test_error",
+      "difference_id": null,
+      "notes": "Test execution error: Expected bash-specific behavior for: declare -a array\nActual conformance: ConformanceResult.IDENTICAL",
+      "psh_result": {
+        "stdout": "",
+        "stderr": "Expected bash-specific behavior for: declare -a array\nActual conformance: ConformanceResult.IDENTICAL",
+        "exit_code": 1,
+        "execution_time": 0.0
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0
+      }
+    },
+    {
+      "command": "pushd /tmp",
+      "category": "Bash",
+      "conformance": "psh_bug",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "/tmp /private/var/folders/8d/s9142zmj0zq5qhnv11rjf26w0000gn/T/tmp7e5q5lcf\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06317782402038574
+      },
+      "bash_result": {
+        "stdout": "/tmp /private/var/folders/8d/s9142zmj0zq5qhnv11rjf26w0000gn/T/tmpgum0qzx1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0039560794830322266
+      }
+    },
+    {
+      "command": "popd",
+      "category": "Bash",
+      "conformance": "documented_difference",
+      "difference_id": "POPD_BEHAVIOR",
+      "notes": null,
+      "psh_result": {
+        "stdout": "",
+        "stderr": "popd: directory stack empty\n",
+        "exit_code": 1,
+        "execution_time": 0.06212496757507324
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "bash: line 1: popd: directory stack empty\n",
+        "exit_code": 1,
+        "execution_time": 0.003718137741088867
+      }
+    },
+    {
+      "command": "version",
+      "category": "Bash",
+      "conformance": "psh_extension",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "Python Shell (psh) version 0.74.0\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.062454938888549805
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "bash: line 1: version: command not found\n",
+        "exit_code": 127,
+        "execution_time": 0.003877878189086914
+      }
+    }
+  ]
+}

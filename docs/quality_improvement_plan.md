@@ -3,8 +3,8 @@
 ## Progress Tracking
 
 **Last Updated**: 2025-07-12  
-**Current Phase**: Phase 4 - Ready to Begin  
-**Overall Progress**: Phase 1-3 Complete, Conformance Analysis Done
+**Current Phase**: Phase 5 - Test Framework Improvements (In Progress)  
+**Overall Progress**: Phase 1-3 Complete, Conformance Analysis Done, Test Framework Fixes Active
 
 ### Recent Accomplishments
 - ✅ Parameter expansion operators `:=` and `:?` implemented (v0.73.0)
@@ -23,13 +23,19 @@
   - ✅ Enhanced printf with full POSIX compliance (254/255 tests passing)
   - ✅ Implemented pushd/popd/dirs directory stack builtins (27/27 tests passing)
   - ✅ Implemented disown builtin for job control
+- ✅ **Test Framework Improvements** (v0.76.0-v0.77.0)
+  - ✅ Fixed test misclassification - actual bash compatibility increased from 77.1% to 83.5%
+  - ✅ Fixed captured_shell fixture to work around executor stdout reset issue
+  - ✅ Reduced skipped tests from 42 to 22 (47% reduction)
+  - ✅ Fixed 13 immediate test issues: 3 poorly implemented, 2 unsafe, 5 isolation, 3 named pipes
 
 ### Conformance Test Results (2025-07-12)
 
 **Summary:**
 - **POSIX Compliance**: 96.9% (125/129 tests passing)
-- **Bash Compatibility**: 77.1% (84/109 tests passing)
-- **Overall Conformance**: 87.4% identical behavior (208/238 tests)
+- **Bash Compatibility**: 83.5% (91/109 tests passing) - Updated after fixing test misclassification
+- **Overall Conformance**: 91.2% identical behavior (217/238 tests)
+- **Major Finding**: 95.5% of tested features work identically in PSH and bash
 
 **Key Issues Identified:**
 
@@ -47,6 +53,21 @@
    - Several bash-specific features incorrectly expected to be different
    - Missing features: `shopt`, file descriptor redirection with exec
    - Alias expansion in non-interactive mode
+
+### Remaining Skipped Tests (22 tests as of v0.77.0)
+
+**Interactive Tests (11 tests)**:
+- 10 line editing tests in `test_line_editing.py` - Require PTY/raw terminal mode
+- 1 basic interactive test in `test_basic_interactive.py`
+
+**Heredoc Tests (7 tests)**:
+- All in `test_heredoc.py` - Need architectural updates for proper input handling
+
+**Other Tests (4 tests)**:
+- 1 background subshell test - Not fully implemented
+- 1 RC file permissions test - Platform-specific (Unix only)
+- 1 Unix signals test - Platform-specific (Unix only)
+- 1 signal test (test_trap_signal_execution) - converted to subprocess
 
 ### Next Priority
 

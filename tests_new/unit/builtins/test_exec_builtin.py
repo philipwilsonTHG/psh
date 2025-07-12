@@ -52,13 +52,34 @@ def test_exec_with_input_redirection(shell_with_temp_dir):
     assert result == 0
 
 
-@pytest.mark.skip(reason="Exec with command replacement exits the process - unsafe for testing")
-def test_exec_with_command_replacement(shell):
-    """Test exec with command replacement."""
-    # This should replace the shell process - too dangerous to test
-    # as it actually exits the test runner process
-    # result = shell.run_command('exec echo "replaced process"')
-    pass
+def test_exec_with_command_replacement():
+    """Test exec with command replacement using subprocess."""
+    import subprocess
+    import sys
+    
+    # Test exec replacing the shell process
+    result = subprocess.run(
+        [sys.executable, '-m', 'psh', '-c', 'exec echo "replaced process"'],
+        capture_output=True,
+        text=True
+    )
+    
+    assert result.returncode == 0
+    assert "replaced process" in result.stdout
+    
+    # Test exec with different command
+    result = subprocess.run(
+        [sys.executable, '-m', 'psh', '-c', 'exec true'],
+        capture_output=True
+    )
+    assert result.returncode == 0
+    
+    # Test exec with failing command
+    result = subprocess.run(
+        [sys.executable, '-m', 'psh', '-c', 'exec false'],
+        capture_output=True
+    )
+    assert result.returncode != 0
 
 
 def test_exec_with_error_redirection(shell_with_temp_dir):

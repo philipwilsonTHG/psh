@@ -1,0 +1,74 @@
+{
+  "total_tests": 238,
+  "execution_time": 17.5677969455719,
+  "timestamp": "2025-07-12T20:59:47.195563",
+  "by_conformance": {
+    "identical": 208,
+    "documented_difference": 1,
+    "psh_extension": 2,
+    "psh_bug": 7,
+    "bash_specific": 0,
+    "test_error": 20
+  },
+  "by_category": {
+    "POSIX": {
+      "total": 129,
+      "identical": 125,
+      "documented_differences": 0,
+      "psh_extensions": 0,
+      "bash_specific": 0,
+      "psh_bugs": 2,
+      "test_errors": 2
+    },
+    "Bash": {
+      "total": 109,
+      "identical": 83,
+      "documented_differences": 1,
+      "psh_extensions": 2,
+      "bash_specific": 0,
+      "psh_bugs": 5,
+      "test_errors": 18
+    }
+  },
+  "posix_compliance": {
+    "total_tests": 129,
+    "compliant_tests": 125,
+    "compliance_percentage": 96.89922480620154
+  },
+  "bash_compatibility": {
+    "total_tests": 109,
+    "compatible_tests": 84,
+    "compatibility_percentage": 77.06422018348624
+  },
+  "areas_of_concern": [
+    {
+      "type": "potential_bugs",
+      "count": 7,
+      "commands": [
+        "echo \\$(echo test)",
+        "echo $$",
+        "sleep 1 & jobs",
+        "history",
+        "alias ll=\"ls -l\"; type ll",
+        "export VAR=value; env | grep VAR",
+        "pushd /tmp"
+      ]
+    },
+    {
+      "type": "test_errors",
+      "count": 20,
+      "commands": [
+        "unset x; echo ${x:?undefined}",
+        "x=; echo ${x:?empty}",
+        "TestBashConditionals.test_arithmetic_conditionals",
+        "TestBashConditionals.test_double_bracket_conditionals",
+        "TestBashArrays.test_array_operations",
+        "TestBashArrays.test_associative_arrays",
+        "TestBashArrays.test_indexed_arrays",
+        "TestBashParameterExpansion.test_case_modification",
+        "TestBashCommandSubstitution.test_process_substitution",
+        "shopt -s extglob; echo ?(pattern)"
+      ]
+    }
+  ]
+}
