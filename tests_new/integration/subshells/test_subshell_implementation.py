@@ -161,9 +161,8 @@ class TestSubshellExitStatus:
             output = f.read().strip()
         assert output == "Exit status: 0"
     
-    @pytest.mark.xfail(reason="PSH may not propagate intermediate command failures in subshells")
     def test_failed_command_exit_status(self, shell_with_temp_dir):
-        """Test that failed subshell returns non-zero."""
+        """Test that subshell exit status is that of the last command."""
         shell = shell_with_temp_dir
         
         script = '''
@@ -176,7 +175,8 @@ class TestSubshellExitStatus:
         
         with open('output.txt', 'r') as f:
             output = f.read().strip()
-        assert output == "Exit status: 1"
+        # The last command (echo) succeeds, so exit status should be 0
+        assert output == "Exit status: 0"
     
     def test_explicit_exit_in_subshell(self, shell_with_temp_dir):
         """Test explicit exit in subshell."""
@@ -209,6 +209,22 @@ class TestSubshellExitStatus:
         with open('output.txt', 'r') as f:
             output = f.read().strip()
         assert output == "Exit status: 0"
+    
+    def test_subshell_ending_with_false(self, shell_with_temp_dir):
+        """Test that subshell ending with false returns 1."""
+        shell = shell_with_temp_dir
+        
+        script = '''
+        (echo "before false"; false)
+        echo "Exit status: $?" > output.txt
+        '''
+        
+        result = shell.run_command(script)
+        assert result == 0
+        
+        with open('output.txt', 'r') as f:
+            output = f.read().strip()
+        assert output == "Exit status: 1"
 
 
 class TestSubshellRedirection:

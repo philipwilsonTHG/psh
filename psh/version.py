@@ -2,10 +2,29 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.73.4"
+__version__ = "0.73.6"
 
 # Version history
 VERSION_HISTORY = """
+0.73.6 (2025-01-12) - Phase 2 Complete: Subshell Exit Status Test Fix
+  - Fixed incorrect test expectation in test_failed_command_exit_status
+  - Test expected (echo "before"; false; echo "after") to return exit status 1
+  - Correctly returns 0 per POSIX: subshell exit status is that of last command
+  - Added test_subshell_ending_with_false to verify subshells ending with false return 1
+  - All subshell exit status tests now pass (5/5)
+  - Phase 2 of quality improvement plan is now complete
+  - Updated documentation to reflect Phase 2 completion
+
+0.73.5 (2025-01-12) - Enhanced Error Messages with Source Context
+  - Fixed Bug #20: Parser error messages now show source line context
+  - Added line/column fields to Token class for position tracking
+  - ModularLexer now populates line/column for all tokens using PositionTracker
+  - Parser accepts source_text parameter to create enhanced ErrorContext
+  - ErrorContext shows source line with caret pointer at error location
+  - Updated error handlers to display full formatted errors when available
+  - Improved user experience with clear, actionable error messages
+  - Multi-line scripts show exactly where syntax errors occur
+
 0.73.4 (2025-01-12) - Parser Error Detection for Unclosed Expansions
   - Fixed Bug #19: Parser now detects unclosed expansions as syntax errors
   - Added comprehensive checking for unclosed command substitution $(...)

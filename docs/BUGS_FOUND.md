@@ -195,10 +195,59 @@ declare -a array
 
 **Description**: Framework incorrectly detected PSH extensions as test errors. Fixed by checking extensions before command-not-found errors.
 
+### 20. Error Messages with Source Context [FIXED]
+
+**Status**: Fixed  
+**Severity**: Low (Quality improvement)  
+**Discovery Date**: 2025-01-12  
+**Fixed**: 2025-01-12
+**Location**: Parser error messages and lexer token tracking  
+
+**Description**: Parser error messages didn't show the source line and context where the error occurred, making it difficult to locate syntax errors in multi-line scripts.
+
+**Test Cases**:
+```bash
+# Single-line error
+if true; echo hello; fi
+# Expected: Error with source line context
+# PSH Result (before fix): "Parse error at position 21: Expected command"
+# PSH Result (after fix): "Parse error at position 21 (line 1, column 22): Expected command
+#                         
+#                         if true; echo hello; fi
+#                                              ^" ✓
+
+# Multi-line error
+if true; then
+    echo hello
+# Expected: Clear indication of where 'fi' is missing
+# PSH Result (before fix): "Parse error at position 29: Expected 'fi', got end of input"
+# PSH Result (after fix): Shows position but full context depends on how error is caught
+```
+
+**Fix**: Multiple improvements:
+1. Added line/column fields to Token class in `token_types.py`
+2. Updated ModularLexer to populate line/column for all tokens using PositionTracker
+3. Modified Parser to accept source_text parameter and populate ErrorContext
+4. Enhanced ErrorContext.format_error() to show source line with caret pointer
+5. Updated error handlers to display full formatted errors when context available
+
+**Implementation Details**:
+- Lexer tracks position and populates token.line/token.column
+- Parser stores source text and creates enhanced ErrorContext objects
+- Error formatting shows the source line with a caret pointing to error location
+
+**Impact**:
+- Users get clear, actionable error messages
+- Multi-line scripts show exactly where errors occur
+- Debugging syntax errors is much easier
+- Better user experience overall
+
+**Location**: Enhanced throughout parser and lexer infrastructure
+
 ## Summary of Current Status
 
-**Total Issues Found**: 19  
-**Fixed**: 18  
+**Total Issues Found**: 20  
+**Fixed**: 19  
 **Active Bugs**: 1 (quote processing)  
 **Test Issues**: 0 (all resolved)  
 **Expected Differences**: 1 (process ID)  
@@ -466,3 +515,9 @@ echo `unclosed
 - Added `history -c` flag to clear command history (matching bash)
 - Not a bug, but a missing feature that was straightforward to add
 - Implemented in `psh/builtins/shell_state.py`
+
+### Subshell Exit Status Test Fix
+- Fixed incorrect test expectation in test_failed_command_exit_status
+- PSH was already correctly implementing POSIX behavior
+- Subshell exit status is that of the last command executed in the subshell
+- Test expected `(echo "before"; false; echo "after")` to return 1, but it correctly returns 0

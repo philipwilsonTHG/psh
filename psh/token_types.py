@@ -91,3 +91,5 @@ class Token:
     position: int
     end_position: int = 0  # Position after the last character of the token
     quote_type: Optional[str] = None  # Track the quote character used (' or " or None)
+    line: Optional[int] = None  # Line number (1-based)
+    column: Optional[int] = None  # Column number (1-based)

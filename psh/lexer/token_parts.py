@@ -35,6 +35,8 @@ class RichToken(Token):
             position=token.position,
             end_position=token.end_position,
             quote_type=token.quote_type,
+            line=token.line,
+            column=token.column,
             parts=parts or [],
             is_composite=bool(parts and len(parts) > 1)
         )

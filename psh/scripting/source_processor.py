@@ -117,7 +117,9 @@ class SourceProcessor(ScriptComponent):
                     try:
                         tokens = tokenize(test_command)
                         # Try parsing to see if command is complete
-                        parse(tokens)
+                        from ..parser import Parser
+                        parser = Parser(tokens, source_text=test_command)
+                        parser.parse()
                         # If parsing succeeds, execute the command
                         exit_code = self._execute_buffered_command(
                             command_buffer.rstrip('\n'), input_source, command_start_line, add_to_history
@@ -278,9 +280,15 @@ class SourceProcessor(ScriptComponent):
                 # Re-tokenize the clean command
                 clean_tokens = tokenize(clean_command)
                 clean_tokens = self.shell.alias_manager.expand_aliases(clean_tokens)
-                ast = parse_with_heredocs(clean_tokens, heredoc_map)
+                # Parse with source text for better error messages
+                from ..parser import Parser
+                parser = Parser(clean_tokens, source_text=command_string)
+                ast = parser.parse_with_heredocs(heredoc_map)
             else:
-                ast = parse(tokens)
+                # Parse with source text for better error messages
+                from ..parser import Parser
+                parser = Parser(tokens, source_text=command_string)
+                ast = parser.parse()
             
             # Debug: Print AST if requested
             if self.state.debug_ast:
@@ -344,9 +352,14 @@ class SourceProcessor(ScriptComponent):
                         return 1
                     raise
         except ParseError as e:
-            # Enhanced error message with location
-            location = f"{input_source.get_name()}:{start_line}" if start_line > 0 else "command"
-            print(f"psh: {location}: {e.message}", file=sys.stderr)
+            # Check if error already has context, otherwise add location
+            if e.error_context and e.error_context.source_line:
+                # Error already has full context, just print it
+                print(f"psh: {str(e)}", file=sys.stderr)
+            else:
+                # Add location prefix to error
+                location = f"{input_source.get_name()}:{start_line}" if start_line > 0 else "command"
+                print(f"psh: {location}: {e.message}", file=sys.stderr)
             self.state.last_exit_code = 1
             return 1
         except Exception as e:

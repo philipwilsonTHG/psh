@@ -178,7 +178,12 @@ class ModularLexer:
         # Create token
         start_offset = start_pos.offset if isinstance(start_pos, Position) else start_pos
         end_offset = end_pos.offset if isinstance(end_pos, Position) else end_pos
-        token = Token(token_type, value, start_offset, end_offset, quote_type)
+        
+        # Extract line/column information if we have Position objects
+        line = start_pos.line if isinstance(start_pos, Position) else None
+        column = start_pos.column if isinstance(start_pos, Position) else None
+        
+        token = Token(token_type, value, start_offset, end_offset, quote_type, line, column)
         
         # Convert to RichToken if we have parts
         if self.current_parts:
@@ -439,7 +444,15 @@ class ModularLexer:
                 return True
             
             # Update position
+            old_pos = self.position
             self.position = new_pos
+            
+            # Add line/column information to token if missing
+            if token.line is None or token.column is None:
+                # Get position at token start
+                start_position = self.position_tracker.get_position_at_offset(token.position)
+                token.line = start_position.line
+                token.column = start_position.column
             
             # Add token
             self.tokens.append(token)

@@ -40,12 +40,16 @@ from .utils import ParserUtils
 class Parser(BaseParser):
     """Main parser class that orchestrates parsing by delegating to specialized parsers."""
     
-    def __init__(self, tokens: List[Token], use_composite_processor: bool = False):
+    def __init__(self, tokens: List[Token], use_composite_processor: bool = False, source_text: Optional[str] = None):
         # Optionally process tokens for composites
         if use_composite_processor:
             processor = CompositeTokenProcessor()
             tokens = processor.process(tokens)
         super().__init__(tokens)
+        
+        # Store source text for error messages
+        self.source_text = source_text
+        self.source_lines = source_text.splitlines() if source_text else None
         
         # Initialize specialized parsers
         self.statements = StatementParser(self)
@@ -62,10 +66,19 @@ class Parser(BaseParser):
         """Create a ParseError with context."""
         if token is None:
             token = self.peek()
+        
+        # Get source line if available
+        source_line = None
+        if self.source_lines and token.line and 0 < token.line <= len(self.source_lines):
+            source_line = self.source_lines[token.line - 1]
+        
         error_context = ErrorContext(
             token=token,
             message=message,
-            position=token.position
+            position=token.position,
+            line=token.line,
+            column=token.column,
+            source_line=source_line
         )
         return ParseError(error_context)
     
