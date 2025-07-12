@@ -246,8 +246,8 @@ if true; then
 
 ## Summary of Current Status
 
-**Total Issues Found**: 20  
-**Fixed**: 19  
+**Total Issues Found**: 21  
+**Fixed**: 20  
 **Active Bugs**: 1 (quote processing)  
 **Test Issues**: 0 (all resolved)  
 **Expected Differences**: 1 (process ID)  
@@ -521,3 +521,69 @@ echo `unclosed
 - PSH was already correctly implementing POSIX behavior
 - Subshell exit status is that of the last command executed in the subshell
 - Test expected `(echo "before"; false; echo "after")` to return 1, but it correctly returns 0
+
+### 21. ANSI-C Quoting Variable Assignment Issue [FIXED]
+
+**Status**: Fixed  
+**Severity**: Medium  
+**Discovery Date**: 2025-01-12  
+**Fixed**: 2025-01-12
+**Location**: Lexer tokenization (`psh/lexer/recognizers/literal.py`)  
+
+**Description**: Variable assignments using ANSI-C quoting ($'...') did not work correctly. The tokenization incorrectly separated the variable assignment from the ANSI-C quoted value, breaking the assignment semantics.
+
+**Test Cases**:
+```bash
+# Variable assignment with ANSI-C quotes
+var=$'line1\nline2'
+echo "$var"
+# Expected: "line1\nline2"
+# PSH Result (before fix): "$'line1nline2'" (literal, not processed)
+# PSH Result (after fix): "line1\nline2" ✓
+
+# String concatenation with ANSI-C quotes
+echo prefix$'\t'suffix
+# Expected: "prefix	suffix" (with actual tab)
+# PSH Result (before fix): "prefix$'	'suffix" (literal)
+# PSH Result (after fix): "prefix	suffix" ✓
+
+# Complex case patterns
+var=$'a\tb'
+case "$var" in
+    $'a\tb') echo "matched tab";;
+    *) echo "no match";;
+esac
+# Expected: "matched tab"
+# PSH Result (before fix): "no match"
+# PSH Result (after fix): "matched tab" ✓
+```
+
+**Root Cause**: The literal recognizer was breaking tokens at `$` characters when ANSI-C quotes appeared within variable assignments or string concatenation. The `$'...'` pattern was being split into separate tokens instead of being parsed inline.
+
+**Fix**: Enhanced the literal recognizer with several key improvements:
+
+1. **Enhanced `_can_start_valid_expansion()`** - Added recognition for ANSI-C quotes (`$'`) as a valid expansion pattern
+
+2. **Added special case handling in `recognize()`** - When encountering `$'` within variable assignments or string concatenation, parse the ANSI-C quote inline instead of breaking the token
+
+3. **Added `_is_in_variable_assignment_value()`** - Helper method to detect when we're reading the value part of a variable assignment
+
+4. **Added `_is_in_string_concatenation()`** - Helper method to detect when we're reading a string that could be concatenated with quotes
+
+5. **Added `_parse_ansi_c_quote_inline()`** - Method to parse ANSI-C quotes inline and process their escape sequences immediately during tokenization
+
+**Implementation Details**:
+- The fix handles both variable assignments (`var=$'test'`) and string concatenation (`prefix$'test'suffix`)
+- Escape sequences are processed during tokenization, producing the final character values
+- The approach maintains compatibility with standalone ANSI-C quotes (`echo $'test'`)
+
+**Impact**:
+- Variable assignments with ANSI-C quotes now work correctly
+- String concatenation with ANSI-C quotes works as expected  
+- Case patterns and complex examples now function properly
+- 19/20 ANSI-C quoting tests now pass (previously 15/20)
+- No regression in existing ANSI-C quote functionality
+
+**Location**: 
+- Code: `psh/lexer/recognizers/literal.py` - enhanced tokenization logic
+- Tests: `tests_new/unit/lexer/test_ansi_c_quoting.py` - 4 additional tests now pass

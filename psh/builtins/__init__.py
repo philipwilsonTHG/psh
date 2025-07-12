@@ -21,6 +21,8 @@ from . import kill_command
 from . import positional
 from . import command_builtin
 from . import signal_handling
+from . import directory_stack
+from . import disown
 
 # Re-export for convenience
 __all__ = ['registry', 'builtin', 'Builtin']

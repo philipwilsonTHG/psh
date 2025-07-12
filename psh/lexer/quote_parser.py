@@ -65,6 +65,21 @@ QUOTE_RULES = {
         },
         allows_newlines=True,
         allows_nested_quotes=True
+    ),
+    "$'": QuoteRules(
+        quote_char="'",  # Closing quote is just '
+        allow_expansions=False,  # No variable expansion in ANSI-C quotes
+        escape_sequences={
+            # Standard C escapes
+            'n': '\n', 't': '\t', 'r': '\r', 'b': '\b',
+            'f': '\f', 'v': '\v', 'a': '\a', '\\': '\\',
+            "'": "'", '"': '"', '?': '?',
+            # ANSI escape
+            'e': '\x1b', 'E': '\x1b',
+            # Special sequences handled separately: \xHH, \0NNN, \uHHHH, \UHHHHHHHH
+        },
+        allows_newlines=True,
+        allows_nested_quotes=False
     )
 }
 
@@ -86,7 +101,8 @@ class UnifiedQuoteParser:
         input_text: str,
         start_pos: int,
         rules: QuoteRules,
-        position_tracker: Optional['PositionTracker'] = None
+        position_tracker: Optional['PositionTracker'] = None,
+        quote_type: str = None
     ) -> Tuple[List[TokenPart], int, bool]:
         """
         Parse a quoted string according to the given rules.
@@ -96,6 +112,7 @@ class UnifiedQuoteParser:
             start_pos: Starting position (after opening quote)
             rules: Quote parsing rules
             position_tracker: Optional position tracker for rich position info
+            quote_type: Optional quote type override (e.g., "$'" for ANSI-C)
             
         Returns:
             Tuple of (token_parts, position_after_closing_quote, found_closing_quote)
@@ -164,8 +181,10 @@ class UnifiedQuoteParser:
             
             # Handle escape sequences (only if allowed by the quote rules)
             if char == '\\' and pos + 1 < len(input_text) and rules.escape_sequences:
+                # Use the quote_type parameter if provided (for ANSI-C quotes)
+                context = quote_type if quote_type else rules.quote_char
                 escaped_str, new_pos = pure_helpers.handle_escape_sequence(
-                    input_text, pos, rules.quote_char
+                    input_text, pos, context
                 )
                 current_value += escaped_str
                 pos = new_pos

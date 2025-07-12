@@ -78,34 +78,34 @@ def test_set_positional_params(shell):
     assert result == 0
 
 
-def test_positional_parameter_access(captured_shell):
+def test_positional_parameter_access(shell, capsys):
     """Test accessing positional parameters."""
-    captured_shell.run_command('set first second third')
-    captured_shell.run_command('echo "$1 $2 $3"')
-    output = captured_shell.get_stdout()
-    assert 'first second third' in output
+    shell.run_command('set first second third')
+    shell.run_command('echo "$1 $2 $3"')
+    captured = capsys.readouterr()
+    assert 'first second third' in captured.out
 
 
-def test_positional_parameter_count(captured_shell):
+def test_positional_parameter_count(shell, capsys):
     """Test $# parameter for positional parameter count."""
-    captured_shell.run_command('set a b c d')
-    captured_shell.run_command('echo "$#"')
-    output = captured_shell.get_stdout()
-    assert '4' in output
+    shell.run_command('set a b c d')
+    shell.run_command('echo "$#"')
+    captured = capsys.readouterr()
+    assert '4' in captured.out
 
 
-def test_positional_parameter_star(captured_shell):
+def test_positional_parameter_star(shell, capsys):
     """Test $* parameter for all positional parameters."""
-    captured_shell.run_command('set alpha beta gamma')
-    captured_shell.run_command('echo "$*"')
-    output = captured_shell.get_stdout()
-    assert 'alpha beta gamma' in output
+    shell.run_command('set alpha beta gamma')
+    shell.run_command('echo "$*"')
+    captured = capsys.readouterr()
+    assert 'alpha beta gamma' in captured.out
 
 
-def test_positional_parameter_at(captured_shell):
+def test_positional_parameter_at(shell, capsys):
     """Test $@ parameter for all positional parameters."""
-    captured_shell.run_command('set one two "three four"')
-    captured_shell.run_command('echo "$@"')
-    output = captured_shell.get_stdout()
+    shell.run_command('set one two "three four"')
+    shell.run_command('echo "$@"')
+    captured = capsys.readouterr()
     # $@ should preserve word boundaries
-    assert 'one two three four' in output
+    assert 'one two three four' in captured.out

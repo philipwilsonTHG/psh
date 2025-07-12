@@ -139,13 +139,35 @@ class LiteralRecognizer(ContextualRecognizer):
                     value += char
                     pos += 1
                     continue
+                # Special case: don't terminate on $ if this is ANSI-C quote in variable assignment or concatenation
+                elif (char == '$' and pos + 1 < len(input_text) and input_text[pos + 1] == "'" and 
+                      (self._is_in_variable_assignment_value(value) or self._is_in_string_concatenation(value))):
+                    # We're in a variable assignment or string concatenation and found $' - parse the ANSI-C quote inline
+                    ansi_c_content, new_pos = self._parse_ansi_c_quote_inline(input_text, pos)
+                    if ansi_c_content is not None:
+                        value += ansi_c_content
+                        pos = new_pos
+                        continue
+                    # If parsing failed, fall through to breaking
                 break
             
             # Check for quotes or expansions that would end the word
             # (only if they are enabled in config)
             should_break = False
             if char == '$' and self.config and self.config.enable_variable_expansion:
-                should_break = True
+                # Special case: Check for ANSI-C quotes $'...' within variable assignments
+                if (pos + 1 < len(input_text) and input_text[pos + 1] == "'" and 
+                    self._is_in_variable_assignment_value(value)):
+                    # We're in a variable assignment and found $' - parse the ANSI-C quote inline
+                    ansi_c_content, new_pos = self._parse_ansi_c_quote_inline(input_text, pos)
+                    if ansi_c_content is not None:
+                        value += ansi_c_content
+                        pos = new_pos
+                        continue
+                    # If parsing failed, fall through to normal handling
+                    should_break = True
+                else:
+                    should_break = True
             elif char == '`' and self.config and self.config.enable_command_substitution:
                 should_break = True
             elif char == "'" and self.config and self.config.enable_single_quotes:
@@ -370,6 +392,9 @@ class LiteralRecognizer(ContextualRecognizer):
         elif next_char == '{':
             # Parameter expansion ${...}
             return True
+        elif next_char == "'":
+            # ANSI-C quoting $'...'
+            return True
         else:
             # Simple variable $VAR - check if next character can start a variable name
             from ..constants import SPECIAL_VARIABLES
@@ -488,3 +513,106 @@ class LiteralRecognizer(ContextualRecognizer):
         
         # Should have balanced brackets ending with ]
         return bracket_count == 0 and value.endswith(']')
+    
+    def _is_in_variable_assignment_value(self, value: str) -> bool:
+        """Check if we are currently reading the value part of a variable assignment."""
+        if not value or '=' not in value:
+            return False
+        
+        # Simple case: var= (just found the equals)
+        if value.endswith('='):
+            return True
+        
+        # Array assignment case: arr[index]= or arr[index]+= 
+        if value.endswith('+=') or (']=' in value and value.endswith('=')):
+            return True
+        
+        # Check if we have found an = and are now reading the value
+        equals_pos = value.rfind('=')  # Find last equals in case of multiple
+        if equals_pos == -1:
+            return False
+        
+        # Check if what comes before = looks like a valid variable assignment start
+        before_equals = value[:equals_pos]
+        
+        # Handle += case
+        if before_equals.endswith('+'):
+            before_equals = before_equals[:-1]
+        
+        # Check if it's a simple variable assignment or array assignment
+        return self._is_variable_assignment_start(before_equals) or self._is_array_assignment_start(before_equals, 
+                                                                                                    self.config.posix_mode if self.config else False)
+    
+    def _parse_ansi_c_quote_inline(self, input_text: str, pos: int) -> Tuple[Optional[str], int]:
+        """
+        Parse an ANSI-C quote $'...' starting at the given position.
+        
+        Returns (processed_content, new_position) where processed_content is None if parsing failed.
+        The processed_content has escape sequences converted to their actual characters.
+        """
+        if pos + 1 >= len(input_text) or input_text[pos:pos+2] != "$'":
+            return None, pos
+        
+        # Import the pure helpers for ANSI-C quote processing
+        from .. import pure_helpers
+        
+        # Start after the $'
+        quote_start = pos + 2
+        quote_pos = quote_start
+        processed_content = ""
+        
+        # Find the closing quote and process escape sequences
+        while quote_pos < len(input_text):
+            char = input_text[quote_pos]
+            
+            if char == "'":
+                # Found closing quote - return the processed content (not the literal $'...')
+                return processed_content, quote_pos + 1
+            
+            if char == '\\' and quote_pos + 1 < len(input_text):
+                # Handle escape sequence using existing helper
+                escaped_str, new_pos = pure_helpers.handle_escape_sequence(
+                    input_text, quote_pos, "$'"
+                )
+                processed_content += escaped_str
+                quote_pos = new_pos
+            else:
+                processed_content += char
+                quote_pos += 1
+        
+        # Unclosed quote - return None to indicate parsing failure
+        return None, pos
+    
+    def _is_in_string_concatenation(self, value: str) -> bool:
+        """Check if we are currently reading a string that could be concatenated with quotes."""
+        if not value:
+            return False
+        
+        # If the value contains only valid word characters (no special shell characters),
+        # then it's likely a string that could be concatenated with quotes
+        # Examples: "prefix", "hello", "path"
+        
+        # Get posix_mode from config
+        posix_mode = self.config.posix_mode if self.config else False
+        
+        # Check if it's a valid identifier-like string (could be concatenated)
+        # This includes simple words that could have quotes appended
+        from ..unicode_support import is_identifier_char, is_identifier_start
+        
+        # Must start with a valid character for word
+        if not value:
+            return False
+        
+        # Allow strings that are valid identifiers or contain path-like characters
+        allowed_chars = set()
+        for i, char in enumerate(value):
+            if i == 0:
+                if not (is_identifier_start(char, posix_mode) or char in '/.~'):
+                    return False
+            else:
+                if not (is_identifier_char(char, posix_mode) or char in '/.~-'):
+                    # If we hit special characters like =, we're probably not in simple concatenation
+                    if char in '=[](){}|&;<>!':
+                        return False
+        
+        return True

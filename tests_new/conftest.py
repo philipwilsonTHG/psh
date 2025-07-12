@@ -163,15 +163,22 @@ def captured_shell(shell):
     are captured to MockStdout/MockStderr instances for testing.
     This avoids conflicts with pytest's capsys fixture.
     """
-    # Store original streams
-    original_stdout = shell.stdout
-    original_stderr = shell.stderr
+    # Store original streams - check both shell and state
+    original_stdout = getattr(shell, 'stdout', sys.stdout)
+    original_stderr = getattr(shell, 'stderr', sys.stderr)
+    original_state_stdout = getattr(shell.state, 'stdout', sys.stdout)
+    original_state_stderr = getattr(shell.state, 'stderr', sys.stderr)
     
     # Replace with mock streams
     mock_stdout = MockStdout()
     mock_stderr = MockStderr()
+    
+    # Set on both shell and state to handle the __setattr__ delegation
     shell.stdout = mock_stdout
     shell.stderr = mock_stderr
+    # Also set directly on state in case of attribute delegation issues
+    shell.state.stdout = mock_stdout
+    shell.state.stderr = mock_stderr
     
     # Add helper methods to shell
     shell.get_stdout = lambda: mock_stdout.getvalue()
@@ -183,9 +190,11 @@ def captured_shell(shell):
     
     yield shell
     
-    # Restore original streams
+    # Restore original streams on both shell and state
     shell.stdout = original_stdout
     shell.stderr = original_stderr
+    shell.state.stdout = original_state_stdout
+    shell.state.stderr = original_state_stderr
 
 
 @pytest.fixture(autouse=True)

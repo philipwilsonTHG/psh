@@ -318,6 +318,11 @@ class ModularLexer:
         if not char:
             return False
         
+        # Check for ANSI-C quoting $'...'
+        if (char == '$' and self.position + 1 < len(self.input) and 
+            self.input[self.position + 1] == "'"):
+            return self._handle_ansi_c_quote()
+        
         # Handle expansions (only if enabled)
         if (char == '$' and self.config.enable_variable_expansion and 
             self.expansion_context.is_expansion_start(self.position)):
@@ -428,6 +433,46 @@ class ModularLexer:
         
         # Emit token
         self.emit_token(TokenType.STRING, full_value, start_pos, quote_char)
+        return True
+    
+    def _handle_ansi_c_quote(self) -> bool:
+        """Handle ANSI-C quoted string $'...'."""
+        start_pos = self.get_current_position()
+        
+        # Skip $'
+        self.advance()  # Skip $
+        self.advance()  # Skip '
+        
+        # Get ANSI-C quote rules
+        from .quote_parser import QUOTE_RULES
+        rules = QUOTE_RULES.get("$'")
+        if not rules:
+            return False
+        
+        # Parse the ANSI-C quoted string content
+        parts, new_pos, found_closing = self.quote_parser.parse_quoted_string(
+            self.input,
+            self.position,  # Current position (after $')
+            rules,
+            self.position_tracker,
+            quote_type="$'"  # Pass quote type for proper escape handling
+        )
+        
+        # Check if quote was closed
+        if not found_closing:
+            raise SyntaxError(f"Unclosed $' quote at position {start_pos}")
+        
+        # Update position
+        self.position = new_pos
+        
+        # Build complete string value
+        full_value = self._build_token_value(parts)
+        
+        # Store parts for later use
+        self.current_parts = parts
+        
+        # Emit token - ANSI-C quotes produce STRING tokens
+        self.emit_token(TokenType.STRING, full_value, start_pos, "$'")
         return True
     
     def _try_recognizers(self) -> bool:

@@ -195,7 +195,7 @@ def handle_escape_sequence(
     Args:
         input_text: The input string
         pos: Position of the backslash
-        quote_context: Current quote context ('"', "'", or None)
+        quote_context: Current quote context ('"', "'", "$'", or None)
         
     Returns:
         Tuple of (escaped_string, new_position)
@@ -208,7 +208,10 @@ def handle_escape_sequence(
     
     next_char = input_text[pos + 1]
     
-    if quote_context == '"':
+    if quote_context == "$'":
+        # ANSI-C quoting - handle extended escape sequences
+        return handle_ansi_c_escape(input_text, pos)
+    elif quote_context == '"':
         # In double quotes
         if next_char == '\n':
             # Escaped newline is a line continuation - remove it
@@ -236,6 +239,118 @@ def handle_escape_sequence(
     else:
         # Single quotes - no escaping (except for the quote itself in some contexts)
         return '\\' + next_char, pos + 2
+
+
+def handle_ansi_c_escape(input_text: str, pos: int) -> Tuple[str, int]:
+    """
+    Handle ANSI-C escape sequences in $'...' strings.
+    
+    Args:
+        input_text: The input string
+        pos: Position of the backslash
+        
+    Returns:
+        Tuple of (escaped_string, new_position)
+    """
+    if pos + 1 >= len(input_text):
+        return '\\', pos + 1
+    
+    next_char = input_text[pos + 1]
+    
+    # Simple single-character escapes
+    simple_escapes = {
+        'n': '\n', 't': '\t', 'r': '\r', 'b': '\b',
+        'f': '\f', 'v': '\v', 'a': '\a', '\\': '\\',
+        "'": "'", '"': '"', '?': '?',
+        'e': '\x1b', 'E': '\x1b'  # ANSI escape
+    }
+    
+    if next_char in simple_escapes:
+        return simple_escapes[next_char], pos + 2
+    
+    # Hex escape: \xHH
+    if next_char == 'x':
+        hex_str = ""
+        new_pos = pos + 2
+        # Read up to 2 hex digits
+        for i in range(2):
+            if new_pos < len(input_text) and input_text[new_pos] in '0123456789ABCDEFabcdef':
+                hex_str += input_text[new_pos]
+                new_pos += 1
+            else:
+                break
+        
+        if hex_str:
+            try:
+                return chr(int(hex_str, 16)), new_pos
+            except ValueError:
+                return '\\x' + hex_str, new_pos
+        else:
+            return '\\x', pos + 2
+    
+    # Octal escape: \0NNN (bash style with leading 0)
+    if next_char == '0':
+        octal_str = ""
+        new_pos = pos + 2
+        # Read up to 3 octal digits
+        for i in range(3):
+            if new_pos < len(input_text) and input_text[new_pos] in '01234567':
+                octal_str += input_text[new_pos]
+                new_pos += 1
+            else:
+                break
+        
+        if octal_str:
+            try:
+                return chr(int(octal_str, 8)), new_pos
+            except ValueError:
+                return '\\0' + octal_str, new_pos
+        else:
+            # Just \0 means null character
+            return '\0', pos + 2
+    
+    # Unicode escape: \uHHHH
+    if next_char == 'u':
+        hex_str = ""
+        new_pos = pos + 2
+        # Read exactly 4 hex digits
+        for i in range(4):
+            if new_pos < len(input_text) and input_text[new_pos] in '0123456789ABCDEFabcdef':
+                hex_str += input_text[new_pos]
+                new_pos += 1
+            else:
+                break
+        
+        if len(hex_str) == 4:
+            try:
+                return chr(int(hex_str, 16)), new_pos
+            except ValueError:
+                return '\\u' + hex_str, new_pos
+        else:
+            return '\\u' + hex_str, new_pos
+    
+    # Unicode escape: \UHHHHHHHH (8 digits)
+    if next_char == 'U':
+        hex_str = ""
+        new_pos = pos + 2
+        # Read exactly 8 hex digits
+        for i in range(8):
+            if new_pos < len(input_text) and input_text[new_pos] in '0123456789ABCDEFabcdef':
+                hex_str += input_text[new_pos]
+                new_pos += 1
+            else:
+                break
+        
+        if len(hex_str) == 8:
+            try:
+                return chr(int(hex_str, 16)), new_pos
+            except ValueError:
+                return '\\U' + hex_str, new_pos
+        else:
+            return '\\U' + hex_str, new_pos
+    
+    # For other characters, keep the backslash
+    return '\\' + next_char, pos + 2
 
 
 def find_word_boundary(
