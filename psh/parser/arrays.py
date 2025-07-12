@@ -67,17 +67,58 @@ class ArrayParser:
             self.parser.current = saved_pos
         
         # Check for array element assignment: name[
+        # First verify the word looks like a valid variable name
+        if not self._is_valid_variable_name(word_token.value):
+            self.parser.current = saved_pos
+            return False
+            
         self.parser.advance()  # consume word
         if self.parser.match(TokenType.LBRACKET):
             self.parser.current = saved_pos
             return True
         # Also check for WORD token containing just "[" (from ModularLexer)
         elif self.parser.match(TokenType.WORD) and self.parser.peek().value == '[':
+            # Look ahead to verify this is really an array assignment
+            # by checking for ] followed by = or +=
+            temp_pos = self.parser.current
+            self.parser.advance()  # skip [
+            
+            # Skip tokens until we find ] or give up
+            bracket_count = 1
+            found_assignment = False
+            while bracket_count > 0 and not self.parser.at_end():
+                token = self.parser.peek()
+                if token.type == TokenType.WORD:
+                    if '[' in token.value:
+                        bracket_count += token.value.count('[')
+                    if ']' in token.value:
+                        bracket_count -= token.value.count(']')
+                        if bracket_count == 0:
+                            # Check if followed by = or +=
+                            self.parser.advance()
+                            if not self.parser.at_end():
+                                next_token = self.parser.peek()
+                                if (next_token.type == TokenType.WORD and 
+                                    (next_token.value.startswith('=') or next_token.value == '+=')):
+                                    found_assignment = True
+                            break
+                self.parser.advance()
+                
             self.parser.current = saved_pos
-            return True
+            return found_assignment
         
         self.parser.current = saved_pos
         return False
+    
+    def _is_valid_variable_name(self, name: str) -> bool:
+        """Check if a string is a valid shell variable name."""
+        if not name:
+            return False
+        # Must start with letter or underscore
+        if not (name[0].isalpha() or name[0] == '_'):
+            return False
+        # Rest must be alphanumeric or underscore
+        return all(c.isalnum() or c == '_' for c in name[1:])
     
     def parse_array_assignment(self) -> ArrayAssignment:
         """Parse an array assignment (initialization or element)."""

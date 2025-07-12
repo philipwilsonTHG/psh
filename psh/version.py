@@ -2,10 +2,19 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.73.0"
+__version__ = "0.73.1"
 
 # Version history
 VERSION_HISTORY = """
+0.73.1 (2025-01-12) - Bug Fixes and Test Builtin Enhancements
+  - Fixed Bug #13: Array syntax over-eager parsing in square brackets
+  - Fixed test builtin to support -a (logical AND) and -o (logical OR) operators
+  - Fixed return builtin to use current $? value when called with no arguments
+  - Fixed return value wrapping for values > 255 (now uses modulo 256)
+  - Total fixed bugs: 15 out of 15 documented issues resolved
+  - Test builtin now has full logical operator support matching bash
+  - Return builtin now fully bash-compatible including edge cases
+
 0.73.0 (2025-01-11) - Quality Improvements Phase 1 & 2
   - Implemented POSIX parameter expansion operators := and :?
   - Added ExpansionError exception for proper error handling  

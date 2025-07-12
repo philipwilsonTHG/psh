@@ -76,7 +76,37 @@ class TestBuiltin(Builtin):
             if combined_op in ['!=', '==', '=~']:
                 return self._evaluate_binary(arg1, combined_op, arg2, shell)
         
-        # More complex expressions not implemented yet
+        # Handle logical operators -a and -o
+        # These operators are binary and have lower precedence than other operators
+        # We scan from left to right looking for -a or -o
+        for i in range(len(args)):
+            if args[i] == '-a':
+                # Logical AND - both sides must be true
+                if i == 0 or i == len(args) - 1:
+                    self.error("-a: binary operator expected", shell)
+                    return 2
+                # Evaluate left side
+                left_result = self._evaluate_expression(args[:i], shell)
+                if left_result != 0:
+                    # Short circuit - left side is false
+                    return left_result
+                # Evaluate right side
+                return self._evaluate_expression(args[i+1:], shell)
+            
+            elif args[i] == '-o':
+                # Logical OR - at least one side must be true
+                if i == 0 or i == len(args) - 1:
+                    self.error("-o: binary operator expected", shell)
+                    return 2
+                # Evaluate left side
+                left_result = self._evaluate_expression(args[:i], shell)
+                if left_result == 0:
+                    # Short circuit - left side is true
+                    return 0
+                # Evaluate right side
+                return self._evaluate_expression(args[i+1:], shell)
+        
+        # If we get here, it's a complex expression we don't support
         return 2
     
     def _evaluate_unary(self, op: str, arg: str, shell: 'Shell') -> int:

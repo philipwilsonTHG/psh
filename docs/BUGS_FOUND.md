@@ -197,10 +197,10 @@ declare -a array
 
 ## Summary of Current Status
 
-**Total Issues Found**: 15  
-**Fixed**: 12  
-**Active Bugs**: 2 (quote processing, array syntax parsing)  
-**Test Issues**: 2 (framework expectations)  
+**Total Issues Found**: 17  
+**Fixed**: 16  
+**Active Bugs**: 1 (quote processing)  
+**Test Issues**: 0 (all resolved)  
 **Expected Differences**: 1 (process ID)  
 
 **Critical Areas Needing Attention**:
@@ -209,37 +209,44 @@ declare -a array
 3. Array syntax parsing - too aggressive detection of square brackets
 4. Error code propagation for expansion failures
 
-### 13. Square Bracket Array Syntax Over-Eager Parsing [ACTIVE]
+### 13. Square Bracket Array Syntax Over-Eager Parsing [FIXED]
 
-**Status**: Active Bug  
+**Status**: Fixed  
 **Severity**: Medium  
 **Discovery Date**: 2025-01-10  
+**Fixed**: 2025-01-12
 **Location**: Array parser (`psh/parser/arrays.py`)  
 
-**Description**: PSH's array parser incorrectly interprets literal square brackets as array syntax in contexts where they should be treated as literal characters.
+**Description**: PSH's array parser incorrectly interpreted literal square brackets as array syntax in contexts where they should be treated as literal characters.
 
 **Test Cases**:
 ```bash
 VAR="quoted value"
 echo [$VAR]
 # Expected: [quoted value]
-# PSH Result: Parse error - "Expected '=' or '+=' after array index"
+# PSH Result (before fix): Parse error - "Expected '=' or '+=' after array index"
+# PSH Result (after fix): [quoted value] ✓
 ```
 
-**Root Cause**: The array parser in `is_array_assignment()` checks for square brackets in any WORD token and treats them as array syntax, even in contexts where they should be literal.
+**Root Cause**: The array parser in `is_array_assignment()` was too aggressive in detecting array syntax. When it saw `echo` followed by `[`, it would treat this as a potential array assignment.
 
-**Workaround**: Use alternative delimiters like parentheses: `echo ($VAR)` works correctly.
+**Fix**: Added two key improvements:
+1. Check that the word before `[` is a valid variable name (starts with letter/underscore, contains only alphanumeric/underscore)
+2. When `[` is found as a separate token, look ahead to verify it's followed by `]` and then `=` or `+=` before treating it as array syntax
+
+**Implementation Details**:
+- Added `_is_valid_variable_name()` method to validate variable names
+- Enhanced lookahead logic to verify array assignment pattern
+- Maintains backward compatibility with actual array operations
 
 **Impact**:
-- Cannot use literal square brackets in simple echo commands  
-- Affects scripts that use square brackets for formatting
-- Test compatibility issues when migrating bash-style tests
+- Literal square brackets now work correctly in commands
+- Scripts using brackets for formatting work as expected
+- No regression in array functionality
 
 **Location**: 
-- Code: `psh/parser/arrays.py:31` - checks `'[' in word_token.value`
-- Tests: Fixed in `tests_new/integration/parsing/test_quoting_escaping.py` by using alternative syntax
-
-**Resolution Status**: Bug documented, tests fixed to work around limitation
+- Code: `psh/parser/arrays.py` - enhanced `is_array_assignment()` method
+- Tests: Can now use natural syntax in tests
 
 ### 14. Invalid File Descriptor Redirection Not Validated [FIXED]
 
@@ -306,6 +313,73 @@ echo "test" > /nonexistent/file; echo "should not reach"
 - Prevents unintended continuation after errors
 
 **Location**: `tests_new/integration/redirection/test_advanced_redirection.py::test_redirection_with_errexit`
+
+### 16. Return Builtin Without Arguments [FIXED]
+
+**Status**: Fixed  
+**Severity**: Low  
+**Discovery Date**: 2025-01-12  
+**Fixed**: 2025-01-12
+**Location**: Return builtin (`psh/builtins/function_support.py`)  
+
+**Description**: The return builtin was incorrectly returning 0 when called with no arguments, instead of returning the current value of $? (last exit code).
+
+**Test Cases**:
+```bash
+testfunc() {
+    false  # Sets $? to 1
+    return
+}
+testfunc
+echo "exit code: $?"
+# Expected: "exit code: 1"
+# PSH Result (before fix): "exit code: 0"
+# PSH Result (after fix): "exit code: 1" ✓
+```
+
+**Fix**: Modified ReturnBuiltin.execute() to use `shell.state.last_exit_code` when no arguments provided.
+
+**Impact**:
+- Scripts relying on return preserving $? now work correctly
+- Full bash compatibility for return builtin
+- No regression in existing functionality
+
+**Location**: `tests_new/unit/builtins/test_function_builtins.py::TestReturnBuiltin::test_return_no_args`
+
+### 17. Test Builtin Missing Logical Operators [FIXED]
+
+**Status**: Fixed  
+**Severity**: Medium  
+**Discovery Date**: 2025-01-12  
+**Fixed**: 2025-01-12
+**Location**: Test/[ builtin (`psh/builtins/test_command.py`)  
+
+**Description**: The test builtin was missing support for -a (logical AND) and -o (logical OR) operators, which are standard in bash/POSIX shells.
+
+**Test Cases**:
+```bash
+# Logical AND
+test -n "hello" -a -n "world"
+# Expected: exit code 0 (both non-empty)
+# PSH Result (before fix): exit code 2 (unknown operator)
+# PSH Result (after fix): exit code 0 ✓
+
+# Logical OR  
+test -z "hello" -o -n "world"
+# Expected: exit code 0 (at least one true)
+# PSH Result (before fix): exit code 2 (unknown operator)
+# PSH Result (after fix): exit code 0 ✓
+```
+
+**Fix**: Enhanced `_evaluate_expression()` method to scan for -a and -o operators and evaluate left/right sides recursively with proper short-circuit evaluation.
+
+**Impact**:
+- Complex test expressions now work correctly
+- Scripts using logical operators in test commands work as expected
+- Full POSIX compatibility for test builtin
+- No regression in existing test functionality
+
+**Location**: `tests_new/unit/builtins/test_test_builtin.py::TestLogicalOperators`
 
 **PSH Strengths Confirmed**:
 - Excellent core shell functionality

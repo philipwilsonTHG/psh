@@ -717,15 +717,14 @@ class ReturnBuiltin(Builtin):
         if len(args) > 1:
             try:
                 exit_code = int(args[1])
-                # Ensure it's in valid range
-                if exit_code < 0 or exit_code > 255:
-                    print(f"return: {args[1]}: numeric argument required", file=sys.stderr)
-                    return 1
+                # Wrap return value to 0-255 range like bash does
+                exit_code = exit_code % 256
             except ValueError:
                 print(f"return: {args[1]}: numeric argument required", file=sys.stderr)
                 return 1
         else:
-            exit_code = 0
+            # With no arguments, return the current value of $?
+            exit_code = shell.state.last_exit_code
         
         # We can't actually "return" from the middle of execution in Python,
         # so we'll use an exception for control flow
