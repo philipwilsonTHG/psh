@@ -156,45 +156,64 @@ class MockStderr:
 
 
 @pytest.fixture
-def captured_shell(shell):
+def captured_shell():
     """Shell with output capture for testing.
     
     This fixture provides a shell instance where stdout and stderr
-    are captured to MockStdout/MockStderr instances for testing.
-    This avoids conflicts with pytest's capsys fixture.
+    are captured properly, working around the executor's tendency
+    to reset shell.stdout to sys.stdout.
+    
+    The approach: capture at the sys.stdout/stderr level during
+    command execution, which is more reliable than trying to 
+    intercept at the shell level.
     """
-    # Store original streams - check both shell and state
-    original_stdout = getattr(shell, 'stdout', sys.stdout)
-    original_stderr = getattr(shell, 'stderr', sys.stderr)
-    original_state_stdout = getattr(shell.state, 'stdout', sys.stdout)
-    original_state_stderr = getattr(shell.state, 'stderr', sys.stderr)
+    # Create shell with captured I/O
+    shell = Shell()
     
-    # Replace with mock streams
-    mock_stdout = MockStdout()
-    mock_stderr = MockStderr()
+    # Store original sys streams
+    original_sys_stdout = sys.stdout
+    original_sys_stderr = sys.stderr
     
-    # Set on both shell and state to handle the __setattr__ delegation
-    shell.stdout = mock_stdout
-    shell.stderr = mock_stderr
-    # Also set directly on state in case of attribute delegation issues
-    shell.state.stdout = mock_stdout
-    shell.state.stderr = mock_stderr
+    # Create capture buffers
+    captured_stdout = StringIO()
+    captured_stderr = StringIO()
     
-    # Add helper methods to shell
-    shell.get_stdout = lambda: mock_stdout.getvalue()
-    shell.get_stderr = lambda: mock_stderr.getvalue()
-    shell.clear_output = lambda: (mock_stdout.content.truncate(0), 
-                                  mock_stdout.content.seek(0),
-                                  mock_stderr.content.truncate(0),
-                                  mock_stderr.content.seek(0))
+    # Store original run_command method
+    original_run_command = shell.run_command
+    
+    def capturing_run_command(command_string, add_to_history=True):
+        """Run command with output capture."""
+        # Replace sys streams during execution
+        sys.stdout = captured_stdout
+        sys.stderr = captured_stderr
+        
+        try:
+            result = original_run_command(command_string, add_to_history)
+        finally:
+            # Always restore
+            sys.stdout = original_sys_stdout
+            sys.stderr = original_sys_stderr
+        
+        return result
+    
+    # Replace run_command
+    shell.run_command = capturing_run_command
+    
+    # Add helper methods
+    shell.get_stdout = lambda: captured_stdout.getvalue()
+    shell.get_stderr = lambda: captured_stderr.getvalue()
+    shell.clear_output = lambda: (
+        captured_stdout.truncate(0),
+        captured_stdout.seek(0),
+        captured_stderr.truncate(0),
+        captured_stderr.seek(0)
+    )
     
     yield shell
     
-    # Restore original streams on both shell and state
-    shell.stdout = original_stdout
-    shell.stderr = original_stderr
-    shell.state.stdout = original_state_stdout
-    shell.state.stderr = original_state_stderr
+    # Cleanup
+    sys.stdout = original_sys_stdout
+    sys.stderr = original_sys_stderr
 
 
 @pytest.fixture(autouse=True)

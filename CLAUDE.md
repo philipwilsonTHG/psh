@@ -165,22 +165,80 @@ Input → Line Continuation → Tokenization → Parsing → AST → Expansion �
 
 ### Testing
 
-**For new tests (recommended)**:
-- Add tests to `tests_new/` using the organized structure
-- Use appropriate fixtures from `tests_new/conftest.py` (shell, clean_shell, temp_dir)
-- Test with `shell.run_command()` not direct method calls
-- Place tests in correct category: unit/, integration/, system/, performance/
+**Test Writing Guidelines**
 
-**For legacy tests**:
-- Use the global `shell` fixture from `tests/conftest.py`
-- For subprocess tests, use absolute paths and explicit working directory
-- Remember: builtin output goes to `shell.stdout`, not captured by print()
+Choose the right fixture based on test type:
+
+1. **Unit Tests** (use `captured_shell`):
+   - Testing builtin command output
+   - Testing parser/lexer components  
+   - Testing expansion logic
+   - No file I/O or process spawning
+
+2. **Integration Tests** (use `isolated_shell_with_temp_dir`):
+   - Testing I/O redirection
+   - Testing pipelines
+   - Testing job control
+   - File system operations
+
+3. **System Tests** (use `subprocess`):
+   - Testing full shell behavior
+   - Comparing with bash
+   - Testing process lifecycle
+   - Interactive features (when possible)
+
+**Output Capture Rules**:
+1. NEVER use capsys with shell tests that do I/O redirection
+2. ALWAYS use captured_shell for builtin output testing
+3. PREFER subprocess.run for external command testing
+4. AVOID mixing capture methods in the same test
+
+**Example Patterns**:
+
+```python
+# Unit test with captured_shell
+def test_echo_output(captured_shell):
+    result = captured_shell.run_command("echo hello")
+    assert result == 0
+    assert captured_shell.get_stdout() == "hello\n"
+    assert captured_shell.get_stderr() == ""
+
+# Integration test with isolated shell
+def test_file_redirection(isolated_shell_with_temp_dir):
+    shell = isolated_shell_with_temp_dir
+    shell.run_command("echo test > file.txt")
+    
+    # Read file directly, not through shell output
+    import os
+    with open(os.path.join(shell.state.variables['PWD'], 'file.txt')) as f:
+        assert f.read() == "test\n"
+
+# Conformance test with subprocess
+def test_posix_compliance():
+    import subprocess
+    cmd = "echo $((1 + 1))"
+    
+    psh = subprocess.run([sys.executable, '-m', 'psh', '-c', cmd], 
+                        capture_output=True, text=True)
+    bash = subprocess.run(['bash', '-c', cmd], 
+                         capture_output=True, text=True)
+    
+    assert psh.stdout == bash.stdout
+```
 
 **For conformance tests**:
 - Add to `tests_new/conformance/posix/` or `tests_new/conformance/bash/`
 - Inherit from `ConformanceTest` base class
 - Use `assert_identical_behavior()` for exact PSH/bash matching
 - Use `assert_documented_difference()` for known differences
+
+**Best Practices**:
+- Clear output between tests: `captured_shell.clear_output()`
+- Check both stdout and stderr
+- Always verify exit codes
+- Use appropriate test markers (@pytest.mark.serial, @pytest.mark.isolated)
+
+See `docs/test_pattern_guide.md` for comprehensive examples and patterns.
 
 ### Code Patterns
 ```python
