@@ -2,10 +2,16 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.73.2"
+__version__ = "0.73.3"
 
 # Version history
 VERSION_HISTORY = """
+0.73.3 (2025-01-12) - History Clear Implementation
+  - Added history -c flag to clear command history
+  - Matches bash behavior for history management
+  - Updated help text to document the new option
+  - Test marked as xfail will now show as xpass
+
 0.73.2 (2025-01-12) - Function Precedence Fix
   - Fixed command execution order: functions now properly override builtins
   - Command builtin correctly bypasses functions to access builtins

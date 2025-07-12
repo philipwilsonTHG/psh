@@ -20,6 +20,11 @@ class HistoryBuiltin(Builtin):
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Display command history."""
         if len(args) > 1:
+            # Check for -c flag to clear history
+            if args[1] == '-c':
+                shell.history.clear()
+                return 0
+            
             try:
                 count = int(args[1])
                 if count < 0:
@@ -47,10 +52,14 @@ class HistoryBuiltin(Builtin):
     
     @property
     def help(self) -> str:
-        return """history: history [n]
+        return """history: history [n] | history -c
     
     Display the command history list with line numbers.
-    If n is given, show only the last n entries.
+    
+    Options:
+      n     Show only the last n entries
+      -c    Clear the history list
+    
     Default is to show the last 10 commands."""
 
 
