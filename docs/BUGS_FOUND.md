@@ -197,17 +197,14 @@ declare -a array
 
 ## Summary of Current Status
 
-**Total Issues Found**: 17  
-**Fixed**: 16  
+**Total Issues Found**: 18  
+**Fixed**: 17  
 **Active Bugs**: 1 (quote processing)  
 **Test Issues**: 0 (all resolved)  
 **Expected Differences**: 1 (process ID)  
 
 **Critical Areas Needing Attention**:
-1. Parameter expansion completeness (`:=`, `:?` syntax)
-2. Quote processing and escaping consistency
-3. Array syntax parsing - too aggressive detection of square brackets
-4. Error code propagation for expansion failures
+1. Quote processing and escaping consistency (Bug #7)
 
 ### 13. Square Bracket Array Syntax Over-Eager Parsing [FIXED]
 
@@ -381,8 +378,49 @@ test -z "hello" -o -n "world"
 
 **Location**: `tests_new/unit/builtins/test_test_builtin.py::TestLogicalOperators`
 
+### 18. Function Precedence Over Builtins [FIXED]
+
+**Status**: Fixed  
+**Severity**: Medium  
+**Discovery Date**: 2025-01-12  
+**Fixed**: 2025-01-12
+**Location**: Command execution strategies (`psh/executor/command.py`)  
+
+**Description**: Shell functions could not override builtin commands. The execution order checked builtins before functions, preventing function shadowing.
+
+**Test Cases**:
+```bash
+echo() { printf "function echo\\n"; }
+echo test
+# Expected: "function echo"
+# PSH Result (before fix): "test" (used builtin)
+# PSH Result (after fix): "function echo" ✓
+
+# Command builtin should bypass function
+command echo test
+# Expected: "test" (builtin)
+# PSH Result: "test" ✓
+```
+
+**Fix**: Reordered execution strategies to check functions before builtins, matching bash behavior.
+
+**Impact**:
+- Functions can now properly shadow builtin commands
+- Command builtin correctly bypasses functions
+- Full bash compatibility for function precedence
+- No regression in existing functionality
+
+**Location**: `tests_new/unit/builtins/test_command_builtin.py::test_command_bypass_function`
+
 **PSH Strengths Confirmed**:
 - Excellent core shell functionality
 - Strong bash compatibility (better than expected)
 - Robust control flow and function support
 - Good POSIX compliance for basic features
+
+## Feature Additions During Bug Fixing
+
+### History Clear Option
+- Added `history -c` flag to clear command history (matching bash)
+- Not a bug, but a missing feature that was straightforward to add
+- Implemented in `psh/builtins/shell_state.py`
