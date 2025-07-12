@@ -197,8 +197,8 @@ declare -a array
 
 ## Summary of Current Status
 
-**Total Issues Found**: 18  
-**Fixed**: 17  
+**Total Issues Found**: 19  
+**Fixed**: 18  
 **Active Bugs**: 1 (quote processing)  
 **Test Issues**: 0 (all resolved)  
 **Expected Differences**: 1 (process ID)  
@@ -417,6 +417,48 @@ command echo test
 - Strong bash compatibility (better than expected)
 - Robust control flow and function support
 - Good POSIX compliance for basic features
+
+### 19. Parser Error Detection for Unclosed Expansions [FIXED]
+
+**Status**: Fixed  
+**Severity**: Medium  
+**Discovery Date**: 2025-01-12  
+**Fixed**: 2025-01-12
+**Location**: Parser error detection (`psh/parser/commands.py`)  
+
+**Description**: The parser did not detect unclosed expansions (command substitution, parameter expansion, arithmetic expansion) as syntax errors. The lexer correctly identified these cases but the parser accepted them without error.
+
+**Test Cases**:
+```bash
+# Unclosed command substitution
+echo $(echo test
+# Expected: Parse error - unclosed command substitution
+# PSH Result (before fix): No error, command hangs or behaves incorrectly
+# PSH Result (after fix): Parse error: "Syntax error: unclosed command substitution '$(echo test'" ✓
+
+# Unclosed parameter expansion  
+echo ${invalid-syntax
+# Expected: Parse error - unclosed parameter expansion
+# PSH Result (before fix): No error
+# PSH Result (after fix): Parse error: "Syntax error: unclosed parameter expansion '${invalid-syntax'" ✓
+
+# Unclosed backtick substitution
+echo `unclosed
+# Expected: Parse error
+# PSH Result (after fix): Parse error: "Syntax error: unclosed backtick substitution '`unclosed'" ✓
+```
+
+**Fix**: Added `_check_for_unclosed_expansions()` method in CommandParser that:
+1. Checks RichToken parts for expansion_type ending in '_unclosed'
+2. Checks specific token types (COMMAND_SUB, VARIABLE, etc.) for unclosed patterns
+3. Raises ParseError with descriptive error messages
+
+**Impact**:
+- Scripts with syntax errors now fail early with clear error messages
+- Improved error detection helps users catch typos
+- Better POSIX/bash compatibility for error handling
+
+**Location**: `tests_new/integration/parsing/test_error_recovery.py` - 3 tests now pass
 
 ## Feature Additions During Bug Fixing
 

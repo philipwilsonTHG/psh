@@ -2,10 +2,19 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.73.3"
+__version__ = "0.73.4"
 
 # Version history
 VERSION_HISTORY = """
+0.73.4 (2025-01-12) - Parser Error Detection for Unclosed Expansions
+  - Fixed Bug #19: Parser now detects unclosed expansions as syntax errors
+  - Added comprehensive checking for unclosed command substitution $(...)
+  - Added checking for unclosed parameter expansion ${...}
+  - Added checking for unclosed backtick substitution `...`
+  - Clear error messages help users identify syntax errors early
+  - 3 xfail tests now pass in test_error_recovery.py
+  - Improved POSIX/bash compatibility for error handling
+
 0.73.3 (2025-01-12) - History Clear Implementation
   - Added history -c flag to clear command history
   - Matches bash behavior for history management

@@ -98,7 +98,6 @@ class TestSyntaxErrorHandling:
         assert not result['success']
         assert 'quote' in result['stderr'].lower() or 'syntax' in result['stderr'].lower() or 'parse error' in result['stderr'].lower()
     
-    @pytest.mark.xfail(reason="Parser does not currently detect unclosed command substitution as syntax error")
     def test_unclosed_parentheses_error(self):
         """Test handling of unclosed parentheses."""
         result = ErrorTestHelper.run_psh_command('echo $(echo test', expect_failure=True)
@@ -123,7 +122,6 @@ class TestSyntaxErrorHandling:
         assert not result['success']
         assert 'syntax' in result['stderr'].lower() or 'parse error' in result['stderr'].lower() or 'pipe' in result['stderr'].lower() or 'parse error' in result['stderr'].lower()
     
-    @pytest.mark.xfail(reason="Parser does not currently detect incomplete command substitution as syntax error")
     def test_incomplete_command_substitution(self):
         """Test handling of incomplete command substitution."""
         result = ErrorTestHelper.run_psh_command('echo $(echo test', expect_failure=True)
@@ -132,7 +130,6 @@ class TestSyntaxErrorHandling:
         assert not result['success']
         assert ('syntax' in result['stderr'].lower() or 'parse error' in result['stderr'].lower())
     
-    @pytest.mark.xfail(reason="Parser does not currently detect incomplete variable expansion as syntax error")
     def test_invalid_variable_syntax(self):
         """Test handling of invalid variable syntax."""
         result = ErrorTestHelper.run_psh_command('echo ${invalid-syntax', expect_failure=True)

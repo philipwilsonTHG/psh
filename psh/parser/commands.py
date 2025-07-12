@@ -30,6 +30,74 @@ class CommandParser:
         fd_dup_pattern = re.compile(r'^(\d*)[><]&(-|\d+)$')
         return bool(fd_dup_pattern.match(value))
     
+    def _check_for_unclosed_expansions(self, token: Token) -> None:
+        """Check if a token contains unclosed expansions and raise appropriate errors."""
+        # Check tokens that might contain expansions
+        if token.type not in [TokenType.WORD, TokenType.COMPOSITE, TokenType.COMMAND_SUB, 
+                              TokenType.COMMAND_SUB_BACKTICK, TokenType.ARITH_EXPANSION, TokenType.VARIABLE]:
+            return
+        
+        # Import RichToken to check if token has parts
+        from ..lexer.token_parts import RichToken
+        
+        # If it's a RichToken, check its parts for unclosed expansions
+        if isinstance(token, RichToken) and token.parts:
+            for part in token.parts:
+                if part.expansion_type and part.expansion_type.endswith('_unclosed'):
+                    # Determine the type of unclosed expansion
+                    if part.expansion_type == 'parameter_unclosed':
+                        error_msg = f"Syntax error: unclosed parameter expansion '${{{part.value[2:]}'"
+                    elif part.expansion_type == 'command_unclosed':
+                        error_msg = f"Syntax error: unclosed command substitution '$({part.value[2:]}'"
+                    elif part.expansion_type == 'arithmetic_unclosed':
+                        error_msg = f"Syntax error: unclosed arithmetic expansion '$(({part.value[3:]}'"
+                    elif part.expansion_type == 'backtick_unclosed':
+                        error_msg = f"Syntax error: unclosed backtick substitution '`{part.value[1:]}'"
+                    else:
+                        error_msg = f"Syntax error: unclosed expansion '{part.value}'"
+                    
+                    # Create error context with token position
+                    error_context = ErrorContext(
+                        token=token,
+                        message=error_msg,
+                        position=token.position
+                    )
+                    raise ParseError(error_context)
+        
+        # Also check for specific token types that indicate unclosed expansions
+        if token.type == TokenType.COMMAND_SUB and not token.value.endswith(')'):
+            error_msg = f"Syntax error: unclosed command substitution '{token.value}'"
+            error_context = ErrorContext(
+                token=token,
+                message=error_msg,
+                position=token.position
+            )
+            raise ParseError(error_context)
+        elif token.type == TokenType.COMMAND_SUB_BACKTICK and token.value.count('`') == 1:
+            error_msg = f"Syntax error: unclosed backtick substitution '{token.value}'"
+            error_context = ErrorContext(
+                token=token,
+                message=error_msg,
+                position=token.position
+            )
+            raise ParseError(error_context)
+        elif token.type == TokenType.ARITH_EXPANSION and not token.value.endswith('))'):
+            error_msg = f"Syntax error: unclosed arithmetic expansion '{token.value}'"
+            error_context = ErrorContext(
+                token=token,
+                message=error_msg,
+                position=token.position
+            )
+            raise ParseError(error_context)
+        elif token.type == TokenType.VARIABLE and token.value.startswith('${') and not token.value.endswith('}'):
+            error_msg = f"Syntax error: unclosed parameter expansion '{token.value}'"
+            error_context = ErrorContext(
+                token=token,
+                message=error_msg,
+                position=token.position
+            )
+            raise ParseError(error_context)
+    
     def parse_command(self) -> SimpleCommand:
         """Parse a single command with its arguments and redirections."""
         command = SimpleCommand()
@@ -259,6 +327,9 @@ class CommandParser:
             has_quoted_part = False
             
             for token in composite:
+                # Check for unclosed expansions in composite parts
+                self._check_for_unclosed_expansions(token)
+                
                 # Track if any part was quoted
                 if token.type == TokenType.STRING:
                     has_quoted_part = True
@@ -288,6 +359,9 @@ class CommandParser:
     
     def _token_to_argument(self, token: Token) -> Tuple[str, str, Optional[str]]:
         """Convert a single token to argument tuple format."""
+        # Check for unclosed expansions
+        self._check_for_unclosed_expansions(token)
+        
         # Handle composite tokens specially
         if token.type == TokenType.COMPOSITE:
             # Composite tokens already have the merged value
@@ -295,7 +369,7 @@ class CommandParser:
             return token.value, arg_type, None
         
         type_map = {
-            TokenType.VARIABLE: ('VARIABLE', lambda t: f"${t.value}"),
+            TokenType.VARIABLE: ('VARIABLE', lambda t: self._format_variable(t)),
             TokenType.STRING: ('STRING', lambda t: t.value),
             TokenType.COMMAND_SUB: ('COMMAND_SUB', lambda t: t.value),
             TokenType.COMMAND_SUB_BACKTICK: ('COMMAND_SUB_BACKTICK', lambda t: t.value),
@@ -313,6 +387,15 @@ class CommandParser:
         quote_type = token.quote_type if token.type == TokenType.STRING else None
         
         return value, arg_type, quote_type
+    
+    def _format_variable(self, token: Token) -> str:
+        """Format a VARIABLE token, prepending $ if needed."""
+        value = token.value
+        # Check if it already starts with $ (includes ${...})
+        if value.startswith('$'):
+            return value
+        else:
+            return f"${value}"
     
     # Command variant parsers for use in pipelines
     
