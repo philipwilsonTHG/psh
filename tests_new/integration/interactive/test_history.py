@@ -205,7 +205,6 @@ class TestHistoryExpansion:
         count = result['stdout'].count('unique_test_string')
         assert count >= 2
     
-    @pytest.mark.xfail(reason="History expansion not implemented yet") 
     def test_history_expansion_not_found(self):
         """Test history expansion when pattern not found."""
         commands = [
@@ -217,7 +216,6 @@ class TestHistoryExpansion:
         # Should handle gracefully - either error message or no expansion
         # Exact behavior depends on implementation
     
-    @pytest.mark.xfail(reason="History expansion not implemented yet")
     def test_history_expansion_in_quotes(self):
         """Test history expansion behavior inside quotes.""" 
         commands = [
@@ -245,7 +243,6 @@ class TestHistoryConfiguration:
         import shutil
         shutil.rmtree(self.temp_dir, ignore_errors=True)
     
-    @pytest.mark.xfail(reason="History configuration not implemented yet")
     def test_histsize_variable(self):
         """Test HISTSIZE variable controls history size."""
         commands = [
@@ -283,7 +280,6 @@ class TestHistoryConfiguration:
         # Check that custom history file was created
         assert os.path.exists(custom_history)
     
-    @pytest.mark.xfail(reason="History configuration not implemented yet")
     def test_history_disable(self):
         """Test disabling history."""
         commands = [
@@ -297,7 +293,6 @@ class TestHistoryConfiguration:
         
         # Behavior depends on how history disable is implemented
     
-    @pytest.mark.xfail(reason="History configuration not implemented yet")
     def test_history_no_duplicates(self):
         """Test history ignoring duplicate commands."""
         commands = [
@@ -327,21 +322,18 @@ class TestHistoryNavigation:
         import shutil
         shutil.rmtree(self.temp_dir, ignore_errors=True)
     
-    @pytest.mark.xfail(reason="Interactive history navigation not testable with subprocess")
     def test_up_arrow_navigation(self):
         """Test up arrow key for history navigation."""
         # This test would require actual terminal interaction
         # Difficult to test with subprocess approach
         pass
     
-    @pytest.mark.xfail(reason="Interactive history navigation not testable with subprocess")
     def test_ctrl_r_search(self):
         """Test Ctrl-R reverse search."""
         # This test would require actual terminal interaction
         # Difficult to test with subprocess approach  
         pass
     
-    @pytest.mark.xfail(reason="History search not implemented yet")
     def test_history_search_command(self):
         """Test history search functionality if available as command."""
         commands = [
@@ -385,7 +377,6 @@ class TestHistoryBuiltins:
         # After clear, should not see before_clear in history
         assert 'before_clear' not in result['stdout']
     
-    @pytest.mark.xfail(reason="History builtin options not implemented yet") 
     def test_history_write(self):
         """Test history -w (write history to file)."""
         commands = [
@@ -422,7 +413,6 @@ class TestHistoryBuiltins:
         assert 'from_file' in result['stdout']
         assert 'another_from_file' in result['stdout']
     
-    @pytest.mark.xfail(reason="History builtin options not implemented yet")
     def test_history_append(self):
         """Test history -a (append new history to file)."""
         commands = [
@@ -452,7 +442,6 @@ class TestHistoryErrorHandling:
         import shutil
         shutil.rmtree(self.temp_dir, ignore_errors=True)
     
-    @pytest.mark.xfail(reason="History error handling not fully implemented yet")
     def test_history_file_permission_denied(self):
         """Test history behavior when history file is not writable."""
         history_file = os.path.join(self.temp_dir, 'readonly_history')
@@ -468,7 +457,6 @@ class TestHistoryErrorHandling:
         # Should handle gracefully without crashing
         assert result['success'] or 'permission' in result['stderr'].lower()
     
-    @pytest.mark.xfail(reason="History error handling not fully implemented yet")
     def test_history_file_directory_not_exist(self):
         """Test history behavior when history file directory doesn't exist."""
         history_file = os.path.join(self.temp_dir, 'nonexistent', 'history')
@@ -479,7 +467,6 @@ class TestHistoryErrorHandling:
         # Should handle gracefully
         assert result['success'] or 'directory' in result['stderr'].lower()
     
-    @pytest.mark.xfail(reason="History error handling not fully implemented yet")
     def test_history_with_very_long_commands(self):
         """Test history with very long command lines."""
         long_command = 'echo ' + 'a' * 10000  # Very long command
@@ -490,7 +477,6 @@ class TestHistoryErrorHandling:
         
         # Should handle long commands gracefully
     
-    @pytest.mark.xfail(reason="History error handling not fully implemented yet")
     def test_history_with_special_characters(self):
         """Test history with special characters and unicode."""
         commands = [

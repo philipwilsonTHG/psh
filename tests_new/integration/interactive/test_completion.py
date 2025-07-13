@@ -75,7 +75,6 @@ class TestCommandCompletion:
         assert result['success']
         assert 'echo' in result['stdout']
     
-    @pytest.mark.xfail(reason="Tab completion not implemented yet")
     def test_external_command_completion(self):
         """Test completion of external command names from PATH."""
         # Test that 'l<TAB>' shows 'ls' among options
@@ -83,7 +82,6 @@ class TestCommandCompletion:
         assert result['success']
         # Should show available commands starting with 'l'
     
-    @pytest.mark.xfail(reason="Tab completion not implemented yet")
     def test_command_completion_multiple_options(self):
         """Test completion when multiple commands match."""
         # Test completion with multiple matches
@@ -99,7 +97,6 @@ class TestCommandCompletion:
         assert result['success']
         assert 'echo' in result['stdout']
     
-    @pytest.mark.xfail(reason="Tab completion not implemented yet")
     def test_no_command_completion_match(self):
         """Test completion behavior when no commands match."""
         # Test with non-existent command prefix
@@ -132,7 +129,6 @@ class TestFileCompletion:
         import shutil
         shutil.rmtree(self.test_dir, ignore_errors=True)
     
-    @pytest.mark.xfail(reason="Tab completion not implemented yet")
     def test_file_completion_basic(self):
         """Test basic file completion."""
         # Test completing 'test_<TAB>'
@@ -140,7 +136,6 @@ class TestFileCompletion:
         assert result['success']
         # Should complete to available files starting with 'test_'
     
-    @pytest.mark.xfail(reason="Tab completion not implemented yet")  
     def test_directory_completion(self):
         """Test directory completion."""
         # Test completing directory names
@@ -148,7 +143,6 @@ class TestFileCompletion:
         assert result['success']
         # Should complete to 'test_directory'
     
-    @pytest.mark.xfail(reason="Tab completion not implemented yet")
     def test_hidden_file_completion(self):
         """Test completion of hidden files."""
         # Create hidden file
@@ -159,14 +153,12 @@ class TestFileCompletion:
         assert result['success']
         # Should complete to '.hidden_file'
     
-    @pytest.mark.xfail(reason="Tab completion not implemented yet")
     def test_path_completion_with_slash(self):
         """Test completion with path separators."""
         result = InteractiveTestHelper.run_psh_interactive(f'cd {self.test_dir}\nls test_directory/\t')
         assert result['success']
         # Should show contents of test_directory
     
-    @pytest.mark.xfail(reason="Tab completion not implemented yet")
     def test_absolute_path_completion(self):
         """Test completion of absolute paths."""
         result = InteractiveTestHelper.run_psh_interactive(f'ls {self.test_dir}/test_\t')
@@ -177,7 +169,6 @@ class TestFileCompletion:
 class TestVariableCompletion:
     """Test variable name completion."""
     
-    @pytest.mark.xfail(reason="Tab completion not implemented yet")
     def test_environment_variable_completion(self):
         """Test completion of environment variables."""
         # Test completing '$HO<TAB>' to '$HOME'
@@ -185,7 +176,6 @@ class TestVariableCompletion:
         assert result['success']
         # Should complete to $HOME
     
-    @pytest.mark.xfail(reason="Tab completion not implemented yet")
     def test_user_variable_completion(self):
         """Test completion of user-defined variables."""
         # Set a variable and test completion
@@ -193,7 +183,6 @@ class TestVariableCompletion:
         assert result['success']
         # Should complete to $MY_TEST_VAR
     
-    @pytest.mark.xfail(reason="Tab completion not implemented yet")
     def test_special_variable_completion(self):
         """Test completion of special variables like $?, $$, etc."""
         # Test special variables
@@ -201,7 +190,6 @@ class TestVariableCompletion:
         assert result['success']
         # Should show special variables like $?, $$, $!, etc.
     
-    @pytest.mark.xfail(reason="Tab completion not implemented yet")
     def test_variable_completion_in_quotes(self):
         """Test variable completion inside quotes."""
         result = InteractiveTestHelper.run_psh_interactive('echo "Value is $HO\t"')
@@ -212,35 +200,30 @@ class TestVariableCompletion:
 class TestAdvancedCompletion:
     """Test advanced completion scenarios."""
     
-    @pytest.mark.xfail(reason="Tab completion not implemented yet")
     def test_completion_after_pipe(self):
         """Test completion after pipe operators."""
         result = InteractiveTestHelper.run_psh_interactive('echo hello | ca\t')
         assert result['success']
         # Should complete commands after pipe
     
-    @pytest.mark.xfail(reason="Tab completion not implemented yet")
     def test_completion_after_redirection(self):
         """Test completion after redirection operators."""
         result = InteractiveTestHelper.run_psh_interactive('echo hello > test_\t')
         assert result['success']
         # Should complete filenames after redirection
     
-    @pytest.mark.xfail(reason="Tab completion not implemented yet")
     def test_completion_in_command_substitution(self):
         """Test completion inside command substitution."""
         result = InteractiveTestHelper.run_psh_interactive('echo $(ech\t)')
         assert result['success']
         # Should complete commands inside $()
     
-    @pytest.mark.xfail(reason="Tab completion not implemented yet")
     def test_completion_with_quotes(self):
         """Test completion with quoted arguments."""
         result = InteractiveTestHelper.run_psh_interactive('echo "test_\t"')
         assert result['success']
         # Should handle completion inside quotes
     
-    @pytest.mark.xfail(reason="Tab completion not implemented yet")
     def test_completion_function_names(self):
         """Test completion of function names."""
         # Define a function and test completion
@@ -251,7 +234,6 @@ class TestAdvancedCompletion:
         assert result['success']
         # Should complete to my_test_function
     
-    @pytest.mark.xfail(reason="Tab completion not implemented yet")
     def test_completion_alias_names(self):
         """Test completion of alias names."""
         # Define an alias and test completion
@@ -266,7 +248,6 @@ class TestAdvancedCompletion:
 class TestCompletionConfiguration:
     """Test completion configuration and customization."""
     
-    @pytest.mark.xfail(reason="Tab completion configuration not implemented yet")
     def test_completion_disable(self):
         """Test disabling tab completion."""
         # Test with completion disabled
@@ -277,7 +258,6 @@ class TestCompletionConfiguration:
         assert result['success']
         # Should not complete when disabled
     
-    @pytest.mark.xfail(reason="Tab completion configuration not implemented yet")
     def test_completion_case_sensitivity(self):
         """Test case-sensitive vs case-insensitive completion."""
         # Test case sensitivity in completion
@@ -285,7 +265,6 @@ class TestCompletionConfiguration:
         assert result['success']
         # Behavior depends on case sensitivity setting
     
-    @pytest.mark.xfail(reason="Tab completion configuration not implemented yet")
     def test_completion_cycling(self):
         """Test cycling through multiple completion options."""
         # Test pressing TAB multiple times
@@ -297,21 +276,18 @@ class TestCompletionConfiguration:
 class TestCompletionErrorHandling:
     """Test completion error handling and edge cases."""
     
-    @pytest.mark.xfail(reason="Tab completion not implemented yet")
     def test_completion_permission_denied(self):
         """Test completion in directories without read permission."""
         # This test would require creating a directory without read permissions
         # and testing completion behavior
         pass
     
-    @pytest.mark.xfail(reason="Tab completion not implemented yet")
     def test_completion_nonexistent_directory(self):
         """Test completion in non-existent directories."""
         result = InteractiveTestHelper.run_psh_interactive('ls /nonexistent/path/\t')
         assert result['success']
         # Should handle gracefully
     
-    @pytest.mark.xfail(reason="Tab completion not implemented yet")
     def test_completion_with_very_long_path(self):
         """Test completion with very long file paths."""
         # Create a deep directory structure
@@ -320,7 +296,6 @@ class TestCompletionErrorHandling:
         assert result['success']
         # Should handle long paths gracefully
     
-    @pytest.mark.xfail(reason="Tab completion not implemented yet")
     def test_completion_special_characters(self):
         """Test completion with special characters in filenames."""
         # Test files with spaces, quotes, etc.

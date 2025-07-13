@@ -45,10 +45,11 @@ def test_trap_signal_execution():
     import sys
     
     # Test trap handling in isolated process
+    # Note: PSH recognizes ${$} but not $$ for PID
     script = '''
 trap "echo 'caught TERM signal'" TERM
-echo "PID: $$"
-kill -TERM $$
+echo "PID: ${$}"
+kill -TERM ${$}
 echo "after signal"
 '''
     
@@ -66,7 +67,7 @@ echo "after signal"
     # Test with INT signal
     script2 = '''
 trap "echo 'caught INT signal'; exit 0" INT
-kill -INT $$
+kill -INT ${$}
 echo "should not see this"
 '''
     
