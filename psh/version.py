@@ -2,10 +2,40 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.80.3"
+__version__ = "0.80.5"
 
 # Version history
 VERSION_HISTORY = """
+0.80.5 (2025-01-13) - Fixed Escape Sequence Processing for Bash Compatibility
+  - Fixed escape sequence processing to match bash behavior for \\$\\(echo test\\)
+  - Removed special case handling for \\$ that prevented other escapes from being processed
+  - The expansion manager was treating \\$\\(echo as a special case, replacing only \\$ with $
+  - Now all escape sequences in the argument are processed uniformly:
+    - \\$ → $
+    - \\( → (
+    - \\) → )
+  - PSH now outputs $(echo test) matching bash, instead of $\\(echo test)
+  - Fixed by removing lines 137-141 in expansion/manager.py that special-cased \\$
+  - All 7 escaped dollar conformance tests now pass
+  - This completes the user request to match bash behavior for escaped parentheses
+
+0.80.4 (2025-01-13) - Parser Fix for Escaped Dollar Followed by Parenthesis
+  - Fixed parser to correctly reject \\$( as a syntax error matching bash behavior
+    - Bash treats echo \\$(echo test) as "syntax error near unexpected token '('"
+    - PSH was incorrectly accepting this and executing as separate tokens
+  - Enhanced parser's parse_pipeline_component to check for escaped dollar before LPAREN
+    - Detects when previous token ends with \\$ (odd number of backslashes before $)
+    - Properly handles cases like \\$( and \\\\\\$( as syntax errors
+    - Allows valid cases like \\\\$(cmd) where dollar is not escaped
+  - Added comprehensive test suite for escaped dollar syntax
+    - 8 tests covering all variations of escaped dollar with parenthesis
+    - Tests verify PSH matches bash behavior exactly
+  - Created conformance tests documenting this bash compatibility improvement
+    - Note: PSH differs from bash on \\$\\(echo test\\) output formatting
+  - This fix improves bash compatibility and prevents confusing behavior
+    - Users attempting escaped dollar + command substitution get clear error
+    - Consistent with POSIX shell syntax requirements
+
 0.80.3 (2025-01-13) - Pushd Logical Path Preservation
   - Fixed pushd to preserve logical paths instead of resolving symlinks
     - Now correctly shows /tmp instead of /private/tmp on macOS

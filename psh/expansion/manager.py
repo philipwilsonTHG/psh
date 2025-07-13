@@ -123,9 +123,6 @@ class ExpansionManager:
                     if self.state.options.get('debug-expansion-detail'):
                         print(f"[EXPANSION]     Variable expansion: '{var_expr}' -> '{expanded}'", file=self.state.stderr)
                     args.append(expanded)
-            elif '\x00$' in arg:
-                # Contains escaped dollar sign marker - replace with literal $
-                args.append(arg.replace('\x00$', '$'))
             elif arg_type != 'COMPOSITE' and arg.startswith('$') and not (arg.startswith('$(') or arg.startswith('`')):
                 # Variable expansion for unquoted variables (but not COMPOSITE args)
                 # Check if this is an array expansion that produces multiple words
@@ -137,9 +134,6 @@ class ExpansionManager:
                     # Regular variable expansion
                     expanded = self.expand_variable(arg)
                     args.append(expanded)
-            elif arg_type == 'WORD' and '\\$' in arg:
-                # Escaped dollar sign in word - replace with literal $
-                args.append(arg.replace('\\$', '$'))
             elif arg_type == 'COMPOSITE' or arg_type == 'COMPOSITE_QUOTED':
                 # Composite argument - already concatenated in parser
                 # If it's COMPOSITE_QUOTED, it had quoted parts and shouldn't be glob expanded
@@ -184,7 +178,11 @@ class ExpansionManager:
                 # Check for embedded variables in unquoted words
                 if arg_type == 'WORD' and '$' in arg:
                     # Expand embedded variables
+                    if self.state.options.get('debug-expansion-detail'):
+                        print(f"[EXPANSION]     Before var expansion: '{arg}'", file=self.state.stderr)
                     arg = self.expand_string_variables(arg)
+                    if self.state.options.get('debug-expansion-detail'):
+                        print(f"[EXPANSION]     After var expansion: '{arg}'", file=self.state.stderr)
                 
                 # Tilde expansion (only for unquoted words)
                 if arg.startswith('~') and arg_type == 'WORD':
@@ -197,7 +195,7 @@ class ExpansionManager:
                 if arg_type == 'WORD' and '\\' in arg:
                     original = arg
                     arg = self.process_escape_sequences(arg)
-                    if self.state.options.get('debug-expansion-detail') and original != arg:
+                    if self.state.options.get('debug-expansion-detail'):
                         print(f"[EXPANSION]     Escape processing: '{original}' -> '{arg}'", file=self.state.stderr)
                 
                 # Check if the argument contains unescaped glob characters and wasn't quoted (unless noglob is set)
@@ -261,8 +259,8 @@ class ExpansionManager:
                     # Use NULL marker to prevent glob expansion
                     result.append(f'\x00{next_char}')
                 elif next_char == '$':
-                    # Use NULL marker to prevent variable expansion
-                    result.append('\x00$')
+                    # Escaped dollar sign - just output the dollar
+                    result.append('$')
                 else:
                     # Regular escape processing (removes backslash)
                     result.append(next_char)
