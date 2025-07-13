@@ -181,13 +181,18 @@ class CompletionEngine:
     def escape_path(self, path: str) -> str:
         """Escape special characters in a path for shell use."""
         # Characters that need escaping
-        special_chars = ' \t\n\\$`"\'(){}[]&;|<>*?!#~'
+        special_chars = ' \t\n\\$`"\'(){}[]&;|<>*?!#'
         
         escaped = []
-        for char in path:
-            if char in special_chars:
+        for i, char in enumerate(path):
+            # Don't escape tilde at the beginning (it's for home directory expansion)
+            if char == '~' and i == 0:
+                escaped.append(char)
+            elif char in special_chars:
                 escaped.append('\\')
-            escaped.append(char)
+                escaped.append(char)
+            else:
+                escaped.append(char)
         
         return ''.join(escaped)
 

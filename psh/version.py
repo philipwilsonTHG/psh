@@ -2,10 +2,19 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.80.5"
+__version__ = "0.80.6"
 
 # Version history
 VERSION_HISTORY = """
+0.80.6 (2025-01-13) - Tab Completion Tilde Expansion Fix
+  - Fixed tab completion adding backslash before tilde in paths like ~/src/psh/README.md
+  - Tilde was incorrectly included in the list of special characters to escape
+  - Now tilde at the beginning of a path is preserved for home directory expansion
+  - Tilde in the middle of paths (e.g., file~backup) is left unescaped as it has no special meaning
+  - Other special characters (spaces, $, quotes, etc.) are still properly escaped
+  - Added comprehensive unit tests for tilde handling in tab completion
+  - Example: ls ~/src/psh/READ<TAB> now completes to ls ~/src/psh/README.md (not ls \~/src/psh/README.md)
+
 0.80.5 (2025-01-13) - Fixed Escape Sequence Processing for Bash Compatibility
   - Fixed escape sequence processing to match bash behavior for \\$\\(echo test\\)
   - Removed special case handling for \\$ that prevented other escapes from being processed
