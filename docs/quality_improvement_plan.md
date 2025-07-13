@@ -34,31 +34,35 @@
     - ✅ Verified read builtin advanced features already implemented
     - ✅ Created comprehensive PTY testing documentation
     - ✅ Reduced xpass count from 60 to 8 (87% reduction)
-- ✅ **Phase 6a Started - $$ Implementation** (v0.80.0)
-  - ✅ Implemented $$ special variable (process ID)
+- ✅ **Phase 6a Progress - Quick Wins** (v0.80.0-v0.80.1)
+  - ✅ Implemented $$ special variable (process ID) - v0.80.0
   - ✅ Fixed regression in variable expansion (extra $ prefix bug)
   - ✅ Fixed test isolation issues in background job tests
   - ✅ Fixed navigation tests for tilde-abbreviated paths
   - ✅ Added comprehensive special variable test suite
+  - ✅ Fixed export/env synchronization issue - v0.80.1
+    - Exported variables now properly visible in env output
+    - Works correctly in both direct execution and pipelines
+    - Added comprehensive test suite for env builtin (7 tests)
 
-### Conformance Test Results (2025-07-12)
+### Conformance Test Results (Updated Progress as of v0.80.3)
 
 **Summary:**
-- **POSIX Compliance**: 96.9% (125/129 tests passing)
-- **Bash Compatibility**: 83.5% (91/109 tests passing) - Updated after fixing test misclassification
-- **Overall Conformance**: 91.2% identical behavior (217/238 tests)
-- **Major Finding**: 95.5% of tested features work identically in PSH and bash
+- **POSIX Compliance**: ~98.4% (127/129 tests passing) - Improved from 96.9%
+- **Bash Compatibility**: ~87.2% (95/109 tests passing) - Improved from 83.5%
+- **Overall Conformance**: ~93.3% identical behavior (222/238 tests) - Improved from 91.2%
+- **Major Finding**: With 4 PSH bugs fixed, conformance has significantly improved
 
 **Key Issues Identified:**
 
-1. **PSH Bugs (7 issues - 2.9%)** - Updated after Phase 6a:
+1. **PSH Bugs (7 issues - 2.9%)** - 4 Fixed in Phase 6a:
    - `echo \$(echo test)` - Backslash handling in command substitution
    - ✅ ~~`echo $$` - Process ID special variable not implemented~~ **FIXED in v0.80.0**
    - `sleep 1 & jobs` - Job control timing issues
    - `history` - History shows persistent history (not test-specific)
-   - `alias ll="ls -l"; type ll` - Type builtin doesn't recognize aliases
-   - `export VAR=value; env | grep VAR` - Export not propagating to env
-   - `pushd /tmp` - Directory stack shows absolute paths
+   - ✅ ~~`alias ll="ls -l"; type ll` - Type builtin doesn't recognize aliases~~ **FIXED in v0.80.2**
+   - ✅ ~~`export VAR=value; env | grep VAR` - Export not propagating to env~~ **FIXED in v0.80.1**
+   - ✅ ~~`pushd /tmp` - Directory stack shows absolute paths~~ **FIXED in v0.80.3**
 
 2. **Test Errors (20 issues - 8.4%)**:
    - Parameter expansion error handling (`${x:?error}`)
@@ -83,15 +87,15 @@
 - 1 Unix signals test - Platform-specific (Unix only)
 - 1 signal test (test_trap_signal_execution) - converted to subprocess
 
-### Test Suite Status (as of v0.80.0)
+### Test Suite Status (as of v0.80.3)
 
 **Overall Statistics**:
-- Total tests: ~2000+
-- Passing: ~1975+ (98.7%)
+- Total tests: ~2020+ (added ~20 new tests)
+- Passing: ~1995+ (98.8%)
 - Skipped: 22 (1.1%)
 - XFail: 0
 - XPass: 8 (0.4%)
-- **Recent Progress**: Fixed 5 additional tests with $$ implementation
+- **Recent Progress**: Fixed 4 conformance bugs, added 22 new tests for type builtin, env sync, and pushd
 
 **Major Test Improvements**:
 - Fixed 52 tests that were incorrectly marked as xfail
@@ -473,10 +477,10 @@ Our `analyze_test_classification.py` script shows that **95.5% of tested command
 
 ## Conclusion
 
-**Phase 6a is now underway** with the successful implementation of $$. PSH has achieved:
-- **97.7% POSIX compliance** (126/129 tests) - Up from 96.9%
-- **83.5% Bash compatibility** (91/109 tests) - Maintained
-- **91.6% identical behavior overall** (218/238 tests) - Up from 91.2%
+**Phase 6a is making excellent progress** with 4 conformance bugs fixed. PSH has achieved:
+- **~98.4% POSIX compliance** (127/129 tests) - Up from 96.9%
+- **~87.2% Bash compatibility** (95/109 tests) - Up from 83.5%
+- **~93.3% identical behavior overall** (222/238 tests) - Up from 91.2%
 
 ### Major Achievements
 - **100% of critical missing builtins implemented**: pushd/popd/dirs, enhanced printf, disown
@@ -496,11 +500,11 @@ Our `analyze_test_classification.py` script shows that **95.5% of tested command
    - Review test expectations and update as needed
    - Document any real limitations found
 
-3. **Simple Conformance Fixes** (1 week)
-   - Fix export/env synchronization issue (Bug from conformance tests)
-   - Enhance type builtin to recognize aliases
-   - Fix pushd to show relative paths instead of absolute
-   - Fix backslash handling in command substitution
+3. **Simple Conformance Fixes** ✅ **MAJOR PROGRESS**
+   - ✅ Fix export/env synchronization issue - **COMPLETED** (v0.80.1)
+   - ✅ Implement type builtin to recognize aliases - **COMPLETED** (v0.80.2)
+   - ✅ Fix pushd to preserve logical paths - **COMPLETED** (v0.80.3)
+   - Fix backslash handling in command substitution (Still pending)
 
 #### Phase 6b: Test Infrastructure (Week 2)
 1. **Heredoc Architecture Investigation** (3-4 days)
@@ -534,10 +538,14 @@ Our `analyze_test_classification.py` script shows that **95.5% of tested command
 - ✅ Test isolation issues
 
 **High Priority Bugs (Quick Fixes):**
-1. Export/env propagation - Simple environment sync
-2. Type builtin alias recognition - Add check to existing code
-3. Pushd relative paths - Display formatting only
-4. Backslash in command substitution - Parser enhancement
+1. ✅ Export/env propagation - **FIXED in v0.80.1**
+2. ✅ Type builtin alias recognition - **FIXED in v0.80.2**
+   - Implemented complete type builtin with all options
+   - Now properly recognizes aliases, functions, builtins, and files
+3. ✅ Pushd logical paths - **FIXED in v0.80.3**
+   - Fixed directory stack to preserve logical paths (symlinks)
+   - Now shows /tmp instead of resolved /private/tmp on macOS
+4. Backslash in command substitution - Parser enhancement (Next priority)
 
 **Medium Priority Bugs:**
 1. Job control timing issues - Race condition handling

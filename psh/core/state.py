@@ -232,8 +232,9 @@ class ShellState:
         """Export a variable to the environment."""
         # Set variable with EXPORT attribute in global scope
         self.scope_manager.set_variable(name, value, attributes=VarAttributes.EXPORT, local=False)
-        # Also update environment
+        # Also update both internal and system environment
         self.env[name] = value
+        os.environ[name] = value
         # Sync all exports to environment
         self.scope_manager.sync_exports_to_environment(self.env)
     

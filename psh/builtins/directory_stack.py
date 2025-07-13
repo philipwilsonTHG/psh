@@ -108,7 +108,9 @@ class PushdBuiltin(Builtin):
         # Initialize directory stack if not present
         if not hasattr(shell.state, 'directory_stack'):
             shell.state.directory_stack = DirectoryStack()
-            shell.state.directory_stack.initialize(os.getcwd())
+            # Use PWD if available to preserve logical path, otherwise use physical path
+            current_dir = shell.env.get('PWD', os.getcwd())
+            shell.state.directory_stack.initialize(current_dir)
         
         stack = shell.state.directory_stack
         
@@ -166,11 +168,13 @@ class PushdBuiltin(Builtin):
             directory = os.path.abspath(directory)
         
         try:
+            # Get current directory from PWD to preserve logical path
+            current_dir = shell.env.get('PWD', os.getcwd())
+            
             # Change to directory first to validate it exists and is accessible
-            current_dir = os.getcwd()
             os.chdir(directory)
             
-            # Push current directory onto stack and set new current
+            # Push new directory onto stack (using logical path)
             stack.push(directory)
             
             # Update PWD variables
@@ -258,7 +262,9 @@ class PopdBuiltin(Builtin):
         # Initialize directory stack if not present
         if not hasattr(shell.state, 'directory_stack'):
             shell.state.directory_stack = DirectoryStack()
-            shell.state.directory_stack.initialize(os.getcwd())
+            # Use PWD if available to preserve logical path, otherwise use physical path
+            current_dir = shell.env.get('PWD', os.getcwd())
+            shell.state.directory_stack.initialize(current_dir)
         
         stack = shell.state.directory_stack
         
@@ -388,7 +394,9 @@ class DirsBuiltin(Builtin):
         # Initialize directory stack if not present
         if not hasattr(shell.state, 'directory_stack'):
             shell.state.directory_stack = DirectoryStack()
-            shell.state.directory_stack.initialize(os.getcwd())
+            # Use PWD if available to preserve logical path, otherwise use physical path
+            current_dir = shell.env.get('PWD', os.getcwd())
+            shell.state.directory_stack.initialize(current_dir)
         
         stack = shell.state.directory_stack
         

@@ -25,9 +25,21 @@ class EnvBuiltin(Builtin):
             # No arguments, print all environment variables
             # First sync exports from scope manager to environment
             shell.state.scope_manager.sync_exports_to_environment(shell.env)
-            for key, value in sorted(shell.env.items()):
-                print(f"{key}={value}", 
-                      file=shell.stdout if hasattr(shell, 'stdout') else sys.stdout)
+            
+            # Check if we're in a forked child (e.g., in a pipeline)
+            if hasattr(shell.state, '_in_forked_child') and shell.state._in_forked_child:
+                # In a pipeline, we're in a forked child process
+                # The shell.env should have been inherited from parent
+                # Use shell.env which contains the exported variables
+                for key, value in sorted(shell.env.items()):
+                    # In child process, write directly to fd 1
+                    output_line = f'{key}={value}\n'
+                    os.write(1, output_line.encode('utf-8', errors='replace'))
+            else:
+                # Not in a forked child, use shell.env (which has been synced)
+                for key, value in sorted(shell.env.items()):
+                    print(f"{key}={value}", 
+                          file=shell.stdout if hasattr(shell, 'stdout') else sys.stdout)
             return 0
         else:
             # TODO: Run command with modified environment

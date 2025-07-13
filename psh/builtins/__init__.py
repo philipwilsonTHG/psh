@@ -23,6 +23,7 @@ from . import command_builtin
 from . import signal_handling
 from . import directory_stack
 from . import disown
+from . import type_builtin
 
 # Re-export for convenience
 __all__ = ['registry', 'builtin', 'Builtin']

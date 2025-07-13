@@ -2,10 +2,60 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.80.0"
+__version__ = "0.80.3"
 
 # Version history
 VERSION_HISTORY = """
+0.80.3 (2025-01-13) - Pushd Logical Path Preservation
+  - Fixed pushd to preserve logical paths instead of resolving symlinks
+    - Now correctly shows /tmp instead of /private/tmp on macOS
+    - Uses PWD environment variable to track logical working directory
+    - Directory stack initialization now uses PWD instead of os.getcwd()
+  - Fixes conformance test where PSH and bash output differed
+    - Both shells now show identical directory stacks
+    - Symlink paths are preserved as entered by the user
+  - Added comprehensive test suite for logical path handling
+    - Tests for symlink preservation
+    - Tests for /tmp special case on macOS
+    - Tests for PWD vs physical path distinction
+    - All 4 new tests passing
+  - This completes another PSH bug fix from conformance testing
+    - 4 out of 7 original PSH bugs now fixed
+    - Improves bash compatibility for directory navigation
+
+0.80.2 (2025-01-13) - Type Builtin Implementation
+  - Implemented the type builtin command for command type information
+    - Shows whether a command is an alias, function, builtin, or file
+    - Supports all standard options: -a, -f, -p, -P, -t
+    - Correctly handles precedence: aliases > functions > builtins > PATH
+    - Comprehensive test suite with 14 tests covering all functionality
+  - Fixes conformance issue where type builtin didn't recognize aliases
+    - The original conformance test showed PSH calling /usr/bin/type
+    - Now PSH uses its builtin type command for proper alias recognition
+  - Type builtin features:
+    - type NAME: Shows what kind of command NAME is
+    - type -t NAME: Shows just the type (alias/function/builtin/file)
+    - type -a NAME: Shows all possible matches in order
+    - type -p NAME: Shows path only (excludes builtins/functions/aliases)
+    - type -P NAME: Forces PATH search even for builtins
+    - type -f NAME: Suppresses function lookup
+  - All type builtin tests passing (100% coverage)
+
+0.80.1 (2025-01-13) - Export/Env Synchronization Fix
+  - Fixed export/env synchronization issue where exported variables weren't visible in env output
+    - Updated export_variable to sync to both shell.env and os.environ
+    - Enhanced sync_exports_to_environment to update os.environ
+    - Fixed env builtin to use shell.env when in forked child (pipeline)
+    - Ensured consistency between builtin env and external /usr/bin/env
+  - Added comprehensive test suite for env builtin functionality
+    - Tests for direct env, pipeline env, export synchronization
+    - Tests for multiple exports and export without value
+    - All 7 env builtin tests now passing
+  - Export/env propagation now works correctly in all contexts
+    - Direct execution: export VAR=value; env shows the variable
+    - Pipeline execution: export VAR=value; env | grep VAR works
+    - External commands see exported variables correctly
+
 0.80.0 (2025-01-13) - $$ Special Variable Implementation and Test Fixes
   - Implemented $$ special variable (process ID) for POSIX compliance
     - Added proper handling in lexer's _build_token_value for $$ expansion

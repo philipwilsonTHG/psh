@@ -9,6 +9,26 @@ import os
 import tempfile
 
 
+@pytest.fixture(autouse=True)
+def clean_test_env():
+    """Clean up TEST_RC_VAR and other test variables from environment after each test."""
+    # Save original values
+    original_vars = {}
+    test_vars = ['TEST_RC_VAR', 'TEST_VAR', 'ENV_VAR', 'TEST_AFTER_ERROR', 'MY_VAR', 'MY_FUNC_RAN']
+    for var in test_vars:
+        if var in os.environ:
+            original_vars[var] = os.environ[var]
+    
+    yield
+    
+    # Restore original environment
+    for var in test_vars:
+        if var in original_vars:
+            os.environ[var] = original_vars[var]
+        elif var in os.environ:
+            del os.environ[var]
+
+
 def test_rc_file_not_loaded_in_script_mode():
     """RC file should not be loaded when running scripts."""
     from psh.shell import Shell
