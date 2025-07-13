@@ -124,13 +124,13 @@ class TestEvalBuiltin:
         captured = capsys.readouterr()
         assert captured.out.strip() == "hello"
     
-    @pytest.mark.xfail(reason="BUG: eval output not captured properly by test framework")
     def test_eval_complex_expression(self, shell, capsys):
         """Test eval with complex shell expression."""
-        cmd = 'eval "for i in 1 2 3; do echo $i; done"'
+        # Need to escape $ to prevent expansion before eval
+        cmd = 'eval "for i in 1 2 3; do echo \\$i; done"'
         shell.run_command(cmd)
         captured = capsys.readouterr()
-        assert "1\n2\n3" in captured.out
+        assert captured.out.strip() == "1\n2\n3"
     
     def test_eval_exit_code(self, shell, capsys):
         """Test eval preserves exit code."""

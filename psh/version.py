@@ -42,7 +42,7 @@ VERSION_HISTORY = """
   - Tilde in the middle of paths (e.g., file~backup) is left unescaped as it has no special meaning
   - Other special characters (spaces, $, quotes, etc.) are still properly escaped
   - Added comprehensive unit tests for tilde handling in tab completion
-  - Example: ls ~/src/psh/READ<TAB> now completes to ls ~/src/psh/README.md (not ls \~/src/psh/README.md)
+  - Example: ls ~/src/psh/READ<TAB> now completes to ls ~/src/psh/README.md (not ls <backslash>~/src/psh/README.md)
 
 0.80.5 (2025-01-13) - Fixed Escape Sequence Processing for Bash Compatibility
   - Fixed escape sequence processing to match bash behavior for \\$\\(echo test\\)
