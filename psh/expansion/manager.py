@@ -107,7 +107,8 @@ class ExpansionManager:
             elif arg_type == 'VARIABLE':
                 # Variable token from lexer (includes braces but not $ prefix)
                 # Add $ prefix for expand_variable
-                var_expr = '$' + arg if not arg.startswith('$') else arg
+                # The parser has already added the $ prefix to the variable
+                var_expr = arg
                 
                 # Check if this is an array expansion that produces multiple words
                 if self.variable_expander.is_array_expansion(var_expr):

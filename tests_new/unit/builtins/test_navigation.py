@@ -225,12 +225,21 @@ class TestPushdPopdDirs:
         # Should show all directories on stack
         assert '/usr' in captured.out
         assert '/tmp' in captured.out
-        assert original in captured.out
+        # Handle both full path and tilde-abbreviated path
+        home = os.path.expanduser('~')
+        if original.startswith(home):
+            tilde_path = '~' + original[len(home):]
+            assert original in captured.out or tilde_path in captured.out
+        else:
+            assert original in captured.out
     
     def test_dirs_clear(self, shell, capsys):
         """Test dirs -c to clear stack."""
         shell.run_command('pushd /tmp')
         shell.run_command('pushd /usr')
+        # Clear captured output from pushd commands
+        capsys.readouterr()
+        
         shell.run_command('dirs -c')
         shell.run_command('dirs')
         captured = capsys.readouterr()

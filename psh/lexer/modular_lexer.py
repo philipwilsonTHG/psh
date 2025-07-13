@@ -200,9 +200,17 @@ class ModularLexer:
         """Build complete token value from parts."""
         full_value = ""
         for part in parts:
-            if part.is_variable and not part.value.startswith('$'):
-                # Only add $ if it's not already there (simple variables)
-                full_value += '$' + part.value
+            if part.is_variable:
+                # Special case: when the variable name is just '$' (for $$),
+                # we always need to add the prefix
+                if part.value == '$':
+                    full_value += '$$'
+                elif not part.value.startswith('$'):
+                    # Only add $ if it's not already there (simple variables)
+                    full_value += '$' + part.value
+                else:
+                    # Already has $, use as-is
+                    full_value += part.value
             else:
                 # For expansions and literals, use value as-is
                 full_value += part.value

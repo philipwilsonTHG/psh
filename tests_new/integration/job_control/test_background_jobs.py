@@ -75,17 +75,17 @@ class TestBackgroundJobCreation:
         
         # Jobs output verification would need shell output capture
     
-    @pytest.mark.xfail(reason="wait builtin needs to properly track background job exit codes")
     def test_background_job_exit_status(self, shell):
         """Test that background jobs track exit status correctly."""
+        # First, wait for any lingering jobs from previous tests
+        shell.run_command('wait')
+        
         # Start a background job that will fail
         result = shell.run_command('false &')
         assert result == 0  # & should return 0 immediately
         
         # Wait for job to complete
-
-        
-        # Check job status - might need wait command
+        # Use wait with no arguments to wait for all jobs
         wait_result = shell.run_command('wait')
         # wait should return the exit status of the background job
         assert wait_result != 0  # false should return non-zero
