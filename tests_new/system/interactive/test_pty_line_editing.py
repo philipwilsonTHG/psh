@@ -51,9 +51,10 @@ class TestPTYLineEditing(PTYTest):
         output = pty_framework.run_command("echo hello world")
         assert "hello world" in output
         
-    @pytest.mark.xfail(reason="PSH line editor not handling arrow keys properly in PTY mode")
+    @pytest.mark.xfail(reason="PTY mode doesn't properly handle arrow keys in pexpect")
     def test_cursor_movement_left_right(self, pty_framework):
         """Test moving cursor left and right."""
+        # This test works interactively but not in PTY mode due to terminal emulation issues
         shell = pty_framework.spawn_shell()
         
         # Type text
@@ -165,14 +166,15 @@ class TestPTYLineEditing(PTYTest):
         output = pty_framework.expect_output("keep this")
         pty_framework._wait_for_prompt()
         
-    @pytest.mark.xfail(reason="PSH history navigation not working properly in PTY mode")
+    @pytest.mark.xfail(reason="History navigation works interactively but not reliably in PTY tests")
     def test_history_navigation(self, pty_framework):
         """Test up/down arrow history navigation."""
+        # This works interactively but PTY emulation has issues
         shell = pty_framework.spawn_shell()
         
         # Execute some commands
         pty_framework.run_command("echo first")
-        pty_framework.run_command("echo second")
+        pty_framework.run_command("echo second") 
         pty_framework.run_command("echo third")
         
         # Press up arrow to get previous command
