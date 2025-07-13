@@ -100,8 +100,49 @@ class ArithTokenizer:
             self.advance()
     
     def read_number(self) -> int:
-        """Read a number (decimal, octal, or hex)"""
+        """Read a number (decimal, octal, hex, or base#number)"""
         start_pos = self.position
+        
+        # First, check for base#number notation
+        # We need to look ahead to see if there's a # after initial digits
+        saved_pos = self.position
+        base_str = ''
+        while self.current_char() and self.current_char().isdigit():
+            base_str += self.current_char()
+            self.advance()
+        
+        if self.current_char() == '#' and base_str:
+            # This is base#number notation
+            self.advance()  # Skip #
+            base = int(base_str)
+            if base < 2 or base > 36:
+                raise SyntaxError(f"Invalid base {base} at position {start_pos}")
+            
+            # Read the number in the specified base
+            num_str = ''
+            while self.current_char():
+                char = self.current_char().upper()
+                if char.isdigit():
+                    digit_val = ord(char) - ord('0')
+                elif char.isalpha() and char <= 'Z':
+                    digit_val = ord(char) - ord('A') + 10
+                else:
+                    break
+                
+                # Check if digit is valid for this base
+                if digit_val >= base:
+                    break
+                
+                num_str += self.current_char()
+                self.advance()
+            
+            if not num_str:
+                raise SyntaxError(f"Invalid base {base} number at position {start_pos}")
+            
+            return int(num_str, base)
+        
+        # Not base#number, restore position and check other formats
+        self.position = saved_pos
         
         # Check for hex (0x or 0X)
         if self.current_char() == '0' and self.peek_char() and self.peek_char().lower() == 'x':

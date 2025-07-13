@@ -347,7 +347,6 @@ class TestNumberFormats:
         captured = capsys.readouterr()
         assert captured.out.strip() == "16"
     
-    @pytest.mark.xfail(reason="PSH doesn't support base#number notation")
     def test_base_notation(self, shell, capsys):
         """Test base#number notation."""
         # Binary
@@ -369,13 +368,15 @@ class TestNumberFormats:
 class TestArithmeticErrors:
     """Test error handling in arithmetic expansion."""
     
-    @pytest.mark.xfail(reason="PSH returns exit code 0 for arithmetic errors, bash returns 1")
     def test_division_by_zero(self, shell, capsys):
         """Test division by zero error."""
         exit_code = shell.run_command('echo $((1 / 0))')
-        assert exit_code != 0
+        # Bash returns 1 for arithmetic errors
+        assert exit_code == 1
         captured = capsys.readouterr()
         assert "division" in captured.err.lower() or "divide" in captured.err.lower()
+        # Output should be empty (command doesn't execute on arithmetic error)
+        assert captured.out.strip() == ""
     
     def test_undefined_variable(self, shell, capsys):
         """Test undefined variable (should be treated as 0)."""
@@ -384,14 +385,18 @@ class TestArithmeticErrors:
         captured = capsys.readouterr()
         assert captured.out.strip() == "5"
     
-    @pytest.mark.xfail(reason="PSH returns exit code 0 for arithmetic errors, bash returns 1")
     def test_invalid_syntax(self, shell, capsys):
         """Test invalid arithmetic syntax."""
         exit_code = shell.run_command('echo $((2 +))')
-        assert exit_code != 0
+        assert exit_code == 1
+        captured = capsys.readouterr()
+        assert "syntax" in captured.err.lower() or "unexpected" in captured.err.lower()
         
+        # Note: $((2 + + 3)) is actually valid (unary plus)
         exit_code = shell.run_command('echo $((2 + + 3))')
-        # This might be valid (unary plus) or invalid
+        assert exit_code == 0
+        captured = capsys.readouterr()
+        assert captured.out.strip() == "5"
 
 
 class TestArithmeticCommand:

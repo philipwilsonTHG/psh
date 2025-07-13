@@ -2,10 +2,26 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.80.7"
+__version__ = "0.80.8"
 
 # Version history
 VERSION_HISTORY = """
+0.80.8 (2025-01-14) - Complete Arithmetic Expansion Support
+  - Added base notation support for arithmetic expressions (base#number)
+    - Supports bases 2-36: 2#1010, 8#77, 16#FF, 36#Z
+    - Full compatibility with bash base notation syntax
+    - Validates base range and digit validity for each base
+  - Fixed arithmetic error handling to match bash behavior
+    - Arithmetic errors now properly fail the entire command (exit code 1)
+    - Division by zero and syntax errors stop command execution
+    - Error messages printed to stderr like bash
+  - All arithmetic expansion tests now pass
+  - Examples:
+    - $((2#1010)) → 10 (binary)
+    - $((16#FF)) → 255 (hexadecimal)
+    - $((36#Z)) → 35 (base 36)
+    - echo $((1/0)) → error with exit code 1
+
 0.80.7 (2025-01-13) - Nested Arithmetic Expansion Support
   - Added support for nested arithmetic expansions like $(($((X + 1)) * $((Y + 1))))
   - Fixed issue where nested $((...)) inside arithmetic was treated as command substitution

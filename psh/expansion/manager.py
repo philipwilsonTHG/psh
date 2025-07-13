@@ -2,6 +2,7 @@
 from typing import List, TYPE_CHECKING
 from ..ast_nodes import Command, SimpleCommand, Redirect, ProcessSubstitution
 from ..core.state import ShellState
+from ..core.exceptions import ExpansionError
 from .variable import VariableExpander
 from .command_sub import CommandSubstitution
 from .tilde import TildeExpander
@@ -284,7 +285,11 @@ class ExpansionManager:
         return self.command_sub.execute(cmd_sub)
     
     def execute_arithmetic_expansion(self, expr: str) -> int:
-        """Execute arithmetic expansion and return result."""
+        """Execute arithmetic expansion and return result.
+        
+        Raises:
+            ExpansionError: If arithmetic evaluation fails
+        """
         # Remove $(( and ))
         if expr.startswith('$((') and expr.endswith('))'):
             arith_expr = expr[3:-2]
@@ -306,11 +311,13 @@ class ExpansionManager:
         except ArithmeticError as e:
             import sys
             print(f"psh: arithmetic error: {e}", file=sys.stderr)
-            return 0
+            # Raise exception to stop command execution (like bash)
+            raise ExpansionError(f"arithmetic error: {e}")
         except Exception as e:
             import sys
             print(f"psh: unexpected arithmetic error: {e}", file=sys.stderr)
-            return 0
+            # Raise exception to stop command execution (like bash)
+            raise ExpansionError(f"unexpected arithmetic error: {e}")
     
     def _expand_command_subs_in_arithmetic(self, expr: str) -> str:
         """Expand command substitutions and nested arithmetic in arithmetic expression.
