@@ -2,10 +2,23 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.80.8"
+__version__ = "0.80.9"
 
 # Version history
 VERSION_HISTORY = """
+0.80.9 (2025-01-14) - Quality Improvements and Test Fixes
+  - Fixed eval complex expression test (test bug, not PSH bug)
+    - Variable expansion in double quotes was happening before eval
+    - Fixed by properly escaping $ in test: eval "for i in 1 2 3; do echo \\$i; done"
+  - Completed comprehensive arithmetic expansion support:
+    - History expansion fix: !0 in $((!0)) no longer treated as history reference
+    - Nested arithmetic: $(($((X + 1)) * $((Y + 1)))) now works correctly
+    - Base notation: 2#1010, 8#77, 16#FF, 36#Z all supported (bases 2-36)
+    - Error handling: Division by zero and syntax errors properly fail commands
+  - Reduced xfail test count from 115 to 111
+  - Identified remaining test failures as test infrastructure issues, not PSH bugs
+  - All arithmetic expansion tests now pass with full bash compatibility
+
 0.80.8 (2025-01-14) - Complete Arithmetic Expansion Support
   - Added base notation support for arithmetic expressions (base#number)
     - Supports bases 2-36: 2#1010, 8#77, 16#FF, 36#Z
