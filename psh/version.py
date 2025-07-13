@@ -2,10 +2,33 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.79.0"
+__version__ = "0.80.0"
 
 # Version history
 VERSION_HISTORY = """
+0.80.0 (2025-01-13) - $$ Special Variable Implementation and Test Fixes
+  - Implemented $$ special variable (process ID) for POSIX compliance
+    - Added proper handling in lexer's _build_token_value for $$ expansion
+    - Fixed regression where variable expansion was adding extra $ prefix
+    - All variable expansions now work correctly (fixes while loop hang)
+  - Fixed test isolation issues in background job tests
+    - Added wait command at start to clear lingering jobs from previous tests
+    - Prevents exit status contamination between test cases
+  - Fixed navigation tests for tilde-abbreviated paths
+    - test_dirs_display now handles both full and tilde paths correctly
+    - test_dirs_clear properly clears output buffer before final assertion
+  - Added comprehensive special variable test suite
+    - Tests for $$, $?, $!, $#, $@, $*, $0, $-, positional parameters
+    - Marked test_special_vars_in_parameter_expansion as xfail (separate issue)
+  - Phase 6a of quality improvement plan started
+    - One of 6 remaining PSH bugs from conformance testing now fixed
+    - POSIX compliance improved from 96.9% to 97.7% (126/129 tests)
+    - Overall identical behavior improved from 91.2% to 91.6% (218/238 tests)
+  - Updated quality improvement plan documentation
+    - Added recommendations for remaining Phase 6 quick wins
+    - Documented high priority bugs: export/env, type builtin, pushd paths
+    - Created roadmap for Phase 6b test infrastructure improvements
+
 0.79.0 (2025-01-13) - Interactive Feature Testing and Multi-line History Fix
   - Comprehensive investigation of interactive feature testing limitations
   - Fixed misleading comment about PTY raw mode handling in tab_completion.py

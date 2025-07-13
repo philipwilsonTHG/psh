@@ -391,9 +391,11 @@ class CommandParser:
     def _format_variable(self, token: Token) -> str:
         """Format a VARIABLE token, prepending $ if needed."""
         value = token.value
-        # Check if it already starts with $ (includes ${...})
-        if value.startswith('$'):
-            return value
+        # Variables from lexer are just the name without $
+        # The only case where we don't add $ is for brace expansions ${...}
+        # which already include the braces
+        if value.startswith('{') and value.endswith('}'):
+            return f"${value}"
         else:
             return f"${value}"
     

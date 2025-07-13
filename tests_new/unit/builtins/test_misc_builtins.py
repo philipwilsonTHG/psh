@@ -39,7 +39,7 @@ class TestHistoryBuiltin:
         # History is shown (actual limiting may not work as expected)
         assert 'echo' in captured.out or 'test' in captured.out
     
-    @pytest.mark.xfail(reason="PSH may not support history -c")
+    @pytest.mark.xfail(reason="Test framework retains history between commands")
     def test_history_clear(self, shell, capsys):
         """Test clearing history."""
         # Add some commands

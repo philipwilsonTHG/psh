@@ -10,6 +10,112 @@ from .unicode_support import is_whitespace
 class StateHandlers:
     """Mixin class providing state handler methods for the lexer."""
     
+    def parse_variable_or_expansion(self, quote_context: Optional[str] = None) -> 'TokenPart':
+        """Parse a variable or expansion starting after the $."""
+        from .token_parts import TokenPart
+        from .position import Position
+        from .constants import SPECIAL_VARIABLES
+        from .unicode_support import is_identifier_start, is_identifier_char
+        
+        start_pos = self.get_current_position()
+        char = self.current_char()
+        
+        if not char:
+            # Just $ at end of input
+            return TokenPart(
+                value='',
+                quote_type=quote_context,
+                is_variable=True,
+                start_pos=start_pos,
+                end_pos=start_pos
+            )
+        
+        # Check for $( or ${{
+        if char == '(':
+            # Command substitution or arithmetic
+            if self.peek_char() == '(':
+                # Arithmetic expansion
+                self.advance(2)  # Skip ((
+                content, is_closed = self.read_balanced_double_parens()
+                if is_closed:
+                    return TokenPart(
+                        value='$((' + content + '))',
+                        quote_type=quote_context,
+                        is_expansion=True,
+                        expansion_type='arithmetic',
+                        start_pos=start_pos,
+                        end_pos=self.get_current_position()
+                    )
+            else:
+                # Command substitution
+                self.advance()  # Skip (
+                content, is_closed = self.read_balanced_parens()
+                if is_closed:
+                    return TokenPart(
+                        value='$(' + content + ')',
+                        quote_type=quote_context,
+                        is_expansion=True,
+                        expansion_type='command',
+                        start_pos=start_pos,
+                        end_pos=self.get_current_position()
+                    )
+        
+        elif char == '{':
+            # Brace expansion ${...}
+            self.advance()  # Skip {
+            var_content = ""
+            while self.current_char() and self.current_char() != '}':
+                var_content += self.current_char()
+                self.advance()
+            
+            if self.current_char() == '}':
+                self.advance()  # Skip }
+                return TokenPart(
+                    value='{' + var_content + '}',
+                    quote_type=quote_context,
+                    is_variable=True,
+                    start_pos=start_pos,
+                    end_pos=self.get_current_position()
+                )
+        
+        # Simple variable
+        # Check for special single-character variables
+        if char in SPECIAL_VARIABLES:
+            self.advance()
+            return TokenPart(
+                value=char,
+                quote_type=quote_context,
+                is_variable=True,
+                start_pos=start_pos,
+                end_pos=self.get_current_position()
+            )
+        
+        # Regular variable name
+        if is_identifier_start(char, self.config.posix_mode if hasattr(self, 'config') else False):
+            var_name = char
+            self.advance()
+            
+            while self.current_char() and is_identifier_char(self.current_char(), self.config.posix_mode if hasattr(self, 'config') else False):
+                var_name += self.current_char()
+                self.advance()
+            
+            return TokenPart(
+                value=var_name,
+                quote_type=quote_context,
+                is_variable=True,
+                start_pos=start_pos,
+                end_pos=self.get_current_position()
+            )
+        
+        # Not a valid variable - return empty
+        return TokenPart(
+            value='',
+            quote_type=quote_context,
+            is_variable=True,
+            start_pos=start_pos,
+            end_pos=self.get_current_position()
+        )
+    
     def handle_normal_state(self) -> None:
         """Handle tokenization in normal state."""
         char = self.current_char()
