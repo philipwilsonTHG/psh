@@ -5,14 +5,11 @@ These tests verify line editing functionality that requires real terminal
 emulation, such as cursor movement and character manipulation.
 """
 
-import pytest
 import sys
-import time
 from pathlib import Path
 
-# Add framework to path
-TEST_ROOT = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(TEST_ROOT))
+import pytest
+import time
 
 try:
     import pexpect
@@ -20,10 +17,24 @@ try:
 except ImportError:
     HAS_PEXPECT = False
 
-from framework.pty_test_framework import (
-    PTYTestFramework, PTYTestConfig, PTYTest,
-    interactive_shell, validate_line_editing_sequence
-)
+# Add parent directory to path to find framework
+TEST_ROOT = Path(__file__).parent.parent.parent
+if str(TEST_ROOT) not in sys.path:
+    sys.path.insert(0, str(TEST_ROOT))
+
+try:
+    from framework.pty_test_framework import (
+        PTYTestFramework, PTYTestConfig, PTYTest,
+        interactive_shell, validate_line_editing_sequence
+    )
+except ImportError as e:
+    # If import fails, create dummy classes to avoid syntax errors
+    print(f"Warning: Could not import PTY framework: {e}")
+    PTYTest = object
+    PTYTestFramework = None
+    PTYTestConfig = None
+    interactive_shell = None
+    validate_line_editing_sequence = None
 
 # Skip all tests if pexpect not available
 pytestmark = pytest.mark.skipif(not HAS_PEXPECT, reason="pexpect not installed")
