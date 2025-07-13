@@ -1,0 +1,2512 @@
+{
+  "summary": {
+    "total_tests": 129,
+    "execution_time": 0,
+    "timestamp": "2025-07-13T18:17:15.396779",
+    "by_conformance": {
+      "identical": 125,
+      "documented_difference": 0,
+      "psh_extension": 0,
+      "psh_bug": 2,
+      "bash_specific": 0,
+      "test_error": 2
+    },
+    "by_category": {
+      "POSIX": {
+        "total": 129,
+        "identical": 125,
+        "documented_differences": 0,
+        "psh_extensions": 0,
+        "bash_specific": 0,
+        "psh_bugs": 2,
+        "test_errors": 2
+      },
+      "Bash": {
+        "total": 0,
+        "identical": 0,
+        "documented_differences": 0,
+        "psh_extensions": 0,
+        "bash_specific": 0,
+        "psh_bugs": 0,
+        "test_errors": 0
+      }
+    },
+    "posix_compliance": {
+      "total_tests": 129,
+      "compliant_tests": 125,
+      "compliance_percentage": 96.89922480620154
+    },
+    "bash_compatibility": {},
+    "areas_of_concern": [
+      {
+        "type": "potential_bugs",
+        "count": 2,
+        "commands": [
+          "echo \\$(echo test)",
+          "echo $$"
+        ]
+      },
+      {
+        "type": "test_errors",
+        "count": 2,
+        "commands": [
+          "unset x; echo ${x:?undefined}",
+          "x=; echo ${x:?empty}"
+        ]
+      }
+    ]
+  },
+  "detailed_results": [
+    {
+      "command": "x=hello; echo ${x:+alternative}",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "alternative\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0689079761505127
+      },
+      "bash_result": {
+        "stdout": "alternative\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004485130310058594
+      }
+    },
+    {
+      "command": "x=; echo ${x:+alternative}",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06589508056640625
+      },
+      "bash_result": {
+        "stdout": "\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004058122634887695
+      }
+    },
+    {
+      "command": "unset x; echo ${x:+alternative}",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06540298461914062
+      },
+      "bash_result": {
+        "stdout": "\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0039048194885253906
+      }
+    },
+    {
+      "command": "unset x; echo ${x:=default}; echo $x",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "default\ndefault\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06493878364562988
+      },
+      "bash_result": {
+        "stdout": "default\ndefault\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0038750171661376953
+      }
+    },
+    {
+      "command": "x=; echo ${x:=default}; echo $x",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "default\ndefault\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06535625457763672
+      },
+      "bash_result": {
+        "stdout": "default\ndefault\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003987789154052734
+      }
+    },
+    {
+      "command": "x=hello; echo ${x}",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06466174125671387
+      },
+      "bash_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0038967132568359375
+      }
+    },
+    {
+      "command": "x=\"hello world\"; echo ${x}",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06471514701843262
+      },
+      "bash_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0039098262786865234
+      }
+    },
+    {
+      "command": "x=; echo ${x}",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06589198112487793
+      },
+      "bash_result": {
+        "stdout": "\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004080057144165039
+      }
+    },
+    {
+      "command": "x=hello; echo ${x:-default}",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06418895721435547
+      },
+      "bash_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003984212875366211
+      }
+    },
+    {
+      "command": "x=; echo ${x:-default}",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "default\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0644979476928711
+      },
+      "bash_result": {
+        "stdout": "default\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004157304763793945
+      }
+    },
+    {
+      "command": "unset x; echo ${x:-default}",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "default\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06375503540039062
+      },
+      "bash_result": {
+        "stdout": "default\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003965139389038086
+      }
+    },
+    {
+      "command": "unset x; echo ${x:?undefined}",
+      "category": "POSIX",
+      "conformance": "test_error",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "",
+        "stderr": "psh: x: undefined\n",
+        "exit_code": 1,
+        "execution_time": 0.06476688385009766
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "bash: line 1: x: undefined\n",
+        "exit_code": 127,
+        "execution_time": 0.004651069641113281
+      }
+    },
+    {
+      "command": "x=; echo ${x:?empty}",
+      "category": "POSIX",
+      "conformance": "test_error",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "",
+        "stderr": "psh: x: empty\n",
+        "exit_code": 1,
+        "execution_time": 0.06470775604248047
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "bash: line 1: x: empty\n",
+        "exit_code": 127,
+        "execution_time": 0.003997802734375
+      }
+    },
+    {
+      "command": "x=hello.txt; echo ${x#*.}",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "txt\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06473302841186523
+      },
+      "bash_result": {
+        "stdout": "txt\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0040130615234375
+      }
+    },
+    {
+      "command": "x=hello.world.txt; echo ${x#*.}",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "world.txt\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06441712379455566
+      },
+      "bash_result": {
+        "stdout": "world.txt\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0039517879486083984
+      }
+    },
+    {
+      "command": "x=hello.world.txt; echo ${x##*.}",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "txt\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06379413604736328
+      },
+      "bash_result": {
+        "stdout": "txt\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003936052322387695
+      }
+    },
+    {
+      "command": "x=hello; echo ${#x}",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "5\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06511521339416504
+      },
+      "bash_result": {
+        "stdout": "5\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004046916961669922
+      }
+    },
+    {
+      "command": "x=\"hello world\"; echo ${#x}",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "11\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06407022476196289
+      },
+      "bash_result": {
+        "stdout": "11\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.00391387939453125
+      }
+    },
+    {
+      "command": "x=; echo ${#x}",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "0\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06459307670593262
+      },
+      "bash_result": {
+        "stdout": "0\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003942728042602539
+      }
+    },
+    {
+      "command": "x=hello.txt; echo ${x%.txt}",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06435585021972656
+      },
+      "bash_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0040435791015625
+      }
+    },
+    {
+      "command": "x=hello.world.txt; echo ${x%.*}",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello.world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06437206268310547
+      },
+      "bash_result": {
+        "stdout": "hello.world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0037560462951660156
+      }
+    },
+    {
+      "command": "x=hello.world.txt; echo ${x%%.*}",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06369686126708984
+      },
+      "bash_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003910064697265625
+      }
+    },
+    {
+      "command": "echo `echo hello`",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06746912002563477
+      },
+      "bash_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004491090774536133
+      }
+    },
+    {
+      "command": "echo `echo \"hello world\"`",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06885981559753418
+      },
+      "bash_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004410266876220703
+      }
+    },
+    {
+      "command": "echo `true`",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06780171394348145
+      },
+      "bash_result": {
+        "stdout": "\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004312992095947266
+      }
+    },
+    {
+      "command": "x=$(false); echo $?",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06855487823486328
+      },
+      "bash_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.00426483154296875
+      }
+    },
+    {
+      "command": "x=$(true); echo $?",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "0\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06812000274658203
+      },
+      "bash_result": {
+        "stdout": "0\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004378080368041992
+      }
+    },
+    {
+      "command": "x=hello; echo $(echo $x)",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.07031106948852539
+      },
+      "bash_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004393100738525391
+      }
+    },
+    {
+      "command": "x=world; echo $(echo \"hello $x\")",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06831097602844238
+      },
+      "bash_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004334926605224609
+      }
+    },
+    {
+      "command": "echo $(echo hello)",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06827902793884277
+      },
+      "bash_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0044019222259521484
+      }
+    },
+    {
+      "command": "echo $(echo \"hello world\")",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06753087043762207
+      },
+      "bash_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004336833953857422
+      }
+    },
+    {
+      "command": "echo $(true)",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06796789169311523
+      },
+      "bash_result": {
+        "stdout": "\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.00419306755065918
+      }
+    },
+    {
+      "command": "echo $(false)",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06805610656738281
+      },
+      "bash_result": {
+        "stdout": "\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004522085189819336
+      }
+    },
+    {
+      "command": "echo $(echo $(echo nested))",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "nested\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.07163310050964355
+      },
+      "bash_result": {
+        "stdout": "nested\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004755973815917969
+      }
+    },
+    {
+      "command": "echo $(echo `echo mixed`)",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "mixed\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.07190895080566406
+      },
+      "bash_result": {
+        "stdout": "mixed\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004856109619140625
+      }
+    },
+    {
+      "command": "echo $((5 > 3))",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06447219848632812
+      },
+      "bash_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003966093063354492
+      }
+    },
+    {
+      "command": "echo $((3 > 5))",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "0\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0650629997253418
+      },
+      "bash_result": {
+        "stdout": "0\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.00403285026550293
+      }
+    },
+    {
+      "command": "echo $((5 >= 5))",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06350159645080566
+      },
+      "bash_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0036873817443847656
+      }
+    },
+    {
+      "command": "echo $((5 <= 5))",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06423616409301758
+      },
+      "bash_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0039000511169433594
+      }
+    },
+    {
+      "command": "echo $((5 == 5))",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06415700912475586
+      },
+      "bash_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003999948501586914
+      }
+    },
+    {
+      "command": "echo $((5 != 3))",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06393289566040039
+      },
+      "bash_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0037870407104492188
+      }
+    },
+    {
+      "command": "echo $((1 && 1))",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06430196762084961
+      },
+      "bash_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004026174545288086
+      }
+    },
+    {
+      "command": "echo $((1 && 0))",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "0\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06389093399047852
+      },
+      "bash_result": {
+        "stdout": "0\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0038971900939941406
+      }
+    },
+    {
+      "command": "echo $((0 || 1))",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06406092643737793
+      },
+      "bash_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003816366195678711
+      }
+    },
+    {
+      "command": "echo $((0 || 0))",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "0\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06433796882629395
+      },
+      "bash_result": {
+        "stdout": "0\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0038509368896484375
+      }
+    },
+    {
+      "command": "echo $((2 + 3 * 4))",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "14\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06740784645080566
+      },
+      "bash_result": {
+        "stdout": "14\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004715681076049805
+      }
+    },
+    {
+      "command": "echo $((2 * 3 + 4))",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "10\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06564688682556152
+      },
+      "bash_result": {
+        "stdout": "10\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0040318965911865234
+      }
+    },
+    {
+      "command": "echo $(((2 + 3) * 4))",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "20\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06456136703491211
+      },
+      "bash_result": {
+        "stdout": "20\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.00399017333984375
+      }
+    },
+    {
+      "command": "echo $((2 * (3 + 4)))",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "14\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0642399787902832
+      },
+      "bash_result": {
+        "stdout": "14\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003968000411987305
+      }
+    },
+    {
+      "command": "x=5; echo $((x + 3))",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "8\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06412196159362793
+      },
+      "bash_result": {
+        "stdout": "8\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003912210464477539
+      }
+    },
+    {
+      "command": "x=10; y=3; echo $((x * y))",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "30\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06460285186767578
+      },
+      "bash_result": {
+        "stdout": "30\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0040283203125
+      }
+    },
+    {
+      "command": "x=0; echo $((x || 1))",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06414318084716797
+      },
+      "bash_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004027128219604492
+      }
+    },
+    {
+      "command": "echo $((2 + 3))",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "5\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06416702270507812
+      },
+      "bash_result": {
+        "stdout": "5\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003922939300537109
+      }
+    },
+    {
+      "command": "echo $((10 - 4))",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "6\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0646510124206543
+      },
+      "bash_result": {
+        "stdout": "6\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004019975662231445
+      }
+    },
+    {
+      "command": "echo $((3 * 4))",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "12\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06429171562194824
+      },
+      "bash_result": {
+        "stdout": "12\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.00394892692565918
+      }
+    },
+    {
+      "command": "echo $((15 / 3))",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "5\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06438875198364258
+      },
+      "bash_result": {
+        "stdout": "5\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0041980743408203125
+      }
+    },
+    {
+      "command": "echo $((17 % 5))",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "2\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06614184379577637
+      },
+      "bash_result": {
+        "stdout": "2\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004022121429443359
+      }
+    },
+    {
+      "command": "echo ~",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "/Users/pwilson\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06429696083068848
+      },
+      "bash_result": {
+        "stdout": "/Users/pwilson\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004166841506958008
+      }
+    },
+    {
+      "command": "echo ~root",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "/var/root\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06514978408813477
+      },
+      "bash_result": {
+        "stdout": "/var/root\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004755973815917969
+      }
+    },
+    {
+      "command": "echo ~/test",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "/Users/pwilson/test\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06437301635742188
+      },
+      "bash_result": {
+        "stdout": "/Users/pwilson/test\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003760099411010742
+      }
+    },
+    {
+      "command": "touch a.txt b.txt; echo *.txt",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "a.txt b.txt\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06925320625305176
+      },
+      "bash_result": {
+        "stdout": "a.txt b.txt\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0060198307037353516
+      }
+    },
+    {
+      "command": "touch a1 a2 b1 b2; echo [ab]*",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "a1 a2 b1 b2\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06868100166320801
+      },
+      "bash_result": {
+        "stdout": "a1 a2 b1 b2\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0059621334075927734
+      }
+    },
+    {
+      "command": "echo *.nonexistent",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "*.nonexistent\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0648190975189209
+      },
+      "bash_result": {
+        "stdout": "*.nonexistent\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004065036773681641
+      }
+    },
+    {
+      "command": "touch a b c; echo ?",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "a b c\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06813168525695801
+      },
+      "bash_result": {
+        "stdout": "a b c\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.006096839904785156
+      }
+    },
+    {
+      "command": "echo hello\\ world",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06478428840637207
+      },
+      "bash_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0039212703704833984
+      }
+    },
+    {
+      "command": "echo \\$USER",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "$USER\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06502199172973633
+      },
+      "bash_result": {
+        "stdout": "$USER\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003945112228393555
+      }
+    },
+    {
+      "command": "echo \\$(echo test)",
+      "category": "POSIX",
+      "conformance": "psh_bug",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "$\ntest\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06822705268859863
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "bash: -c: line 1: syntax error near unexpected token `('\nbash: -c: line 1: `echo \\$(echo test)'\n",
+        "exit_code": 2,
+        "execution_time": 0.003726959228515625
+      }
+    },
+    {
+      "command": "echo \"hello world\"",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06468701362609863
+      },
+      "bash_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003935098648071289
+      }
+    },
+    {
+      "command": "echo \"hello $USER\"",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello pwilson\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06463503837585449
+      },
+      "bash_result": {
+        "stdout": "hello pwilson\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0038750171661376953
+      }
+    },
+    {
+      "command": "echo \"hello $(echo world)\"",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06901907920837402
+      },
+      "bash_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004361152648925781
+      }
+    },
+    {
+      "command": "echo \"hello\" world",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06422185897827148
+      },
+      "bash_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0038940906524658203
+      }
+    },
+    {
+      "command": "echo 'hello' world",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06447005271911621
+      },
+      "bash_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0040128231048583984
+      }
+    },
+    {
+      "command": "echo \"hello 'world'\"",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello 'world'\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06479716300964355
+      },
+      "bash_result": {
+        "stdout": "hello 'world'\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0040628910064697266
+      }
+    },
+    {
+      "command": "echo 'hello world'",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06499528884887695
+      },
+      "bash_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004027843475341797
+      }
+    },
+    {
+      "command": "echo 'hello $USER'",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello $USER\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0648188591003418
+      },
+      "bash_result": {
+        "stdout": "hello $USER\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0038950443267822266
+      }
+    },
+    {
+      "command": "echo 'hello $(echo world)'",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello $(echo world)\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06485176086425781
+      },
+      "bash_result": {
+        "stdout": "hello $(echo world)\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004524946212768555
+      }
+    },
+    {
+      "command": "echo hello",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06466197967529297
+      },
+      "bash_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003998994827270508
+      }
+    },
+    {
+      "command": "true",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06470799446105957
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004033088684082031
+      }
+    },
+    {
+      "command": "false",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 1,
+        "execution_time": 0.06387782096862793
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 1,
+        "execution_time": 0.003801107406616211
+      }
+    },
+    {
+      "command": "echo hello world",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06401395797729492
+      },
+      "bash_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004097938537597656
+      }
+    },
+    {
+      "command": "echo -n hello",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0642099380493164
+      },
+      "bash_result": {
+        "stdout": "hello",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003673076629638672
+      }
+    },
+    {
+      "command": "printf \"%s\\n\" hello",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06479811668395996
+      },
+      "bash_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004201173782348633
+      }
+    },
+    {
+      "command": "echo hello > /dev/null",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06494593620300293
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.00392603874206543
+      }
+    },
+    {
+      "command": "echo hello 2> /dev/null",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06456303596496582
+      },
+      "bash_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004068136215209961
+      }
+    },
+    {
+      "command": "cat < /dev/null",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06916403770446777
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.005846977233886719
+      }
+    },
+    {
+      "command": "VAR=value echo $VAR",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06594276428222656
+      },
+      "bash_result": {
+        "stdout": "\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003936052322387695
+      }
+    },
+    {
+      "command": "A=1 B=2 echo $A$B",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06500101089477539
+      },
+      "bash_result": {
+        "stdout": "\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0038912296295166016
+      }
+    },
+    {
+      "command": "echo hello | cat | cat",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0683739185333252
+      },
+      "bash_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0056650638580322266
+      }
+    },
+    {
+      "command": "echo -e \"a\\nb\\nc\" | sort | uniq",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "a\nb\nc\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06955575942993164
+      },
+      "bash_result": {
+        "stdout": "a\nb\nc\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.005933046340942383
+      }
+    },
+    {
+      "command": "true | false; echo $?",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06751513481140137
+      },
+      "bash_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004440784454345703
+      }
+    },
+    {
+      "command": "false | true; echo $?",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "0\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06628179550170898
+      },
+      "bash_result": {
+        "stdout": "0\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004353046417236328
+      }
+    },
+    {
+      "command": "echo hello | cat",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06907105445861816
+      },
+      "bash_result": {
+        "stdout": "hello\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.005588054656982422
+      }
+    },
+    {
+      "command": "echo hello | wc -c",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "       6\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06901407241821289
+      },
+      "bash_result": {
+        "stdout": "       6\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.005576133728027344
+      }
+    },
+    {
+      "command": "true && echo success",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "success\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06456589698791504
+      },
+      "bash_result": {
+        "stdout": "success\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0040471553802490234
+      }
+    },
+    {
+      "command": "false && echo never",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 1,
+        "execution_time": 0.06434106826782227
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 1,
+        "execution_time": 0.004027128219604492
+      }
+    },
+    {
+      "command": "true && false; echo $?",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06459188461303711
+      },
+      "bash_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0038688182830810547
+      }
+    },
+    {
+      "command": "false && true; echo $?",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06540799140930176
+      },
+      "bash_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003988981246948242
+      }
+    },
+    {
+      "command": "false || echo success",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "success\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06435132026672363
+      },
+      "bash_result": {
+        "stdout": "success\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.00414276123046875
+      }
+    },
+    {
+      "command": "true || echo never",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0650641918182373
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0040798187255859375
+      }
+    },
+    {
+      "command": "false || true; echo $?",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "0\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06431293487548828
+      },
+      "bash_result": {
+        "stdout": "0\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0039031505584716797
+      }
+    },
+    {
+      "command": "true || false; echo $?",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "0\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0642859935760498
+      },
+      "bash_result": {
+        "stdout": "0\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003790140151977539
+      }
+    },
+    {
+      "command": "echo first; echo second",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "first\nsecond\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06403493881225586
+      },
+      "bash_result": {
+        "stdout": "first\nsecond\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0039479732513427734
+      }
+    },
+    {
+      "command": "true; false; echo done",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "done\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06441712379455566
+      },
+      "bash_result": {
+        "stdout": "done\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0039899349212646484
+      }
+    },
+    {
+      "command": "true; false; echo $?",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06371402740478516
+      },
+      "bash_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0038318634033203125
+      }
+    },
+    {
+      "command": "case hello in hello) echo match;; esac",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "match\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06430697441101074
+      },
+      "bash_result": {
+        "stdout": "match\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0037119388580322266
+      }
+    },
+    {
+      "command": "case test in hello) echo no;; *) echo yes;; esac",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "yes\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06502485275268555
+      },
+      "bash_result": {
+        "stdout": "yes\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003971099853515625
+      }
+    },
+    {
+      "command": "case abc in a*) echo starts_with_a;; esac",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "starts_with_a\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06435203552246094
+      },
+      "bash_result": {
+        "stdout": "starts_with_a\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0039141178131103516
+      }
+    },
+    {
+      "command": "for i in 1 2 3; do echo $i; done",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "1\n2\n3\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06491804122924805
+      },
+      "bash_result": {
+        "stdout": "1\n2\n3\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003957033157348633
+      }
+    },
+    {
+      "command": "for word in hello world; do echo $word; done",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello\nworld\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06471896171569824
+      },
+      "bash_result": {
+        "stdout": "hello\nworld\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.00400996208190918
+      }
+    },
+    {
+      "command": "if true; then echo yes; fi",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "yes\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06392073631286621
+      },
+      "bash_result": {
+        "stdout": "yes\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003827810287475586
+      }
+    },
+    {
+      "command": "if false; then echo no; fi",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0643012523651123
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003991842269897461
+      }
+    },
+    {
+      "command": "if true; then echo yes; else echo no; fi",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "yes\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06491374969482422
+      },
+      "bash_result": {
+        "stdout": "yes\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0038661956787109375
+      }
+    },
+    {
+      "command": "if false; then echo no; else echo yes; fi",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "yes\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06543707847595215
+      },
+      "bash_result": {
+        "stdout": "yes\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0042912960052490234
+      }
+    },
+    {
+      "command": "i=0; while [ $i -lt 3 ]; do echo $i; i=$((i+1)); done",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "0\n1\n2\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06654477119445801
+      },
+      "bash_result": {
+        "stdout": "0\n1\n2\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004228115081787109
+      }
+    },
+    {
+      "command": "while false; do echo never; done",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06481194496154785
+      },
+      "bash_result": {
+        "stdout": "",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.00400996208190918
+      }
+    },
+    {
+      "command": "f() { echo function; }; f",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "function\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0666649341583252
+      },
+      "bash_result": {
+        "stdout": "function\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.00419306755065918
+      }
+    },
+    {
+      "command": "greet() { echo hello $1; }; greet world",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06703400611877441
+      },
+      "bash_result": {
+        "stdout": "hello world\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0041348934173583984
+      }
+    },
+    {
+      "command": "show() { echo $# $1 $2; }; show a b c",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "3 a b\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06768584251403809
+      },
+      "bash_result": {
+        "stdout": "3 a b\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004124879837036133
+      }
+    },
+    {
+      "command": "show_all() { echo \"$@\"; }; show_all one two three",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "one two three\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06691575050354004
+      },
+      "bash_result": {
+        "stdout": "one two three\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.00413966178894043
+      }
+    },
+    {
+      "command": "success() { return 0; }; success; echo $?",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "0\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06654000282287598
+      },
+      "bash_result": {
+        "stdout": "0\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004172086715698242
+      }
+    },
+    {
+      "command": "failure() { return 1; }; failure; echo $?",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06525325775146484
+      },
+      "bash_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004098176956176758
+      }
+    },
+    {
+      "command": "x=global; f() { x=local; }; f; echo $x",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "local\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06501412391662598
+      },
+      "bash_result": {
+        "stdout": "local\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0038299560546875
+      }
+    },
+    {
+      "command": "set a b c; echo $1; shift; echo $1",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "a\nb\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06540703773498535
+      },
+      "bash_result": {
+        "stdout": "a\nb\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004184246063232422
+      }
+    },
+    {
+      "command": "x=value; echo $x; unset x; echo $x",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "value\n\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06500697135925293
+      },
+      "bash_result": {
+        "stdout": "value\n\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003940105438232422
+      }
+    },
+    {
+      "command": "echo $#",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "0\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06520700454711914
+      },
+      "bash_result": {
+        "stdout": "0\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004064798355102539
+      }
+    },
+    {
+      "command": "set a b c; echo $# $1 $2 $3",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "3 a b c\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06665611267089844
+      },
+      "bash_result": {
+        "stdout": "3 a b c\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.004608869552612305
+      }
+    },
+    {
+      "command": "echo $$",
+      "category": "POSIX",
+      "conformance": "psh_bug",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06769990921020508
+      },
+      "bash_result": {
+        "stdout": "64789\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.00420689582824707
+      }
+    },
+    {
+      "command": "true; echo $?",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "0\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06656408309936523
+      },
+      "bash_result": {
+        "stdout": "0\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.0042231082916259766
+      }
+    },
+    {
+      "command": "false; echo $?",
+      "category": "POSIX",
+      "conformance": "identical",
+      "difference_id": null,
+      "notes": null,
+      "psh_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.06598591804504395
+      },
+      "bash_result": {
+        "stdout": "1\n",
+        "stderr": "",
+        "exit_code": 0,
+        "execution_time": 0.003961086273193359
+      }
+    }
+  ]
+}

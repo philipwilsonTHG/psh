@@ -202,9 +202,18 @@ class LiteralRecognizer(ContextualRecognizer):
             
             # Handle escape sequences
             if char == '\\' and pos + 1 < len(input_text):
+                next_char = input_text[pos + 1]
                 # Include the escaped character (preserve the backslash for later processing)
-                value += char + input_text[pos + 1]
+                value += char + next_char
                 pos += 2
+                
+                # Special case: if we escaped a $, and the next character is (,
+                # we need to continue reading to include the ( as part of the word
+                # This prevents $(command) from being recognized as command substitution
+                if next_char == '$' and pos < len(input_text) and input_text[pos] == '(':
+                    # Continue reading - the ( is part of the literal word, not a subshell
+                    continue
+                
                 continue
             
             value += char

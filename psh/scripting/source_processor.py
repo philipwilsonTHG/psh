@@ -143,8 +143,8 @@ class SourceProcessor(ScriptComponent):
                             print(f"{filename}:{command_start_line}: {e}", file=sys.stderr)
                             command_buffer = ""
                             command_start_line = 0
-                            exit_code = 1
-                            self.state.last_exit_code = 1
+                            exit_code = 2  # Bash uses exit code 2 for syntax errors
+                            self.state.last_exit_code = 2
                             
                             # In non-interactive mode, exit immediately on parse errors
                             if not input_source.is_interactive():
@@ -360,8 +360,8 @@ class SourceProcessor(ScriptComponent):
                 # Add location prefix to error
                 location = f"{input_source.get_name()}:{start_line}" if start_line > 0 else "command"
                 print(f"psh: {location}: {e.message}", file=sys.stderr)
-            self.state.last_exit_code = 1
-            return 1
+            self.state.last_exit_code = 2  # Bash uses exit code 2 for syntax errors
+            return 2
         except Exception as e:
             # Enhanced error message with location  
             location = f"{input_source.get_name()}:{start_line}" if start_line > 0 else "command"

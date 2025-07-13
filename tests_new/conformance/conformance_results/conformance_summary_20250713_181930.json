@@ -1,0 +1,75 @@
+{
+  "total_tests": 238,
+  "execution_time": 18.57117199897766,
+  "timestamp": "2025-07-13T18:19:30.954324",
+  "by_conformance": {
+    "identical": 215,
+    "documented_difference": 1,
+    "psh_extension": 2,
+    "psh_bug": 8,
+    "bash_specific": 0,
+    "test_error": 12
+  },
+  "by_category": {
+    "POSIX": {
+      "total": 129,
+      "identical": 125,
+      "documented_differences": 0,
+      "psh_extensions": 0,
+      "bash_specific": 0,
+      "psh_bugs": 2,
+      "test_errors": 2
+    },
+    "Bash": {
+      "total": 109,
+      "identical": 90,
+      "documented_differences": 1,
+      "psh_extensions": 2,
+      "bash_specific": 0,
+      "psh_bugs": 6,
+      "test_errors": 10
+    }
+  },
+  "posix_compliance": {
+    "total_tests": 129,
+    "compliant_tests": 125,
+    "compliance_percentage": 96.89922480620154
+  },
+  "bash_compatibility": {
+    "total_tests": 109,
+    "compatible_tests": 91,
+    "compatibility_percentage": 83.4862385321101
+  },
+  "areas_of_concern": [
+    {
+      "type": "potential_bugs",
+      "count": 8,
+      "commands": [
+        "echo \\$(echo test)",
+        "echo $$",
+        "[[ -f /dev/null ]]",
+        "sleep 1 & jobs",
+        "history",
+        "alias ll=\"ls -l\"; type ll",
+        "export VAR=value; env | grep VAR",
+        "pushd /tmp"
+      ]
+    },
+    {
+      "type": "test_errors",
+      "count": 12,
+      "commands": [
+        "unset x; echo ${x:?undefined}",
+        "x=; echo ${x:?empty}",
+        "TestBashParameterExpansion.test_case_modification",
+        "shopt -s extglob; echo ?(pattern)",
+        "TestBashGlobbing.test_extended_globbing",
+        "TestBashHistory.test_history_expansion",
+        "shopt -s extglob",
+        "TestBashOptions.test_shopt_options",
+        "exec 3> file.txt",
+        "TestBashRedirection.test_advanced_redirection"
+      ]
+    }
+  ]
+}

@@ -90,9 +90,9 @@ unset x; echo ${x:?undefined}
 
 **Location**: `tests_new/conformance/posix/test_posix_compliance.py::TestPOSIXParameterExpansion`
 
-### 7. Quote Removal and Escaping Issues [MEDIUM]
+### 7. Quote Removal and Escaping Issues [FIXED]
 
-**Status**: Active Bug  
+**Status**: Fixed (2025-07-13 in v0.80.4)
 **Severity**: Medium  
 **Location**: Lexer/Parser interaction  
 
@@ -102,7 +102,8 @@ unset x; echo ${x:?undefined}
 ```bash
 echo \$(echo test)
 # Bash: Syntax error (backslash prevents command substitution)
-# PSH: Executes command substitution, outputs "$\ntest"
+# PSH: Executes command substitution, outputs "$\ntest" (before fix)
+# PSH: Syntax error (after fix) ✓
 ```
 
 **Root Cause Analysis** (2025-01-11):
@@ -113,26 +114,19 @@ echo \$(echo test)
   2. A subshell starting with `(`
 - This results in PSH executing the command substitution instead of treating it as literal text
 
-**Fix Attempted**:
-- Tried modifying parser to check if previous token ends with `\$` before parsing LPAREN as subshell
-- This approach doesn't work cleanly because:
-  1. LPAREN is not a WORD_LIKE token, so parse_command() can't handle it
-  2. The real issue is deeper - bash's behavior where `\$` disables the special meaning of the following `(`
-  
-**Fix Required**:
-- This requires a more fundamental change to how escaping affects subsequent characters
-- In bash, when `\` escapes a character, it can also affect the interpretation of following characters
-- Possible solutions:
-  1. Modify lexer to recognize `\$(` as a single token when escaped
-  2. Add a lexer state that tracks when previous token ended with certain escapes
-  3. Implement proper quote removal phase that handles these edge cases
+**Fix Implementation** (2025-07-13):
+- Enhanced the parser's `parse_pipeline_component` method to detect when:
+  1. The previous token is a WORD ending with an escaped dollar sign (odd number of backslashes before `$`)
+  2. The current token is LPAREN
+- When this pattern is detected, parser raises a syntax error matching bash behavior
+- Added comprehensive test coverage in `tests_new/unit/parser/test_backslash_cmd_sub.py`
 
 **Impact**:
-- Different behavior from bash for escaped characters
-- Potential security implications (unintended command execution)
-- POSIX compliance violation
+- PSH now correctly rejects `\$(echo test)` as a syntax error
+- Bash conformance improved
+- Normal command substitution still works correctly
 
-**Location**: `tests_new/conformance/posix/test_posix_compliance.py::TestPOSIXQuoteRemoval`
+**Location**: `tests_new/unit/parser/test_backslash_cmd_sub.py`
 
 ### 8. Special Parameter Process ID Differences [LOW]
 
@@ -246,14 +240,13 @@ if true; then
 
 ## Summary of Current Status
 
-**Total Issues Found**: 21  
-**Fixed**: 20  
-**Active Bugs**: 1 (quote processing)  
+**Total Issues Found**: 22  
+**Fixed**: 22  
+**Active Bugs**: 0  
 **Test Issues**: 0 (all resolved)  
 **Expected Differences**: 1 (process ID)  
 
-**Critical Areas Needing Attention**:
-1. Quote processing and escaping consistency (Bug #7)
+**All bugs have been resolved!**
 
 ### 13. Square Bracket Array Syntax Over-Eager Parsing [FIXED]
 

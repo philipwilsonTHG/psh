@@ -148,7 +148,6 @@ class TestLogicalOperators:
         captured = capsys.readouterr()
         assert captured.out.strip() == "0"
     
-    @pytest.mark.xfail(reason="PSH doesn't support the ! operator in arithmetic expressions")
     def test_logical_not(self, shell, capsys):
         """Test ! operator."""
         shell.run_command('echo $((!0))')
@@ -311,7 +310,6 @@ class TestComplexExpressions:
         captured = capsys.readouterr()
         assert captured.out.strip() == "5 10"
     
-    @pytest.mark.xfail(reason="PSH doesn't support nested arithmetic expansions")
     def test_nested_expressions(self, shell, capsys):
         """Test nested arithmetic expressions."""
         shell.run_command('X=2; Y=3')

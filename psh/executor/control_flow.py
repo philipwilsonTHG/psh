@@ -29,7 +29,7 @@ if TYPE_CHECKING:
         Redirect
     )
     from .context import ExecutionContext
-    from ..visitor.base import ASTVisitor
+    from psh.visitor.base import ASTVisitor
 
 
 class ControlFlowExecutor:

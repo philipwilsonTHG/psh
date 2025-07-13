@@ -89,91 +89,110 @@ class HistoryExpander:
                             brace_depth -= 1
                     j -= 1
                 else:
-                    # Not inside ${...}, continue with history expansion
-                    # Check for !!
-                    if i + 1 < len(command) and command[i+1] == '!':
-                        if history:
-                            expanded = True
-                            result.append(history[-1])
-                            i += 2
-                            continue
-                        else:
-                            print(f"psh: !!: event not found", file=sys.stderr)
-                            return None
-                    
-                    # Check for numeric (!n or !-n)
-                    j = i + 1
-                    if j < len(command) and (command[j] == '-' or command[j].isdigit()):
-                        # Collect the number
-                        if command[j] == '-':
-                            j += 1
-                        while j < len(command) and command[j].isdigit():
-                            j += 1
+                    # Check if we're inside $((...)) arithmetic expansion
+                    # Look backwards for $(( without closing ))
+                    j = i - 1
+                    paren_depth = 0
+                    while j >= 1:
+                        if j < len(command) - 1 and command[j] == ')' and command[j+1] == ')':
+                            paren_depth += 1
+                            j -= 1  # Skip the extra )
+                        elif j > 0 and command[j-1] == '$' and command[j] == '(' and j < len(command) - 1 and command[j+1] == '(':
+                            if paren_depth == 0:
+                                # We're inside $((...)), skip history expansion
+                                result.append(char)
+                                i += 1
+                                break
+                            else:
+                                paren_depth -= 1
+                            j -= 1  # Skip the extra (
+                        j -= 1
+                    else:
+                        # Not inside ${...} or $((...)), continue with history expansion
+                        # Check for !!
+                        if i + 1 < len(command) and command[i+1] == '!':
+                            if history:
+                                expanded = True
+                                result.append(history[-1])
+                                i += 2
+                                continue
+                            else:
+                                print(f"psh: !!: event not found", file=sys.stderr)
+                                return None
                         
-                        n = int(command[i+1:j])
-                        if n > 0:
-                            # !n - absolute position (1-based)
-                            if n <= len(history):
-                                expanded = True
-                                result.append(history[n - 1])
-                                i = j
-                                continue
+                        # Check for numeric (!n or !-n)
+                        j = i + 1
+                        if j < len(command) and (command[j] == '-' or command[j].isdigit()):
+                            # Collect the number
+                            if command[j] == '-':
+                                j += 1
+                            while j < len(command) and command[j].isdigit():
+                                j += 1
+                            
+                            n = int(command[i+1:j])
+                            if n > 0:
+                                # !n - absolute position (1-based)
+                                if n <= len(history):
+                                    expanded = True
+                                    result.append(history[n - 1])
+                                    i = j
+                                    continue
+                                else:
+                                    print(f"psh: !{n}: event not found", file=sys.stderr)
+                                    return None
                             else:
-                                print(f"psh: !{n}: event not found", file=sys.stderr)
-                                return None
-                        else:
-                            # !-n - relative position from end
-                            if abs(n) <= len(history):
-                                expanded = True
-                                result.append(history[n])  # n is already negative
-                                i = j
+                                # !-n - relative position from end
+                                if abs(n) <= len(history):
+                                    expanded = True
+                                    result.append(history[n])  # n is already negative
+                                    i = j
+                                    continue
+                                else:
+                                    print(f"psh: !{n}: event not found", file=sys.stderr)
+                                    return None
+                        
+                        # Check for !?string?
+                        if i + 1 < len(command) and command[i+1] == '?':
+                            j = i + 2
+                            while j < len(command) and command[j] != '?':
+                                j += 1
+                            if j < len(command):
+                                search_str = command[i+2:j]
+                                # Search backwards through history
+                                for k in range(len(history) - 1, -1, -1):
+                                    if search_str in history[k]:
+                                        expanded = True
+                                        result.append(history[k])
+                                        i = j + 1
+                                        break
+                                else:
+                                    print(f"psh: !?{search_str}?: event not found", file=sys.stderr)
+                                    return None
                                 continue
-                            else:
-                                print(f"psh: !{n}: event not found", file=sys.stderr)
-                                return None
-                    
-                    # Check for !?string?
-                    if i + 1 < len(command) and command[i+1] == '?':
-                        j = i + 2
-                        while j < len(command) and command[j] != '?':
+                        
+                        # Check for !string
+                        j = i + 1
+                        while j < len(command) and not command[j].isspace() and command[j] not in '!?;|&(){}[]<>':
                             j += 1
-                        if j < len(command):
-                            search_str = command[i+2:j]
+                        if j > i + 1:
+                            search_prefix = command[i+1:j]
                             # Search backwards through history
                             for k in range(len(history) - 1, -1, -1):
-                                if search_str in history[k]:
+                                if history[k].startswith(search_prefix):
                                     expanded = True
                                     result.append(history[k])
-                                    i = j + 1
+                                    i = j
                                     break
                             else:
-                                print(f"psh: !?{search_str}?: event not found", file=sys.stderr)
+                                print(f"psh: !{search_prefix}: event not found", file=sys.stderr)
                                 return None
                             continue
-                    
-                    # Check for !string
-                    j = i + 1
-                    while j < len(command) and not command[j].isspace() and command[j] not in '!?;|&(){}[]<>':
-                        j += 1
-                    if j > i + 1:
-                        search_prefix = command[i+1:j]
-                        # Search backwards through history
-                        for k in range(len(history) - 1, -1, -1):
-                            if history[k].startswith(search_prefix):
-                                expanded = True
-                                result.append(history[k])
-                                i = j
-                                break
-                        else:
-                            print(f"psh: !{search_prefix}: event not found", file=sys.stderr)
-                            return None
+                        
+                        # If ! is not followed by any recognized pattern, treat it as a regular character
+                        # This handles cases like [[ ! ... ]] where ! is followed by space
+                        result.append(char)
+                        i += 1
                         continue
-                    
-                    # If ! is not followed by any recognized pattern, treat it as a regular character
-                    # This handles cases like [[ ! ... ]] where ! is followed by space
-                    result.append(char)
-                    i += 1
-                    continue
                 
                 # If we broke from the while loop (we're inside ${...}), skip regular char processing
                 continue

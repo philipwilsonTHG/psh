@@ -2,10 +2,23 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.80.6"
+__version__ = "0.80.7"
 
 # Version history
 VERSION_HISTORY = """
+0.80.7 (2025-01-13) - Nested Arithmetic Expansion Support
+  - Added support for nested arithmetic expansions like $(($((X + 1)) * $((Y + 1))))
+  - Fixed issue where nested $((...)) inside arithmetic was treated as command substitution
+  - Modified _expand_command_subs_in_arithmetic to distinguish between:
+    - $((...)) - nested arithmetic expansion (recursively evaluated)
+    - $(...) - command substitution (executed as command)
+  - Now correctly handles arbitrary nesting depth of arithmetic expressions
+  - Examples that now work:
+    - $(($((X + 1)) * $((Y + 1)))) with X=2, Y=3 → 12
+    - $(($(($(($((A + 1)) + 1)) + 1)) * 2)) with A=1 → 8
+    - Mixed: $(($((X)) + $(echo 3))) with X=5 → 8
+  - All nested arithmetic tests now pass and match bash behavior
+
 0.80.6 (2025-01-13) - Tab Completion Tilde Expansion Fix
   - Fixed tab completion adding backslash before tilde in paths like ~/src/psh/README.md
   - Tilde was incorrectly included in the list of special characters to escape

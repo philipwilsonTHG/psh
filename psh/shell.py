@@ -477,8 +477,8 @@ class Shell:
                 # Add location prefix to error
                 location = f"{input_source.get_name()}:{start_line}" if start_line > 0 else "command"
                 print(f"psh: {location}: {e.message}", file=sys.stderr)
-            self.last_exit_code = 1
-            return 1
+            self.last_exit_code = 2  # Bash uses exit code 2 for syntax errors
+            return 2
         except UnboundVariableError as e:
             # Handle nounset errors
             print(str(e), file=sys.stderr)

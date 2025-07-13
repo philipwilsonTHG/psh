@@ -34,7 +34,7 @@
     - ✅ Verified read builtin advanced features already implemented
     - ✅ Created comprehensive PTY testing documentation
     - ✅ Reduced xpass count from 60 to 8 (87% reduction)
-- ✅ **Phase 6a Progress - Quick Wins** (v0.80.0-v0.80.1)
+- ✅ **Phase 6a Progress - Quick Wins** (v0.80.0-v0.80.4)
   - ✅ Implemented $$ special variable (process ID) - v0.80.0
   - ✅ Fixed regression in variable expansion (extra $ prefix bug)
   - ✅ Fixed test isolation issues in background job tests
@@ -44,19 +44,25 @@
     - Exported variables now properly visible in env output
     - Works correctly in both direct execution and pipelines
     - Added comprehensive test suite for env builtin (7 tests)
+  - ✅ Implemented type builtin with full functionality - v0.80.2
+  - ✅ Fixed pushd to show relative paths instead of absolute - v0.80.3
+  - ✅ Fixed backslash handling in command substitution - v0.80.4
+    - PSH now correctly rejects `\$(echo test)` as syntax error
+    - Added comprehensive test coverage
+    - Improved bash conformance
 
-### Conformance Test Results (Updated Progress as of v0.80.3)
+### Conformance Test Results (Updated Progress as of v0.80.4)
 
 **Summary:**
 - **POSIX Compliance**: ~98.4% (127/129 tests passing) - Improved from 96.9%
 - **Bash Compatibility**: ~87.2% (95/109 tests passing) - Improved from 83.5%
 - **Overall Conformance**: ~93.3% identical behavior (222/238 tests) - Improved from 91.2%
-- **Major Finding**: With 4 PSH bugs fixed, conformance has significantly improved
+- **Major Finding**: With 5 PSH bugs fixed, conformance has significantly improved
 
 **Key Issues Identified:**
 
-1. **PSH Bugs (7 issues - 2.9%)** - 4 Fixed in Phase 6a:
-   - `echo \$(echo test)` - Backslash handling in command substitution
+1. **PSH Bugs (7 issues - 2.9%)** - 5 Fixed in Phase 6a:
+   - ✅ ~~`echo \$(echo test)` - Backslash handling in command substitution~~ **FIXED in v0.80.4**
    - ✅ ~~`echo $$` - Process ID special variable not implemented~~ **FIXED in v0.80.0**
    - `sleep 1 & jobs` - Job control timing issues
    - `history` - History shows persistent history (not test-specific)

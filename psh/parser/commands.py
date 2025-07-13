@@ -302,6 +302,30 @@ class CommandParser:
         elif self.parser.match(TokenType.CONTINUE):
             return self.parse_continue_statement()
         elif self.parser.match(TokenType.LPAREN):
+            # Check for bash-incompatible syntax: escaped dollar followed by parenthesis
+            # This is a syntax error in bash: echo \$(echo test), echo \\\$(echo test)
+            if self.parser.current > 0:
+                prev_token = self.parser.tokens[self.parser.current - 1]
+                if (prev_token.type == TokenType.WORD and 
+                    prev_token.value.endswith('\\$')):
+                    # Check if it's truly an escaped dollar (odd number of backslashes before $)
+                    # Count trailing backslashes before the $
+                    num_backslashes = 0
+                    for i in range(len(prev_token.value) - 2, -1, -1):
+                        if prev_token.value[i] == '\\':
+                            num_backslashes += 1
+                        else:
+                            break
+                    
+                    # If odd number of backslashes, the $ is escaped
+                    if num_backslashes % 2 == 1:
+                        # This matches bash behavior which treats \$( as a syntax error
+                        error_context = ErrorContext(
+                            token=self.parser.peek(),
+                            message="syntax error near unexpected token '('",
+                            position=self.parser.peek().position
+                        )
+                        raise ParseError(error_context)
             return self.parse_subshell_group()
         elif self.parser.match(TokenType.LBRACE):
             return self.parse_brace_group()

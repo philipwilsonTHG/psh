@@ -12,7 +12,7 @@ import signal
 from typing import List, Tuple, Optional, Dict, Any, Union
 from contextlib import contextmanager
 
-from ..visitor.base import ASTVisitor
+from psh.visitor.base import ASTVisitor
 from .context import ExecutionContext
 from .pipeline import PipelineContext, PipelineExecutor
 from .command import CommandExecutor

@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from ..ast_nodes import FunctionDef, Redirect
     from ..core.function_manager import FunctionManager
     from .context import ExecutionContext
-    from ..visitor.base import ASTVisitor
+    from psh.visitor.base import ASTVisitor
 
 
 class FunctionOperationExecutor:

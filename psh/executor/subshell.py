@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from ..shell import Shell
     from ..ast_nodes import SubshellGroup, BraceGroup, Redirect
     from .context import ExecutionContext
-    from ..visitor.base import ASTVisitor
+    from psh.visitor.base import ASTVisitor
     from ..job_control import Job, JobManager
     from ..io_manager import IOManager
 

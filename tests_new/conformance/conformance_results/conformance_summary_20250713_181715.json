@@ -1,0 +1,57 @@
+{
+  "total_tests": 129,
+  "execution_time": 0,
+  "timestamp": "2025-07-13T18:17:15.396537",
+  "by_conformance": {
+    "identical": 125,
+    "documented_difference": 0,
+    "psh_extension": 0,
+    "psh_bug": 2,
+    "bash_specific": 0,
+    "test_error": 2
+  },
+  "by_category": {
+    "POSIX": {
+      "total": 129,
+      "identical": 125,
+      "documented_differences": 0,
+      "psh_extensions": 0,
+      "bash_specific": 0,
+      "psh_bugs": 2,
+      "test_errors": 2
+    },
+    "Bash": {
+      "total": 0,
+      "identical": 0,
+      "documented_differences": 0,
+      "psh_extensions": 0,
+      "bash_specific": 0,
+      "psh_bugs": 0,
+      "test_errors": 0
+    }
+  },
+  "posix_compliance": {
+    "total_tests": 129,
+    "compliant_tests": 125,
+    "compliance_percentage": 96.89922480620154
+  },
+  "bash_compatibility": {},
+  "areas_of_concern": [
+    {
+      "type": "potential_bugs",
+      "count": 2,
+      "commands": [
+        "echo \\$(echo test)",
+        "echo $$"
+      ]
+    },
+    {
+      "type": "test_errors",
+      "count": 2,
+      "commands": [
+        "unset x; echo ${x:?undefined}",
+        "x=; echo ${x:?empty}"
+      ]
+    }
+  ]
+}

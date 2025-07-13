@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from ..job_control import JobManager, Job, JobState
     from ..ast_nodes import Pipeline, ASTNode, SimpleCommand
     from .context import ExecutionContext
-    from ..visitor.base import ASTVisitor
+    from psh.visitor.base import ASTVisitor
 
 
 class PipelineContext:

@@ -313,48 +313,79 @@ class ExpansionManager:
             return 0
     
     def _expand_command_subs_in_arithmetic(self, expr: str) -> str:
-        """Expand command substitutions in arithmetic expression.
+        """Expand command substitutions and nested arithmetic in arithmetic expression.
         
-        This method finds all $(...) patterns in the arithmetic expression
-        and replaces them with their evaluated output before arithmetic
+        This method finds all $(...) and $((...)) patterns in the arithmetic expression
+        and replaces them with their evaluated output/result before arithmetic
         evaluation.
         
         Args:
-            expr: The arithmetic expression potentially containing $(...)
+            expr: The arithmetic expression potentially containing $(...) or $((...)
             
         Returns:
-            The expression with all command substitutions expanded
+            The expression with all command substitutions and nested arithmetic expanded
         """
         result = []
         i = 0
         
         while i < len(expr):
             if expr[i] == '$' and i + 1 < len(expr) and expr[i + 1] == '(':
-                # Found potential command substitution
-                # Find matching closing parenthesis
-                paren_count = 1
-                j = i + 2
-                
-                while j < len(expr) and paren_count > 0:
-                    if expr[j] == '(':
-                        paren_count += 1
-                    elif expr[j] == ')':
-                        paren_count -= 1
-                    j += 1
-                
-                if paren_count == 0:
-                    # Valid command substitution found
-                    cmd_sub_expr = expr[i:j]  # Include $(...) 
+                # Check if it's arithmetic expansion $((...)) or command substitution $(...)
+                if i + 2 < len(expr) and expr[i + 2] == '(':
+                    # This is nested arithmetic expansion $((
+                    # Find matching closing ))
+                    paren_count = 2
+                    j = i + 3
                     
-                    # Execute command substitution
-                    output = self.command_sub.execute(cmd_sub_expr).strip()
+                    while j < len(expr) and paren_count > 0:
+                        if expr[j] == '(':
+                            paren_count += 1
+                        elif expr[j] == ')':
+                            paren_count -= 1
+                            if paren_count == 1 and j + 1 < len(expr) and expr[j + 1] == ')':
+                                # Found closing ))
+                                j += 1
+                                paren_count = 0
+                                break
+                        j += 1
                     
-                    # Convert empty output to 0 (bash behavior)
-                    result.append(output if output else '0')
-                    i = j
-                    continue
+                    if paren_count == 0:
+                        # Valid arithmetic expansion found
+                        arith_expr = expr[i:j+1]  # Include $((...))
+                        
+                        # Recursively execute the nested arithmetic expansion
+                        arith_result = self.execute_arithmetic_expansion(arith_expr)
+                        
+                        # Append the result as a string
+                        result.append(str(arith_result))
+                        i = j + 1
+                        continue
+                else:
+                    # This is command substitution $(
+                    # Find matching closing parenthesis
+                    paren_count = 1
+                    j = i + 2
+                    
+                    while j < len(expr) and paren_count > 0:
+                        if expr[j] == '(':
+                            paren_count += 1
+                        elif expr[j] == ')':
+                            paren_count -= 1
+                        j += 1
+                    
+                    if paren_count == 0:
+                        # Valid command substitution found
+                        cmd_sub_expr = expr[i:j]  # Include $(...) 
+                        
+                        # Execute command substitution
+                        output = self.command_sub.execute(cmd_sub_expr).strip()
+                        
+                        # Convert empty output to 0 (bash behavior)
+                        result.append(output if output else '0')
+                        i = j
+                        continue
             
-            # Not a command substitution, copy character as-is
+            # Not a command/arithmetic substitution, copy character as-is
             result.append(expr[i])
             i += 1
         

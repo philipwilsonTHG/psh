@@ -46,7 +46,7 @@ psh = "psh.__main__:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["psh*"]
+include = ["psh", "psh.*"]
 
 [tool.setuptools.package-data]
 psh = ["*.md"]
