@@ -28,9 +28,6 @@ def test_command_execute_external(shell):
     result = shell.run_command('command cat /dev/null')
     # May fail if command is not found or not implemented
     assert result == 0 or result == 126  # 126 = command not found
-
-
-@pytest.mark.xfail(reason="Function bypassing may not be implemented")
 def test_command_bypass_function(shell, capsys):
     """Test that command bypasses functions."""
     # Define a function that shadows echo

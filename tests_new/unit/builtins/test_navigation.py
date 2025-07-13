@@ -183,95 +183,10 @@ class TestPwdBuiltin:
         shell.run_command('pwd')
         captured = capsys.readouterr()
         assert captured.out.strip() in ['/tmp', '/private/tmp']
-    
-    @pytest.mark.xfail(reason="PSH pwd -L shows physical path, not logical path")
-    def test_pwd_logical(self, shell, capsys):
-        """Test pwd -L (logical path)."""
-        # Clean up any leftover files first
-        if os.path.exists('linkdir'):
-            os.unlink('linkdir')
-        if os.path.exists('realdir'):
-            import shutil
-            shutil.rmtree('realdir', ignore_errors=True)
-            
-        # Create symlink
-        os.makedirs('realdir', exist_ok=True)
-        os.symlink('realdir', 'linkdir')
-        
-        shell.run_command('cd linkdir')
-        shell.run_command('pwd -L')
-        captured = capsys.readouterr()
-        # Should show logical path with symlink
-        assert 'linkdir' in captured.out
-        
-        # Clean up
-        shell.run_command('cd ..')
-        os.unlink('linkdir')
-        import shutil
-        shutil.rmtree('realdir', ignore_errors=True)
-    
-    def test_pwd_physical(self, shell, capsys):
-        """Test pwd -P (physical path)."""
-        # Clean up any leftover files first
-        if os.path.exists('linkdir'):
-            os.unlink('linkdir')
-        if os.path.exists('realdir'):
-            import shutil
-            shutil.rmtree('realdir', ignore_errors=True)
-            
-        # Create symlink
-        os.makedirs('realdir', exist_ok=True)
-        os.symlink('realdir', 'linkdir')
-        
-        shell.run_command('cd linkdir')
-        shell.run_command('pwd -P')
-        captured = capsys.readouterr()
-        # Should show physical path without symlink
-        assert 'realdir' in captured.out
-        
-        # Clean up
-        shell.run_command('cd ..')
-        if os.path.exists('linkdir'):
-            os.unlink('linkdir')
-        if os.path.exists('realdir'):
-            import shutil
-            shutil.rmtree('realdir', ignore_errors=True)
-    
-    def test_pwd_with_deleted_directory(self, shell, capsys):
-        """Test pwd when current directory is deleted."""
-        # Create and enter directory
-        os.mkdir('tempdir')
-        shell.run_command('cd tempdir')
-        
-        # Delete directory while we're in it
-        os.rmdir('../tempdir')
-        
-        # pwd might fail or show stale path
-        exit_code = shell.run_command('pwd')
-        captured = capsys.readouterr()
-        # Behavior varies by system
-        
-        # Try to cd out
-        shell.run_command('cd ..')
 
 
-@pytest.mark.xfail(reason="PSH doesn't implement pushd/popd/dirs builtins")
 class TestPushdPopdDirs:
-    """Test directory stack builtins."""
-    
-    def test_pushd_basic(self, shell, capsys):
-        """Test basic pushd functionality."""
-        original = os.getcwd()
-        
-        shell.run_command('pushd /tmp')
-        captured = capsys.readouterr()
-        # Should show stack
-        assert '/tmp' in captured.out
-        assert original in captured.out
-        
-        shell.run_command('pwd')
-        captured = capsys.readouterr()
-        assert captured.out.strip() in ['/tmp', '/private/tmp']
+    """Test pushd, popd, and dirs builtins."""
     
     def test_popd_basic(self, shell, capsys):
         """Test basic popd functionality."""

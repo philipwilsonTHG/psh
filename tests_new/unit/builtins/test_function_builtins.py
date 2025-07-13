@@ -30,7 +30,6 @@ class TestReturnBuiltin:
         assert "should not print" not in captured.out
         assert "exit code: 42" in captured.out
     
-    @pytest.mark.xfail(reason="PSH return may not preserve last exit code")
     def test_return_no_args(self, shell, capsys):
         """Test return with no arguments (returns last exit code)."""
         cmd = '''
@@ -68,7 +67,6 @@ class TestReturnBuiltin:
         # Should have an error about numeric argument
         assert 'numeric' in captured.err or 'invalid' in captured.err
     
-    @pytest.mark.xfail(reason="PSH rejects return values > 255 instead of wrapping")
     def test_return_range(self, shell, capsys):
         """Test return value range (0-255)."""
         cmd = '''
@@ -83,7 +81,6 @@ class TestReturnBuiltin:
         # 256 should wrap to 0
         assert "exit code: 0" in captured.out
     
-    @pytest.mark.xfail(reason="PSH rejects negative return values")
     def test_return_negative(self, shell, capsys):
         """Test return with negative number."""
         cmd = '''

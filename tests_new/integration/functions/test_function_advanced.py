@@ -27,9 +27,6 @@ def test_function_with_command_substitution(shell, capsys):
     assert result == 0
     captured = capsys.readouterr()
     assert 'Today is' in captured.out
-
-
-@pytest.mark.xfail(reason="Parameter expansion syntax ${1:-default} may not be fully implemented in functions")
 def test_function_parameter_expansion(shell, capsys):
     """Test function with parameter expansion."""
     shell.run_command('greet() { echo "Hello ${1:-World}"; }')

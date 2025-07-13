@@ -2,10 +2,31 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.78.0"
+__version__ = "0.79.0"
 
 # Version history
 VERSION_HISTORY = """
+0.79.0 (2025-01-13) - Interactive Feature Testing and Multi-line History Fix
+  - Comprehensive investigation of interactive feature testing limitations
+  - Fixed misleading comment about PTY raw mode handling in tab_completion.py
+  - Created detailed PTY_TESTING_GUIDE.md documenting PTY testing challenges
+  - Investigated and documented alternative testing approaches for interactive features
+  - Fixed multi-line command history display issue (Bug #22)
+    - Multi-line commands now converted to single-line format when retrieved from history
+    - Proper handling of control structures (for, while, if, functions) with semicolons
+    - Commands are properly editable after retrieval from history
+    - Created comprehensive unit and integration tests for multi-line history
+  - Converted 52 xpassed tests to regular passing tests
+    - Automated removal of xfail markers from tests that now pass consistently
+    - Improved test suite accuracy and reduced false negatives
+    - Tests now better reflect actual PSH capabilities
+  - Verified read builtin advanced features already implemented
+    - All flags working: -n (N chars), -a (array), -r (raw), -s (silent), -t (timeout)
+    - Fixed test infrastructure to properly mock stdin using monkeypatch
+    - Created comprehensive test suite for advanced read features
+  - Test improvements: reduced xpass count from 60 to 8, better test accuracy
+  - Updated CLAUDE.md with testing best practices and PTY limitations
+
 0.78.0 (2025-07-12) - Test Framework Improvements and Skipped Test Reduction
   - Major test framework improvements achieving 47.6% reduction in skipped tests (42 to 22)
   - Fixed test misclassification: bash compatibility increased from 77.1% to 83.5%

@@ -247,7 +247,6 @@ class TestNumericTests:
 class TestLogicalOperators:
     """Test logical operators in test expressions."""
     
-    @pytest.mark.xfail(reason="PSH test builtin doesn't support -a operator")
     def test_logical_and(self, shell, capsys):
         """Test -a (logical AND)."""
         # Both true
@@ -258,7 +257,6 @@ class TestLogicalOperators:
         exit_code = shell.run_command('[ -n "hello" -a -z "hello" ]')
         assert exit_code != 0
     
-    @pytest.mark.xfail(reason="PSH test builtin doesn't support -o operator")
     def test_logical_or(self, shell, capsys):
         """Test -o (logical OR)."""
         # One true

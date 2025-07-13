@@ -248,9 +248,6 @@ def test_function_with_special_parameters(shell, capsys):
     captured = capsys.readouterr()
     assert 'Count: 3' in captured.out
     assert 'All: one two three' in captured.out
-
-
-@pytest.mark.xfail(reason="PSH may prioritize builtins over functions with same name")
 def test_function_name_collision(shell, capsys):
     """Test function name collision with builtins."""
     # Define function with same name as builtin

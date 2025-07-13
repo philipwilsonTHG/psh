@@ -587,3 +587,61 @@ esac
 **Location**: 
 - Code: `psh/lexer/recognizers/literal.py` - enhanced tokenization logic
 - Tests: `tests_new/unit/lexer/test_ansi_c_quoting.py` - 4 additional tests now pass
+
+### 22. Multi-line Command History Display Issue [FIXED]
+
+**Status**: Fixed  
+**Severity**: Medium  
+**Discovery Date**: 2025-01-13  
+**Fixed**: 2025-01-13 (v0.79.0)
+**Location**: Line editor history navigation (`psh/line_editor.py`)  
+
+**Description**: When retrieving multi-line commands from history (e.g., for loops, functions), they displayed incorrectly with misaligned output. The commands would appear as a raw string with literal `\n` characters instead of being properly formatted for editing.
+
+**Test Cases**:
+```bash
+# Execute a multi-line for loop
+for i in {1..3}; do
+  echo "Number: $i"
+done
+
+# Press up arrow to retrieve from history
+# Expected: for i in {1..3}; do echo "Number: $i"; done
+# PSH Result (before fix): Raw multi-line string with misaligned cursor
+# PSH Result (after fix): Single-line format ready for editing ✓
+
+# Function definition
+function greet() {
+  echo "Hello, $1!"
+  echo "How are you?"
+}
+
+# Press up arrow
+# Expected: function greet() { echo "Hello, $1!"; echo "How are you?"; }
+# PSH Result (before fix): Multi-line with cursor issues
+# PSH Result (after fix): Single-line format with semicolons ✓
+```
+
+**Root Cause**: The line editor was displaying multi-line commands from history without converting them to a single-line format suitable for interactive editing.
+
+**Fix**: Added `_convert_multiline_to_single()` method in LineEditor that:
+1. Detects control structures (for, while, if, case, function) and formats them appropriately
+2. Converts multi-line commands to single-line format with proper semicolons
+3. Handles both bash and POSIX function syntax
+4. Preserves the ability to execute the command after retrieval
+
+**Implementation Details**:
+- Control structures are joined with proper syntax (e.g., `do` and `then` on same line)
+- Function bodies have statements separated by semicolons
+- Commands without control structures are joined with semicolons
+- Applied during both up and down history navigation
+
+**Impact**:
+- Multi-line commands from history are now properly editable
+- Cursor positioning works correctly for all command types
+- Commands can be modified and re-executed without issues
+- Better user experience for interactive shell usage
+
+**Location**: 
+- Code: `psh/line_editor.py` - added conversion in `_history_up()` and `_history_down()`
+- Tests: `tests_new/unit/test_line_editor_multiline.py` and `tests_new/integration/test_multiline_history.py`

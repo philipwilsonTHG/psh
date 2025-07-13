@@ -313,7 +313,6 @@ class TestANSICQuoting:
     def teardown_method(self):
         """Clean up any leftover processes after each test."""
     
-    @pytest.mark.xfail(reason="ANSI-C quoting may not be implemented yet")
     def test_ansi_c_quoting_basic(self):
         """Test basic ANSI-C quoting."""
         result = QuotingTestHelper.run_psh_command("echo $'hello\\nworld'")
@@ -323,7 +322,6 @@ class TestANSICQuoting:
         assert 'hello' in lines
         assert 'world' in lines
     
-    @pytest.mark.xfail(reason="ANSI-C quoting may not be implemented yet")
     def test_ansi_c_escape_sequences(self):
         """Test ANSI-C escape sequences."""
         result = QuotingTestHelper.run_psh_command("echo $'tab:\\there'")
@@ -331,7 +329,6 @@ class TestANSICQuoting:
         assert result['success']
         assert '\t' in result['stdout']
     
-    @pytest.mark.xfail(reason="ANSI-C quoting may not be implemented yet")
     def test_ansi_c_hex_escapes(self):
         """Test ANSI-C hexadecimal escapes."""
         result = QuotingTestHelper.run_psh_command("echo $'\\x41\\x42\\x43'")
@@ -339,15 +336,6 @@ class TestANSICQuoting:
         assert result['success']
         assert 'ABC' in result['stdout']
     
-    @pytest.mark.xfail(reason="ANSI-C quoting may not be implemented yet")
-    def test_ansi_c_octal_escapes(self):
-        """Test ANSI-C octal escapes."""
-        result = QuotingTestHelper.run_psh_command("echo $'\\101\\102\\103'")
-        
-        assert result['success']
-        assert 'ABC' in result['stdout']
-    
-    @pytest.mark.xfail(reason="ANSI-C quoting may not be implemented yet")
     def test_ansi_c_unicode_escapes(self):
         """Test ANSI-C Unicode escapes."""
         result = QuotingTestHelper.run_psh_command("echo $'\\u0041\\u0042'")

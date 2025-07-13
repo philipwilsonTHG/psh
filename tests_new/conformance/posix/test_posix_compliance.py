@@ -28,14 +28,12 @@ class TestPOSIXParameterExpansion(ConformanceTest):
         self.assert_identical_behavior('x=hello; echo ${x:-default}')
         self.assert_identical_behavior('x=; echo ${x:-default}')
         self.assert_identical_behavior('unset x; echo ${x:-default}')
-
-    @pytest.mark.xfail(reason="PSH parameter expansion syntax ${x:=default} not fully implemented")
+    
     def test_assign_default_expansion(self):
         """Test ${parameter:=word} expansion."""
         self.assert_identical_behavior('unset x; echo ${x:=default}; echo $x')
         self.assert_identical_behavior('x=; echo ${x:=default}; echo $x')
-
-    @pytest.mark.xfail(reason="PSH parameter expansion syntax ${x:?word} not fully implemented")
+    
     def test_error_expansion(self):
         """Test ${parameter:?word} expansion."""
         # These should fail in both shells

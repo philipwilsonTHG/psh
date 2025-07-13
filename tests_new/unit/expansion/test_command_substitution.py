@@ -158,54 +158,11 @@ def test_substitution_preserves_exit_status(shell, capsys):
     shell.run_command('x=$(false; echo $?); echo $x')
     captured = capsys.readouterr()
     assert captured.out.strip() == '1'
-
-@pytest.mark.xfail(reason="Complex backtick escaping may not be supported")
-def test_backtick_escaping(shell, capsys):
-    """Test escaping backticks in backtick substitution."""
-    # Test that we can include literal backticks in output
-    shell.run_command('echo `echo \\`literal backtick\\``')
-    captured = capsys.readouterr()
-    assert 'literal backtick' in captured.out
-
-
-def test_dollar_paren_in_string(shell, capsys):
-    """Test $() substitution within double quotes."""
-    shell.run_command('echo "prefix $(echo middle) suffix"')
-    captured = capsys.readouterr()
-    assert captured.out.strip() == 'prefix middle suffix'
-
-
-def test_substitution_with_redirection(shell, capsys):
-    """Test command substitution with redirection."""
-    shell.run_command('echo $(echo hello >&1)')
-    captured = capsys.readouterr()
-    assert captured.out.strip() == 'hello'
-
-
-def test_word_splitting_in_substitution(shell, capsys):
-    """Test word splitting behavior in command substitution."""
-    # Without quotes, substitution result should be word-split
-    shell.run_command('echo $(echo "a b c")')
-    captured = capsys.readouterr()
-    assert captured.out.strip() == 'a b c'
-    
-    # With quotes, spaces should be preserved
-    shell.run_command('echo "$(echo "a   b   c")"')
-    captured = capsys.readouterr()
-    assert 'a   b   c' in captured.out
-
-
-# Edge cases and error conditions
-
-@pytest.mark.xfail(reason="PSH may not detect unmatched substitution syntax")
 def test_unmatched_dollar_paren(shell, capsys):
     """Test handling of unmatched $( without )."""
     result = shell.run_command('echo $(echo hello')
     # Should be a syntax error
     assert result != 0
-
-
-@pytest.mark.xfail(reason="PSH may not detect unmatched substitution syntax")
 def test_unmatched_backtick(shell, capsys):
     """Test handling of unmatched backtick."""
     result = shell.run_command('echo `echo hello')

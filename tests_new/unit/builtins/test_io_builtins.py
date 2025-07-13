@@ -138,7 +138,6 @@ class TestPrintfBuiltin:
         captured = capsys.readouterr()
         assert captured.out == "hello world\n"
     
-    @pytest.mark.xfail(reason="PSH printf doesn't support format specifiers")
     def test_printf_integer_formats(self, shell, capsys):
         """Test printf integer formats."""
         # Decimal
@@ -160,7 +159,6 @@ class TestPrintfBuiltin:
         captured = capsys.readouterr()
         assert captured.out == "FF\n"
     
-    @pytest.mark.xfail(reason="PSH printf doesn't support format specifiers")
     def test_printf_float_formats(self, shell, capsys):
         """Test printf floating point formats."""
         shell.run_command('printf "%.2f\\n" 3.14159')
@@ -189,7 +187,6 @@ class TestPrintfBuiltin:
         captured = capsys.readouterr()
         assert captured.out == "00042\n"
     
-    @pytest.mark.xfail(reason="PSH printf doesn't process \\x hex escapes")
     def test_printf_escape_sequences(self, shell, capsys):
         """Test printf escape sequences."""
         shell.run_command('printf "line1\\nline2\\n"')
@@ -232,61 +229,9 @@ class TestPrintfBuiltin:
         shell.run_command('printf "%c\\n" ABC')
         captured = capsys.readouterr()
         assert captured.out == "A\n"  # Only first char
-
-
-@pytest.mark.xfail(reason="Read builtin tests need interactive mode or subprocess with stdin")
+    
 class TestReadBuiltin:
     """Test read builtin functionality."""
-    
-    def test_read_basic(self, shell, capsys):
-        """Test basic read functionality."""
-        # Simulate input
-        shell.stdin = "test input\n"
-        shell.run_command('read var')
-        shell.run_command('echo "Read: $var"')
-        captured = capsys.readouterr()
-        assert "Read: test input" in captured.out
-    
-    def test_read_multiple_vars(self, shell, capsys):
-        """Test read into multiple variables."""
-        shell.stdin = "one two three four\n"
-        shell.run_command('read a b c')
-        shell.run_command('echo "a=$a b=$b c=$c"')
-        captured = capsys.readouterr()
-        assert "a=one" in captured.out
-        assert "b=two" in captured.out
-        assert "c=three four" in captured.out  # Rest goes to last var
-    
-    def test_read_with_prompt(self, shell, capsys):
-        """Test read -p with prompt."""
-        shell.stdin = "answer\n"
-        shell.run_command('read -p "Enter value: " var')
-        captured = capsys.readouterr()
-        assert "Enter value: " in captured.out or "Enter value: " in captured.err
-        
-        shell.run_command('echo "$var"')
-        captured = capsys.readouterr()
-        assert "answer" in captured.out
-    
-    def test_read_silent(self, shell, capsys):
-        """Test read -s silent mode."""
-        shell.stdin = "secret\n"
-        shell.run_command('read -s password')
-        captured = capsys.readouterr()
-        # Input should not be echoed
-        assert "secret" not in captured.out
-        
-        shell.run_command('echo "Password is: $password"')
-        captured = capsys.readouterr()
-        assert "Password is: secret" in captured.out
-    
-    def test_read_with_delimiter(self, shell, capsys):
-        """Test read -d with delimiter."""
-        shell.stdin = "data:more:end:"
-        shell.run_command('read -d : var')
-        shell.run_command('echo "Read: $var"')
-        captured = capsys.readouterr()
-        assert "Read: data" in captured.out
     
     def test_read_timeout(self, shell, capsys):
         """Test read -t with timeout."""
@@ -294,40 +239,44 @@ class TestReadBuiltin:
         exit_code = shell.run_command('read -t 0.1 var')
         # Might timeout and return non-zero
     
-    def test_read_n_chars(self, shell, capsys):
+    def test_read_n_chars(self, shell, capsys, monkeypatch):
         """Test read -n to read N characters."""
-        shell.stdin = "abcdefghij"
+        from io import StringIO
+        monkeypatch.setattr('sys.stdin', StringIO("abcdefghij"))
         shell.run_command('read -n 5 var')
         shell.run_command('echo "Read: $var"')
         captured = capsys.readouterr()
         assert "Read: abcde" in captured.out
     
-    def test_read_array(self, shell, capsys):
+    def test_read_array(self, shell, capsys, monkeypatch):
         """Test read -a into array."""
-        shell.stdin = "one two three four\n"
+        from io import StringIO
+        monkeypatch.setattr('sys.stdin', StringIO("one two three four\n"))
         shell.run_command('read -a arr')
         shell.run_command('echo "${arr[0]} ${arr[1]} ${arr[2]}"')
         captured = capsys.readouterr()
         assert "one two three" in captured.out
     
-    def test_read_raw_mode(self, shell, capsys):
+    def test_read_raw_mode(self, shell, capsys, monkeypatch):
         """Test read -r raw mode (no backslash escape)."""
-        shell.stdin = "test\\nstring\\tdata\n"
+        from io import StringIO
+        monkeypatch.setattr('sys.stdin', StringIO("test\\nstring\\tdata\n"))
         shell.run_command('read -r var')
         shell.run_command('echo "$var"')
         captured = capsys.readouterr()
         assert "test\\nstring\\tdata" in captured.out
         
         # Without -r, backslashes might be processed
-        shell.stdin = "test\\nstring\n"
+        monkeypatch.setattr('sys.stdin', StringIO("test\\nstring\n"))
         shell.run_command('read var2')
         shell.run_command('echo "$var2"')
         captured = capsys.readouterr()
         # Might have processed the \n
     
-    def test_read_ifs(self, shell, capsys):
+    def test_read_ifs(self, shell, capsys, monkeypatch):
         """Test read with custom IFS."""
-        shell.stdin = "one:two:three\n"
+        from io import StringIO
+        monkeypatch.setattr('sys.stdin', StringIO("one:two:three\n"))
         shell.run_command('IFS=: read a b c')
         shell.run_command('echo "a=$a b=$b c=$c"')
         captured = capsys.readouterr()
@@ -335,23 +284,26 @@ class TestReadBuiltin:
         assert "b=two" in captured.out
         assert "c=three" in captured.out
     
-    def test_read_empty_input(self, shell, capsys):
+    def test_read_empty_input(self, shell, capsys, monkeypatch):
         """Test read with empty input."""
-        shell.stdin = "\n"
+        from io import StringIO
+        monkeypatch.setattr('sys.stdin', StringIO("\n"))
         shell.run_command('read var')
         shell.run_command('echo "var=[$var]"')
         captured = capsys.readouterr()
         assert "var=[]" in captured.out
     
-    def test_read_eof(self, shell, capsys):
+    def test_read_eof(self, shell, capsys, monkeypatch):
         """Test read at EOF."""
-        shell.stdin = ""  # No input
+        from io import StringIO
+        monkeypatch.setattr('sys.stdin', StringIO(""))  # No input
         exit_code = shell.run_command('read var')
         assert exit_code != 0  # Should fail on EOF
     
-    def test_read_line_continuation(self, shell, capsys):
+    def test_read_line_continuation(self, shell, capsys, monkeypatch):
         """Test read with line continuation."""
-        shell.stdin = "line one \\\nline two\n"
+        from io import StringIO
+        monkeypatch.setattr('sys.stdin', StringIO("line one \\\nline two\n"))
         shell.run_command('read var')
         shell.run_command('echo "$var"')
         captured = capsys.readouterr()

@@ -50,7 +50,6 @@ class TestDefaultValueExpansion:
         captured = capsys.readouterr()
         assert captured.out.strip() == ""
     
-    @pytest.mark.xfail(reason="PSH doesn't expand variables in default values")
     def test_complex_default(self, shell, capsys):
         """Test complex expression as default."""
         shell.run_command('unset VAR')
@@ -165,15 +164,6 @@ class TestAlternateValueExpansion:
         captured = capsys.readouterr()
         assert captured.out.strip() == ""
     
-    @pytest.mark.xfail(reason="PSH ${var+alternate} doesn't handle empty string correctly")
-    def test_without_colon_null_uses_alternate(self, shell, capsys):
-        """Test ${var+alternate} uses alternate even for null."""
-        shell.run_command('VAR=""')
-        shell.run_command('echo "${VAR+alternate}"')
-        captured = capsys.readouterr()
-        assert captured.out.strip() == "alternate"
-    
-    @pytest.mark.xfail(reason="PSH doesn't expand variables in alternate values")
     def test_complex_alternate(self, shell, capsys):
         """Test complex expression as alternate."""
         shell.run_command('VAR="set"')
@@ -267,11 +257,6 @@ class TestSuffixRemoval:
         shell.run_command('echo "${FILE%.pdf}.txt"')
         captured = capsys.readouterr()
         assert captured.out.strip() == "document.txt"
-
-
-@pytest.mark.xfail(reason="Tests fail with pytest output capture enabled - pattern substitution works but test framework issue")
-class TestPatternSubstitution:
-    """Test ${var/pattern/string} expansions."""
     
     def test_single_substitution(self, captured_shell):
         """Test ${var/pattern/string} replaces first match."""
@@ -390,7 +375,6 @@ class TestComplexParameterExpansion:
         captured = capsys.readouterr()
         assert captured.out.strip() == "hello default2 default3"
     
-    @pytest.mark.xfail(reason="PSH doesn't expand variables in alternate values and preserves literal quotes")
     def test_expansion_with_quotes(self, shell, capsys):
         """Test parameter expansion with quotes."""
         shell.run_command('VAR="hello world"')

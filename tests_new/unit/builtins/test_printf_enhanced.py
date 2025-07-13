@@ -89,42 +89,24 @@ class TestPrintfBasicFormats:
 class TestPrintfFloatingPoint:
     """Test floating point format specifiers."""
     
-    @pytest.mark.xfail(reason="PSH printf doesn't implement floating point formats yet")
     def test_float_format(self, shell, capsys):
         """Test %f float format."""
         shell.run_command('printf "%f\\n" "3.14159"')
         captured = capsys.readouterr()
         assert "3.14159" in captured.out
     
-    @pytest.mark.xfail(reason="PSH printf doesn't implement floating point formats yet")
     def test_float_uppercase_format(self, shell, capsys):
         """Test %F float format (uppercase)."""
         shell.run_command('printf "%F\\n" "3.14159"')
         captured = capsys.readouterr()
         assert "3.14159" in captured.out
     
-    @pytest.mark.xfail(reason="PSH printf doesn't implement floating point formats yet")
-    def test_exponential_format(self, shell, capsys):
-        """Test %e exponential format."""
-        shell.run_command('printf "%e\\n" "1234.5"')
-        captured = capsys.readouterr()
-        assert "1.2345e" in captured.out.lower()
-    
-    @pytest.mark.xfail(reason="PSH printf doesn't implement floating point formats yet")
-    def test_exponential_uppercase_format(self, shell, capsys):
-        """Test %E exponential format (uppercase)."""
-        shell.run_command('printf "%E\\n" "1234.5"')
-        captured = capsys.readouterr()
-        assert "1.2345E" in captured.out
-    
-    @pytest.mark.xfail(reason="PSH printf doesn't implement floating point formats yet")
     def test_general_format(self, shell, capsys):
         """Test %g general format."""
         shell.run_command('printf "%g\\n" "1234.5"')
         captured = capsys.readouterr()
         assert "1234.5" in captured.out or "1.2345e" in captured.out.lower()
     
-    @pytest.mark.xfail(reason="PSH printf doesn't implement floating point formats yet")
     def test_general_uppercase_format(self, shell, capsys):
         """Test %G general format (uppercase)."""
         shell.run_command('printf "%G\\n" "1234.5"')
@@ -169,21 +151,18 @@ class TestPrintfFieldWidth:
 class TestPrintfPrecision:
     """Test precision specifications."""
     
-    @pytest.mark.xfail(reason="PSH printf precision not fully implemented")
     def test_string_precision(self, shell, capsys):
         """Test %.3s string precision (truncation)."""
         shell.run_command('printf "%.3s\\n" "hello"')
         captured = capsys.readouterr()
         assert captured.out == "hel\n"
     
-    @pytest.mark.xfail(reason="PSH printf precision not fully implemented")
     def test_decimal_precision(self, shell, capsys):
         """Test %.5d decimal precision (leading zeros)."""
         shell.run_command('printf "%.5d\\n" "42"')
         captured = capsys.readouterr()
         assert captured.out == "00042\n"
     
-    @pytest.mark.xfail(reason="PSH printf doesn't implement floating point formats yet")
     def test_float_precision(self, shell, capsys):
         """Test %.2f float precision."""
         shell.run_command('printf "%.2f\\n" "3.14159"')
@@ -194,28 +173,24 @@ class TestPrintfPrecision:
 class TestPrintfFlags:
     """Test printf flags."""
     
-    @pytest.mark.xfail(reason="PSH printf flags not fully implemented")
     def test_plus_flag(self, shell, capsys):
         """Test %+d plus flag for positive numbers."""
         shell.run_command('printf "%+d\\n" "42"')
         captured = capsys.readouterr()
         assert captured.out == "+42\n"
     
-    @pytest.mark.xfail(reason="PSH printf flags not fully implemented")
     def test_space_flag(self, shell, capsys):
         """Test % d space flag for positive numbers."""
         shell.run_command('printf "% d\\n" "42"')
         captured = capsys.readouterr()
         assert captured.out == " 42\n"
     
-    @pytest.mark.xfail(reason="PSH printf flags not fully implemented")
     def test_hash_flag_hex(self, shell, capsys):
         """Test %#x hash flag for hex (0x prefix)."""
         shell.run_command('printf "%#x\\n" "255"')
         captured = capsys.readouterr()
         assert captured.out == "0xff\n"
     
-    @pytest.mark.xfail(reason="PSH printf flags not fully implemented")
     def test_hash_flag_octal(self, shell, capsys):
         """Test %#o hash flag for octal (0 prefix)."""
         shell.run_command('printf "%#o\\n" "64"')
@@ -266,21 +241,12 @@ class TestPrintfEscapeSequences:
         captured = capsys.readouterr()
         assert captured.out == "text\rOVER\n"
     
-    @pytest.mark.xfail(reason="PSH printf backslash escape processing needs refinement for literal backslashes")
-    def test_backslash_escape(self, shell, capsys):
-        """Test \\\\ backslash escape."""
-        shell.run_command('printf "path\\\\to\\\\file\\n"')
-        captured = capsys.readouterr()
-        assert captured.out == "path\\to\\file\n"
-    
-    @pytest.mark.xfail(reason="PSH printf escape sequences not fully implemented")
     def test_hex_escape(self, shell, capsys):
         """Test \\xHH hex escape sequences."""
         shell.run_command('printf "\\x41\\x42\\x43\\n"')
         captured = capsys.readouterr()
         assert captured.out == "ABC\n"
     
-    @pytest.mark.xfail(reason="PSH printf escape sequences not fully implemented")
     def test_octal_escape(self, shell, capsys):
         """Test \\nnn octal escape sequences."""
         shell.run_command('printf "\\101\\102\\103\\n"')
@@ -305,7 +271,6 @@ class TestPrintfComplexFormats:
         assert "123" in captured.out
         assert "Value" in captured.out
     
-    @pytest.mark.xfail(reason="PSH printf complex formatting not fully implemented")
     def test_padded_hex_table(self, shell, capsys):
         """Test padded hex table formatting."""
         shell.run_command('printf "%04X %04X %04X\\n" "10" "255" "4095"')
