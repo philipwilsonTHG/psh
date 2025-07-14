@@ -6,6 +6,7 @@ function definitions, and complex nested scenarios.
 """
 
 import pytest
+from pathlib import Path
 
 
 class TestMultilineControlStructures:
@@ -360,10 +361,12 @@ echo "Loop completed"'''
 class TestMultilineWithRedirection:
     """Test multiline commands with I/O redirection."""
     
-    @pytest.mark.xfail(reason="Output redirection in multiline commands may not be fully implemented")
-    def test_multiline_with_output_redirection(self, shell, temp_dir, capsys):
+    def test_multiline_with_output_redirection(self, temp_dir):
         """Test multiline command with output redirection."""
         import os
+        import subprocess
+        import sys
+        
         output_file = os.path.join(temp_dir, "output.txt")
         
         command = f'''for i in 1 2 3; do
@@ -371,29 +374,52 @@ class TestMultilineWithRedirection:
     echo "Data: $i"
 done > {output_file}'''
         
-        result = shell.run_command(command)
-        assert result == 0
+        # Use subprocess to test PSH directly
+        env = os.environ.copy()
+        env['PYTHONPATH'] = str(Path(__file__).parent.parent.parent.parent)
+        
+        proc = subprocess.run(
+            [sys.executable, '-m', 'psh', '--norc', '-c', command],
+            env=env,
+            capture_output=True,
+            text=True
+        )
+        
+        assert proc.returncode == 0
         
         # Check file was created and contains expected content
         assert os.path.exists(output_file)
         with open(output_file, 'r') as f:
             content = f.read()
         assert "Line 1" in content
-        assert "Data 1" in content
+        assert "Data: 1" in content
+        assert "Line 2" in content  
+        assert "Data: 2" in content
         assert "Line 3" in content
-        assert "Data 3" in content
+        assert "Data: 3" in content
     
-    @pytest.mark.xfail(reason="Complex I/O redirection in multiline may not be fully implemented")
-    def test_multiline_with_pipe(self, shell, capsys):
+    def test_multiline_with_pipe(self):
         """Test multiline command with pipe."""
+        import os
+        import subprocess
+        import sys
+        
         command = '''for i in 1 2 3; do
     echo "item_$i"
 done | grep "item_2"'''
         
-        result = shell.run_command(command)
-        assert result == 0
+        # Use subprocess to test PSH directly
+        env = os.environ.copy()
+        env['PYTHONPATH'] = str(Path(__file__).parent.parent.parent.parent)
         
-        captured = capsys.readouterr()
-        assert "item_2" in captured.out
-        assert "item_1" not in captured.out
-        assert "item_3" not in captured.out
+        proc = subprocess.run(
+            [sys.executable, '-m', 'psh', '--norc', '-c', command],
+            env=env,
+            capture_output=True,
+            text=True
+        )
+        
+        assert proc.returncode == 0
+        assert "item_2" in proc.stdout
+        assert "item_1" not in proc.stdout
+        assert "item_3" not in proc.stdout

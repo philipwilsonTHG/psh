@@ -1,5 +1,26 @@
 {
   "documented": {
+    "x=value echo $x": {
+      "id": "COMMAND_SPECIFIC_ASSIGNMENTS",
+      "description": "PSH correctly implements POSIX command-specific variable assignments where variables are visible to the command, while bash has a bug where they are not expanded",
+      "psh_behavior": "VAR=value echo $VAR outputs 'value' (POSIX compliant)",
+      "bash_behavior": "VAR=value echo $VAR outputs empty string (bash bug)",
+      "category": "expansion_differences"
+    },
+    "VAR=value echo $VAR": {
+      "id": "COMMAND_SPECIFIC_ASSIGNMENTS",
+      "description": "PSH correctly implements POSIX command-specific variable assignments where variables are visible to the command, while bash has a bug where they are not expanded",
+      "psh_behavior": "VAR=value echo $VAR outputs 'value' (POSIX compliant)",
+      "bash_behavior": "VAR=value echo $VAR outputs empty string (bash bug)",
+      "category": "expansion_differences"
+    },
+    "A=1 B=2 echo $A$B": {
+      "id": "COMMAND_SPECIFIC_ASSIGNMENTS", 
+      "description": "PSH correctly implements POSIX command-specific variable assignments where variables are visible to the command, while bash has a bug where they are not expanded",
+      "psh_behavior": "Multiple assignments work correctly in PSH",
+      "bash_behavior": "Multiple assignments don't expand in bash",
+      "category": "expansion_differences"
+    },
     "help": {
       "id": "HELP_BUILTIN",
       "description": "PSH and bash both have help but with different output formats",

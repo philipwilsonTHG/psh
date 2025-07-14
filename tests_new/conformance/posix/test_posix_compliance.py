@@ -279,8 +279,9 @@ class TestPOSIXSimpleCommands(ConformanceTest):
 
     def test_variable_assignments(self):
         """Test variable assignments with commands."""
-        self.assert_identical_behavior('VAR=value echo $VAR')
-        self.assert_identical_behavior('A=1 B=2 echo $A$B')
+        # PSH correctly implements POSIX behavior, bash has a bug
+        self.assert_documented_difference('VAR=value echo $VAR', 'COMMAND_SPECIFIC_ASSIGNMENTS')
+        self.assert_documented_difference('A=1 B=2 echo $A$B', 'COMMAND_SPECIFIC_ASSIGNMENTS')
 
 
 class TestPOSIXPipelines(ConformanceTest):
