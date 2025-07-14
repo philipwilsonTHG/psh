@@ -34,6 +34,11 @@ class ParameterExpansion:
             # Special case: ${#} alone means number of positional params
             if content == '#':
                 return '#', '#', ''
+            # Check if this is ${#:-default} or similar - the # is the variable name, not operator
+            if len(content) > 1 and content[1] == ':':
+                # This is actually a special variable # with a : operator, not a length operation
+                # Return empty operator so it's handled by the default value logic
+                return '', content, ''
             return '#', content[1:], ''
         
         # Check for variable name matching ${!prefix*} or ${!prefix@}

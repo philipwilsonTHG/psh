@@ -650,6 +650,9 @@ class VariableExpander:
             if 0 <= index < len(self.state.positional_params):
                 return self.state.positional_params[index]
             return ''
+        elif var_name in ['#', '?', '$', '!', '@', '*', '0', '-']:
+            # Special variables
+            return self.state.get_special_variable(var_name)
         else:
             return self.state.get_variable(var_name, '')
     

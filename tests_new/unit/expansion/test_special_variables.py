@@ -295,7 +295,6 @@ class TestSpecialVariablesInContext:
         captured = capsys.readouterr()
         assert captured.out.strip() == "hello world"
     
-    @pytest.mark.xfail(reason="Special variables in parameter expansion not fully implemented")
     def test_special_vars_in_parameter_expansion(self, shell, capsys):
         """Test special variables with parameter expansion operators."""
         shell.run_command('echo ${#:-default}')
