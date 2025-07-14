@@ -381,6 +381,34 @@ class VariableExpander:
                                         result = self.param_expansion.substitute_suffix(element, pattern, replacement)
                                     else:
                                         result = element
+                                elif operator == '^^':
+                                    # Uppercase all characters
+                                    if operand:
+                                        # Pattern-based uppercase
+                                        result = self.param_expansion.uppercase_all(element, operand)
+                                    else:
+                                        result = self.param_expansion.uppercase_all(element)
+                                elif operator == ',,':
+                                    # Lowercase all characters
+                                    if operand:
+                                        # Pattern-based lowercase
+                                        result = self.param_expansion.lowercase_all(element, operand)
+                                    else:
+                                        result = self.param_expansion.lowercase_all(element)
+                                elif operator == '^':
+                                    # Uppercase first character
+                                    if operand:
+                                        # Pattern-based uppercase first
+                                        result = self.param_expansion.uppercase_first(element, operand)
+                                    else:
+                                        result = self.param_expansion.uppercase_first(element)
+                                elif operator == ',':
+                                    # Lowercase first character
+                                    if operand:
+                                        # Pattern-based lowercase first
+                                        result = self.param_expansion.lowercase_first(element, operand)
+                                    else:
+                                        result = self.param_expansion.lowercase_first(element)
                                 else:
                                     # Default: return element unchanged for unknown operators
                                     result = element
