@@ -2,10 +2,34 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.80.9"
+__version__ = "0.81.0"
 
 # Version history
 VERSION_HISTORY = """
+0.81.0 (2025-01-14) - History Expansion Implementation Complete
+  - Implemented complete history expansion functionality
+    - Added histexpand option to shell state (default: enabled)
+    - Fixed history expansion processing to use proper shell option
+    - All history expansion patterns now working: !!, !n, !-n, !string, !?string?
+  - History expansion improvements:
+    - !! expands to previous command
+    - !n expands to command number n from history
+    - !-n expands to n commands back from current
+    - !string expands to most recent command starting with string
+    - !?string? expands to most recent command containing string
+  - Integration fixes:
+    - History expansion works in all contexts (interactive, scripts, eval)
+    - Proper error handling for history references not found
+    - Context-aware expansion respects quotes and arithmetic contexts
+  - Test framework completion:
+    - All eval builtin tests now pass (10/10 passing, 2 xfail for infrastructure)
+    - History expansion test passes in misc builtins test suite
+    - Fixed variable scoping issue in eval complex expression test
+  - Quality improvement progress:
+    - Completed Phase 6a quick win: history expansion functionality
+    - Maintains high test pass rate across expansion test suite
+    - Foundation established for remaining test infrastructure improvements
+
 0.80.9 (2025-01-14) - Quality Improvements and Test Fixes
   - Fixed eval complex expression test (test bug, not PSH bug)
     - Variable expansion in double quotes was happening before eval

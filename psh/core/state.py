@@ -74,6 +74,7 @@ class ShellState:
             'braceexpand': True,   # -o braceexpand: enable brace expansion (default on)
             'emacs': False,        # -o emacs: emacs key bindings (context-dependent)
             'vi': False,           # -o vi: vi key bindings (off for set -o display)
+            'histexpand': True,    # -o histexpand: enable history expansion (default on)
         }
         
         # Enable debug mode on scope manager if debug-scopes is set

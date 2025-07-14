@@ -31,7 +31,7 @@ class HistoryExpander:
         - !?string? : Most recent command containing string
         """
         # Skip expansion if history expansion is disabled
-        if hasattr(self.state, 'histexpand') and not self.state.histexpand:
+        if not self.state.options.get('histexpand', True):
             return command
             
         # Get history from the shell
