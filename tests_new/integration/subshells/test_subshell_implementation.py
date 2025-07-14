@@ -245,7 +245,7 @@ class TestSubshellRedirection:
             content = f.read().strip()
         assert content == "line1\nline2\nline3"
     
-    @pytest.mark.xfail(reason="Input redirection with while read in subshells may have limitations")
+    @pytest.mark.xfail(reason="Input redirection with while read conflicts with pytest output capture")
     def test_input_redirection(self, shell_with_temp_dir):
         """Test input redirection to subshells."""
         shell = shell_with_temp_dir

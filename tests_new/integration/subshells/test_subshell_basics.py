@@ -233,7 +233,7 @@ def test_subshell_complex_redirections(shell_with_temp_dir):
     assert "stderr" in stderr_content
 
 
-@pytest.mark.xfail(reason="Subshell process substitution may not be implemented")  
+@pytest.mark.xfail(reason="Process substitution output redirection has test framework conflicts")
 def test_subshell_process_substitution(shell, capsys):
     """Test process substitution with subshells."""
     result = shell.run_command('cat <(echo "from subshell")')

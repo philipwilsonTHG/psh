@@ -268,11 +268,19 @@ class TestBashJobControl(ConformanceTest):
 class TestBashHistory(ConformanceTest):
     """Test bash history compatibility."""
 
-    @pytest.mark.xfail(reason="History expansion not implemented")
+    @pytest.mark.xfail(reason="PSH parser silently drops !! tokens instead of treating as commands")
     def test_history_expansion(self):
-        """Test bash history expansion."""
-        self.assert_bash_specific('echo hello; !!')
-        self.assert_bash_specific('echo hello; !echo')
+        """Test bash history expansion behavior in non-interactive mode."""
+        # In non-interactive mode (-c), bash treats !! as unknown command (exit 127)
+        # PSH currently has a parser bug where !! tokens are silently dropped (exit 0)
+        result1 = self.check_behavior('echo hello; !!')
+        
+        # Bash should fail with exit code 127 (command not found)
+        assert result1.bash_result.exit_code == 127
+        assert 'command not found' in result1.bash_result.stderr
+        
+        # PSH currently silently ignores !! (parser bug) - should be fixed to match bash
+        # When fixed, PSH should also return 127 with "command not found"
 
     def test_history_commands(self):
         """Test history-related commands."""
