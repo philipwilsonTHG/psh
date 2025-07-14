@@ -31,12 +31,12 @@ class TestSimpleBraceExpansion:
         # PSH adds spaces around braces when it's not a valid expansion
         assert captured.out.strip() == "{ a }"
     
-    @pytest.mark.xfail(reason="PSH doesn't preserve empty items in brace expansion")
     def test_empty_item(self, shell, capsys):
         """Test empty items in list."""
         shell.run_command('echo {a,,c}')
         captured = capsys.readouterr()
-        assert captured.out.strip() == "a  c"
+        # Bash does not preserve empty items in echo output
+        assert captured.out.strip() == "a c"
     
     def test_numeric_list(self, shell, capsys):
         """Test numeric list expansion."""
@@ -202,12 +202,12 @@ class TestComplexBracePatterns:
         expected = "a1x a1y a2x a2y b1x b1y b2x b2y"
         assert captured.out.strip() == expected
     
-    @pytest.mark.xfail(reason="PSH doesn't expand ranges when mixed with comma lists")
     def test_mixed_types(self, shell, capsys):
         """Test mixing list and range expansions."""
         shell.run_command('echo {a,b,1..3}')
         captured = capsys.readouterr()
-        assert captured.out.strip() == "a b 1 2 3"
+        # Bash does not expand ranges within comma lists
+        assert captured.out.strip() == "a b 1..3"
     
     def test_empty_expansion(self, shell, capsys):
         """Test empty brace expansion."""

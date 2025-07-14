@@ -367,9 +367,10 @@ class BraceExpander:
         if not content:
             return False
         
-        # Check if content contains variables - if so, don't expand braces yet
-        # Variables like $var, ${var}, $(cmd), $((expr)) should prevent brace expansion
-        if '$' in content:
+        # Check if content contains variables that should be expanded first
+        # Only prevent brace expansion for actual variable/command substitution patterns
+        # Single '$' in a list like {$,#,@} should not prevent expansion
+        if self._contains_expandable_dollar(content):
             return False
         
         # Check for sequence (Phase 2 - recognize but don't expand yet)
@@ -734,3 +735,51 @@ class BraceExpander:
         
         # Padding is the max length
         return max(len(start_digits), len(end_digits))
+    
+    def _contains_expandable_dollar(self, content: str) -> bool:
+        """Check if content contains actual variable/command substitution patterns.
+        
+        Returns True for patterns like:
+        - $var or ${var} (variable expansion)
+        - $(cmd) (command substitution)
+        - $((expr)) (arithmetic expansion)
+        
+        Returns False for:
+        - Single '$' not followed by variable name or special pattern
+        - '$' at end of string
+        - '$' followed by comma or other non-variable characters
+        """
+        i = 0
+        while i < len(content):
+            if content[i] == '$':
+                if i + 1 >= len(content):
+                    # $ at end of string
+                    i += 1
+                    continue
+                
+                next_char = content[i + 1]
+                
+                # Check for ${...}, $(...), or $((...))
+                if next_char in '{(':
+                    return True
+                
+                # Check for $var pattern (letter or underscore starts variable)
+                if next_char.isalpha() or next_char == '_':
+                    return True
+                
+                # Check for special variables like $1, $@, $*, etc.
+                # But not if followed by comma (as in {$,#,@})
+                if next_char == ',':
+                    # $ followed by comma is not a variable
+                    i += 1
+                    continue
+                    
+                if next_char.isdigit() or next_char in '@*#?-!$':
+                    return True
+                
+                # Otherwise, it's just a literal $
+                i += 1
+            else:
+                i += 1
+        
+        return False

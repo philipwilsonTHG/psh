@@ -2,10 +2,24 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.81.1"
+__version__ = "0.81.2"
 
 # Version history
 VERSION_HISTORY = """
+0.81.2 (2025-01-14) - Brace Expansion Test Fixes and Enhanced Dollar Handling
+  - Fixed brace expansion tests to match actual bash behavior
+  - Updated test_empty_item to expect "a c" (single space) matching bash output
+  - Updated test_mixed_types to expect "a b 1..3" as bash doesn't expand ranges in comma lists
+  - Enhanced brace expansion to handle special characters more intelligently
+  - Added _contains_expandable_dollar() method to distinguish variable patterns from literal $
+  - Fixed issue where {$,#,@} wasn't expanding due to overly strict dollar detection
+  - Now correctly identifies actual variable/command substitution patterns
+  - Literal $ followed by comma (as in {$,#,@}) no longer prevents brace expansion
+  - Improved from 6 xfail to 4 passing tests in brace expansion test suite
+  - Remaining xfail tests are due to PSH adding spaces in unexpanded braces (e.g., "{ }" vs "{}")
+  - This is a tokenization difference where PSH treats { and } as separate tokens
+  - Enhanced educational value by demonstrating proper bash compatibility testing
+
 0.81.1 (2025-01-14) - Subshell Output Capture Fix Complete
   - Fixed critical test regression where broad test mode detection was causing 75 test failures
   - Replaced broad test_mode with targeted eval_test_mode for specific eval tests only
