@@ -123,7 +123,33 @@ class ExpansionManager:
                     expanded = self.expand_variable(var_expr)
                     if self.state.options.get('debug-expansion-detail'):
                         print(f"[EXPANSION]     Variable expansion: '{var_expr}' -> '{expanded}'", file=self.state.stderr)
-                    args.append(expanded)
+                    
+                    # Apply word splitting to unquoted variable expansions (POSIX behavior)
+                    if expanded and quote_type is None:  # Only split unquoted variables
+                        ifs = self.state.get_variable('IFS', ' \t\n')
+                        if ifs:
+                            words = []
+                            current_word = ''
+                            for char in expanded:
+                                if char in ifs:
+                                    if current_word:  # Don't add empty words from consecutive separators
+                                        words.append(current_word)
+                                        current_word = ''
+                                else:
+                                    current_word += char
+                            if current_word:  # Add final word if any
+                                words.append(current_word)
+                            
+                            if len(words) > 1:
+                                if self.state.options.get('debug-expansion-detail'):
+                                    print(f"[EXPANSION]     Word splitting: '{expanded}' -> {words}", file=self.state.stderr)
+                                args.extend(words)
+                            else:
+                                args.append(expanded)
+                        else:
+                            args.append(expanded)
+                    else:
+                        args.append(expanded)
             elif arg_type != 'COMPOSITE' and arg.startswith('$') and not (arg.startswith('$(') or arg.startswith('`')):
                 # Variable expansion for unquoted variables (but not COMPOSITE args)
                 # Check if this is an array expansion that produces multiple words
@@ -134,7 +160,33 @@ class ExpansionManager:
                 else:
                     # Regular variable expansion
                     expanded = self.expand_variable(arg)
-                    args.append(expanded)
+                    
+                    # Apply word splitting to unquoted variable expansions (POSIX behavior)
+                    if expanded:  # These are already unquoted
+                        ifs = self.state.get_variable('IFS', ' \t\n')
+                        if ifs:
+                            words = []
+                            current_word = ''
+                            for char in expanded:
+                                if char in ifs:
+                                    if current_word:  # Don't add empty words from consecutive separators
+                                        words.append(current_word)
+                                        current_word = ''
+                                else:
+                                    current_word += char
+                            if current_word:  # Add final word if any
+                                words.append(current_word)
+                            
+                            if len(words) > 1:
+                                if self.state.options.get('debug-expansion-detail'):
+                                    print(f"[EXPANSION]     Word splitting: '{expanded}' -> {words}", file=self.state.stderr)
+                                args.extend(words)
+                            else:
+                                args.append(expanded)
+                        else:
+                            args.append(expanded)
+                    else:
+                        args.append(expanded)
             elif arg_type == 'COMPOSITE' or arg_type == 'COMPOSITE_QUOTED':
                 # Composite argument - already concatenated in parser
                 # If it's COMPOSITE_QUOTED, it had quoted parts and shouldn't be glob expanded
@@ -181,9 +233,38 @@ class ExpansionManager:
                     # Expand embedded variables
                     if self.state.options.get('debug-expansion-detail'):
                         print(f"[EXPANSION]     Before var expansion: '{arg}'", file=self.state.stderr)
-                    arg = self.expand_string_variables(arg)
+                    expanded_var = self.expand_string_variables(arg)
                     if self.state.options.get('debug-expansion-detail'):
-                        print(f"[EXPANSION]     After var expansion: '{arg}'", file=self.state.stderr)
+                        print(f"[EXPANSION]     After var expansion: '{expanded_var}'", file=self.state.stderr)
+                    
+                    # Apply word splitting to expanded variables (POSIX behavior)
+                    # Only split if the expansion resulted in something different
+                    if expanded_var != arg and expanded_var:
+                        # Get IFS value for splitting
+                        ifs = self.state.get_variable('IFS', ' \t\n')
+                        if ifs:
+                            # Split the expanded value on IFS characters
+                            words = []
+                            current_word = ''
+                            for char in expanded_var:
+                                if char in ifs:
+                                    if current_word:  # Don't add empty words from consecutive separators
+                                        words.append(current_word)
+                                        current_word = ''
+                                else:
+                                    current_word += char
+                            if current_word:  # Add final word if any
+                                words.append(current_word)
+                            
+                            if len(words) > 1:
+                                if self.state.options.get('debug-expansion-detail'):
+                                    print(f"[EXPANSION]     Word splitting: '{expanded_var}' -> {words}", file=self.state.stderr)
+                                # Handle the rest of the processing for each word separately
+                                for word in words:
+                                    self._process_single_word(word, arg_type, args)
+                                continue  # Skip the normal processing below
+                    
+                    arg = expanded_var
                 
                 # Tilde expansion (only for unquoted words)
                 if arg.startswith('~') and arg_type == 'WORD':
@@ -233,6 +314,52 @@ class ExpansionManager:
             print(f"[EXPANSION] Result: {args}", file=self.state.stderr)
         
         return args
+    
+    def _process_single_word(self, word: str, arg_type: str, args: List[str]) -> None:
+        """Process a single word through tilde expansion, escape processing, and globbing."""
+        # Tilde expansion (only for unquoted words)
+        if word.startswith('~') and arg_type == 'WORD':
+            original = word
+            word = self.expand_tilde(word)
+            if self.state.options.get('debug-expansion-detail') and original != word:
+                print(f"[EXPANSION]     Tilde expansion: '{original}' -> '{word}'", file=self.state.stderr)
+        
+        # Escape sequence processing (only for unquoted words)
+        if arg_type == 'WORD' and '\\' in word:
+            original = word
+            word = self.process_escape_sequences(word)
+            if self.state.options.get('debug-expansion-detail'):
+                print(f"[EXPANSION]     Escape processing: '{original}' -> '{word}'", file=self.state.stderr)
+        
+        # Check if the argument contains unescaped glob characters and wasn't quoted (unless noglob is set)
+        # Only expand if there are glob characters not preceded by NULL markers
+        has_unescaped_globs = any(
+            c in word and not (i > 0 and word[i-1] == '\x00')
+            for i, c in enumerate(word) 
+            if c in ['*', '?', '[']
+        )
+        
+        if (has_unescaped_globs and arg_type != 'STRING' 
+            and not self.state.options.get('noglob', False)):
+            # Perform glob expansion (but clean NULL markers first for glob matching)
+            import glob
+            clean_word = word.replace('\x00', '')
+            matches = glob.glob(clean_word)
+            if matches:
+                # Sort matches for consistent output
+                if self.state.options.get('debug-expansion-detail'):
+                    print(f"[EXPANSION]     Glob expansion: '{clean_word}' -> {sorted(matches)}", file=self.state.stderr)
+                args.extend(sorted(matches))
+            else:
+                # No matches, use literal argument (bash behavior)
+                if self.state.options.get('debug-expansion-detail'):
+                    print(f"[EXPANSION]     Glob expansion: '{clean_word}' -> no matches", file=self.state.stderr)
+                # Clean NULL markers before adding
+                args.append(clean_word)
+        else:
+            # Clean NULL markers before adding
+            clean_word = word.replace('\x00', '')
+            args.append(clean_word)
     
     def expand_string_variables(self, text: str, process_escapes: bool = True) -> str:
         """

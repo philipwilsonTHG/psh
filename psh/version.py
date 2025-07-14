@@ -2,10 +2,21 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.81.5"
+__version__ = "0.81.6"
 
 # Version history
 VERSION_HISTORY = """
+0.81.6 (2025-01-14) - Word Splitting POSIX Compliance Fix
+  - Fixed critical word splitting bug for unquoted variable expansions
+  - Variable expansions like set -- $var now correctly split into multiple arguments
+  - Added word splitting to both VARIABLE type tokens and embedded variables in WORD types
+  - Fixed POSIX compliance issue where set -- "a b c" sets $# to 1, set -- $var sets $# to 3
+  - Enhanced read builtin test to avoid pipeline subshell limitations
+  - All 33 word splitting tests now pass (was 31 passed, 2 xfail)
+  - Major POSIX compliance improvement for shell parameter handling
+  - Fixed special variable support in parameter expansion default value operators
+  - Enhanced ExpansionManager with proper IFS-based word splitting algorithm
+
 0.81.5 (2025-01-14) - Function Builtin Enhancements
   - Added readonly -f support for making functions readonly 
   - Added declare local scoping in functions (matches bash behavior)

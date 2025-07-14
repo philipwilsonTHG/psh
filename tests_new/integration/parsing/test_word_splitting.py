@@ -492,7 +492,6 @@ class TestWordSplittingEdgeCases:
 class TestWordSplittingCompatibility:
     """Test compatibility with other shell behaviors."""
     
-    @pytest.mark.xfail(reason="Word splitting with 'set -- $var' not properly implemented")
     def test_posix_compliance_basic(self):
         """Test basic POSIX compliance for word splitting."""
         result = WordSplittingTestHelper.run_psh_command([
@@ -518,13 +517,21 @@ class TestWordSplittingCompatibility:
         assert '[c]' in result['stdout']
         assert '[d]' in result['stdout']
     
-    @pytest.mark.xfail(reason="Read builtin field splitting not properly implemented")
     def test_field_splitting_with_read_builtin(self):
-        """Test field splitting with read builtin."""
+        """Test field splitting with read builtin (using here string to avoid pipeline subshell)."""
         result = WordSplittingTestHelper.run_psh_command([
-            'echo "one two three" | read A B C',
+            'read A B C <<< "one two three"',
             'echo "A=[$A] B=[$B] C=[$C]"'
         ])
+        
+        # If here strings aren't supported, test with direct input
+        if not result['success'] or 'A=[one]' not in result['stdout']:
+            result = WordSplittingTestHelper.run_psh_command([
+                'echo "one two three" > /tmp/test_input',
+                'read A B C < /tmp/test_input',
+                'echo "A=[$A] B=[$B] C=[$C]"',
+                'rm -f /tmp/test_input'
+            ])
         
         assert result['success']
         assert 'A=[one]' in result['stdout']
