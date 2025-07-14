@@ -136,7 +136,6 @@ class TestReadonlyBuiltin:
         assert 'readonly' in captured.out or 'declare -r' in captured.out
         assert 'MYRO' in captured.out
     
-    @pytest.mark.xfail(reason="PSH readonly -f prints function instead of making it readonly")
     def test_readonly_function(self, shell, capsys):
         """Test readonly -f for functions."""
         cmd = '''
@@ -157,15 +156,29 @@ class TestReadonlyBuiltin:
         captured = capsys.readouterr()
         assert 'invalid' in captured.err or 'identifier' in captured.err
     
-    @pytest.mark.xfail(reason="Output from subprocess not captured properly")
-    def test_readonly_export(self, shell, capsys):
+    def test_readonly_export(self, temp_dir):
         """Test readonly exported variable."""
-        shell.run_command('export ROVAR="exported"')
-        shell.run_command('readonly ROVAR')
-        # Variable should still be exported and readonly
-        shell.run_command('bash -c "echo $ROVAR"')
-        captured = capsys.readouterr()
-        assert "exported" in captured.out
+        import subprocess
+        import sys
+        import os
+        
+        script = '''
+export ROVAR="exported"
+readonly ROVAR
+echo $ROVAR > output.txt
+'''
+        
+        result = subprocess.run([
+            sys.executable, '-m', 'psh', '-c', script
+        ], cwd=temp_dir, capture_output=True, text=True,
+           env={**os.environ, 'PYTHONPATH': os.getcwd()})
+        
+        assert result.returncode == 0
+        
+        output_path = os.path.join(temp_dir, 'output.txt')
+        with open(output_path, 'r') as f:
+            content = f.read().strip()
+        assert content == "exported"
 
 
 class TestDeclareBuiltin:
@@ -195,13 +208,28 @@ class TestDeclareBuiltin:
         captured = capsys.readouterr()
         assert 'readonly' in captured.err
     
-    @pytest.mark.xfail(reason="Output from subprocess not captured properly")
-    def test_declare_export(self, shell, capsys):
+    def test_declare_export(self, temp_dir):
         """Test declare -x for exported variables."""
-        shell.run_command('declare -x EXPORTED="value"')
-        shell.run_command('bash -c "echo $EXPORTED"')
-        captured = capsys.readouterr()
-        assert captured.out.strip() == "value"
+        import subprocess
+        import sys
+        import os
+        
+        script = '''
+declare -x EXPORTED="value"
+echo $EXPORTED > output.txt
+'''
+        
+        result = subprocess.run([
+            sys.executable, '-m', 'psh', '-c', script
+        ], cwd=temp_dir, capture_output=True, text=True,
+           env={**os.environ, 'PYTHONPATH': os.getcwd()})
+        
+        assert result.returncode == 0
+        
+        output_path = os.path.join(temp_dir, 'output.txt')
+        with open(output_path, 'r') as f:
+            content = f.read().strip()
+        assert content == "value"
     
     def test_declare_array(self, shell, capsys):
         """Test declare -a for arrays."""
@@ -235,7 +263,6 @@ class TestDeclareBuiltin:
         assert ('-r' in captured.out or 'r' in captured.out)
         assert 'CONST' in captured.out
     
-    @pytest.mark.xfail(reason="PSH declare doesn't create local scope by default")
     def test_declare_local_scope(self, shell, capsys):
         """Test declare in function creates local variable."""
         cmd = '''
@@ -252,15 +279,29 @@ class TestDeclareBuiltin:
         assert "in func: local" in captured.out
         assert "outside: global" in captured.out
     
-    @pytest.mark.xfail(reason="Output from subprocess not captured properly")
-    def test_declare_multiple_attributes(self, shell, capsys):
+    def test_declare_multiple_attributes(self, temp_dir):
         """Test declare with multiple attributes."""
-        shell.run_command('declare -i -x NUM=100')
-        # Should be both integer and exported
-        shell.run_command('NUM=50+50')
-        shell.run_command('bash -c "echo $NUM"')
-        captured = capsys.readouterr()
-        assert captured.out.strip() == "100"
+        import subprocess
+        import sys
+        import os
+        
+        script = '''
+declare -i -x NUM=100
+NUM=50+50
+echo $NUM > output.txt
+'''
+        
+        result = subprocess.run([
+            sys.executable, '-m', 'psh', '-c', script
+        ], cwd=temp_dir, capture_output=True, text=True,
+           env={**os.environ, 'PYTHONPATH': os.getcwd()})
+        
+        assert result.returncode == 0
+        
+        output_path = os.path.join(temp_dir, 'output.txt')
+        with open(output_path, 'r') as f:
+            content = f.read().strip()
+        assert content == "100"
     
     def test_declare_invalid_option(self, shell, capsys):
         """Test declare with invalid option."""

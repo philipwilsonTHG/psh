@@ -63,6 +63,7 @@ class DeclareBuiltin(Builtin):
             'assoc_array': False,    # -A
             'functions': False,      # -f
             'function_names': False, # -F
+            'global': False,         # -g
             'integer': False,        # -i
             'lowercase': False,      # -l
             'print': False,          # -p
@@ -99,6 +100,8 @@ class DeclareBuiltin(Builtin):
                         options['functions'] = True
                     elif flag == 'F':
                         options['function_names'] = True
+                    elif flag == 'g':
+                        options['global'] = True
                     elif flag == 'i':
                         options['integer'] = True
                     elif flag == 'l':
@@ -276,7 +279,7 @@ class DeclareBuiltin(Builtin):
                     array_values = self._parse_array_init(value)
                     for i, val in enumerate(array_values):
                         array.set(i, val)
-                    self._set_variable_with_attributes(shell, name, array, attributes)
+                    self._set_variable_with_attributes(shell, name, array, attributes, options['global'])
                     
                 elif options['assoc_array'] and value.startswith('(') and value.endswith(')'):
                     # Parse associative array initialization  
@@ -284,12 +287,12 @@ class DeclareBuiltin(Builtin):
                     assoc_values = self._parse_assoc_array_init(value)
                     for key, val in assoc_values:
                         array.set(key, val)
-                    self._set_variable_with_attributes(shell, name, array, attributes)
+                    self._set_variable_with_attributes(shell, name, array, attributes, options['global'])
                     
                 else:
                     # Regular variable assignment
                     # The enhanced scope manager will apply attribute transformations
-                    self._set_variable_with_attributes(shell, name, value, attributes)
+                    self._set_variable_with_attributes(shell, name, value, attributes, options['global'])
                     
             else:
                 # Just declaring with attributes, no assignment
@@ -305,7 +308,7 @@ class DeclareBuiltin(Builtin):
                         self.error(f"{arg}: cannot convert associative to indexed array", shell)
                         return 1
                     # Create empty indexed array
-                    self._set_variable_with_attributes(shell, arg, IndexedArray(), attributes)
+                    self._set_variable_with_attributes(shell, arg, IndexedArray(), attributes, options['global'])
                 elif options['assoc_array']:
                     # Check for array type conflict first  
                     existing = self._get_variable_with_attributes(shell, arg)
@@ -321,10 +324,10 @@ class DeclareBuiltin(Builtin):
                         # Completely replace the variable with new associative array
                         # Remove old attributes and set only the new ones
                         shell.state.scope_manager.unset_variable(arg)
-                        self._set_variable_with_attributes(shell, arg, new_assoc, attributes)
+                        self._set_variable_with_attributes(shell, arg, new_assoc, attributes, options['global'])
                     else:
                         # Create empty associative array
-                        self._set_variable_with_attributes(shell, arg, AssociativeArray(), attributes)
+                        self._set_variable_with_attributes(shell, arg, AssociativeArray(), attributes, options['global'])
                 else:
                     # Apply attributes to existing variable or create new one
                     existing = self._get_variable_with_attributes(shell, arg)
@@ -342,7 +345,7 @@ class DeclareBuiltin(Builtin):
                                 shell.state.scope_manager.sync_exports_to_environment(shell.state.env)
                     else:
                         # Create new variable with empty value
-                        self._set_variable_with_attributes(shell, arg, "", attributes)
+                        self._set_variable_with_attributes(shell, arg, "", attributes, options['global'])
         
         return 0
     
@@ -576,10 +579,18 @@ class DeclareBuiltin(Builtin):
         return shell.state.scope_manager.all_variables_with_attributes()
     
     def _set_variable_with_attributes(self, shell: 'Shell', name: str, 
-                                     value: Any, attributes: VarAttributes):
+                                     value: Any, attributes: VarAttributes, global_flag: bool = False):
         """Set variable with attributes."""
         try:
-            shell.state.scope_manager.set_variable(name, value, attributes=attributes, local=False)
+            # When in a function, declare creates local variables by default
+            # Unless -g flag is used to force global scope
+            # This matches bash behavior where 'declare' in a function is local
+            if global_flag:
+                local_scope = False  # Force global scope
+            else:
+                local_scope = bool(shell.function_stack)  # Local if in function
+            
+            shell.state.scope_manager.set_variable(name, value, attributes=attributes, local=local_scope)
             
             # Handle export - sync to environment
             if attributes & VarAttributes.EXPORT:
@@ -603,7 +614,7 @@ class DeclareBuiltin(Builtin):
       -A    Declare associative array variables
       -f    Restrict action to function names and definitions
       -F    Display function names only (no definitions)
-      -g    Create global variables when used in a function (not yet implemented)
+      -g    Create global variables when used in a function
       -i    Make variables have the 'integer' attribute
       -l    Convert values to lowercase on assignment
       -p    Display the attributes and value of each variable
@@ -641,7 +652,7 @@ class TypesetBuiltin(DeclareBuiltin):
       -A    Declare associative array variables
       -f    Restrict action to function names and definitions
       -F    Display function names only (no definitions)
-      -g    Create global variables when used in a function (not yet implemented)
+      -g    Create global variables when used in a function
       -i    Make variables have the 'integer' attribute
       -l    Convert values to lowercase on assignment
       -p    Display the attributes and value of each variable
@@ -673,27 +684,97 @@ class ReadonlyBuiltin(Builtin):
     
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Execute the readonly builtin."""
-        if len(args) == 1:
+        # Parse options
+        options, names = self._parse_readonly_options(args[1:], shell)
+        if options is None:
+            return 1
+        
+        if options['functions']:
+            return self._handle_readonly_functions(names, shell)
+        elif options['print']:
+            # List readonly variables in declare format
+            declare_builtin = DeclareBuiltin()
+            return declare_builtin.execute(['declare', '-pr'], shell)
+        elif not names:
             # No arguments - list all readonly variables (same as declare -pr)
             declare_builtin = DeclareBuiltin()
             return declare_builtin.execute(['declare', '-pr'], shell)
+        else:
+            # Process arguments - readonly is equivalent to declare -r
+            declare_args = ['declare', '-r'] + names
+            declare_builtin = DeclareBuiltin()
+            return declare_builtin.execute(declare_args, shell)
+    
+    def _parse_readonly_options(self, args: List[str], shell: 'Shell') -> tuple[Optional[dict], List[str]]:
+        """Parse readonly options and return (options_dict, function_names)."""
+        options = {
+            'functions': False,  # -f
+            'print': False,      # -p
+        }
+        names = []
         
-        # Process arguments - readonly is equivalent to declare -r
-        declare_args = ['declare', '-r'] + args[1:]
-        declare_builtin = DeclareBuiltin()
-        return declare_builtin.execute(declare_args, shell)
+        i = 0
+        while i < len(args):
+            arg = args[i]
+            if arg == '--':  # End of options
+                names.extend(args[i+1:])
+                break
+            elif arg.startswith('-') and len(arg) > 1:
+                # Process flags
+                for flag in arg[1:]:
+                    if flag == 'f':
+                        options['functions'] = True
+                    elif flag == 'p':
+                        options['print'] = True
+                    else:
+                        self.error(f"invalid option: -{flag}", shell)
+                        return None, []
+            else:
+                names.append(arg)
+            i += 1
+        
+        return options, names
+    
+    def _handle_readonly_functions(self, names: List[str], shell: 'Shell') -> int:
+        """Handle readonly -f for functions."""
+        if not names:
+            # List all readonly functions
+            functions = shell.function_manager.list_functions()
+            readonly_funcs = [(name, func) for name, func in functions if func.readonly]
+            
+            stdout = shell.stdout if hasattr(shell, 'stdout') else sys.stdout
+            for name, func in readonly_funcs:
+                print(f"readonly -f {name}", file=stdout)
+            return 0
+        
+        # Set specified functions as readonly
+        exit_code = 0
+        for name in names:
+            func = shell.function_manager.get_function(name)
+            if func:
+                shell.function_manager.set_function_readonly(name)
+            else:
+                self.error(f"{name}: not found", shell)
+                exit_code = 1
+        
+        return exit_code
     
     @property
     def help(self) -> str:
-        return """readonly: readonly [name[=value] ...]
+        return """readonly: readonly [-f] [-p] [name[=value] ...]
     
-    Mark variables as readonly.
+    Mark variables or functions as readonly.
     
     Mark each name as readonly; the values of these names may not be changed
     by subsequent assignment. If value is supplied, assign value before
     marking as readonly.
     
+    Options:
+      -f    Mark functions as readonly (cannot be redefined)
+      -p    Display all readonly variables in declare format
+    
     With no arguments, display all readonly variables.
+    With -f and no names, display all readonly functions.
     
     Exit Status:
     Returns success unless an invalid option is given or name is invalid."""

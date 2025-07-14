@@ -7,9 +7,10 @@ from .ast_nodes import CommandList
 
 class Function:
     """Represents a shell function definition."""
-    def __init__(self, name: str, body: CommandList):
+    def __init__(self, name: str, body: CommandList, readonly: bool = False):
         self.name = name
         self.body = body
+        self.readonly = readonly
         self.source_location = None  # Could add file:line info later
 
 
@@ -36,7 +37,14 @@ class FunctionManager:
         if self._is_invalid_name(name):
             raise ValueError(f"Invalid function name '{name}'")
         
-        self.functions[name] = Function(name, body)
+        # Check if function is readonly
+        existing = self.functions.get(name)
+        if existing and existing.readonly:
+            raise ValueError(f"'{name}': readonly function")
+        
+        # Preserve readonly status if redefining
+        readonly = existing.readonly if existing else False
+        self.functions[name] = Function(name, body, readonly)
     
     def get_function(self, name: str) -> Optional[Function]:
         """Get a function by name."""
@@ -44,7 +52,23 @@ class FunctionManager:
     
     def undefine_function(self, name: str) -> bool:
         """Remove a function. Returns True if removed, False if not found."""
+        func = self.functions.get(name)
+        if func and func.readonly:
+            raise ValueError(f"'{name}': readonly function")
         return self.functions.pop(name, None) is not None
+    
+    def set_function_readonly(self, name: str) -> bool:
+        """Set a function as readonly. Returns True if successful, False if not found."""
+        func = self.functions.get(name)
+        if func:
+            func.readonly = True
+            return True
+        return False
+    
+    def is_function_readonly(self, name: str) -> bool:
+        """Check if a function is readonly."""
+        func = self.functions.get(name)
+        return func.readonly if func else False
     
     def list_functions(self) -> List[Tuple[str, Function]]:
         """List all defined functions."""

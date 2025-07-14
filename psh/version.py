@@ -2,10 +2,17 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.81.4"
+__version__ = "0.81.5"
 
 # Version history
 VERSION_HISTORY = """
+0.81.5 (2025-01-14) - Function Builtin Enhancements
+  - Added readonly -f support for making functions readonly 
+  - Added declare local scoping in functions (matches bash behavior)
+  - Added declare -g option for global variables in functions
+  - Fixed subprocess output capture tests in function builtins
+  - All 24 function builtin tests now pass (was 19 passed, 5 xfail)
+
 0.81.4 (2025-01-14) - Function Test Suite Improvements
   - Fixed 3 xfail function tests that were incorrectly marked as failing
   - Converted function tests with file redirection to use subprocess for proper isolation
