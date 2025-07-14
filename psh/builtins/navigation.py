@@ -52,11 +52,33 @@ class CdBuiltin(Builtin):
         if hasattr(shell, '_expand_tilde'):
             path = shell._expand_tilde(path)
         
+        # For relative paths, check CDPATH for directory search
+        actual_path = path
+        found_in_cdpath = False
+        
+        if not os.path.isabs(path):
+            # If it's not a relative path starting with . or .., search CDPATH
+            if not (path.startswith('./') or path.startswith('../') or path == '.' or path == '..'):
+                # Check both shell variables and environment variables for CDPATH
+                cdpath = shell.state.get_variable('CDPATH') or shell.env.get('CDPATH', '')
+                if cdpath:
+                    # Split CDPATH on colons and search each directory
+                    for search_dir in cdpath.split(':'):
+                        if search_dir == '':
+                            # Empty string in CDPATH means current directory
+                            search_dir = '.'
+                        
+                        candidate_path = os.path.join(search_dir, path)
+                        if os.path.isdir(candidate_path):
+                            actual_path = candidate_path
+                            found_in_cdpath = True
+                            break
+        
         try:
             # Compute the logical new directory path
-            if os.path.isabs(path):
+            if os.path.isabs(actual_path):
                 # Absolute path - use as-is
-                logical_new_dir = path
+                logical_new_dir = actual_path
             else:
                 # Relative path - resolve logically from current PWD
                 try:
@@ -64,10 +86,14 @@ class CdBuiltin(Builtin):
                     logical_current = pwd if isinstance(pwd, str) and pwd else os.getcwd()
                 except (AttributeError, TypeError):
                     logical_current = os.getcwd()
-                logical_new_dir = os.path.normpath(os.path.join(logical_current, path))
+                logical_new_dir = os.path.normpath(os.path.join(logical_current, actual_path))
             
             # Change to the actual directory
-            os.chdir(path)
+            os.chdir(actual_path)
+            
+            # If found via CDPATH, print the full path (bash behavior)
+            if found_in_cdpath:
+                print(logical_new_dir)
             
             # Update PWD and OLDPWD environment variables and shell variables
             shell.env['OLDPWD'] = current_dir
@@ -104,12 +130,22 @@ class CdBuiltin(Builtin):
     Change the current directory to DIR.
     
     The default DIR is the value of the HOME shell variable.
-    The variable CDPATH defines the search path for the directory
-    containing DIR.
+    
+    The variable CDPATH defines the search path for directories.
+    When DIR is a relative path not starting with './' or '../',
+    cd searches the directories in CDPATH (colon-separated list)
+    for a directory named DIR. If found, the full path is printed.
     
     Special directories:
       ~     User's home directory
       -     Previous working directory
+    
+    Examples:
+      cd              # Go to $HOME
+      cd /usr/local   # Absolute path
+      cd mydir        # Relative path (may search CDPATH)
+      cd ./mydir      # Relative path (current dir only)
+      cd -            # Previous directory
     
     Exit Status:
     Returns 0 if the directory is changed; non-zero otherwise."""

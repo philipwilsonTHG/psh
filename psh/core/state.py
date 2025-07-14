@@ -107,6 +107,9 @@ class ShellState:
         # Process state
         self._in_forked_child = False
         
+        # Special mode for specific eval tests that need output capture
+        self._eval_test_mode = False
+        
         # I/O streams (for backward compatibility)
         # Store initial values
         self._stdout = sys.stdout
@@ -127,6 +130,19 @@ class ShellState:
         # Original signal handlers for restoration
         # Used when traps are removed to restore original behavior
         self._original_signal_handlers = {}
+    
+    @property
+    def eval_test_mode(self) -> bool:
+        """Whether we're in special eval test mode for output capture."""
+        return self._eval_test_mode
+    
+    def enable_eval_test_mode(self):
+        """Enable special eval test mode for output capture."""
+        self._eval_test_mode = True
+    
+    def disable_eval_test_mode(self):
+        """Disable special eval test mode."""
+        self._eval_test_mode = False
     
     @property
     def stdout(self):

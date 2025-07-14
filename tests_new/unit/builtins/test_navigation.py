@@ -260,7 +260,6 @@ class TestPushdPopdDirs:
 class TestCdPath:
     """Test CDPATH functionality."""
     
-    @pytest.mark.xfail(reason="PSH cd doesn't support CDPATH")
     def test_cdpath_search(self, shell, capsys):
         """Test cd searches CDPATH."""
         # Create test directories
@@ -278,7 +277,6 @@ class TestCdPath:
         os.rmdir('searchdir/found')
         os.rmdir('searchdir')
     
-    @pytest.mark.xfail(reason="PSH cd doesn't support CDPATH")
     def test_cdpath_multiple_paths(self, shell, capsys):
         """Test CDPATH with multiple paths."""
         # Create test directories

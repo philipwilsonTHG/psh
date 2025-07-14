@@ -167,12 +167,15 @@ class EchoBuiltin(Builtin):
             print(f"DEBUG EchoBuiltin: Writing text: {repr(text[:50])}", file=sys.stderr)
         
         # Check if we're in a child process (forked for pipeline/background)
-        if hasattr(shell.state, '_in_forked_child') and shell.state._in_forked_child:
-            # In child process, write directly to fd 1
+        is_forked_child = hasattr(shell.state, '_in_forked_child') and shell.state._in_forked_child
+        is_eval_test_mode = hasattr(shell.state, 'eval_test_mode') and shell.state.eval_test_mode
+        
+        if is_forked_child and not is_eval_test_mode:
+            # In child process and not in eval test mode, write directly to fd 1
             output_bytes = text.encode('utf-8', errors='replace')
             os.write(1, output_bytes)
         else:
-            # In parent process, use shell.stdout to respect redirections
+            # In parent process OR in eval test mode, use shell.stdout to respect redirections/capture
             output = shell.stdout if hasattr(shell, 'stdout') else sys.stdout
             # DEBUG: Log actual output stream
             if shell.state.options.get('debug-exec'):
@@ -329,12 +332,15 @@ class PrintfBuiltin(Builtin):
     def _write_output(self, text: str, shell: 'Shell'):
         """Write output to appropriate file descriptor."""
         # Check if we're in a child process (forked for pipeline/background)
-        if hasattr(shell.state, '_in_forked_child') and shell.state._in_forked_child:
-            # In child process, write directly to fd 1
+        is_forked_child = hasattr(shell.state, '_in_forked_child') and shell.state._in_forked_child
+        is_eval_test_mode = hasattr(shell.state, 'eval_test_mode') and shell.state.eval_test_mode
+        
+        if is_forked_child and not is_eval_test_mode:
+            # In child process and not in eval test mode, write directly to fd 1
             output_bytes = text.encode('utf-8', errors='replace')
             os.write(1, output_bytes)
         else:
-            # In parent process, use shell.stdout to respect redirections
+            # In parent process OR in eval test mode, use shell.stdout to respect redirections/capture
             output = shell.stdout if hasattr(shell, 'stdout') else sys.stdout
             output.write(text)
             output.flush()
@@ -764,11 +770,14 @@ class PwdBuiltin(Builtin):
         try:
             cwd = os.getcwd()
             # Check if we're in a child process (forked for pipeline/background)
-            if hasattr(shell, '_in_forked_child') and shell._in_forked_child:
-                # Write directly to file descriptor in child process
+            is_forked_child = hasattr(shell.state, '_in_forked_child') and shell.state._in_forked_child
+            is_eval_test_mode = hasattr(shell.state, 'eval_test_mode') and shell.state.eval_test_mode
+            
+            if is_forked_child and not is_eval_test_mode:
+                # In child process and not in test mode, write directly to file descriptor
                 os.write(1, (cwd + '\n').encode())
             else:
-                # Use normal print in parent process to respect redirections
+                # In parent process OR in test mode, use normal print to respect redirections/capture
                 print(cwd, file=shell.stdout if hasattr(shell, 'stdout') else sys.stdout)
             return 0
         except OSError as e:
