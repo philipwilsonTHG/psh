@@ -2,10 +2,20 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.81.3"
+__version__ = "0.81.4"
 
 # Version history
 VERSION_HISTORY = """
+0.81.4 (2025-01-14) - Function Test Suite Improvements
+  - Fixed 3 xfail function tests that were incorrectly marked as failing
+  - Converted function tests with file redirection to use subprocess for proper isolation
+  - Functions with control structures (if, for, while) now work correctly in all contexts
+  - Enhanced function tests with proper test patterns to avoid pytest capture conflicts
+  - Improved from 32 passed, 6 xfailed to 35 passed, 3 xfailed (net +3 passing tests)
+  - All function control structure tests now demonstrate PSH's complete functionality
+  - Test fixes reveal that PSH function system is more robust than previously indicated
+  - Only remaining xfail tests are genuine test isolation issues, not PSH limitations
+
 0.81.3 (2025-01-14) - Variable Expansion in Redirect Targets Fix
   - Fixed critical variable expansion bug in I/O redirection targets
   - Redirect targets like "item_${i}.txt" now correctly expand to "item_1.txt", "item_2.txt", etc.

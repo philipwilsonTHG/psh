@@ -414,75 +414,90 @@ class TestFunctionErrorHandling:
 class TestFunctionWithControlStructures:
     """Test functions containing control structures."""
     
-    @pytest.mark.xfail(reason="Complex control structures in functions may not be fully implemented")
-    def test_function_with_if_statement(self, shell_with_temp_dir):
+    def test_function_with_if_statement(self, temp_dir):
         """Test function with if statement."""
-        shell = shell_with_temp_dir
+        import subprocess
+        import sys
+        import os
         
         script = '''
-        test_if() {
-            if [ "$1" = "yes" ]; then
-                echo "affirmative"
-            else
-                echo "negative"
-            fi
-        }
-        '''
-        result = shell.run_command(script)
-        assert result == 0
+test_if() {
+    if [ "$1" = "yes" ]; then
+        echo "affirmative"
+    else
+        echo "negative"
+    fi
+}
+test_if yes > output.txt
+'''
         
-        result2 = shell.run_command('test_if yes > output.txt')
-        assert result2 == 0
+        result = subprocess.run([
+            sys.executable, '-m', 'psh', '-c', script
+        ], cwd=temp_dir, capture_output=True, text=True,
+           env={**os.environ, 'PYTHONPATH': os.getcwd()})
         
-        with open('output.txt', 'r') as f:
+        assert result.returncode == 0
+        
+        output_path = os.path.join(temp_dir, 'output.txt')
+        with open(output_path, 'r') as f:
             content = f.read().strip()
         assert content == "affirmative"
     
-    @pytest.mark.xfail(reason="Complex control structures in functions may not be fully implemented")
-    def test_function_with_for_loop(self, shell_with_temp_dir):
+    def test_function_with_for_loop(self, temp_dir):
         """Test function with for loop."""
-        shell = shell_with_temp_dir
+        import subprocess
+        import sys
+        import os
         
         script = '''
-        list_items() {
-            for item in a b c; do
-                echo "Item: $item"
-            done
-        }
-        '''
-        result = shell.run_command(script)
-        assert result == 0
+list_items() {
+    for item in a b c; do
+        echo "Item: $item"
+    done
+}
+list_items > output.txt
+'''
         
-        result2 = shell.run_command('list_items > output.txt')
-        assert result2 == 0
+        result = subprocess.run([
+            sys.executable, '-m', 'psh', '-c', script
+        ], cwd=temp_dir, capture_output=True, text=True,
+           env={**os.environ, 'PYTHONPATH': os.getcwd()})
         
-        with open('output.txt', 'r') as f:
+        assert result.returncode == 0
+        
+        output_path = os.path.join(temp_dir, 'output.txt')
+        with open(output_path, 'r') as f:
             content = f.read()
         assert "Item: a" in content
         assert "Item: b" in content
         assert "Item: c" in content
     
-    @pytest.mark.xfail(reason="Complex control structures with local variables in functions may not be fully implemented")
-    def test_function_with_while_loop(self, shell_with_temp_dir):
+    def test_function_with_while_loop(self, temp_dir):
         """Test function with while loop."""
-        shell = shell_with_temp_dir
+        import subprocess
+        import sys
+        import os
         
         script = '''
-        count_down() {
-            local i=$1
-            while [ $i -gt 0 ]; do
-                echo "Count: $i"
-                i=$((i - 1))
-            done
-        }
-        '''
-        result = shell.run_command(script)
-        assert result == 0
+count_down() {
+    local i=$1
+    while [ $i -gt 0 ]; do
+        echo "Count: $i"
+        i=$((i - 1))
+    done
+}
+count_down 3 > output.txt
+'''
         
-        result2 = shell.run_command('count_down 3 > output.txt')
-        assert result2 == 0
+        result = subprocess.run([
+            sys.executable, '-m', 'psh', '-c', script
+        ], cwd=temp_dir, capture_output=True, text=True,
+           env={**os.environ, 'PYTHONPATH': os.getcwd()})
         
-        with open('output.txt', 'r') as f:
+        assert result.returncode == 0
+        
+        output_path = os.path.join(temp_dir, 'output.txt')
+        with open(output_path, 'r') as f:
             content = f.read()
         assert "Count: 3" in content
         assert "Count: 2" in content
