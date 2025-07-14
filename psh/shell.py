@@ -412,8 +412,7 @@ class Shell:
                 print(TokenFormatter.format(tokens), file=sys.stderr)
                 print("========================", file=sys.stderr)
             
-            # Expand aliases
-            tokens = self.alias_manager.expand_aliases(tokens)
+            # Note: Alias expansion now happens during execution phase for proper precedence
             
             # Parse with source text for better error messages
             from .parser import Parser

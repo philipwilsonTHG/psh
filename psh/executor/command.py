@@ -18,6 +18,7 @@ from .strategies import (
     ExecutionStrategy, 
     BuiltinExecutionStrategy,
     FunctionExecutionStrategy,
+    AliasExecutionStrategy,
     ExternalExecutionStrategy
 )
 
@@ -50,10 +51,11 @@ class CommandExecutor:
         self.function_manager = shell.function_manager
         
         # Initialize execution strategies
-        # Order matters: functions should override builtins
+        # Order matters: functions > builtins > aliases > external (POSIX compliance)
         self.strategies = [
             FunctionExecutionStrategy(),
             BuiltinExecutionStrategy(),
+            AliasExecutionStrategy(),
             ExternalExecutionStrategy()
         ]
     
@@ -107,6 +109,23 @@ class CommandExecutor:
                     background=node.background
                 )
                 
+                
+                # Check for bypass mechanisms before expansion
+                bypass_aliases = False
+                bypass_functions = False
+                if command_node.args and command_node.args[0].startswith('\\'):
+                    bypass_aliases = True
+                    bypass_functions = True
+                    # Remove backslash from the first argument for expansion
+                    modified_args = [command_node.args[0][1:]] + command_node.args[1:]
+                    command_node = SimpleCommand(
+                        args=modified_args,
+                        arg_types=command_node.arg_types,
+                        quote_types=command_node.quote_types,
+                        redirects=command_node.redirects,
+                        background=command_node.background
+                    )
+                
                 # Now expand command arguments with assignments in place
                 expanded_args = self._expand_arguments(command_node)
                 
@@ -120,6 +139,7 @@ class CommandExecutor:
                 if not cmd_name:
                     return 0
                 
+                
                 # Handle xtrace option
                 if self.state.options.get('xtrace'):
                     self._print_xtrace(cmd_name, cmd_args)
@@ -130,7 +150,7 @@ class CommandExecutor:
                 
                 # Execute the command using appropriate strategy
                 return self._execute_with_strategy(
-                    cmd_name, cmd_args, node, context
+                    cmd_name, cmd_args, node, context, bypass_aliases, bypass_functions
                 )
                 
             finally:
@@ -293,10 +313,30 @@ class CommandExecutor:
         self.state.stderr.flush()
     
     def _execute_with_strategy(self, cmd_name: str, args: List[str],
-                              node: 'SimpleCommand', context: 'ExecutionContext') -> int:
+                              node: 'SimpleCommand', context: 'ExecutionContext', 
+                              bypass_aliases: bool = False, bypass_functions: bool = False) -> int:
         """Execute command using the appropriate strategy."""
+        original_cmd_name = cmd_name
+        
+        # Note: The 'command' builtin handles its own bypass logic internally
+        
+        # Create strategy list based on bypass requirements
+        strategies_to_exclude = []
+        if bypass_aliases:
+            strategies_to_exclude.append(AliasExecutionStrategy)
+        if bypass_functions:
+            strategies_to_exclude.append(FunctionExecutionStrategy)
+        
+        if strategies_to_exclude:
+            strategies_to_use = [
+                strategy for strategy in self.strategies 
+                if not any(isinstance(strategy, exc_type) for exc_type in strategies_to_exclude)
+            ]
+        else:
+            strategies_to_use = self.strategies
+        
         # Find the right strategy
-        for strategy in self.strategies:
+        for strategy in strategies_to_use:
             if strategy.can_execute(cmd_name, self.shell):
                 # Check if this is a builtin that needs special redirection handling
                 if isinstance(strategy, BuiltinExecutionStrategy) and not context.in_pipeline:

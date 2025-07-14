@@ -108,66 +108,23 @@ class CommandBuiltin(Builtin):
         return 1
     
     def _execute_external_command(self, command_name: str, args: List[str], shell: 'Shell') -> int:
-        """Execute an external command."""
-        # Search PATH for the command
-        if '/' in command_name:
-            # Absolute or relative path
-            if os.path.isfile(command_name) and os.access(command_name, os.X_OK):
-                executable = command_name
-            else:
-                self.error(f"{command_name}: command not found", shell)
-                return 127
-        else:
-            # Search in PATH
-            path_dirs = shell.env.get('PATH', '').split(':')
-            executable = None
-            for dir_path in path_dirs:
-                if not dir_path:
-                    continue
-                full_path = os.path.join(dir_path, command_name)
-                if os.path.isfile(full_path) and os.access(full_path, os.X_OK):
-                    executable = full_path
-                    break
-            
-            if not executable:
-                self.error(f"{command_name}: command not found", shell)
-                return 127
+        """Execute an external command using PSH's external execution strategy."""
+        # Use PSH's existing external execution strategy which handles 
+        # process management, job control, and signal handling correctly
+        from ..executor.strategies import ExternalExecutionStrategy
+        from ..executor.context import ExecutionContext
         
-        # Execute the command
-        # Fork and exec the command directly, bypassing shell functions and aliases
-        try:
-            pid = os.fork()
-            if pid == 0:
-                # Child process
-                try:
-                    # Create new process group
-                    os.setpgid(0, 0)
-                    
-                    # Reset signal handlers to default
-                    signal.signal(signal.SIGINT, signal.SIG_DFL)
-                    signal.signal(signal.SIGTSTP, signal.SIG_DFL)
-                    signal.signal(signal.SIGTTOU, signal.SIG_DFL)
-                    signal.signal(signal.SIGTTIN, signal.SIG_DFL)
-                    
-                    # Execute the command
-                    os.execv(executable, args)
-                except OSError as e:
-                    # Write error directly to stderr
-                    error_msg = f"psh: {command_name}: {e}\n"
-                    os.write(2, error_msg.encode('utf-8'))
-                    os._exit(126)
-            else:
-                # Parent process - wait for child
-                _, status = os.waitpid(pid, 0)
-                if os.WIFEXITED(status):
-                    return os.WEXITSTATUS(status)
-                elif os.WIFSIGNALED(status):
-                    return 128 + os.WTERMSIG(status)
-                else:
-                    return 1
-        except Exception as e:
-            self.error(f"execution failed: {e}", shell)
-            return 126
+        # Create execution context
+        context = ExecutionContext()
+        
+        # Create and use external strategy
+        external_strategy = ExternalExecutionStrategy()
+        
+        # Execute using PSH's proven external command execution
+        return external_strategy.execute(
+            command_name, args[1:], shell, context, 
+            redirects=None, background=False
+        )
     
     @property
     def synopsis(self) -> str:

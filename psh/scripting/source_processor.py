@@ -268,8 +268,7 @@ class SourceProcessor(ScriptComponent):
                 print(TokenFormatter.format(tokens), file=sys.stderr)
                 print("========================", file=sys.stderr)
             
-            # Expand aliases
-            tokens = self.shell.alias_manager.expand_aliases(tokens)
+            # Note: Alias expansion now happens during execution phase for proper precedence
             
             # Check if command contains heredocs and parse accordingly
             if '<<' in command_string:
@@ -279,7 +278,7 @@ class SourceProcessor(ScriptComponent):
                 clean_command = self._remove_heredoc_content_from_command(command_string)
                 # Re-tokenize the clean command
                 clean_tokens = tokenize(clean_command)
-                clean_tokens = self.shell.alias_manager.expand_aliases(clean_tokens)
+                # Note: Alias expansion now happens during execution phase for proper precedence
                 # Parse with source text for better error messages
                 from ..parser import Parser
                 parser = Parser(clean_tokens, source_text=command_string)

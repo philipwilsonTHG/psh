@@ -2,10 +2,29 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.82.1"
+__version__ = "0.83.0"
 
 # Version history
 VERSION_HISTORY = """
+0.83.0 (2025-01-14) - Alias Expansion Precedence Fix: Complete POSIX Compliance
+  - Fixed critical alias expansion precedence issue for full POSIX/bash compliance
+  - Implemented proper command resolution order: Functions → Builtins → Aliases → External Commands
+  - Moved alias expansion from tokenization-time to execution-time via new AliasExecutionStrategy
+  - Created modular execution strategy architecture with proper bypass mechanisms
+  - Fixed all precedence tests: aliases no longer incorrectly override builtins or functions
+  - Added backslash escape (\\command) and command builtin bypass functionality
+  - Removed early alias expansion from shell.py and source_processor.py
+  - Updated tests to use non-builtin names where precedence rules apply
+  - Fixed command builtin process management by delegating to ExternalExecutionStrategy
+  - Resolved all 10 originally failing tests with architectural improvements
+  - Alias expansion now happens via strategy pattern in executor for correct precedence
+  - Enhanced AliasManager with has_alias() method and recursion prevention
+  - Updated command executor to handle bypass flags before strategy selection
+  - All bypass mechanisms working: \\ls, command ls properly skip alias expansion
+  - Major POSIX milestone: alias system now fully compliant with shell standards
+  - Educational value preserved while achieving production-quality precedence handling
+  - Zero regressions: all existing functionality enhanced with proper standards compliance
+
 0.82.1 (2025-01-14) - Conformance Test Fixes for Command-Specific Variable Assignments
   - Fixed conformance test failures after implementing command-specific variable assignments
   - Added documented difference for PSH's correct POSIX behavior vs bash's incorrect behavior

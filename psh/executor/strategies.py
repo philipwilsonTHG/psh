@@ -187,6 +187,73 @@ class FunctionExecutionStrategy(ExecutionStrategy):
         )
 
 
+class AliasExecutionStrategy(ExecutionStrategy):
+    """Strategy for executing shell aliases."""
+    
+    def can_execute(self, cmd_name: str, shell: 'Shell') -> bool:
+        """Check if command is an alias."""
+        # Check for bypass mechanisms first
+        if cmd_name.startswith('\\'):
+            return False  # Backslash escapes bypass aliases
+        result = shell.alias_manager.has_alias(cmd_name)
+        return result
+    
+    def execute(self, cmd_name: str, args: List[str], 
+                shell: 'Shell', context: 'ExecutionContext',
+                redirects: Optional[List['Redirect']] = None,
+                background: bool = False) -> int:
+        """Execute an alias by expanding and re-executing."""
+        alias_definition = shell.alias_manager.get_alias(cmd_name)
+        if not alias_definition:
+            return 127  # Should not happen if can_execute returned True
+        
+        # Prevent infinite recursion
+        if cmd_name in shell.alias_manager.expanding:
+            # Already expanding this alias, treat as external command
+            return self._execute_as_external(cmd_name, args, shell, context, redirects, background)
+        
+        # Mark this alias as being expanded
+        shell.alias_manager.expanding.add(cmd_name)
+        
+        try:
+            # Create new command string by expanding the alias
+            # If alias has trailing space, next word can also be expanded
+            if alias_definition.endswith(' '):
+                # Handle trailing space for chained alias expansion
+                expanded_command = alias_definition + ' '.join(args)
+            else:
+                expanded_command = alias_definition + (' ' + ' '.join(args) if args else '')
+            
+            # Re-tokenize and parse the expanded command
+            from ..lexer import tokenize
+            from ..parser import Parser
+            
+            tokens = tokenize(expanded_command)
+            parser = Parser(tokens, source_text=expanded_command)
+            ast = parser.parse()
+            
+            # Execute the expanded command through the visitor
+            # Import here to avoid circular imports
+            from .core import ExecutorVisitor
+            visitor = ExecutorVisitor(shell)
+            # Preserve the current context
+            visitor.context = context
+            
+            return visitor.visit(ast)
+        
+        finally:
+            # Remove from expanding set
+            shell.alias_manager.expanding.discard(cmd_name)
+    
+    def _execute_as_external(self, cmd_name: str, args: List[str], 
+                            shell: 'Shell', context: 'ExecutionContext',
+                            redirects: Optional[List['Redirect']] = None,
+                            background: bool = False) -> int:
+        """Execute as external command when alias recursion is detected."""
+        external_strategy = ExternalExecutionStrategy()
+        return external_strategy.execute(cmd_name, args, shell, context, redirects, background)
+
+
 class ExternalExecutionStrategy(ExecutionStrategy):
     """Strategy for executing external commands."""
     

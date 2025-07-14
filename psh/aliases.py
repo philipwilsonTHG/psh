@@ -31,6 +31,10 @@ class AliasManager:
         """Get alias value if exists."""
         return self.aliases.get(name)
     
+    def has_alias(self, name: str) -> bool:
+        """Check if an alias exists."""
+        return name in self.aliases
+    
     def list_aliases(self) -> List[Tuple[str, str]]:
         """Return all aliases as (name, value) pairs."""
         return list(self.aliases.items())

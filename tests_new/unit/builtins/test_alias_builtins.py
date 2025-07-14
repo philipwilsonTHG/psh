@@ -86,9 +86,9 @@ class TestAliasBuiltin:
     
     def test_alias_overwrite(self, shell, capsys):
         """Test overwriting an existing alias."""
-        shell.run_command('alias test="echo old"')
-        shell.run_command('alias test="echo new"')
-        shell.run_command('test')
+        shell.run_command('alias mytest="echo old"')
+        shell.run_command('alias mytest="echo new"')
+        shell.run_command('mytest')
         captured = capsys.readouterr()
         assert captured.out.strip() == "new"
     
