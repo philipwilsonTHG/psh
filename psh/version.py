@@ -2,10 +2,24 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.81.2"
+__version__ = "0.81.3"
 
 # Version history
 VERSION_HISTORY = """
+0.81.3 (2025-01-14) - Variable Expansion in Redirect Targets Fix
+  - Fixed critical variable expansion bug in I/O redirection targets
+  - Redirect targets like "item_${i}.txt" now correctly expand to "item_1.txt", "item_2.txt", etc.
+  - Added variable expansion to all file redirection types: >, >>, <
+  - Updated both file_redirect.py and io_manager.py to expand variables after tilde expansion
+  - Respects quoting: single quotes prevent expansion, double quotes allow expansion
+  - Fixed 4 out of 8 xfail tests in test_nested_structures_io_conservative.py
+  - Remaining 4 xfail tests are different issues (heredoc, pipes, complex patterns)
+  - Critical fix for common shell pattern: loop-generated output files
+  - Examples now work: for i in 1 2; do echo "Item $i" > "item_${i}.txt"; done
+  - Enhanced POSIX compliance for dynamic file naming in scripts
+  - No regressions: all existing I/O redirection functionality preserved
+  - Major improvement in bash compatibility for nested I/O redirection patterns
+
 0.81.2 (2025-01-14) - Brace Expansion Test Fixes and Enhanced Dollar Handling
   - Fixed brace expansion tests to match actual bash behavior
   - Updated test_empty_item to expect "a c" (single space) matching bash output

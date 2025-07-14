@@ -14,7 +14,6 @@ import os
 class TestBasicNestedIO:
     """Test basic I/O operations with nested control structures."""
     
-    @pytest.mark.xfail(reason="Output redirection in nested for loops has implementation limitations")
     def test_simple_output_redirection_in_loops(self, temp_dir):
         """Test basic output redirection within nested structures."""
         script = '''
@@ -129,7 +128,6 @@ class TestWorkingPipePatterns:
             colors = f.read().strip()
         assert colors == "red blue green"
     
-    @pytest.mark.xfail(reason="Function output redirection in loops may have limitations")
     def test_simple_function_output_redirection(self, temp_dir):
         """Test function output redirection in nested context."""
         script = '''
@@ -159,7 +157,6 @@ class TestWorkingPipePatterns:
 class TestAdvancedIOPatterns:
     """Test advanced I/O patterns - many expected to fail for now."""
     
-    @pytest.mark.xfail(reason="Complex redirection in nested loops may not be fully supported")
     def test_complex_nested_redirection(self, temp_dir):
         """Test complex redirection patterns in deeply nested structures."""
         script = '''
@@ -244,7 +241,6 @@ EOF
             first = f.read().strip()
         assert first == "First: line1"
     
-    @pytest.mark.xfail(reason="Error handling with redirection may need improvement")
     def test_error_handling_in_redirection(self, temp_dir):
         """Test error handling when redirection fails."""
         script = '''

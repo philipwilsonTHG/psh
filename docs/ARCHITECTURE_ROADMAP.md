@@ -55,9 +55,33 @@ This document outlines planned architectural improvements and enhancements for P
 
 ---
 
+## I/O Redirection Improvements
+
+### 3. Variable Expansion in Redirect Targets
+
+**Current Behavior**: Redirect targets like `> "file_${i}.txt"` are not expanded. PSH creates files with literal names like `file_${i}.txt` instead of `file_1.txt`.
+
+**Proposed Change**: Add variable expansion for all redirect targets before file operations.
+
+**Rationale**:
+- **Common Pattern**: Loop-generated output files are extremely common
+- **POSIX Compliance**: Standard shells expand variables in redirect targets
+- **Script Breakage**: Many scripts rely on this feature for dynamic file naming
+- **User Expectations**: Natural to expect `> "log_${date}.txt"` to work
+
+**Implementation Notes**:
+- Expand after quote removal but before file creation
+- Respect quoting: `> "$file"` expands variables but not globs
+- Handle all redirect types: `>`, `>>`, `<`, etc.
+- Update both file_redirect.py and io_manager.py
+
+**Impact**: High priority - fixes 8 failing tests. Common use case that currently forces workarounds.
+
+---
+
 ## Parser Enhancements
 
-### 3. Support Command Groups in Pipelines
+### 4. Support Command Groups in Pipelines
 
 **Current State**: PSH cannot parse `{ cmd1; cmd2; } | cmd3` - brace groups aren't recognized as pipeline components.
 
@@ -72,7 +96,7 @@ This document outlines planned architectural improvements and enhancements for P
 
 ## Expansion System Improvements
 
-### 4. Implement Remaining Parameter Expansions
+### 5. Implement Remaining Parameter Expansions
 
 **Missing Features**:
 - `${!var}` - Indirect expansion
@@ -88,7 +112,7 @@ This document outlines planned architectural improvements and enhancements for P
 
 ## Process Management
 
-### 5. Implement Coprocess Support
+### 6. Implement Coprocess Support
 
 **Feature**: Support for `coproc` to create bidirectional pipes with background processes.
 
@@ -101,7 +125,7 @@ This document outlines planned architectural improvements and enhancements for P
 
 ## Performance Optimizations
 
-### 6. Implement Builtin Command Caching
+### 7. Implement Builtin Command Caching
 
 **Current State**: Builtin lookup happens on every command execution.
 
@@ -116,7 +140,7 @@ This document outlines planned architectural improvements and enhancements for P
 
 ## Error Handling
 
-### 7. Enhanced Error Recovery in Parser
+### 8. Enhanced Error Recovery in Parser
 
 **Current State**: Parser stops on first error.
 
@@ -131,7 +155,7 @@ This document outlines planned architectural improvements and enhancements for P
 
 ## Signal Handling
 
-### 8. Complete Signal Handling (SIGWINCH, SIGPIPE)
+### 9. Complete Signal Handling (SIGWINCH, SIGPIPE)
 
 **Missing Signals**:
 - SIGWINCH - Terminal resize handling
@@ -144,7 +168,7 @@ This document outlines planned architectural improvements and enhancements for P
 
 ## Compatibility Features
 
-### 9. Implement Extended Glob Patterns
+### 10. Implement Extended Glob Patterns
 
 **Features**: Support for `@()`, `*()`, `+()`, `?()`, `!()` patterns when `shopt -s extglob` is set.
 
@@ -157,7 +181,7 @@ This document outlines planned architectural improvements and enhancements for P
 
 ## Architecture Refactoring
 
-### 10. Plugin System for Builtins
+### 11. Plugin System for Builtins
 
 **Concept**: Allow dynamic loading of builtin commands as plugins.
 
@@ -170,7 +194,7 @@ This document outlines planned architectural improvements and enhancements for P
 
 ## Testing Infrastructure
 
-### 11. Improved Test Output Capture
+### 12. Improved Test Output Capture
 
 **Current Issues**: Tests using forked processes have trouble capturing output.
 
@@ -185,7 +209,7 @@ This document outlines planned architectural improvements and enhancements for P
 
 ## Documentation
 
-### 12. Interactive Tutorial Mode
+### 13. Interactive Tutorial Mode
 
 **Concept**: Built-in interactive tutorial teaching shell concepts.
 
@@ -203,6 +227,7 @@ This document outlines planned architectural improvements and enhancements for P
 When considering implementation order:
 
 1. **High Priority**: Changes that fix compatibility issues or enable common use cases
+   - Variable expansion in redirect targets (very common pattern, 8 failing tests)
    - Alias expansion precedence (affects core shell behavior)
    - Command groups in pipelines (common pattern)
    

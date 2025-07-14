@@ -70,10 +70,19 @@ class IOManager:
         stdin_fd_backup = None
         
         for redirect in command.redirects:
-            # Expand tilde in target for file redirections
+            # Expand variables and tilde in target for file redirections
             target = redirect.target
-            if target and redirect.type in ('<', '>', '>>') and target.startswith('~'):
-                target = self.shell.expansion_manager.expand_tilde(target)
+            if target and redirect.type in ('<', '>', '>>'):
+                # First expand variables (respecting quotes)
+                if hasattr(redirect, 'quote_type') and redirect.quote_type == "'":
+                    # Single quotes - no expansion
+                    pass
+                else:
+                    # Double quotes or no quotes - expand variables
+                    target = self.shell.expansion_manager.expand_string_variables(target)
+                # Then expand tilde
+                if target.startswith('~'):
+                    target = self.shell.expansion_manager.expand_tilde(target)
             
             # Handle process substitution as redirect target
             if target and target.startswith(('<(', '>(')) and target.endswith(')'):
@@ -294,10 +303,19 @@ class IOManager:
     def setup_child_redirections(self, command: Command):
         """Set up redirections in child process (after fork) using dup2"""
         for redirect in command.redirects:
-            # Expand tilde in target for file redirections
+            # Expand variables and tilde in target for file redirections
             target = redirect.target
-            if target and redirect.type in ('<', '>', '>>') and target.startswith('~'):
-                target = self.shell.expansion_manager.expand_tilde(target)
+            if target and redirect.type in ('<', '>', '>>'):
+                # First expand variables (respecting quotes)
+                if hasattr(redirect, 'quote_type') and redirect.quote_type == "'":
+                    # Single quotes - no expansion
+                    pass
+                else:
+                    # Double quotes or no quotes - expand variables
+                    target = self.shell.expansion_manager.expand_string_variables(target)
+                # Then expand tilde
+                if target.startswith('~'):
+                    target = self.shell.expansion_manager.expand_tilde(target)
             
             # Handle process substitution as redirect target
             if target and target.startswith(('<(', '>(')) and target.endswith(')'):
