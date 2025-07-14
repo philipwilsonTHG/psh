@@ -74,15 +74,17 @@ class CommandExecutor:
                 for assignment in node.array_assignments:
                     self._handle_array_assignment(assignment)
             
-            # Perform expansions
-            expanded_args = self._expand_arguments(node)
+            # Phase 1: Extract raw assignments (before expansion)
+            raw_assignments = self._extract_assignments_raw(node)
             
-            if not expanded_args:
-                return 0
+            # Expand only the assignment values
+            assignments = []
+            for var, value in raw_assignments:
+                expanded_value = self._expand_assignment_value(value)
+                assignments.append((var, expanded_value))
             
-            # Check for variable assignments
-            assignments = self._extract_assignments(expanded_args)
-            if assignments and len(expanded_args) == len(assignments):
+            # Check if we have only assignments (no command)
+            if assignments and len(raw_assignments) == len(node.args):
                 # Pure assignment (no command)
                 return self._handle_pure_assignments(node, assignments)
             
@@ -90,14 +92,29 @@ class CommandExecutor:
             saved_vars = self._apply_command_assignments(assignments)
             
             try:
-                # Remove assignments from args
-                command_args = expanded_args[len(assignments):]
-                
-                if not command_args:
+                # Phase 2: Expand remaining arguments with assignments in effect
+                command_start_index = len(raw_assignments)
+                if command_start_index >= len(node.args):
                     return 0
                 
-                cmd_name = command_args[0]
-                cmd_args = command_args[1:]
+                # Create a sub-node for command arguments only
+                from ..ast_nodes import SimpleCommand
+                command_node = SimpleCommand(
+                    args=node.args[command_start_index:],
+                    arg_types=node.arg_types[command_start_index:] if command_start_index < len(node.arg_types) else [],
+                    quote_types=node.quote_types[command_start_index:] if command_start_index < len(node.quote_types) else [],
+                    redirects=node.redirects,
+                    background=node.background
+                )
+                
+                # Now expand command arguments with assignments in place
+                expanded_args = self._expand_arguments(command_node)
+                
+                if not expanded_args:
+                    return 0
+                
+                cmd_name = expanded_args[0]
+                cmd_args = expanded_args[1:]
                 
                 # Check for empty command after expansion
                 if not cmd_name:
@@ -109,7 +126,7 @@ class CommandExecutor:
                 
                 # Special handling for exec builtin (needs access to redirections)
                 if cmd_name == 'exec':
-                    return self._handle_exec_builtin(node, command_args, assignments)
+                    return self._handle_exec_builtin(node, expanded_args, assignments)
                 
                 # Execute the command using appropriate strategy
                 return self._execute_with_strategy(
@@ -148,6 +165,25 @@ class CommandExecutor:
         """Expand all arguments in a command."""
         return self.expansion_manager.expand_arguments(node)
     
+    def _extract_assignments_raw(self, node: 'SimpleCommand') -> List[Tuple[str, str]]:
+        """Extract assignments from raw arguments before expansion."""
+        assignments = []
+        
+        for i, arg in enumerate(node.args):
+            # Only WORD, COMPOSITE, and COMPOSITE_QUOTED types can be assignments
+            arg_type = node.arg_types[i] if i < len(node.arg_types) else 'WORD'
+            if arg_type not in ('WORD', 'COMPOSITE', 'COMPOSITE_QUOTED'):
+                break
+                
+            if '=' in arg and self._is_valid_assignment(arg):
+                var, value = arg.split('=', 1)
+                assignments.append((var, value))
+            else:
+                # Stop at first non-assignment
+                break
+        
+        return assignments
+
     def _extract_assignments(self, args: List[str]) -> List[Tuple[str, str]]:
         """Extract variable assignments from beginning of arguments."""
         assignments = []

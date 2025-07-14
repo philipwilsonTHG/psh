@@ -2,10 +2,23 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.81.6"
+__version__ = "0.82.0"
 
 # Version history
 VERSION_HISTORY = """
+0.82.0 (2025-01-14) - Command-Specific Variable Assignments Implementation
+  - Implemented complete command-specific variable assignments (VAR=value command)
+  - Added two-phase expansion: assignments applied before command argument expansion
+  - Fixed variable expansion timing so $VAR sees assignments in same command
+  - Added _extract_assignments_raw() method for pre-expansion assignment detection
+  - Enhanced token type checking to support WORD, COMPOSITE, and COMPOSITE_QUOTED types
+  - Command-specific assignments are temporary (don't persist after command)
+  - Pure assignments (no command) remain permanent as before
+  - Examples working: TEST_VAR=hello echo $TEST_VAR, A=1 B=2 echo $A $B
+  - Full POSIX compliance for command-specific variable assignment syntax
+  - All existing functionality preserved with zero regressions
+  - Comprehensive test suite verifies correct assignment scoping behavior
+
 0.81.6 (2025-01-14) - Word Splitting POSIX Compliance Fix
   - Fixed critical word splitting bug for unquoted variable expansions
   - Variable expansions like set -- $var now correctly split into multiple arguments
