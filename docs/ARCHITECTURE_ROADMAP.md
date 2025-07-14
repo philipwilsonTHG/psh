@@ -26,9 +26,38 @@ This document outlines planned architectural improvements and enhancements for P
 
 ---
 
+## Alias System Improvements
+
+### 2. Fix Alias Expansion Precedence
+
+**Current Behavior**: Aliases can override builtins and functions. PSH expands aliases during tokenization, before determining if a command is a builtin, function, or external command. This violates POSIX/bash semantics.
+
+**Proposed Change**: Implement proper command precedence where builtins and functions take priority over aliases.
+
+**Correct Precedence Order** (bash/POSIX):
+1. Functions
+2. Builtins  
+3. Aliases
+4. External commands in PATH
+
+**Rationale**:
+- **POSIX Compliance**: Standard shells don't allow aliases to override builtins
+- **Script Reliability**: Scripts depend on builtins behaving consistently
+- **Security**: Prevents accidental or malicious aliasing of critical builtins
+- **User Expectations**: Users expect `echo`, `cd`, etc. to always be builtins
+
+**Implementation Options**:
+1. **Delayed Expansion**: Defer alias expansion until after builtin/function lookup
+2. **Expansion Awareness**: Make alias manager aware of builtin/function registries
+3. **Context Flags**: Add mechanism to disable alias expansion for certain commands
+
+**Impact**: High priority - affects 3 failing tests and core shell behavior. Requires architectural changes to command resolution order.
+
+---
+
 ## Parser Enhancements
 
-### 2. Support Command Groups in Pipelines
+### 3. Support Command Groups in Pipelines
 
 **Current State**: PSH cannot parse `{ cmd1; cmd2; } | cmd3` - brace groups aren't recognized as pipeline components.
 
@@ -43,7 +72,7 @@ This document outlines planned architectural improvements and enhancements for P
 
 ## Expansion System Improvements
 
-### 3. Implement Remaining Parameter Expansions
+### 4. Implement Remaining Parameter Expansions
 
 **Missing Features**:
 - `${!var}` - Indirect expansion
@@ -59,7 +88,7 @@ This document outlines planned architectural improvements and enhancements for P
 
 ## Process Management
 
-### 4. Implement Coprocess Support
+### 5. Implement Coprocess Support
 
 **Feature**: Support for `coproc` to create bidirectional pipes with background processes.
 
@@ -72,7 +101,7 @@ This document outlines planned architectural improvements and enhancements for P
 
 ## Performance Optimizations
 
-### 5. Implement Builtin Command Caching
+### 6. Implement Builtin Command Caching
 
 **Current State**: Builtin lookup happens on every command execution.
 
@@ -87,7 +116,7 @@ This document outlines planned architectural improvements and enhancements for P
 
 ## Error Handling
 
-### 6. Enhanced Error Recovery in Parser
+### 7. Enhanced Error Recovery in Parser
 
 **Current State**: Parser stops on first error.
 
@@ -102,7 +131,7 @@ This document outlines planned architectural improvements and enhancements for P
 
 ## Signal Handling
 
-### 7. Complete Signal Handling (SIGWINCH, SIGPIPE)
+### 8. Complete Signal Handling (SIGWINCH, SIGPIPE)
 
 **Missing Signals**:
 - SIGWINCH - Terminal resize handling
@@ -115,7 +144,7 @@ This document outlines planned architectural improvements and enhancements for P
 
 ## Compatibility Features
 
-### 8. Implement Extended Glob Patterns
+### 9. Implement Extended Glob Patterns
 
 **Features**: Support for `@()`, `*()`, `+()`, `?()`, `!()` patterns when `shopt -s extglob` is set.
 
@@ -128,7 +157,7 @@ This document outlines planned architectural improvements and enhancements for P
 
 ## Architecture Refactoring
 
-### 9. Plugin System for Builtins
+### 10. Plugin System for Builtins
 
 **Concept**: Allow dynamic loading of builtin commands as plugins.
 
@@ -141,7 +170,7 @@ This document outlines planned architectural improvements and enhancements for P
 
 ## Testing Infrastructure
 
-### 10. Improved Test Output Capture
+### 11. Improved Test Output Capture
 
 **Current Issues**: Tests using forked processes have trouble capturing output.
 
@@ -156,7 +185,7 @@ This document outlines planned architectural improvements and enhancements for P
 
 ## Documentation
 
-### 11. Interactive Tutorial Mode
+### 12. Interactive Tutorial Mode
 
 **Concept**: Built-in interactive tutorial teaching shell concepts.
 
@@ -174,10 +203,18 @@ This document outlines planned architectural improvements and enhancements for P
 When considering implementation order:
 
 1. **High Priority**: Changes that fix compatibility issues or enable common use cases
+   - Alias expansion precedence (affects core shell behavior)
+   - Command groups in pipelines (common pattern)
+   
 2. **Medium Priority**: Performance improvements and new features
+   - Unexpanded braces tokenization (edge cases but improves compatibility)
+   - Remaining parameter expansions
+   - Builtin command caching
+   
 3. **Low Priority**: Nice-to-have features that few scripts use
-
-The unexpanded braces fix would be **Medium Priority** - it affects edge cases but improves compatibility and user experience.
+   - Extended glob patterns
+   - Plugin system
+   - Interactive tutorial mode
 
 ---
 
