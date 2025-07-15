@@ -16,6 +16,7 @@ from contextlib import contextmanager
 
 from .strategies import (
     ExecutionStrategy, 
+    SpecialBuiltinExecutionStrategy,
     BuiltinExecutionStrategy,
     FunctionExecutionStrategy,
     AliasExecutionStrategy,
@@ -51,8 +52,9 @@ class CommandExecutor:
         self.function_manager = shell.function_manager
         
         # Initialize execution strategies
-        # Order matters: functions > builtins > aliases > external (POSIX compliance)
+        # Order matters: special builtins > functions > builtins > aliases > external (POSIX compliance)
         self.strategies = [
+            SpecialBuiltinExecutionStrategy(),
             FunctionExecutionStrategy(),
             BuiltinExecutionStrategy(),
             AliasExecutionStrategy(),
@@ -326,6 +328,7 @@ class CommandExecutor:
             strategies_to_exclude.append(AliasExecutionStrategy)
         if bypass_functions:
             strategies_to_exclude.append(FunctionExecutionStrategy)
+            # Note: bypass_functions should NOT exclude special builtins
         
         if strategies_to_exclude:
             strategies_to_use = [
@@ -339,7 +342,7 @@ class CommandExecutor:
         for strategy in strategies_to_use:
             if strategy.can_execute(cmd_name, self.shell):
                 # Check if this is a builtin that needs special redirection handling
-                if isinstance(strategy, BuiltinExecutionStrategy) and not context.in_pipeline:
+                if isinstance(strategy, (SpecialBuiltinExecutionStrategy, BuiltinExecutionStrategy)) and not context.in_pipeline:
                     return self._execute_builtin_with_redirections(
                         cmd_name, args, node, context, strategy
                     )

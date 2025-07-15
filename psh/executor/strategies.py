@@ -35,12 +35,63 @@ class ExecutionStrategy(ABC):
         pass
 
 
-class BuiltinExecutionStrategy(ExecutionStrategy):
-    """Strategy for executing builtin commands."""
+# POSIX special builtins that take precedence over functions
+POSIX_SPECIAL_BUILTINS = {
+    ':', 'break', 'continue', 'eval', 'exec', 'exit', 'export', 
+    'readonly', 'return', 'set', 'shift', 'trap', 'unset'
+}
+
+
+class SpecialBuiltinExecutionStrategy(ExecutionStrategy):
+    """Strategy for executing POSIX special builtin commands that take precedence over functions."""
     
     def can_execute(self, cmd_name: str, shell: 'Shell') -> bool:
-        """Check if command is a builtin."""
-        return shell.builtin_registry.has(cmd_name)
+        """Check if command is a POSIX special builtin."""
+        return (cmd_name in POSIX_SPECIAL_BUILTINS and 
+                shell.builtin_registry.has(cmd_name))
+    
+    def execute(self, cmd_name: str, args: List[str], 
+                shell: 'Shell', context: 'ExecutionContext',
+                redirects: Optional[List['Redirect']] = None,
+                background: bool = False) -> int:
+        """Execute a special builtin command."""
+        if background:
+            # Special builtins can run in background with subshell
+            return self._execute_in_background(cmd_name, args, shell, context, redirects)
+        
+        builtin = shell.builtin_registry.get(cmd_name)
+        if not builtin:
+            return 127  # Command not found
+        
+        try:
+            # Use the builtin's execute method
+            # Builtins expect the command name as the first argument
+            return builtin.execute([cmd_name] + args, shell)
+        except SystemExit as e:
+            # Some builtins like 'exit' raise SystemExit
+            raise
+        except Exception as e:
+            # Handle other exceptions
+            print(f"psh: {cmd_name}: {e}", file=shell.stderr)
+            return 1
+    
+    def _execute_in_background(self, cmd_name: str, args: List[str], 
+                              shell: 'Shell', context: 'ExecutionContext',
+                              redirects: Optional[List['Redirect']]) -> int:
+        """Execute special builtin in background (subshell)."""
+        # Use same background execution logic as regular builtins
+        return BuiltinExecutionStrategy()._execute_in_background(
+            cmd_name, args, shell, context, redirects
+        )
+
+
+class BuiltinExecutionStrategy(ExecutionStrategy):
+    """Strategy for executing regular builtin commands."""
+    
+    def can_execute(self, cmd_name: str, shell: 'Shell') -> bool:
+        """Check if command is a regular builtin (not a special builtin)."""
+        return (shell.builtin_registry.has(cmd_name) and 
+                cmd_name not in POSIX_SPECIAL_BUILTINS)
     
     def execute(self, cmd_name: str, args: List[str], 
                 shell: 'Shell', context: 'ExecutionContext',
