@@ -16,24 +16,23 @@ Python Shell (psh) is an educational Unix shell implementation designed to teach
 
 ```bash
 # Run tests
-python -m pytest tests/                    # Legacy test suite (1900+ tests)
-python -m pytest tests_new/                # New organized test suite (1000+ tests)
-python -m pytest tests/test_foo.py -v     # Specific legacy test file
-python -m pytest tests_new/unit/builtins/ -v  # Specific new test category
+python -m pytest tests/                    # Main test suite (3000+ tests)
+python -m pytest tests/test_foo.py -v     # Specific test file
+python -m pytest tests/unit/builtins/ -v  # Specific test category
 python -m pytest -k "test_name" -xvs      # Specific test with output
 
 # Run conformance tests (POSIX/bash compatibility)
-cd tests_new/conformance
+cd tests/conformance
 python run_conformance_tests.py           # Full conformance suite
 python run_conformance_tests.py --posix-only    # POSIX compliance only
 python run_conformance_tests.py --bash-only     # Bash compatibility only
 python run_conformance_tests.py --summary-only  # Just show summary
 
 # Run specific test categories  
-python -m pytest tests_new/unit/          # Unit tests (builtins, expansion, lexer, parser)
-python -m pytest tests_new/integration/   # Integration tests (pipelines, control flow)
-python -m pytest tests_new/system/        # System tests (interactive, initialization)
-python -m pytest tests_new/performance/   # Performance benchmarks
+python -m pytest tests/unit/              # Unit tests (builtins, expansion, lexer, parser)
+python -m pytest tests/integration/       # Integration tests (pipelines, control flow)
+python -m pytest tests/system/            # System tests (interactive, initialization)
+python -m pytest tests/performance/       # Performance benchmarks
 
 # Run psh
 python -m psh                              # Interactive shell
@@ -49,28 +48,28 @@ python -m psh --validate script.sh        # Validate without executing
 
 ## Test Organization
 
-PSH has two test suites:
+PSH uses a modern, well-organized test suite:
 
-### Legacy Test Suite (`tests/`)
+### Main Test Suite (`tests/`)
 - **Location**: `/tests/`
-- **Count**: ~1900 tests
-- **Status**: Comprehensive but less organized
-- **Use**: Still maintained for regression testing
-- **Command**: `python -m pytest tests/`
-
-### New Test Suite (`tests_new/`)
-- **Location**: `/tests_new/`
-- **Count**: ~1000 tests (growing)
-- **Status**: Well-organized, modern structure
+- **Count**: ~3000 tests
+- **Status**: Modern, well-organized structure (migrated 2025)
 - **Organization**:
   - `unit/` - Unit tests (builtins, expansion, lexer, parser)
   - `integration/` - Integration tests (pipelines, control flow, functions)
   - `system/` - System tests (interactive, initialization, scripts)
   - `performance/` - Performance benchmarks and stress tests
   - `conformance/` - POSIX/bash compatibility tests
+- **Command**: `python -m pytest tests/`
+
+### Legacy Test Suite (`tests_archived/`)
+- **Location**: `/tests_archived/`
+- **Status**: Archived legacy tests (pre-2025 migration)
+- **Use**: Historical reference only
+- **Note**: Superseded by modern test structure
 
 ### Conformance Testing Framework
-- **Location**: `/tests_new/conformance/`
+- **Location**: `/tests/conformance/`
 - **Purpose**: Measure POSIX compliance and bash compatibility
 - **Features**:
   - Compares PSH output with bash for identical commands
@@ -79,10 +78,11 @@ PSH has two test suites:
   - Current metrics: 93.1% POSIX compliance, 72.7% bash compatibility
 
 ### Test Selection Guidelines
-- **Development work**: Use `tests_new/` for focused testing
-- **Regression testing**: Run both `tests/` and `tests_new/`
-- **Compatibility verification**: Use conformance tests
-- **Performance analysis**: Use `tests_new/performance/`
+- **Development work**: Use `/tests/` organized by category
+- **Unit testing**: Use `tests/unit/` for component-specific tests
+- **Integration testing**: Use `tests/integration/` for feature interaction tests
+- **Compatibility verification**: Use `tests/conformance/` 
+- **Performance analysis**: Use `tests/performance/`
 
 ## Critical Information
 
@@ -95,26 +95,24 @@ PSH has two test suites:
 
 ### Known Test Issues
 
-1. **Legacy Test Isolation Problem**: ~20 tests in `tests/` fail when run in full suite but pass individually
-   - Caused by test pollution affecting subprocess execution
-   - Tests using `subprocess.run([sys.executable, '-m', 'psh', ...])` are affected
-   - Workaround: Run failing tests individually
-   - **Fixed in `tests_new/`**: New test suite has proper isolation via dedicated conftest.py
-
-2. **Interactive Test Limitations**: 
-   - Interactive tests in `tests_new/system/interactive/` are currently skipped
+1. **Interactive Test Limitations**: 
+   - Interactive tests in `tests/system/interactive/` are currently skipped
    - Use pexpect but have process management issues
    - Marked with `pytest.mark.skip` until pexpect issues resolved
 
-3. **Pytest Collection Best Practices**: 
+2. **Pytest Collection Best Practices**: 
    - Don't name source files starting with `test_` 
    - Don't name classes starting with `Test` unless they're actual test classes
    - These will confuse pytest's test collection
 
-4. **I/O Redirection Tests**: 
+3. **I/O Redirection Tests**: 
    - Tests involving I/O redirection may conflict with pytest's output capture
    - Use PSH-compatible fixtures instead of pytest's capsys for complex redirection
-   - `tests_new/` has proper fixture isolation to handle this
+   - Modern test suite has proper fixture isolation to handle this
+
+4. **Legacy Test Issues (Resolved)**: 
+   - Previous test isolation problems were resolved in 2025 migration
+   - Legacy tests archived in `tests_archived/` for historical reference
 
 ### Common Tasks
 
@@ -122,14 +120,14 @@ PSH has two test suites:
 1. Create file in `psh/builtins/` (e.g., `mycommand.py`)
 2. Inherit from `Builtin` class and implement `execute()` method
 3. Add `@builtin` decorator to auto-register
-4. Add tests in `tests_new/unit/builtins/` for new features (recommended)
-5. Add conformance tests in `tests_new/conformance/` if POSIX/bash relevant
+4. Add tests in `tests/unit/builtins/` for new features (recommended)
+5. Add conformance tests in `tests/conformance/` if POSIX/bash relevant
 
 **Add a shell option (set -x, etc):**
 1. Add to short_to_long mapping in `psh/builtins/environment.py` SetBuiltin
 2. Add to `psh/core/state.py` options dictionary with default value
 3. Implement behavior in relevant component (e.g., executor for xtrace)
-4. Add tests in `tests_new/unit/builtins/` (recommended) or `tests/test_shell_options.py`
+4. Add tests in `tests/unit/builtins/` (recommended)
 
 **Modify parser:**
 1. Add tokens to `psh/token_types.py` if needed
