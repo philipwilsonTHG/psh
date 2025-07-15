@@ -18,6 +18,10 @@ def main():
     norc = False
     rcfile = None
     validate_only = False
+    format_only = False
+    metrics_only = False
+    security_only = False
+    lint_only = False
     force_interactive = False
     # Visitor executor is now the only executor
     args = sys.argv[1:]
@@ -51,6 +55,20 @@ def main():
     if "--validate" in args:
         validate_only = True
         args.remove("--validate")
+    
+    # Extract visitor flags
+    if "--format" in args:
+        format_only = True
+        args.remove("--format")
+    if "--metrics" in args:
+        metrics_only = True
+        args.remove("--metrics")
+    if "--security" in args:
+        security_only = True
+        args.remove("--security")
+    if "--lint" in args:
+        lint_only = True
+        args.remove("--lint")
     
     # Extract force-interactive flag
     if "--force-interactive" in args:
@@ -90,7 +108,9 @@ def main():
     shell = Shell(debug_ast=debug_ast, debug_tokens=debug_tokens, debug_scopes=debug_scopes, 
                   debug_expansion=debug_expansion, debug_expansion_detail=debug_expansion_detail,
                   debug_exec=debug_exec, debug_exec_fork=debug_exec_fork,
-                  norc=norc, rcfile=rcfile, validate_only=validate_only, 
+                  norc=norc, rcfile=rcfile, validate_only=validate_only,
+                  format_only=format_only, metrics_only=metrics_only, 
+                  security_only=security_only, lint_only=lint_only
                   )
     
     # Set force interactive mode if requested
@@ -104,6 +124,12 @@ def main():
             command = sys.argv[2]
             # Set positional parameters from remaining arguments
             shell.set_positional_params(sys.argv[3:])
+            
+            # Handle visitor modes for -c commands
+            if any([format_only, metrics_only, security_only, lint_only, validate_only]):
+                exit_code = shell._handle_visitor_mode_for_command(command)
+                sys.exit(exit_code)
+            
             # Use StringInput with script mode to process line-by-line like bash -c
             from .input_sources import StringInput
             input_source = StringInput(command, "-c")
@@ -135,6 +161,10 @@ def main():
             print("  --debug-exec     Print executor operations (debugging)")
             print("  --debug-exec-fork Print fork/exec details (debugging)")
             print("  --validate       Validate script without executing (check for errors)")
+            print("  --format         Format script and print formatted version")
+            print("  --metrics        Analyze script and print code metrics")
+            print("  --security       Perform security analysis on script")
+            print("  --lint           Perform linting analysis on script")
             print("  --visitor-executor Deprecated flag (visitor is now the only executor)")
             print("  --legacy-executor Deprecated flag (no longer supported)")
             print("\nArguments:")
@@ -165,6 +195,12 @@ def main():
             # Script file execution
             script_path = sys.argv[1]
             script_args = sys.argv[2:]
+            
+            # Handle visitor modes for script files
+            if any([format_only, metrics_only, security_only, lint_only, validate_only]):
+                exit_code = shell._handle_visitor_mode_for_script(script_path)
+                sys.exit(exit_code)
+            
             exit_code = shell.run_script(script_path, script_args)
             sys.exit(exit_code)
     else:

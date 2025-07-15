@@ -2,10 +2,33 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.83.0"
+__version__ = "0.84.0"
 
 # Version history
 VERSION_HISTORY = """
+0.84.0 (2025-01-15) - Visitor CLI Features and Codebase Cleanup
+  - Promoted 4 example visitors to CLI features with command-line flags:
+    - --format: Format shell scripts with consistent indentation and structure
+    - --metrics: Analyze code metrics including complexity, commands, and features used
+    - --security: Perform security analysis detecting dangerous patterns and vulnerabilities
+    - --lint: Provide linting suggestions for code quality and best practices
+  - Added CLI argument parsing and Shell constructor parameters for all visitor modes
+  - Implemented proper visitor integration with get_summary() methods and exit codes
+  - Support for both script files and -c commands for all visitor CLI features
+  - Added comprehensive help text documentation for new CLI options
+  - Enhanced set builtin help text with debug-expansion and debug-exec options
+  - Removed unused/legacy visitor files to streamline codebase:
+    - optimization_visitor.py (unused, no CLI integration)
+    - testable_executor_visitor.py (superseded by current test patterns)
+    - testing_executor_visitor.py (superseded by current test patterns)
+    - visitor_pipeline.py (demo-only, not core functionality)
+    - examples/visitor_pipeline_demo.py (used removed pipeline system)
+  - Cleaned up visitor package __init__.py imports and exports
+  - Visitor system now focused on actively used visitors with CLI integration
+  - All CLI features working correctly: formatting, metrics, security analysis, and linting
+  - Enhanced debugging capabilities with expanded set -o option coverage
+  - Major cleanup milestone: removed legacy code while adding production CLI features
+
 0.83.0 (2025-01-14) - Alias Expansion Precedence Fix: Complete POSIX Compliance
   - Fixed critical alias expansion precedence issue for full POSIX/bash compliance
   - Implemented proper command resolution order: Functions → Builtins → Aliases → External Commands

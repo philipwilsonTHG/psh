@@ -12,10 +12,8 @@ from .debug_ast_visitor import DebugASTVisitor
 from .enhanced_validator_visitor import EnhancedValidatorVisitor, ValidatorConfig, VariableTracker
 from .metrics_visitor import MetricsVisitor
 from .linter_visitor import LinterVisitor, LinterConfig, LintLevel
+from .security_visitor import SecurityVisitor, SecurityIssue
 
-# Testing visitors are imported separately to avoid circular imports
-# from .testing_executor_visitor import TestExecutorVisitor
-# from .testable_executor_visitor import MockExecutorVisitor
 
 __all__ = [
     'ASTVisitor',
@@ -30,4 +28,6 @@ __all__ = [
     'LinterVisitor',
     'LinterConfig',
     'LintLevel',
+    'SecurityVisitor',
+    'SecurityIssue',
 ]

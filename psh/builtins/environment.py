@@ -279,6 +279,8 @@ class SetBuiltin(Builtin):
       -o debug-ast      Enable AST debug output
       -o debug-tokens   Enable token debug output
       -o debug-scopes   Enable variable scope debug output
+      -o debug-expansion Enable expansion debug output
+      -o debug-exec     Enable executor debug output
       +o <option>       Disable the specified option
     
     With arguments, set positional parameters ($1, $2, etc.)."""

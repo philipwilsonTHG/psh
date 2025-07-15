@@ -99,12 +99,16 @@ def isolated_shell_with_temp_dir(temp_dir):
     """
     from psh.shell import Shell
     import sys
+    import os
     
-    # Create a completely fresh shell instance
+    # Store original working directory and change to temp directory FIRST
+    original_cwd = os.getcwd()
+    original_pwd = os.environ.get('PWD', original_cwd)
+    os.chdir(temp_dir)
+    os.environ['PWD'] = temp_dir
+    
+    # Create a completely fresh shell instance (now in temp directory)
     shell = Shell()
-    
-    # Set up in temp directory
-    shell.state.variables['PWD'] = temp_dir
     
     # Store original file descriptors to ensure proper cleanup
     original_stdin = sys.stdin
@@ -117,6 +121,10 @@ def isolated_shell_with_temp_dir(temp_dir):
     sys.stdin = original_stdin
     sys.stdout = original_stdout
     sys.stderr = original_stderr
+    
+    # Restore original working directory and PWD environment
+    os.chdir(original_cwd)
+    os.environ['PWD'] = original_pwd
     
     # Reset shell state to prevent leakage
     if hasattr(shell, 'reset_state'):

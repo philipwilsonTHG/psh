@@ -23,14 +23,19 @@ from .interactive.base import InteractiveManager
 class Shell:
     def __init__(self, args=None, script_name=None, debug_ast=False, debug_tokens=False, debug_scopes=False, 
                  debug_expansion=False, debug_expansion_detail=False, debug_exec=False, debug_exec_fork=False,
-                 norc=False, rcfile=None, validate_only=False, parent_shell=None):
+                 norc=False, rcfile=None, validate_only=False, format_only=False, metrics_only=False,
+                 security_only=False, lint_only=False, parent_shell=None):
         # Initialize state
         self.state = ShellState(args, script_name, debug_ast, 
                               debug_tokens, debug_scopes, debug_expansion, debug_expansion_detail,
                               debug_exec, debug_exec_fork, norc, rcfile)
         
-        # Store validation mode
+        # Store validation and visitor modes
         self.validate_only = validate_only
+        self.format_only = format_only
+        self.metrics_only = metrics_only
+        self.security_only = security_only
+        self.lint_only = lint_only
         
         # Visitor executor is now the only executor
         # Remove this option from state as well
@@ -441,6 +446,44 @@ class Shell:
                                 if i.severity.value == 'error')
                 return 1 if error_count > 0 else 0
             
+            # Format mode - format AST and print
+            if self.format_only:
+                from .visitor import FormatterVisitor
+                formatter = FormatterVisitor()
+                formatted_code = formatter.visit(ast)
+                print(formatted_code)
+                return 0
+            
+            # Metrics mode - analyze AST and print metrics
+            if self.metrics_only:
+                from .visitor import MetricsVisitor
+                metrics = MetricsVisitor()
+                metrics.visit(ast)
+                print(metrics.get_summary())
+                return 0
+            
+            # Security mode - analyze AST for security issues
+            if self.security_only:
+                from .visitor import SecurityVisitor
+                security = SecurityVisitor()
+                security.visit(ast)
+                print(security.get_summary())
+                
+                # Return exit code based on security issues
+                issue_count = len(security.issues)
+                return 1 if issue_count > 0 else 0
+            
+            # Lint mode - analyze AST for style and best practices
+            if self.lint_only:
+                from .visitor import LinterVisitor
+                linter = LinterVisitor()
+                linter.visit(ast)
+                print(linter.get_summary())
+                
+                # Return exit code based on lint issues
+                issue_count = len(linter.issues)
+                return 1 if issue_count > 0 else 0
+            
             # Add to history if requested (for interactive or testing)
             # Don't add history expansion commands to history
             if add_to_history and command_string.strip():
@@ -491,6 +534,84 @@ class Shell:
             print(f"psh: {location}: unexpected error: {e}", file=sys.stderr)
             self.last_exit_code = 1
             return 1
+    
+    def _handle_visitor_mode_for_command(self, command: str) -> int:
+        """Handle visitor modes for -c commands."""
+        # Parse the command to get AST
+        try:
+            from .lexer import tokenize
+            from .parser import parse
+            
+            tokens = tokenize(command)
+            ast = parse(tokens)
+            
+            return self._apply_visitor_mode(ast)
+        except Exception as e:
+            print(f"Error parsing command: {e}", file=sys.stderr)
+            return 1
+    
+    def _handle_visitor_mode_for_script(self, script_path: str) -> int:
+        """Handle visitor modes for script files."""
+        try:
+            # Read and parse the script file
+            with open(script_path, 'r') as f:
+                content = f.read()
+            
+            from .lexer import tokenize
+            from .parser import parse
+            
+            tokens = tokenize(content)
+            ast = parse(tokens)
+            
+            return self._apply_visitor_mode(ast)
+        except FileNotFoundError:
+            print(f"psh: {script_path}: No such file or directory", file=sys.stderr)
+            return 1
+        except Exception as e:
+            print(f"Error processing script: {e}", file=sys.stderr)
+            return 1
+    
+    def _apply_visitor_mode(self, ast) -> int:
+        """Apply the appropriate visitor mode to the AST."""
+        if self.validate_only:
+            from .visitor import EnhancedValidatorVisitor
+            validator = EnhancedValidatorVisitor()
+            validator.visit(ast)
+            print(validator.get_summary())
+            error_count = sum(1 for i in validator.issues if i.severity.value == 'error')
+            return 1 if error_count > 0 else 0
+        
+        if self.format_only:
+            from .visitor import FormatterVisitor
+            formatter = FormatterVisitor()
+            formatted_code = formatter.visit(ast)
+            print(formatted_code)
+            return 0
+        
+        if self.metrics_only:
+            from .visitor import MetricsVisitor
+            metrics = MetricsVisitor()
+            metrics.visit(ast)
+            print(metrics.get_summary())
+            return 0
+        
+        if self.security_only:
+            from .visitor import SecurityVisitor
+            security = SecurityVisitor()
+            security.visit(ast)
+            print(security.get_summary())
+            issue_count = len(security.issues)
+            return 1 if issue_count > 0 else 0
+        
+        if self.lint_only:
+            from .visitor import LinterVisitor
+            linter = LinterVisitor()
+            linter.visit(ast)
+            print(linter.get_summary())
+            issue_count = len(linter.issues)
+            return 1 if issue_count > 0 else 0
+        
+        return 0
     
     def run_command(self, command_string: str, add_to_history=True):
         """Execute a command string using the unified input system."""

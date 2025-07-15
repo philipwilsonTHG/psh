@@ -288,6 +288,34 @@ class SecurityVisitor(ASTVisitor[None]):
             'issues': self.issues
         }
     
+    def get_summary(self) -> str:
+        """Get a formatted summary of security issues."""
+        if not self.issues:
+            return "No security issues found!"
+        
+        # Group by severity
+        high = [i for i in self.issues if i.severity == 'HIGH']
+        medium = [i for i in self.issues if i.severity == 'MEDIUM']
+        low = [i for i in self.issues if i.severity == 'LOW']
+        
+        lines = ["Security Analysis Summary:"]
+        lines.append("═" * 30)
+        lines.append(f"Total Issues: {len(self.issues)}")
+        lines.append(f"  High Risk:   {len(high):>3}")
+        lines.append(f"  Medium Risk: {len(medium):>3}")
+        lines.append(f"  Low Risk:    {len(low):>3}")
+        lines.append("")
+        
+        # Show issues by severity
+        for severity, issues in [("HIGH", high), ("MEDIUM", medium), ("LOW", low)]:
+            if issues:
+                lines.append(f"{severity} RISK ISSUES:")
+                for issue in issues:
+                    lines.append(f"  • {issue.message}")
+                lines.append("")
+        
+        return "\n".join(lines)
+    
     def generic_visit(self, node: ASTNode) -> None:
         """Default visit for unhandled nodes."""
         # Try to traverse child nodes generically
