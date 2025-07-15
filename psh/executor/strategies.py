@@ -71,6 +71,11 @@ class SpecialBuiltinExecutionStrategy(ExecutionStrategy):
             # Some builtins like 'exit' raise SystemExit
             raise
         except Exception as e:
+            # Import FunctionReturn here to avoid circular imports
+            from ..builtins.function_support import FunctionReturn
+            if isinstance(e, FunctionReturn):
+                # FunctionReturn must propagate to be caught by function execution
+                raise
             # Handle other exceptions
             print(f"psh: {cmd_name}: {e}", file=shell.stderr)
             return 1
