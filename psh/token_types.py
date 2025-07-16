@@ -79,6 +79,35 @@ class TokenType(Enum):
     EQUAL = auto()             # ==
     NOT_EQUAL = auto()         # !=
     
+    # Assignment operators
+    ASSIGN = auto()            # =
+    PLUS_ASSIGN = auto()       # +=
+    MINUS_ASSIGN = auto()      # -=
+    MULT_ASSIGN = auto()       # *=
+    DIV_ASSIGN = auto()        # /=
+    MOD_ASSIGN = auto()        # %=
+    AND_ASSIGN = auto()        # &=
+    OR_ASSIGN = auto()         # |=
+    XOR_ASSIGN = auto()        # ^=
+    LSHIFT_ASSIGN = auto()     # <<=
+    RSHIFT_ASSIGN = auto()     # >>=
+    
+    # Pattern matching
+    GLOB_STAR = auto()         # * in patterns
+    GLOB_QUESTION = auto()     # ? in patterns
+    GLOB_BRACKET = auto()      # [...] in patterns
+    
+    # Context-specific operators
+    LESS_THAN_TEST = auto()    # < in test context
+    GREATER_THAN_TEST = auto() # > in test context
+    LESS_EQUAL_TEST = auto()   # <= in test context
+    GREATER_EQUAL_TEST = auto() # >= in test context
+    
+    # Special constructs
+    HERE_DELIMITER = auto()    # Heredoc delimiter
+    ASSIGNMENT_WORD = auto()   # VAR=value pattern
+    ARRAY_ASSIGNMENT_WORD = auto() # arr[index]=value pattern
+    
     # Composite tokens
     COMPOSITE = auto()         # Merged adjacent tokens
 
