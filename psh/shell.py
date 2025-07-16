@@ -24,7 +24,7 @@ class Shell:
     def __init__(self, args=None, script_name=None, debug_ast=False, debug_tokens=False, debug_scopes=False, 
                  debug_expansion=False, debug_expansion_detail=False, debug_exec=False, debug_exec_fork=False,
                  norc=False, rcfile=None, validate_only=False, format_only=False, metrics_only=False,
-                 security_only=False, lint_only=False, parent_shell=None):
+                 security_only=False, lint_only=False, parent_shell=None, ast_format=None):
         # Initialize state
         self.state = ShellState(args, script_name, debug_ast, 
                               debug_tokens, debug_scopes, debug_expansion, debug_expansion_detail,
@@ -36,6 +36,7 @@ class Shell:
         self.metrics_only = metrics_only
         self.security_only = security_only
         self.lint_only = lint_only
+        self.ast_format = ast_format
         
         # Visitor executor is now the only executor
         # Remove this option from state as well
@@ -426,11 +427,7 @@ class Shell:
             
             # Debug: Print AST if requested
             if self.debug_ast:
-                print("=== AST Debug Output ===", file=sys.stderr)
-                from .visitor import DebugASTVisitor
-                debug_visitor = DebugASTVisitor()
-                print(debug_visitor.visit(ast), file=sys.stderr)
-                print("======================", file=sys.stderr)
+                self._print_ast_debug(ast)
             
             # Validation mode - analyze AST without executing
             if self.validate_only:
@@ -705,3 +702,99 @@ class Shell:
     def _handle_sigchld(self):
         """Get signal handler (compatibility wrapper)."""
         return self.interactive_manager.signal_manager._handle_sigchld
+    
+    def create_parser(self, tokens, source_text=None, **parser_options):
+        """Create a parser with configuration based on shell options.
+        
+        Args:
+            tokens: List of tokens to parse
+            source_text: Optional source text for error reporting
+            **parser_options: Additional parser options to override
+            
+        Returns:
+            Configured Parser instance
+        """
+        from .parser import ParserFactory
+        
+        # Build shell options dictionary from current state
+        shell_options = {
+            'posix': self.state.options.get('posix', False),
+            'bash_compat': not self.state.options.get('posix', False),
+            'collect_errors': self.state.options.get('collect_errors', False),
+            'debug_parser': self.state.options.get('debug-parser', False),
+            
+            # Feature toggles based on shell options
+            'enable_aliases': not self.state.options.get('no_aliases', False),
+            'enable_functions': not self.state.options.get('no_functions', False),
+            'enable_arithmetic': not self.state.options.get('no_arithmetic', False),
+        }
+        
+        # Add any additional parser-specific options
+        shell_options.update(parser_options)
+        
+        return ParserFactory.create_shell_parser(
+            tokens, 
+            source_text=source_text, 
+            shell_options=shell_options
+        )
+    
+    def _print_ast_debug(self, ast) -> None:
+        """Print AST debug output in the requested format."""
+        # Check for format from command line, then from PSH_AST_FORMAT variable, then default
+        format_type = self.ast_format
+        if not format_type:
+            format_type = self.state.scope_manager.get_variable('PSH_AST_FORMAT') or 'tree'
+        
+        print("=== AST Debug Output ===", file=sys.stderr)
+        
+        try:
+            if format_type == 'pretty':
+                from .parser.visualization import ASTPrettyPrinter
+                formatter = ASTPrettyPrinter(
+                    indent_size=2,
+                    show_positions=True,
+                    compact_mode=False
+                )
+                output = formatter.visit(ast)
+                print(output, file=sys.stderr)
+                
+            elif format_type == 'tree':
+                from .parser.visualization import AsciiTreeRenderer
+                output = AsciiTreeRenderer.render(
+                    ast,
+                    show_positions=True,
+                    compact_mode=False
+                )
+                print(output, file=sys.stderr)
+                
+            elif format_type == 'compact':
+                from .parser.visualization import CompactAsciiTreeRenderer
+                output = CompactAsciiTreeRenderer.render(ast)
+                print(output, file=sys.stderr)
+                
+            elif format_type == 'dot':
+                from .parser.visualization import ASTDotGenerator
+                generator = ASTDotGenerator(
+                    show_positions=True,
+                    color_by_type=True
+                )
+                output = generator.to_dot(ast)
+                print(output, file=sys.stderr)
+                print("\n# Save to file and visualize with:", file=sys.stderr)
+                print("# dot -Tpng output.dot -o ast.png", file=sys.stderr)
+                print("# xdg-open ast.png", file=sys.stderr)
+                
+            else:  # default - use tree format as the new default
+                from .parser.visualization import AsciiTreeRenderer
+                output = AsciiTreeRenderer.render(ast, show_positions=False, compact_mode=False)
+                print(output, file=sys.stderr)
+                
+        except Exception as e:
+            # Fallback to default format if new formatters fail
+            print(f"Warning: AST formatting failed ({e}), using default format", file=sys.stderr)
+            from .visitor import DebugASTVisitor
+            debug_visitor = DebugASTVisitor()
+            output = debug_visitor.visit(ast)
+            print(output, file=sys.stderr)
+        
+        print("======================", file=sys.stderr)

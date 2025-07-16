@@ -211,6 +211,36 @@ class SourceProcessor(ScriptComponent):
             ("Expected pattern in case statement", "got end of input"),
             ("Expected pattern in case statement", None),  # When no "got" part
             
+            # New TokenType-based patterns from ParserContext (case sensitive)
+            ("Expected TokenType.DO", "got TokenType.EOF"),
+            ("Expected TokenType.DONE", "got TokenType.EOF"),
+            ("Expected TokenType.FI", "got TokenType.EOF"),
+            ("Expected TokenType.THEN", "got TokenType.EOF"),
+            ("Expected TokenType.IN", "got TokenType.EOF"),
+            ("Expected TokenType.ESAC", "got TokenType.EOF"),
+            ("Expected TokenType.RPAREN", "got TokenType.EOF"),
+            ("Expected TokenType.DOUBLE_RBRACKET", "got TokenType.EOF"),
+            ("Expected TokenType.LBRACE", "got TokenType.EOF"),
+            ("Expected TokenType.RBRACE", "got TokenType.EOF"),
+            ("Expected TokenType.LPAREN", "got TokenType.EOF"),
+            ("Expected TokenType.ELSE", "got TokenType.EOF"),
+            ("Expected TokenType.ELIF", "got TokenType.EOF"),
+            
+            # Lowercase variants (in case error messages are normalized)
+            ("expected tokentype.do", "got tokentype.eof"),
+            ("expected tokentype.done", "got tokentype.eof"),
+            ("expected tokentype.fi", "got tokentype.eof"),
+            ("expected tokentype.then", "got tokentype.eof"),
+            ("expected tokentype.in", "got tokentype.eof"),
+            ("expected tokentype.esac", "got tokentype.eof"),
+            ("expected tokentype.rparen", "got tokentype.eof"),
+            ("expected tokentype.double_rbracket", "got tokentype.eof"),
+            ("expected tokentype.lbrace", "got tokentype.eof"),
+            ("expected tokentype.rbrace", "got tokentype.eof"),
+            ("expected tokentype.lparen", "got tokentype.eof"),
+            ("expected tokentype.else", "got tokentype.eof"),
+            ("expected tokentype.elif", "got tokentype.eof"),
+            
             # Old patterns for backward compatibility (in case some weren't updated)
             ("Expected DO", "got EOF"),
             ("Expected DONE", "got EOF"),
@@ -279,23 +309,17 @@ class SourceProcessor(ScriptComponent):
                 # Re-tokenize the clean command
                 clean_tokens = tokenize(clean_command)
                 # Note: Alias expansion now happens during execution phase for proper precedence
-                # Parse with source text for better error messages
-                from ..parser import Parser
-                parser = Parser(clean_tokens, source_text=command_string)
+                # Parse with source text for better error messages and shell configuration
+                parser = self.shell.create_parser(clean_tokens, source_text=command_string)
                 ast = parser.parse_with_heredocs(heredoc_map)
             else:
-                # Parse with source text for better error messages
-                from ..parser import Parser
-                parser = Parser(tokens, source_text=command_string)
+                # Parse with source text for better error messages and shell configuration
+                parser = self.shell.create_parser(tokens, source_text=command_string)
                 ast = parser.parse()
             
             # Debug: Print AST if requested
             if self.state.debug_ast:
-                print("=== AST Debug Output ===", file=sys.stderr)
-                from ..visitor import DebugASTVisitor
-                debug_visitor = DebugASTVisitor()
-                print(debug_visitor.visit(ast), file=sys.stderr)
-                print("======================", file=sys.stderr)
+                self.shell._print_ast_debug(ast)
             
             # Validation mode - analyze AST without executing
             if self.shell.validate_only:

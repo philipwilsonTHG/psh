@@ -27,9 +27,26 @@ def main():
     args = sys.argv[1:]
     
     # Extract debug flags
+    ast_format = None
     if "--debug-ast" in args:
         debug_ast = True
         args.remove("--debug-ast")
+    if "--debug-ast=pretty" in args:
+        debug_ast = True
+        ast_format = "pretty"
+        args.remove("--debug-ast=pretty")
+    if "--debug-ast=tree" in args:
+        debug_ast = True
+        ast_format = "tree"
+        args.remove("--debug-ast=tree")
+    if "--debug-ast=dot" in args:
+        debug_ast = True
+        ast_format = "dot"
+        args.remove("--debug-ast=dot")
+    if "--debug-ast=compact" in args:
+        debug_ast = True
+        ast_format = "compact"
+        args.remove("--debug-ast=compact")
     if "--debug-tokens" in args:
         debug_tokens = True
         args.remove("--debug-tokens")
@@ -110,7 +127,8 @@ def main():
                   debug_exec=debug_exec, debug_exec_fork=debug_exec_fork,
                   norc=norc, rcfile=rcfile, validate_only=validate_only,
                   format_only=format_only, metrics_only=metrics_only, 
-                  security_only=security_only, lint_only=lint_only
+                  security_only=security_only, lint_only=lint_only,
+                  ast_format=ast_format
                   )
     
     # Set force interactive mode if requested
@@ -154,6 +172,7 @@ def main():
             print("  --rcfile FILE    Read FILE instead of ~/.pshrc")
             print("  --force-interactive Force interactive mode even if stdin is not a TTY")
             print("  --debug-ast      Print AST before execution (debugging)")
+            print("  --debug-ast=FORMAT AST format: pretty, tree, compact, dot")
             print("  --debug-tokens   Print tokens before parsing (debugging)")
             print("  --debug-scopes   Print variable scope operations (debugging)")
             print("  --debug-expansion Print expansions as they occur (debugging)")

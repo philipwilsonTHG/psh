@@ -4,11 +4,17 @@
 
 Python Shell (psh) is designed with a clean, component-based architecture that separates concerns and makes the codebase easy to understand, test, and extend. The shell follows a traditional interpreter pipeline: lexing → parsing → expansion → execution, with each phase carefully designed for educational clarity and correctness.
 
-**Current Version**: 0.68.0 (as of 2025-07-02)
+**Current Version**: 0.85.0 (as of 2025-01-16)
 
 **Note:** For LLM-optimized architecture documentation, see `ARCHITECTURE.llm`
 
 **Key Architectural Features**:
+- **Enhanced Parser System** (v0.85.0): Complete implementation of Parser High-Priority Plan
+  - **Parser Configuration**: Comprehensive configuration system with multiple parsing modes
+  - **AST Validation**: Semantic analysis and validation with symbol table management
+  - **Centralized ParserContext**: Unified state management for all parser components
+  - **Parse Tree Visualization**: Multiple output formats with CLI integration
+  - **Advanced Error Recovery**: Smart suggestions and multi-error collection
 - **Modular Executor Package** (v0.68.0): Visitor pattern with 9 specialized executor modules
 - **Modular Parser Package** (v0.60.0): Delegation-based parser with 8 focused modules
 - **Modular Lexer Package** (v0.58.0): State machine lexer with clean component separation
@@ -243,14 +249,15 @@ This preserves quote information for each part, enabling correct expansion behav
 
 ## Phase 3: Syntactic Analysis (Parsing)
 
-The parser converts tokens into an Abstract Syntax Tree (AST) using a modular delegation architecture.
+The parser converts tokens into an Abstract Syntax Tree (AST) using a modular delegation architecture with comprehensive configuration and validation systems.
 
-### 3.1 Parser Package Architecture (v0.60.0)
+### 3.1 Enhanced Parser Package Architecture (v0.85.0)
 **Package**: `psh/parser/`
 
-The parser is implemented as a modular package with clean separation of concerns:
+The parser has been significantly enhanced with a complete implementation of the Parser High-Priority Improvements Plan:
 
-- **`psh/parser/main.py`** - Main Parser class with delegation orchestration
+#### Core Parser Modules
+- **`psh/parser/main.py`** - Main Parser class with delegation orchestration and ParserContext integration
 - **`psh/parser/commands.py`** - Command and pipeline parsing  
 - **`psh/parser/statements.py`** - Statement list and control flow parsing
 - **`psh/parser/control_structures.py`** - All control structures (if, while, for, case, select)
@@ -260,23 +267,59 @@ The parser is implemented as a modular package with clean separation of concerns
 - **`psh/parser/arrays.py`** - Array initialization and assignment parsing
 - **`psh/parser/functions.py`** - Function definition parsing
 - **`psh/parser/utils.py`** - Utility functions and heredoc handling
-- **`psh/parser/base.py`** - Base parser class with token management (moved from parser_base.py)
-- **`psh/parser/helpers.py`** - Helper classes and token groups (moved from parser_helpers.py)
+- **`psh/parser/base.py`** - Base parser class with token management
+- **`psh/parser/base_context.py`** - New ContextBaseParser using ParserContext
+- **`psh/parser/helpers.py`** - Helper classes and token groups
 - **`psh/parser/__init__.py`** - Clean public API with backward compatibility
 
-### 3.2 Delegation Architecture
+#### Parser Configuration System (v0.85.0)
+- **`psh/parser/config.py`** - Comprehensive ParserConfig with 40+ configuration options
+- **`psh/parser/factory.py`** - ParserFactory with preset configurations for different use cases
 
-The main parser orchestrates specialized parsers through delegation:
+#### Centralized State Management (v0.85.0)
+- **`psh/parser/context.py`** - ParserContext class for unified state management
+- **`psh/parser/context_factory.py`** - Factory for creating contexts with different configurations
+- **`psh/parser/context_snapshots.py`** - Context snapshots for backtracking and speculation
+
+#### AST Validation System (v0.85.0)
+- **`psh/parser/validation/`** - Complete validation package
+  - `semantic_analyzer.py` - SemanticAnalyzer using visitor pattern
+  - `validation_rules.py` - Modular validation rules system
+  - `symbol_table.py` - Symbol table for semantic analysis
+  - `warnings.py` - Warning system with severity levels
+  - `validation_pipeline.py` - Validation orchestration
+
+#### Parse Tree Visualization (v0.85.0)
+- **`psh/parser/visualization/`** - Multi-format AST visualization
+  - `ast_formatter.py` - Pretty printer for human-readable AST output
+  - `dot_generator.py` - Graphviz DOT format for visual diagrams
+  - `ascii_tree.py` - ASCII tree renderer for terminal display
+
+### 3.2 Enhanced Delegation Architecture with ParserContext
+
+The main parser orchestrates specialized parsers through delegation with centralized state management:
 ```python
-class Parser(BaseParser):
-    """Main parser with delegation to specialized parsers"""
-    def __init__(self, tokens: List[Token]):
-        super().__init__(tokens)
-        # Initialize specialized parsers
+class Parser(ContextBaseParser):
+    """Main parser with delegation to specialized parsers using ParserContext"""
+    def __init__(self, tokens: List[Token], config: Optional[ParserConfig] = None):
+        # Create or use existing ParserContext
+        self.ctx = ParserContextFactory.create(tokens, config)
+        super().__init__(self.ctx)
+        
+        # Initialize specialized parsers with shared context
         self.commands = CommandParser(self)
         self.statements = StatementParser(self)
         self.control_structures = ControlStructureParser(self)
+        self.redirections = RedirectionParser(self)
+        self.arithmetic = ArithmeticParser(self)
         # ... other specialized parsers
+
+    def parse_with_error_collection(self) -> MultiErrorParseResult:
+        """Parse with enhanced error collection and recovery"""
+        if self.ctx.config.collect_errors:
+            # Collect multiple errors for better user experience
+            return self._parse_with_recovery()
+        return self.parse()
 ```
 
 ### 3.3 Grammar Overview
@@ -306,7 +349,180 @@ The package structure provides several advantages:
 - **Backward Compatibility**: Existing parser API is fully preserved
 - **Extensibility**: New parsing features can be added incrementally
 
-### 3.5 Recursive Descent Implementation
+### 3.5 Parser Configuration System (v0.85.0)
+
+The parser now supports comprehensive configuration for different parsing modes and behaviors:
+
+```python
+@dataclass
+class ParserConfig:
+    """Parser configuration with 40+ options"""
+    # Parsing modes
+    parsing_mode: ParsingMode = ParsingMode.BASH_COMPAT
+    error_handling: ErrorHandlingMode = ErrorHandlingMode.STRICT
+    
+    # Feature toggles
+    enable_validation: bool = False
+    enable_profiling: bool = False
+    collect_errors: bool = False
+    
+    # POSIX compliance
+    strict_posix: bool = False
+    allow_bash_extensions: bool = True
+    
+    # Error recovery
+    max_errors: int = 10
+    panic_mode_recovery: bool = True
+    
+    @classmethod
+    def strict_posix(cls) -> 'ParserConfig':
+        """Strict POSIX compliance mode"""
+        return cls(
+            parsing_mode=ParsingMode.STRICT_POSIX,
+            strict_posix=True,
+            allow_bash_extensions=False
+        )
+    
+    @classmethod
+    def educational(cls) -> 'ParserConfig':
+        """Educational mode with enhanced error reporting"""
+        return cls(
+            collect_errors=True,
+            enable_validation=True,
+            panic_mode_recovery=True,
+            max_errors=50
+        )
+
+# Factory for creating parsers with different configurations
+parser = ParserFactory.create_bash_compatible_parser(tokens, source_text)
+parser = ParserFactory.create_strict_posix_parser(tokens, source_text)
+```
+
+### 3.6 Centralized ParserContext (v0.85.0)
+
+All parser state is now managed through a centralized ParserContext:
+
+```python
+@dataclass
+class ParserContext:
+    """Centralized parser state management"""
+    # Core parsing state
+    tokens: List[Token]
+    current: int = 0
+    config: ParserConfig = field(default_factory=ParserConfig)
+    
+    # Error handling
+    errors: List[ParseError] = field(default_factory=list)
+    error_recovery_mode: bool = False
+    
+    # Parsing context
+    scope_stack: List[str] = field(default_factory=list)
+    nesting_depth: int = 0
+    
+    # Special state
+    in_case_pattern: bool = False
+    in_arithmetic: bool = False
+    in_function_body: bool = False
+    
+    # Performance tracking
+    profiler: Optional[ParserProfiler] = None
+    
+    def enter_scope(self, scope: str):
+        """Enter a new parsing scope with tracking"""
+        self.scope_stack.append(scope)
+        self.nesting_depth += 1
+        if self.profiler:
+            self.profiler.enter_scope(scope)
+```
+
+### 3.7 AST Validation and Semantic Analysis (v0.85.0)
+
+The parser now includes comprehensive AST validation and semantic analysis:
+
+```python
+class SemanticAnalyzer(ASTVisitor[None]):
+    """Perform semantic analysis on parsed AST"""
+    
+    def __init__(self):
+        self.symbol_table = SymbolTable()
+        self.issues: List[Issue] = []
+        self.warnings: List[Warning] = []
+    
+    def visit_FunctionDef(self, node: FunctionDef) -> None:
+        """Validate function definition"""
+        if self.symbol_table.has_function(node.name):
+            self.issues.append(Issue(
+                f"Function '{node.name}' already defined",
+                node.position,
+                Severity.ERROR
+            ))
+        
+        # Track function context for return validation
+        self.symbol_table.enter_function(node.name)
+        self.visit(node.body)
+        self.symbol_table.exit_function()
+
+# Validation rules system
+class NoEmptyBodyRule(ValidationRule):
+    def validate(self, node: ASTNode, context: ValidationContext) -> List[Issue]:
+        if isinstance(node, (WhileLoop, ForLoop)):
+            if not node.body or not node.body.statements:
+                return [Issue("Empty loop body", node.position, Severity.WARNING)]
+        return []
+```
+
+### 3.8 Parse Tree Visualization (v0.85.0)
+
+Multiple visualization formats are available for AST inspection:
+
+```python
+# Pretty-printed format
+formatter = ASTPrettyPrinter(indent=2, show_positions=True)
+print(formatter.visit(ast))
+
+# Graphviz DOT format for visual diagrams
+dot_generator = ASTDotGenerator(compact=False)
+dot_content = dot_generator.visit(ast)
+
+# ASCII tree for terminal display
+tree_renderer = ASTAsciiTreeRenderer(style='standard')
+print(tree_renderer.visit(ast))
+
+# Integration with shell commands
+psh --debug-ast=pretty -c "if true; then echo hi; fi"
+parse-tree -f dot "for i in 1 2 3; do echo $i; done"
+show-ast "case $var in pattern) echo match;; esac"
+```
+
+### 3.9 Enhanced Error Recovery (v0.85.0)
+
+Advanced error recovery strategies provide better user experience:
+
+```python
+class ErrorCollector:
+    """Collect multiple parse errors for batch reporting"""
+    
+    def add_error(self, error: ParseError) -> bool:
+        """Add error and determine if parsing should continue"""
+        self.errors.append(error)
+        
+        # Check for fatal errors
+        if error.is_fatal or len(self.errors) >= self.max_errors:
+            return False
+        
+        return True
+
+def panic_mode_recovery(self, sync_tokens: Set[TokenType]):
+    """Recover by skipping to synchronization points"""
+    self.ctx.error_recovery_mode = True
+    
+    while not self.ctx.at_end() and not self.ctx.match(*sync_tokens):
+        self.ctx.advance()
+    
+    self.ctx.error_recovery_mode = False
+```
+
+### 3.10 Recursive Descent Implementation
 
 Each grammar rule has a corresponding parse method across specialized parsers:
 ```python
@@ -321,7 +537,7 @@ def parse_command(self):
     # Delegate to command parser
 ```
 
-### 3.6 AST Node Hierarchy
+### 3.11 AST Node Hierarchy
 **File**: `ast_nodes.py`
 
 The AST uses a clean class hierarchy:
@@ -354,16 +570,19 @@ class IfConditional(Statement, CompoundCommand):
     else_stmt: Optional[StatementList]
 ```
 
-### 3.7 Error Recovery
+### 3.12 Enhanced Error Recovery (Legacy)
 
-The parser provides helpful error messages with enhanced context:
+The parser provides helpful error messages with enhanced context. In v0.85.0, this has been significantly enhanced with the new error recovery system:
+
 ```python
 def _error(self, message: str) -> ParseError:
     """Create ParseError with current context"""
     error_context = ErrorContext(
         token=self.peek(),
         message=message,
-        position=self.peek().position
+        position=self.peek().position,
+        suggestions=self._generate_suggestions(),  # v0.85.0 enhancement
+        related_errors=[]  # v0.85.0 enhancement
     )
     return ParseError(error_context)
 ```
@@ -789,15 +1008,37 @@ The architecture prioritizes clarity and correctness:
 
 ## Recent Architectural Improvements
 
-### Version 0.58.0+ - Lexer Package Refactoring
-- Comprehensive 4-phase refactoring of the lexer subsystem:
-  - **Phase 1**: Unified state management with LexerContext
-  - **Phase 2**: Pure function helpers for testability
-  - **Phase 3**: Unified quote and expansion parsing
-  - **Phase 4**: Modular token recognition system
-- Created extensible architecture with backward compatibility
-- Added 136+ tests across all refactoring phases
-- Improved performance with priority-based recognition
+### Version 0.85.0 - Complete Parser High-Priority Implementation
+**Major parser system overhaul with comprehensive enhancements:**
+- **Parser Configuration System**: Comprehensive ParserConfig with 40+ options and multiple parsing modes
+  - STRICT_POSIX, BASH_COMPAT, PERMISSIVE, EDUCATIONAL modes
+  - ParserFactory with preset configurations for different use cases
+  - Feature toggles for validation, profiling, error collection
+- **Centralized ParserContext**: Unified state management for all parser components
+  - Consolidated parser state in single ParserContext class
+  - Context factory and snapshots for backtracking support  
+  - Performance profiling and debugging capabilities
+  - Migrated all sub-parsers to use shared context
+- **AST Validation System**: Complete semantic analysis and validation framework
+  - SemanticAnalyzer with visitor pattern for AST analysis
+  - Modular validation rules system with Issue and Severity classification
+  - Symbol table management for function and variable tracking
+  - Warning system with configurable severity levels
+- **Parse Tree Visualization**: Multiple output formats with CLI integration
+  - AST formatters: pretty printer, DOT generator, ASCII tree renderer
+  - Shell integration: --debug-ast, parse-tree, show-ast, ast-dot commands
+  - Interactive debug control via set -o and convenience builtins
+- **Enhanced Error Recovery**: Advanced error handling and user experience
+  - Smart error suggestions and context-aware recovery
+  - Multi-error collection infrastructure with ErrorCollector
+  - Panic mode recovery and phrase-level error repair
+  - Enhanced incomplete command detection for multiline input
+
+### Version 0.68.0 - Executor Package Refactoring
+- Modular executor package with delegation architecture
+- Main ExecutorVisitor delegates to specialized executors
+- ExecutionContext state management and Strategy pattern for commands
+- 73% code reduction in core executor module
 
 ### Version 0.60.0 - Parser Package Refactoring
 - Transformed monolithic 1806-line parser.py into modular package structure
@@ -807,6 +1048,16 @@ The architecture prioritizes clarity and correctness:
 - Fixed C-style for loop parsing with proper arithmetic section handling
 - Fixed stderr redirection parsing to separate operator from file descriptor
 - Maintained 100% backward compatibility with existing parser API
+
+### Version 0.58.0+ - Lexer Package Refactoring
+- Comprehensive 4-phase refactoring of the lexer subsystem:
+  - **Phase 1**: Unified state management with LexerContext
+  - **Phase 2**: Pure function helpers for testability
+  - **Phase 3**: Unified quote and expansion parsing
+  - **Phase 4**: Modular token recognition system
+- Created extensible architecture with backward compatibility
+- Added 136+ tests across all refactoring phases
+- Improved performance with priority-based recognition
 
 ### Version 0.50.0 - Visitor Pattern Default
 - Visitor executor now the primary execution model
@@ -834,8 +1085,11 @@ The architecture prioritizes clarity and correctness:
 ## Future Enhancements
 
 1. **Optimization Visitors**: Performance analysis and optimization passes
-2. **Security Visitors**: Static security analysis
-3. **Transformation Visitors**: Code modernization and refactoring
-4. **Enhanced Error Recovery**: Continue parsing after errors
+2. **Security Visitors**: Static security analysis (partially implemented in visitor CLI features)
+3. **Transformation Visitors**: Code modernization and refactoring (partially implemented in visitor CLI features)
+4. ~~**Enhanced Error Recovery**: Continue parsing after errors~~ ✅ **Completed in v0.85.0**
 5. **Incremental Parsing**: Reparse only changed portions
 6. **Parallel Execution**: Execute independent commands concurrently
+7. **Advanced AST Transformations**: Code optimization and refactoring passes
+8. **Language Server Protocol**: LSP support for shell script editing
+9. **Interactive Debugging**: Step-through debugging of shell scripts

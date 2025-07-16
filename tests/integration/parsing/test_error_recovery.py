@@ -143,9 +143,15 @@ class TestSyntaxErrorHandling:
         """Test handling of malformed function definitions."""
         result = ErrorTestHelper.run_psh_command('function invalid { echo test', expect_failure=True)
         
-        # Should fail with syntax error
+        # Should fail with syntax/parse error or specific function error
         assert not result['success']
-        assert 'syntax' in result['stderr'].lower() or 'parse error' in result['stderr'].lower()
+        stderr_lower = result['stderr'].lower()
+        assert ('syntax' in stderr_lower or 
+                'parse error' in stderr_lower or
+                'unclosed function' in stderr_lower or
+                'function body' in stderr_lower or
+                'expected tokentype.rbrace' in stderr_lower or  # New ParserContext format
+                'expected }' in stderr_lower)
     
     def test_invalid_arithmetic_expression(self):
         """Test handling of invalid arithmetic expressions."""

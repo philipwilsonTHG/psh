@@ -154,6 +154,20 @@ class MultiLineInputHandler:
                 "got end of input",
                 "Expected pattern",  # For incomplete case statements
                 "Expected test operand",
+                # New TokenType-based patterns from ParserContext
+                "Expected TokenType.DO",
+                "Expected TokenType.DONE", 
+                "Expected TokenType.FI",
+                "Expected TokenType.ELSE",
+                "Expected TokenType.THEN",
+                "Expected TokenType.ESAC",
+                "Expected TokenType.IN",
+                "Expected TokenType.ELIF",
+                "Expected TokenType.LBRACE",
+                "Expected TokenType.RBRACE",
+                "Expected TokenType.RPAREN",
+                "Expected TokenType.DOUBLE_RBRACKET",
+                "Expected TokenType.LPAREN",
                 # Old patterns for backward compatibility
                 "Expected DO",
                 "Expected DONE", 
