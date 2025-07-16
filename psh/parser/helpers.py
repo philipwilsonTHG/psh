@@ -144,15 +144,30 @@ class ErrorContext:
     column: Optional[int] = None
     source_line: Optional[str] = None
     
+    # Enhanced error information
+    suggestions: List[str] = field(default_factory=list)
+    error_code: str = ""
+    severity: str = "error"  # "info", "warning", "error", "fatal"
+    related_errors: List['ErrorContext'] = field(default_factory=list)
+    context_tokens: List[str] = field(default_factory=list)  # Surrounding tokens for context
+    
     def format_error(self) -> str:
         """Format a detailed error message."""
-        parts = [f"Parse error at position {self.position}"]
+        # Main error message
+        parts = []
+        
+        # Add error code if available
+        if self.error_code:
+            parts.append(f"[{self.error_code}] ")
+        
+        parts.append(f"Parse error at position {self.position}")
         
         if self.line is not None and self.column is not None:
             parts.append(f" (line {self.line}, column {self.column})")
         
         parts.append(": ")
         
+        # Error description
         if self.expected:
             if len(self.expected) == 1:
                 parts.append(f"Expected {self.expected[0]}")
@@ -171,7 +186,38 @@ class ErrorContext:
         if self.source_line and self.column is not None:
             error_msg += f"\n\n{self.source_line}\n{' ' * (self.column - 1)}^"
         
+        # Add suggestions if available
+        if self.suggestions:
+            error_msg += "\n\nSuggestions:"
+            for suggestion in self.suggestions:
+                error_msg += f"\n  • {suggestion}"
+        
+        # Add context tokens if available
+        if self.context_tokens:
+            error_msg += f"\n\nContext: {' '.join(self.context_tokens[-3:])} -> HERE <- {' '.join(self.context_tokens[:3])}"
+        
         return error_msg
+    
+    def add_suggestion(self, suggestion: str) -> None:
+        """Add a suggestion to the error context."""
+        if suggestion not in self.suggestions:
+            self.suggestions.append(suggestion)
+    
+    def add_context_tokens(self, tokens: List[str]) -> None:
+        """Add context tokens around the error position."""
+        self.context_tokens = tokens
+    
+    def set_error_template(self, template) -> None:
+        """Set error information from an ErrorTemplate."""
+        # Import here to avoid circular imports
+        from .errors import ErrorTemplate
+        if isinstance(template, ErrorTemplate):
+            self.error_code = template.code
+            if not self.message:
+                self.message = template.message
+            self.severity = template.severity.value
+            if template.suggestion:
+                self.add_suggestion(template.suggestion)
     
     def _token_description(self, token: Token) -> str:
         """Get human-readable token description."""

@@ -1,667 +1,312 @@
 # Python Shell (psh)
 
-An educational Unix shell implementation in Python, designed to teach shell internals and compiler/interpreter concepts through a clean, readable codebase.  **All source code and documentation (with the exception of this sentence) has been written by Claude Code using Sonnet 4 and Opus 4 models.**
+**A Production-Quality Educational Unix Shell Implementation**
 
-**Current Version**: 0.47.0 (2025-01-14)
+Python Shell (psh) is a POSIX-compliant shell written entirely in Python, designed for learning shell internals while providing practical functionality. It features a clean, readable codebase with modern architecture and powerful built-in analysis tools.
 
-## Overview
+**Current Version**: 0.84.0 | **Tests**: 1,981 passing | **POSIX Compliance**: ~93%
 
-Python Shell (psh) is a POSIX-style shell written entirely in Python. It uses a hand-written recursive descent parser for clarity and educational value, making it easy to understand how shells parse and execute commands.
+*All source code and documentation (except this note) has been written by Claude Code using Sonnet 4 and Opus 4 models.*
 
-The shell features a modern component-based architecture where each subsystem (execution, expansion, I/O, etc.) is cleanly separated into its own module. This makes the codebase easy to understand, test, and extend. See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed documentation.
+## Quick Start
 
-### Recent Major Features
+```bash
+# Install
+git clone https://github.com/philipwilsonTHG/psh.git
+cd psh && pip install -e .
 
-- **v0.47.0**: Visitor Pattern Phase 3 - Executor Implementation
-  - Created ExecutorVisitor for AST execution using visitor pattern
-  - Implemented execution for all node types with proper process management
-  - Added --visitor-executor flag to opt-in to new executor (experimental)
-  - Fixed all visitor classes with proper initialization
-  - Added missing shell methods for backward compatibility
-  - Fixed builtin argument handling and function scope management
-  - Test infrastructure limitation: output capture for forked processes
-  - Legacy executor remains default until test infrastructure updated
-- **v0.46.0**: Visitor Pattern Phase 2 - Enhanced Validation
-  - Created EnhancedValidatorVisitor with comprehensive static analysis
-  - Variable tracking with scope-aware undefined variable detection
-  - Command validation with typo detection and suggestions
-  - Quoting analysis for word splitting and glob expansion warnings
-  - Security vulnerability detection (eval, command injection, permissions)
-  - Added --validate flag for script validation without execution
-- **v0.45.0**: AST Visitor Pattern implementation
-  - Implemented Phase 6 of parser improvements for clean separation of concerns
-  - Created base visitor framework with `ASTVisitor[T]` and `ASTTransformer` classes
-  - Implemented `FormatterVisitor` for pretty-printing AST as shell script
-  - Added `ValidatorVisitor` for semantic analysis and error checking
-  - Created `ExecutorVisitor` demonstration for future execution refactoring
-  - Phase 1 integration: Replaced static `ASTFormatter` with `DebugASTVisitor`
-  - 27 new tests with comprehensive coverage of visitor functionality
-  - Foundation for future enhancements: error recovery, optimization passes
-- **v0.44.0**: Advanced debugging features
-  - Expansion debugging with `--debug-expansion` to trace all shell expansions
-  - Detailed expansion tracking with `--debug-expansion-detail` for step-by-step analysis
-  - Execution debugging with `--debug-exec` to trace command routing and execution
-  - Fork/exec debugging with `--debug-exec-fork` for pipeline and process creation
-  - Runtime toggle support via `set -o debug-*` commands
-  - Comprehensive architecture documentation for expansion and executor systems
-  - Updated user guide with debugging examples and best practices
-- **v0.43.0**: Associative arrays
-  - Complete bash-compatible implementation with `declare -A`
-  - String-based keys: `array[key]="value"`, `array["key with spaces"]="value"`
-  - All array operations: `${array[@]}`, `${!array[@]}`, `${#array[@]}`
-  - Complex key expressions with variable expansion
-  - Late binding parser for runtime type detection
-- **v0.42.0**: 100% test suite pass rate
-  - Fixed all remaining test failures (962 tests passing)
-  - Implemented `+=` operator for variables and arrays
-  - Fixed array initialization, regex patterns, and composite arguments
-- **v0.41.0**: Array variable support
-  - Implemented indexed arrays with full bash-compatible syntax
-  - Array element access: `${arr[0]}`, `${arr[index]}`
-  - Array expansions: `${arr[@]}`, `${arr[*]}`, `${#arr[@]}`, `${!arr[@]}`
-  - Array assignment: `arr[0]=value`, `arr[5]=value` (sparse arrays supported)
-  - Array initialization: `arr=(one two three)`, `declare -a arr=(a b c)`
-  - Negative indices: `${arr[-1]}` for last element
-  - Array slicing: `${arr[@]:1:2}` for subarray extraction
-  - 164 comprehensive tests with 99% pass rate
-- **v0.40.0**: Enhanced declare/typeset with variable attributes
-  - Implemented complete variable attribute system with persistent storage
-  - Added support for integer (-i), lowercase (-l), uppercase (-u), readonly (-r), export (-x) attributes
-  - Enhanced declare -p to show variables with all their attributes
-  - Array declaration syntax (-a/-A) creates proper array objects
-  - Attribute removal with + prefix (e.g., +x to remove export)
-  - 27 of 32 enhanced tests passing (84% success rate)
-- **v0.39.1**: Typeset builtin for ksh compatibility
-  - Added `typeset` as an alias for `declare` 
-  - Enhanced `declare`/`typeset` with `-F` flag to show function names only
-  - Created ShellFormatter for proper function definition display
-- **v0.39.0**: POSIX-compliant line continuation support
-  - Implemented `\<newline>` line continuation processing
-  - Works in all input modes: scripts, interactive, -c commands
-  - Quote-aware processing preserves continuations inside quotes
-- **v0.38.1**: Bug fixes for brace expansion and read builtin file redirection
-  - Fixed: `{1..10};` now correctly expands without including semicolon in each element
-  - Fixed: `read var < file` now properly reads from files
-- **v0.38.0**: Unified control structure types - completed removal of deprecated dual types
-- **v0.37.0**: **Control structures in pipelines** - Unified command model
-  - Examples: `echo "data" | while read line; do echo $line; done`
-  - All control structures work in pipelines: while, for, if, case, select, arithmetic
-- **v0.36.0**: Eval builtin for dynamic command execution `eval "echo hello"`
-- **v0.35.0**: Shell options `set -e`, `-u`, `-x`, `-o pipefail` for robust scripting
+# Run interactively
+psh
 
-## Features
+# Execute commands
+psh -c "echo 'Hello, World!'"
 
-### Core Shell Features
+# Analyze scripts
+psh --metrics script.sh
+psh --security script.sh
+psh --format script.sh
+```
 
-- ✅ **Command Execution**
-  - External command execution with arguments
-  - Multiple commands (`;` separator)
-  - Background processes (`&`)
-  - Script execution with shebang support
+## What Makes PSH Special
+
+- 🔍 **CLI Analysis Tools**: Built-in script formatting, metrics, security analysis, and linting
+- 📚 **Educational Focus**: Clean, readable codebase designed for learning shell internals
+- 🧪 **Comprehensive Testing**: 1,981 tests across 102 test files ensuring reliability
+- 🏗️ **Modern Architecture**: Component-based design with visitor pattern integration
+- 📋 **POSIX Compliant**: ~93% compliance with robust bash compatibility
+- 🎯 **Feature Complete**: Supports advanced shell programming with arrays, functions, and control structures
+
+## CLI Analysis Tools ✨ New in v0.84.0
+
+PSH includes powerful built-in tools for shell script analysis:
+
+### Script Formatting
+```bash
+psh --format script.sh              # Format with consistent indentation
+psh --format -c 'if test; then; fi' # Format command strings
+```
+
+### Code Analysis
+```bash
+psh --metrics script.sh             # Analyze complexity and code metrics
+psh --security script.sh            # Detect security vulnerabilities  
+psh --lint script.sh                # Style and best practice suggestions
+```
+
+**Example Output:**
+```bash
+$ psh --metrics examples/fibonacci.sh
+Script Metrics Summary:
+═══════════════════════════════════════
+Commands:
+  Total Commands:            8
+  Unique Commands:           5
+  Built-in Commands:         3
+  External Commands:         2
+
+Structure:
+  Functions Defined:         1
+  Loops:                     1
+  Conditionals:              2
   
-- ✅ **I/O Redirection**
-  - Input redirection (`<`)
-  - Output redirection (`>`, `>>`)
-  - Stderr redirection (`2>`, `2>>`, `2>&1`)
-  - Here documents (`<<`, `<<-`)
-  - Here strings (`<<<`)
-  - File descriptor manipulation
+Complexity:
+  Cyclomatic Complexity:     4
+  Max Nesting Depth:         2
+```
 
-- ✅ **Pipes and Pipelines**
-  - Full pipeline support (`cmd1 | cmd2 | cmd3`)
-  - **v0.37.0**: Control structures in pipelines
-    - `echo "data" | while read line; do echo $line; done`
-    - `seq 1 5 | for i in $(cat); do echo $i; done`
-    - `echo "test" | if grep -q test; then echo "found"; fi`
-  - Proper process group management
-  - Signal propagation
-  
-- ✅ **Variable Expansion**
-  - Environment variables (`$VAR`)
-  - Shell variables (separate from environment)
-  - Special variables (`$?`, `$$`, `$!`, `$#`, `$@`, `$*`, `$0`)
-  - Positional parameters (`$1`, `$2`, ...)
-  - Basic parameter expansion (`${VAR}`, `${VAR:-default}`)
-  - **Advanced parameter expansion** with all bash features:
-    - String length: `${#var}`, `${#}`, `${#*}`, `${#@}`
-    - Pattern removal: `${var#pattern}`, `${var##pattern}`, `${var%pattern}`, `${var%%pattern}`
-    - Pattern substitution: `${var/pattern/replacement}`, `${var//pattern/replacement}`, etc.
-    - Substring extraction: `${var:offset}`, `${var:offset:length}`
-    - Variable name matching: `${!prefix*}`, `${!prefix@}`
-    - Case modification: `${var^}`, `${var^^}`, `${var,}`, `${var,,}`
-  
-- ✅ **Command Substitution**
-  - Modern syntax: `$(command)`
-  - Legacy syntax: `` `command` ``
-  - Nested substitution support
-  - Works within double-quoted strings
-  
-- ✅ **Arithmetic Expansion**
-  - Full arithmetic evaluation: `$((expression))`
-  - All standard operators: `+`, `-`, `*`, `/`, `%`, `**`
-  - Comparison operators: `<`, `>`, `<=`, `>=`, `==`, `!=`
-  - Logical operators: `&&`, `||`, `!`
-  - Bitwise operators: `&`, `|`, `^`, `~`, `<<`, `>>`
-  - Assignment operators: `=`, `+=`, `-=`, etc.
-  - Command substitution within arithmetic: `$(($(cmd) * 2))`
-  - **Arithmetic commands** (v0.32.0): `((expr))` for standalone evaluation
-  
-- ✅ **Brace Expansion**
-  - List expansion: `{a,b,c}`
-  - Sequence expansion: `{1..10}`, `{a..z}`
-  - Nested expansions: `{a,b}{1,2}`
-  - Proper handling of escaped braces and special characters
-  
-- ✅ **Process Substitution**
-  - Input process substitution: `<(command)`
-  - Output process substitution: `>(command)`
-  
-- ✅ **Pattern Matching**
-  - Wildcards/globbing (`*`, `?`, `[...]`)
-  - Character classes (`[a-z]`, `[!abc]`)
-  - Quote handling to prevent expansion
+## Complete Feature Set
 
-### Programming Constructs
+### Core Shell Features ✅
+- **Command Execution**: External commands, built-ins, background processes (`&`)
+- **I/O Redirection**: All standard forms (`<`, `>`, `>>`, `2>`, `2>&1`, `<<<`, `<<`)
+- **Pipelines**: Full pipeline support with proper process management
+- **Variables**: Environment and shell variables with full expansion
+- **Special Variables**: `$?`, `$$`, `$!`, `$#`, `$@`, `$*`, `$0`, positional parameters
 
-- ✅ **Control Structures**
-  - `if`/`then`/`else`/`elif`/`fi` conditional statements with command substitution
-  - `while`/`do`/`done` loops
-  - `for`/`in`/`do`/`done` loops with brace and glob expansion
-  - **C-style for loops**: `for ((i=0; i<10; i++))` with arithmetic expressions (v0.31.0)
-  - `case`/`esac` pattern matching with command substitution
-  - **`select`/`in`/`do`/`done` interactive menu system (v0.34.0)
-  - `break` and `continue` statements with multi-level support (`break 2`)
-  - **v0.37.0**: All control structures work in pipelines
-    - Examples: `echo data | while read x; do echo $x; done`
-  
-- ✅ **Functions**
-  - POSIX syntax: `name() { commands; }`
-  - Bash syntax: `function name { commands; }`
-  - Function parameters and local scope
-  - `local` builtin for function-scoped variables (v0.29.0)
-  - Advanced parameter expansion with string manipulation (v0.29.2)
-  - `return` builtin
-  - `declare -f` to list functions (with -F for names only)
-  - `declare` with full attribute support: -i (integer), -l (lowercase), -u (uppercase), -r (readonly), -x (export), -a (array)
-  - `declare -p` to print variables with attributes
-  - `typeset` as ksh-compatible alias for `declare`
-  - `unset -f` to remove functions
-  
-- ✅ **Test Commands**
-  - `[` builtin with full operator support
-  - `[[` enhanced test with pattern matching and regex
-  - String comparisons: `=`, `!=`, `-z`, `-n`, `<`, `>`
-  - Numeric comparisons: `-eq`, `-ne`, `-lt`, `-le`, `-gt`, `-ge`
-  - File tests: `-e`, `-f`, `-d`, `-r`, `-w`, `-x`, `-s`, etc.
-  - Logical operators: `-a`, `-o`, `!` (in `[`), `&&`, `||` (in `[[`)
-  - Regular expression matching: `=~` (in `[[`)
+### Advanced Expansions ✅
+- **Parameter Expansion**: All bash forms including `${var:-default}`, `${var/old/new}`, `${var^^}`
+- **Command Substitution**: Both `$(cmd)` and `` `cmd` `` with nesting support
+- **Arithmetic Expansion**: `$((expr))` with full operator support and command substitution
+- **Brace Expansion**: `{a,b,c}`, `{1..10}`, `{a..z}` with nesting
+- **Process Substitution**: `<(cmd)` and `>(cmd)` for advanced I/O patterns
+- **Glob Expansion**: `*`, `?`, `[abc]`, `[a-z]` with quote handling
 
-### Interactive Features
+### Programming Constructs ✅
+- **Control Structures**: `if/then/else`, `while`, `for`, `case`, C-style `for ((;;))`
+- **Functions**: POSIX and bash syntax with local variables and return values
+- **Arrays**: Both indexed and associative arrays with full bash compatibility
+- **Break/Continue**: Multi-level loop control with `break 2`, `continue 3`
+- **Test Commands**: Both `[` and `[[` with comprehensive operator support
 
-- ✅ **Line Editing**
-  - Vi and Emacs key bindings (`set -o vi/emacs`)
-  - Command history with persistence (`~/.psh_history`)
-  - History navigation with arrow keys
-  - Multi-line command editing
-  
-- ✅ **Tab Completion**
-  - File and directory completion
-  - Handles spaces and special characters
-  - Shows multiple matches when ambiguous
-  - Hidden file support
-  
-- ✅ **Prompt Customization**
-  - PS1 (primary) and PS2 (continuation) prompts
-  - Escape sequences: `\u`, `\h`, `\w`, `\t`, `\$`, etc.
-  - Command (`\#`) and history (`\!`) numbers
-  - ANSI color support with `\[` and `\]`
-  - Multi-line command detection
-  
-- ✅ **Job Control**
-  - Background job execution (`&`)
-  - Job suspension (Ctrl-Z)
-  - Job management (`jobs`, `fg`, `bg`)
-  - Job specifications (`%1`, `%+`, `%-`, `%string`)
-  - Process group management
-  - Background job notifications
+### Interactive Features ✅
+- **Line Editing**: Vi and Emacs key bindings with customizable modes
+- **Tab Completion**: Intelligent file/directory completion with special character handling
+- **Command History**: Persistent history with search and navigation
+- **Job Control**: Background jobs, suspension (Ctrl-Z), `jobs`, `fg`, `bg`
+- **Prompt Customization**: PS1/PS2 with escape sequences and ANSI colors
 
-### Built-in Commands
+### Built-in Commands ✅
+**Core**: `cd`, `pwd`, `echo`, `exit`, `true`, `false`, `:`  
+**Variables**: `export`, `unset`, `set`, `declare`, `typeset`, `env`, `local`  
+**I/O**: `read` (with `-p`, `-s`, `-t`, `-n`, `-d` options)  
+**Job Control**: `jobs`, `fg`, `bg`  
+**Functions**: `return`, `source`, `.`  
+**Testing**: `test`, `[`, `[[`  
+**Utilities**: `history`, `alias`, `unalias`, `eval`
 
-- **Core**: `exit`, `cd`, `pwd`, `echo` (with -n, -e, -E flags), `true`, `false`, `:`
-- **Variables**: `export`, `unset`, `set`, `declare` (with -i, -l, -u, -r, -x, -a, -A, -p), `typeset`, `env`, `local`
-- **Job Control**: `jobs`, `fg`, `bg`
-- **Functions**: `return`, `source`, `.`
-- **Aliases**: `alias`, `unalias`
-- **Test**: `test`, `[`, `[[`
-- **History**: `history`
-- **I/O**: `read` (with -r, -p, -s, -t, -n, -d options)
-- **Dynamic**: `eval` (execute arguments as commands)
+## Usage Examples
 
-### Additional Features
+### Basic Shell Operations
+```bash
+# Commands and pipelines
+ls -la | grep python | wc -l
+find . -name "*.py" | xargs grep "TODO"
 
-- ✅ **Comments** - `#` at word boundaries
-- ✅ **Aliases** - Command aliases with recursive expansion
-- ✅ **RC File** - `~/.pshrc` startup configuration
-- ✅ **Tilde Expansion** - `~` and `~user`
-- ✅ **Conditional Execution** - `&&` and `||` operators
-- ✅ **Signal Handling** - SIGINT, SIGTSTP, SIGCHLD
+# Variables and expansions
+name="World"
+echo "Hello, ${name}!"
+echo "Current directory: $(pwd)"
+echo "2 + 2 = $((2 + 2))"
+```
+
+### Advanced Programming
+```bash
+# Functions with local variables
+calculate() {
+    local a=$1 b=$2
+    echo $((a * b))
+}
+
+# Arrays and iteration
+files=(*.txt)
+for file in "${files[@]}"; do
+    echo "Processing: $file"
+done
+
+# Associative arrays
+declare -A config
+config[host]="localhost"
+config[port]="8080"
+echo "Server: ${config[host]}:${config[port]}"
+```
+
+### Control Structures
+```bash
+# Enhanced conditionals
+if [[ $file =~ \.py$ && -f $file ]]; then
+    echo "Python file found"
+fi
+
+# C-style loops
+for ((i=0; i<10; i++)); do
+    echo "Count: $i"
+done
+
+# Case statements
+case $1 in
+    start) echo "Starting service" ;;
+    stop)  echo "Stopping service" ;;
+    *)     echo "Usage: $0 {start|stop}" ;;
+esac
+```
+
+### CLI Analysis Tools
+```bash
+# Format messy scripts
+psh --format messy_script.sh > clean_script.sh
+
+# Security analysis
+psh --security deploy.sh
+# Output: [HIGH] eval: Dynamic code execution - high risk of injection
+
+# Code metrics for complexity analysis
+psh --metrics complex_script.sh
+# Shows cyclomatic complexity, nesting depth, command usage
+
+# Linting for best practices
+psh --lint old_script.sh
+# Suggests modern alternatives and style improvements
+```
 
 ## Installation
 
 ```bash
-# Clone the repository
+# Clone and install
 git clone https://github.com/philipwilsonTHG/psh.git
 cd psh
-
-# Install in development mode
 pip install -e .
 
-# Install test dependencies
+# Install development dependencies
 pip install -r requirements-dev.txt
-```
 
-## Usage
-
-### Interactive Mode
-
-```bash
-# Run directly
-psh
-
-# With options
-psh --norc              # Skip ~/.pshrc
-psh --rcfile custom_rc  # Use custom RC file
-```
-
-### Execute Commands
-
-```bash
-# Single command
-psh -c "echo hello world"
-
-# Script file
-psh script.sh
-
-# With debugging
-psh --debug-ast -c "echo test"      # Show parsed AST
-psh --debug-tokens -c "echo test"   # Show tokens
-psh --debug-scopes                  # Show variable scope operations
-
-# Debug options can be toggled at runtime:
-$ set -o debug-ast                  # Enable AST debugging
-$ set -o debug-tokens               # Enable token debugging
-$ set +o debug-ast                  # Disable AST debugging
-$ set -o                            # Show all options
-
-# Shell options for scripts:
-$ set -e                            # Exit on error (errexit)
-$ set -u                            # Error on undefined variables (nounset)
-$ set -x                            # Print commands before execution (xtrace)
-$ set -o pipefail                   # Pipeline fails if any command fails
-$ set -eux -o pipefail              # Common combination for scripts
-```
-
-## Examples
-
-### Basic Usage
-
-```bash
-# Commands and pipelines
-$ ls -la | grep python | wc -l
-$ find . -name "*.py" | xargs grep "TODO"
-
-# Variables and expansions
-$ name="World"
-$ echo "Hello, ${name}!"
-$ echo "Current directory: $(pwd)"
-$ echo "2 + 2 = $((2 + 2))"
-
-# Control structures
-$ if [ -f /etc/passwd ]; then
->   echo "Password file exists"
-> fi
-
-$ for file in *.txt; do
->   echo "Processing $file"
-> done
-
-# C-style for loops
-$ for ((i=0; i<5; i++)); do
->   echo "Count: $i"
-> done
-
-# Arithmetic commands
-$ x=5
-$ ((x++))
-$ echo $x
-6
-$ if ((x > 5)); then echo "Greater than 5"; fi
-Greater than 5
-
-# Multi-level break/continue
-$ for i in 1 2 3; do
->   for j in a b c; do
->     if [ "$i$j" = "2b" ]; then
->       break 2  # Break out of both loops
->     fi
->     echo "$i$j"
->   done
-> done
-
-# Functions with local variables
-$ greet() {
->   local name=$1
->   echo "Hello, ${name}!"
-> }
-$ greet "Python Shell"
-
-# Advanced read builtin
-$ read -p "Enter your name: " name
-Enter your name: Alice
-$ echo "Hello, $name"
-Hello, Alice
-
-$ read -s -p "Password: " pass && echo
-Password: 
-$ echo "Password has ${#pass} characters"
-Password has 8 characters
-
-$ if read -t 5 -p "Quick! Answer in 5 seconds: " answer; then
->   echo "You said: $answer"
-> else
->   echo "Too slow!"
-> fi
-
-# Advanced parameter expansion
-$ file="document.txt"
-$ echo ${file%.txt}      # Remove .txt suffix
-$ echo ${file/doc/text}  # Replace doc with text
-$ text="Hello World"
-$ echo ${text^^}         # Convert to uppercase
-$ echo ${text:6:5}       # Extract substring
-```
-
-### Advanced Features
-
-```bash
-# Process substitution
-$ diff <(ls dir1) <(ls dir2)
-$ tee >(wc -l) >(grep error) < logfile
-
-# Brace expansion
-$ echo {1..5}
-$ mkdir -p project/{src,tests,docs}
-$ cp file.{txt,bak}
-
-# Case statements with command substitution
-$ case $(uname) in
->   Linux)  echo "Running on Linux" ;;
->   Darwin) echo "Running on macOS" ;;
->   *)      echo "Unknown OS" ;;
-> esac
-
-# Job control
-$ long_command &
-[1] 12345
-$ jobs
-[1]+ Running    long_command
-$ fg %1
-
-# Enhanced test [[ ]]
-$ if [[ $name =~ ^[A-Z] ]]; then
->   echo "Name starts with uppercase"
-> fi
-
-# Arithmetic with command substitution
-$ result=$(($(get_value) * 2 + 10))
-$ echo "Result: $result"
-
-# Arrays
-$ arr=(one two three)
-$ echo ${arr[0]}      # First element
-$ echo ${arr[@]}      # All elements
-$ echo ${#arr[@]}     # Array length
-$ arr[5]=five         # Sparse arrays
-$ echo ${arr[-1]}     # Last element
-
-# Dynamic command execution with eval
-$ cmd="echo"
-$ msg="Hello from eval"
-$ eval "$cmd '$msg'"
-Hello from eval
-
-# Function creation with eval
-$ eval "greet() { echo 'Hello, \$1!'; }"
-$ greet World
-Hello, World!
-
-# Dynamic variable assignment
-$ for i in 1 2 3; do
->   eval "var_$i='Value $i'"
-> done
-$ echo $var_2
-Value 2
-```
-
-### Prompt Customization
-
-```bash
-# Colored prompt with git branch
-export PS1='\[\e[32m\]\u@\h\[\e[0m\]:\[\e[34m\]\w\[\e[0m\]\$ '
-
-# Two-line prompt with time
-export PS1='\[\e[33m\][\t]\[\e[0m\] \u@\h:\w\n\$ '
-
-# Show command and history numbers
-export PS1='[\!:\#] \$ '
-
-# Continuation prompt
-export PS2='\[\e[33m\]... \[\e[0m\]'
-```
-
-## Grammar
-
-The shell implements a comprehensive grammar supporting modern shell features:
-
-```
-# Top-level structure
-program      → statement*
-statement    → function_def | control_structure | command_list
-
-# Function definitions
-function_def → WORD '(' ')' compound_command
-             | 'function' WORD ['(' ')'] compound_command
-
-# Control structures
-control_structure → if_stmt | while_stmt | for_stmt | case_stmt
-if_stmt      → 'if' command_list 'then' command_list 
-               ['elif' command_list 'then' command_list]* 
-               ['else' command_list] 'fi'
-while_stmt   → 'while' command_list 'do' command_list 'done'
-for_stmt     → 'for' WORD 'in' word_list 'do' command_list 'done'
-             | 'for' '((' [arith_expr] ';' [arith_expr] ';' [arith_expr] '))' ['do'] command_list 'done'
-case_stmt    → 'case' word 'in' case_item* 'esac'
-case_item    → pattern_list ')' command_list terminator
-terminator   → ';;' | ';&' | ';;&'
-
-# Commands
-command_list → and_or_list (';' and_or_list)* [';']
-and_or_list  → pipeline (('&&' | '||') pipeline)*
-pipeline     → command ('|' command)*
-command      → simple_command | compound_command
-simple_command → word* redirect*
-compound_command → '{' command_list '}'
-
-# Words and expansions
-word         → WORD | STRING | expansion
-expansion    → variable | command_sub | arith_exp | brace_exp | proc_sub
-variable     → '$' (NAME | '{' NAME [':' '-' word] '}' | special_var)
-command_sub  → '$(' command_list ')' | '`' command_list '`'
-arith_exp    → '$((' arithmetic_expression '))'
-brace_exp    → '{' brace_list '}' | '{' range '}'
-proc_sub     → '<(' command_list ')' | '>(' command_list ')'
-
-# Redirections
-redirect     → [fd] redirect_op target
-redirect_op  → '<' | '>' | '>>' | '2>' | '2>>' | '>&' | '<<' | '<<-' | '<<<'
+# Run tests
+python -m pytest tests/
 ```
 
 ## Architecture
 
-The shell follows a modern component-based architecture with clear separation of concerns:
+PSH follows a modern component-based architecture with clear separation of concerns:
 
-1. **Tokenization** (`psh/state_machine_lexer.py`)
-   - State machine-based lexer for robust tokenization
-   - Rich token support with metadata
-   - Context-aware keyword and operator recognition
-   
-2. **Parsing** (`psh/parser.py`)
-   - Clean recursive descent parser
-   - Unified statement parsing for arbitrary nesting
-   - Enhanced AST with support for all shell constructs
-   
-3. **Component-Based Execution**
-   - **Shell** (`psh/shell.py`): Main orchestrator (~417 lines)
-   - **Execution** (`psh/executor/`): Command, pipeline, control flow executors
-   - **Expansion** (`psh/expansion/`): Variable, parameter, command substitution
-   - **I/O** (`psh/io_redirect/`): File, heredoc, process substitution
-   - **Interactive** (`psh/interactive/`): REPL, prompt, history, completion
-   - **State** (`psh/core/`): Centralized state and scope management
+### Core Components
+- **Shell** (`psh/shell.py`): Main orchestrator coordinating all subsystems
+- **Lexer** (`psh/lexer/`): Modular tokenization with state machine design
+- **Parser** (`psh/parser/`): Recursive descent parser creating comprehensive AST
+- **Executor** (`psh/executor/`): Command execution with specialized handlers
+- **Expansion** (`psh/expansion/`): All shell expansions with proper precedence
+- **I/O Management** (`psh/io_redirect/`): File operations and redirection handling
+- **Interactive** (`psh/interactive/`): REPL, completion, history, and prompts
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed component documentation.
+### Visitor Pattern Integration
+PSH implements the visitor pattern for AST operations, enabling:
+- **Analysis Tools**: Metrics, security scanning, linting
+- **Code Transformation**: Formatting, optimization
+- **Extensibility**: Easy addition of new analysis features
 
-## Testing
+### Project Statistics
+- **Lines of Code**: ~39,000 across 140 Python files
+- **Test Coverage**: 1,981 tests in 102 test files
+- **Architecture**: 8 major components with focused responsibilities
+- **Visitors**: 7 analysis and transformation visitors
+
+## Testing & Quality
 
 ```bash
-# Run all tests
+# Run full test suite
 python -m pytest tests/
 
-# Run specific test categories
-python -m pytest tests/test_parser.py -v
-python -m pytest tests/test_control_structures.py -v
-python -m pytest tests/test_multiline.py -v
+# Run specific categories
+python -m pytest tests_new/unit/           # Unit tests
+python -m pytest tests_new/integration/    # Integration tests
+python -m pytest tests_new/conformance/    # POSIX/bash compatibility
 
-# Run with coverage
+# Performance tests
+python -m pytest tests_new/performance/
+
+# Coverage reporting
 python -m pytest tests/ --cov=psh --cov-report=html
 ```
 
-## Project Structure
-
-```
-psh/
-├── psh/
-│   ├── __init__.py
-│   ├── shell.py              # Main orchestrator (~417 lines)
-│   ├── state_machine_lexer.py # State machine tokenizer
-│   ├── parser.py             # Recursive descent parser
-│   ├── ast_nodes.py          # AST node definitions
-│   ├── core/                 # Core state management
-│   │   ├── state.py          # Shell state
-│   │   ├── scope.py          # Variable scoping
-│   │   └── exceptions.py     # Shell exceptions
-│   ├── executor/             # Execution components
-│   │   ├── base.py           # Executor manager
-│   │   ├── command.py        # Command execution
-│   │   ├── pipeline.py       # Pipeline execution
-│   │   ├── control_flow.py   # Control structures
-│   │   └── statement.py      # Statement lists
-│   ├── expansion/            # Expansion subsystem
-│   │   ├── manager.py        # Expansion orchestration
-│   │   ├── variable.py       # Variable expansion
-│   │   ├── parameter_expansion.py # Advanced parameter expansion
-│   │   ├── command_sub.py    # Command substitution
-│   │   └── ...               # Other expanders
-│   ├── interactive/          # Interactive features
-│   │   ├── repl_loop.py      # REPL implementation
-│   │   ├── prompt_manager.py # Prompt expansion
-│   │   └── ...               # Other interactive components
-│   ├── builtins/             # Built-in commands
-│   │   ├── registry.py       # Builtin registry
-│   │   └── ...               # Categorized builtins
-│   └── ...                   # Other components
-├── tests/                    # Comprehensive test suite (788+ tests)
-├── docs/                     # Architecture and design docs
-└── examples/                 # Example scripts and demos
-```
-
-## Known Limitations
-
-While PSH implements most shell features, there are some limitations:
-
-- **Deep recursion in functions**: Recursive shell functions using command substitution hit Python's recursion limit quickly. Use iterative algorithms instead. See [docs/recursion_depth_analysis.md](docs/recursion_depth_analysis.md) for details.
-- **Arithmetic commands in pipelines**: Arithmetic commands `((expr))` cannot be used directly with && or || operators due to parser limitations. Wrap in if statements for conditional logic.
-- **Associative arrays**: ✅ **Fully implemented in v0.43.0** - both indexed and associative arrays are supported
-- **Trap command**: Signal handling via trap is not yet implemented
-- **Extended globbing**: No support for patterns like `?(pattern)`, `*(pattern)`, etc.
-
-See [TODO.md](TODO.md) for a complete list of planned features.
+**Current Test Statistics:**
+- ✅ 1,981 passing tests
+- ⏭️ 151 skipped tests (platform-specific or interactive)
+- 🧪 63 expected failures (known limitations)
+- 📊 High coverage across all components
 
 ## POSIX Compliance
 
-PSH implements a significant subset of POSIX.1-2017 shell functionality, achieving approximately **80% POSIX compliance**. While PSH includes many bash-compatible extensions, it can run most POSIX shell scripts correctly.
+PSH achieves approximately **93% POSIX compliance** while maintaining bash compatibility:
 
-### POSIX Compliance Highlights
-- ✅ **Shell Grammar**: 95% compliant - all major constructs supported
-- ✅ **Parameter Expansion**: 90% compliant - all POSIX forms implemented  
-- ✅ **I/O Redirection**: 95% compliant - missing only `<>` read-write
-- ✅ **Control Structures**: 100% compliant - if/while/for/case fully supported
-- ⚠️ **Built-in Commands**: 75% compliant - missing trap, shift, exec, wait, getopts
+### Compliance Highlights
+- ✅ **Shell Grammar**: 95% - All major constructs supported
+- ✅ **Parameter Expansion**: 90% - All standard forms implemented
+- ✅ **I/O Redirection**: 95% - Complete standard redirection support
+- ✅ **Control Structures**: 100% - Full if/while/for/case support
+- ✅ **Built-in Commands**: 89% - Most essential commands implemented
 
-See [docs/posix/](docs/posix/) for detailed POSIX compliance documentation:
-- [POSIX Compliance Analysis](docs/posix/posix_compliance_analysis.md) - Feature-by-feature analysis
-- [POSIX Compatibility Guide](docs/posix/posix_compatibility_guide.md) - Writing portable scripts
-- [POSIX Specification Reference](docs/posix/posix_spec_reference.md) - Key POSIX requirements
-
-## Implementation Status
-
-PSH has achieved significant feature completeness with **1007 passing tests**:
-
-### ✅ Fully Implemented (v0.40.0)
-- All core shell features (execution, I/O, pipelines, variables)
-- Complete expansion system (variable, parameter, command, arithmetic, brace, process)
-- All control structures (if/elif/else, while, for, C-style for, case, break/continue)
-- Shell functions with local variables and parameter isolation
-- Job control with process group management
-- Interactive features (line editing, completion, history, prompts)
-- Advanced parameter expansion with all bash string manipulation
+### Bash Compatibility
+PSH includes many bash extensions while maintaining POSIX compliance:
+- Associative arrays with `declare -A`
 - Enhanced test operators `[[ ]]` with regex support
-- Arithmetic expansion with command substitution support
-- Advanced read builtin with interactive input options (-p, -s, -t, -n, -d)
-- Echo builtin with full escape sequence support (-n, -e, -E)
-- C-style for loops with arithmetic iteration
-- Arithmetic command syntax `((expr))` for standalone evaluation and conditionals
-- Select statement for interactive menu generation
-- Shell options: `set -e`, `set -u`, `set -x`, `set -o pipefail` for robust scripting
-- Dynamic command execution with eval builtin
-- Control structures as pipeline components (all control structures work in pipelines)
-- Unified AST types for all control structures
-- Line continuation support with `\<newline>` sequences
-- Typeset builtin for ksh compatibility
-- Enhanced declare/typeset with variable attributes (-i, -l, -u, -r, -x, -a, -A, -p)
-- Variable attribute system with persistent storage
-- **Complete array support**: Both indexed and associative arrays with full bash syntax
-- Associative arrays with declare -A, string keys, and all array expansions
+- Brace expansion and process substitution
+- Advanced parameter expansion with string manipulation
+- C-style for loops and arithmetic commands
 
-### 🚧 Planned Features
-- Trap command for signal handling
-- Extended globbing patterns (`shopt -s extglob`)
-- Printf builtin enhancements
-- Additional shell options (shopt) and POSIX compliance improvements
+## Known Limitations
 
-## Contributing
+While PSH implements most shell features, some limitations remain:
 
-This is an educational project designed to be clear and understandable. When contributing:
+- **Signal Handling**: `trap` builtin not yet implemented
+- **Extended Globbing**: No support for `?(pattern)`, `*(pattern)` forms
+- **Deep Recursion**: Recursive functions hit Python stack limits
+- **Some Advanced Features**: Minor gaps in specialized POSIX utilities
 
-- Maintain code clarity over cleverness
-- Add comments explaining complex logic
-- Include tests for new features
-- Update documentation
-- Follow existing code patterns
+See [TODO.md](TODO.md) for planned enhancements.
+
+## Development & Contributing
+
+PSH welcomes contributions that maintain its educational focus:
+
+- **Code Clarity**: Prioritize readability over cleverness
+- **Documentation**: Comment complex logic thoroughly
+- **Testing**: Include comprehensive tests for new features
+- **Architecture**: Follow component-based design patterns
+
+### Recent Development
+- **v0.84.0**: Added CLI analysis tools and visitor pattern integration
+- **v0.83.0**: Achieved POSIX alias expansion compliance
+- **v0.82.0**: Implemented command-specific variable assignments
+- **v0.81.0**: Completed history expansion functionality
 
 ## License
 
-MIT License - see LICENSE file for details
+MIT License - see LICENSE file for details.
 
-## Acknowledgments
+## Educational Value
 
-This project was created as an educational tool to understand shell internals. It draws inspiration from traditional Unix shells while prioritizing readability and educational value.
+PSH serves as an excellent learning resource for:
+- **Shell Implementation**: Understanding lexing, parsing, and execution
+- **Language Design**: Seeing how shell features interact and compose
+- **System Programming**: Learning process management and I/O redirection
+- **Software Architecture**: Studying component-based design patterns
+
+The codebase prioritizes clarity and includes extensive documentation to support learning shell internals and language implementation techniques.

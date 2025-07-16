@@ -26,6 +26,7 @@ from ..ast_nodes import (
 
 from .base import BaseParser
 from .helpers import TokenGroups, ParseError, ErrorContext
+from .error_collector import ErrorCollector, MultiErrorParseResult, ErrorRecoveryStrategy
 from .statements import StatementParser
 from .commands import CommandParser
 from .control_structures import ControlStructureParser
@@ -40,7 +41,8 @@ from .utils import ParserUtils
 class Parser(BaseParser):
     """Main parser class that orchestrates parsing by delegating to specialized parsers."""
     
-    def __init__(self, tokens: List[Token], use_composite_processor: bool = False, source_text: Optional[str] = None):
+    def __init__(self, tokens: List[Token], use_composite_processor: bool = False, 
+                 source_text: Optional[str] = None, collect_errors: bool = False):
         # Optionally process tokens for composites
         if use_composite_processor:
             processor = CompositeTokenProcessor()
@@ -50,6 +52,9 @@ class Parser(BaseParser):
         # Store source text for error messages
         self.source_text = source_text
         self.source_lines = source_text.splitlines() if source_text else None
+        
+        # Error collection support
+        self.error_collector = ErrorCollector() if collect_errors else None
         
         # Initialize specialized parsers
         self.statements = StatementParser(self)
@@ -96,6 +101,88 @@ class Parser(BaseParser):
             self.skip_separators()
         
         return self._simplify_result(top_level)
+    
+    def parse_with_error_collection(self) -> MultiErrorParseResult:
+        """Parse input collecting multiple errors instead of stopping on first error.
+        
+        Returns:
+            MultiErrorParseResult containing AST and any errors encountered
+        """
+        if not self.error_collector:
+            # Enable error collection if not already enabled
+            self.error_collector = ErrorCollector()
+        
+        ast = None
+        try:
+            ast = self.parse()
+        except ParseError as e:
+            self.error_collector.add_error(e)
+            # Try to recover and continue parsing
+            if self.error_collector.should_continue():
+                ast = self._parse_with_recovery()
+        
+        return MultiErrorParseResult(ast, self.error_collector.errors)
+    
+    def _parse_with_recovery(self) -> Optional[Union[CommandList, TopLevel]]:
+        """Continue parsing after error with recovery strategies."""
+        top_level = TopLevel()
+        
+        while not self.at_end() and self.error_collector.should_continue():
+            try:
+                # Try to find next statement
+                if not ErrorRecoveryStrategy.find_next_statement(self):
+                    break
+                
+                # Try to parse next item
+                item = self._parse_top_level_item_with_recovery()
+                if item:
+                    top_level.items.append(item)
+                    
+            except ParseError as e:
+                self.error_collector.add_error(e)
+                # Skip to next recovery point
+                ErrorRecoveryStrategy.skip_to_statement_end(self)
+                
+            self.skip_separators()
+        
+        return self._simplify_result(top_level) if top_level.items else None
+    
+    def _parse_top_level_item_with_recovery(self):
+        """Parse top level item with error recovery."""
+        try:
+            return self._parse_top_level_item()
+        except ParseError as e:
+            # Add error but try to recover
+            self.error_collector.add_error(e)
+            
+            # Try different recovery strategies
+            if self._try_statement_recovery():
+                return self._parse_top_level_item()
+            else:
+                # Skip this item and continue
+                ErrorRecoveryStrategy.skip_to_statement_end(self)
+                return None
+    
+    def _try_statement_recovery(self) -> bool:
+        """Try to recover at statement level.
+        
+        Returns:
+            True if recovery successful, False otherwise
+        """
+        # Look for common missing tokens and try to insert them
+        current = self.peek()
+        
+        # Try to recover from missing semicolon
+        if current.type in {TokenType.THEN, TokenType.DO}:
+            # Assume missing semicolon, continue parsing
+            return True
+        
+        # Try to recover from missing closing tokens
+        if current.type in {TokenType.FI, TokenType.DONE, TokenType.ESAC}:
+            # Assume we're at the end of a block, continue
+            return True
+        
+        return False
     
     def parse_with_heredocs(self, heredoc_map: dict) -> Union[CommandList, TopLevel]:
         """Parse tokens with heredoc content."""
