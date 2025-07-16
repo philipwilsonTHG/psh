@@ -75,6 +75,10 @@ class ShellState:
             'emacs': False,        # -o emacs: emacs key bindings (context-dependent)
             'vi': False,           # -o vi: vi key bindings (off for set -o display)
             'histexpand': True,    # -o histexpand: enable history expansion (default on)
+            # Parser configuration options
+            'posix': False,        # -o posix: strict POSIX mode
+            'collect_errors': False,  # -o collect_errors: collect multiple parse errors
+            'debug-parser': False, # -o debug-parser: enable parser tracing
         }
         
         # Enable debug mode on scope manager if debug-scopes is set
@@ -122,6 +126,9 @@ class ShellState:
         # Initialize getopts variables
         self.scope_manager.set_variable('OPTIND', '1')
         self.scope_manager.set_variable('OPTERR', '1')
+        
+        # PSH-specific variables
+        self.scope_manager.set_variable('PSH_AST_FORMAT', 'tree')  # Default AST format
         
         # Trap handlers: signal -> command string
         # Maps signal names (e.g., 'INT', 'TERM', 'EXIT') to trap command strings

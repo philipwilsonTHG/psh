@@ -24,6 +24,9 @@ from . import signal_handling
 from . import directory_stack
 from . import disown
 from . import type_builtin
+from . import parse_tree
+from . import debug_control
+from . import parser_control
 
 # Re-export for convenience
 __all__ = ['registry', 'builtin', 'Builtin']

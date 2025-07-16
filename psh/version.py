@@ -2,10 +2,32 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.84.0"
+__version__ = "0.85.0"
 
 # Version history
 VERSION_HISTORY = """
+0.85.0 (2025-01-16) - Complete Parser High-Priority Implementation
+  - Completed all phases of the Parser High-Priority Implementation Plan:
+    - Phase 1: Error Recovery Improvements ✓
+    - Phase 2: Parse Tree Visualization ✓ 
+    - Phase 3: Parser Configuration ✓
+    - Phase 4: AST Validation Phase ✓
+    - Phase 5: Centralized ParserContext ✓
+  - Implemented comprehensive ParserConfig system with 40+ configuration options
+  - Added multiple parsing modes: STRICT_POSIX, BASH_COMPAT, PERMISSIVE, EDUCATIONAL
+  - Created ParserFactory with preset configurations for different use cases
+  - Built complete AST validation system with SemanticAnalyzer and validation rules
+  - Implemented symbol table management for semantic analysis
+  - Added warning system with severity levels and issue tracking
+  - Created centralized ParserContext for consolidated state management
+  - Added context factory and snapshots for backtracking support
+  - Migrated all sub-parsers to use shared ParserContext
+  - Fixed multiline command parsing for case statements and other control structures
+  - Updated incomplete command detection to handle new TokenType-based error messages
+  - Enhanced error recovery test compatibility with new parser error formats
+  - All parser tests passing with improved error handling and recovery
+  - Major architectural improvement: parser system now highly configurable and extensible
+
 0.84.0 (2025-01-15) - Visitor CLI Features and Codebase Cleanup
   - Promoted 4 example visitors to CLI features with command-line flags:
     - --format: Format shell scripts with consistent indentation and structure

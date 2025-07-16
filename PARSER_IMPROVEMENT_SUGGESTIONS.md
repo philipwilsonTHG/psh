@@ -415,33 +415,259 @@ class ExtendedForLoopPlugin(ParserPlugin):
         parser.add_production('for_loop', self.parse_extended_for)
 ```
 
+## 11. Architectural Patterns from Lexer Success
+
+Learning from the successful lexer refactoring phases, we can apply similar patterns to the parser:
+
+### 11.1 Centralized Parser Context
+Consolidate all parser state into a single context object for cleaner interfaces:
+
+```python
+@dataclass
+class ParserContext:
+    """Centralized parser state (inspired by LexerContext)."""
+    tokens: TokenStream
+    config: ParserConfig
+    errors: List[ParseError] = field(default_factory=list)
+    heredoc_trackers: Dict[str, HeredocInfo] = field(default_factory=dict)
+    nesting_depth: int = 0
+    scope_stack: List[str] = field(default_factory=list)
+    parse_stack: List[str] = field(default_factory=list)
+    
+    def enter_rule(self, rule_name: str):
+        """Hook for profiling/tracing."""
+        self.parse_stack.append(rule_name)
+        if self.config.trace_hooks:
+            self.config.trace_hooks.on_enter(rule_name, self)
+    
+    def exit_rule(self, rule_name: str):
+        """Hook for profiling/tracing."""
+        self.parse_stack.pop()
+        if self.config.trace_hooks:
+            self.config.trace_hooks.on_exit(rule_name, self)
+```
+
+### 11.2 Self-Registering Sub-parsers
+Replace hard-coded parser dispatch with automatic registration:
+
+```python
+# Parser registration decorator
+_parser_registry = {}
+
+def register_parser(name: str):
+    """Decorator for self-registering parser modules."""
+    def decorator(cls):
+        _parser_registry[name] = cls
+        return cls
+    return decorator
+
+# In each sub-parser module:
+@register_parser('control_structures')
+class ControlStructureParser:
+    """Self-registering parser module."""
+    def __init__(self, ctx: ParserContext):
+        self.ctx = ctx
+    
+    def can_parse(self) -> bool:
+        """Check if this parser can handle current tokens."""
+        return self.ctx.peek().type in {IF, WHILE, FOR, CASE}
+    
+    def parse(self) -> ASTNode:
+        """Parse control structure."""
+        # Implementation...
+
+# In main parser:
+class Parser:
+    def __init__(self, context: ParserContext):
+        self.ctx = context
+        self.sub_parsers = {
+            name: cls(self.ctx) 
+            for name, cls in _parser_registry.items()
+        }
+```
+
+### 11.3 Streaming Parse API for REPL
+Enable incremental parsing for interactive use:
+
+```python
+class StreamingParser(Parser):
+    """Parser with streaming/generator API."""
+    
+    def parse_stream(self) -> Generator[ASTNode, None, None]:
+        """Yield AST nodes as they're parsed."""
+        while not self.ctx.at_end():
+            # Skip empty lines
+            self.ctx.skip_separators()
+            
+            # Try to parse one complete statement
+            if node := self.parse_top_level_item():
+                yield node
+                
+                # Check if we should continue
+                if self.ctx.config.stop_at_first:
+                    break
+    
+    def parse_interactive_line(self, line: str) -> Optional[ASTNode]:
+        """Parse single line for REPL, handling incomplete input."""
+        tokens = tokenize(line)
+        self.ctx.extend_tokens(tokens)
+        
+        try:
+            return next(self.parse_stream())
+        except IncompleteInputError:
+            # Need more input (e.g., unclosed quote)
+            return None
+```
+
+### 11.4 Pure Function Parsing Helpers
+Extract side-effect-free parsing logic for better testability:
+
+```python
+# parser/pure_helpers.py
+def is_statement_terminator(token: Token) -> bool:
+    """Check if token terminates a statement."""
+    return token.type in {SEMICOLON, NEWLINE, EOF}
+
+def can_start_command(token: Token) -> bool:
+    """Check if token can start a command."""
+    return (token.type in {WORD, STRING, VARIABLE} or
+            token.type in BUILTIN_TOKENS or
+            token.type in KEYWORD_TOKENS)
+
+def classify_redirect(token: Token) -> Optional[RedirectType]:
+    """Classify redirection token."""
+    return {
+        REDIRECT_IN: RedirectType.INPUT,
+        REDIRECT_OUT: RedirectType.OUTPUT,
+        REDIRECT_APPEND: RedirectType.APPEND,
+        # ... more mappings
+    }.get(token.type)
+
+def predict_construct(tokens: List[Token], pos: int) -> Optional[str]:
+    """Predict syntactic construct from lookahead."""
+    if pos >= len(tokens):
+        return None
+    
+    patterns = [
+        (["WORD", "LPAREN", "RPAREN"], "function_def"),
+        (["IF"], "if_statement"),
+        (["FOR", "WORD", "IN"], "for_in_loop"),
+        (["FOR", "DOUBLE_LPAREN"], "c_style_for"),
+        # ... more patterns
+    ]
+    
+    for pattern, construct in patterns:
+        if matches_pattern(tokens, pos, pattern):
+            return construct
+    return None
+```
+
+### 11.5 Fine-grained Module Organization
+Split large parser modules into focused, manageable components:
+
+```python
+# Current: parser/commands.py (500+ lines)
+# Split into:
+
+# parser/commands/simple.py (~150 lines)
+class SimpleCommandParser:
+    """Parse simple commands with arguments and redirects."""
+
+# parser/commands/pipeline.py (~150 lines)  
+class PipelineParser:
+    """Parse command pipelines."""
+
+# parser/commands/compound.py (~100 lines)
+class CompoundCommandParser:
+    """Parse brace groups and subshells."""
+
+# parser/commands/operators.py (~100 lines)
+class OperatorParser:
+    """Parse &&, ||, ;, & operators."""
+```
+
+### 11.6 Parser Profiling and Tracing Infrastructure
+Add comprehensive debugging and performance analysis:
+
+```python
+class ParserTracer:
+    """Configurable parser tracing."""
+    
+    def __init__(self, config: TracerConfig):
+        self.config = config
+        self.rule_times = defaultdict(list)
+        self.rule_counts = defaultdict(int)
+        self.trace_output = config.output_stream
+    
+    def on_enter(self, rule: str, ctx: ParserContext):
+        """Called when entering a parse rule."""
+        self.rule_counts[rule] += 1
+        
+        if self.config.trace_rules:
+            indent = "  " * len(ctx.parse_stack)
+            self.trace_output.write(
+                f"{indent}→ {rule} @ {ctx.current_token()}\n"
+            )
+        
+        if self.config.profile_performance:
+            self.rule_times[rule].append(time.perf_counter())
+    
+    def on_exit(self, rule: str, ctx: ParserContext):
+        """Called when exiting a parse rule."""
+        if self.config.profile_performance:
+            elapsed = time.perf_counter() - self.rule_times[rule][-1]
+            self.rule_times[rule][-1] = elapsed
+    
+    def report(self):
+        """Generate profiling report."""
+        if not self.config.profile_performance:
+            return
+        
+        print("\nParser Performance Report")
+        print("=" * 40)
+        for rule, times in sorted(self.rule_times.items()):
+            avg_time = sum(times) / len(times)
+            total_time = sum(times)
+            print(f"{rule:30} {self.rule_counts[rule]:5d} calls, "
+                  f"{avg_time*1000:6.2f}ms avg, {total_time*1000:8.2f}ms total")
+```
+
 ## Implementation Priority
 
 1. **High Priority** (Immediate benefits, low risk):
-   - Error recovery improvements
+   - Error recovery improvements ✓ (Phase 1 complete)
    - Parse tree visualization
    - Parser configuration
    - AST validation phase
+   - **Centralized ParserContext** (proven pattern from lexer)
 
 2. **Medium Priority** (Significant benefits, moderate effort):
    - Parser combinators
    - Predictive parsing
    - Grammar testing framework
    - Context-sensitive improvements
+   - **Self-registering sub-parsers**
+   - **Pure function helpers**
+   - **Fine-grained module splitting**
 
 3. **Low Priority** (Long-term improvements):
    - Full grammar DSL
    - Incremental parsing
    - Plugin architecture
    - Parser generation
+   - **Streaming parse API** (after REPL improvements)
+   - **Full profiling infrastructure**
 
 ## Conclusion
 
 These improvements would significantly enhance the PSH parser's robustness, maintainability, and extensibility while preserving its educational value. The modular nature of the suggestions allows for incremental implementation without disrupting existing functionality.
 
 The key benefits include:
-- Better error messages and recovery
+- Better error messages and recovery ✓ (Phase 1 complete)
 - Improved performance for large scripts
 - Easier grammar modification and extension
 - Better testing and debugging capabilities
 - Foundation for advanced features (IDE integration, etc.)
+- **Proven architectural patterns from successful lexer refactoring**
+- **Cleaner interfaces through context centralization**
+- **Better modularity through self-registration**

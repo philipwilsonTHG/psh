@@ -149,7 +149,9 @@ class TestSyntaxErrorHandling:
         assert ('syntax' in stderr_lower or 
                 'parse error' in stderr_lower or
                 'unclosed function' in stderr_lower or
-                'function body' in stderr_lower)
+                'function body' in stderr_lower or
+                'expected tokentype.rbrace' in stderr_lower or  # New ParserContext format
+                'expected }' in stderr_lower)
     
     def test_invalid_arithmetic_expression(self):
         """Test handling of invalid arithmetic expressions."""
