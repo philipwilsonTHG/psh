@@ -1,6 +1,6 @@
 # PSH Architecture Reference for Large Language Models
 
-Version: 0.68.0 (2025-07-02) - Executor Package Refactoring  
+Version: 0.85.0 (2025-01-16) - Complete Parser High-Priority Implementation  
 Purpose: Optimized reference for LLMs working with PSH codebase
 
 ## Quick Start
@@ -20,7 +20,9 @@ Purpose: Optimized reference for LLMs working with PSH codebase
 **Modify parsing behavior:**
 1. Edit relevant file in `psh/parser/` package
 2. Update delegation in `psh/parser/main.py` if new parser modules added
-3. Add tests in `tests/test_parser_*.py`
+3. Use ParserConfig for configuration changes
+4. Add validation rules in `psh/parser/validation/` if needed
+5. Add tests in `tests/test_parser_*.py` or `tests_new/unit/parser/`
 
 **Modify expansion behavior:**
 1. Edit relevant file in `psh/expansion/`
@@ -71,10 +73,11 @@ psh/
 │       ├── comment.py     # Comment recognition
 │       └── registry.py    # Recognizer registry
 ├── token_types.py          # Token type definitions and Token dataclass
-├── parser/                  # Modular parser package with delegation architecture
+├── parser/                  # Enhanced parser package with comprehensive configuration and validation
 │   ├── __init__.py         # Clean public API with backward compatibility
-│   ├── main.py            # Main Parser class with delegation orchestration
+│   ├── main.py            # Main Parser class with delegation orchestration and ParserContext
 │   ├── base.py            # Base parser class with token management
+│   ├── base_context.py    # ContextBaseParser using ParserContext (v0.85.0)
 │   ├── helpers.py         # Helper classes and token groups
 │   ├── commands.py        # Command and pipeline parsing
 │   ├── statements.py      # Statement list and control flow parsing
@@ -84,7 +87,22 @@ psh/
 │   ├── redirections.py    # I/O redirection parsing
 │   ├── arrays.py          # Array initialization and assignment parsing
 │   ├── functions.py       # Function definition parsing
-│   └── utils.py           # Utility functions and heredoc handling
+│   ├── utils.py           # Utility functions and heredoc handling
+│   ├── config.py          # Parser configuration system (v0.85.0)
+│   ├── factory.py         # ParserFactory with preset configurations (v0.85.0)
+│   ├── context.py         # Centralized ParserContext (v0.85.0)
+│   ├── context_factory.py # Context factory and creation utilities (v0.85.0)
+│   ├── context_snapshots.py # Context snapshots for backtracking (v0.85.0)
+│   ├── validation/        # AST validation system (v0.85.0)
+│   │   ├── semantic_analyzer.py # Semantic analysis with visitor pattern
+│   │   ├── validation_rules.py  # Modular validation rules
+│   │   ├── symbol_table.py      # Symbol table management
+│   │   ├── warnings.py          # Warning system with severity levels
+│   │   └── validation_pipeline.py # Validation orchestration
+│   └── visualization/     # Parse tree visualization (v0.85.0)
+│       ├── ast_formatter.py    # Pretty printer for human-readable output
+│       ├── dot_generator.py    # Graphviz DOT format for diagrams
+│       └── ascii_tree.py       # ASCII tree renderer for terminal
 ├── ast_nodes.py            # AST node definitions
 ├── visitor/                # Visitor pattern operations
 │   ├── base.py            # Base visitor classes
@@ -150,13 +168,17 @@ Input → Preprocessing → Tokenization → Parsing → AST → Visitor Executi
    - Full backward compatibility maintained
 
 3. Parsing (parser/ package):
-   - Modular parser package with delegation architecture
-   - 8 focused modules with clean separation of concerns
+   - Enhanced modular parser package with comprehensive configuration and validation
+   - 8 core modules plus extensive configuration and validation systems
    - Delegation-based main parser orchestrating specialized parsers
-   - Enhanced context management and error handling
+   - Centralized ParserContext for unified state management
+   - Parser configuration system with multiple parsing modes
+   - AST validation system with semantic analysis
+   - Parse tree visualization in multiple formats
+   - Advanced error recovery with multi-error collection
    - Complete backward compatibility with existing API
-   - Produces AST (ast_nodes.py) 
-   - Handles all shell constructs with improved robustness
+   - Produces validated AST (ast_nodes.py) with optional semantic analysis
+   - Handles all shell constructs with comprehensive error recovery
 
 4. Execution (executor/ package):
    - Modular executor package with delegation architecture
@@ -315,6 +337,66 @@ class LexerConfig:
     recovery_mode: bool = True
 ```
 
+### Enhanced Parser System (v0.85.0)
+
+**Parser Configuration:**
+```python
+# Multiple parsing modes
+parser = ParserFactory.create_strict_posix_parser(tokens, source_text)
+parser = ParserFactory.create_bash_compatible_parser(tokens, source_text)
+parser = ParserFactory.create_permissive_parser(tokens, source_text)
+parser = ParserFactory.create_educational_parser(tokens, source_text)
+
+# Custom configuration
+config = ParserConfig(
+    parsing_mode=ParsingMode.EDUCATIONAL,
+    enable_validation=True,
+    collect_errors=True,
+    max_errors=50
+)
+parser = Parser(tokens, config=config)
+```
+
+**Centralized Parser Context:**
+```python
+# All parser state in unified context
+class ParserContext:
+    tokens: List[Token]
+    current: int
+    config: ParserConfig
+    errors: List[ParseError]
+    scope_stack: List[str]
+    profiler: Optional[ParserProfiler]
+    
+    def enter_scope(self, scope: str): ...
+    def consume(self, token_type: TokenType): ...
+    def match(self, *token_types: TokenType): ...
+```
+
+**AST Validation:**
+```python
+# Semantic analysis with validation
+analyzer = SemanticAnalyzer()
+errors, warnings = analyzer.analyze(ast)
+
+# Validation rules
+validator = ValidationPipeline()
+report = validator.validate(ast)
+```
+
+**Parse Tree Visualization:**
+```python
+# Multiple output formats
+formatter = ASTPrettyPrinter()
+dot_generator = ASTDotGenerator()
+tree_renderer = ASTAsciiTreeRenderer()
+
+# CLI integration
+psh --debug-ast=pretty -c "if true; then echo hi; fi"
+parse-tree -f dot "for i in 1 2 3; do echo $i; done"
+show-ast "case $var in pattern) echo match;; esac"
+```
+
 ### Key Interfaces
 
 **BuiltinCommand (builtins/base.py):**
@@ -333,6 +415,18 @@ class ASTVisitor(Generic[T], ABC):
         method_name = f'visit_{node.__class__.__name__}'
         visitor = getattr(self, method_name, self.generic_visit)
         return visitor(node)
+```
+
+**ParserConfig (parser/config.py):**
+```python
+@dataclass
+class ParserConfig:
+    parsing_mode: ParsingMode = ParsingMode.BASH_COMPAT
+    error_handling: ErrorHandlingMode = ErrorHandlingMode.STRICT
+    enable_validation: bool = False
+    collect_errors: bool = False
+    max_errors: int = 10
+    # ... 40+ more configuration options
 ```
 
 
@@ -468,6 +562,13 @@ class MyBuiltin(BuiltinCommand):
 ### File Locations
 - **Add builtin:** `psh/builtins/` + register in `registry.py`
 - **Modify parsing:** `psh/parser/` package + update delegation in `main.py` if needed
+- **Parser configuration:** `psh/parser/config.py` (ParserConfig, ParsingMode)
+- **Parser factory:** `psh/parser/factory.py` (ParserFactory with presets)
+- **Parser context:** `psh/parser/context.py` (ParserContext, ParserProfiler)
+- **Context factory:** `psh/parser/context_factory.py` (context creation utilities)
+- **Context snapshots:** `psh/parser/context_snapshots.py` (backtracking support)
+- **AST validation:** `psh/parser/validation/` (semantic analysis, validation rules)
+- **Parse visualization:** `psh/parser/visualization/` (AST formatters, tree renderers)
 - **Change expansion:** `psh/expansion/` + `manager.py`
 - **Add shell option:** `psh/core/options.py`
 - **Modify tokenization:** `psh/lexer/` package (see below for specific areas)
@@ -493,7 +594,16 @@ class MyBuiltin(BuiltinCommand):
 - `CommandExecutor` - Simple command execution
 - `PipelineExecutor` - Pipeline execution
 - `ExpansionManager` - Expansion orchestrator
-- `Parser` - Modular parser with delegation architecture
+- `Parser` - Enhanced modular parser with ParserContext integration
+- `ParserContext` - Centralized parser state management (v0.85.0)
+- `ParserConfig` - Comprehensive parser configuration (v0.85.0)
+- `ParserFactory` - Factory with preset configurations (v0.85.0)
+- `ParserContextFactory` - Context creation utilities (v0.85.0)
+- `SemanticAnalyzer` - AST semantic analysis (v0.85.0)
+- `ValidationPipeline` - Validation orchestration (v0.85.0)
+- `ASTPrettyPrinter` - Human-readable AST formatting (v0.85.0)
+- `ASTDotGenerator` - Graphviz DOT format generator (v0.85.0)
+- `ASTAsciiTreeRenderer` - Terminal ASCII tree display (v0.85.0)
 - `CommandParser` - Command and pipeline parsing
 - `ControlStructureParser` - Control structure parsing
 - `StateMachineLexer` - Original tokenizer with mixin architecture
@@ -513,6 +623,11 @@ class MyBuiltin(BuiltinCommand):
 - `shell.run_command(cmd)` - Execute command
 - `expansion_manager.expand_argument(arg, type)` - Expand argument
 - `parser.parse()` - Parse tokens to AST (delegates to specialized parsers)
+- `parser.parse_with_error_collection()` - Parse with enhanced error collection (v0.85.0)
+- `parser_factory.create_strict_posix_parser()` - Create POSIX-compliant parser (v0.85.0)
+- `semantic_analyzer.analyze(ast)` - Perform semantic analysis (v0.85.0)
+- `validation_pipeline.validate(ast)` - Run validation rules (v0.85.0)
+- `ast_formatter.visit(ast)` - Format AST for display (v0.85.0)
 - `visitor.visit(node)` - Execute AST node
 
 ## Maintenance
@@ -526,9 +641,11 @@ To keep this document updated:
 6. Keep quick reference current
 
 Related Documentation:
-- `ARCHITECTURE.md` - Human-focused architecture guide
-- `PARSER_ARCHITECTURE.md` - Parser details
+- `ARCHITECTURE.md` - Human-focused architecture guide (updated for v0.85.0)
+- `PARSER_HIGH_PRIORITY_IMPLEMENTATION_PLAN.md` - Complete parser enhancement plan (implemented in v0.85.0)
+- `CLAUDE_PARSER_IMPROVEMENTS.md` - Parser improvement analysis and implementation notes
+- `PARSER_ARCHITECTURE.md` - Parser details (legacy)
 - `docs/expansion_executor_architecture.md` - Expansion/execution details
 - `docs/visitor_pattern_implementation.md` - Visitor pattern details
 - `docs/architecture/lexer_architecture.md` - Comprehensive lexer architecture
-- `LEXER_REFACTORING_PLAN.md` - Lexer refactoring phases and timeline
+- `LEXER_REFACTORING_PLAN.md` - Lexer refactoring phases and timeline (completed)
