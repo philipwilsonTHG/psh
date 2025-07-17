@@ -1,8 +1,17 @@
-# PSH Lexer Architecture
+# PSH Lexer Architecture Documentation
 
 ## Overview
 
-The PSH lexer has been refactored into a modular, extensible architecture that separates concerns and improves testability while maintaining full backward compatibility. The new architecture consists of four major subsystems that work together to provide comprehensive lexical analysis.
+The PSH lexer is a sophisticated, modular tokenization system designed to handle the complex syntax of POSIX shells while maintaining clarity and extensibility. As of v0.91.3, it implements a unified token system with enhanced features as standard, following a successful 5-phase deprecation plan that eliminated legacy code paths and reduced the API surface by 30%.
+
+## Architecture Principles
+
+1. **Modularity**: Components are loosely coupled with well-defined interfaces
+2. **Extensibility**: New token types and recognizers can be added without modifying core logic
+3. **Context Awareness**: Rich metadata and state tracking throughout tokenization
+4. **Error Recovery**: Graceful handling of malformed input with detailed error context
+5. **Performance**: Efficient token recognition with priority-based dispatch
+6. **Clarity**: Clean separation of concerns with mixin-based architecture
 
 ## Architecture Diagram
 
@@ -38,23 +47,22 @@ The PSH lexer has been refactored into a modular, extensible architecture that s
 │  │  │ UnifiedQuoteParser│  │   ExpansionParser      │     │   │
 │  │  │ - Single quotes   │  │ - Variables ($VAR)     │     │   │
 │  │  │ - Double quotes   │  │ - Parameters (${VAR})  │     │   │
-│  │  │ - Backticks      │  │ - Command sub $(...)   │     │   │
+│  │  │ - ANSI-C quotes  │  │ - Command sub $(...)   │     │   │
 │  │  └──────────────────┘  │ - Arithmetic $((...)    │     │   │
+│  │                         │ - Process sub <(...) >(..)    │   │
 │  │                         └─────────────────────────┘     │   │
 │  └─────────────────────────────────────────────────────────┘   │
 │                                                                  │
 │  ┌─────────────────────────────────────────────────────────┐   │
 │  │            Modular Token Recognizers                     │   │
-│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  │   │
-│  │  │  Operator    │  │   Keyword    │  │   Literal    │  │   │
-│  │  │  Recognizer  │  │  Recognizer  │  │  Recognizer  │  │   │
-│  │  │ Priority:150 │  │ Priority:90  │  │ Priority:70  │  │   │
-│  │  └──────────────┘  └──────────────┘  └──────────────┘  │   │
-│  │  ┌──────────────┐  ┌──────────────┐                     │   │
-│  │  │ Whitespace   │  │   Comment    │                     │   │
-│  │  │  Recognizer  │  │  Recognizer  │                     │   │
-│  │  │ Priority:30  │  │ Priority:60  │                     │   │
-│  │  └──────────────┘  └──────────────┘                     │   │
+│  │  ┌────────────────┐  ┌────────────────┐  ┌────────────┐│   │
+│  │  │Process Sub Rec │  │  Operator Rec  │  │Keyword Rec ││   │
+│  │  │ Priority: 160  │  │ Priority: 100  │  │Priority: 80││   │
+│  │  └────────────────┘  └────────────────┘  └────────────┘│   │
+│  │  ┌────────────────┐  ┌────────────────┐  ┌────────────┐│   │
+│  │  │ Literal Rec    │  │ Comment Rec    │  │Whitespace  ││   │
+│  │  │ Priority: 70   │  │ Priority: 60   │  │Priority: 30││   │
+│  │  └────────────────┘  └────────────────┘  └────────────┘│   │
 │  └─────────────────────────────────────────────────────────┘   │
 │                                                                  │
 │  ┌─────────────────────────────────────────────────────────┐   │
@@ -67,392 +75,379 @@ The PSH lexer has been refactored into a modular, extensible architecture that s
                                       │
                                       ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                        Token Stream                              │
-│  - Rich tokens with metadata                                     │
-│  - Composite token support                                       │
-│  - Position information                                          │
+│                     Unified Token Stream                         │
+│  - Single Token class with built-in metadata                     │
+│  - Context tracking and semantic information                     │
+│  - Position information (line, column, offset)                   │
+│  - Token parts for composite tokens                              │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-## Core Components
+## Component Architecture
 
-### 1. State Management (Phase 1)
+### 1. Core Components
 
-The state management layer provides unified context tracking across the entire lexing process.
+#### ModularLexer (`modular_lexer.py`)
+The main orchestrator that coordinates all tokenization activities:
+- Manages input position and state through mixins
+- Integrates quote/expansion parsing with token recognition
+- Emits tokens with comprehensive metadata
+- Handles error recovery and reporting
 
-#### LexerContext (`lexer/state_context.py`)
+```python
+class ModularLexer(LexerHelpers, StateHandlers):
+    """Main lexer combining modular recognition with unified parsing"""
+    def __init__(self, recognizer_registry, config=None):
+        self.registry = recognizer_registry
+        self.config = config or LexerConfig()
+        self.position_tracker = PositionTracker()
+        self.state_manager = StateManager()
+```
+
+#### LexerContext (`state_context.py`)
+Unified state representation that replaced scattered boolean flags:
+- Tracks nesting depth for various constructs
+- Manages command position and test context
+- Supports context stacking for nested structures
+
 ```python
 @dataclass
 class LexerContext:
-    state: LexerState = LexerState.NORMAL
-    bracket_depth: int = 0          # Tracks [[ ]] nesting
+    """Unified state representation for the lexer"""
+    bracket_depth: int = 0          # Tracks [ ] nesting
     paren_depth: int = 0           # Tracks ( ) nesting
-    command_position: bool = True   # Whether at command position
-    after_regex_match: bool = False # After =~ operator
-    quote_stack: List[str] = field(default_factory=list)
-    heredoc_delimiters: List[str] = field(default_factory=list)
+    brace_depth: int = 0           # Tracks { } nesting
+    double_bracket_depth: int = 0  # Tracks [[ ]] nesting
+    in_quote: Optional[str] = None
+    in_expansion: bool = False
+    is_command_position: bool = True
+    in_test_expr: bool = False
+    in_regex_context: bool = False
 ```
 
-Key features:
-- **Unified State**: Single source of truth for lexer state
-- **Nesting Tracking**: Maintains depth counters for various constructs
-- **Context Awareness**: Tracks parsing context for context-sensitive tokens
-- **Immutability Support**: Can create snapshots for backtracking
+### 2. Mixin Architecture
 
-#### StateManager (`lexer/transitions.py`)
-Manages state transitions with history tracking and validation:
-- Maintains transition history for debugging
-- Validates state transitions
-- Provides state summary and statistics
+#### LexerHelpers (`helpers.py`)
+Provides utility methods for common lexer operations:
+- Escape sequence processing (`process_escape_sequence`)
+- Balanced delimiter matching (`read_until_balanced`)
+- Operator recognition (`is_operator_start`, `read_operator`)
+- Unicode-aware character classification
 
-#### TransitionTable
-Defines valid state transitions with priorities and conditions:
-- Priority-based transition selection
-- Conditional transitions based on context
-- Action hooks for state entry/exit
+#### StateHandlers (`state_handlers.py`)
+Manages state-specific parsing logic:
+- Variable and expansion parsing (`parse_variable`, `parse_expansion`)
+- Quote handling with context (`handle_quote`)
+- Special construct recognition (`handle_special_tokens`)
+- State transition logic
 
-### 2. Pure Helper Functions (Phase 2)
+### 3. Token Recognition System
 
-The helper layer provides stateless, pure functions for common lexing operations.
-
-#### Pure Helpers (`lexer/pure_helpers.py`)
-Collection of 15+ pure functions including:
-- `read_until_char()` - Read until target character
-- `find_closing_delimiter()` - Find matching brackets/quotes
-- `handle_escape_sequence()` - Process escape sequences
-- `extract_variable_name()` - Extract valid variable names
-- `validate_brace_expansion()` - Validate ${...} syntax
-- `find_balanced_parentheses()` - Match nested parentheses
-
-Key principles:
-- **No Side Effects**: Pure input → output transformations
-- **Explicit Parameters**: No hidden state dependencies
-- **Comprehensive Testing**: Each function independently tested
-- **Performance Optimized**: Efficient algorithms for common operations
-
-#### EnhancedLexerHelpers (`lexer/enhanced_helpers.py`)
-Wrapper that maintains the existing API while using pure functions internally:
-```python
-class EnhancedLexerHelpers:
-    def read_until_char(self, target: str, escape: bool = False) -> str:
-        content, new_pos = pure_helpers.read_until_char(
-            self.input, self.position, target, escape
-        )
-        self.position = new_pos
-        return content
-```
-
-### 3. Unified Quote and Expansion Parsing (Phase 3)
-
-This layer handles all forms of shell quoting and expansion with consistent logic.
-
-#### UnifiedQuoteParser (`lexer/quote_parser.py`)
-Handles all quote types with configurable rules:
-
-```python
-class QuoteRules:
-    quote_char: str              # Quote character (', ", `)
-    allow_expansions: bool       # Whether to process expansions
-    escape_sequences: Dict[str, str]  # Escape mappings
-    allows_newlines: bool        # Whether newlines are allowed
-    allows_nested_quotes: bool   # Whether nesting is allowed
-```
-
-Predefined rules for:
-- **Single Quotes**: No expansions, no escapes
-- **Double Quotes**: Allow expansions and escape sequences
-- **Backticks**: Command substitution with limited escapes
-
-#### ExpansionParser (`lexer/expansion_parser.py`)
-Unified handling of all shell expansions:
-
-```python
-class ExpansionParser:
-    def parse_expansion(self, input_text: str, start_pos: int, 
-                       quote_context: Optional[str] = None) -> Tuple[TokenPart, int]:
-        # Handles:
-        # - Simple variables: $VAR
-        # - Parameter expansion: ${VAR}
-        # - Command substitution: $(command)
-        # - Arithmetic expansion: $((expr))
-        # - Backtick substitution: `command`
-```
-
-Features:
-- **Context Awareness**: Respects quote context
-- **Error Handling**: Graceful handling of unclosed expansions
-- **Configuration**: Disable specific expansion types
-- **Unicode Support**: Proper variable name validation
-
-### 4. Modular Token Recognition (Phase 4)
-
-The recognition layer provides a pluggable system for identifying tokens.
-
-#### TokenRecognizer Base (`lexer/recognizers/base.py`)
-Abstract interface for all recognizers:
+#### Recognizer Framework (`recognizers/`)
+Implements a pluggable, priority-based token recognition system:
 
 ```python
 class TokenRecognizer(ABC):
-    @abstractmethod
-    def can_recognize(self, input_text: str, pos: int, 
-                     context: LexerContext) -> bool:
-        """Fast check if this recognizer might handle the position."""
-        
-    @abstractmethod
-    def recognize(self, input_text: str, pos: int,
-                 context: LexerContext) -> Optional[Tuple[Token, int]]:
-        """Attempt to recognize a token."""
-        
+    """Base class for all token recognizers"""
     @property
     @abstractmethod
     def priority(self) -> int:
-        """Recognition priority (higher = checked first)."""
+        """Recognition priority (higher = checked first)"""
+        pass
+    
+    @abstractmethod
+    def can_recognize(self, char: str, context: LexerContext) -> bool:
+        """Check if this recognizer can handle the current character"""
+        pass
+    
+    @abstractmethod
+    def recognize(self, lexer: 'ModularLexer', char: str) -> Optional[Token]:
+        """Attempt to recognize and return a token"""
+        pass
 ```
 
-#### Specialized Recognizers
+#### RecognizerRegistry (`recognizers/registry.py`)
+Manages recognizer registration and dispatch:
+- Priority-based ordering (process substitution: 160, operators: 100, keywords: 80)
+- Context-aware selection
+- Efficient lookup mechanisms
+- Error recovery strategies
 
-**OperatorRecognizer** (Priority: 150)
-- Handles all shell operators
-- Greedy matching (longest first)
-- Context-sensitive operators (`[[`, `]]`, `=~`)
+### 4. Quote and Expansion Parsing
 
-**KeywordRecognizer** (Priority: 90)
-- Recognizes shell keywords
-- Command position validation
-- Complete word boundary detection
-
-**LiteralRecognizer** (Priority: 70)
-- Words, identifiers, numbers
-- Proper termination at operators
-- Unicode identifier support
-
-**CommentRecognizer** (Priority: 60)
-- Shell comment detection
-- Context-aware comment start
-
-**WhitespaceRecognizer** (Priority: 30)
-- Whitespace handling
-- Excludes newlines (handled as operators)
-
-#### RecognizerRegistry (`lexer/recognizers/registry.py`)
-Central dispatch system:
+#### UnifiedQuoteParser (`quote_parser.py`)
+Handles all quote types with configurable rules:
+- Single quotes (no expansions)
+- Double quotes (allow expansions)
+- ANSI-C quotes ($'...' with escape sequences)
+- Quote removal and escape processing
 
 ```python
-class RecognizerRegistry:
-    def recognize(self, input_text: str, pos: int,
-                 context: LexerContext) -> Optional[Tuple[Token, int, TokenRecognizer]]:
-        """Try recognizers in priority order."""
-        
-    def register(self, recognizer: TokenRecognizer) -> None:
-        """Register a new recognizer."""
+QUOTE_RULES = {
+    "'": QuoteRules(
+        allow_expansions=False,
+        allow_escapes=False,
+        escape_chars=set(),
+        name="single"
+    ),
+    '"': QuoteRules(
+        allow_expansions=True,
+        allow_escapes=True,
+        escape_chars={'$', '`', '"', '\\', '\n'},
+        name="double"
+    )
+}
 ```
 
-Features:
-- **Priority Ordering**: Higher priority recognizers checked first
-- **Dynamic Registration**: Add/remove recognizers at runtime
-- **Error Recovery**: Continue on recognizer failures
-- **Statistics**: Track recognizer usage and performance
+#### ExpansionParser (`expansion_parser.py`)
+Parses shell expansions within appropriate contexts:
+- Variable expansions: `$VAR`, `${VAR}`
+- Command substitution: `$(...)`, `` `...` ``
+- Arithmetic expansion: `$((...))`
+- Process substitution: `<(...)`, `>(...)`
 
-## Integration Points
+### 5. Supporting Infrastructure
 
-### ModularLexer (`lexer/modular_lexer.py`)
-The main lexer that integrates all components:
+#### Position Tracking (`position.py`)
+Maintains accurate position information:
+- Line and column tracking
+- Position snapshots for error reporting
+- Efficient position updates
+- Unicode-aware character counting
 
+#### Token Parts (`token_parts.py`)
+Represents fine-grained token components:
 ```python
-class ModularLexer:
-    def __init__(self, input_string: str, config: Optional[LexerConfig] = None):
-        # Position tracking
-        self.position_tracker = PositionTracker(input_string)
-        
-        # State management
-        self.state_manager = StateManager()
-        self.context = self.state_manager.context
-        
-        # Token recognizers
-        self.registry = RecognizerRegistry()
-        self._setup_recognizers()
-        
-        # Unified parsers
-        self.expansion_parser = ExpansionParser(self.config)
-        self.quote_parser = UnifiedQuoteParser(self.expansion_parser)
+@dataclass
+class TokenPart:
+    """Represents a part of a composite token"""
+    type: PartType
+    value: str
+    original: str
+    quote_context: Optional[str] = None
+    is_variable: bool = False
+    is_expansion: bool = False
+    expansion_type: Optional[str] = None
+    error_message: Optional[str] = None
+    start_position: int = 0
+    end_position: int = 0
 ```
 
-Tokenization flow:
-1. Skip whitespace
-2. Try quote and expansion parsers
-3. Try modular recognizers in priority order
-4. Fallback to word tokenization
-5. Update context after each token
+#### Unicode Support (`unicode_support.py`)
+Provides character classification functions:
+- POSIX mode vs Unicode mode
+- Identifier validity checking
+- Whitespace detection across Unicode categories
+- Variable name validation
 
-### Backward Compatibility
+## Unified Token System (v0.91.3)
 
-The new architecture maintains full backward compatibility through:
+The unified token system represents the culmination of the Enhanced Lexer Deprecation Plan:
 
-1. **Property Delegation**: Legacy properties map to new context
-   ```python
-   @property
-   def in_double_brackets(self) -> int:
-       return self.context.bracket_depth
-   ```
+### Token Class Unification
+```python
+@dataclass
+class Token:
+    """Unified token class with metadata and context information"""
+    type: TokenType
+    value: str
+    position: int
+    end_position: int = 0
+    quote_type: Optional[str] = None
+    line: Optional[int] = None
+    column: Optional[int] = None
+    metadata: Optional['TokenMetadata'] = field(default=None)
+    parts: Optional[List['TokenPart']] = field(default=None)
+```
 
-2. **API Preservation**: All public methods maintain signatures
-3. **Behavior Consistency**: Token output matches original lexer
-4. **Import Compatibility**: Original import paths still work
+### Enhanced Features as Standard
+- **Built-in Metadata**: Every token includes rich metadata by default
+- **Context Tracking**: Semantic information available for all tokens
+- **Position Information**: Line/column/offset tracking standard
+- **Token Parts**: Composite token support built-in
+- **No Compatibility Overhead**: Single implementation path
 
-## Configuration
+## Token Generation Flow
 
-### LexerConfig (`lexer/position.py`)
-Comprehensive configuration options:
+```mermaid
+graph TD
+    A[Input String] --> B[Brace Expansion]
+    B --> C[ModularLexer]
+    C --> D{Skip Whitespace}
+    D --> E{Try Quote/Expansion}
+    E -->|Success| F[Quote/Expansion Token]
+    E -->|Failed| G{Try Recognizers}
+    G -->|Success| H[Recognized Token]
+    G -->|Failed| I[Word Token]
+    F --> J[Emit Token]
+    H --> J
+    I --> J
+    J --> K{More Input?}
+    K -->|Yes| D
+    K -->|No| L[EOF Token]
+```
 
+## Key Design Patterns
+
+### 1. Registry Pattern
+The `RecognizerRegistry` implements dynamic registration with priority-based dispatch:
+```python
+registry = RecognizerRegistry()
+registry.register(ProcessSubstitutionRecognizer())  # Priority: 160
+registry.register(OperatorRecognizer())            # Priority: 100
+registry.register(KeywordRecognizer())             # Priority: 80
+registry.register(LiteralRecognizer())             # Priority: 70
+registry.register(CommentRecognizer())             # Priority: 60
+registry.register(WhitespaceRecognizer())          # Priority: 30
+```
+
+### 2. Strategy Pattern
+Quote parsing uses configurable rules for different quote types, allowing easy extension.
+
+### 3. Context Object Pattern
+`LexerContext` consolidates state to avoid parameter explosion and enable clean APIs.
+
+### 4. Mixin Pattern
+`LexerHelpers` and `StateHandlers` provide reusable functionality without deep inheritance hierarchies.
+
+## Configuration System
+
+The lexer supports comprehensive configuration through `LexerConfig`:
 ```python
 @dataclass
 class LexerConfig:
-    # Feature flags
-    enable_double_quotes: bool = True
-    enable_single_quotes: bool = True
-    enable_backtick_quotes: bool = True
-    enable_variable_expansion: bool = True
-    enable_command_substitution: bool = True
-    enable_arithmetic_expansion: bool = True
-    enable_parameter_expansion: bool = True
-    
-    # Behavior options
+    """Configuration for lexer behavior"""
+    enable_history_expansion: bool = True
+    enable_process_substitution: bool = True
+    enable_extended_globbing: bool = False
+    enable_bash_specific: bool = True
     posix_mode: bool = False
-    case_sensitive: bool = True
+    interactive_mode: bool = False
     strict_mode: bool = False
     max_nesting_depth: int = 100
-    
-    # Error handling
-    error_recovery: bool = True
-    max_errors: int = 100
+    unicode_identifiers: bool = True
 ```
 
-## Testing Architecture
+## Error Handling
 
-The testing strategy ensures reliability at every level:
+The lexer implements sophisticated error handling:
+- `LexerError`: Unrecoverable errors requiring termination
+- `RecoverableLexerError`: Errors that can be recovered in interactive mode
+- Rich error context with position information
+- Clear error messages for common issues
+- Synchronization points for error recovery
+
+## Token Metadata
+
+Every token includes comprehensive metadata through the unified system:
+- Position information (line, column, offset)
+- Quote context and nesting depth
+- Expansion depth and type
+- Semantic type hints
+- Command position indicators
+- Error information for invalid constructs
+
+## Performance Optimizations
+
+1. **Priority-based dispatch**: Most common tokens checked first
+2. **Character-based early exit**: Quick rejection of impossible tokens
+3. **Minimal state copying**: Efficient context management
+4. **Lazy metadata creation**: Only populated when needed
+5. **String view operations**: Avoid unnecessary string copies
+6. **Greedy operator matching**: Longest match first
+
+## Testing Strategy
+
+The modular architecture facilitates comprehensive testing:
 
 ### Unit Tests
-- **State Management**: 18 tests for context and transitions
-- **Pure Helpers**: 55 tests for all helper functions
-- **Quote/Expansion Parsing**: 34 tests for unified parsers
-- **Token Recognition**: 29 tests for recognizers and registry
+- State management: Context tracking and transitions
+- Pure helpers: All utility functions tested independently
+- Quote/expansion parsing: Edge cases and error conditions
+- Token recognition: Each recognizer tested in isolation
 
 ### Integration Tests
-- End-to-end tokenization tests
-- Backward compatibility verification
+- End-to-end tokenization scenarios
+- Cross-component interactions
+- Error recovery paths
 - Performance benchmarks
-- Edge case handling
 
-### Test Patterns
+### Conformance Tests
+- POSIX compliance verification
+- Bash compatibility testing
+- Token output comparison with reference implementations
+
+## Migration from Legacy (v0.91.3)
+
+The unified architecture completed a 5-phase migration:
+
+### Phase 1: Enhanced Token Introduction
+- Added enhanced token types alongside legacy
+- Introduced metadata infrastructure
+
+### Phase 2: Parser Integration
+- Integrated enhanced tokens with parser
+- Added compatibility layer
+
+### Phase 3: Feature Adoption
+- Migrated features to use enhanced tokens
+- Maintained dual-path support
+
+### Phase 4: Default Implementation
+- Made enhanced features the default
+- Legacy path for compatibility only
+
+### Phase 5: Legacy Removal and Documentation
+- Removed all legacy code paths
+- Unified Token class (formerly EnhancedToken)
+- 30% API surface reduction
+- Comprehensive documentation
+
+## Extension Points
+
+The architecture provides clear extension points:
+
+### 1. New Token Types
 ```python
-# Pure function testing
-def test_pure_function():
-    result = pure_helpers.read_until_char("test", 0, "s")
-    assert result == ("te", 2)
+# Add to TokenType enum
+NEW_TOKEN = auto()
 
-# Recognizer testing
-def test_recognizer():
-    recognizer = OperatorRecognizer()
-    context = LexerContext()
-    result = recognizer.recognize("&&", 0, context)
-    assert result[0].type == TokenType.AND_AND
+# Create recognizer
+class NewTokenRecognizer(TokenRecognizer):
+    priority = 85
+    
+    def can_recognize(self, char, context):
+        return char == '@' and context.is_special_mode
+    
+    def recognize(self, lexer, char):
+        # Recognition logic
+        return Token(TokenType.NEW_TOKEN, value, position)
 
-# Integration testing
-def test_integration():
-    lexer = ModularLexer("echo $USER")
-    tokens = lexer.tokenize()
-    assert len(tokens) == 3
+# Register
+registry.register(NewTokenRecognizer())
 ```
 
-## Performance Considerations
+### 2. New Quote Types
+Extend `QUOTE_RULES` dictionary with custom quote behavior.
 
-### Optimization Strategies
+### 3. New Expansions
+Extend `ExpansionParser` with new expansion types.
 
-1. **Fast Path Checks**: `can_recognize()` before expensive recognition
-2. **Priority Ordering**: Most common tokens checked first
-3. **Character Sets**: O(1) lookups for operator start characters
-4. **Greedy Matching**: Longest operators matched first
-5. **State Caching**: Avoid redundant state calculations
+### 4. Context Extensions
+Add fields to `LexerContext` for new state tracking needs.
 
-### Memory Efficiency
+## Future Directions
 
-1. **Lazy Evaluation**: Parse on demand, not ahead
-2. **Shared State**: Single context object, not duplicated
-3. **String Views**: Avoid unnecessary string copies
-4. **Token Pooling**: Reuse common token instances
-
-## Extensibility
-
-### Adding New Token Types
-
-1. Create a new recognizer:
-   ```python
-   class MyRecognizer(TokenRecognizer):
-       @property
-       def priority(self) -> int:
-           return 75  # Between keywords and literals
-           
-       def can_recognize(self, input_text, pos, context):
-           # Quick check logic
-           
-       def recognize(self, input_text, pos, context):
-           # Full recognition logic
-   ```
-
-2. Register with the system:
-   ```python
-   lexer.registry.register(MyRecognizer())
-   ```
-
-### Adding New Expansion Types
-
-1. Extend ExpansionParser:
-   ```python
-   def _parse_my_expansion(self, input_text, start_pos, quote_context):
-       # Custom expansion logic
-   ```
-
-2. Update dispatch logic in `parse_expansion()`
-
-### Adding New Quote Types
-
-1. Define quote rules:
-   ```python
-   MY_QUOTE_RULES = QuoteRules(
-       quote_char='@',
-       allow_expansions=False,
-       escape_sequences={},
-       allows_newlines=True
-   )
-   ```
-
-2. Register in QUOTE_RULES dictionary
-
-## Future Enhancements
-
-### Phase 5: Error Recovery
-- Implement recovery strategies
-- Add synchronization points
-- Provide error correction suggestions
-
-### Phase 6: Performance Optimization
-- Implement DFA-based scanner
-- Add caching for common patterns
-- Parallel tokenization for large files
-
-### Phase 7: Advanced Features
-- Syntax highlighting support
-- Incremental reparsing
+The architecture is designed to support:
+- Incremental parsing for better error recovery
+- Parallel tokenization for performance
 - Language server protocol integration
+- Advanced syntax highlighting
+- Custom shell dialects
+- Real-time tokenization for interactive features
 
 ## Conclusion
 
-The new lexer architecture provides a solid foundation for the PSH shell with:
+The PSH lexer architecture represents a sophisticated yet maintainable approach to shell tokenization. Its modular design, comprehensive metadata, and clear extension points make it an excellent foundation for both educational purposes and practical shell implementation. The successful completion of the Enhanced Lexer Deprecation Plan has resulted in a cleaner, more efficient, and more capable lexer that serves as the foundation for PSH's continued evolution.
 
-- **Modularity**: Clear separation of concerns
-- **Extensibility**: Easy to add new features
-- **Testability**: Comprehensive test coverage
-- **Performance**: Optimized recognition pipeline
-- **Maintainability**: Clean, documented code
-
-The architecture successfully balances flexibility with performance while maintaining full backward compatibility with the existing PSH codebase.
+The unified token system eliminates complexity while adding capabilities, demonstrating that architectural improvements can simultaneously simplify and enhance a system. This positions PSH well for future development while maintaining its core educational mission of providing clear, understandable implementations of shell concepts.
