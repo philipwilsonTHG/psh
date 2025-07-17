@@ -4,7 +4,7 @@
 
 Python Shell (psh) is a POSIX-compliant shell written entirely in Python, designed for learning shell internals while providing practical functionality. It features a clean, readable codebase with modern architecture and powerful built-in analysis tools.
 
-**Current Version**: 0.84.0 | **Tests**: 1,981 passing | **POSIX Compliance**: ~93%
+**Current Version**: 0.91.3 | **Tests**: 2,146 passing | **POSIX Compliance**: ~93%
 
 *All source code and documentation (except this note) has been written by Claude Code using Sonnet 4 and Opus 4 models.*
 
@@ -31,12 +31,12 @@ psh --format script.sh
 
 - 🔍 **CLI Analysis Tools**: Built-in script formatting, metrics, security analysis, and linting
 - 📚 **Educational Focus**: Clean, readable codebase designed for learning shell internals
-- 🧪 **Comprehensive Testing**: 1,981 tests across 102 test files ensuring reliability
-- 🏗️ **Modern Architecture**: Component-based design with visitor pattern integration
+- 🧪 **Comprehensive Testing**: 2,146 tests ensuring reliability and robustness
+- 🏗️ **Modern Architecture**: Component-based design with unified lexer and visitor pattern integration
 - 📋 **POSIX Compliant**: ~93% compliance with robust bash compatibility
 - 🎯 **Feature Complete**: Supports advanced shell programming with arrays, functions, and control structures
 
-## CLI Analysis Tools ✨ New in v0.84.0
+## CLI Analysis Tools ✨
 
 PSH includes powerful built-in tools for shell script analysis:
 
@@ -209,7 +209,7 @@ PSH follows a modern component-based architecture with clear separation of conce
 
 ### Core Components
 - **Shell** (`psh/shell.py`): Main orchestrator coordinating all subsystems
-- **Lexer** (`psh/lexer/`): Modular tokenization with state machine design
+- **Lexer** (`psh/lexer/`): Unified tokenization with enhanced features as standard (v0.91.3)
 - **Parser** (`psh/parser/`): Recursive descent parser creating comprehensive AST
 - **Executor** (`psh/executor/`): Command execution with specialized handlers
 - **Expansion** (`psh/expansion/`): All shell expansions with proper precedence

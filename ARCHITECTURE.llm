@@ -1,6 +1,6 @@
 # PSH Architecture Reference for Large Language Models
 
-Version: 0.85.0 (2025-01-16) - Complete Parser High-Priority Implementation  
+Version: 0.91.3 (2025-01-17) - Lexer Deprecation Plan Complete  
 Purpose: Optimized reference for LLMs working with PSH codebase
 
 ## Quick Start
@@ -72,7 +72,7 @@ psh/
 │       ├── whitespace.py  # Whitespace handling
 │       ├── comment.py     # Comment recognition
 │       └── registry.py    # Recognizer registry
-├── token_types.py          # Token type definitions and Token dataclass
+├── token_types.py          # Unified Token class with metadata and context (v0.91.3)
 ├── parser/                  # Enhanced parser package with comprehensive configuration and validation
 │   ├── __init__.py         # Clean public API with backward compatibility
 │   ├── main.py            # Main Parser class with delegation orchestration and ParserContext
@@ -261,8 +261,10 @@ self.subshell_executor = SubshellExecutor(shell)
 6. Pathname expansion (*, ?, [...])
 7. Quote removal
 
-### Lexer Package (lexer/)
-**Purpose:** Comprehensive modular lexer with 4-phase refactored architecture
+### Lexer Package (lexer/) - Unified Architecture (v0.91.3)
+**Purpose:** Unified modular lexer with enhanced features as standard
+**Note:** Enhanced lexer deprecation plan completed in v0.91.3. All enhanced features are now built-in standard throughout PSH operation. Compatibility code removed.
+
 **Core Components (Original v0.58.0):**
 - **StateMachineLexer** (core.py): Main lexer class combining mixins
 - **LexerHelpers** (helpers.py): Utility methods for balanced parsing, operators, word termination

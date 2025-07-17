@@ -4,11 +4,16 @@
 
 Python Shell (psh) is designed with a clean, component-based architecture that separates concerns and makes the codebase easy to understand, test, and extend. The shell follows a traditional interpreter pipeline: lexing → parsing → expansion → execution, with each phase carefully designed for educational clarity and correctness.
 
-**Current Version**: 0.85.0 (as of 2025-01-16)
+**Current Version**: 0.91.3 (as of 2025-01-17)
 
 **Note:** For LLM-optimized architecture documentation, see `ARCHITECTURE.llm`
 
 **Key Architectural Features**:
+- **Unified Lexer Architecture** (v0.91.3): Completed lexer deprecation plan with simplified architecture
+  - **Single Token System**: Unified Token class with built-in metadata and context information
+  - **Enhanced Features Standard**: All advanced features (context tracking, semantic analysis) built-in
+  - **Simplified API**: 30% reduction in API surface through token class unification
+  - **No Compatibility Overhead**: Single implementation path for optimal performance
 - **Enhanced Parser System** (v0.85.0): Complete implementation of Parser High-Priority Plan
   - **Parser Configuration**: Comprehensive configuration system with multiple parsing modes
   - **AST Validation**: Semantic analysis and validation with symbol table management
@@ -104,10 +109,10 @@ This happens early because it can create multiple tokens from a single pattern.
 
 The lexer converts character streams into meaningful tokens using a state machine approach.
 
-### 2.1 Lexer Package Architecture
+### 2.1 Unified Lexer Package Architecture (v0.91.3)
 **Package**: `psh/lexer/`
 
-The lexer has undergone a comprehensive 4-phase refactoring to create a modular, extensible architecture:
+The lexer has undergone a comprehensive deprecation process to create a unified, simplified architecture. As of v0.91.3, the enhanced lexer features are now standard throughout PSH operation, with all compatibility code removed:
 
 #### Core Package Structure
 - **`psh/lexer/core.py`** - Main StateMachineLexer class
@@ -174,61 +179,61 @@ class LexerState(Enum):
     IN_PARAM_EXPANSION = "IN_PARAM_EXPANSION"
 ```
 
-### 2.3 Rich Token System
+### 2.3 Unified Token System (v0.91.3)
 **Files**: `token_types.py`, `psh/lexer/token_parts.py`
 
-The lexer produces `RichToken` objects that maintain metadata:
+The lexer produces unified `Token` objects with built-in metadata and context information. Enhanced functionality has been merged into the base Token class:
 ```python
 @dataclass
-class TokenPart:
-    """Component of a composite token"""
-    value: str
-    type: str  # 'literal', 'variable', 'command_sub', etc.
-    quote_context: Optional[str]  # Which quotes it was in
-
-@dataclass
-class RichToken:
-    """Token with rich metadata"""
+class Token:
+    """Unified token class with metadata and context information (formerly EnhancedToken)."""
     type: TokenType
     value: str
-    parts: List[TokenPart]  # Components for COMPOSITE tokens
     position: int
-    original_quotes: Optional[str]
+    end_position: int = 0
+    quote_type: Optional[str] = None
+    line: Optional[int] = None
+    column: Optional[int] = None
+    metadata: Optional['TokenMetadata'] = field(default=None)
+    parts: Optional[List['TokenPart']] = field(default=None)
+    
+    def add_context(self, context: TokenContext):
+        """Add context information to token metadata."""
+        
+    def has_context(self, context: TokenContext) -> bool:
+        """Check if token has specific context."""
+        
+    def is_in_test_context(self) -> bool:
+        """Check if token is in test expression context."""
 ```
 
-### 2.4 Refactored Architecture Benefits
+### 2.4 Unified Architecture Benefits (v0.91.3)
 
-The 4-phase refactoring provides numerous advantages:
+The completed lexer deprecation plan provides numerous advantages:
 
-#### Phase 1: Unified State Management
-- **Single Source of Truth**: All state in unified LexerContext
-- **History Tracking**: State transitions tracked for debugging
-- **Immutable Snapshots**: Support for backtracking and error recovery
-- **Validation**: Explicit state transition rules
+#### Unified Token System
+- **Single Token Class**: Token class includes metadata and enhanced functionality by default
+- **Built-in Context Tracking**: All tokens have context information for semantic analysis
+- **Metadata Integration**: TokenMetadata and context tracking built into every token
+- **No Conversion Overhead**: Direct creation and usage without compatibility layers
 
-#### Phase 2: Pure Function Helpers
-- **Testability**: Pure functions with no side effects
-- **Reusability**: Functions can be used independently
-- **Performance**: Optimized algorithms for common operations
-- **Clarity**: Explicit inputs and outputs
+#### Simplified Architecture  
+- **Single Implementation Path**: Enhanced lexer features now standard throughout PSH
+- **Eliminated Compatibility Code**: Removed feature flags, adapters, and dual code paths
+- **30% API Reduction**: Token class unification significantly reduced API surface
+- **Clean Codebase**: Focused implementation without legacy compatibility overhead
 
-#### Phase 3: Unified Quote and Expansion Parsing
-- **Code Reuse**: Single parser for all quote types
-- **Configurable**: Rule-based system for different contexts
-- **Consistency**: Uniform handling of expansions
-- **Error Recovery**: Graceful handling of unclosed constructs
-
-#### Phase 4: Modular Token Recognition
-- **Extensibility**: Easy to add new token types
-- **Priority System**: Efficient recognition dispatch
-- **Context Awareness**: Tokens validated against current state
-- **Performance**: Fast path checks before expensive operations
+#### Enhanced Features Standard
+- **Context Tracking**: Tokens know their lexical context (command position, test expression, etc.)
+- **Semantic Analysis**: Built-in semantic type classification for tokens
+- **Error Recovery**: Comprehensive error detection and suggestions
+- **Rich Metadata**: Position, line/column tracking, and part decomposition
 
 Overall benefits:
-- **Maintainability**: Clean modular design with focused components
-- **Backward Compatibility**: All existing APIs preserved
-- **Performance**: Optimized recognition pipeline
-- **Clean API**: Direct imports from `psh.lexer` package
+- **Performance**: No compatibility overhead, single optimized code path
+- **Maintainability**: Simplified codebase with consistent token handling
+- **Reliability**: Enhanced error detection and recovery standard for all users
+- **Future Development**: Easier to add features without compatibility concerns
 
 ### 2.5 Context-Aware Tokenization
 

@@ -277,6 +277,12 @@ class SetBuiltin(Builtin):
       -o ignoreeof      Don't exit on EOF (Ctrl-D)
       -o nolog          Don't log function definitions to history
       -o debug-ast      Enable AST debug output
+      -o enhanced-parser         Use enhanced parser features (default: on)
+      -o validate-context        Validate token contexts during parsing
+      -o validate-semantics      Validate semantic types during parsing
+      -o analyze-semantics       Perform semantic analysis during parsing
+      -o enhanced-error-recovery Use enhanced error recovery (default: on)
+      -o enhanced-parser-mode    Set parser performance mode (performance/balanced/development)
       -o debug-tokens   Enable token debug output
       -o debug-scopes   Enable variable scope debug output
       -o debug-expansion Enable expansion debug output

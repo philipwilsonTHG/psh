@@ -22,18 +22,19 @@ PSH was created to demystify shell internals. When learning about shells, compil
 2. **Explicit Over Implicit**: Magic is minimized; behavior is clear
 3. **Modular Design**: Each component has a single, well-defined purpose
 4. **Progressive Complexity**: Simple features are implemented simply
-5. **Comprehensive Testing**: 730+ tests demonstrate usage and ensure correctness
+5. **Comprehensive Testing**: 2200+ tests demonstrate usage and ensure correctness
 
 ### Learning Opportunities
 
 By studying PSH, you can learn about:
-- Lexical analysis (tokenization)
-- Recursive descent parsing
-- Abstract Syntax Trees (ASTs)
+- Lexical analysis with unified token system (v0.91.3+)
+- Recursive descent parsing with comprehensive validation
+- Abstract Syntax Trees (ASTs) and visitor patterns
 - Command execution and process management
 - I/O redirection and pipelines
 - Variable scoping and expansion
 - Job control and signal handling
+- Modern architecture patterns in interpreter design
 
 ## 1.3 Installation and Setup
 

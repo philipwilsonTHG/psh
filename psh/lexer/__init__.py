@@ -1,11 +1,11 @@
-"""Advanced lexer package with Unicode support.
+"""Advanced lexer package for PSH shell tokenization.
 
-This package provides a modular lexer for shell tokenization
-with comprehensive Unicode support, configurable features, and enhanced
-error handling.
+This package provides a unified lexer for shell tokenization with comprehensive 
+Unicode support, metadata tracking, and context-aware parsing. Enhanced 
+functionality is now built into the standard Token class and ModularLexer.
 
 The main entry point is the tokenize() function which uses the ModularLexer
-for improved tokenization with preserved context.
+as the single lexer implementation.
 """
 
 from typing import List
@@ -28,23 +28,17 @@ from .unicode_support import (
 from .token_parts import TokenPart, RichToken
 from .helpers import LexerHelpers
 from .state_handlers import StateHandlers
-
-# New unified state management components
 from .state_context import LexerContext
-from .transitions import StateTransition, TransitionTable, StateManager
 
-# Pure helper functions (Phase 2)
-from . import pure_helpers
-from .enhanced_helpers import EnhancedLexerHelpers
-
-__version__ = "0.59.0"  # Phase D: StateMachineLexer deprecated, ModularLexer is the only implementation
+__version__ = "0.91.1"  # Phase 3 Day 2: Clean imports and dependencies
 
 def tokenize(input_string: str, strict: bool = True) -> List[Token]:
     """
-    Tokenize a shell command string using the ModularLexer.
+    Tokenize a shell command string using the unified lexer implementation.
     
-    This function provides the main entry point for shell tokenization
-    with comprehensive Unicode support and enhanced error handling.
+    This function provides the main entry point for shell tokenization with 
+    comprehensive Unicode support, metadata tracking, context awareness, and 
+    enhanced error handling - all features built into the standard Token class.
     
     Args:
         input_string: The shell command string to tokenize
@@ -58,12 +52,12 @@ def tokenize(input_string: str, strict: bool = True) -> List[Token]:
     
     # Create appropriate lexer config based on strict mode
     if strict:
-        config = LexerConfig.create_batch_config()  # strict_mode=True
+        config = LexerConfig.create_batch_config()
     else:
-        config = LexerConfig.create_interactive_config()  # strict_mode=False
+        config = LexerConfig.create_interactive_config()
     
     try:
-        # Expand braces first (same as original)
+        # Expand braces first
         expander = BraceExpander()
         expanded_string = expander.expand_line(input_string)
     except BraceExpansionError:
@@ -75,7 +69,7 @@ def tokenize(input_string: str, strict: bool = True) -> List[Token]:
         lexer = ModularLexer(expanded_string, config=config)
         tokens = lexer.tokenize()
     
-    # Apply token transformations (same as original)
+    # Apply token transformations
     transformer = TokenTransformer()
     tokens = transformer.transform(tokens)
     
@@ -97,9 +91,7 @@ __all__ = [
     # Token classes
     'TokenPart', 'RichToken',
     # Mixin classes (for advanced usage)
-    'LexerHelpers', 'StateHandlers', 'EnhancedLexerHelpers',
-    # New state management components
-    'LexerContext', 'StateTransition', 'TransitionTable', 'StateManager',
-    # Pure helper functions
-    'pure_helpers'
+    'LexerHelpers', 'StateHandlers',
+    # Context classes
+    'LexerContext',
 ]

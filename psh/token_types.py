@@ -2,8 +2,12 @@
 """Token type definitions for PSH lexer and parser."""
 
 from enum import Enum, auto
-from dataclasses import dataclass
-from typing import Optional
+from dataclasses import dataclass, field
+from typing import Optional, List, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .token_enhanced import TokenMetadata
+    from .lexer.token_parts import TokenPart
 
 
 class TokenType(Enum):
@@ -114,7 +118,7 @@ class TokenType(Enum):
 
 @dataclass
 class Token:
-    """A lexical token with type, value, and position information."""
+    """Unified token class with metadata and context information (formerly EnhancedToken)."""
     type: TokenType
     value: str
     position: int
@@ -122,3 +126,82 @@ class Token:
     quote_type: Optional[str] = None  # Track the quote character used (' or " or None)
     line: Optional[int] = None  # Line number (1-based)
     column: Optional[int] = None  # Column number (1-based)
+    metadata: Optional['TokenMetadata'] = field(default=None)  # Rich metadata (imported from token_enhanced)
+    parts: Optional[List['TokenPart']] = field(default=None)  # Token parts (imported from lexer.token_parts)
+    
+    def __post_init__(self):
+        """Initialize metadata and parts if not provided."""
+        if self.metadata is None:
+            # Import here to avoid circular imports
+            from .token_enhanced import TokenMetadata
+            self.metadata = TokenMetadata()
+        if self.parts is None:
+            self.parts = []
+    
+    @classmethod
+    def from_basic_token(
+        cls, 
+        type: TokenType,
+        value: str,
+        position: int,
+        end_position: int = 0,
+        quote_type: Optional[str] = None,
+        line: Optional[int] = None,
+        column: Optional[int] = None
+    ) -> 'Token':
+        """Create unified Token from basic token information."""
+        return cls(
+            type=type,
+            value=value,
+            position=position,
+            end_position=end_position,
+            quote_type=quote_type,
+            line=line,
+            column=column
+        )
+    
+    @classmethod
+    def from_token(
+        cls,
+        token: 'Token',
+        metadata: Optional['TokenMetadata'] = None,
+        parts: Optional[List['TokenPart']] = None
+    ) -> 'Token':
+        """Create Token from another Token (for compatibility)."""
+        if isinstance(token, cls):
+            return token  # Already a unified token
+        
+        # Create new token with metadata
+        new_token = cls(
+            type=token.type,
+            value=token.value,
+            position=token.position,
+            end_position=token.end_position,
+            quote_type=token.quote_type,
+            line=token.line,
+            column=token.column
+        )
+        
+        if metadata:
+            new_token.metadata = metadata
+        if parts:
+            new_token.parts = parts
+            
+        return new_token
+    
+    def add_context(self, context):
+        """Add a context to this token's metadata."""
+        if self.metadata:
+            self.metadata.add_context(context)
+    
+    def has_context(self, context) -> bool:
+        """Check if token has a specific context."""
+        return self.metadata.has_context(context) if self.metadata else False
+    
+    def is_in_test_context(self) -> bool:
+        """Check if token is in test expression context."""
+        return self.metadata.is_in_test_context() if self.metadata else False
+    
+    def is_command_position(self) -> bool:
+        """Check if token is in command position."""
+        return self.metadata.is_command_position() if self.metadata else False

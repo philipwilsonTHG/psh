@@ -72,11 +72,22 @@ class TokenMetadata:
         return self.has_context(TokenContext.COMMAND_POSITION)
 
 
-@dataclass
+# DEPRECATED: EnhancedToken functionality has been merged into Token class
+# This alias is provided for backward compatibility only
+import warnings
+
+@dataclass 
 class EnhancedToken(Token):
-    """Token with rich metadata and context information."""
-    metadata: TokenMetadata = field(default_factory=TokenMetadata)
-    parts: List[TokenPart] = field(default_factory=list)
+    """DEPRECATED: Use Token class instead. Enhanced functionality is now built into Token."""
+    
+    def __post_init__(self):
+        """Initialize with deprecation warning."""
+        warnings.warn(
+            "EnhancedToken is deprecated. Use Token class instead - enhanced functionality is now built-in.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        super().__post_init__()
     
     @classmethod
     def from_token(
@@ -85,7 +96,12 @@ class EnhancedToken(Token):
         metadata: Optional[TokenMetadata] = None,
         parts: Optional[List[TokenPart]] = None
     ) -> 'EnhancedToken':
-        """Create EnhancedToken from regular Token."""
+        """DEPRECATED: Create EnhancedToken from regular Token. Use Token class directly."""
+        warnings.warn(
+            "EnhancedToken.from_token() is deprecated. Use Token class directly.",
+            DeprecationWarning,
+            stacklevel=2
+        )
         return cls(
             type=token.type,
             value=token.value,
@@ -176,7 +192,7 @@ def create_error_token(
     message: str,
     end_position: Optional[int] = None,
     **kwargs
-) -> EnhancedToken:
+) -> Token:
     """Create a token representing a lexer error."""
     error_info = LexerError(
         error_type=error_type,
@@ -184,7 +200,7 @@ def create_error_token(
         **kwargs
     )
     
-    token = EnhancedToken(
+    token = Token(
         type=TokenType.WORD,  # Fallback type
         value=value,
         position=position,
@@ -200,9 +216,9 @@ def create_assignment_token(
     value: str,
     assignment_type: TokenType,
     end_position: Optional[int] = None
-) -> EnhancedToken:
+) -> Token:
     """Create a token representing an assignment."""
-    token = EnhancedToken(
+    token = Token(
         type=assignment_type,
         value=value,
         position=position,
