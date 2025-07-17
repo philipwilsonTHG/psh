@@ -5,7 +5,7 @@ from typing import Optional
 
 from ..context_recognizer import ContextAwareRecognizer
 from ..enhanced_context import EnhancedLexerContext
-from ...token_enhanced import EnhancedToken, SemanticType, create_assignment_token
+from ...token_enhanced import Token, SemanticType, create_assignment_token
 from ...token_types import Token, TokenType
 
 
@@ -102,7 +102,7 @@ class AssignmentRecognizer(ContextAwareRecognizer):
     
     def _enhance_token(
         self,
-        token: EnhancedToken,
+        token: Token,
         context: EnhancedLexerContext
     ):
         """Add assignment-specific enhancements."""
@@ -121,7 +121,7 @@ class AssignmentRecognizer(ContextAwareRecognizer):
         elif token.type in self.assignment_operators.values():
             self._parse_compound_assignment(token)
     
-    def _parse_simple_assignment(self, token: EnhancedToken):
+    def _parse_simple_assignment(self, token: Token):
         """Parse simple assignment (VAR=value) components."""
         if '=' not in token.value:
             return
@@ -137,7 +137,7 @@ class AssignmentRecognizer(ContextAwareRecognizer):
         token.assignment_info['value'] = value_part
         token.assignment_info['type'] = 'simple'
     
-    def _parse_array_assignment(self, token: EnhancedToken):
+    def _parse_array_assignment(self, token: Token):
         """Parse array assignment (arr[index]=value) components."""
         match = self.array_assignment.match(token.value)
         if not match:
@@ -156,7 +156,7 @@ class AssignmentRecognizer(ContextAwareRecognizer):
         token.assignment_info['value'] = value_part
         token.assignment_info['type'] = 'array'
     
-    def _parse_compound_assignment(self, token: EnhancedToken):
+    def _parse_compound_assignment(self, token: Token):
         """Parse compound assignment (VAR+=value) components."""
         match = self.compound_assignment.match(token.value)
         if not match:

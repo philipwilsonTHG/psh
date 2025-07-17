@@ -4,8 +4,8 @@ from abc import ABC, abstractmethod
 from typing import Optional
 
 from .enhanced_context import EnhancedLexerContext, ContextHint, get_context_hint
-from ..token_enhanced import EnhancedToken, TokenContext, SemanticType
 from ..token_types import Token, TokenType
+from ..token_enhanced import TokenContext, SemanticType
 
 
 class ContextAwareRecognizer(ABC):
@@ -40,7 +40,7 @@ class ContextAwareRecognizer(ABC):
         text: str,
         position: int,
         context: EnhancedLexerContext
-    ) -> Optional[EnhancedToken]:
+    ) -> Optional[Token]:
         """Recognize token with context information."""
         # Basic recognition first
         token = self.recognize_basic(text, position, context)
@@ -48,7 +48,7 @@ class ContextAwareRecognizer(ABC):
             return None
         
         # Enhance with context
-        enhanced = EnhancedToken.from_token(token)
+        enhanced = Token.from_token(token)
         
         # Add current contexts
         for ctx in context.get_current_contexts():
@@ -61,7 +61,7 @@ class ContextAwareRecognizer(ABC):
     
     def _enhance_token(
         self,
-        token: EnhancedToken,
+        token: Token,
         context: EnhancedLexerContext
     ):
         """Add context-specific enhancements to the token."""
@@ -120,7 +120,7 @@ class ContextAwareRecognizer(ABC):
                 token.set_semantic_type(SemanticType.IDENTIFIER)
         
         # Expansion depth tracking
-        if token.is_expansion:
+        if hasattr(token, 'parts') and any(part.is_expansion for part in token.parts):
             token.metadata.expansion_depth = context.get_nesting_depth()
         
         # Quote depth tracking (if applicable)
