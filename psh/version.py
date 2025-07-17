@@ -2,7 +2,7 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.91.3"
+__version__ = "0.91.4"
 
 # Version history
 VERSION_HISTORY = """

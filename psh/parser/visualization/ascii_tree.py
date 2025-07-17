@@ -77,6 +77,14 @@ class AsciiTreeRenderer:
         """Get significant fields from a node."""
         fields = []
         
+        # Special handling for SimpleCommand to combine arguments compactly
+        if node.__class__.__name__ == 'SimpleCommand':
+            return self._get_simple_command_fields(node)
+        
+        # Special handling for StatementList to avoid duplication
+        if node.__class__.__name__ == 'StatementList':
+            return self._get_statement_list_fields(node)
+        
         # Get all non-private attributes
         for attr_name in dir(node):
             if (not attr_name.startswith('_') and 
@@ -87,6 +95,67 @@ class AsciiTreeRenderer:
                     if value is not None or self.show_empty_fields:
                         # Skip empty lists unless show_empty_fields is True
                         if isinstance(value, list) and not value and not self.show_empty_fields:
+                            continue
+                        # Skip false boolean values to reduce noise
+                        if isinstance(value, bool) and value is False:
+                            continue
+                        fields.append((attr_name, value))
+                except:
+                    continue
+        
+        return fields
+    
+    def _get_statement_list_fields(self, node) -> List[Tuple[str, Any]]:
+        """Get fields for StatementList without duplication from compatibility properties."""
+        fields = []
+        
+        # Only show the main 'statements' field, skip the backward compatibility properties
+        # that are derived from it (and_or_lists, pipelines)
+        statements = getattr(node, 'statements', [])
+        if statements or self.show_empty_fields:
+            fields.append(('statements', statements))
+        
+        return fields
+    
+    def _get_simple_command_fields(self, node) -> List[Tuple[str, Any]]:
+        """Get fields for SimpleCommand with compact argument representation."""
+        fields = []
+        
+        # Create compact argument representation
+        args = getattr(node, 'args', [])
+        arg_types = getattr(node, 'arg_types', [])
+        quote_types = getattr(node, 'quote_types', [])
+        
+        if args:
+            # Create compact argument strings showing arg (type, quote)
+            compact_args = []
+            for i, arg in enumerate(args):
+                arg_type = arg_types[i] if i < len(arg_types) else 'WORD'
+                quote_type = quote_types[i] if i < len(quote_types) else None
+                
+                if quote_type:
+                    compact_args.append(f'"{arg}" ({arg_type}, {quote_type})')
+                else:
+                    compact_args.append(f'{arg} ({arg_type})')
+            
+            # Add as a single "arguments" field
+            fields.append(('arguments', compact_args))
+        
+        # Add other fields (but skip the original args, arg_types, quote_types)
+        skip_fields = {'args', 'arg_types', 'quote_types'}
+        for attr_name in dir(node):
+            if (not attr_name.startswith('_') and 
+                not callable(getattr(node, attr_name)) and
+                attr_name not in ['position', 'line', 'column'] and
+                attr_name not in skip_fields):
+                try:
+                    value = getattr(node, attr_name)
+                    if value is not None or self.show_empty_fields:
+                        # Skip empty lists unless show_empty_fields is True
+                        if isinstance(value, list) and not value and not self.show_empty_fields:
+                            continue
+                        # Skip false boolean values to reduce noise
+                        if isinstance(value, bool) and value is False:
                             continue
                         fields.append((attr_name, value))
                 except:
@@ -179,6 +248,32 @@ class AsciiTreeRenderer:
         """Render a list field."""
         lines = []
         
+        # Special compact handling for SimpleCommand arguments
+        if field_name == "arguments":
+            connector = self.chars['last_branch'] if is_last else self.chars['branch']
+            
+            # Show all arguments on a single line if they fit (be more generous with the limit)
+            args_line = ", ".join(str(item) for item in items)
+            total_line = f"{prefix}{connector}{field_name}: {args_line}"
+            
+            # Use 120 as a reasonable limit for most terminals, or use max_width if it's higher
+            line_limit = max(120, self.max_width)
+            
+            if len(total_line) <= line_limit:
+                # Single line format
+                lines.append(total_line)
+                return lines
+            else:
+                # Fall back to multi-line if too long
+                lines.append(f"{prefix}{connector}{field_name}:")
+                list_prefix = prefix + (self.chars['space'] if is_last else self.chars['vertical'])
+                for i, item in enumerate(items):
+                    is_last_item = (i == len(items) - 1)
+                    item_connector = self.chars['last_branch'] if is_last_item else self.chars['branch']
+                    lines.append(f"{list_prefix}{item_connector}{self.chars['list_item']}{item}")
+                return lines
+        
+        # Standard list rendering for other fields
         # List header
         connector = self.chars['last_branch'] if is_last else self.chars['branch']
         list_header = f"{field_name}: [{len(items)} items]"
