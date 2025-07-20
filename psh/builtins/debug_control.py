@@ -19,7 +19,7 @@ class DebugASTBuiltin(Builtin):
         
         Arguments:
             on|off     Enable or disable AST debugging (default: toggle)
-            FORMAT     AST format: tree, pretty, compact, dot (default: tree)
+            FORMAT     AST format: tree, pretty, compact, dot, sexp (default: tree)
         
         Examples:
             debug-ast              # Toggle AST debugging
@@ -51,7 +51,7 @@ class DebugASTBuiltin(Builtin):
                 print("AST debugging disabled")
                 return 0
                 
-            elif arg in ('tree', 'pretty', 'compact', 'dot'):
+            elif arg in ('tree', 'pretty', 'compact', 'dot', 'sexp'):
                 # Format specified - enable debug and set format
                 shell.state.options['debug-ast'] = True
                 shell.state.scope_manager.set_variable('PSH_AST_FORMAT', arg)
@@ -60,7 +60,7 @@ class DebugASTBuiltin(Builtin):
                 
             else:
                 self.error(f"invalid argument: {args[1]}", shell)
-                self.error("Use: debug-ast [on|off] [tree|pretty|compact|dot]", shell)
+                self.error("Use: debug-ast [on|off] [tree|pretty|compact|dot|sexp]", shell)
                 return 1
         
         elif len(args) == 3:
@@ -72,7 +72,7 @@ class DebugASTBuiltin(Builtin):
                 self.error(f"invalid action: {action}", shell)
                 return 1
                 
-            if format_arg not in ('tree', 'pretty', 'compact', 'dot'):
+            if format_arg not in ('tree', 'pretty', 'compact', 'dot', 'sexp'):
                 self.error(f"invalid format: {format_arg}", shell)
                 return 1
             
@@ -88,7 +88,7 @@ class DebugASTBuiltin(Builtin):
         
         else:
             self.error("too many arguments", shell)
-            self.error("Use: debug-ast [on|off] [tree|pretty|compact|dot]", shell)
+            self.error("Use: debug-ast [on|off] [tree|pretty|compact|dot|sexp]", shell)
             return 1
 
 

@@ -2,7 +2,7 @@
 
 ## Overview
 
-The PSH lexer is a sophisticated, modular tokenization system designed to handle the complex syntax of POSIX shells while maintaining clarity and extensibility. As of v0.91.3, it implements a unified token system with enhanced features as standard, following a successful 5-phase deprecation plan that eliminated legacy code paths and reduced the API surface by 30%.
+The PSH lexer is a modular tokenization system designed to handle the complex syntax of POSIX shells while maintaining clarity and extensibility.
 
 ## Architecture Principles
 
@@ -377,32 +377,6 @@ The modular architecture facilitates comprehensive testing:
 - Bash compatibility testing
 - Token output comparison with reference implementations
 
-## Migration from Legacy (v0.91.3)
-
-The unified architecture completed a 5-phase migration:
-
-### Phase 1: Enhanced Token Introduction
-- Added enhanced token types alongside legacy
-- Introduced metadata infrastructure
-
-### Phase 2: Parser Integration
-- Integrated enhanced tokens with parser
-- Added compatibility layer
-
-### Phase 3: Feature Adoption
-- Migrated features to use enhanced tokens
-- Maintained dual-path support
-
-### Phase 4: Default Implementation
-- Made enhanced features the default
-- Legacy path for compatibility only
-
-### Phase 5: Legacy Removal and Documentation
-- Removed all legacy code paths
-- Unified Token class (formerly EnhancedToken)
-- 30% API surface reduction
-- Comprehensive documentation
-
 ## Extension Points
 
 The architecture provides clear extension points:
@@ -448,6 +422,5 @@ The architecture is designed to support:
 
 ## Conclusion
 
-The PSH lexer architecture represents a sophisticated yet maintainable approach to shell tokenization. Its modular design, comprehensive metadata, and clear extension points make it an excellent foundation for both educational purposes and practical shell implementation. The successful completion of the Enhanced Lexer Deprecation Plan has resulted in a cleaner, more efficient, and more capable lexer that serves as the foundation for PSH's continued evolution.
+The PSH lexer architecture represents a maintainable approach to shell tokenization. Its modular design, metadata, and extension points make it a good foundation for both educational purposes and practical shell implementation.
 
-The unified token system eliminates complexity while adding capabilities, demonstrating that architectural improvements can simultaneously simplify and enhance a system. This positions PSH well for future development while maintaining its core educational mission of providing clear, understandable implementations of shell concepts.

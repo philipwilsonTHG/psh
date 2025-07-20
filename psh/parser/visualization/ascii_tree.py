@@ -85,6 +85,10 @@ class AsciiTreeRenderer:
         if node.__class__.__name__ == 'StatementList':
             return self._get_statement_list_fields(node)
         
+        # Special handling for AndOrList to show pipeline/operator relationships
+        if node.__class__.__name__ == 'AndOrList':
+            return self._get_and_or_list_fields(node)
+        
         # Get all non-private attributes
         for attr_name in dir(node):
             if (not attr_name.startswith('_') and 
@@ -116,6 +120,90 @@ class AsciiTreeRenderer:
             fields.append(('statements', statements))
         
         return fields
+    
+    def _get_and_or_list_fields(self, node) -> List[Tuple[str, Any]]:
+        """Get fields for AndOrList showing pipeline/operator relationships."""
+        fields = []
+        
+        pipelines = getattr(node, 'pipelines', [])
+        operators = getattr(node, 'operators', [])
+        
+        if not pipelines:
+            return fields
+        
+        # If no operators, just show pipelines normally
+        if not operators:
+            fields.append(('pipelines', pipelines))
+            return fields
+        
+        # Create a tree structure where operators have pipelines as children
+        # For "cmd1 && cmd2 || cmd3", we want to show:
+        # expression_tree:
+        #   └── ||
+        #       ├── &&
+        #       │   ├── Pipeline: cmd1
+        #       │   └── Pipeline: cmd2
+        #       └── Pipeline: cmd3
+        
+        expression_tree = self._build_operator_tree(pipelines, operators)
+        fields.append(('expression_tree', expression_tree))
+        return fields
+    
+    def _build_operator_tree(self, pipelines, operators):
+        """Build a tree structure showing operator precedence and pipeline relationships."""
+        if not operators:
+            return pipelines[0] if pipelines else None
+        
+        # For now, build a simple left-associative tree
+        # Start with the first pipeline
+        result = pipelines[0]
+        
+        # Process each operator and its right operand
+        for i, operator in enumerate(operators):
+            right_pipeline = pipelines[i + 1] if i + 1 < len(pipelines) else None
+            if right_pipeline is not None:
+                # Create an operator node with left and right children
+                result = ('OperatorExpression', {
+                    'operator': operator,
+                    'left': result,
+                    'right': right_pipeline
+                })
+        
+        return result
+    
+    def _render_expression_operand(self, operand, prefix: str, is_last: bool) -> List[str]:
+        """Render an operand in an operator expression."""
+        lines = []
+        connector = self.chars['last_branch'] if is_last else self.chars['branch']
+        
+        if isinstance(operand, tuple) and len(operand) == 2 and operand[0] == 'OperatorExpression':
+            # Nested operator expression
+            operator_info = operand[1]
+            operator = operator_info.get('operator', '?')
+            left = operator_info.get('left')
+            right = operator_info.get('right')
+            
+            lines.append(f"{prefix}{connector}{operator}")
+            nested_prefix = prefix + (self.chars['space'] if is_last else self.chars['vertical'])
+            
+            # Render nested operands
+            if left is not None:
+                left_lines = self._render_expression_operand(left, nested_prefix, False)
+                lines.extend(left_lines)
+            
+            if right is not None:
+                right_lines = self._render_expression_operand(right, nested_prefix, True)
+                lines.extend(right_lines)
+                
+        elif hasattr(operand, '__class__'):
+            # AST Node
+            node_lines = self._render_node(operand, prefix, is_last)
+            lines.append(node_lines)
+        else:
+            # Simple value
+            lines.append(f"{prefix}{connector}{self._format_simple_value(operand)}")
+        
+        return lines
     
     def _get_simple_command_fields(self, node) -> List[Tuple[str, Any]]:
         """Get fields for SimpleCommand with compact argument representation."""
@@ -201,6 +289,9 @@ class AsciiTreeRenderer:
                     complex_fields.append((name, value))
             elif isinstance(value, ASTNode):
                 complex_fields.append((name, value))
+            elif isinstance(value, tuple) and len(value) == 2 and value[0] == 'OperatorExpression':
+                # Special handling for operator expressions
+                complex_fields.append((name, [value]))  # Wrap in list for list renderer
             else:
                 simple_fields.append((name, value))
         
@@ -286,7 +377,40 @@ class AsciiTreeRenderer:
         for i, item in enumerate(items):
             is_last_item = (i == len(items) - 1)
             
-            if isinstance(item, ASTNode):
+            # Special handling for operator expressions and other tuples
+            if isinstance(item, tuple) and len(item) == 2:
+                item_type, item_value = item
+                item_connector = self.chars['last_branch'] if is_last_item else self.chars['branch']
+                
+                if item_type == 'OperatorExpression' and isinstance(item_value, dict):
+                    # Render operator expression as a tree
+                    operator = item_value.get('operator', '?')
+                    left = item_value.get('left')
+                    right = item_value.get('right')
+                    
+                    lines.append(f"{list_prefix}{item_connector}{operator}")
+                    op_prefix = list_prefix + (self.chars['space'] if is_last_item else self.chars['vertical'])
+                    
+                    # Render left operand
+                    if left is not None:
+                        left_lines = self._render_expression_operand(left, op_prefix, False)
+                        lines.extend(left_lines)
+                    
+                    # Render right operand
+                    if right is not None:
+                        right_lines = self._render_expression_operand(right, op_prefix, True)
+                        lines.extend(right_lines)
+                        
+                elif isinstance(item_value, ASTNode):
+                    # For Pipeline nodes, show the type label then render the node
+                    lines.append(f"{list_prefix}{item_connector}{item_type}:")
+                    node_prefix = list_prefix + (self.chars['space'] if is_last_item else self.chars['vertical'])
+                    item_lines = self._render_node(item_value, node_prefix, True)
+                    lines.append(item_lines)
+                else:
+                    # For simple values, show as key: value
+                    lines.append(f"{list_prefix}{item_connector}{item_type}: {item_value}")
+            elif isinstance(item, ASTNode):
                 item_lines = self._render_node(item, list_prefix, is_last_item)
                 lines.append(item_lines)
             else:

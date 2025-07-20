@@ -93,6 +93,10 @@ class Shell:
         from .history_expansion import HistoryExpander
         self.history_expander = HistoryExpander(self)
         
+        # Initialize parser strategy
+        from .parser.parser_registry import ParserStrategy
+        self.parser_strategy = ParserStrategy("default")
+        
         # Initialize trap manager
         from .core.trap_manager import TrapManager
         self.trap_manager = TrapManager(self)
@@ -429,10 +433,8 @@ class Shell:
             
             # Note: Alias expansion now happens during execution phase for proper precedence
             
-            # Parse with source text for better error messages
-            from .parser import Parser
-            parser = Parser(tokens, source_text=command_string)
-            ast = parser.parse()
+            # Parse using the selected parser implementation
+            ast = self.parser_strategy.parse(tokens)
             
             # Debug: Print AST if requested
             if self.debug_ast:
@@ -792,6 +794,16 @@ class Shell:
                 print("\n# Save to file and visualize with:", file=sys.stderr)
                 print("# dot -Tpng output.dot -o ast.png", file=sys.stderr)
                 print("# xdg-open ast.png", file=sys.stderr)
+                
+            elif format_type == 'sexp':
+                from .parser.visualization.sexp_renderer import SExpressionRenderer
+                output = SExpressionRenderer.render(
+                    ast,
+                    compact_mode=False,
+                    max_width=80,
+                    show_positions=True
+                )
+                print(output, file=sys.stderr)
                 
             else:  # default - use tree format as the new default
                 from .parser.visualization import AsciiTreeRenderer

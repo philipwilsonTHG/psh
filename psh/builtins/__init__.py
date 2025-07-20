@@ -27,6 +27,7 @@ from . import type_builtin
 from . import parse_tree
 from . import debug_control
 from . import parser_control
+from . import parser_experiment
 
 # Re-export for convenience
 __all__ = ['registry', 'builtin', 'Builtin']

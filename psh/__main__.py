@@ -47,6 +47,10 @@ def main():
         debug_ast = True
         ast_format = "compact"
         args.remove("--debug-ast=compact")
+    if "--debug-ast=sexp" in args:
+        debug_ast = True
+        ast_format = "sexp"
+        args.remove("--debug-ast=sexp")
     if "--debug-tokens" in args:
         debug_tokens = True
         args.remove("--debug-tokens")
@@ -172,7 +176,7 @@ def main():
             print("  --rcfile FILE    Read FILE instead of ~/.pshrc")
             print("  --force-interactive Force interactive mode even if stdin is not a TTY")
             print("  --debug-ast      Print AST before execution (debugging)")
-            print("  --debug-ast=FORMAT AST format: pretty, tree, compact, dot")
+            print("  --debug-ast=FORMAT AST format: pretty, tree, compact, dot, sexp")
             print("  --debug-tokens   Print tokens before parsing (debugging)")
             print("  --debug-scopes   Print variable scope operations (debugging)")
             print("  --debug-expansion Print expansions as they occur (debugging)")
