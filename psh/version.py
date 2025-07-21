@@ -2,10 +2,22 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.91.4"
+__version__ = "0.91.5"
 
 # Version history
 VERSION_HISTORY = """
+0.91.5 (2025-01-21) - Word AST Expansion Evaluation
+- Implemented expansion evaluation using Word AST nodes
+- Added ExpansionEvaluator for clean separation of concerns
+- Enabled Word AST building by default in parser
+- All expansion types properly evaluated through AST
+
+0.91.4 (2025-01-20) - Enhanced AST Tree Visualization
+- Added ASCII tree visualization for AST debugging
+- Created S-expression renderer for compact AST display
+- Integrated visualizations into debug and builtin commands
+- Added 'parse-tree' builtin for AST exploration
+
 0.91.3 (2025-01-17) - Phase 5: Documentation and Release - Enhanced Lexer Deprecation Complete
   - Completed Phase 5 of the Enhanced Lexer Deprecation Plan - final documentation and release
   - Updated Architecture Documentation
