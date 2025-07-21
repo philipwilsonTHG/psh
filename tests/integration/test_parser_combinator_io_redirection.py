@@ -108,7 +108,8 @@ class TestInputRedirection(TestParserCombinatorIORedirection):
     def test_fd_input_redirect_not_supported(self):
         """Test: command 3< data.txt - NOT SUPPORTED CORRECTLY"""
         # Parser combinator parses this incorrectly as "command 3 < data.txt"
-        cmd = self.get_simple_command(self.parse("command 3< data.txt"))
+        ast = self.parse("command 3< data.txt")
+        cmd = ast.statements[0].pipelines[0].commands[0]
         # It treats "3" as an argument and < as a regular redirect
         assert len(cmd.args) == 2
         assert cmd.args[0] == "command"
@@ -123,11 +124,11 @@ class TestInputRedirection(TestParserCombinatorIORedirection):
         assert len(redirects) == 2
         
         # Input redirect
-        assert redirects[0].type == RedirectType.INPUT
+        assert redirects[0].type == '<'
         assert redirects[0].target == "input.txt"
         
         # Output redirect
-        assert redirects[1].type == RedirectType.OUTPUT
+        assert redirects[1].type == '>'
         assert redirects[1].target == "output.txt"
 
 
@@ -148,7 +149,7 @@ class TestRedirectionWithPipelines(TestParserCombinatorIORedirection):
         grep_cmd = pipeline.commands[1]
         assert isinstance(grep_cmd, SimpleCommand)
         assert len(grep_cmd.redirects) == 1
-        assert grep_cmd.redirects[0].type == RedirectType.OUTPUT
+        assert grep_cmd.redirects[0].type == '>'
         assert grep_cmd.redirects[0].target == "files.txt"
     
     def test_pipeline_with_input_redirect(self):
@@ -161,7 +162,7 @@ class TestRedirectionWithPipelines(TestParserCombinatorIORedirection):
         # First command should have redirect
         grep_cmd = pipeline.commands[0]
         assert len(grep_cmd.redirects) == 1
-        assert grep_cmd.redirects[0].type == RedirectType.INPUT
+        assert grep_cmd.redirects[0].type == '<'
         assert grep_cmd.redirects[0].target == "file.txt"
     
     def test_complex_pipeline_redirects(self):
@@ -172,11 +173,11 @@ class TestRedirectionWithPipelines(TestParserCombinatorIORedirection):
         assert len(pipeline.commands) == 3
         
         # First command input redirect
-        assert pipeline.commands[0].redirects[0].type == RedirectType.INPUT
+        assert pipeline.commands[0].redirects[0].type == '<'
         assert pipeline.commands[0].redirects[0].target == "in.txt"
         
         # Last command output redirect
-        assert pipeline.commands[2].redirects[0].type == RedirectType.OUTPUT
+        assert pipeline.commands[2].redirects[0].type == '>'
         assert pipeline.commands[2].redirects[0].target == "out.txt"
 
 
@@ -188,12 +189,13 @@ class TestRedirectionWithControlStructures(TestParserCombinatorIORedirection):
         ast = self.parse("if true; then echo yes > result.txt; fi")
         
         # Navigate to the echo command in then block
-        if_stmt = ast.items[0]
-        then_block = if_stmt.then_block
+        and_or = ast.statements[0]
+        if_stmt = and_or.pipelines[0]
+        then_block = if_stmt.then_part
         echo_cmd = then_block.statements[0].pipelines[0].commands[0]
         
         assert len(echo_cmd.redirects) == 1
-        assert echo_cmd.redirects[0].type == RedirectType.OUTPUT
+        assert echo_cmd.redirects[0].type == '>'
         assert echo_cmd.redirects[0].target == "result.txt"
     
     def test_loop_with_input_redirect(self):
@@ -212,11 +214,12 @@ class TestRedirectionWithControlStructures(TestParserCombinatorIORedirection):
         ast = self.parse("for i in 1 2 3; do echo $i > num_$i.txt; done")
         
         # Navigate to echo command in loop body
-        for_loop = ast.items[0]
+        and_or = ast.statements[0]
+        for_loop = and_or.pipelines[0]
         echo_cmd = for_loop.body.statements[0].pipelines[0].commands[0]
         
         assert len(echo_cmd.redirects) == 1
-        assert echo_cmd.redirects[0].type == RedirectType.OUTPUT
+        assert echo_cmd.redirects[0].type == '>'
         # Target contains expansion, check it's parsed
         assert "num_" in echo_cmd.redirects[0].target
 
@@ -228,7 +231,7 @@ class TestRedirectionEdgeCases(TestParserCombinatorIORedirection):
         """Test redirect target with spaces (quoted)."""
         redirects = self.get_redirects('echo test > "file with spaces.txt"')
         assert len(redirects) == 1
-        assert redirects[0].target == '"file with spaces.txt"'
+        assert redirects[0].target == 'file with spaces.txt'  # Quotes removed during parsing
     
     def test_redirect_order_preservation(self):
         """Test that redirect order is preserved."""
