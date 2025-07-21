@@ -1,6 +1,6 @@
 # PSH Architecture Reference for Large Language Models
 
-Version: 0.91.3 (2025-01-17) - Lexer Deprecation Plan Complete  
+Version: 0.91.5 (2025-01-21) - Word AST Expansion & Parser Documentation  
 Purpose: Optimized reference for LLMs working with PSH codebase
 
 ## Quick Start
@@ -93,26 +93,36 @@ psh/
 │   ├── context.py         # Centralized ParserContext (v0.85.0)
 │   ├── context_factory.py # Context factory and creation utilities (v0.85.0)
 │   ├── context_snapshots.py # Context snapshots for backtracking (v0.85.0)
+│   ├── abstract_parser.py # Abstract base class for parser implementations
+│   ├── parser_registry.py # Registry and strategy pattern for parsers
+│   ├── word_builder.py    # Word AST node construction utilities
+│   ├── implementations/   # Multiple parser implementations
+│   │   ├── __init__.py
+│   │   ├── parser_combinator_example.py # Functional parser combinator approach
+│   │   └── recursive_descent.py        # Traditional recursive descent (default)
 │   ├── validation/        # AST validation system (v0.85.0)
 │   │   ├── semantic_analyzer.py # Semantic analysis with visitor pattern
 │   │   ├── validation_rules.py  # Modular validation rules
 │   │   ├── symbol_table.py      # Symbol table management
 │   │   ├── warnings.py          # Warning system with severity levels
 │   │   └── validation_pipeline.py # Validation orchestration
-│   └── visualization/     # Parse tree visualization (v0.85.0)
-│       ├── ast_formatter.py    # Pretty printer for human-readable output
-│       ├── dot_generator.py    # Graphviz DOT format for diagrams
-│       └── ascii_tree.py       # ASCII tree renderer for terminal
+│   ├── visualization/     # Parse tree visualization (v0.85.0)
+│   │   ├── ast_formatter.py    # Pretty printer for human-readable output
+│   │   ├── dot_generator.py    # Graphviz DOT format for diagrams
+│   │   ├── ascii_tree.py       # ASCII tree renderer for terminal
+│   │   └── sexp_renderer.py    # S-expression format for compact display
 ├── ast_nodes.py            # AST node definitions
 ├── visitor/                # Visitor pattern operations
 │   ├── base.py            # Base visitor classes
 │   └── executor_visitor.py # Default executor (visitor pattern)
 ├── expansion/              # Shell expansions
-│   ├── manager.py         # Orchestrates expansions
+│   ├── manager.py         # Orchestrates expansions (with Word AST support)
 │   ├── variable.py        # Variable/parameter expansion
 │   ├── command_sub.py     # Command substitution
 │   ├── tilde.py          # Tilde expansion
-│   └── glob.py           # Pathname expansion
+│   ├── glob.py           # Pathname expansion
+│   ├── evaluator.py       # Expansion AST node evaluator (v0.91.5)
+│   └── parameter_expansion.py # Complex parameter expansion operations
 ├── executor/               # Modular executor package (v0.68.0)
 │   ├── __init__.py        # Public API exports
 │   ├── core.py            # Main ExecutorVisitor (542 lines)
@@ -261,6 +271,13 @@ self.subshell_executor = SubshellExecutor(shell)
 6. Pathname expansion (*, ?, [...])
 7. Quote removal
 
+**Word AST Support (v0.91.5):**
+- Handles Word AST nodes when `build_word_ast_nodes` is enabled
+- `_expand_word_ast_arguments()` processes Word nodes
+- `_expand_word()` evaluates individual Word with proper quoting
+- Uses `ExpansionEvaluator` for clean separation of concerns
+- Maintains backward compatibility with string-based expansion
+
 ### Lexer Package (lexer/) - Unified Architecture (v0.91.3)
 **Purpose:** Unified modular lexer with enhanced features as standard
 **Note:** Enhanced lexer deprecation plan completed in v0.91.3. All enhanced features are now built-in standard throughout PSH operation. Compatibility code removed.
@@ -398,6 +415,147 @@ psh --debug-ast=pretty -c "if true; then echo hi; fi"
 parse-tree -f dot "for i in 1 2 3; do echo $i; done"
 show-ast "case $var in pattern) echo match;; esac"
 ```
+
+### Multiple Parser Implementation System
+
+PSH supports multiple parser implementations through a registry and strategy pattern,
+allowing runtime selection and experimentation with different parsing approaches.
+
+**Parser Registry (parser/parser_registry.py):**
+```python
+# Register parser implementations
+ParserRegistry.register("default", RecursiveDescentParser, aliases=["recursive-descent"])
+ParserRegistry.register("combinator", ParserCombinatorExample, aliases=["pc", "parser-combinator"])
+
+# Create parser instance
+parser = ParserRegistry.create("combinator", config=parser_config)
+
+# Runtime parser switching
+parser_strategy = ParserStrategy("default")
+parser_strategy.switch_parser("combinator")
+parser_strategy.configure(build_word_ast_nodes=True)
+```
+
+**Abstract Parser Interface:**
+```python
+class AbstractShellParser(ABC):
+    """Base interface for all parser implementations."""
+    
+    @abstractmethod
+    def parse(self, tokens: List[Token]) -> TopLevel:
+        """Parse tokens into AST."""
+    
+    @abstractmethod
+    def get_characteristics(self) -> ParserCharacteristics:
+        """Return parser capabilities and features."""
+```
+
+**Parser Strategy Pattern:**
+- Consistent interface regardless of implementation
+- Runtime parser switching capabilities
+- Performance metrics collection
+- Parser comparison testing
+
+### Parser Combinator Implementation
+
+The parser combinator implementation provides a functional programming approach
+to parsing, using composable parser primitives.
+
+**Location:** `parser/implementations/parser_combinator_example.py`
+
+**Key Features:**
+- Functional parser combinators (map, flatMap, or_else, many, etc.)
+- Monadic parser composition
+- Clean separation of parsing logic
+- Backtracking support
+- Left recursion handling
+
+**Basic Combinators:**
+```python
+# Parser type: Parser[T] = Callable[[List[Token], int], Optional[Tuple[T, int]]]
+
+# Primitive parsers
+def token(expected_type: TokenType) -> Parser[Token]:
+    """Parse a single token of expected type."""
+
+def literal(value: str) -> Parser[Token]:
+    """Parse a token with specific value."""
+
+# Combinator operations
+def map(parser: Parser[A], f: Callable[[A], B]) -> Parser[B]:
+    """Transform parser result."""
+
+def flatMap(parser: Parser[A], f: Callable[[A], Parser[B]]) -> Parser[B]:
+    """Monadic bind - sequence parsers."""
+
+def or_else(parser1: Parser[A], parser2: Parser[A]) -> Parser[A]:
+    """Try parser1, if fails try parser2."""
+
+def many(parser: Parser[A]) -> Parser[List[A]]:
+    """Parse zero or more occurrences."""
+```
+
+**Example Usage:**
+```python
+# Parse variable assignment: VAR=value
+assignment_parser = flatMap(
+    token(TokenType.WORD),  # Variable name
+    lambda var: flatMap(
+        literal("="),       # Assignment operator
+        lambda _: map(
+            token(TokenType.WORD),  # Value
+            lambda val: (var.value, val.value)
+        )
+    )
+)
+```
+
+**Advanced Features:**
+1. **Nested Control Structure Handling:**
+   - Level tracking for proper nesting
+   - Correct handling of keywords in context
+   - Example: nested for loops with proper 'done' matching
+
+2. **Function Definition Parsing:**
+   - Both POSIX and bash-style functions
+   - Proper body parsing with control structures
+   - Function name validation
+
+3. **Error Recovery:**
+   - Graceful handling of parse failures
+   - Meaningful error messages
+   - Partial AST construction
+
+**Advantages:**
+- Highly composable and reusable
+- Clear correspondence to grammar rules
+- Easy to extend with new constructs
+- Type-safe parser composition
+- Natural handling of alternatives
+
+**Implementation Highlights:**
+```python
+class ParserCombinatorExample(AbstractShellParser):
+    def __init__(self):
+        # Build parser from combinators
+        self.statement = self._build_statement_parser()
+        self.command = self._build_command_parser()
+        self.control_structure = self._build_control_parser()
+        
+    def parse(self, tokens: List[Token]) -> TopLevel:
+        # Use combinator parsers
+        result = run_parser(self.top_level, tokens)
+        if result:
+            ast, remaining = result
+            return ast
+        raise ParseError("Failed to parse")
+```
+
+**Parser Comparison:**
+- Both recursive descent and parser combinator produce identical ASTs
+- Parser comparison tests ensure compatibility
+- Performance metrics show comparable speed
+- Each approach has different extensibility characteristics
 
 ### Key Interfaces
 
@@ -595,11 +753,17 @@ class MyBuiltin(BuiltinCommand):
 - `ExecutionContext` - Execution state management
 - `CommandExecutor` - Simple command execution
 - `PipelineExecutor` - Pipeline execution
-- `ExpansionManager` - Expansion orchestrator
+- `ExpansionManager` - Expansion orchestrator (with Word AST support)
+- `ExpansionEvaluator` - Evaluates expansion AST nodes (v0.91.5)
 - `Parser` - Enhanced modular parser with ParserContext integration
 - `ParserContext` - Centralized parser state management (v0.85.0)
 - `ParserConfig` - Comprehensive parser configuration (v0.85.0)
 - `ParserFactory` - Factory with preset configurations (v0.85.0)
+- `ParserRegistry` - Registry for multiple parser implementations
+- `ParserStrategy` - Strategy pattern for parser selection
+- `AbstractShellParser` - Base interface for parser implementations
+- `ParserCombinatorExample` - Functional parser combinator implementation
+- `WordBuilder` - Constructs Word AST nodes with expansions
 - `ParserContextFactory` - Context creation utilities (v0.85.0)
 - `SemanticAnalyzer` - AST semantic analysis (v0.85.0)
 - `ValidationPipeline` - Validation orchestration (v0.85.0)
