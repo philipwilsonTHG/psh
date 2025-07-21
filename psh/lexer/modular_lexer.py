@@ -443,12 +443,21 @@ class ModularLexer:
         # Emit token based on expansion type
         if expansion_part.is_variable:
             if expansion_part.expansion_type == 'parameter':
-                # Strip the $ but keep the {} wrapper for parameter expansion
-                value = expansion_part.value[1:] if expansion_part.value.startswith('$') else expansion_part.value
+                # For parameter expansion, check if it's a complex form
+                value = expansion_part.value
+                # Check if it has operators like :-, :=, :?, :+, #, ##, %, %%, /, //
+                if any(op in value for op in [':-', ':=', ':?', ':+', '##', '#', '%%', '%', '//', '/']):
+                    # Complex parameter expansion - use PARAM_EXPANSION token
+                    self.emit_token(TokenType.PARAM_EXPANSION, value, start_pos)
+                else:
+                    # Simple ${var} form - treat as VARIABLE
+                    # Strip the $ but keep the {} wrapper for parameter expansion
+                    value = expansion_part.value[1:] if expansion_part.value.startswith('$') else expansion_part.value
+                    self.emit_token(TokenType.VARIABLE, value, start_pos)
             else:
                 # For simple variables, the value should already be just the variable name
                 value = expansion_part.value
-            self.emit_token(TokenType.VARIABLE, value, start_pos)
+                self.emit_token(TokenType.VARIABLE, value, start_pos)
         else:
             # Command substitution or arithmetic
             if expansion_part.expansion_type == 'arithmetic':

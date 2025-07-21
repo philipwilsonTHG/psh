@@ -39,6 +39,7 @@ class TokenType(Enum):
     COMMAND_SUB = auto()
     COMMAND_SUB_BACKTICK = auto()
     ARITH_EXPANSION = auto()
+    PARAM_EXPANSION = auto()       # ${var:-default} style expansions
     PROCESS_SUB_IN = auto()    # <(...)
     PROCESS_SUB_OUT = auto()   # >(...)
     

@@ -39,6 +39,115 @@ class ProcessSubstitution(ASTNode):
 
 
 # =============================================================================
+# EXPANSION NODES
+# =============================================================================
+
+class Expansion(ASTNode):
+    """Base class for all types of expansions."""
+    pass
+
+
+@dataclass
+class CommandSubstitution(Expansion):
+    """Represents command substitution $(...) or `...`."""
+    command: str  # The command to execute
+    backtick_style: bool = False  # True for `...`, False for $(...)
+    
+    def __str__(self):
+        if self.backtick_style:
+            return f"`{self.command}`"
+        else:
+            return f"$({self.command})"
+
+
+@dataclass
+class ParameterExpansion(Expansion):
+    """Represents parameter expansion ${...}."""
+    parameter: str  # Variable name
+    operator: Optional[str] = None  # :-, :=, :?, :+, #, ##, %, %%, /, // etc.
+    word: Optional[str] = None  # The word part for operators like ${var:-word}
+    
+    def __str__(self):
+        if self.operator and self.word is not None:
+            return f"${{{self.parameter}{self.operator}{self.word}}}"
+        elif self.operator:
+            return f"${{{self.operator}{self.parameter}}}"
+        else:
+            return f"${{{self.parameter}}}"
+
+
+@dataclass
+class VariableExpansion(Expansion):
+    """Represents simple variable expansion $var."""
+    name: str  # Variable name without $
+    
+    def __str__(self):
+        return f"${self.name}"
+
+
+@dataclass
+class ArithmeticExpansion(Expansion):
+    """Represents arithmetic expansion $((...))."""
+    expression: str  # The arithmetic expression
+    
+    def __str__(self):
+        return f"$(({self.expression}))"
+
+
+# =============================================================================
+# WORD NODES (for representing mixed literal/expansion content)
+# =============================================================================
+
+@dataclass
+class WordPart(ASTNode):
+    """A part of a word - either literal text or an expansion."""
+    pass
+
+
+@dataclass
+class LiteralPart(WordPart):
+    """Literal text part of a word."""
+    text: str
+    
+    def __str__(self):
+        return self.text
+
+
+@dataclass
+class ExpansionPart(WordPart):
+    """Expansion part of a word."""
+    expansion: Expansion
+    
+    def __str__(self):
+        return str(self.expansion)
+
+
+@dataclass
+class Word(ASTNode):
+    """A word that may contain expansions.
+    
+    Examples:
+    - "hello" -> [LiteralPart("hello")]
+    - "$USER" -> [ExpansionPart(VariableExpansion("USER"))]
+    - "Hello $USER!" -> [LiteralPart("Hello "), ExpansionPart(VariableExpansion("USER")), LiteralPart("!")]
+    - "${HOME}/bin" -> [ExpansionPart(ParameterExpansion("HOME")), LiteralPart("/bin")]
+    """
+    parts: List[WordPart] = field(default_factory=list)
+    quote_type: Optional[str] = None  # None (unquoted), '"' (double), "'" (single)
+    
+    def __str__(self):
+        content = ''.join(str(part) for part in self.parts)
+        if self.quote_type:
+            return f"{self.quote_type}{content}{self.quote_type}"
+        return content
+    
+    @classmethod
+    def from_string(cls, text: str, quote_type: Optional[str] = None) -> 'Word':
+        """Create a Word from a literal string."""
+        return cls(parts=[LiteralPart(text)], quote_type=quote_type)
+
+
+# =============================================================================
 # ARRAY ASSIGNMENT NODES (defined early for use in SimpleCommand)
 # =============================================================================
 
@@ -83,6 +192,9 @@ class SimpleCommand(Command):
     redirects: List[Redirect] = field(default_factory=list)
     background: bool = False
     array_assignments: List[ArrayAssignment] = field(default_factory=list)  # Array assignments before command
+    
+    # New field for storing Word objects (optional for backward compatibility)
+    words: Optional[List[Word]] = None  # If set, represents args as Word objects with expansions
 
 
 class CompoundCommand(Command):

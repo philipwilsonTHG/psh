@@ -98,8 +98,8 @@ class TestTokenizerMigration:
         
         # Parameter expansion with default
         tokens = list(tokenize("echo ${FOO:-default}"))
-        assert tokens[1].type == TokenType.VARIABLE
-        assert tokens[1].value == "{FOO:-default}"
+        assert tokens[1].type == TokenType.PARAM_EXPANSION
+        assert tokens[1].value == "${FOO:-default}"
         
         # Multiple variables
         tokens = list(tokenize("echo ${VAR1} ${VAR2}"))

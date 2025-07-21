@@ -80,6 +80,9 @@ class ParserConfig:
     enable_named_pipes: bool = True          # Process substitution pipes
     enable_extended_globbing: bool = True    # Extended glob patterns
     
+    # === AST Options ===
+    build_word_ast_nodes: bool = False       # Build Word AST nodes with expansion info
+    
     # === Development and Debugging ===
     trace_parsing: bool = False              # Trace parsing rules
     profile_parsing: bool = False            # Profile parser performance  

@@ -16,9 +16,14 @@ from ...ast_nodes import (
     TopLevel, CommandList, SimpleCommand, Pipeline, 
     AndOrList, ASTNode, Redirect, UnifiedControlStructure,
     IfConditional, WhileLoop, ForLoop, CaseConditional, 
-    CStyleForLoop, CaseItem, CasePattern, StatementList
+    CStyleForLoop, CaseItem, CasePattern, StatementList,
+    FunctionDef, Word, LiteralPart, ExpansionPart,
+    VariableExpansion, CommandSubstitution, ParameterExpansion,
+    ArithmeticExpansion
 )
-from ...token_types import Token
+from ...token_types import Token, TokenType
+from ..config import ParserConfig
+from ..word_builder import WordBuilder
 
 
 # Type variables for parser combinators
@@ -352,6 +357,7 @@ class ParserCombinatorShellParser(AbstractShellParser):
     def __init__(self):
         """Initialize the parser combinator implementation."""
         super().__init__()
+        self.config = ParserConfig()  # Default config
         self._setup_forward_declarations()
         self._build_grammar()
         self._complete_forward_declarations()
@@ -360,8 +366,8 @@ class ParserCombinatorShellParser(AbstractShellParser):
         """Setup forward declarations for recursive grammar rules."""
         # These will be defined later to handle circular dependencies
         self.statement_list_forward = ForwardParser[CommandList]()
-        self.command_forward = ForwardParser[Union[SimpleCommand, UnifiedControlStructure]]()
-        self.statement_forward = ForwardParser[Union[SimpleCommand, UnifiedControlStructure]]()
+        self.command_forward = ForwardParser[Union[SimpleCommand, UnifiedControlStructure, FunctionDef]]()
+        self.statement_forward = ForwardParser[Union[AndOrList, FunctionDef]]()
     
     def _complete_forward_declarations(self):
         """Complete the forward declarations after grammar is built."""
@@ -385,8 +391,28 @@ class ParserCombinatorShellParser(AbstractShellParser):
         self.redirect_in = token('REDIRECT_IN')
         self.redirect_append = token('REDIRECT_APPEND')
         
-        # Word-like tokens
-        self.word_like = self.word.or_else(self.string)
+        # Word-like tokens (including variables and expansions)
+        self.variable = token('VARIABLE')
+        self.param_expansion = token('PARAM_EXPANSION')
+        self.command_sub = token('COMMAND_SUB')
+        self.command_sub_backtick = token('COMMAND_SUB_BACKTICK')
+        self.arith_expansion = token('ARITH_EXPANSION')
+        
+        # All expansion types
+        self.expansion = (
+            self.variable
+            .or_else(self.param_expansion)
+            .or_else(self.command_sub)
+            .or_else(self.command_sub_backtick)
+            .or_else(self.arith_expansion)
+        )
+        
+        # Word-like tokens include words, strings, and all expansions
+        self.word_like = (
+            self.word
+            .or_else(self.string)
+            .or_else(self.expansion)
+        )
         
         # EOF token
         self.eof = token('EOF')
@@ -432,10 +458,14 @@ class ParserCombinatorShellParser(AbstractShellParser):
         self.simple_command = sequence(
             many1(self.word_like),
             many(self.redirection)
-        ).map(lambda pair: SimpleCommand(
-            args=[t.value for t in pair[0]],
-            redirects=pair[1]
-        ))
+        ).map(lambda pair: self._build_simple_command(pair[0], pair[1]))
+        
+        # Build function support
+        self.function_name = self._build_function_name()
+        self.function_def = with_error_context(
+            self._build_function_def(),
+            "In function definition"
+        )
         
         # Build control structures with error context
         self.if_statement = with_error_context(
@@ -455,24 +485,30 @@ class ParserCombinatorShellParser(AbstractShellParser):
             "In case statement"
         )
         
+        # Break and continue statements
+        self.break_statement = self._build_break_statement()
+        self.continue_statement = self._build_continue_statement()
+        
         # Control structures
         self.control_structure = (
             self.if_statement
             .or_else(self.while_loop)
             .or_else(self.for_loop)
             .or_else(self.case_statement)
+            .or_else(self.break_statement)
+            .or_else(self.continue_statement)
         )
         
-        # Command is either simple command or control structure
-        self.command = self.simple_command.or_else(self.control_structure)
+        # Command is either function definition, control structure, or simple command
+        # Function definitions must be checked first to avoid simple_command consuming the name
+        self.command = self.function_def.or_else(self.control_structure).or_else(self.simple_command)
         
         # Pipeline - now uses command instead of just simple_command
         self.pipeline = separated_by(
             self.command,
             self.pipe
         ).map(lambda commands: 
-            Pipeline(commands=commands) if len(commands) > 1 
-            else commands[0] if commands 
+            Pipeline(commands=commands) if commands 
             else None
         )
         
@@ -484,19 +520,40 @@ class ParserCombinatorShellParser(AbstractShellParser):
             many(sequence(self.and_or_operator, self.pipeline))
         ).map(self._build_and_or_list)
         
+        # Control structure or pipeline (for handling control structures as statements)
+        # This allows control structures to appear as standalone statements without pipeline wrapping
+        self.control_or_pipeline = (
+            # Try control structure first
+            self.control_structure.map(lambda cs: AndOrList(pipelines=[cs]))
+            # Then try function definition
+            .or_else(self.function_def.map(lambda fd: fd))
+            # Finally fall back to normal and-or list
+            .or_else(self.and_or_list)
+        )
+        
         # Statement separator
         self.separator = self.semicolon.or_else(self.newline)
         
         # Define the forward references now that all components are ready
         self.command_forward.define(self.command)
         
+        # Statement uses control_or_pipeline instead of and_or_list
+        self.statement = self.control_or_pipeline
+        self.statement_forward.define(self.statement)
+        
         # Statement list parser using forward declaration
-        statement_list_parser = optional(
-            separated_by(
-                self.and_or_list,
-                self.separator
-            )
-        ).map(lambda statements: CommandList(statements=statements if statements else []))
+        # We need to handle multiple separators (e.g., multiple newlines)
+        self.separators = many1(self.separator)
+        
+        statement_list_parser = sequence(
+            optional(
+                separated_by(
+                    self.statement,
+                    self.separators
+                )
+            ),
+            optional(self.separators)  # Allow optional trailing separators
+        ).map(lambda pair: CommandList(statements=pair[0] if pair[0] else []))
         
         self.statement_list_forward.define(statement_list_parser)
         self.statement_list = self.statement_list_forward
@@ -530,15 +587,24 @@ class ParserCombinatorShellParser(AbstractShellParser):
             current_pos = pos
             
             # Collect tokens until we see 'then'
+            saw_separator = False
             while current_pos < len(tokens):
                 token = tokens[current_pos]
-                if token.type.name == 'THEN' and token.value == 'then':
+                
+                # Check if this is 'then'
+                if token.value == 'then':
+                    if not saw_separator and condition_tokens:
+                        # 'then' without separator is a syntax error
+                        return ParseResult(success=False, error="Syntax error: expected ';' or newline before 'then'", position=current_pos)
                     break
+                    
                 if token.type.name in ['SEMICOLON', 'NEWLINE']:
+                    saw_separator = True
                     # Check if next token is 'then'
                     if (current_pos + 1 < len(tokens) and 
-                        tokens[current_pos + 1].type.name == 'THEN'):
+                        tokens[current_pos + 1].value == 'then'):
                         break
+                        
                 condition_tokens.append(token)
                 current_pos += 1
             
@@ -561,12 +627,32 @@ class ParserCombinatorShellParser(AbstractShellParser):
             if current_pos < len(tokens) and tokens[current_pos].type.name in ['SEMICOLON', 'NEWLINE']:
                 current_pos += 1
             
-            # Parse the body (until elif/else/fi)
+            # Parse the body (until elif/else/fi, handling nested if statements)
             body_tokens = []
+            nesting_level = 0
+            
             while current_pos < len(tokens):
                 token = tokens[current_pos]
+                
+                # Track nested if statements
+                if token.value == 'if':
+                    nesting_level += 1
+                    body_tokens.append(token)
+                    current_pos += 1
+                    continue
+                    
+                # Check for keywords that might end this body
                 if token.value in ['elif', 'else', 'fi']:
-                    break
+                    if nesting_level == 0:
+                        # This ends our current body
+                        break
+                    elif token.value == 'fi':
+                        # This ends a nested if
+                        nesting_level -= 1
+                    body_tokens.append(token)
+                    current_pos += 1
+                    continue
+                
                 body_tokens.append(token)
                 current_pos += 1
             
@@ -615,10 +701,22 @@ class ParserCombinatorShellParser(AbstractShellParser):
                 if pos < len(tokens) and tokens[pos].type.name in ['SEMICOLON', 'NEWLINE']:
                     pos += 1
                 
-                # Parse else body (until 'fi')
+                # Parse else body (until 'fi', handling nested if statements)
                 else_tokens = []
-                while pos < len(tokens) and tokens[pos].value != 'fi':
-                    else_tokens.append(tokens[pos])
+                nesting_level = 0
+                
+                while pos < len(tokens):
+                    token = tokens[pos]
+                    
+                    if token.value == 'if':
+                        nesting_level += 1
+                    elif token.value == 'fi':
+                        if nesting_level == 0:
+                            break
+                        else:
+                            nesting_level -= 1
+                    
+                    else_tokens.append(token)
                     pos += 1
                 
                 else_result = self.statement_list.parse(else_tokens, 0)
@@ -687,20 +785,17 @@ class ParserCombinatorShellParser(AbstractShellParser):
             if pos < len(tokens) and tokens[pos].type.name in ['SEMICOLON', 'NEWLINE']:
                 pos += 1
             
-            # Parse the body (until 'done')
-            body_tokens = []
-            while pos < len(tokens) and tokens[pos].value != 'done':
-                body_tokens.append(tokens[pos])
-                pos += 1
+            # Parse the body (until 'done', handling nested loops)
+            body_tokens, done_pos = self._collect_tokens_until_keyword(tokens, pos, 'done', 'do')
             
-            if pos >= len(tokens):
+            if done_pos >= len(tokens):
                 return ParseResult(success=False, error="Expected 'done' to close while loop", position=pos)
             
             body_result = self.statement_list.parse(body_tokens, 0)
             if not body_result.success:
                 return ParseResult(success=False, error=f"Failed to parse while body: {body_result.error}", position=pos)
             
-            pos += 1  # Skip 'done'
+            pos = done_pos + 1  # Skip 'done'
             
             return ParseResult(
                 success=True,
@@ -717,6 +812,46 @@ class ParserCombinatorShellParser(AbstractShellParser):
         """Build parser for both traditional and C-style for loops."""
         # Try C-style first, then traditional
         return self._build_c_style_for_loop().or_else(self._build_traditional_for_loop())
+    
+    def _collect_tokens_until_keyword(self, tokens: List[Token], start_pos: int, 
+                                     end_keyword: str, start_keyword: Optional[str] = None) -> Tuple[List[Token], int]:
+        """Collect tokens until end keyword, handling nested structures.
+        
+        If start_keyword is provided, counts nesting levels.
+        Returns (collected_tokens, position_after_end_keyword).
+        """
+        collected = []
+        pos = start_pos
+        nesting_level = 0
+        
+        while pos < len(tokens):
+            token = tokens[pos]
+            
+            # Check for start keyword (increases nesting)
+            if start_keyword and token.value == start_keyword:
+                nesting_level += 1
+                collected.append(token)
+                pos += 1
+                continue
+            
+            # Check for end keyword
+            if token.value == end_keyword:
+                if nesting_level == 0:
+                    # Found our end keyword
+                    return collected, pos
+                else:
+                    # This ends a nested structure
+                    nesting_level -= 1
+                    collected.append(token)
+                    pos += 1
+                    continue
+            
+            # Regular token
+            collected.append(token)
+            pos += 1
+        
+        # Reached end without finding end keyword
+        return collected, pos
     
     def _build_traditional_for_loop(self) -> Parser[ForLoop]:
         """Build parser for traditional for/in loops."""
@@ -768,20 +903,17 @@ class ParserCombinatorShellParser(AbstractShellParser):
             if pos < len(tokens) and tokens[pos].type.name in ['SEMICOLON', 'NEWLINE']:
                 pos += 1
             
-            # Parse the body (until 'done')
-            body_tokens = []
-            while pos < len(tokens) and tokens[pos].value != 'done':
-                body_tokens.append(tokens[pos])
-                pos += 1
+            # Parse the body (until 'done', handling nested loops)
+            body_tokens, done_pos = self._collect_tokens_until_keyword(tokens, pos, 'done', 'do')
             
-            if pos >= len(tokens):
+            if done_pos >= len(tokens):
                 return ParseResult(success=False, error="Expected 'done' to close for loop", position=pos)
             
             body_result = self.statement_list.parse(body_tokens, 0)
             if not body_result.success:
                 return ParseResult(success=False, error=f"Failed to parse for body: {body_result.error}", position=pos)
             
-            pos += 1  # Skip 'done'
+            pos = done_pos + 1  # Skip 'done'
             
             return ParseResult(
                 success=True,
@@ -856,20 +988,17 @@ class ParserCombinatorShellParser(AbstractShellParser):
             if pos < len(tokens) and tokens[pos].type.name in ['SEMICOLON', 'NEWLINE']:
                 pos += 1
             
-            # Parse the body (until 'done')
-            body_tokens = []
-            while pos < len(tokens) and tokens[pos].value != 'done':
-                body_tokens.append(tokens[pos])
-                pos += 1
+            # Parse the body (until 'done', handling nested loops)
+            body_tokens, done_pos = self._collect_tokens_until_keyword(tokens, pos, 'done', 'do')
             
-            if pos >= len(tokens):
+            if done_pos >= len(tokens):
                 return ParseResult(success=False, error="Expected 'done' to close C-style for loop", position=pos)
             
             body_result = self.statement_list.parse(body_tokens, 0)
             if not body_result.success:
                 return ParseResult(success=False, error=f"Failed to parse for body: {body_result.error}", position=pos)
             
-            pos += 1  # Skip 'done'
+            pos = done_pos + 1  # Skip 'done'
             
             # Convert token lists to strings
             init_expr = ' '.join(t.value for t in init_tokens) if init_tokens else None
@@ -902,7 +1031,12 @@ class ParserCombinatorShellParser(AbstractShellParser):
             if pos >= len(tokens) or tokens[pos].type.name not in ['WORD', 'VARIABLE', 'STRING']:
                 return ParseResult(success=False, error="Expected expression after 'case'", position=pos)
             
-            expr = tokens[pos].value
+            # Format the expression appropriately
+            token = tokens[pos]
+            if token.type.name == 'VARIABLE':
+                expr = self._format_token_value(token)
+            else:
+                expr = token.value
             pos += 1
             
             # Expect 'in'
@@ -1016,6 +1150,257 @@ class ParserCombinatorShellParser(AbstractShellParser):
         
         return Parser(parse_case_statement)
     
+    def _build_function_name(self) -> Parser[str]:
+        """Parse a valid function name."""
+        def parse_function_name(tokens: List[Token], pos: int) -> ParseResult[str]:
+            if pos >= len(tokens):
+                return ParseResult(success=False, error="Expected function name", position=pos)
+            
+            token = tokens[pos]
+            if token.type.name != 'WORD':
+                return ParseResult(success=False, error="Expected function name", position=pos)
+            
+            # Validate function name (must start with letter or underscore)
+            name = token.value
+            if not name:
+                return ParseResult(success=False, error="Empty function name", position=pos)
+            
+            # First character must be letter or underscore
+            if not (name[0].isalpha() or name[0] == '_'):
+                return ParseResult(success=False, error=f"Invalid function name: {name} (must start with letter or underscore)", position=pos)
+            
+            # Rest must be alphanumeric, underscore, or hyphen
+            for char in name[1:]:
+                if not (char.isalnum() or char in '_-'):
+                    return ParseResult(success=False, error=f"Invalid function name: {name} (contains invalid character '{char}')", position=pos)
+            
+            # Check it's not a reserved word
+            reserved = {'if', 'then', 'else', 'elif', 'fi', 'while', 'do', 'done', 
+                       'for', 'case', 'esac', 'function', 'in', 'select'}
+            if name in reserved:
+                return ParseResult(success=False, error=f"Reserved word cannot be function name: {name}", position=pos)
+            
+            return ParseResult(success=True, value=name, position=pos + 1)
+        
+        return Parser(parse_function_name)
+    
+    def _parse_function_body(self, tokens: List[Token], pos: int) -> ParseResult[StatementList]:
+        """Parse function body between { }."""
+        # Expect {
+        if pos >= len(tokens) or tokens[pos].value != '{':
+            return ParseResult(success=False, error="Expected '{' to start function body", position=pos)
+        pos += 1
+        
+        # Skip optional newline after {
+        if pos < len(tokens) and tokens[pos].type.name == 'NEWLINE':
+            pos += 1
+        
+        # Collect tokens until }
+        body_tokens = []
+        brace_count = 1
+        
+        while pos < len(tokens) and brace_count > 0:
+            token = tokens[pos]
+            if token.value == '{':
+                brace_count += 1
+            elif token.value == '}':
+                brace_count -= 1
+                if brace_count == 0:
+                    break
+            body_tokens.append(token)
+            pos += 1
+        
+        if brace_count > 0:
+            return ParseResult(success=False, error="Unclosed function body", position=pos)
+        
+        # Parse the body as a statement list
+        if body_tokens:
+            body_result = self.statement_list.parse(body_tokens, 0)
+            if not body_result.success:
+                return ParseResult(success=False, error=f"Invalid function body: {body_result.error}", position=pos)
+        else:
+            # Empty body
+            body_result = ParseResult(success=True, value=StatementList(statements=[]), position=0)
+        
+        pos += 1  # Skip closing }
+        
+        return ParseResult(
+            success=True,
+            value=body_result.value,
+            position=pos
+        )
+    
+    def _build_posix_function(self) -> Parser[FunctionDef]:
+        """Parse POSIX-style function: name() { body }"""
+        def parse_posix_function(tokens: List[Token], pos: int) -> ParseResult[FunctionDef]:
+            # Parse name
+            name_result = self.function_name.parse(tokens, pos)
+            if not name_result.success:
+                return ParseResult(success=False, error="Not a function definition", position=pos)
+            
+            name = name_result.value
+            pos = name_result.position
+            
+            # Expect ()
+            if pos + 1 >= len(tokens) or tokens[pos].value != '(' or tokens[pos + 1].value != ')':
+                return ParseResult(success=False, error="Expected () after function name", position=pos)
+            pos += 2
+            
+            # Skip optional whitespace/newlines
+            while pos < len(tokens) and tokens[pos].type.name in ['NEWLINE']:
+                pos += 1
+            
+            # Parse body
+            body_result = self._parse_function_body(tokens, pos)
+            if not body_result.success:
+                return ParseResult(success=False, error=body_result.error, position=pos)
+            
+            return ParseResult(
+                success=True,
+                value=FunctionDef(name=name, body=body_result.value),
+                position=body_result.position
+            )
+        
+        return Parser(parse_posix_function)
+    
+    def _build_function_keyword_style(self) -> Parser[FunctionDef]:
+        """Parse function keyword style: function name { body }"""
+        def parse_function_keyword(tokens: List[Token], pos: int) -> ParseResult[FunctionDef]:
+            # Check for 'function' keyword
+            if pos >= len(tokens) or tokens[pos].value != 'function':
+                return ParseResult(success=False, error="Expected 'function' keyword", position=pos)
+            pos += 1
+            
+            # Parse name
+            name_result = self.function_name.parse(tokens, pos)
+            if not name_result.success:
+                return ParseResult(success=False, error="Expected function name after 'function'", position=pos)
+            
+            name = name_result.value
+            pos = name_result.position
+            
+            # Skip optional whitespace/newlines
+            while pos < len(tokens) and tokens[pos].type.name in ['NEWLINE']:
+                pos += 1
+            
+            # Parse body
+            body_result = self._parse_function_body(tokens, pos)
+            if not body_result.success:
+                return ParseResult(success=False, error=body_result.error, position=pos)
+            
+            return ParseResult(
+                success=True,
+                value=FunctionDef(name=name, body=body_result.value),
+                position=body_result.position
+            )
+        
+        return Parser(parse_function_keyword)
+    
+    def _build_function_keyword_with_parens(self) -> Parser[FunctionDef]:
+        """Parse function keyword with parentheses: function name() { body }"""
+        def parse_function_with_parens(tokens: List[Token], pos: int) -> ParseResult[FunctionDef]:
+            # Check for 'function' keyword
+            if pos >= len(tokens) or tokens[pos].value != 'function':
+                return ParseResult(success=False, error="Expected 'function' keyword", position=pos)
+            pos += 1
+            
+            # Parse name
+            name_result = self.function_name.parse(tokens, pos)
+            if not name_result.success:
+                return ParseResult(success=False, error="Expected function name after 'function'", position=pos)
+            
+            name = name_result.value
+            pos = name_result.position
+            
+            # Expect ()
+            if pos + 1 >= len(tokens) or tokens[pos].value != '(' or tokens[pos + 1].value != ')':
+                return ParseResult(success=False, error="Expected () after function name", position=pos)
+            pos += 2
+            
+            # Skip optional whitespace/newlines
+            while pos < len(tokens) and tokens[pos].type.name in ['NEWLINE']:
+                pos += 1
+            
+            # Parse body
+            body_result = self._parse_function_body(tokens, pos)
+            if not body_result.success:
+                return ParseResult(success=False, error=body_result.error, position=pos)
+            
+            return ParseResult(
+                success=True,
+                value=FunctionDef(name=name, body=body_result.value),
+                position=body_result.position
+            )
+        
+        return Parser(parse_function_with_parens)
+    
+    def _build_function_def(self) -> Parser[FunctionDef]:
+        """Build parser for function definitions."""
+        # Try all three forms: POSIX first (most specific), then keyword variants
+        return (
+            self._build_posix_function()
+            .or_else(self._build_function_keyword_with_parens())
+            .or_else(self._build_function_keyword_style())
+        )
+    
+    def _build_break_statement(self) -> Parser['BreakStatement']:
+        """Build parser for break statement."""
+        from ...ast_nodes import BreakStatement
+        
+        def parse_break(tokens: List[Token], pos: int) -> ParseResult[BreakStatement]:
+            # Check for 'break' keyword
+            if pos >= len(tokens) or tokens[pos].value != 'break':
+                return ParseResult(success=False, error="Expected 'break'", position=pos)
+            
+            pos += 1  # Skip 'break'
+            
+            # Parse optional level (number)
+            level = 1  # Default
+            if pos < len(tokens) and tokens[pos].type.name == 'WORD':
+                # Check if it's a number
+                try:
+                    level = int(tokens[pos].value)
+                    pos += 1
+                except ValueError:
+                    pass  # Not a number, leave level as 1
+            
+            return ParseResult(
+                success=True,
+                value=BreakStatement(level=level),
+                position=pos
+            )
+        
+        return Parser(parse_break)
+    
+    def _build_continue_statement(self) -> Parser['ContinueStatement']:
+        """Build parser for continue statement."""
+        from ...ast_nodes import ContinueStatement
+        
+        def parse_continue(tokens: List[Token], pos: int) -> ParseResult[ContinueStatement]:
+            # Check for 'continue' keyword
+            if pos >= len(tokens) or tokens[pos].value != 'continue':
+                return ParseResult(success=False, error="Expected 'continue'", position=pos)
+            
+            pos += 1  # Skip 'continue'
+            
+            # Parse optional level (number)
+            level = 1  # Default
+            if pos < len(tokens) and tokens[pos].type.name == 'WORD':
+                # Check if it's a number
+                try:
+                    level = int(tokens[pos].value)
+                    pos += 1
+                except ValueError:
+                    pass  # Not a number, leave level as 1
+            
+            return ParseResult(
+                success=True,
+                value=ContinueStatement(level=level),
+                position=pos
+            )
+        
+        return Parser(parse_continue)
+    
     def parse(self, tokens: List[Token]) -> Union[TopLevel, CommandList]:
         """Parse tokens using parser combinators.
         
@@ -1095,6 +1480,72 @@ class ParserCombinatorShellParser(AbstractShellParser):
             generated=False,
             functional=True
         )
+    
+    def _format_token_value(self, token: Token) -> str:
+        """Format token value appropriately based on token type."""
+        if token.type.name == 'VARIABLE':
+            # Variables need the $ prefix
+            return f"${token.value}"
+        elif token.type.name in ['COMMAND_SUB', 'COMMAND_SUB_BACKTICK', 
+                                 'ARITH_EXPANSION', 'PARAM_EXPANSION']:
+            # These already include their delimiters
+            return token.value
+        else:
+            # Everything else uses raw value
+            return token.value
+    
+    def _build_simple_command(self, word_tokens: List[Token], redirects: List[Redirect]) -> SimpleCommand:
+        """Build a SimpleCommand, optionally with Word AST nodes."""
+        cmd = SimpleCommand(redirects=redirects)
+        
+        # Build traditional string arguments
+        cmd.args = [self._format_token_value(t) for t in word_tokens]
+        
+        # Build Word AST nodes if enabled
+        if self.config.build_word_ast_nodes:
+            cmd.words = []
+            for token in word_tokens:
+                word = self._build_word_from_token(token)
+                cmd.words.append(word)
+        
+        return cmd
+    
+    def _build_word_from_token(self, token: Token) -> Word:
+        """Build a Word AST node from a token."""
+        # Use TokenType enum values
+        if token.type.name == 'STRING':
+            # String token - check for quote type
+            quote_type = getattr(token, 'quote_type', None)
+            return Word(parts=[LiteralPart(token.value)], quote_type=quote_type)
+        elif token.type.name == 'VARIABLE':
+            # Variable expansion
+            expansion = VariableExpansion(token.value)
+            return Word(parts=[ExpansionPart(expansion)])
+        elif token.type.name == 'COMMAND_SUB':
+            # Command substitution $(...)
+            # Extract command from $(...)
+            cmd = token.value[2:-1] if token.value.startswith('$(') and token.value.endswith(')') else token.value
+            expansion = CommandSubstitution(cmd, backtick_style=False)
+            return Word(parts=[ExpansionPart(expansion)])
+        elif token.type.name == 'COMMAND_SUB_BACKTICK':
+            # Backtick command substitution
+            # Extract command from `...`
+            cmd = token.value[1:-1] if token.value.startswith('`') and token.value.endswith('`') else token.value
+            expansion = CommandSubstitution(cmd, backtick_style=True)
+            return Word(parts=[ExpansionPart(expansion)])
+        elif token.type.name == 'ARITH_EXPANSION':
+            # Arithmetic expansion $((...))]
+            # Extract expression from $((...))
+            expr = token.value[3:-2] if token.value.startswith('$((') and token.value.endswith('))') else token.value
+            expansion = ArithmeticExpansion(expr)
+            return Word(parts=[ExpansionPart(expansion)])
+        elif token.type.name == 'PARAM_EXPANSION':
+            # Parameter expansion - use WordBuilder to parse
+            expansion = WordBuilder.parse_expansion_token(token)
+            return Word(parts=[ExpansionPart(expansion)])
+        else:
+            # Regular word token
+            return Word(parts=[LiteralPart(token.value)])
     
     def explain_parse(self, tokens: List[Token]) -> str:
         """Explain parser combinator parsing."""

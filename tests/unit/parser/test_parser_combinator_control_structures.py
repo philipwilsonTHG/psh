@@ -268,7 +268,7 @@ class TestCaseStatements(TestParserCombinatorControlStructures):
         case_stmt = self.get_first_statement(ast)
         
         assert isinstance(case_stmt, CaseConditional)
-        assert case_stmt.expr == 'x'
+        assert case_stmt.expr == '$x'
         assert len(case_stmt.items) == 1
         
         item = case_stmt.items[0]

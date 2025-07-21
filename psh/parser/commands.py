@@ -34,7 +34,8 @@ class CommandParser:
         """Check if a token contains unclosed expansions and raise appropriate errors."""
         # Check tokens that might contain expansions
         if token.type not in [TokenType.WORD, TokenType.COMPOSITE, TokenType.COMMAND_SUB, 
-                              TokenType.COMMAND_SUB_BACKTICK, TokenType.ARITH_EXPANSION, TokenType.VARIABLE]:
+                              TokenType.COMMAND_SUB_BACKTICK, TokenType.ARITH_EXPANSION, TokenType.VARIABLE,
+                              TokenType.PARAM_EXPANSION]:
             return
         
         # Import RichToken to check if token has parts
@@ -101,6 +102,11 @@ class CommandParser:
     def parse_command(self) -> SimpleCommand:
         """Parse a single command with its arguments and redirections."""
         command = SimpleCommand()
+        
+        # Check if we should build Word AST nodes
+        build_words = self.parser.config.build_word_ast_nodes
+        if build_words:
+            command.words = []
         
         # Check for unexpected tokens
         if self.parser.match_any(TokenGroups.CASE_TERMINATORS):
@@ -211,10 +217,20 @@ class CommandParser:
                         has_parsed_regular_args = True
                     else:
                         # Parse a potentially composite argument
-                        arg_value, arg_type, quote_type = self.parse_composite_argument()
-                        command.args.append(arg_value)
-                        command.arg_types.append(arg_type)
-                        command.quote_types.append(quote_type)
+                        if build_words:
+                            # Build Word AST node
+                            word = self.parse_argument_as_word()
+                            command.words.append(word)
+                            # Also add string representation for compatibility
+                            command.args.append(str(word))
+                            command.arg_types.append('WORD')  # TODO: preserve original type
+                            command.quote_types.append(word.quote_type)
+                        else:
+                            # Traditional string parsing
+                            arg_value, arg_type, quote_type = self.parse_composite_argument()
+                            command.args.append(arg_value)
+                            command.arg_types.append(arg_type)
+                            command.quote_types.append(quote_type)
                         has_parsed_regular_args = True
         
         # Check for background execution
@@ -398,6 +414,7 @@ class CommandParser:
             TokenType.COMMAND_SUB: ('COMMAND_SUB', lambda t: t.value),
             TokenType.COMMAND_SUB_BACKTICK: ('COMMAND_SUB_BACKTICK', lambda t: t.value),
             TokenType.ARITH_EXPANSION: ('ARITH_EXPANSION', lambda t: t.value),
+            TokenType.PARAM_EXPANSION: ('PARAM_EXPANSION', lambda t: t.value),
             TokenType.PROCESS_SUB_IN: ('PROCESS_SUB_IN', lambda t: t.value),
             TokenType.PROCESS_SUB_OUT: ('PROCESS_SUB_OUT', lambda t: t.value),
             TokenType.WORD: ('WORD', lambda t: t.value),
@@ -422,6 +439,37 @@ class CommandParser:
             return f"${value}"
         else:
             return f"${value}"
+    
+    def parse_argument_as_word(self) -> 'Word':
+        """Parse an argument as a Word AST node with expansions."""
+        from ..ast_nodes import Word
+        from .word_builder import WordBuilder
+        from ..token_stream import TokenStream
+        
+        # Check for composite tokens
+        stream = TokenStream(self.parser.tokens, self.parser.current)
+        composite = stream.peek_composite_sequence()
+        
+        if composite:
+            # Build composite word from multiple tokens
+            quote_type = None
+            for token in composite:
+                if token.type == TokenType.STRING and token.quote_type:
+                    quote_type = token.quote_type
+                    break
+            
+            # Advance parser position
+            self.parser.current = stream.pos + len(composite)
+            
+            return WordBuilder.build_composite_word(composite, quote_type)
+        else:
+            # Single token
+            if self.parser.match_any(TokenGroups.WORD_LIKE):
+                token = self.parser.advance()
+                quote_type = token.quote_type if token.type == TokenType.STRING else None
+                return WordBuilder.build_word_from_token(token, quote_type)
+            else:
+                raise self.parser._error("Expected word-like token")
     
     # Command variant parsers for use in pipelines
     
