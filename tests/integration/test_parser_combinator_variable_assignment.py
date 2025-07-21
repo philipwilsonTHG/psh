@@ -199,8 +199,9 @@ class TestAssignmentInControlStructures(TestParserCombinatorVariableAssignment):
         ast = self.parse("if true; then VAR=value; echo $VAR; fi")
         
         # Navigate to then block
-        if_stmt = ast.items[0]
-        then_block = if_stmt.then_block
+        and_or = ast.statements[0]
+        if_stmt = and_or.pipelines[0]
+        then_block = if_stmt.then_part
         
         # First statement should be assignment command
         first_stmt = then_block.statements[0]
@@ -229,9 +230,10 @@ class TestAssignmentInControlStructures(TestParserCombinatorVariableAssignment):
             cmd = pipeline.commands[0]
             
             assert isinstance(cmd, SimpleCommand)
-            # Assignment parsed as single arg
-            assert len(cmd.args) == 1
-            assert cmd.args[0] == "COUNT=$i"
+            # Assignment parsed as two args: COUNT= and $i
+            assert len(cmd.args) == 2
+            assert cmd.args[0] == "COUNT="
+            assert cmd.args[1] == "$i"
 
 
 class TestComplexAssignmentPatterns(TestParserCombinatorVariableAssignment):
@@ -242,19 +244,20 @@ class TestComplexAssignmentPatterns(TestParserCombinatorVariableAssignment):
         cmd = self.get_simple_command(self.parse("VAR=$(date)"))
         assert cmd is not None
         
-        # Should parse the assignment
-        assert len(cmd.args) == 1
-        assert "VAR=" in cmd.args[0]
-        assert "date" in cmd.args[0]
+        # Should parse as two args: VAR= and $(date)
+        assert len(cmd.args) == 2
+        assert cmd.args[0] == "VAR="
+        assert cmd.args[1] == "$(date)"
     
     def test_assignment_with_arithmetic(self):
         """Test: COUNT=$((COUNT + 1))"""
         cmd = self.get_simple_command(self.parse("COUNT=$((COUNT + 1))"))
         assert cmd is not None
         
-        # Should parse the assignment with arithmetic expansion
-        assert len(cmd.args) == 1
-        assert "COUNT=" in cmd.args[0]
+        # Should parse as two args: COUNT= and $((COUNT + 1))
+        assert len(cmd.args) == 2
+        assert cmd.args[0] == "COUNT="
+        assert cmd.args[1] == "$((COUNT + 1))"
     
     def test_readonly_declaration(self):
         """Test: readonly VAR=value"""

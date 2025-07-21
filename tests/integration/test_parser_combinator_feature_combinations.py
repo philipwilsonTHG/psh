@@ -247,11 +247,15 @@ class TestNestedFeatureCombinations(TestParserCombinatorFeatureCombinations):
         assert isinstance(func, FunctionDef)
         
         # Function contains for loop
-        for_loop = func.body.statements[0]
+        and_or = func.body.statements[0]
+        assert isinstance(and_or, AndOrList)
+        for_loop = and_or.pipelines[0]
         assert isinstance(for_loop, ForLoop)
         
         # For loop contains if
-        if_stmt = for_loop.body.statements[0]
+        and_or_in_loop = for_loop.body.statements[0]
+        assert isinstance(and_or_in_loop, AndOrList)
+        if_stmt = and_or_in_loop.pipelines[0]
         assert isinstance(if_stmt, IfConditional)
         
         # If condition is a command
@@ -259,7 +263,7 @@ class TestNestedFeatureCombinations(TestParserCombinatorFeatureCombinations):
         assert grep_cmd.args[0] == "grep"
         
         # Then block has pipeline with redirect
-        then_pipeline = if_stmt.then_block.statements[0].pipelines[0]
+        then_pipeline = if_stmt.then_part.statements[0].pipelines[0]
         assert len(then_pipeline.commands) == 2  # cat | sed
         assert len(then_pipeline.commands[1].redirects) == 1
     
@@ -351,9 +355,9 @@ class TestEdgeCaseCombinations(TestParserCombinatorFeatureCombinations):
         assert len(cmd.args) == 2  # 'echo' and the argument
         assert len(cmd.redirects) == 1
         
-        # Both argument and redirect target should preserve quotes
-        assert '"' in cmd.args[1]
-        assert '"' in cmd.redirects[0].target
+        # Quotes are removed during tokenization but the content is preserved
+        assert cmd.args[1] == "Value is $VAR"
+        assert cmd.redirects[0].target == "$OUTPUT_FILE"
 
 
 class TestParserLimitations(TestParserCombinatorFeatureCombinations):

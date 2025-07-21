@@ -546,6 +546,7 @@ class ParserCombinatorShellParser(AbstractShellParser):
         self.separators = many1(self.separator)
         
         statement_list_parser = sequence(
+            optional(self.separators),  # Allow optional leading separators
             optional(
                 separated_by(
                     self.statement,
@@ -553,7 +554,7 @@ class ParserCombinatorShellParser(AbstractShellParser):
                 )
             ),
             optional(self.separators)  # Allow optional trailing separators
-        ).map(lambda pair: CommandList(statements=pair[0] if pair[0] else []))
+        ).map(lambda triple: CommandList(statements=triple[1] if triple[1] else []))
         
         self.statement_list_forward.define(statement_list_parser)
         self.statement_list = self.statement_list_forward
