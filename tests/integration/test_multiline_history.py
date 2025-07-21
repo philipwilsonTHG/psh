@@ -1,7 +1,7 @@
 """Integration tests for multi-line command history handling."""
 
 import pytest
-from tests.conftest import clean_shell
+# Import clean_shell from conftest is handled automatically by pytest
 
 
 class TestMultiLineHistory:

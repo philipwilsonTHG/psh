@@ -142,60 +142,119 @@ def test_here_string_with_variable(shell_with_temp_dir):
     assert content == "Hello World\n"
 
 
-@pytest.mark.skip(reason="Heredoc execution needs architectural updates for proper input handling")
 def test_heredoc_with_builtin():
-    """Test here document with cat command - skipped pending architecture updates."""
-    # This test requires proper input handling for heredoc content
-    # which needs updates to the PSH input processing architecture
-    pass
+    """Test here document with cat command."""
+    import subprocess
+    import sys
+    # Use subprocess since cat is an external command
+    result = subprocess.run(
+        [sys.executable, '-m', 'psh', '-c', '''cat << EOF
+Hello from heredoc
+Line 2
+EOF
+'''],
+        capture_output=True,
+        text=True
+    )
+    assert result.returncode == 0
+    assert result.stdout == "Hello from heredoc\nLine 2\n"
 
 
-@pytest.mark.skip(reason="Heredoc execution needs architectural updates for proper input handling")
 def test_heredoc_strip_tabs():
-    """Test here document with tab stripping - skipped pending architecture updates."""
-    # This test requires proper tab stripping implementation
-    # which is part of the heredoc processing architecture updates
-    pass
+    """Test here document with tab stripping."""
+    import subprocess
+    import sys
+    result = subprocess.run(
+        [sys.executable, '-m', 'psh', '-c', """cat <<- EOF
+\tIndented line
+\t\tDouble indented
+Not indented
+EOF
+"""],
+        capture_output=True,
+        text=True
+    )
+    assert result.returncode == 0
+    assert result.stdout == "Indented line\nDouble indented\nNot indented\n"
 
 
-@pytest.mark.skip(reason="Heredoc execution needs architectural updates for proper input handling")
 def test_heredoc_empty():
-    """Test empty here document - skipped pending architecture updates."""
-    # This test requires proper heredoc content handling
-    # which is part of the architecture updates needed
-    pass
+    """Test empty here document."""
+    import subprocess
+    import sys
+    result = subprocess.run(
+        [sys.executable, '-m', 'psh', '-c', """cat << EOF
+EOF
+"""],
+        capture_output=True,
+        text=True
+    )
+    assert result.returncode == 0
+    assert result.stdout == ""
 
 
-@pytest.mark.skip(reason="Heredoc execution needs architectural updates for proper input handling")
 def test_heredoc_with_variable_expansion():
-    """Test variable expansion in heredocs - skipped pending architecture updates."""
-    # This test requires proper variable expansion in heredoc content
-    # which needs architecture updates for input processing
-    pass
+    """Test variable expansion in heredocs."""
+    import subprocess
+    import sys
+    result = subprocess.run(
+        [sys.executable, '-m', 'psh', '-c', 'NAME="World"; cat << EOF\nHello $NAME\nPath: $PWD\nEOF\n'],
+        capture_output=True,
+        text=True
+    )
+    assert result.returncode == 0
+    assert "Hello World" in result.stdout
+    assert "Path: " in result.stdout
 
 
-@pytest.mark.skip(reason="External command integration with heredocs needs architecture updates")
 def test_heredoc_with_external_command():
-    """Test here document with external command - skipped pending architecture updates."""
-    # This test requires proper integration between heredocs and external commands
-    # which is part of the I/O redirection architecture that needs updates
-    pass
+    """Test here document with external command."""
+    import subprocess
+    import sys
+    # Use subprocess to test external command
+    result = subprocess.run(
+        [sys.executable, '-m', 'psh', '-c', 'cat << EOF\nExternal test\nEOF'],
+        capture_output=True,
+        text=True
+    )
+    assert result.returncode == 0
+    assert result.stdout == "External test\n"
 
 
-@pytest.mark.skip(reason="Multiple redirection handling needs architecture updates")
-def test_heredoc_with_output_redirect():
-    """Test here document with output redirection - skipped pending architecture updates."""
-    # This test requires proper handling of multiple redirections
-    # which is part of the I/O redirection architecture updates needed
-    pass
+def test_heredoc_with_output_redirect(isolated_shell_with_temp_dir):
+    """Test here document with output redirection."""
+    shell = isolated_shell_with_temp_dir
+    result = shell.run_command("""cat << EOF > output.txt
+Redirected content
+Line 2
+EOF
+""")
+    assert result == 0
+    
+    # Check file content
+    import os
+    output_file = os.path.join(shell.state.variables['PWD'], 'output.txt')
+    with open(output_file, 'r') as f:
+        content = f.read()
+    assert content == "Redirected content\nLine 2\n"
 
 
-@pytest.mark.skip(reason="Pipeline heredoc integration needs architecture updates")
 def test_heredoc_in_pipeline():
-    """Test here document in pipeline - skipped pending architecture updates."""
-    # This test requires proper integration of heredocs with pipelines
-    # which is part of the pipeline execution architecture that needs updates
-    pass
+    """Test here document in pipeline."""
+    import subprocess
+    import sys
+    result = subprocess.run(
+        [sys.executable, '-m', 'psh', '-c', """cat << EOF | wc -l
+Line 1
+Line 2
+Line 3
+EOF
+"""],
+        capture_output=True,
+        text=True
+    )
+    assert result.returncode == 0
+    assert result.stdout.strip() == "3"
 
 
 def test_heredoc_syntax_variants():

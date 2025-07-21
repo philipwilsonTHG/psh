@@ -86,12 +86,18 @@ class RedirectionParser:
         # Determine if delimiter was quoted (disables variable expansion)
         heredoc_quoted = delimiter_token.type == TokenType.STRING
         
-        return Redirect(
+        redirect = Redirect(
             type=token.value,
             target=delimiter,
             heredoc_content=None,  # Content filled later
             heredoc_quoted=heredoc_quoted
         )
+        
+        # Store the heredoc key if available
+        if hasattr(token, 'heredoc_key'):
+            redirect.heredoc_key = token.heredoc_key
+            
+        return redirect
     
     def _parse_here_string(self, token: Token) -> Redirect:
         """Parse here string redirect."""

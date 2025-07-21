@@ -76,9 +76,43 @@ def tokenize(input_string: str, strict: bool = True) -> List[Token]:
     return tokens
 
 
+def tokenize_with_heredocs(input_string: str, strict: bool = True):
+    """
+    Tokenize a shell command string with heredoc support.
+    
+    This function tokenizes shell commands that may contain heredocs,
+    collecting the heredoc content for later processing.
+    
+    Args:
+        input_string: The shell command string to tokenize
+        strict: If True, use strict mode (batch); if False, use interactive mode
+        
+    Returns:
+        Tuple of (tokens, heredoc_map) where heredoc_map contains collected heredoc content
+    """
+    from .heredoc_lexer import HeredocLexer
+    
+    # Create appropriate lexer config based on strict mode
+    if strict:
+        config = LexerConfig.create_batch_config()
+    else:
+        config = LexerConfig.create_interactive_config()
+    
+    # Use heredoc lexer
+    lexer = HeredocLexer(input_string, config=config)
+    tokens, heredoc_map = lexer.tokenize_with_heredocs()
+    
+    # Apply token transformations
+    from ..token_transformer import TokenTransformer
+    transformer = TokenTransformer()
+    tokens = transformer.transform(tokens)
+    
+    return tokens, heredoc_map
+
+
 __all__ = [
     # Main lexer interface
-    'ModularLexer', 'tokenize',
+    'ModularLexer', 'tokenize', 'tokenize_with_heredocs',
     # Position and configuration
     'Position', 'LexerState', 'LexerConfig', 'LexerError', 'RecoverableLexerError',
     'LexerErrorHandler', 'PositionTracker',

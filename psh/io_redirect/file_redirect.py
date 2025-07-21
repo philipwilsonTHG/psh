@@ -65,8 +65,16 @@ class FileRedirector:
                 # Here document
                 saved_fds.append((0, os.dup(0)))
                 r, w = os.pipe()
+                
+                # Get heredoc content
+                content = redirect.heredoc_content or ''
+                
+                # Expand variables if delimiter wasn't quoted
+                if not getattr(redirect, 'heredoc_quoted', False):
+                    content = self.shell.expansion_manager.expand_string_variables(content)
+                
                 # Write heredoc content to pipe
-                os.write(w, (redirect.heredoc_content or '').encode())
+                os.write(w, content.encode())
                 os.close(w)
                 # Redirect stdin to read end
                 os.dup2(r, 0)

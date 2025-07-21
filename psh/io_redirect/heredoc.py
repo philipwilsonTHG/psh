@@ -59,6 +59,11 @@ class HeredocHandler:
     
     def _read_heredoc_content(self, redirect):
         """Read heredoc content from input until delimiter is found."""
+        # Skip if content is already populated (from parser)
+        if redirect.heredoc_content is not None:
+            return
+            
+        # Fall back to reading from stdin (for interactive mode)
         lines = []
         delimiter = redirect.target
         

@@ -422,19 +422,42 @@ class Shell:
         try:
             # Use strict=False for interactive mode, strict=True for script mode
             strict_mode = self.state.is_script_mode
-            tokens = tokenize(command_string, strict=strict_mode)
             
-            # Debug: Print tokens if requested
-            if self.debug_tokens:
-                print("=== Token Debug Output ===", file=sys.stderr)
-                from .utils.token_formatter import TokenFormatter
-                print(TokenFormatter.format(tokens), file=sys.stderr)
-                print("========================", file=sys.stderr)
-            
-            # Note: Alias expansion now happens during execution phase for proper precedence
-            
-            # Parse using the selected parser implementation
-            ast = self.parser_strategy.parse(tokens)
+            # Check if command contains heredocs
+            if '<<' in command_string:
+                # Use heredoc-aware tokenizer
+                from .lexer import tokenize_with_heredocs
+                tokens, heredoc_map = tokenize_with_heredocs(command_string, strict=strict_mode)
+                
+                # Debug: Print tokens if requested
+                if self.debug_tokens:
+                    print("=== Token Debug Output ===", file=sys.stderr)
+                    from .utils.token_formatter import TokenFormatter
+                    print(TokenFormatter.format(tokens), file=sys.stderr)
+                    if heredoc_map:
+                        print(f"=== Heredoc Map ({len(heredoc_map)} entries) ===", file=sys.stderr)
+                        for key, info in heredoc_map.items():
+                            print(f"{key}: quoted={info['quoted']}, content={repr(info['content'][:50])}...", file=sys.stderr)
+                    print("========================", file=sys.stderr)
+                
+                # Parse with heredoc support
+                from .parser import parse_with_heredocs
+                ast = parse_with_heredocs(tokens, heredoc_map)
+            else:
+                # Regular tokenization
+                tokens = tokenize(command_string, strict=strict_mode)
+                
+                # Debug: Print tokens if requested
+                if self.debug_tokens:
+                    print("=== Token Debug Output ===", file=sys.stderr)
+                    from .utils.token_formatter import TokenFormatter
+                    print(TokenFormatter.format(tokens), file=sys.stderr)
+                    print("========================", file=sys.stderr)
+                
+                # Note: Alias expansion now happens during execution phase for proper precedence
+                
+                # Parse using the selected parser implementation
+                ast = self.parser_strategy.parse(tokens)
             
             # Debug: Print AST if requested
             if self.debug_ast:

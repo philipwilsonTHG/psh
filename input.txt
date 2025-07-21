@@ -1,0 +1,2 @@
+input line 1
+input line 2

@@ -88,7 +88,28 @@ class CommandExecutor:
                 assignments.append((var, expanded_value))
             
             # Check if we have only assignments (no command)
-            if assignments and len(raw_assignments) == len(node.args):
+            # Need to account for split assignments that consume multiple tokens
+            tokens_consumed = 0
+            for i, (var, value) in enumerate(raw_assignments):
+                # Check if this was a split assignment
+                if i < len(node.args) - 1:
+                    arg = node.args[tokens_consumed]
+                    arg_type = node.arg_types[tokens_consumed] if tokens_consumed < len(node.arg_types) else 'WORD'
+                    next_arg_type = node.arg_types[tokens_consumed + 1] if tokens_consumed + 1 < len(node.arg_types) else 'WORD'
+                    if (arg_type == 'WORD' and arg.endswith('=') and 
+                        next_arg_type in ('PARAM_EXPANSION', 'COMMAND_SUB', 
+                                         'COMMAND_SUB_BACKTICK', 'ARITH_EXPANSION',
+                                         'VARIABLE')):
+                        # This assignment consumed 2 tokens
+                        tokens_consumed += 2
+                    else:
+                        # Normal assignment consumed 1 token
+                        tokens_consumed += 1
+                else:
+                    # Last assignment
+                    tokens_consumed += 1
+            
+            if assignments and tokens_consumed == len(node.args):
                 # Pure assignment (no command)
                 return self._handle_pure_assignments(node, assignments)
             
@@ -97,7 +118,8 @@ class CommandExecutor:
             
             try:
                 # Phase 2: Expand remaining arguments with assignments in effect
-                command_start_index = len(raw_assignments)
+                # command_start_index needs to account for tokens consumed by assignments
+                command_start_index = tokens_consumed
                 if command_start_index >= len(node.args):
                     return 0
                 
@@ -190,18 +212,40 @@ class CommandExecutor:
     def _extract_assignments_raw(self, node: 'SimpleCommand') -> List[Tuple[str, str]]:
         """Extract assignments from raw arguments before expansion."""
         assignments = []
+        i = 0
         
-        for i, arg in enumerate(node.args):
-            # Only WORD, COMPOSITE, and COMPOSITE_QUOTED types can be assignments
+        while i < len(node.args):
+            arg = node.args[i]
             arg_type = node.arg_types[i] if i < len(node.arg_types) else 'WORD'
-            if arg_type not in ('WORD', 'COMPOSITE', 'COMPOSITE_QUOTED'):
-                break
-                
-            if '=' in arg and self._is_valid_assignment(arg):
-                var, value = arg.split('=', 1)
-                assignments.append((var, value))
+            
+            # Check if this is a WORD ending with = followed by an expansion
+            if (arg_type == 'WORD' and arg.endswith('=') and 
+                i + 1 < len(node.args) and 
+                i + 1 < len(node.arg_types) and
+                node.arg_types[i + 1] in ('PARAM_EXPANSION', 'COMMAND_SUB', 
+                                         'COMMAND_SUB_BACKTICK', 'ARITH_EXPANSION',
+                                         'VARIABLE')):
+                # This is an assignment split across tokens
+                var = arg[:-1]  # Remove the trailing =
+                if self._is_valid_assignment(var + '=x'):  # Check if var name is valid
+                    # The value is the next token
+                    value = node.args[i + 1]
+                    assignments.append((var, value))
+                    i += 2  # Skip both tokens
+                    continue
+                else:
+                    # Not a valid assignment, stop here
+                    break
+            elif arg_type in ('WORD', 'COMPOSITE', 'COMPOSITE_QUOTED'):
+                if '=' in arg and self._is_valid_assignment(arg):
+                    var, value = arg.split('=', 1)
+                    assignments.append((var, value))
+                    i += 1
+                else:
+                    # Stop at first non-assignment
+                    break
             else:
-                # Stop at first non-assignment
+                # Stop if we hit a non-WORD type
                 break
         
         return assignments

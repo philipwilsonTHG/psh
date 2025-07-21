@@ -302,16 +302,12 @@ class SourceProcessor(ScriptComponent):
             
             # Check if command contains heredocs and parse accordingly
             if '<<' in command_string:
-                # Extract heredoc content first
-                heredoc_map = self._extract_heredoc_content(command_string)
-                # Remove heredoc content from command for tokenizing
-                clean_command = self._remove_heredoc_content_from_command(command_string)
-                # Re-tokenize the clean command
-                clean_tokens = tokenize(clean_command)
-                # Note: Alias expansion now happens during execution phase for proper precedence
-                # Parse with source text for better error messages and shell configuration
-                parser = self.shell.create_parser(clean_tokens, source_text=command_string)
-                ast = parser.parse_with_heredocs(heredoc_map)
+                # Use the new lexer with heredoc support
+                from ..lexer import tokenize_with_heredocs
+                tokens, heredoc_map = tokenize_with_heredocs(command_string, strict=self.state.options.get('posix', False))
+                # Parse with heredoc map
+                from ..parser import parse_with_heredocs
+                ast = parse_with_heredocs(tokens, heredoc_map)
             else:
                 # Parse with source text for better error messages and shell configuration
                 parser = self.shell.create_parser(tokens, source_text=command_string)
