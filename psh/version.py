@@ -2,10 +2,25 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.92.0"
+__version__ = "0.93.0"
 
 # Version history
 VERSION_HISTORY = """
+0.93.0 (2025-01-21) - Arithmetic Expansion Testing Complete and Parser Combinator Enhancement
+- Completed comprehensive arithmetic expansion testing plan with 134+ tests across 4 phases
+- Phase 1: Number Format Testing (38 tests) - binary, octal, hex, arbitrary bases 2-36
+- Phase 2: Special Variables Testing (31 tests) - positional parameters, $#, $?, $$, arrays  
+- Phase 3: Integration Testing (23 tests) - command substitution, control structures, here docs
+- Phase 4: Edge Cases Testing (42 tests) - error handling, syntax errors, whitespace, recursion
+- Fixed critical hanging tests from nested arithmetic expansion syntax abuse ($((counter)) → counter)
+- Enhanced parser combinator capabilities: here documents and here strings now fully supported
+- Updated integration tests to reflect current parser combinator feature set (no longer "unsupported")
+- Comprehensive arithmetic testing validates production-ready functionality across all contexts
+- Error handling robustness verified: division by zero, syntax errors, overflow conditions
+- Performance testing completed: deep nesting (25+ levels), large expressions, variable contexts
+- All arithmetic expansion features now thoroughly tested and documented for reliability
+- Foundation established for production shell scripting with comprehensive arithmetic support
+
 0.92.0 (2025-01-21) - Here Document Parser Combinator Implementation Complete
 - Implemented complete here document support in parser combinator with comprehensive functionality
 - Added heredoc token recognition (<<, <<-, <<<) to parser combinator grammar

@@ -7,7 +7,7 @@ This guide helps AI assistants work effectively with the Python Shell (psh) code
 Python Shell (psh) is an educational Unix shell implementation designed to teach shell internals through clean, readable Python code. It features:
 - Hand-written recursive descent parser for clarity
 - Component-based architecture with clear separation of concerns
-- Comprehensive test suite (3000+ tests across legacy and new suites)
+- Comprehensive test suite 
 - Near-complete POSIX compliance (~93% measured by conformance tests)
 - Visitor pattern for AST operations
 - Comprehensive conformance testing framework for POSIX/bash compatibility

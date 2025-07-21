@@ -381,8 +381,8 @@ class TestParserLimitations(TestParserCombinatorFeatureCombinations):
         # Arithmetic commands
         assert not self.parse_no_exception("((x = 5 + 3))")
         
-        # Here documents
-        assert not self.parse_no_exception("cat << EOF\nhello\nEOF")
+        # Here documents are now supported!
+        assert self.parse_no_exception("cat << EOF\nhello\nEOF")
 
 
 if __name__ == "__main__":

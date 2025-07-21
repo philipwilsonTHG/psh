@@ -258,18 +258,20 @@ class TestRedirectionEdgeCases(TestParserCombinatorIORedirection):
         assert redirects[0].target == "file.txt"
 
 
-class TestUnsupportedRedirections(TestParserCombinatorIORedirection):
-    """Test that unsupported redirections fail gracefully."""
+class TestAdvancedRedirections(TestParserCombinatorIORedirection):
+    """Test advanced redirection features."""
     
-    def test_heredoc_not_supported(self):
-        """Test that heredocs are not supported."""
-        with pytest.raises(Exception):
-            self.parse("cat << EOF")
+    def test_heredoc_now_supported(self):
+        """Test that heredocs are now supported."""
+        # Heredocs are now supported in the parser combinator
+        ast = self.parse("cat << EOF\nhello\nEOF")
+        assert ast is not None
     
-    def test_herestring_not_supported(self):
-        """Test that herestrings are not supported."""
-        with pytest.raises(Exception):
-            self.parse("cat <<< 'hello world'")
+    def test_herestring_now_supported(self):
+        """Test that herestrings are now supported."""
+        # Herestrings are now supported in the parser combinator
+        ast = self.parse("cat <<< 'hello world'")
+        assert ast is not None
     
     def test_fd_duplication_not_supported(self):
         """Test that fd duplication may not be supported."""
