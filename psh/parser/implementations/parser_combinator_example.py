@@ -4,7 +4,7 @@ This module demonstrates how to implement a shell parser using
 parser combinators, a functional approach to parsing.
 """
 
-from typing import List, Optional, Union, Tuple, Callable, TypeVar, Generic
+from typing import List, Optional, Union, Tuple, Callable, TypeVar, Generic, Dict
 from dataclasses import dataclass
 from functools import reduce
 
@@ -354,10 +354,15 @@ class ParserCombinatorShellParser(AbstractShellParser):
     parsers are built by combining simple parsers.
     """
     
-    def __init__(self):
-        """Initialize the parser combinator implementation."""
+    def __init__(self, heredoc_contents: Optional[Dict[str, str]] = None):
+        """Initialize the parser combinator implementation.
+        
+        Args:
+            heredoc_contents: Optional map of heredoc keys to their content
+        """
         super().__init__()
         self.config = ParserConfig()  # Default config
+        self.heredoc_contents = heredoc_contents or {}
         self._setup_forward_declarations()
         self._build_grammar()
         self._complete_forward_declarations()
@@ -393,6 +398,9 @@ class ParserCombinatorShellParser(AbstractShellParser):
         self.redirect_err = token('REDIRECT_ERR')  # 2>
         self.redirect_err_append = token('REDIRECT_ERR_APPEND')  # 2>>
         self.redirect_dup = token('REDIRECT_DUP')  # >&, 2>&1
+        self.heredoc = token('HEREDOC')  # <<
+        self.heredoc_strip = token('HEREDOC_STRIP')  # <<-
+        self.here_string = token('HERE_STRING')  # <<<
         
         # Background job parser
         self.ampersand = token('AMPERSAND')
@@ -459,6 +467,9 @@ class ParserCombinatorShellParser(AbstractShellParser):
             .or_else(self.redirect_err)
             .or_else(self.redirect_err_append)
             .or_else(self.redirect_dup)
+            .or_else(self.heredoc)
+            .or_else(self.heredoc_strip)
+            .or_else(self.here_string)
         )
         
         def parse_redirection(tokens: List[Token], pos: int) -> ParseResult[Redirect]:
@@ -477,6 +488,71 @@ class ParserCombinatorShellParser(AbstractShellParser):
                     success=True,
                     value=Redirect(type=op_token.value, target=''),
                     position=pos
+                )
+            
+            # Handle heredoc operators
+            if op_token.type.name in ['HEREDOC', 'HEREDOC_STRIP']:
+                # Parse delimiter
+                delimiter_result = self.word_like.parse(tokens, pos)
+                if not delimiter_result.success:
+                    return ParseResult(
+                        success=False,
+                        error=f"Expected heredoc delimiter after {op_token.value}",
+                        position=pos
+                    )
+                
+                delimiter_token = delimiter_result.value
+                delimiter = delimiter_token.value if hasattr(delimiter_token, 'value') else str(delimiter_token)
+                
+                # Check if delimiter is quoted (affects variable expansion)
+                heredoc_quoted = (hasattr(delimiter_token, 'type') and 
+                                delimiter_token.type.name == 'STRING') or \
+                               delimiter.startswith("'") or delimiter.startswith('"')
+                
+                # Remove quotes from delimiter if present
+                if heredoc_quoted:
+                    delimiter = delimiter.strip("'\"")
+                
+                # Create redirect with heredoc metadata
+                redirect = Redirect(
+                    type=op_token.value,
+                    target=delimiter,
+                    heredoc_quoted=heredoc_quoted
+                )
+                
+                # Store heredoc key for later content population if available
+                if hasattr(op_token, 'heredoc_key'):
+                    redirect.heredoc_key = op_token.heredoc_key
+                
+                return ParseResult(
+                    success=True,
+                    value=redirect,
+                    position=delimiter_result.position
+                )
+            
+            # Handle here strings (<<<)
+            if op_token.type.name == 'HERE_STRING':
+                # Parse the string content
+                content_result = self.word_like.parse(tokens, pos)
+                if not content_result.success:
+                    return ParseResult(
+                        success=False,
+                        error="Expected content after <<<",
+                        position=pos
+                    )
+                
+                content_value = content_result.value.value if hasattr(content_result.value, 'value') else str(content_result.value)
+                
+                # Here strings are always treated as single-quoted (no expansion)
+                return ParseResult(
+                    success=True,
+                    value=Redirect(
+                        type=op_token.value,
+                        target=content_value,
+                        heredoc_content=content_value,
+                        heredoc_quoted=True  # No expansion in here strings
+                    ),
+                    position=content_result.position
                 )
             
             # Normal redirection - needs a target
@@ -1525,6 +1601,36 @@ class ParserCombinatorShellParser(AbstractShellParser):
         else:
             raise ParseError(result.error or "Parse failed")
     
+    def parse_with_heredocs(self, tokens: List[Token], 
+                           heredoc_contents: Dict[str, str]) -> Union[TopLevel, CommandList]:
+        """Parse tokens with heredoc content support.
+        
+        This is a two-pass approach:
+        1. Parse the token stream to build AST
+        2. Populate heredoc content in AST nodes
+        
+        Args:
+            tokens: List of tokens to parse
+            heredoc_contents: Map of heredoc keys to their content
+            
+        Returns:
+            Parsed AST with heredoc content populated
+            
+        Raises:
+            ParseError: If parsing fails
+        """
+        # Store heredoc contents in parser context
+        self.heredoc_contents = heredoc_contents
+        
+        # First pass: parse normally
+        ast = self.parse(tokens)
+        
+        # Second pass: populate heredoc content
+        if heredoc_contents:
+            self._populate_heredoc_content(ast, heredoc_contents)
+        
+        return ast
+    
     def parse_partial(self, tokens: List[Token]) -> Tuple[Optional[ASTNode], int]:
         """Parse as much as possible."""
         result = self.top_level.parse(tokens, 0)
@@ -1677,6 +1783,90 @@ class ParserCombinatorShellParser(AbstractShellParser):
         else:
             # Regular word token
             return Word(parts=[LiteralPart(token.value)])
+    
+    def _populate_heredoc_content(self, node: 'ASTNode', 
+                                 heredoc_contents: Dict[str, str]) -> None:
+        """Recursively populate heredoc content in AST nodes.
+        
+        Args:
+            node: AST node to process
+            heredoc_contents: Map of heredoc keys to their content
+        """
+        from ...ast_nodes import (
+            SimpleCommand, IfConditional, WhileLoop, ForLoop, CStyleForLoop,
+            CaseConditional, FunctionDef, Pipeline, AndOrList, CommandList,
+            StatementList
+        )
+        
+        if isinstance(node, SimpleCommand):
+            # Process redirections in simple commands
+            for redirect in node.redirects:
+                if (hasattr(redirect, 'heredoc_key') and 
+                    redirect.heredoc_key and 
+                    redirect.heredoc_key in heredoc_contents):
+                    redirect.heredoc_content = heredoc_contents[redirect.heredoc_key]
+        
+        elif isinstance(node, Pipeline):
+            # Process commands in pipeline
+            for command in node.commands:
+                self._populate_heredoc_content(command, heredoc_contents)
+        
+        elif isinstance(node, AndOrList):
+            # Process pipelines in and-or list
+            for pipeline in node.pipelines:
+                self._populate_heredoc_content(pipeline, heredoc_contents)
+        
+        elif isinstance(node, IfConditional):
+            # Process all parts of if statement
+            self._populate_heredoc_content(node.condition, heredoc_contents)
+            self._populate_heredoc_content(node.then_part, heredoc_contents)
+            
+            # Process elif parts
+            for elif_condition, elif_body in node.elif_parts:
+                self._populate_heredoc_content(elif_condition, heredoc_contents)
+                self._populate_heredoc_content(elif_body, heredoc_contents)
+            
+            # Process else part
+            if node.else_part:
+                self._populate_heredoc_content(node.else_part, heredoc_contents)
+        
+        elif isinstance(node, (WhileLoop, ForLoop)):
+            # Process condition and body
+            self._populate_heredoc_content(node.condition, heredoc_contents)
+            self._populate_heredoc_content(node.body, heredoc_contents)
+        
+        elif isinstance(node, CStyleForLoop):
+            # Process body only (init/condition/update are expressions)
+            self._populate_heredoc_content(node.body, heredoc_contents)
+        
+        elif isinstance(node, CaseConditional):
+            # Process case items
+            for item in node.items:
+                self._populate_heredoc_content(item.commands, heredoc_contents)
+        
+        elif isinstance(node, FunctionDef):
+            # Process function body
+            self._populate_heredoc_content(node.body, heredoc_contents)
+        
+        elif isinstance(node, (CommandList, StatementList)):
+            # Process all statements
+            for statement in node.statements:
+                self._populate_heredoc_content(statement, heredoc_contents)
+        
+        # Handle any other node types that might contain nested structures
+        elif hasattr(node, '__dict__'):
+            # Generic fallback: traverse all attributes that look like AST nodes
+            for attr_name, attr_value in node.__dict__.items():
+                if hasattr(attr_value, '__class__') and hasattr(attr_value.__class__, '__module__'):
+                    # Check if it's likely an AST node
+                    if 'ast_nodes' in str(attr_value.__class__.__module__):
+                        self._populate_heredoc_content(attr_value, heredoc_contents)
+                elif isinstance(attr_value, list):
+                    # Handle lists of AST nodes
+                    for item in attr_value:
+                        if hasattr(item, '__class__') and hasattr(item.__class__, '__module__'):
+                            if 'ast_nodes' in str(item.__class__.__module__):
+                                self._populate_heredoc_content(item, heredoc_contents)
     
     def explain_parse(self, tokens: List[Token]) -> str:
         """Explain parser combinator parsing."""

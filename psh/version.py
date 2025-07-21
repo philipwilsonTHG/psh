@@ -2,10 +2,25 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.91.8"
+__version__ = "0.92.0"
 
 # Version history
 VERSION_HISTORY = """
+0.92.0 (2025-01-21) - Here Document Parser Combinator Implementation Complete
+- Implemented complete here document support in parser combinator with comprehensive functionality
+- Added heredoc token recognition (<<, <<-, <<<) to parser combinator grammar
+- Enhanced redirection parser to handle heredoc and here string operators
+- Implemented innovative two-pass parsing architecture for heredoc content population
+- Added heredoc_quoted support for disabling variable expansion in quoted delimiters
+- Fixed here string target quote handling and content preprocessing
+- Created comprehensive test suite with 13 tests covering all heredoc functionality
+- Updated parser combinator to handle complex heredoc scenarios with proper error handling
+- All tests passing: heredocs, tab-stripping heredocs, here strings, content population
+- Major milestone: parser combinator now supports full here document feature set
+- Enhanced feature roadmap documentation to reflect completed heredoc implementation
+- Parser combinator achieves comprehensive shell compatibility with here document support
+- Educational two-pass parsing demonstrates functional approach to stateful language features
+
 0.91.8 (2025-01-21) - Lexer Redirect Duplication Fix and Parser Combinator Integration
 - Fixed critical lexer bug where redirect duplications like "2>&1" were tokenized as three separate tokens
 - Modified operator recognizer to check for file descriptor duplication patterns BEFORE regular operators

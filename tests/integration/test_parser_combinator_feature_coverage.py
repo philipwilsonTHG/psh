@@ -77,14 +77,14 @@ class TestParserCombinatorFeatureCoverage:
         # But &> shorthand might not work
         assert not self.can_parse("command &> output.txt")
     
-    def test_heredoc_not_supported(self):
-        """Test that here documents are NOT supported."""
-        assert not self.can_parse("cat << EOF\nhello\nworld\nEOF")
-        assert not self.can_parse("cat <<- EOF\n\thello\n\tworld\nEOF")
+    def test_heredoc_now_supported(self):
+        """Test that here documents are now supported."""
+        assert self.can_parse("cat << EOF\nhello\nworld\nEOF")
+        assert self.can_parse("cat <<- EOF\n\thello\n\tworld\nEOF")
     
-    def test_herestring_not_supported(self):
-        """Test that here strings are NOT supported."""
-        assert not self.can_parse("cat <<< 'hello world'")
+    def test_herestring_now_supported(self):
+        """Test that here strings are now supported."""
+        assert self.can_parse("cat <<< 'hello world'")
     
     # Variable Assignment (PARSING SUPPORTED, EXECUTION UNTESTED)
     
@@ -196,10 +196,10 @@ class TestParserCombinatorErrorMessages:
         error = self.parse_and_get_error("command &>")  # Missing target
         assert error is not None
     
-    def test_heredoc_error_message(self):
-        """Test error message for heredocs."""
+    def test_heredoc_now_works(self):
+        """Test that heredocs now parse successfully."""
         error = self.parse_and_get_error("cat << EOF")
-        assert error is not None
+        assert error is None  # Should parse successfully now
     
     def test_background_now_supported(self):
         """Test that background jobs are now supported."""

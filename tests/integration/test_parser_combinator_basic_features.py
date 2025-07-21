@@ -256,9 +256,13 @@ class TestVariableHandling(TestParserCombinatorBasics):
 class TestUnsupportedFeatures(TestParserCombinatorBasics):
     """Document what features are NOT supported."""
     
-    def test_heredoc_not_supported(self):
-        """Test that heredocs fail."""
-        assert not self.parse_no_exception("cat << EOF")
+    def test_heredoc_now_supported(self):
+        """Test that heredocs are now supported."""
+        result = self.parse("cat << EOF")
+        cmd = result.statements[0].pipelines[0].commands[0]
+        assert len(cmd.redirects) == 1
+        assert cmd.redirects[0].type == "<<"
+        assert cmd.redirects[0].target == "EOF"
     
     def test_background_job_supported(self):
         """Test that background jobs are now supported."""
