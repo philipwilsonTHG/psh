@@ -390,6 +390,12 @@ class ParserCombinatorShellParser(AbstractShellParser):
         self.redirect_out = token('REDIRECT_OUT')
         self.redirect_in = token('REDIRECT_IN')
         self.redirect_append = token('REDIRECT_APPEND')
+        self.redirect_err = token('REDIRECT_ERR')  # 2>
+        self.redirect_err_append = token('REDIRECT_ERR_APPEND')  # 2>>
+        self.redirect_dup = token('REDIRECT_DUP')  # >&, 2>&1
+        
+        # Background job parser
+        self.ampersand = token('AMPERSAND')
         
         # Word-like tokens (including variables and expansions)
         self.variable = token('VARIABLE')
@@ -446,19 +452,52 @@ class ParserCombinatorShellParser(AbstractShellParser):
         ).map(lambda _: None)
         
         # Redirection
-        self.redirection = sequence(
-            self.redirect_out.or_else(self.redirect_in).or_else(self.redirect_append),
-            self.word_like
-        ).map(lambda pair: Redirect(
-            type=pair[0].value,
-            target=pair[1].value
-        ))
+        self.redirect_operator = (
+            self.redirect_out
+            .or_else(self.redirect_in)
+            .or_else(self.redirect_append)
+            .or_else(self.redirect_err)
+            .or_else(self.redirect_err_append)
+            .or_else(self.redirect_dup)
+        )
+        
+        def parse_redirection(tokens: List[Token], pos: int) -> ParseResult[Redirect]:
+            # First try normal redirection
+            op_result = self.redirect_operator.parse(tokens, pos)
+            if not op_result.success:
+                return ParseResult(success=False, error=op_result.error, position=pos)
+            
+            op_token = op_result.value
+            pos = op_result.position
+            
+            # Handle redirect duplication (e.g., 2>&1, >&2, etc.)
+            if op_token.type.name == 'REDIRECT_DUP':
+                # REDIRECT_DUP tokens contain the full operator (e.g., "2>&1")
+                return ParseResult(
+                    success=True,
+                    value=Redirect(type=op_token.value, target=''),
+                    position=pos
+                )
+            
+            # Normal redirection - needs a target
+            target_result = self.word_like.parse(tokens, pos)
+            if not target_result.success:
+                return ParseResult(success=False, error=f"Expected redirection target after {op_token.value}", position=pos)
+            
+            return ParseResult(
+                success=True,
+                value=Redirect(type=op_token.value, target=target_result.value.value if hasattr(target_result.value, 'value') else str(target_result.value)),
+                position=target_result.position
+            )
+        
+        self.redirection = Parser(parse_redirection)
         
         # Simple command
         self.simple_command = sequence(
             many1(self.word_like),
-            many(self.redirection)
-        ).map(lambda pair: self._build_simple_command(pair[0], pair[1]))
+            many(self.redirection),
+            optional(self.ampersand)
+        ).map(lambda triple: self._build_simple_command(triple[0], triple[1], background=triple[2] is not None))
         
         # Build function support
         self.function_name = self._build_function_name()
@@ -499,9 +538,9 @@ class ParserCombinatorShellParser(AbstractShellParser):
             .or_else(self.continue_statement)
         )
         
-        # Command is either function definition, control structure, or simple command
-        # Function definitions must be checked first to avoid simple_command consuming the name
-        self.command = self.function_def.or_else(self.control_structure).or_else(self.simple_command)
+        # Command is either control structure or simple command (not function definitions)
+        # Functions are only allowed at statement level
+        self.command = self.control_structure.or_else(self.simple_command)
         
         # Pipeline - now uses command instead of just simple_command
         self.pipeline = separated_by(
@@ -592,9 +631,10 @@ class ParserCombinatorShellParser(AbstractShellParser):
             while current_pos < len(tokens):
                 token = tokens[current_pos]
                 
-                # Check if this is 'then'
-                if token.value == 'then':
-                    if not saw_separator and condition_tokens:
+                # Check if this is 'then' keyword (not just the word "then" in the condition)
+                if token.value == 'then' and token.type.name in ['THEN', 'WORD']:
+                    # 'then' must be preceded by a separator
+                    if condition_tokens and not saw_separator:
                         # 'then' without separator is a syntax error
                         return ParseResult(success=False, error="Syntax error: expected ';' or newline before 'then'", position=current_pos)
                     break
@@ -604,13 +644,22 @@ class ParserCombinatorShellParser(AbstractShellParser):
                     # Check if next token is 'then'
                     if (current_pos + 1 < len(tokens) and 
                         tokens[current_pos + 1].value == 'then'):
+                        # Don't include the separator in condition tokens
                         break
                         
                 condition_tokens.append(token)
                 current_pos += 1
             
             if current_pos >= len(tokens):
-                return ParseResult(success=False, error="Expected 'then' in if statement", position=pos)
+                return ParseResult(success=False, error="Unexpected end of input: expected 'then' in if statement", position=pos)
+            
+            # Skip separator if we're at one
+            if tokens[current_pos].type.name in ['SEMICOLON', 'NEWLINE']:
+                current_pos += 1
+            
+            # Verify we actually found 'then'
+            if current_pos >= len(tokens) or tokens[current_pos].value != 'then':
+                return ParseResult(success=False, error=f"Expected 'then' in if statement", position=current_pos)
             
             # Parse the condition
             condition_result = self.statement_list.parse(condition_tokens, 0)
@@ -726,8 +775,10 @@ class ParserCombinatorShellParser(AbstractShellParser):
                 else_part = else_result.value
             
             # Expect 'fi'
-            if pos >= len(tokens) or tokens[pos].value != 'fi':
-                return ParseResult(success=False, error="Expected 'fi' to close if statement", position=pos)
+            if pos >= len(tokens):
+                return ParseResult(success=False, error="Unexpected end of input: expected 'fi' to close if statement", position=pos)
+            if tokens[pos].value != 'fi':
+                return ParseResult(success=False, error=f"Expected 'fi' to close if statement, got '{tokens[pos].value}'", position=pos)
             
             pos += 1  # Skip 'fi'
             
@@ -1190,18 +1241,18 @@ class ParserCombinatorShellParser(AbstractShellParser):
         # Expect {
         if pos >= len(tokens) or tokens[pos].value != '{':
             return ParseResult(success=False, error="Expected '{' to start function body", position=pos)
-        pos += 1
+        outer_pos = pos + 1  # Track position in outer token stream
         
         # Skip optional newline after {
-        if pos < len(tokens) and tokens[pos].type.name == 'NEWLINE':
-            pos += 1
+        if outer_pos < len(tokens) and tokens[outer_pos].type.name == 'NEWLINE':
+            outer_pos += 1
         
         # Collect tokens until }
         body_tokens = []
         brace_count = 1
         
-        while pos < len(tokens) and brace_count > 0:
-            token = tokens[pos]
+        while outer_pos < len(tokens) and brace_count > 0:
+            token = tokens[outer_pos]
             if token.value == '{':
                 brace_count += 1
             elif token.value == '}':
@@ -1209,26 +1260,62 @@ class ParserCombinatorShellParser(AbstractShellParser):
                 if brace_count == 0:
                     break
             body_tokens.append(token)
-            pos += 1
+            outer_pos += 1
         
         if brace_count > 0:
-            return ParseResult(success=False, error="Unclosed function body", position=pos)
+            return ParseResult(success=False, error="Unclosed function body", position=outer_pos)
         
         # Parse the body as a statement list
         if body_tokens:
-            body_result = self.statement_list.parse(body_tokens, 0)
-            if not body_result.success:
-                return ParseResult(success=False, error=f"Invalid function body: {body_result.error}", position=pos)
+            # For function bodies, we need stricter parsing that doesn't swallow errors
+            # Try to parse statements directly without the optional wrapper
+            statements = []
+            inner_pos = 0  # Position within body_tokens
+            
+            # Skip leading separators
+            while inner_pos < len(body_tokens) and body_tokens[inner_pos].type.name in ['SEMICOLON', 'NEWLINE']:
+                inner_pos += 1
+            
+            # Parse statements
+            while inner_pos < len(body_tokens):
+                # Try to parse a statement (which can be a pipeline, control structure, or function)
+                stmt_result = self.control_or_pipeline.parse(body_tokens, inner_pos)
+                if not stmt_result.success:
+                    # Check if this is a real error or just end of statements
+                    # If we have unparsed tokens, it's an error
+                    if inner_pos < len(body_tokens):
+                        error = stmt_result.error
+                        if "expected 'fi'" in error.lower():
+                            error = "Syntax error in function body: missing 'fi' to close if statement"
+                        elif "expected 'done'" in error.lower():
+                            error = "Syntax error in function body: missing 'done' to close loop"
+                        elif "expected 'esac'" in error.lower():
+                            error = "Syntax error in function body: missing 'esac' to close case statement"
+                        elif "expected 'then'" in error.lower():
+                            error = "Syntax error in function body: missing 'then' in if statement"
+                        else:
+                            error = f"Invalid function body: {error}"
+                        return ParseResult(success=False, error=error, position=outer_pos)
+                    break
+                
+                statements.append(stmt_result.value)
+                inner_pos = stmt_result.position
+                
+                # Skip separators
+                while inner_pos < len(body_tokens) and body_tokens[inner_pos].type.name in ['SEMICOLON', 'NEWLINE']:
+                    inner_pos += 1
+            
+            body_result = ParseResult(success=True, value=StatementList(statements=statements), position=inner_pos)
         else:
             # Empty body
             body_result = ParseResult(success=True, value=StatementList(statements=[]), position=0)
         
-        pos += 1  # Skip closing }
+        outer_pos += 1  # Skip closing }
         
         return ParseResult(
             success=True,
             value=body_result.value,
-            position=pos
+            position=outer_pos
         )
     
     def _build_posix_function(self) -> Parser[FunctionDef]:
@@ -1495,9 +1582,9 @@ class ParserCombinatorShellParser(AbstractShellParser):
             # Everything else uses raw value
             return token.value
     
-    def _build_simple_command(self, word_tokens: List[Token], redirects: List[Redirect]) -> SimpleCommand:
+    def _build_simple_command(self, word_tokens: List[Token], redirects: List[Redirect], background: bool = False) -> SimpleCommand:
         """Build a SimpleCommand, optionally with Word AST nodes."""
-        cmd = SimpleCommand(redirects=redirects)
+        cmd = SimpleCommand(redirects=redirects, background=background)
         
         # Build traditional string arguments
         cmd.args = [self._format_token_value(t) for t in word_tokens]
@@ -1510,6 +1597,39 @@ class ParserCombinatorShellParser(AbstractShellParser):
                 cmd.words.append(word)
         
         return cmd
+    
+    def _parse_command_substitution_content(self, cmd_str: str) -> bool:
+        """Parse and validate command substitution content.
+        
+        Returns True if valid, False if it contains invalid constructs like function definitions.
+        """
+        try:
+            # Re-tokenize the command substitution content
+            from psh.lexer import tokenize
+            sub_tokens = list(tokenize(cmd_str))
+            
+            # Check for function definitions at the start
+            if len(sub_tokens) >= 2:
+                # Check for function keyword
+                if sub_tokens[0].type.name == 'FUNCTION':
+                    return False
+                # Check for name followed by parentheses
+                if (sub_tokens[0].type.name == 'WORD' and 
+                    len(sub_tokens) > 1 and sub_tokens[1].type.name == 'LPAREN'):
+                    # This might be a function definition
+                    # Look for closing paren and opening brace
+                    for i in range(2, len(sub_tokens)):
+                        if sub_tokens[i].type.name == 'RPAREN':
+                            if i + 1 < len(sub_tokens) and sub_tokens[i + 1].type.name == 'LBRACE':
+                                return False  # Function definition found
+                            break
+            
+            # Parse the content to ensure it's valid
+            result = self.statement_list.parse(sub_tokens, 0)
+            return result.success
+        except:
+            # If tokenization or parsing fails, consider it invalid
+            return False
     
     def _build_word_from_token(self, token: Token) -> Word:
         """Build a Word AST node from a token."""
@@ -1526,12 +1646,22 @@ class ParserCombinatorShellParser(AbstractShellParser):
             # Command substitution $(...)
             # Extract command from $(...)
             cmd = token.value[2:-1] if token.value.startswith('$(') and token.value.endswith(')') else token.value
+            
+            # Validate the command substitution content
+            if not self._parse_command_substitution_content(cmd):
+                raise ParseError(f"Invalid command substitution: {token.value}")
+            
             expansion = CommandSubstitution(cmd, backtick_style=False)
             return Word(parts=[ExpansionPart(expansion)])
         elif token.type.name == 'COMMAND_SUB_BACKTICK':
             # Backtick command substitution
             # Extract command from `...`
             cmd = token.value[1:-1] if token.value.startswith('`') and token.value.endswith('`') else token.value
+            
+            # Validate the command substitution content
+            if not self._parse_command_substitution_content(cmd):
+                raise ParseError(f"Invalid command substitution: {token.value}")
+            
             expansion = CommandSubstitution(cmd, backtick_style=True)
             return Word(parts=[ExpansionPart(expansion)])
         elif token.type.name == 'ARITH_EXPANSION':

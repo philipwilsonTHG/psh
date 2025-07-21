@@ -260,9 +260,11 @@ class TestUnsupportedFeatures(TestParserCombinatorBasics):
         """Test that heredocs fail."""
         assert not self.parse_no_exception("cat << EOF")
     
-    def test_background_job_not_supported(self):
-        """Test that background jobs fail."""
-        assert not self.parse_no_exception("command &")
+    def test_background_job_supported(self):
+        """Test that background jobs are now supported."""
+        result = self.parse("command &")
+        cmd = result.statements[0].pipelines[0].commands[0]
+        assert cmd.background is True
     
     def test_subshell_not_supported(self):
         """Test that subshells fail."""

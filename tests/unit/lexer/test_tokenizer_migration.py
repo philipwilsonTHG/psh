@@ -261,11 +261,9 @@ class TestAdvancedTokenization:
         tokens = list(tokenize("cmd 2> errors.txt"))
         assert any(t.type == TokenType.REDIRECT_ERR and t.value == "2>" for t in tokens)
         
-        # Redirect and duplicate - note PSH tokenizes these separately
+        # Redirect and duplicate - PSH now tokenizes this as a single token
         tokens = list(tokenize("cmd 2>&1"))
-        assert any(t.type == TokenType.REDIRECT_ERR and t.value == "2>" for t in tokens)
-        assert any(t.type == TokenType.AMPERSAND for t in tokens)
-        assert any(t.value == "1" for t in tokens)
+        assert any(t.type == TokenType.REDIRECT_DUP and t.value == "2>&1" for t in tokens)
     
     def test_here_string(self):
         """Test here-string operator."""

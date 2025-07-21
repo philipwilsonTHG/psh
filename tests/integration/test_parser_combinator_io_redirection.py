@@ -70,11 +70,13 @@ class TestOutputRedirection(TestParserCombinatorIORedirection):
         assert redirect.fd is None
         assert redirect.target == "file.txt"
     
-    def test_stderr_redirect_not_supported(self):
-        """Test: command 2> error.log - NOT SUPPORTED"""
-        # Parser combinator doesn't support fd redirects
-        with pytest.raises(Exception):
-            self.parse("command 2> error.log")
+    def test_stderr_redirect_supported(self):
+        """Test: command 2> error.log - NOW SUPPORTED"""
+        # Parser combinator now supports stderr redirects
+        redirects = self.get_redirects("command 2> error.log")
+        assert len(redirects) == 1
+        assert redirects[0].type == '2>'
+        assert redirects[0].target == 'error.log'
     
     def test_multiple_basic_redirects(self):
         """Test: cmd < in.txt > out.txt"""

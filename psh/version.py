@@ -2,10 +2,29 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.91.6"
+__version__ = "0.91.8"
 
 # Version history
 VERSION_HISTORY = """
+0.91.8 (2025-01-21) - Lexer Redirect Duplication Fix and Parser Combinator Integration
+- Fixed critical lexer bug where redirect duplications like "2>&1" were tokenized as three separate tokens
+- Modified operator recognizer to check for file descriptor duplication patterns BEFORE regular operators
+- Added all digits (0-9) to OPERATOR_START_CHARS for proper FD duplication recognition
+- Changed FD duplication tokenization to return REDIRECT_DUP tokens instead of WORD tokens
+- Updated parser combinator to properly handle REDIRECT_DUP tokens
+- Fixed numerous test expectations to match new single-token redirect duplication behavior
+- All 141 parser combinator integration tests now pass (100% success rate)
+- Full test suite shows 2463 passing tests with no unexpected failures
+
+0.91.7 (2025-01-21) - Parser Combinator Implementation Complete
+- Added stderr redirect support (2>, 2>>) to parser combinator
+- Added background job support (&) to parser combinator
+- Fixed function parsing to only allow at statement start (not in pipelines)
+- Made parser stricter about syntax errors while maintaining correct parsing
+- Fixed if statement regression by properly handling separators
+- All parser combinator tests now pass with newly supported features
+- Major milestone: parser combinator now supports all shell syntax features
+
 0.91.6 (2025-01-21) - Parser Combinator Test Fixes
 - Fixed parser combinator tests to match actual tokenization behavior
 - Updated test expectations for variable assignments with expansions

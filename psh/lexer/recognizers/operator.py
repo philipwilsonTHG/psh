@@ -57,7 +57,8 @@ class OperatorRecognizer(ContextualRecognizer):
     
     # Characters that can start operators
     OPERATOR_START_CHARS: Set[str] = {
-        '<', '>', '&', '|', ';', '(', ')', '{', '}', '[', ']', '!', '=', '2', '\n'
+        '<', '>', '&', '|', ';', '(', ')', '{', '}', '[', ']', '!', '=', '2', '\n',
+        '0', '1', '3', '4', '5', '6', '7', '8', '9'  # All digits for file descriptor duplication
     }
     
     def _try_fd_duplication(self, input_text: str, pos: int) -> bool:
@@ -69,7 +70,16 @@ class OperatorRecognizer(ContextualRecognizer):
         if len(remaining) >= 3 and remaining[0] in '><' and remaining[1] == '&':
             return remaining[2].isdigit() or remaining[2] == '-'
         
-        # Check for N>&M or N<&M
+        # Check for N>&M or N<&M (where we're at the digit)
+        if remaining and remaining[0].isdigit():
+            # Look ahead to see if this is N>&M pattern
+            i = 1
+            while i < len(remaining) and remaining[i].isdigit():
+                i += 1
+            if i < len(remaining) - 1 and remaining[i] in '><' and remaining[i+1] == '&':
+                return True
+        
+        # Check for N>&M or N<&M (where we're at the > or <)
         if pos > 0 and input_text[pos-1].isdigit():
             if len(remaining) >= 2 and remaining[0] in '><' and remaining[1] == '&':
                 return True
@@ -80,7 +90,49 @@ class OperatorRecognizer(ContextualRecognizer):
         """Parse file descriptor duplication operators."""
         start_pos = pos
         
-        # Check if we have a leading digit (N>&M pattern)
+        # Check if we're starting at a digit (N>&M pattern)
+        if pos < len(input_text) and input_text[pos].isdigit():
+            # Parse the leading digit(s)
+            while pos < len(input_text) and input_text[pos].isdigit():
+                pos += 1
+            
+            # Must be followed by > or <
+            if pos >= len(input_text) or input_text[pos] not in '><':
+                return None
+            
+            direction = input_text[pos]
+            pos += 1
+            
+            # Must be followed by &
+            if pos >= len(input_text) or input_text[pos] != '&':
+                return None
+            pos += 1
+            
+            # Get the target fd or '-'
+            if pos >= len(input_text):
+                return None
+                
+            if input_text[pos] == '-':
+                target = '-'
+                pos += 1
+            elif input_text[pos].isdigit():
+                target_start = pos
+                while pos < len(input_text) and input_text[pos].isdigit():
+                    pos += 1
+                target = input_text[target_start:pos]
+            else:
+                return None
+            
+            # Construct the full operator string
+            op_string = input_text[start_pos:pos]
+            
+            # Create the appropriate token - use REDIRECT_DUP for file descriptor duplication
+            token_type = TokenType.REDIRECT_DUP
+            token = Token(token_type, op_string, start_pos, pos)
+            
+            return token, pos
+        
+        # Check if we have a leading digit (N>&M pattern where we're at > or <)
         leading_digit = None
         if pos > 0 and input_text[pos-1].isdigit():
             # Need to backtrack to include the digit
@@ -91,6 +143,9 @@ class OperatorRecognizer(ContextualRecognizer):
             start_pos = digit_start
         
         # Now we're at > or <
+        if pos >= len(input_text) or input_text[pos] not in '><':
+            return None
+            
         direction = input_text[pos]
         pos += 1
         
@@ -117,8 +172,8 @@ class OperatorRecognizer(ContextualRecognizer):
         # Construct the full operator string
         op_string = input_text[start_pos:pos]
         
-        # Create the appropriate token
-        token_type = TokenType.WORD  # FD duplication is parsed as a WORD in PSH
+        # Create the appropriate token - use REDIRECT_DUP for file descriptor duplication
+        token_type = TokenType.REDIRECT_DUP
         token = Token(token_type, op_string, start_pos, pos)
         
         return token, pos
@@ -171,8 +226,11 @@ class OperatorRecognizer(ContextualRecognizer):
             return token, pos + 1
         
         # Special handling for file descriptor duplication: >&N or N>&M
+        # This MUST come before regular operator matching to handle "2>&1" correctly
         if self._try_fd_duplication(input_text, pos):
-            return self._parse_fd_duplication(input_text, pos)
+            result = self._parse_fd_duplication(input_text, pos)
+            if result is not None:
+                return result
         
         # Try longest operators first for greedy matching
         for length in sorted(self.OPERATORS.keys(), reverse=True):

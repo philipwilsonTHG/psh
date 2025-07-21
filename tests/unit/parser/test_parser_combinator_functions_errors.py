@@ -11,9 +11,11 @@ def tokenize(code: str) -> list:
     return lexer_tokenize(code.strip())
 
 
-def parse(code: str):
+def parse(code: str, enable_word_building: bool = False):
     """Helper to parse shell code."""
     parser = ParserCombinatorShellParser()
+    if enable_word_building:
+        parser.config.build_word_ast_nodes = True
     tokens = tokenize(code)
     return parser.parse(tokens)
 
@@ -214,7 +216,7 @@ class TestFunctionIntegrationErrors:
         """Test function definition in command substitution."""
         # This is invalid in shell
         with pytest.raises(ParseError):
-            parse('echo $(greet() { echo Hello; })')
+            parse('echo $(greet() { echo Hello; })', enable_word_building=True)
     
     def test_function_after_redirect(self):
         """Test function definition after redirect."""

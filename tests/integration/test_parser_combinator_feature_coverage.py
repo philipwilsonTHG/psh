@@ -69,10 +69,12 @@ class TestParserCombinatorFeatureCoverage:
     
     def test_fd_redirection_parsing(self):
         """Test file descriptor redirection parsing."""
-        # Some FD redirections parse
+        # Basic FD redirections parse
         assert self.can_parse("exec 3< file.txt")
-        # But complex ones might not
-        assert not self.can_parse("command 2>&1")
+        # File descriptor duplication now works
+        assert self.can_parse("command 2>&1")
+        assert self.can_parse("command >&2")
+        # But &> shorthand might not work
         assert not self.can_parse("command &> output.txt")
     
     def test_heredoc_not_supported(self):
@@ -108,12 +110,12 @@ class TestParserCombinatorFeatureCoverage:
         # But array element assignment does parse
         assert self.can_parse("arr[0]=value")
     
-    # Background Jobs (NOT SUPPORTED)
+    # Background Jobs (NOW SUPPORTED)
     
-    def test_background_execution_not_supported(self):
-        """Test that background execution is NOT supported."""
-        assert not self.can_parse("command &")
-        assert not self.can_parse("long_running_task &")
+    def test_background_execution_supported(self):
+        """Test that background execution is now supported."""
+        assert self.can_parse("command &")
+        assert self.can_parse("long_running_task &")
     
     # Subshells (NOT SUPPORTED)
     
@@ -185,21 +187,24 @@ class TestParserCombinatorErrorMessages:
         except Exception as e:
             return str(e)
     
-    def test_complex_redirection_error_message(self):
-        """Test error message for complex redirections."""
+    def test_complex_redirection_now_supported(self):
+        """Test that complex redirections now work."""
         error = self.parse_and_get_error("command 2>&1")
+        assert error is None  # Should parse successfully now
+        
+        # Test an actual invalid redirection
+        error = self.parse_and_get_error("command &>")  # Missing target
         assert error is not None
-        # Should give some indication of parse failure
     
     def test_heredoc_error_message(self):
         """Test error message for heredocs."""
         error = self.parse_and_get_error("cat << EOF")
         assert error is not None
     
-    def test_background_error_message(self):
-        """Test error message for unsupported background jobs."""
+    def test_background_now_supported(self):
+        """Test that background jobs are now supported."""
         error = self.parse_and_get_error("sleep 10 &")
-        assert error is not None
+        assert error is None  # Should parse successfully now
 
 
 class TestParserCombinatorFeatureSummary:
