@@ -4,24 +4,38 @@
 
 This document outlines the missing features in the parser combinator implementation and provides a prioritized roadmap for future development. Features are prioritized based on their importance for shell compatibility, educational value, and implementation complexity.
 
+**Last Updated**: December 2024  
+**Recent Progress**: 
+- ✅ Function definitions fully implemented (all three syntax forms)
+- ✅ Control structure handling fixed (proper nesting support)
+- ✅ Expansion AST nodes implemented (Phase 2 complete)
+- ✅ Word AST creation with full parser parity
+
 ## Feature Categories
 
 ### 🔴 Critical Features (Shell Compatibility)
 
 These features are essential for basic shell script compatibility.
 
-#### 1. Function Definitions ✅ Planned
-**Status**: Implementation plan created  
+#### 1. Function Definitions ✅ COMPLETED
+**Status**: Fully implemented  
 **Complexity**: Medium  
 **Educational Value**: High
 
 ```bash
 greet() { echo "Hello $1"; }
 function greet { echo "Hello"; }
+function greet() { echo "Hello"; }  # Bash style with parens
 ```
 
+**Completed Features**:
+- All three syntax forms supported
+- Proper function body parsing with nested structures
+- Function name validation
+- Integration with control structures
+
 #### 2. Command Substitution
-**Status**: Not implemented  
+**Status**: AST nodes created, lexer support added  
 **Complexity**: High  
 **Educational Value**: Very High
 
@@ -30,8 +44,13 @@ echo "Today is $(date)"
 files=`ls *.txt`
 ```
 
-**Implementation challenges**:
-- Recursive parsing of embedded commands
+**Completed**:
+- ✅ CommandSubstitution AST node
+- ✅ Lexer tokens: COMMAND_SUB, COMMAND_SUB_BACKTICK
+- ✅ Word AST integration
+
+**Remaining**:
+- Parser implementation for nested command parsing
 - Integration with shell execution
 - Proper quote handling
 
@@ -52,8 +71,8 @@ EOF
 - Delimiter tracking
 - Variable expansion control
 
-#### 4. Variable/Parameter Expansion
-**Status**: Partially implemented  
+#### 4. Variable/Parameter Expansion ✅ PARSER COMPLETE
+**Status**: Parser fully implemented, executor pending  
 **Complexity**: Very High  
 **Educational Value**: High
 
@@ -67,6 +86,16 @@ ${var#pattern}
 ${var%pattern}
 ${var/search/replace}
 ```
+
+**Completed**:
+- ✅ ParameterExpansion AST node with operator/word fields
+- ✅ PARAM_EXPANSION token type
+- ✅ Full lexer support for all forms
+- ✅ Parser support in both implementations
+- ✅ WordBuilder handles all expansion types
+
+**Remaining**:
+- Executor implementation for actual expansion evaluation
 
 ### 🟡 Important Features (Common Usage)
 
@@ -324,6 +353,63 @@ tests/unit/parser/test_parser_combinator_expansions.py
 - Parser theory understanding
 - Testing methodology
 
+## Recommended Next Steps (December 2024)
+
+Based on recent progress and current state, here are the recommended priorities:
+
+### 1. **Implement Expansion Evaluation in Executor** (HIGH PRIORITY)
+Since we've completed the parser support for expansions, the logical next step is to implement the actual evaluation:
+- Start with simple variable expansion ($var)
+- Add parameter expansion operators (${var:-default}, etc.)
+- Implement pattern matching (${var#pattern}, ${var%pattern})
+- Add length operator ${#var}
+- This will make many integration tests pass
+
+### 2. **Complete Command Substitution Parser** (HIGH PRIORITY)
+We have the AST nodes and lexer support, now need the parser:
+- Implement recursive parsing for $(command) syntax
+- Handle backtick syntax `command`
+- Ensure proper nesting support
+- This is critical for real-world shell scripts
+
+### 3. **Add Here Document Support** (MEDIUM PRIORITY)
+Essential for many scripts but complex to implement:
+- Design multi-line token collection
+- Implement delimiter tracking
+- Handle variable expansion in here docs
+- Support <<- for tab stripping
+
+### 4. **Arithmetic Expansion** (MEDIUM PRIORITY)
+Common in scripts and builds on expansion framework:
+- ArithmeticExpansion AST node already exists
+- Add $((expression)) parsing
+- Integrate with expression evaluator
+- Support variable references in expressions
+
+### 5. **Improve Error Handling** (LOW PRIORITY)
+Current parser is permissive, but better errors help users:
+- Add recovery mechanisms
+- Provide better error messages
+- Implement partial parsing for IDEs
+
+## Why This Order?
+
+1. **Expansion Evaluation** enables many existing tests to pass and provides immediate value
+2. **Command Substitution** is the most commonly used feature still missing
+3. **Here Documents** complete the core I/O redirection features
+4. **Arithmetic Expansion** rounds out the expansion types
+5. **Error Handling** improves user experience once features work
+
+## Implementation Tips
+
+- Use the existing Word AST infrastructure for all expansions
+- Maintain backward compatibility with string-based parsing
+- Add comprehensive tests for each feature
+- Update documentation as you go
+- Consider parser performance impacts
+
 ## Conclusion
 
 This roadmap provides a structured approach to completing the parser combinator implementation. By following this plan, the parser will evolve from an educational example to a production-ready shell parser while maintaining its clean, functional design.
+
+The recent completion of expansion AST nodes and parser improvements has set a solid foundation. The next phase should focus on making these expansions actually work through executor implementation.
