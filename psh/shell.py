@@ -738,6 +738,9 @@ class Shell:
             'enable_aliases': not self.state.options.get('no_aliases', False),
             'enable_functions': not self.state.options.get('no_functions', False),
             'enable_arithmetic': not self.state.options.get('no_arithmetic', False),
+            
+            # Enable Word AST nodes for better expansion handling
+            'build_word_ast_nodes': True,
         }
         
         # Add any additional parser-specific options

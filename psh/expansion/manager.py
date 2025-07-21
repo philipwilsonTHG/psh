@@ -1,5 +1,5 @@
 """Central expansion manager that orchestrates all shell expansions."""
-from typing import List, TYPE_CHECKING
+from typing import List, Union, TYPE_CHECKING
 from ..ast_nodes import Command, SimpleCommand, Redirect, ProcessSubstitution
 from ..core.state import ShellState
 from ..core.exceptions import ExpansionError
@@ -24,6 +24,17 @@ class ExpansionManager:
         self.command_sub = CommandSubstitution(shell)
         self.tilde_expander = TildeExpander(shell)
         self.glob_expander = GlobExpander(shell)
+        
+        # Initialize expansion evaluator (lazy import to avoid circular dependencies)
+        self._evaluator = None
+    
+    @property
+    def evaluator(self):
+        """Get expansion evaluator, creating if needed."""
+        if self._evaluator is None:
+            from .evaluator import ExpansionEvaluator
+            self._evaluator = ExpansionEvaluator(self.shell)
+        return self._evaluator
     
     def expand_arguments(self, command: SimpleCommand) -> List[str]:
         """
@@ -39,6 +50,15 @@ class ExpansionManager:
         7. Pathname expansion (globbing)
         8. Quote removal
         """
+        # Check if command has Word AST nodes
+        if hasattr(command, 'words') and command.words:
+            return self._expand_word_ast_arguments(command)
+        else:
+            # Fall back to existing string-based expansion
+            return self._expand_string_arguments(command)
+    
+    def _expand_string_arguments(self, command: SimpleCommand) -> List[str]:
+        """Original string-based argument expansion."""
         import glob
         args = []
         
@@ -314,6 +334,142 @@ class ExpansionManager:
             print(f"[EXPANSION] Result: {args}", file=self.state.stderr)
         
         return args
+    
+    def _expand_word_ast_arguments(self, command: SimpleCommand) -> List[str]:
+        """Expand arguments using Word AST nodes."""
+        args = []
+        
+        # Debug: show pre-expansion words
+        if self.state.options.get('debug-expansion'):
+            print(f"[EXPANSION] Expanding Word AST command: {[str(w) for w in command.words]}", file=self.state.stderr)
+        
+        for word in command.words:
+            expanded = self._expand_word(word)
+            if isinstance(expanded, list):
+                args.extend(expanded)
+            else:
+                args.append(expanded)
+        
+        # Debug: show post-expansion args
+        if self.state.options.get('debug-expansion'):
+            print(f"[EXPANSION] Word AST Result: {args}", file=self.state.stderr)
+        
+        return args
+    
+    def _expand_word(self, word) -> Union[str, List[str]]:
+        """Expand a Word AST node.
+        
+        Returns:
+            Either a single string or a list of strings (for word splitting).
+        """
+        from ..ast_nodes import Word, LiteralPart, ExpansionPart
+        
+        if not isinstance(word, Word):
+            # Not a Word node, treat as string
+            return str(word)
+        
+        if word.quote_type == "'":
+            # Single quotes: no expansion
+            return self._word_to_string(word)
+        
+        # Process each part
+        result_parts = []
+        for part in word.parts:
+            if isinstance(part, LiteralPart):
+                result_parts.append(part.text)
+            elif isinstance(part, ExpansionPart):
+                expanded = self._expand_expansion(part.expansion)
+                result_parts.append(expanded)
+        
+        # Join parts and handle word splitting if unquoted
+        result = ''.join(result_parts)
+        
+        if word.quote_type is None:
+            # Unquoted: perform word splitting
+            return self._split_words(result)
+        else:
+            # Quoted: return as single word
+            return result
+    
+    def _word_to_string(self, word) -> str:
+        """Convert a Word AST node to a string without expansion."""
+        from ..ast_nodes import LiteralPart, ExpansionPart
+        
+        parts = []
+        for part in word.parts:
+            if isinstance(part, LiteralPart):
+                parts.append(part.text)
+            elif isinstance(part, ExpansionPart):
+                # In single quotes, expansions are literal
+                parts.append(self._expansion_to_literal(part.expansion))
+        return ''.join(parts)
+    
+    def _expansion_to_literal(self, expansion) -> str:
+        """Convert an expansion to its literal representation."""
+        from ..ast_nodes import VariableExpansion, CommandSubstitution, ParameterExpansion, ArithmeticExpansion
+        
+        if isinstance(expansion, VariableExpansion):
+            return f"${expansion.name}"
+        elif isinstance(expansion, CommandSubstitution):
+            if expansion.backtick_style:
+                return f"`{expansion.command}`"
+            else:
+                return f"$({expansion.command})"
+        elif isinstance(expansion, ParameterExpansion):
+            # Reconstruct parameter expansion syntax
+            result = f"${{{expansion.parameter}"
+            if expansion.operator:
+                result += expansion.operator
+                if expansion.word:
+                    result += expansion.word
+            result += "}"
+            return result
+        elif isinstance(expansion, ArithmeticExpansion):
+            return f"$(({expansion.expression}))"
+        else:
+            return str(expansion)
+    
+    def _expand_expansion(self, expansion) -> str:
+        """Evaluate an expansion AST node."""
+        # Use ExpansionEvaluator for clean evaluation
+        try:
+            return self.evaluator.evaluate(expansion)
+        except Exception as e:
+            # Fallback to string representation if evaluation fails
+            if self.state.options.get('debug-expansion'):
+                print(f"[EXPANSION] Evaluation failed for {type(expansion).__name__}: {e}", file=self.state.stderr)
+            return str(expansion)
+    
+    def _split_words(self, text: str) -> Union[str, List[str]]:
+        """Split text on IFS characters for word splitting."""
+        if not text:
+            return text
+        
+        ifs = self.state.get_variable('IFS', ' \t\n')
+        if not ifs:
+            return text
+        
+        words = []
+        current_word = ''
+        
+        for char in text:
+            if char in ifs:
+                if current_word:  # Don't add empty words
+                    words.append(current_word)
+                    current_word = ''
+            else:
+                current_word += char
+        
+        if current_word:  # Add final word if any
+            words.append(current_word)
+        
+        # Return list only if we actually split into multiple words
+        if len(words) > 1:
+            return words
+        elif len(words) == 1:
+            return words[0]
+        else:
+            return ''  # Empty after splitting
     
     def _process_single_word(self, word: str, arg_type: str, args: List[str]) -> None:
         """Process a single word through tilde expansion, escape processing, and globbing."""
