@@ -270,13 +270,25 @@ class TestUnsupportedFeatures(TestParserCombinatorBasics):
         cmd = result.statements[0].pipelines[0].commands[0]
         assert cmd.background is True
     
-    def test_subshell_not_supported(self):
-        """Test that subshells fail."""
-        assert not self.parse_no_exception("(echo hello)")
+    def test_subshell_now_supported(self):
+        """Test that subshells are now supported (Phase 2 complete)."""
+        assert self.parse_no_exception("(echo hello)")
+        # Test that parsing actually works and produces correct AST
+        ast = self.parse("(echo hello)")
+        from psh.ast_nodes import SubshellGroup
+        and_or = ast.statements[0]
+        subshell = and_or.pipelines[0]
+        assert isinstance(subshell, SubshellGroup)
     
-    def test_brace_group_not_supported(self):
-        """Test that brace groups fail."""
-        assert not self.parse_no_exception("{ echo hello; }")
+    def test_brace_group_now_supported(self):
+        """Test that brace groups are now supported (Phase 2 complete)."""
+        assert self.parse_no_exception("{ echo hello; }")
+        # Test that parsing actually works and produces correct AST
+        ast = self.parse("{ echo hello; }")
+        from psh.ast_nodes import BraceGroup
+        and_or = ast.statements[0]
+        brace_group = and_or.pipelines[0]
+        assert isinstance(brace_group, BraceGroup)
     
     def test_arithmetic_command_not_supported(self):
         """Test that arithmetic commands fail."""
