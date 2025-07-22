@@ -117,16 +117,17 @@ class TestParserCombinatorFeatureCoverage:
         assert self.can_parse("command &")
         assert self.can_parse("long_running_task &")
     
-    # Subshells (NOT SUPPORTED)
+    # Compound Commands (NOW SUPPORTED IN PHASE 2)
     
-    def test_subshell_not_supported(self):
-        """Test that subshells are NOT supported."""
-        assert not self.can_parse("(echo hello)")
-        assert not self.can_parse("(cd /tmp && pwd)")
+    def test_subshell_now_supported(self):
+        """Test that subshells are NOW supported (Phase 2 complete)."""
+        assert self.can_parse("(echo hello)")
+        assert self.can_parse("(echo a; echo b)")
     
-    def test_brace_group_not_supported(self):
-        """Test that brace groups are NOT supported."""
-        assert not self.can_parse("{ echo hello; echo world; }")
+    def test_brace_group_now_supported(self):
+        """Test that brace groups are NOW supported (Phase 2 complete)."""
+        assert self.can_parse("{ echo hello; }")
+        assert self.can_parse("{ echo hello; echo world; }")
     
     # Advanced Features (NOT SUPPORTED)
     
@@ -236,11 +237,11 @@ class TestParserCombinatorFeatureSummary:
             "herestring": True,
             "background_jobs": True,
             "process_substitution": True,  # Phase 1 complete!
+            "subshells": True,  # Phase 2 complete!
+            "brace_groups": True,  # Phase 2 complete!
             
             # Not Supported
             "array_initialization": False,  # arr=(1 2 3) doesn't parse
-            "subshells": False,
-            "brace_groups": False,
             "arithmetic_command": False,
             "conditional_expression": False,
             "select_loop": False,

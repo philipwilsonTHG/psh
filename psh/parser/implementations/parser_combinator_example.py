@@ -19,7 +19,7 @@ from ...ast_nodes import (
     CStyleForLoop, CaseItem, CasePattern, StatementList,
     FunctionDef, Word, LiteralPart, ExpansionPart,
     VariableExpansion, CommandSubstitution, ParameterExpansion,
-    ArithmeticExpansion, ProcessSubstitution
+    ArithmeticExpansion, ProcessSubstitution, SubshellGroup, BraceGroup
 )
 from ...token_types import Token, TokenType
 from ..config import ParserConfig
@@ -405,6 +405,12 @@ class ParserCombinatorShellParser(AbstractShellParser):
         # Background job parser
         self.ampersand = token('AMPERSAND')
         
+        # Compound command tokens
+        self.lparen = token('LPAREN')
+        self.rparen = token('RPAREN')
+        self.lbrace = token('LBRACE')
+        self.rbrace = token('RBRACE')
+        
         # Word-like tokens (including variables and expansions)
         self.variable = token('VARIABLE')
         self.param_expansion = token('PARAM_EXPANSION')
@@ -639,6 +645,16 @@ class ParserCombinatorShellParser(AbstractShellParser):
             "In case statement"
         )
         
+        # Compound commands  
+        self.subshell_group = with_error_context(
+            self._build_subshell_group(),
+            "In subshell group"
+        )
+        self.brace_group = with_error_context(
+            self._build_brace_group(),
+            "In brace group"
+        )
+        
         # Break and continue statements
         self.break_statement = self._build_break_statement()
         self.continue_statement = self._build_continue_statement()
@@ -649,6 +665,8 @@ class ParserCombinatorShellParser(AbstractShellParser):
             .or_else(self.while_loop)
             .or_else(self.for_loop)
             .or_else(self.case_statement)
+            .or_else(self.subshell_group)
+            .or_else(self.brace_group)
             .or_else(self.break_statement)
             .or_else(self.continue_statement)
         )
@@ -658,31 +676,50 @@ class ParserCombinatorShellParser(AbstractShellParser):
         self.command = self.control_structure.or_else(self.simple_command)
         
         # Pipeline - now uses command instead of just simple_command
+        def build_pipeline(commands):
+            """Build pipeline, but don't wrap single control structures."""
+            if len(commands) == 1:
+                # Single command - check if it's a control structure
+                cmd = commands[0]
+                from ...ast_nodes import (IfConditional, WhileLoop, ForLoop, CaseConditional, 
+                                        SubshellGroup, BraceGroup, CStyleForLoop)
+                if isinstance(cmd, (IfConditional, WhileLoop, ForLoop, CaseConditional, 
+                                  SubshellGroup, BraceGroup, CStyleForLoop)):
+                    # Don't wrap control structures in Pipeline when they're standalone
+                    return cmd
+            # Multiple commands or single simple command - wrap in Pipeline
+            return Pipeline(commands=commands) if commands else None
+        
         self.pipeline = separated_by(
             self.command,
             self.pipe
-        ).map(lambda commands: 
-            Pipeline(commands=commands) if commands 
-            else None
+        ).map(build_pipeline)
+        
+        # And-or list element: either a pipeline or a single command
+        self.and_or_element = (
+            # Try pipeline first (multiple commands with pipes)
+            self.pipeline
+            # Then try single command (including control structures)
+            .or_else(self.command)
         )
         
         # And-or list
         self.and_or_operator = self.and_if.or_else(self.or_if)
         
         self.and_or_list = sequence(
-            self.pipeline,
-            many(sequence(self.and_or_operator, self.pipeline))
+            self.and_or_element,
+            many(sequence(self.and_or_operator, self.and_or_element))
         ).map(self._build_and_or_list)
         
         # Control structure or pipeline (for handling control structures as statements)
         # This allows control structures to appear as standalone statements without pipeline wrapping
         self.control_or_pipeline = (
-            # Try control structure first
-            self.control_structure.map(lambda cs: AndOrList(pipelines=[cs]))
-            # Then try function definition
-            .or_else(self.function_def.map(lambda fd: fd))
-            # Finally fall back to normal and-or list
+            # Try function definition first (most specific)
+            self.function_def.map(lambda fd: fd)
+            # Then try and-or list (can include control structures)
             .or_else(self.and_or_list)
+            # Finally try standalone control structures
+            .or_else(self.control_structure.map(lambda cs: AndOrList(pipelines=[cs])))
         )
         
         # Statement separator
@@ -718,8 +755,17 @@ class ParserCombinatorShellParser(AbstractShellParser):
     
     def _build_and_or_list(self, parse_result: tuple) -> AndOrList:
         """Build an AndOrList from parsed components."""
-        first_pipeline = parse_result[0]
-        rest = parse_result[1]  # List of (operator, pipeline) pairs
+        from ...ast_nodes import Pipeline
+        
+        first_element = parse_result[0]
+        rest = parse_result[1]  # List of (operator, element) pairs
+        
+        # Normalize first element to Pipeline if needed
+        if isinstance(first_element, Pipeline):
+            first_pipeline = first_element
+        else:
+            # Single command - add directly as pipeline element
+            first_pipeline = first_element
         
         if not rest:
             return AndOrList(pipelines=[first_pipeline])
@@ -727,9 +773,14 @@ class ParserCombinatorShellParser(AbstractShellParser):
         pipelines = [first_pipeline]
         operators = []
         
-        for op_token, pipeline in rest:
+        for op_token, element in rest:
             operators.append(op_token.value)
-            pipelines.append(pipeline)
+            # Normalize element to Pipeline if needed
+            if isinstance(element, Pipeline):
+                pipelines.append(element)
+            else:
+                # Single command - add directly as pipeline element
+                pipelines.append(element)
         
         return AndOrList(pipelines=pipelines, operators=operators)
     
@@ -1603,6 +1654,22 @@ class ParserCombinatorShellParser(AbstractShellParser):
             )
         
         return Parser(parse_continue)
+    
+    def _build_subshell_group(self) -> Parser[SubshellGroup]:
+        """Build parser for subshell group (...) syntax."""
+        return between(
+            self.lparen,
+            self.rparen,
+            lazy(lambda: self.statement_list)
+        ).map(lambda statements: SubshellGroup(statements=statements))
+    
+    def _build_brace_group(self) -> Parser[BraceGroup]:
+        """Build parser for brace group {...} syntax."""
+        return between(
+            self.lbrace,
+            self.rbrace,
+            lazy(lambda: self.statement_list)
+        ).map(lambda statements: BraceGroup(statements=statements))
     
     def parse(self, tokens: List[Token]) -> Union[TopLevel, CommandList]:
         """Parse tokens using parser combinators.
