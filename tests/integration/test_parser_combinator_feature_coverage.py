@@ -131,10 +131,10 @@ class TestParserCombinatorFeatureCoverage:
     
     # Advanced Features (NOT SUPPORTED)
     
-    def test_arithmetic_command_not_supported(self):
-        """Test that arithmetic commands are NOT supported."""
-        assert not self.can_parse("((x = 5 + 3))")
-        assert not self.can_parse("((i++))")
+    def test_arithmetic_command_now_supported(self):
+        """Test that arithmetic commands are now supported."""
+        assert self.can_parse("((x = 5 + 3))")
+        assert self.can_parse("((i++))")
     
     def test_conditional_expression_not_supported(self):
         """Test that conditional expressions are NOT supported."""

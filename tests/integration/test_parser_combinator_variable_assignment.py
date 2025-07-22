@@ -198,9 +198,8 @@ class TestAssignmentInControlStructures(TestParserCombinatorVariableAssignment):
         """Test: if true; then VAR=value; echo $VAR; fi"""
         ast = self.parse("if true; then VAR=value; echo $VAR; fi")
         
-        # Navigate to then block
-        and_or = ast.statements[0]
-        if_stmt = and_or.pipelines[0]
+        # Navigate to then block (unwrapped in Phase 3)
+        if_stmt = ast.statements[0]
         then_block = if_stmt.then_part
         
         # First statement should be assignment command
@@ -218,9 +217,8 @@ class TestAssignmentInControlStructures(TestParserCombinatorVariableAssignment):
         """Test: for i in 1 2 3; do COUNT=$i; done"""
         ast = self.parse("for i in 1 2 3; do COUNT=$i; done")
         
-        # Navigate to loop body
-        and_or = ast.statements[0]
-        for_loop = and_or.pipelines[0]
+        # Navigate to loop body (unwrapped in Phase 3)
+        for_loop = ast.statements[0]
         body = for_loop.body
         
         # Should have assignment in body

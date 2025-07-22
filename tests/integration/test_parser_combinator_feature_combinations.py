@@ -76,10 +76,8 @@ class TestFunctionsWithFeatures(TestParserCombinatorFeatureCombinations):
         func = ast.statements[0]
         assert isinstance(func, FunctionDef)
         
-        # Body should have if statement in an AndOrList
-        and_or_list = func.body.statements[0]
-        assert isinstance(and_or_list, AndOrList)
-        if_stmt = and_or_list.pipelines[0]
+        # Body should have if statement directly (unwrapped in Phase 3)
+        if_stmt = func.body.statements[0]
         assert isinstance(if_stmt, IfConditional)
         
         # Check condition
@@ -114,9 +112,8 @@ class TestControlStructuresWithFeatures(TestParserCombinatorFeatureCombinations)
         """Test: if cat file | grep -q pattern; then echo found > result.txt; fi"""
         ast = self.parse("if cat file | grep -q pattern; then echo found > result.txt; fi")
         
-        and_or = ast.statements[0]
-        assert isinstance(and_or, AndOrList)
-        if_stmt = and_or.pipelines[0]
+        # If statement directly (unwrapped in Phase 3)
+        if_stmt = ast.statements[0]
         assert isinstance(if_stmt, IfConditional)
         
         # Condition should be pipeline
@@ -133,9 +130,8 @@ class TestControlStructuresWithFeatures(TestParserCombinatorFeatureCombinations)
         # Simplified version that might parse
         ast = self.parse("while test $COUNT -lt 10; do echo $COUNT; done")
         
-        and_or = ast.statements[0]
-        assert isinstance(and_or, AndOrList)
-        while_loop = and_or.pipelines[0]
+        # While loop directly (unwrapped in Phase 3)
+        while_loop = ast.statements[0]
         assert isinstance(while_loop, WhileLoop)
         
         # Condition
@@ -150,9 +146,8 @@ class TestControlStructuresWithFeatures(TestParserCombinatorFeatureCombinations)
         """Test: for file in *.txt; do cat "$file" > "processed_$file"; done"""
         ast = self.parse('for file in *.txt; do cat "$file" > "processed_$file"; done')
         
-        and_or = ast.statements[0]
-        assert isinstance(and_or, AndOrList)
-        for_loop = and_or.pipelines[0]
+        # For loop directly (unwrapped in Phase 3)
+        for_loop = ast.statements[0]
         assert isinstance(for_loop, ForLoop)
         assert for_loop.variable == "file"
         assert for_loop.items == ["*.txt"]
@@ -173,9 +168,8 @@ class TestControlStructuresWithFeatures(TestParserCombinatorFeatureCombinations)
             esac
         """)
         
-        and_or = ast.statements[0]
-        assert isinstance(and_or, AndOrList)
-        case_stmt = and_or.pipelines[0]
+        # Case statement directly (unwrapped in Phase 3)
+        case_stmt = ast.statements[0]
         assert isinstance(case_stmt, CaseConditional)
         assert len(case_stmt.items) == 3
 
@@ -246,16 +240,12 @@ class TestNestedFeatureCombinations(TestParserCombinatorFeatureCombinations):
         func = ast.statements[0]
         assert isinstance(func, FunctionDef)
         
-        # Function contains for loop
-        and_or = func.body.statements[0]
-        assert isinstance(and_or, AndOrList)
-        for_loop = and_or.pipelines[0]
+        # Function contains for loop (unwrapped in Phase 3)
+        for_loop = func.body.statements[0]
         assert isinstance(for_loop, ForLoop)
         
-        # For loop contains if
-        and_or_in_loop = for_loop.body.statements[0]
-        assert isinstance(and_or_in_loop, AndOrList)
-        if_stmt = and_or_in_loop.pipelines[0]
+        # For loop contains if (unwrapped in Phase 3)
+        if_stmt = for_loop.body.statements[0]
         assert isinstance(if_stmt, IfConditional)
         
         # If condition is a command
@@ -380,8 +370,8 @@ class TestParserLimitations(TestParserCombinatorFeatureCombinations):
         # Process substitution is now supported in Phase 1!
         assert self.parse_no_exception("diff <(sort file1) <(sort file2)")
         
-        # Arithmetic commands
-        assert not self.parse_no_exception("((x = 5 + 3))")
+        # Arithmetic commands are now supported in Phase 3!
+        assert self.parse_no_exception("((x = 5 + 3))")
         
         # Here documents are now supported!
         assert self.parse_no_exception("cat << EOF\nhello\nEOF")

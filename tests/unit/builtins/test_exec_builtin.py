@@ -91,7 +91,6 @@ def test_exec_with_error_redirection(shell_with_temp_dir):
     assert result == 0
 
 
-@pytest.mark.xfail(reason="File descriptor operations may not be implemented")
 def test_exec_with_fd_operations(shell_with_temp_dir):
     """Test exec with file descriptor operations."""
     result = shell_with_temp_dir.run_command('exec 3>&1')

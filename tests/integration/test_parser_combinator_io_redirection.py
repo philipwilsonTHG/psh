@@ -190,9 +190,8 @@ class TestRedirectionWithControlStructures(TestParserCombinatorIORedirection):
         """Test: if true; then echo yes > result.txt; fi"""
         ast = self.parse("if true; then echo yes > result.txt; fi")
         
-        # Navigate to the echo command in then block
-        and_or = ast.statements[0]
-        if_stmt = and_or.pipelines[0]
+        # Navigate to the echo command in then block (unwrapped in Phase 3)
+        if_stmt = ast.statements[0]
         then_block = if_stmt.then_part
         echo_cmd = then_block.statements[0].pipelines[0].commands[0]
         
@@ -215,9 +214,8 @@ class TestRedirectionWithControlStructures(TestParserCombinatorIORedirection):
         """Test: for i in 1 2 3; do echo $i > num_$i.txt; done"""
         ast = self.parse("for i in 1 2 3; do echo $i > num_$i.txt; done")
         
-        # Navigate to echo command in loop body
-        and_or = ast.statements[0]
-        for_loop = and_or.pipelines[0]
+        # Navigate to echo command in loop body (unwrapped in Phase 3)
+        for_loop = ast.statements[0]
         echo_cmd = for_loop.body.statements[0].pipelines[0].commands[0]
         
         assert len(echo_cmd.redirects) == 1
