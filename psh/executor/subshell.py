@@ -116,6 +116,16 @@ class SubshellExecutor:
     
     def _execute_foreground_subshell(self, statements, redirects: List['Redirect']) -> int:
         """Execute subshell in foreground with proper isolation."""
+        # Save current terminal foreground process group
+        original_pgid = None
+        # Check if we're in interactive mode (stdin is a tty and not in script mode)
+        is_interactive = sys.stdin.isatty() and not self.shell.is_script_mode
+        if is_interactive:
+            try:
+                original_pgid = os.tcgetpgrp(0)
+            except:
+                pass
+        
         pid = os.fork()
         
         if pid == 0:
@@ -165,6 +175,14 @@ class SubshellExecutor:
                 # Race condition - child may have already done it
                 pass
             
+            # Transfer terminal control to subshell if interactive
+            if is_interactive and original_pgid is not None:
+                try:
+                    os.tcsetpgrp(0, pid)
+                except OSError:
+                    # Not a controlling terminal or permission issue
+                    pass
+            
             # Create job for tracking the subshell
             job = self.job_manager.create_job(pid, "<subshell>")
             job.add_process(pid, "subshell")
@@ -172,6 +190,14 @@ class SubshellExecutor:
             
             # Use job manager to wait (handles SIGCHLD properly)
             exit_status = self.job_manager.wait_for_job(job)
+            
+            # Restore terminal control to parent shell if interactive
+            if is_interactive and original_pgid is not None:
+                try:
+                    os.tcsetpgrp(0, original_pgid)
+                except OSError:
+                    # Not a controlling terminal or permission issue
+                    pass
             
             # Clean up job
             if job.state.name == 'DONE':
