@@ -19,7 +19,7 @@ from ...ast_nodes import (
     CStyleForLoop, CaseItem, CasePattern, StatementList,
     FunctionDef, Word, LiteralPart, ExpansionPart,
     VariableExpansion, CommandSubstitution, ParameterExpansion,
-    ArithmeticExpansion
+    ArithmeticExpansion, ProcessSubstitution
 )
 from ...token_types import Token, TokenType
 from ..config import ParserConfig
@@ -411,14 +411,53 @@ class ParserCombinatorShellParser(AbstractShellParser):
         self.command_sub = token('COMMAND_SUB')
         self.command_sub_backtick = token('COMMAND_SUB_BACKTICK')
         self.arith_expansion = token('ARITH_EXPANSION')
+        self.process_sub_in = token('PROCESS_SUB_IN')
+        self.process_sub_out = token('PROCESS_SUB_OUT')
         
-        # All expansion types
+        # Process substitution parser
+        def parse_process_substitution(tokens: List[Token], pos: int) -> ParseResult[ProcessSubstitution]:
+            """Parse <(command) or >(command) syntax."""
+            if pos >= len(tokens):
+                return ParseResult(success=False, error="Expected process substitution", position=pos)
+            
+            token = tokens[pos]
+            if token.type.name == 'PROCESS_SUB_IN':
+                direction = 'in'
+            elif token.type.name == 'PROCESS_SUB_OUT':
+                direction = 'out'
+            else:
+                return ParseResult(success=False, error=f"Expected process substitution, got {token.type.name}", position=pos)
+            
+            # Extract command from token value
+            # Token value format: "<(command)" or ">(command)"
+            token_value = token.value
+            if len(token_value) >= 3 and token_value.startswith(('<(', '>(')):
+                if token_value.endswith(')'):
+                    # Complete process substitution
+                    command = token_value[2:-1]  # Remove <( or >( and trailing )
+                else:
+                    # Incomplete process substitution (missing closing paren)
+                    command = token_value[2:]  # Remove <( or >(
+            else:
+                return ParseResult(success=False, error=f"Invalid process substitution format: {token_value}", position=pos)
+            
+            return ParseResult(
+                success=True,
+                value=ProcessSubstitution(direction=direction, command=command),
+                position=pos + 1
+            )
+        
+        self.process_substitution = Parser(parse_process_substitution)
+        
+        # All expansion types  
         self.expansion = (
             self.variable
             .or_else(self.param_expansion)
             .or_else(self.command_sub)
             .or_else(self.command_sub_backtick)
             .or_else(self.arith_expansion)
+            .or_else(self.process_sub_in)
+            .or_else(self.process_sub_out)
         )
         
         # Word-like tokens include words, strings, and all expansions
@@ -1779,6 +1818,18 @@ class ParserCombinatorShellParser(AbstractShellParser):
         elif token.type.name == 'PARAM_EXPANSION':
             # Parameter expansion - use WordBuilder to parse
             expansion = WordBuilder.parse_expansion_token(token)
+            return Word(parts=[ExpansionPart(expansion)])
+        elif token.type.name == 'PROCESS_SUB_IN':
+            # Process substitution <(...)
+            # Extract command from <(...)
+            cmd = token.value[2:-1] if token.value.startswith('<(') and token.value.endswith(')') else token.value[2:]
+            expansion = ProcessSubstitution(direction='in', command=cmd)
+            return Word(parts=[ExpansionPart(expansion)])
+        elif token.type.name == 'PROCESS_SUB_OUT':
+            # Process substitution >(...)
+            # Extract command from >(...)
+            cmd = token.value[2:-1] if token.value.startswith('>(') and token.value.endswith(')') else token.value[2:]
+            expansion = ProcessSubstitution(direction='out', command=cmd)
             return Word(parts=[ExpansionPart(expansion)])
         else:
             # Regular word token
