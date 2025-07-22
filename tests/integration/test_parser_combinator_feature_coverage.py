@@ -104,10 +104,10 @@ class TestParserCombinatorFeatureCoverage:
         assert self.can_parse("export PATH")
     
     def test_array_assignment_parsing(self):
-        """Test that array element assignments can be parsed."""
-        # Array initialization might not work
-        assert not self.can_parse("arr=(1 2 3)")
-        # But array element assignment does parse
+        """Test that array assignments can be parsed."""
+        # Array initialization now works (Phase 5 complete!)
+        assert self.can_parse("arr=(1 2 3)")
+        # Array element assignment also works
         assert self.can_parse("arr[0]=value")
     
     # Background Jobs (NOW SUPPORTED)
@@ -242,10 +242,14 @@ class TestParserCombinatorFeatureSummary:
             "subshells": True,  # Phase 2 complete!
             "brace_groups": True,  # Phase 2 complete!
             
+            # Now Supported (Phase 3 & 4 Complete)
+            "arithmetic_command": True,  # Phase 3 complete!
+            "conditional_expression": True,  # Phase 4 complete!
+            
+            # Now Supported (Phase 5 Complete)
+            "array_initialization": True,  # Phase 5 complete!
+            
             # Not Supported
-            "array_initialization": False,  # arr=(1 2 3) doesn't parse
-            "arithmetic_command": False,
-            "conditional_expression": False,
             "select_loop": False,
             "job_control": False,
         }

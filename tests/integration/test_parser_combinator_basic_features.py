@@ -295,9 +295,17 @@ class TestUnsupportedFeatures(TestParserCombinatorBasics):
         assert isinstance(arith_cmd, ArithmeticEvaluation)
         assert arith_cmd.expression == "x = 5"
     
-    def test_array_initialization_not_supported(self):
-        """Test that array initialization fails."""
-        assert not self.parse_no_exception("arr=(1 2 3)")
+    def test_array_initialization_now_supported(self):
+        """Test that array initialization is now supported (Phase 5 complete)."""
+        assert self.parse_no_exception("arr=(1 2 3)")
+        
+        # Verify the AST structure
+        ast = self.parse("arr=(1 2 3)")
+        from psh.ast_nodes import ArrayInitialization
+        array_init = ast.statements[0].pipelines[0]
+        assert isinstance(array_init, ArrayInitialization)
+        assert array_init.name == "arr"
+        assert array_init.elements == ["1", "2", "3"]
 
 
 if __name__ == "__main__":

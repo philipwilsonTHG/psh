@@ -21,7 +21,8 @@ from ...ast_nodes import (
     VariableExpansion, CommandSubstitution, ParameterExpansion,
     ArithmeticExpansion, ArithmeticEvaluation, ProcessSubstitution, SubshellGroup, BraceGroup,
     EnhancedTestStatement, TestExpression, BinaryTestExpression, UnaryTestExpression,
-    CompoundTestExpression, NegatedTestExpression
+    CompoundTestExpression, NegatedTestExpression,
+    ArrayAssignment, ArrayInitialization, ArrayElementAssignment
 )
 from ...token_types import Token, TokenType
 from ..config import ParserConfig
@@ -421,6 +422,10 @@ class ParserCombinatorShellParser(AbstractShellParser):
         self.double_lbracket = token('DOUBLE_LBRACKET')
         self.double_rbracket = token('DOUBLE_RBRACKET')
         
+        # Array tokens
+        self.lbracket = token('LBRACKET')
+        self.rbracket = token('RBRACKET')
+        
         # Word-like tokens (including variables and expansions)
         self.variable = token('VARIABLE')
         self.param_expansion = token('PARAM_EXPANSION')
@@ -677,6 +682,12 @@ class ParserCombinatorShellParser(AbstractShellParser):
             "In enhanced test statement"
         )
         
+        # Array assignments
+        self.array_assignment = with_error_context(
+            self._build_array_assignment(),
+            "In array assignment"
+        )
+        
         # Break and continue statements
         self.break_statement = self._build_break_statement()
         self.continue_statement = self._build_continue_statement()
@@ -740,6 +751,8 @@ class ParserCombinatorShellParser(AbstractShellParser):
         self.control_or_pipeline = (
             # Try function definition first (most specific)
             self.function_def.map(lambda fd: fd)
+            # Try array assignments next (statement-level)
+            .or_else(self.array_assignment.map(lambda aa: AndOrList(pipelines=[aa])))
             # Then try and-or list (can include control structures)
             .or_else(self.and_or_list)
             # Finally try standalone control structures
@@ -1894,6 +1907,355 @@ class ParserCombinatorShellParser(AbstractShellParser):
             )
         
         return Parser(parse_arithmetic_command)
+    
+    def _build_array_initialization(self) -> Parser[ArrayInitialization]:
+        """Build parser for array initialization: arr=(element1 element2) syntax."""
+        def parse_array_initialization(tokens: List[Token], pos: int) -> ParseResult[ArrayInitialization]:
+            # We expect to be called when we've already identified an array pattern
+            # Pattern: WORD = ( elements ) or arr=( elements )
+            
+            if pos >= len(tokens) or tokens[pos].type.name != 'WORD':
+                return ParseResult(success=False, error="Expected array name", position=pos)
+            
+            word_token = tokens[pos]
+            pos += 1
+            
+            # Handle case where arr= is combined in one token
+            if word_token.value.endswith('=') or word_token.value.endswith('+='):
+                is_append = word_token.value.endswith('+=')
+                array_name = word_token.value[:-2] if is_append else word_token.value[:-1]
+            else:
+                # Handle separate tokens: arr = (
+                array_name = word_token.value
+                
+                # Check for = or +=
+                if pos >= len(tokens):
+                    return ParseResult(success=False, error="Expected '=' after array name", position=pos)
+                
+                is_append = False
+                if tokens[pos].type.name == 'WORD' and tokens[pos].value == '+=':
+                    is_append = True
+                    pos += 1
+                elif tokens[pos].type.name == 'WORD' and tokens[pos].value == '=':
+                    pos += 1
+                else:
+                    return ParseResult(success=False, error="Expected '=' or '+=' after array name", position=pos)
+            
+            # Check for opening parenthesis
+            if pos >= len(tokens) or tokens[pos].type.name != 'LPAREN':
+                return ParseResult(success=False, error="Expected '(' for array initialization", position=pos)
+            
+            pos += 1  # Skip (
+            
+            # Collect elements until closing parenthesis
+            elements = []
+            element_types = []
+            element_quote_types = []
+            
+            while pos < len(tokens):
+                token = tokens[pos]
+                
+                # Check for closing parenthesis
+                if token.type.name == 'RPAREN':
+                    break
+                
+                # Skip whitespace tokens
+                if token.type.name in ['WHITESPACE', 'NEWLINE']:
+                    pos += 1
+                    continue
+                
+                # Collect element
+                if token.type.name in ['WORD', 'STRING', 'VARIABLE', 'COMMAND_SUB', 'COMMAND_SUB_BACKTICK', 'PARAM_EXPANSION']:
+                    # Format the element value
+                    if token.type.name == 'VARIABLE':
+                        element_value = f'${token.value}'
+                    elif token.type.name == 'STRING':
+                        element_value = token.value  # String content after quote processing
+                    else:
+                        element_value = token.value
+                    
+                    elements.append(element_value)
+                    element_types.append(token.type.name)
+                    
+                    # Track quote type if applicable
+                    quote_type = getattr(token, 'quote_type', None)
+                    element_quote_types.append(quote_type)
+                    
+                    pos += 1
+                else:
+                    return ParseResult(success=False, error=f"Unexpected token in array: {token.type.name}", position=pos)
+            
+            # Check that we found the closing parenthesis
+            if pos >= len(tokens) or tokens[pos].type.name != 'RPAREN':
+                return ParseResult(success=False, error="Expected ')' to close array initialization", position=pos)
+            
+            pos += 1  # Skip )
+            
+            return ParseResult(
+                success=True,
+                value=ArrayInitialization(
+                    name=array_name,
+                    elements=elements,
+                    element_types=element_types,
+                    element_quote_types=element_quote_types,
+                    is_append=is_append
+                ),
+                position=pos
+            )
+        
+        return Parser(parse_array_initialization)
+    
+    def _build_array_element_assignment(self) -> Parser[ArrayElementAssignment]:
+        """Build parser for array element assignment: arr[index]=value syntax."""
+        def parse_array_element_assignment(tokens: List[Token], pos: int) -> ParseResult[ArrayElementAssignment]:
+            # Handle different patterns:
+            # 1. All in one token: "arr[0]=value" or "arr[index]+=value"
+            # 2. Separate tokens: "arr" "[" "0" "]" "=" "value"
+            
+            if pos >= len(tokens) or tokens[pos].type.name != 'WORD':
+                return ParseResult(success=False, error="Expected array name", position=pos)
+            
+            word_token = tokens[pos]
+            pos += 1
+            
+            # Case 1: All in one token "arr[index]=value" (must have value after =)
+            if '[' in word_token.value and ']' in word_token.value and '=' in word_token.value and not (word_token.value.endswith('=') or word_token.value.endswith('+=')):
+                # Parse the combined token
+                value = word_token.value
+                
+                # Find the brackets
+                lbracket_pos = value.index('[')
+                rbracket_pos = value.index(']')
+                
+                # Find the equals (could be += or =)
+                equals_pos = value.index('+=') if '+=' in value else value.index('=')
+                is_append = '+=' in value
+                
+                # Extract parts
+                array_name = value[:lbracket_pos]
+                index_str = value[lbracket_pos + 1:rbracket_pos]
+                if is_append:
+                    assigned_value = value[equals_pos + 2:]
+                else:
+                    assigned_value = value[equals_pos + 1:]
+                
+                # Determine value type (simplified)
+                value_type = 'WORD'
+                value_quote_type = None
+                
+                return ParseResult(
+                    success=True,
+                    value=ArrayElementAssignment(
+                        name=array_name,
+                        index=index_str,
+                        value=assigned_value,
+                        value_type=value_type,
+                        value_quote_type=value_quote_type,
+                        is_append=is_append
+                    ),
+                    position=pos
+                )
+            
+            # Case 1b: Pattern "arr[index]=" followed by separate value token
+            elif '[' in word_token.value and ']' in word_token.value and (word_token.value.endswith('=') or word_token.value.endswith('+=')):
+                # Parse the assignment token
+                value = word_token.value
+                
+                # Find the brackets
+                lbracket_pos = value.index('[')
+                rbracket_pos = value.index(']')
+                
+                # Check for append assignment
+                is_append = value.endswith('+=')
+                
+                # Extract parts
+                array_name = value[:lbracket_pos]
+                index_str = value[lbracket_pos + 1:rbracket_pos]
+                
+                # Get the value from the next token
+                if pos >= len(tokens):
+                    return ParseResult(success=False, error="Expected value after array assignment", position=pos)
+                
+                value_token = tokens[pos]
+                pos += 1
+                
+                
+                if value_token.type.name == 'VARIABLE':
+                    assigned_value = f'${value_token.value}'
+                elif value_token.type.name == 'STRING':
+                    assigned_value = value_token.value  # String content after quote processing
+                else:
+                    assigned_value = value_token.value
+                
+                value_type = value_token.type.name
+                value_quote_type = getattr(value_token, 'quote_type', None)
+                
+                return ParseResult(
+                    success=True,
+                    value=ArrayElementAssignment(
+                        name=array_name,
+                        index=index_str,
+                        value=assigned_value,
+                        value_type=value_type,
+                        value_quote_type=value_quote_type,
+                        is_append=is_append
+                    ),
+                    position=pos
+                )
+            
+            # Case 2: Separate tokens - implement later
+            else:
+                # For now, handle separate token patterns
+                array_name = word_token.value
+                
+                # Check for opening bracket
+                if pos >= len(tokens) or tokens[pos].type.name != 'LBRACKET':
+                    return ParseResult(success=False, error="Expected '[' for array index", position=pos)
+                
+                pos += 1  # Skip [
+                
+                # Collect index tokens until closing bracket
+                index_tokens = []
+                bracket_depth = 0
+                
+                while pos < len(tokens):
+                    token = tokens[pos]
+                    
+                    # Handle nested brackets
+                    if token.type.name == 'LBRACKET':
+                        bracket_depth += 1
+                    elif token.type.name == 'RBRACKET':
+                        if bracket_depth == 0:
+                            break
+                        else:
+                            bracket_depth -= 1
+                    
+                    index_tokens.append(token)
+                    pos += 1
+                
+                # Check that we found the closing bracket
+                if pos >= len(tokens) or tokens[pos].type.name != 'RBRACKET':
+                    return ParseResult(success=False, error="Expected ']' to close array index", position=pos)
+                
+                pos += 1  # Skip ]
+                
+                # Build index string from tokens
+                index_parts = []
+                for token in index_tokens:
+                    if token.type.name == 'VARIABLE':
+                        index_parts.append(f'${token.value}')
+                    else:
+                        index_parts.append(token.value)
+                
+                index_str = ''.join(index_parts)
+                
+                # Check for = or +=
+                if pos >= len(tokens):
+                    return ParseResult(success=False, error="Expected '=' after array index", position=pos)
+                
+                is_append = False
+                if tokens[pos].type.name == 'WORD' and tokens[pos].value == '+=':
+                    is_append = True
+                    pos += 1
+                elif tokens[pos].type.name == 'WORD' and tokens[pos].value == '=':
+                    pos += 1
+                else:
+                    return ParseResult(success=False, error="Expected '=' or '+=' after array index", position=pos)
+                
+                # Get the value
+                if pos >= len(tokens):
+                    return ParseResult(success=False, error="Expected value after '='", position=pos)
+                
+                value_token = tokens[pos]
+                if value_token.type.name == 'VARIABLE':
+                    value = f'${value_token.value}'
+                elif value_token.type.name == 'STRING':
+                    value = value_token.value  # String content after quote processing
+                else:
+                    value = value_token.value
+                
+                value_type = value_token.type.name
+                value_quote_type = getattr(value_token, 'quote_type', None)
+                
+                pos += 1
+                
+                return ParseResult(
+                    success=True,
+                    value=ArrayElementAssignment(
+                        name=array_name,
+                        index=index_str,
+                        value=value,
+                        value_type=value_type,
+                        value_quote_type=value_quote_type,
+                        is_append=is_append
+                    ),
+                    position=pos
+                )
+        
+        return Parser(parse_array_element_assignment)
+    
+    def _detect_array_pattern(self, tokens: List[Token], pos: int) -> str:
+        """Detect what type of array pattern we have at the current position.
+        
+        Returns:
+            'initialization' for arr=(elements)
+            'element_assignment' for arr[index]=value  
+            'none' if no array pattern detected
+        """
+        if pos >= len(tokens) or tokens[pos].type.name != 'WORD':
+            return 'none'
+        
+        word_token = tokens[pos]
+        
+        # Check for array element assignment patterns
+        if '[' in word_token.value and ']' in word_token.value:
+            # Check if this is all in one token: "arr[0]=value" or "arr[0]+=value"
+            if '=' in word_token.value:
+                equals_pos = word_token.value.index('+=') if '+=' in word_token.value else word_token.value.index('=')
+                if word_token.value.index('[') < equals_pos:
+                    return 'element_assignment'
+            # Check for pattern: "arr[0]=" followed by value token
+            elif word_token.value.endswith('=') or word_token.value.endswith('+='):
+                if pos + 1 < len(tokens):  # Check if there's a value token after
+                    return 'element_assignment'
+            # Check for pattern: "arr[0]" followed by "=value"
+            elif pos + 1 < len(tokens) and tokens[pos + 1].type.name == 'WORD':
+                next_token = tokens[pos + 1]
+                if next_token.value.startswith('=') or next_token.value.startswith('+='):
+                    return 'element_assignment'
+        
+        # Check for array initialization patterns
+        # Pattern 1: "arr=" followed by "("
+        if (word_token.value.endswith('=') or word_token.value.endswith('+=')):
+            if pos + 1 < len(tokens) and tokens[pos + 1].type.name == 'LPAREN':
+                return 'initialization'
+        
+        # Pattern 2: "arr" followed by "=" followed by "("
+        elif pos + 2 < len(tokens):
+            if (tokens[pos + 1].type.name == 'WORD' and tokens[pos + 1].value in ['=', '+='] and 
+                tokens[pos + 2].type.name == 'LPAREN'):
+                return 'initialization'
+        
+        # Check for standalone array element assignment: "arr" followed by "["
+        if pos + 1 < len(tokens) and tokens[pos + 1].type.name == 'LBRACKET':
+            return 'element_assignment'
+        
+        return 'none'
+    
+    def _build_array_assignment(self) -> Parser[Union[ArrayInitialization, ArrayElementAssignment]]:
+        """Build parser for any array assignment pattern."""
+        def parse_array_assignment(tokens: List[Token], pos: int) -> ParseResult[Union[ArrayInitialization, ArrayElementAssignment]]:
+            # Detect which pattern we have
+            pattern = self._detect_array_pattern(tokens, pos)
+            
+            if pattern == 'initialization':
+                return self._build_array_initialization().parse(tokens, pos)
+            elif pattern == 'element_assignment':
+                return self._build_array_element_assignment().parse(tokens, pos)
+            else:
+                return ParseResult(success=False, error="No array pattern detected", position=pos)
+        
+        return Parser(parse_array_assignment)
     
     def parse(self, tokens: List[Token]) -> Union[TopLevel, CommandList]:
         """Parse tokens using parser combinators.

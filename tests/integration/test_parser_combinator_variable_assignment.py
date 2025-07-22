@@ -164,31 +164,42 @@ class TestExportDeclarations(TestParserCombinatorVariableAssignment):
 
 
 class TestArrayAssignments(TestParserCombinatorVariableAssignment):
-    """Test array assignment parsing."""
+    """Test array assignment parsing (Phase 5 complete)."""
     
     def test_array_element_assignment(self):
         """Test: arr[0]=value"""
-        cmd = self.get_simple_command(self.parse("arr[0]=value"))
-        assert cmd is not None
+        ast = self.parse("arr[0]=value")
         
-        # Should parse as a single argument
-        assert len(cmd.args) == 1
-        assert cmd.args[0] == "arr[0]=value"
+        # Should now parse as ArrayElementAssignment, not SimpleCommand
+        from psh.ast_nodes import ArrayElementAssignment
+        array_assign = ast.statements[0].pipelines[0]
+        assert isinstance(array_assign, ArrayElementAssignment)
+        assert array_assign.name == "arr"
+        assert array_assign.index == "0"
+        assert array_assign.value == "value"
     
     def test_array_element_with_variable_index(self):
         """Test: arr[$i]=value"""
-        cmd = self.get_simple_command(self.parse("arr[$i]=value"))
-        assert cmd is not None
+        ast = self.parse("arr[$i]=value")
         
-        # Should handle variable in index
-        assert len(cmd.args) == 1
-        assert cmd.args[0] == "arr[$i]=value"
+        # Should handle variable in index correctly
+        from psh.ast_nodes import ArrayElementAssignment
+        array_assign = ast.statements[0].pipelines[0]
+        assert isinstance(array_assign, ArrayElementAssignment)
+        assert array_assign.name == "arr"
+        assert array_assign.index == "$i"
+        assert array_assign.value == "value"
     
-    def test_array_initialization_not_supported(self):
-        """Test that array initialization is not supported."""
-        # arr=(1 2 3) syntax is not supported
-        with pytest.raises(Exception):
-            self.parse("arr=(1 2 3)")
+    def test_array_initialization_now_supported(self):
+        """Test that array initialization is now supported (Phase 5 complete)."""
+        # arr=(1 2 3) syntax is now supported
+        ast = self.parse("arr=(1 2 3)")
+        
+        from psh.ast_nodes import ArrayInitialization
+        array_init = ast.statements[0].pipelines[0]
+        assert isinstance(array_init, ArrayInitialization)
+        assert array_init.name == "arr"
+        assert array_init.elements == ["1", "2", "3"]
 
 
 class TestAssignmentInControlStructures(TestParserCombinatorVariableAssignment):
