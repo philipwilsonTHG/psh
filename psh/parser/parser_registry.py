@@ -123,6 +123,23 @@ class ParserRegistry:
         return list(cls._parsers.keys()) + list(cls._aliases.keys())
     
     @classmethod
+    def get_canonical_name(cls, name: str) -> Optional[str]:
+        """Get the canonical name for a parser (resolves aliases).
+        
+        Args:
+            name: Parser name or alias
+            
+        Returns:
+            Canonical parser name, or None if not found
+        """
+        # Check if it's an alias
+        canonical_name = cls._aliases.get(name, name)
+        # Verify the canonical name exists
+        if canonical_name in cls._parsers:
+            return canonical_name
+        return None
+    
+    @classmethod
     def get_parser_info(cls, name: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get information about parsers.
         
@@ -201,6 +218,12 @@ class ParserStrategy:
     def current_parser(self) -> str:
         """Get the name of the current parser."""
         return self._parser_name
+    
+    @property
+    def current_parser_canonical(self) -> str:
+        """Get the canonical name of the current parser (resolves aliases)."""
+        canonical = ParserRegistry.get_canonical_name(self._parser_name)
+        return canonical or self._parser_name
     
     @property
     def parser(self) -> AbstractShellParser:

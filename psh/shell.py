@@ -782,7 +782,9 @@ class Shell:
         if not format_type:
             format_type = self.state.scope_manager.get_variable('PSH_AST_FORMAT') or 'tree'
         
-        print("=== AST Debug Output ===", file=sys.stderr)
+        # Include canonical parser name in debug header
+        parser_name = self.parser_strategy.current_parser_canonical
+        print(f"=== AST Debug Output ({parser_name}) ===", file=sys.stderr)
         
         try:
             if format_type == 'pretty':
