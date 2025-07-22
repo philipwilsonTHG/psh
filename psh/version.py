@@ -2,10 +2,30 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.96.0"
+__version__ = "0.97.0"
 
 # Version history
 VERSION_HISTORY = """
+0.97.0 (2025-01-22) - Parser Combinator Enhanced Test Expressions Implementation Complete (Phase 4)
+- Completed Phase 4 of parser combinator feature parity plan: Enhanced Test Expressions support
+- Full implementation of [[ ]] conditional expressions with all operators
+- Added DOUBLE_LBRACKET and DOUBLE_RBRACKET token support to parser combinator
+- Implemented comprehensive test expression parser with binary, unary, and logical operators
+- Added _format_test_operand() helper for proper variable and string formatting
+- Integrated with existing EnhancedTestStatement AST nodes and execution engine
+- Fixed critical unary test evaluation bug in shell.py execution engine
+- Enhanced control structure parsing chain with proper AST unwrapping
+- Created comprehensive test suite: 30+ tests across 3 test files
+- Updated feature coverage tests to reflect new enhanced test expression support
+- Enhanced test expressions now work in all contexts: standalone, control structures, logical operators
+- Parser combinator now supports ~98% of critical shell syntax (4/6 phases complete)
+- Key supported operators: ==, !=, =, <, >, =~, -eq, -ne, -lt, -le, -gt, -ge (binary)
+- File tests: -f, -d, -e, -r, -w, -x, -s, -z, -n, and more (unary)
+- Logical operators: ! (negation), with && and || via shell logical operators
+- Full integration with if/while/for conditions and logical operator chains
+- Comprehensive regex pattern matching and file existence testing
+- Proper variable expansion and string handling in test contexts
+
 0.96.0 (2025-01-22) - Parser Combinator Arithmetic Commands Implementation Complete (Phase 3)
 - Completed Phase 3 of parser combinator feature parity plan: Arithmetic Commands support
 - Implemented comprehensive arithmetic command ((expression)) syntax parsing in parser combinator

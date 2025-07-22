@@ -136,10 +136,12 @@ class TestParserCombinatorFeatureCoverage:
         assert self.can_parse("((x = 5 + 3))")
         assert self.can_parse("((i++))")
     
-    def test_conditional_expression_not_supported(self):
-        """Test that conditional expressions are NOT supported."""
-        assert not self.can_parse("[[ -f file.txt ]]")
-        assert not self.can_parse('[[ "$var" =~ ^[0-9]+$ ]]')
+    def test_conditional_expression_now_supported(self):
+        """Test that conditional expressions are now supported (Phase 4 complete)."""
+        assert self.can_parse("[[ -f file.txt ]]")
+        assert self.can_parse('[[ "$var" =~ ^[0-9]+$ ]]')
+        assert self.can_parse('[[ 5 -gt 3 ]]')
+        assert self.can_parse('[[ "hello" == "world" ]]')
     
     def test_process_substitution_now_supported(self):
         """Test that process substitution is NOW supported (Phase 1 complete)."""

@@ -19,7 +19,9 @@ from ...ast_nodes import (
     CStyleForLoop, CaseItem, CasePattern, StatementList,
     FunctionDef, Word, LiteralPart, ExpansionPart,
     VariableExpansion, CommandSubstitution, ParameterExpansion,
-    ArithmeticExpansion, ArithmeticEvaluation, ProcessSubstitution, SubshellGroup, BraceGroup
+    ArithmeticExpansion, ArithmeticEvaluation, ProcessSubstitution, SubshellGroup, BraceGroup,
+    EnhancedTestStatement, TestExpression, BinaryTestExpression, UnaryTestExpression,
+    CompoundTestExpression, NegatedTestExpression
 )
 from ...token_types import Token, TokenType
 from ..config import ParserConfig
@@ -415,6 +417,10 @@ class ParserCombinatorShellParser(AbstractShellParser):
         self.double_lparen = token('DOUBLE_LPAREN')
         self.double_rparen = token('DOUBLE_RPAREN')
         
+        # Enhanced test expression tokens
+        self.double_lbracket = token('DOUBLE_LBRACKET')
+        self.double_rbracket = token('DOUBLE_RBRACKET')
+        
         # Word-like tokens (including variables and expansions)
         self.variable = token('VARIABLE')
         self.param_expansion = token('PARAM_EXPANSION')
@@ -665,6 +671,12 @@ class ParserCombinatorShellParser(AbstractShellParser):
             "In arithmetic command"
         )
         
+        # Enhanced test expressions
+        self.enhanced_test_statement = with_error_context(
+            self._build_enhanced_test_statement(),
+            "In enhanced test statement"
+        )
+        
         # Break and continue statements
         self.break_statement = self._build_break_statement()
         self.continue_statement = self._build_continue_statement()
@@ -678,6 +690,7 @@ class ParserCombinatorShellParser(AbstractShellParser):
             .or_else(self.subshell_group)
             .or_else(self.brace_group)
             .or_else(self.arithmetic_command)
+            .or_else(self.enhanced_test_statement)
             .or_else(self.break_statement)
             .or_else(self.continue_statement)
         )
@@ -693,9 +706,9 @@ class ParserCombinatorShellParser(AbstractShellParser):
                 # Single command - check if it's a control structure
                 cmd = commands[0]
                 from ...ast_nodes import (IfConditional, WhileLoop, ForLoop, CaseConditional, 
-                                        SubshellGroup, BraceGroup, CStyleForLoop, ArithmeticEvaluation)
+                                        SubshellGroup, BraceGroup, CStyleForLoop, ArithmeticEvaluation, EnhancedTestStatement)
                 if isinstance(cmd, (IfConditional, WhileLoop, ForLoop, CaseConditional, 
-                                  SubshellGroup, BraceGroup, CStyleForLoop, ArithmeticEvaluation)):
+                                  SubshellGroup, BraceGroup, CStyleForLoop, ArithmeticEvaluation, EnhancedTestStatement)):
                     # Don't wrap control structures in Pipeline when they're standalone
                     return cmd
             # Multiple commands or single simple command - wrap in Pipeline
@@ -782,9 +795,9 @@ class ParserCombinatorShellParser(AbstractShellParser):
             # Single element with no operators - return it directly instead of wrapping
             # This prevents unnecessary AndOrList wrapping for standalone control structures
             from ...ast_nodes import (IfConditional, WhileLoop, ForLoop, CaseConditional, 
-                                    SubshellGroup, BraceGroup, CStyleForLoop, ArithmeticEvaluation)
+                                    SubshellGroup, BraceGroup, CStyleForLoop, ArithmeticEvaluation, EnhancedTestStatement)
             if isinstance(first_pipeline, (IfConditional, WhileLoop, ForLoop, CaseConditional, 
-                                         SubshellGroup, BraceGroup, CStyleForLoop, ArithmeticEvaluation)):
+                                         SubshellGroup, BraceGroup, CStyleForLoop, ArithmeticEvaluation, EnhancedTestStatement)):
                 return first_pipeline
             return AndOrList(pipelines=[first_pipeline])
         
@@ -1614,6 +1627,121 @@ class ParserCombinatorShellParser(AbstractShellParser):
             .or_else(self._build_function_keyword_with_parens())
             .or_else(self._build_function_keyword_style())
         )
+    
+    def _build_enhanced_test_statement(self) -> Parser[EnhancedTestStatement]:
+        """Build parser for enhanced test statement [[ expression ]] syntax."""
+        def parse_enhanced_test(tokens: List[Token], pos: int) -> ParseResult[EnhancedTestStatement]:
+            # Check for opening [[
+            if pos >= len(tokens):
+                return ParseResult(success=False, error="Expected '[[' for enhanced test", position=pos)
+            
+            token = tokens[pos]
+            if token.type.name != 'DOUBLE_LBRACKET':
+                return ParseResult(success=False, error=f"Expected '[[', got {token.type.name}", position=pos)
+            
+            pos += 1  # Skip [[
+            
+            # Collect test expression tokens until ]]
+            expr_tokens = []
+            bracket_depth = 0
+            
+            while pos < len(tokens):
+                token = tokens[pos]
+                if token.type.name == 'DOUBLE_RBRACKET' and bracket_depth == 0:
+                    break
+                elif token.type.name == 'DOUBLE_LBRACKET':
+                    bracket_depth += 1
+                elif token.type.name == 'DOUBLE_RBRACKET':
+                    bracket_depth -= 1
+                
+                expr_tokens.append(token)
+                pos += 1
+            
+            # Check for closing ]]
+            if pos >= len(tokens) or tokens[pos].type.name != 'DOUBLE_RBRACKET':
+                return ParseResult(success=False, error="Expected ']]' to close enhanced test", position=pos)
+            
+            pos += 1  # Skip ]]
+            
+            # Parse the test expression from collected tokens
+            test_expr = self._parse_test_expression(expr_tokens)
+            if test_expr is None:
+                return ParseResult(success=False, error="Invalid test expression", position=pos)
+            
+            return ParseResult(
+                success=True,
+                value=EnhancedTestStatement(expression=test_expr, redirects=[]),
+                position=pos
+            )
+        
+        return Parser(parse_enhanced_test)
+    
+    def _parse_test_expression(self, tokens: List[Token]) -> Optional[TestExpression]:
+        """Parse test expression from a list of tokens."""
+        if not tokens:
+            return None
+        
+        # For Phase 4 MVP, implement basic string comparison
+        # This is a simplified parser - full implementation would handle precedence, etc.
+        
+        # Handle negation
+        if tokens[0].value == '!':
+            expr = self._parse_test_expression(tokens[1:])
+            if expr:
+                return NegatedTestExpression(expression=expr)
+            return None
+        
+        # Handle simple binary operations: operand operator operand
+        if len(tokens) == 3:
+            left = self._format_test_operand(tokens[0])
+            operator = tokens[1].value
+            right = self._format_test_operand(tokens[2])
+            
+            # Support basic operators
+            if operator in ['==', '!=', '=', '<', '>', '=~', '-eq', '-ne', '-lt', '-le', '-gt', '-ge']:
+                return BinaryTestExpression(
+                    left=left, 
+                    operator=operator, 
+                    right=right
+                )
+        
+        # Handle unary operations: operator operand
+        if len(tokens) == 2:
+            operator = tokens[0].value
+            operand = self._format_test_operand(tokens[1])
+            
+            # Support file test operators and string test operators
+            if operator.startswith('-') and len(operator) == 2:
+                return UnaryTestExpression(operator=operator, operand=operand)
+        
+        # Handle single operand (string test)
+        if len(tokens) == 1:
+            operand = self._format_test_operand(tokens[0])
+            # Treat single operand as -n test (non-empty string test)
+            return UnaryTestExpression(operator='-n', operand=operand)
+        
+        # For more complex expressions, return a simple binary test
+        # This is MVP - full implementation would parse compound expressions properly
+        if len(tokens) >= 3:
+            left = self._format_test_operand(tokens[0])
+            operator = tokens[1].value if len(tokens) > 1 else '=='
+            right = ' '.join(self._format_test_operand(t) for t in tokens[2:])
+            
+            return BinaryTestExpression(left=left, operator=operator, right=right)
+        
+        return None
+    
+    def _format_test_operand(self, token: Token) -> str:
+        """Format a test operand token for proper shell representation."""
+        if token.type.name == 'VARIABLE':
+            # Add $ prefix back for variables
+            return f'${token.value}'
+        elif token.type.name == 'STRING':
+            # For strings, use the content as-is (quotes are already processed)
+            return token.value
+        else:
+            # For other token types, use the value as-is
+            return token.value
     
     def _build_break_statement(self) -> Parser['BreakStatement']:
         """Build parser for break statement."""

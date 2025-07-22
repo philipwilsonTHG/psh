@@ -343,7 +343,7 @@ class Shell:
         # Reuse the existing unary operator implementation
         # Note: _evaluate_unary returns 0 for true, 1 for false (shell convention)
         # We need to convert to boolean
-        result = test_cmd._evaluate_unary(expr.operator, operand)
+        result = test_cmd._evaluate_unary(expr.operator, operand, self)
         return result == 0
     
     def _evaluate_compound_test(self, expr: CompoundTestExpression) -> bool:
