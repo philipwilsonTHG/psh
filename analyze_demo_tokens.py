@@ -8,13 +8,13 @@ with enhanced features in PSH v0.91.3+.
 import sys
 import os
 from collections import defaultdict, Counter
-from typing import Dict, List, Set
+from typing import Dict
 
 # Add PSH to path for imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from psh.lexer import tokenize
-from psh.token_types import TokenType, Token
+from psh.token_types import TokenType
 
 
 def analyze_token_usage(script_path: str) -> Dict[str, any]:
@@ -95,7 +95,7 @@ def display_analysis(analysis: Dict[str, any]):
     print(f"Unique token types used: {len(analysis['token_types_used'])}")
     
     # Show top 10 most frequent token types
-    print(f"\n🔝 TOP 10 MOST FREQUENT TOKEN TYPES")
+    print("\n🔝 TOP 10 MOST FREQUENT TOKEN TYPES")
     print("-" * 40)
     for token_type, count in analysis['token_type_counts'].most_common(10):
         percentage = (count / analysis['total_tokens']) * 100
@@ -139,7 +139,7 @@ def display_analysis(analysis: Dict[str, any]):
                 print(f"  ✓ {token_type.name:25} ({count:2d} occurrences)")
     
     # Show samples of interesting token types
-    print(f"\n🔍 TOKEN SAMPLES")
+    print("\n🔍 TOKEN SAMPLES")
     print("-" * 30)
     
     interesting_types = [
@@ -157,14 +157,14 @@ def display_analysis(analysis: Dict[str, any]):
     
     # Show complex token analysis
     if analysis['complex_tokens']:
-        print(f"\n🧩 COMPLEX TOKENS WITH PARTS")
+        print("\n🧩 COMPLEX TOKENS WITH PARTS")
         print("-" * 35)
         for token in analysis['complex_tokens'][:5]:  # Show first 5
             print(f"{token['type']:15} '{token['value']}' (parts: {token['parts']})")
     
     # Show metadata capabilities (if available)
     if analysis['metadata_samples']:
-        print(f"\n🏷️  TOKEN METADATA EXAMPLES")
+        print("\n🏷️  TOKEN METADATA EXAMPLES")
         print("-" * 30)
         for sample in analysis['metadata_samples'][:3]:  # Show first 3
             print(f"{sample['type']:15} '{sample['value'][:20]}...'")
@@ -200,7 +200,7 @@ def check_token_coverage():
         for token_type in sorted(unused_types, key=lambda t: t.name):
             print(f"  - {token_type.name}")
     else:
-        print(f"\n🎉 ALL TOKEN TYPES COVERED!")
+        print("\n🎉 ALL TOKEN TYPES COVERED!")
     
     return analysis
 
@@ -226,7 +226,7 @@ def main():
     if analysis:
         display_analysis(analysis)
     
-    print(f"\n✨ UNIFIED TOKEN SYSTEM FEATURES")
+    print("\n✨ UNIFIED TOKEN SYSTEM FEATURES")
     print("-" * 40)
     print("The PSH v0.91.3+ unified token system provides:")
     print("✓ Single Token class with built-in metadata")
@@ -237,7 +237,7 @@ def main():
     print("✓ Enhanced features standard for all users")
     print("✓ No compatibility overhead")
     
-    print(f"\n🏁 Analysis complete!")
+    print("\n🏁 Analysis complete!")
 
 
 if __name__ == "__main__":

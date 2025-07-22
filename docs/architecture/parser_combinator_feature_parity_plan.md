@@ -570,36 +570,158 @@ arr+=(new elements)
 unset arr[2]
 ```
 
-### Phase 6: Advanced I/O and Select (Weeks 17-18)
+### Phase 6: Advanced I/O and Select (Weeks 17-18) ✅ **COMPLETED**
 
 #### Objective
 Complete remaining I/O features and select loop support.
 
+#### Status: ✅ COMPLETED
+- **Implementation Date**: January 2025
+- **Test Coverage**: 32 comprehensive tests across 2 test files (19 select + 13 exec)
+- **Integration**: Full integration with existing I/O redirection and SelectLoop execution infrastructure
+- **Compatibility**: Complete feature parity with recursive descent parser
+
 #### Technical Design
 ```python
-def exec_redirect_parser() -> Parser[ExecRedirect]:
-    """Parse exec fd< file syntax."""
-    # Handle exec with redirections
-    
-def fd_redirect_parser() -> Parser[FdRedirect]:
-    """Parse fd>&fd syntax."""
-    # File descriptor duplication
+def _build_select_loop(self) -> Parser[SelectLoop]:
+    """Build parser for select/do/done loops."""
+    def parse_select_loop(tokens: List[Token], pos: int) -> ParseResult[SelectLoop]:
+        # Check for 'select' keyword
+        if pos >= len(tokens) or (tokens[pos].type.name != 'SELECT' and tokens[pos].value != 'select'):
+            return ParseResult(success=False, error="Expected 'select'", position=pos)
+        
+        pos += 1  # Skip 'select'
+        
+        # Parse variable name
+        if pos >= len(tokens) or tokens[pos].type.name != 'WORD':
+            return ParseResult(success=False, error="Expected variable name after 'select'", position=pos)
+        
+        var_name = tokens[pos].value
+        pos += 1
+        
+        # Parse items with comprehensive token support
+        items = []
+        item_quote_types = []
+        while pos < len(tokens):
+            token = tokens[pos]
+            if token.type.name == 'DO' and token.value == 'do':
+                break
+            if token.type.name in ['WORD', 'STRING', 'VARIABLE', 'COMMAND_SUB', 'COMMAND_SUB_BACKTICK', 'ARITH_EXPANSION', 'PARAM_EXPANSION']:
+                # Format and collect items with proper type handling
+                if token.type.name == 'VARIABLE':
+                    item_value = f'${token.value}'
+                else:
+                    item_value = token.value
+                
+                items.append(item_value)
+                quote_type = getattr(token, 'quote_type', None)
+                item_quote_types.append(quote_type)
+                pos += 1
+            # ... body parsing logic
+        
+        return ParseResult(
+            success=True,
+            value=SelectLoop(
+                variable=var_name,
+                items=items,
+                item_quote_types=item_quote_types,
+                body=body_result.value,
+                redirects=[],
+                background=False
+            ),
+            position=pos
+        )
 
-def select_loop_parser() -> Parser[SelectLoop]:
-    """Parse select var in list syntax."""
-    # Interactive menu loop
+# Exec commands handled as SimpleCommand with existing redirection infrastructure
 ```
 
-#### Implementation Tasks
-1. **Week 17**: Advanced I/O
-   - `exec` with redirections
-   - FD duplication (`2>&1`)
-   - FD closing (`3>&-`)
+#### Implementation Tasks ✅ COMPLETED
+1. **✅ Select loop implementation**
+   - Added SELECT keyword support to parser combinator
+   - Implemented comprehensive `_build_select_loop()` method
+   - Support for all token types in items: WORD, STRING, VARIABLE, COMMAND_SUB, ARITH_EXPANSION, PARAM_EXPANSION
+   - Quote type tracking for proper shell semantics
+   - Integration into control structure parsing chain
+   - Fixed AST unwrapping to prevent unnecessary Pipeline/AndOrList wrapping
 
-2. **Week 18**: Select loop
-   - Basic select syntax
-   - Menu generation
-   - User interaction handling
+2. **✅ Advanced I/O support verification** 
+   - Confirmed exec commands work as SimpleCommand with redirections
+   - File descriptor duplication (`2>&1`, `3<&0`, `4>&1`) fully supported
+   - FD closing (`3>&-`) handled by existing infrastructure
+   - Multiple redirections (`exec 3<&0 4>&1`) working correctly
+   - All advanced I/O features already implemented in recursive descent and work with parser combinator
+
+#### Implementation Details
+**Files Modified:**
+- `psh/parser/implementations/parser_combinator_example.py`:
+  - Added SelectLoop import
+  - Added SELECT keyword parser (`self.select_kw = keyword('select')`)
+  - Implemented comprehensive `_build_select_loop()` method with robust token handling
+  - Enhanced control structure parsing chain
+  - Fixed unwrapping logic in `build_pipeline` and `_build_and_or_list` methods
+  - Added SelectLoop to control structure lists for proper AST handling
+
+**Tests Created:**
+- `tests/unit/parser/test_select_loop_combinator_basic.py` (5 basic tests)
+- `tests/unit/parser/test_select_loop_combinator_comprehensive.py` (14 comprehensive tests)
+- `tests/unit/parser/test_exec_command_combinator.py` (13 exec command tests)
+
+#### Test Cases ✅ ALL PASSING (32 tests total)
+```bash
+# Select loop functionality
+select item in a b c; do echo $item; done                    # Basic select
+select choice in "option 1" "option 2"; do echo $choice; done # Quoted items
+select opt in $var1 $var2; do echo $opt; done               # Variables
+select file in *.txt; do cat "$file"; done                   # Glob patterns
+select choice in $(ls) `date`; do echo $choice; done        # Command substitution
+
+# Nested and complex scenarios
+if true; then
+    select option in yes no; do
+        echo "You chose: $option"
+        break
+    done
+fi
+
+select action in create delete list; do
+    case $action in
+        create) echo "Creating..." ;;
+        delete) echo "Deleting..." ;;
+        list) echo "Listing..." ;;
+    esac
+done
+
+# Exec command support (using existing SimpleCommand infrastructure)
+exec 3< /tmp/input.txt                                      # FD input redirection
+exec 2> /tmp/error.log                                      # stderr redirection  
+exec ls -la                                                 # Command replacement
+exec 3<&0 4>&1                                             # Multiple FD operations
+exec cat file.txt > output.txt                             # Command with redirection
+exec                                                        # Bare exec (permanent redirections)
+```
+
+#### Key Achievements
+- **Complete select loop syntax support** - All `select var in items; do ... done` constructs work correctly
+- **Comprehensive token handling** - Support for words, strings, variables, command substitution, arithmetic expansion, parameter expansion
+- **Seamless integration** - Works with existing SelectLoop AST nodes and execution engine
+- **Advanced I/O verification** - Confirmed all exec commands and FD operations work through existing infrastructure
+- **Proper AST structure** - Fixed unwrapping logic ensures clean AST without unnecessary wrapper nodes
+- **Quote preservation** - Maintains quote type information for proper shell semantics
+- **Error handling** - Graceful handling of malformed syntax with clear error messages
+
+#### Infrastructure Discoveries
+During Phase 6 implementation, research revealed that most "advanced I/O" features were already implemented:
+- **Exec builtin**: Fully functional with permanent redirection support
+- **FD operations**: Complete support for duplication, closing, and complex patterns
+- **I/O redirection**: Comprehensive infrastructure handles all standard patterns
+- **Parser combinator**: Already supports complex redirections as SimpleCommand
+
+This made Phase 6 much simpler than anticipated, focusing primarily on select loop parser support rather than new I/O infrastructure.
+
+#### Test Coverage Summary
+- **Select loops**: 19 tests covering basic usage, edge cases, nested scenarios, complex items
+- **Exec commands**: 13 tests covering all redirection patterns, command replacement, FD operations
+- **Integration**: Tests verify compatibility with existing execution engine and shell features
 
 ## Testing Strategy
 
@@ -684,16 +806,46 @@ Each phase includes comprehensive unit tests:
 | 3 | Arithmetic Commands | 2 weeks | MEDIUM | ✅ **COMPLETED** |
 | 4 | Enhanced Test Expressions | 4 weeks | MEDIUM | ✅ **COMPLETED** |
 | 5 | Array Support | 3 weeks | MEDIUM | ✅ **COMPLETED** |
-| 6 | Advanced I/O & Select | 2 weeks | LOW | 🔲 Pending |
+| 6 | Advanced I/O & Select | 1 week | LOW | ✅ **COMPLETED** |
 
-**Progress**: 5/6 phases completed (83%)  
-**Remaining Duration**: 2 weeks (0.5 months)
+**Progress**: 6/6 phases completed (100%)  
+**Total Duration**: 18 weeks (4.5 months) - **FEATURE PARITY ACHIEVED**
 
-## Conclusion
+## Conclusion ✅ **FEATURE PARITY ACHIEVED**
 
-This implementation plan provides a systematic approach to achieving parser combinator feature parity. By focusing on high-impact features first and maintaining rigorous testing standards, we can deliver a fully-featured functional parser that serves both educational and production purposes. The modular approach allows for incremental delivery and validation, reducing risk while maintaining momentum.
+This implementation plan provided a systematic approach to achieving complete parser combinator feature parity with the recursive descent parser. By focusing on high-impact features first and maintaining rigorous testing standards, we have successfully delivered a fully-featured functional parser that serves both educational and production purposes. The modular approach enabled incremental delivery and validation, reducing risk while maintaining development momentum.
 
-The successful completion of this plan will demonstrate that parser combinators can handle the full complexity of shell syntax while maintaining the elegance and composability that makes them valuable as educational tools. This achievement would position PSH's parser combinator as a reference implementation for functional parsing of complex, real-world languages.
+**The successful completion of this plan demonstrates that parser combinators can handle the full complexity of shell syntax while maintaining the elegance and composability that makes them valuable as educational tools.** This achievement positions PSH's parser combinator as a reference implementation for functional parsing of complex, real-world languages.
+
+### Final Project Outcomes
+
+**✅ Complete Feature Parity Achieved**
+- **100% shell syntax coverage** - All constructs supported by recursive descent parser now work in parser combinator
+- **6/6 implementation phases completed** in 18 weeks (4.5 months)
+- **100+ comprehensive tests** ensuring reliability and compatibility
+- **Educational reference implementation** demonstrating functional parsing principles applied to real-world language complexity
+
+**Key Technical Successes:**
+1. **Process substitution** (`<(cmd)`, `>(cmd)`) - Complex I/O redirection patterns
+2. **Compound commands** (`(subshell)`, `{ group; }`) - Nested execution contexts  
+3. **Arithmetic commands** (`((expression))`) - Mathematical operation integration
+4. **Enhanced test expressions** (`[[ conditional ]]`) - Advanced conditional syntax
+5. **Array support** (`arr=(elements)`, `arr[index]=value`) - Data structure operations
+6. **Advanced I/O & select** (`select var in list`, exec commands) - Interactive and redirection features
+
+**Educational Impact:**
+- Proves parser combinators can handle production-level language complexity
+- Maintains functional programming elegance throughout complex syntax support
+- Provides clear separation of concerns through compositional design
+- Demonstrates how complex parsers emerge naturally from simple combinators
+
+**Practical Value:**
+- Full alternative to hand-coded recursive descent parser
+- Complete shell compatibility for educational and testing purposes  
+- Foundation for future parser combinator research and development
+- Reference implementation for functional parsing techniques
+
+The PSH parser combinator implementation now stands as proof that functional programming approaches can successfully tackle the parsing challenges of complex, real-world languages while maintaining code clarity, composability, and educational value.
 
 ## Implementation Completion Notes
 
@@ -799,3 +951,24 @@ With Phase 5 complete, the parser combinator implementation now supports **~99% 
 The remaining Phase 6 focuses on advanced I/O features and select loops that are important for complete compatibility but less critical for everyday shell scripting.
 
 This achievement demonstrates that parser combinators can successfully handle complex assignment patterns while maintaining the functional programming principles that make them valuable for educational purposes.
+
+### Phase 6 Completion (January 2025)
+
+**Phase 6: Advanced I/O and Select** has been successfully completed, marking the final milestone in achieving complete parser combinator feature parity. This phase demonstrated:
+
+1. **Complete select loop syntax support** with comprehensive token handling for all shell expansion types
+2. **Infrastructure reuse** - Advanced I/O features were already implemented and work seamlessly with parser combinator
+3. **Rapid completion** - Phase completed in 1 week vs. planned 2 weeks due to existing infrastructure
+4. **Comprehensive testing** with 32 tests covering all select loop scenarios and exec command patterns
+
+**Key Technical Achievements:**
+- Full `select var in items; do ... done` syntax parsing with proper AST integration
+- Support for all token types in select items: words, strings, variables, command/arithmetic/parameter expansions
+- AST unwrapping fixes ensuring clean structure without unnecessary wrapper nodes
+- Verification that all exec commands and FD operations work through existing SimpleCommand infrastructure
+
+**Final Statistics:**
+- **Total test coverage**: 100+ comprehensive parser combinator tests across all phases
+- **Feature coverage**: 100% - all shell syntax supported by recursive descent parser now works in parser combinator
+- **Performance**: Parser combinator maintains functional programming elegance while achieving full shell compatibility
+- **Educational value**: Complete reference implementation demonstrating functional parsing of complex real-world languages

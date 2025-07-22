@@ -15,7 +15,7 @@ from ..abstract_parser import (
 from ...ast_nodes import (
     TopLevel, CommandList, SimpleCommand, Pipeline, 
     AndOrList, ASTNode, Redirect, UnifiedControlStructure,
-    IfConditional, WhileLoop, ForLoop, CaseConditional, 
+    IfConditional, WhileLoop, ForLoop, CaseConditional, SelectLoop,
     CStyleForLoop, CaseItem, CasePattern, StatementList,
     FunctionDef, Word, LiteralPart, ExpansionPart,
     VariableExpansion, CommandSubstitution, ParameterExpansion,
@@ -504,6 +504,7 @@ class ParserCombinatorShellParser(AbstractShellParser):
         self.done_kw = keyword('done')
         self.case_kw = keyword('case')
         self.esac_kw = keyword('esac')
+        self.select_kw = keyword('select')
         
         # Statement terminators
         self.statement_terminator = self.semicolon.or_else(self.newline)
@@ -659,6 +660,10 @@ class ParserCombinatorShellParser(AbstractShellParser):
             self._build_case_statement(),
             "In case statement"
         )
+        self.select_loop = with_error_context(
+            self._build_select_loop(),
+            "In select loop"
+        )
         
         # Compound commands  
         self.subshell_group = with_error_context(
@@ -698,6 +703,7 @@ class ParserCombinatorShellParser(AbstractShellParser):
             .or_else(self.while_loop)
             .or_else(self.for_loop)
             .or_else(self.case_statement)
+            .or_else(self.select_loop)
             .or_else(self.subshell_group)
             .or_else(self.brace_group)
             .or_else(self.arithmetic_command)
@@ -716,9 +722,9 @@ class ParserCombinatorShellParser(AbstractShellParser):
             if len(commands) == 1:
                 # Single command - check if it's a control structure
                 cmd = commands[0]
-                from ...ast_nodes import (IfConditional, WhileLoop, ForLoop, CaseConditional, 
+                from ...ast_nodes import (IfConditional, WhileLoop, ForLoop, CaseConditional, SelectLoop,
                                         SubshellGroup, BraceGroup, CStyleForLoop, ArithmeticEvaluation, EnhancedTestStatement)
-                if isinstance(cmd, (IfConditional, WhileLoop, ForLoop, CaseConditional, 
+                if isinstance(cmd, (IfConditional, WhileLoop, ForLoop, CaseConditional, SelectLoop,
                                   SubshellGroup, BraceGroup, CStyleForLoop, ArithmeticEvaluation, EnhancedTestStatement)):
                     # Don't wrap control structures in Pipeline when they're standalone
                     return cmd
@@ -807,9 +813,9 @@ class ParserCombinatorShellParser(AbstractShellParser):
         if not rest:
             # Single element with no operators - return it directly instead of wrapping
             # This prevents unnecessary AndOrList wrapping for standalone control structures
-            from ...ast_nodes import (IfConditional, WhileLoop, ForLoop, CaseConditional, 
+            from ...ast_nodes import (IfConditional, WhileLoop, ForLoop, CaseConditional, SelectLoop,
                                     SubshellGroup, BraceGroup, CStyleForLoop, ArithmeticEvaluation, EnhancedTestStatement)
-            if isinstance(first_pipeline, (IfConditional, WhileLoop, ForLoop, CaseConditional, 
+            if isinstance(first_pipeline, (IfConditional, WhileLoop, ForLoop, CaseConditional, SelectLoop,
                                          SubshellGroup, BraceGroup, CStyleForLoop, ArithmeticEvaluation, EnhancedTestStatement)):
                 return first_pipeline
             return AndOrList(pipelines=[first_pipeline])
@@ -1411,6 +1417,95 @@ class ParserCombinatorShellParser(AbstractShellParser):
             )
         
         return Parser(parse_case_statement)
+    
+    def _build_select_loop(self) -> Parser[SelectLoop]:
+        """Build parser for select/do/done loops."""
+        def parse_select_loop(tokens: List[Token], pos: int) -> ParseResult[SelectLoop]:
+            # Check for 'select' keyword
+            if pos >= len(tokens) or (tokens[pos].type.name != 'SELECT' and tokens[pos].value != 'select'):
+                return ParseResult(success=False, error="Expected 'select'", position=pos)
+            
+            pos += 1  # Skip 'select'
+            
+            # Parse variable name
+            if pos >= len(tokens) or tokens[pos].type.name != 'WORD':
+                return ParseResult(success=False, error="Expected variable name after 'select'", position=pos)
+            
+            var_name = tokens[pos].value
+            pos += 1
+            
+            # Expect 'in'
+            if pos >= len(tokens) or (tokens[pos].type.name != 'IN' and tokens[pos].value != 'in'):
+                return ParseResult(success=False, error="Expected 'in' after variable name", position=pos)
+            
+            pos += 1  # Skip 'in'
+            
+            # Parse items (words until 'do' or separator+do)
+            items = []
+            item_quote_types = []
+            while pos < len(tokens):
+                token = tokens[pos]
+                if token.type.name == 'DO' and token.value == 'do':
+                    break
+                if token.type.name in ['SEMICOLON', 'NEWLINE']:
+                    # Check if next token is 'do'
+                    if (pos + 1 < len(tokens) and 
+                        tokens[pos + 1].type.name == 'DO'):
+                        break
+                if token.type.name in ['WORD', 'STRING', 'VARIABLE', 'COMMAND_SUB', 'COMMAND_SUB_BACKTICK', 'ARITH_EXPANSION', 'PARAM_EXPANSION']:
+                    # Format item value based on token type
+                    if token.type.name == 'VARIABLE':
+                        item_value = f'${token.value}'
+                    else:
+                        item_value = token.value
+                    
+                    items.append(item_value)
+                    
+                    # Track quote type for strings
+                    quote_type = getattr(token, 'quote_type', None)
+                    item_quote_types.append(quote_type)
+                    
+                    pos += 1
+                else:
+                    break
+            
+            # Skip separator and 'do'
+            if pos < len(tokens) and tokens[pos].type.name in ['SEMICOLON', 'NEWLINE']:
+                pos += 1
+            if pos >= len(tokens) or tokens[pos].value != 'do':
+                return ParseResult(success=False, error="Expected 'do' in select loop", position=pos)
+            pos += 1  # Skip 'do'
+            
+            # Skip optional separator after 'do'
+            if pos < len(tokens) and tokens[pos].type.name in ['SEMICOLON', 'NEWLINE']:
+                pos += 1
+            
+            # Parse the body (until 'done', handling nested loops)
+            body_tokens, done_pos = self._collect_tokens_until_keyword(tokens, pos, 'done', 'do')
+            
+            if done_pos >= len(tokens):
+                return ParseResult(success=False, error="Expected 'done' to close select loop", position=pos)
+            
+            body_result = self.statement_list.parse(body_tokens, 0)
+            if not body_result.success:
+                return ParseResult(success=False, error=f"Failed to parse select body: {body_result.error}", position=pos)
+            
+            pos = done_pos + 1  # Skip 'done'
+            
+            return ParseResult(
+                success=True,
+                value=SelectLoop(
+                    variable=var_name,
+                    items=items,
+                    item_quote_types=item_quote_types,
+                    body=body_result.value,
+                    redirects=[],  # TODO: Parse redirections if needed
+                    background=False
+                ),
+                position=pos
+            )
+        
+        return Parser(parse_select_loop)
     
     def _build_function_name(self) -> Parser[str]:
         """Parse a valid function name."""

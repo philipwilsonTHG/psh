@@ -148,9 +148,9 @@ class TestParserCombinatorFeatureCoverage:
         assert self.can_parse("diff <(sort file1) <(sort file2)")
         assert self.can_parse("tee >(grep ERROR)")
     
-    def test_select_loop_not_supported(self):
-        """Test that select loops are NOT supported."""
-        assert not self.can_parse("select item in a b c; do echo $item; done")
+    def test_select_loop_now_supported(self):
+        """Test that select loops are NOW supported (Phase 6 complete)."""
+        assert self.can_parse("select item in a b c; do echo $item; done")
     
     # Features that MIGHT work
     
@@ -249,8 +249,10 @@ class TestParserCombinatorFeatureSummary:
             # Now Supported (Phase 5 Complete)
             "array_initialization": True,  # Phase 5 complete!
             
+            # Now Supported (Phase 6 Complete)
+            "select_loop": True,  # Phase 6 complete!
+            
             # Not Supported
-            "select_loop": False,
             "job_control": False,
         }
         
