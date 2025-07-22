@@ -105,10 +105,8 @@ class TestControlStructures(TestParserCombinatorBasics):
     def test_if_statement(self):
         """Test: if true; then echo yes; fi"""
         ast = self.parse("if true; then echo yes; fi")
-        and_or = ast.statements[0]
-        assert isinstance(and_or, AndOrList)
-        if_stmt = and_or.pipelines[0]
-        
+        # With unwrapping fix, if statement is directly in statements
+        if_stmt = ast.statements[0]
         assert isinstance(if_stmt, IfConditional)
         # Condition
         assert if_stmt.condition.statements[0].pipelines[0].commands[0].args == ["true"]
@@ -118,10 +116,8 @@ class TestControlStructures(TestParserCombinatorBasics):
     def test_while_loop(self):
         """Test: while test -f lock; do sleep 1; done"""
         ast = self.parse("while test -f lock; do sleep 1; done")
-        and_or = ast.statements[0]
-        assert isinstance(and_or, AndOrList)
-        while_loop = and_or.pipelines[0]
-        
+        # With unwrapping fix, while loop is directly in statements
+        while_loop = ast.statements[0]
         assert isinstance(while_loop, WhileLoop)
         # Condition
         cond_cmd = while_loop.condition.statements[0].pipelines[0].commands[0]
@@ -133,10 +129,8 @@ class TestControlStructures(TestParserCombinatorBasics):
     def test_for_loop(self):
         """Test: for i in a b c; do echo $i; done"""
         ast = self.parse("for i in a b c; do echo $i; done")
-        and_or = ast.statements[0]
-        assert isinstance(and_or, AndOrList)
-        for_loop = and_or.pipelines[0]
-        
+        # With unwrapping fix, for loop is directly in statements
+        for_loop = ast.statements[0]
         assert isinstance(for_loop, ForLoop)
         assert for_loop.variable == "i"
         assert for_loop.items == ["a", "b", "c"]
@@ -147,10 +141,8 @@ class TestControlStructures(TestParserCombinatorBasics):
     def test_case_statement(self):
         """Test: case $x in a) echo A;; b) echo B;; esac"""
         ast = self.parse("case $x in a) echo A;; b) echo B;; esac")
-        and_or = ast.statements[0]
-        assert isinstance(and_or, AndOrList)
-        case_stmt = and_or.pipelines[0]
-        
+        # With unwrapping fix, case statement is directly in statements
+        case_stmt = ast.statements[0]
         assert isinstance(case_stmt, CaseConditional)
         assert case_stmt.expr == "$x"
         assert len(case_stmt.items) == 2
@@ -276,8 +268,8 @@ class TestUnsupportedFeatures(TestParserCombinatorBasics):
         # Test that parsing actually works and produces correct AST
         ast = self.parse("(echo hello)")
         from psh.ast_nodes import SubshellGroup
-        and_or = ast.statements[0]
-        subshell = and_or.pipelines[0]
+        # With unwrapping fix, subshell is directly in statements
+        subshell = ast.statements[0]
         assert isinstance(subshell, SubshellGroup)
     
     def test_brace_group_now_supported(self):
@@ -286,13 +278,22 @@ class TestUnsupportedFeatures(TestParserCombinatorBasics):
         # Test that parsing actually works and produces correct AST
         ast = self.parse("{ echo hello; }")
         from psh.ast_nodes import BraceGroup
-        and_or = ast.statements[0]
-        brace_group = and_or.pipelines[0]
+        # With unwrapping fix, brace group is directly in statements
+        brace_group = ast.statements[0]
         assert isinstance(brace_group, BraceGroup)
     
-    def test_arithmetic_command_not_supported(self):
-        """Test that arithmetic commands fail."""
-        assert not self.parse_no_exception("((x = 5))")
+    def test_arithmetic_command_now_supported(self):
+        """Test that arithmetic commands are now supported."""
+        # First check that parsing succeeds
+        assert self.parse_no_exception("((x = 5))")
+        
+        # Then get the actual AST to verify structure
+        ast = self.parse("((x = 5))")
+        from psh.ast_nodes import ArithmeticEvaluation
+        # With unwrapping fix, arithmetic command is directly in statements
+        arith_cmd = ast.statements[0]
+        assert isinstance(arith_cmd, ArithmeticEvaluation)
+        assert arith_cmd.expression == "x = 5"
     
     def test_array_initialization_not_supported(self):
         """Test that array initialization fails."""

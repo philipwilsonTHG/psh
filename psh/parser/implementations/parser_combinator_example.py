@@ -19,7 +19,7 @@ from ...ast_nodes import (
     CStyleForLoop, CaseItem, CasePattern, StatementList,
     FunctionDef, Word, LiteralPart, ExpansionPart,
     VariableExpansion, CommandSubstitution, ParameterExpansion,
-    ArithmeticExpansion, ProcessSubstitution, SubshellGroup, BraceGroup
+    ArithmeticExpansion, ArithmeticEvaluation, ProcessSubstitution, SubshellGroup, BraceGroup
 )
 from ...token_types import Token, TokenType
 from ..config import ParserConfig
@@ -411,6 +411,10 @@ class ParserCombinatorShellParser(AbstractShellParser):
         self.lbrace = token('LBRACE')
         self.rbrace = token('RBRACE')
         
+        # Arithmetic command tokens
+        self.double_lparen = token('DOUBLE_LPAREN')
+        self.double_rparen = token('DOUBLE_RPAREN')
+        
         # Word-like tokens (including variables and expansions)
         self.variable = token('VARIABLE')
         self.param_expansion = token('PARAM_EXPANSION')
@@ -655,6 +659,12 @@ class ParserCombinatorShellParser(AbstractShellParser):
             "In brace group"
         )
         
+        # Arithmetic commands
+        self.arithmetic_command = with_error_context(
+            self._build_arithmetic_command(),
+            "In arithmetic command"
+        )
+        
         # Break and continue statements
         self.break_statement = self._build_break_statement()
         self.continue_statement = self._build_continue_statement()
@@ -667,6 +677,7 @@ class ParserCombinatorShellParser(AbstractShellParser):
             .or_else(self.case_statement)
             .or_else(self.subshell_group)
             .or_else(self.brace_group)
+            .or_else(self.arithmetic_command)
             .or_else(self.break_statement)
             .or_else(self.continue_statement)
         )
@@ -682,9 +693,9 @@ class ParserCombinatorShellParser(AbstractShellParser):
                 # Single command - check if it's a control structure
                 cmd = commands[0]
                 from ...ast_nodes import (IfConditional, WhileLoop, ForLoop, CaseConditional, 
-                                        SubshellGroup, BraceGroup, CStyleForLoop)
+                                        SubshellGroup, BraceGroup, CStyleForLoop, ArithmeticEvaluation)
                 if isinstance(cmd, (IfConditional, WhileLoop, ForLoop, CaseConditional, 
-                                  SubshellGroup, BraceGroup, CStyleForLoop)):
+                                  SubshellGroup, BraceGroup, CStyleForLoop, ArithmeticEvaluation)):
                     # Don't wrap control structures in Pipeline when they're standalone
                     return cmd
             # Multiple commands or single simple command - wrap in Pipeline
@@ -768,6 +779,13 @@ class ParserCombinatorShellParser(AbstractShellParser):
             first_pipeline = first_element
         
         if not rest:
+            # Single element with no operators - return it directly instead of wrapping
+            # This prevents unnecessary AndOrList wrapping for standalone control structures
+            from ...ast_nodes import (IfConditional, WhileLoop, ForLoop, CaseConditional, 
+                                    SubshellGroup, BraceGroup, CStyleForLoop, ArithmeticEvaluation)
+            if isinstance(first_pipeline, (IfConditional, WhileLoop, ForLoop, CaseConditional, 
+                                         SubshellGroup, BraceGroup, CStyleForLoop, ArithmeticEvaluation)):
+                return first_pipeline
             return AndOrList(pipelines=[first_pipeline])
         
         pipelines = [first_pipeline]
@@ -1670,6 +1688,84 @@ class ParserCombinatorShellParser(AbstractShellParser):
             self.rbrace,
             lazy(lambda: self.statement_list)
         ).map(lambda statements: BraceGroup(statements=statements))
+    
+    def _build_arithmetic_command(self) -> Parser[ArithmeticEvaluation]:
+        """Build parser for arithmetic command ((expression)) syntax."""
+        def parse_arithmetic_command(tokens: List[Token], pos: int) -> ParseResult[ArithmeticEvaluation]:
+            # Check for opening (( 
+            if pos >= len(tokens):
+                return ParseResult(success=False, error="Expected '((' for arithmetic command", position=pos)
+            
+            token = tokens[pos]
+            if token.type.name != 'DOUBLE_LPAREN':
+                return ParseResult(success=False, error=f"Expected '((', got {token.type.name}", position=pos)
+            
+            pos += 1  # Skip ((
+            
+            # Collect arithmetic expression until ))
+            expr_tokens = []
+            paren_depth = 0
+            
+            while pos < len(tokens):
+                token = tokens[pos]
+                
+                # Check for closing ))
+                if token.type.name == 'DOUBLE_RPAREN' and paren_depth == 0:
+                    break
+                elif token.type.name == 'LPAREN':
+                    paren_depth += 1
+                elif token.type.name == 'RPAREN':
+                    paren_depth -= 1
+                    if paren_depth < 0:
+                        # Handle case of separate ) ) tokens
+                        if (pos + 1 < len(tokens) and 
+                            tokens[pos + 1].type.name == 'RPAREN'):
+                            # Found ) ) pattern, this ends the arithmetic command
+                            pos += 1  # Skip second )
+                            break
+                        else:
+                            return ParseResult(success=False, error="Unbalanced parentheses in arithmetic command", position=pos)
+                
+                expr_tokens.append(token)
+                pos += 1
+            
+            if pos >= len(tokens):
+                return ParseResult(success=False, error="Unterminated arithmetic command: expected '))'", position=pos)
+            
+            # Skip the closing )) token if we found DOUBLE_RPAREN
+            if pos < len(tokens) and tokens[pos].type.name == 'DOUBLE_RPAREN':
+                pos += 1
+            
+            # Build expression string from tokens, preserving variable syntax
+            expression_parts = []
+            for token in expr_tokens:
+                if token.type.name == 'VARIABLE':
+                    # Add $ prefix for variables
+                    expression_parts.append(f'${token.value}')
+                else:
+                    expression_parts.append(token.value)
+            
+            # Join with spaces and clean up extra whitespace
+            expression = ' '.join(expression_parts)
+            # Normalize multiple spaces to single spaces
+            import re
+            expression = re.sub(r'\s+', ' ', expression).strip()
+            
+            # Parse optional redirections (not common for arithmetic commands but valid)
+            redirects = []
+            # For now, skip redirection parsing to keep it simple
+            
+            return ParseResult(
+                success=True,
+                value=ArithmeticEvaluation(
+                    expression=expression,
+                    redirects=redirects,
+                    background=False
+                ),
+                position=pos
+            )
+        
+        return Parser(parse_arithmetic_command)
     
     def parse(self, tokens: List[Token]) -> Union[TopLevel, CommandList]:
         """Parse tokens using parser combinators.
