@@ -6,6 +6,33 @@ __version__ = "0.95.0"
 
 # Version history
 VERSION_HISTORY = """
+0.95.0 (2025-01-22) - Parser Combinator Compound Commands Implementation Complete (Phase 2)
+- Completed Phase 2 of parser combinator feature parity plan: Compound Commands support
+- Implemented comprehensive subshell group (...) and brace group {...} parsing support
+- Added elegant delimiter parsing using between combinator with lazy evaluation for recursive grammar
+- Integrated compound commands seamlessly into control structure parsing chain via or_else composition
+- Enhanced control structure parser to support: if, while, for, case, subshells, brace groups, break, continue
+- Added comprehensive compound command token parsers (LPAREN, RPAREN, LBRACE, RBRACE) to grammar
+- Implemented _build_subshell_group() and _build_brace_group() methods with proper AST integration
+- Enhanced and-or list parsing to handle complex integration scenarios with compound commands
+- Fixed parser ordering for sophisticated and-or list integration: (echo test) && { echo success; }
+- Modified pipeline builder to avoid over-wrapping control structures in unnecessary Pipeline nodes
+- Added 27 comprehensive compound command tests (10 basic + 17 edge cases) with 100% pass rate
+- Created extensive edge case test suite covering nested compounds, pipeline integration, complex scenarios
+- Updated 46 integration tests to reflect new compound command capabilities and feature support
+- Fixed integration test expectations from "not supported" to "now supported" for compound commands
+- Support for complex scenarios: deep nesting ( { (echo nested); } ), pipeline integration
+- Pipeline integration working: echo start | (cat; echo middle) | echo end produces correct output
+- Full compatibility with all existing shell features: functions, control structures, I/O redirection
+- Phase 2 brings parser combinator to ~90% critical shell syntax coverage (major milestone)
+- All high-priority features (process substitution + compound commands) now complete
+- Updated parser combinator feature parity plan documentation with Phase 2 completion notes
+- Added detailed implementation achievements and technical documentation to feature parity plan
+- Updated timeline summary showing 2/6 phases completed (33.3% progress) with 11 weeks remaining
+- Fixed basic features integration tests to properly reflect Phase 2 compound command support
+- Educational value preserved while demonstrating parser combinators can handle complex shell syntax
+- Foundation established for remaining phases: arithmetic commands, enhanced test expressions, arrays
+
 0.94.0 (2025-01-22) - Parser Combinator Process Substitution Implementation Complete (Phase 1)
 - Completed Phase 1 of parser combinator feature parity plan: Process Substitution support
 - Implemented complete process substitution parsing support (<(cmd) and >(cmd)) in parser combinator
