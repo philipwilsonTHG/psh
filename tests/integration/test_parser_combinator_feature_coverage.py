@@ -140,10 +140,10 @@ class TestParserCombinatorFeatureCoverage:
         assert not self.can_parse("[[ -f file.txt ]]")
         assert not self.can_parse('[[ "$var" =~ ^[0-9]+$ ]]')
     
-    def test_process_substitution_not_supported(self):
-        """Test that process substitution is NOT supported."""
-        assert not self.can_parse("diff <(sort file1) <(sort file2)")
-        assert not self.can_parse("tee >(grep ERROR)")
+    def test_process_substitution_now_supported(self):
+        """Test that process substitution is NOW supported (Phase 1 complete)."""
+        assert self.can_parse("diff <(sort file1) <(sort file2)")
+        assert self.can_parse("tee >(grep ERROR)")
     
     def test_select_loop_not_supported(self):
         """Test that select loops are NOT supported."""
@@ -231,16 +231,18 @@ class TestParserCombinatorFeatureSummary:
             "export_declaration": True,   # Parses but execution untested
             "array_element_assignment": True,  # arr[0]=value parses
             
+            # Now Supported
+            "heredoc": True,
+            "herestring": True,
+            "background_jobs": True,
+            "process_substitution": True,  # Phase 1 complete!
+            
             # Not Supported
-            "heredoc": False,
-            "herestring": False,
             "array_initialization": False,  # arr=(1 2 3) doesn't parse
-            "background_jobs": False,
             "subshells": False,
             "brace_groups": False,
             "arithmetic_command": False,
             "conditional_expression": False,
-            "process_substitution": False,
             "select_loop": False,
             "job_control": False,
         }

@@ -375,8 +375,8 @@ class TestParserLimitations(TestParserCombinatorFeatureCombinations):
         # Background jobs
         assert not self.parse_no_exception("long_command & echo done")
         
-        # Process substitution
-        assert not self.parse_no_exception("diff <(sort file1) <(sort file2)")
+        # Process substitution is now supported in Phase 1!
+        assert self.parse_no_exception("diff <(sort file1) <(sort file2)")
         
         # Arithmetic commands
         assert not self.parse_no_exception("((x = 5 + 3))")

@@ -2,10 +2,26 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.93.0"
+__version__ = "0.94.0"
 
 # Version history
 VERSION_HISTORY = """
+0.94.0 (2025-01-22) - Parser Combinator Process Substitution Implementation Complete (Phase 1)
+- Completed Phase 1 of parser combinator feature parity plan: Process Substitution support
+- Implemented complete process substitution parsing support (<(cmd) and >(cmd)) in parser combinator
+- Added process substitution token parsers (PROCESS_SUB_IN, PROCESS_SUB_OUT) to expansion combinator chain
+- Created comprehensive process substitution parsing logic with proper AST integration
+- Enhanced Word AST building for process substitution tokens via _build_word_from_token method
+- Added ProcessSubstitution import and parsing support to parser combinator implementation
+- Created extensive test suites with 26 comprehensive tests covering basic usage through complex edge cases
+- Fixed configuration issue where build_word_ast_nodes wasn't enabled by default in parser tests
+- Resolved recursion issue in AST traversal for finding ProcessSubstitution nodes via visited set tracking
+- All process substitution functionality now works identically between parser combinator and recursive descent
+- Updated feature parity plan documentation to mark Phase 1 as completed with implementation details
+- Major milestone: Parser combinator now supports advanced shell syntax with full process substitution capability
+- Foundation established for remaining phases: compound commands, arithmetic commands, enhanced test expressions
+- Educational value preserved while demonstrating parser combinators can handle complex shell syntax elegantly
+
 0.93.0 (2025-01-21) - Arithmetic Expansion Testing Complete and Parser Combinator Enhancement
 - Completed comprehensive arithmetic expansion testing plan with 134+ tests across 4 phases
 - Phase 1: Number Format Testing (38 tests) - binary, octal, hex, arbitrary bases 2-36
