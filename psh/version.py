@@ -2,10 +2,18 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.99.1"
+__version__ = "0.99.2"
 
 # Version history
 VERSION_HISTORY = """
+0.99.2 (2025-01-23) - Parser Strategy Inheritance for Child Shells
+- Fixed parser strategy inheritance so child shells (command substitution, subshells, process substitution) 
+  inherit the parser choice from their parent shell
+- Previously, child shells always used the default parser regardless of parent's parser selection
+- Now when parser combinator is selected, all child shells consistently use parser combinator
+- Added comprehensive tests for parser strategy inheritance
+- Ensures consistent parsing behavior throughout the entire shell session
+
 0.99.1 (2025-01-23) - Parser Combinator Process Substitution Bug Fix
 - Fixed critical bug where process substitutions were parsed as WORD tokens instead of PROCESS_SUB_OUT
 - Added process_sub_in and process_sub_out to word_like parser definition in parser combinator

@@ -95,7 +95,13 @@ class Shell:
         
         # Initialize parser strategy
         from .parser.parser_registry import ParserStrategy
-        self.parser_strategy = ParserStrategy("default")
+        if parent_shell and hasattr(parent_shell, 'parser_strategy'):
+            # Inherit parser strategy from parent shell
+            current_parser = parent_shell.parser_strategy.current_parser
+            self.parser_strategy = ParserStrategy(current_parser)
+        else:
+            # Use default parser
+            self.parser_strategy = ParserStrategy("default")
         
         # Initialize trap manager
         from .core.trap_manager import TrapManager
