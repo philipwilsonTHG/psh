@@ -124,7 +124,8 @@ class DebugBuiltin(Builtin):
                 'tokens': 'debug-tokens', 
                 'scopes': 'debug-scopes',
                 'expansion': 'debug-expansion',
-                'exec': 'debug-exec'
+                'exec': 'debug-exec',
+                'parser': 'debug-parser'
             }
             
             for name, option_key in debug_options.items():
@@ -146,12 +147,13 @@ class DebugBuiltin(Builtin):
                 'tokens': 'debug-tokens',
                 'scopes': 'debug-scopes', 
                 'expansion': 'debug-expansion',
-                'exec': 'debug-exec'
+                'exec': 'debug-exec',
+                'parser': 'debug-parser'
             }
             
             if option not in option_map:
                 self.error(f"unknown debug option: {option}", shell)
-                self.error("Valid options: ast, tokens, scopes, expansion, exec", shell)
+                self.error("Valid options: ast, tokens, scopes, expansion, exec, parser", shell)
                 return 1
             
             option_key = option_map[option]
@@ -176,7 +178,8 @@ class DebugBuiltin(Builtin):
                 'tokens': 'debug-tokens',
                 'scopes': 'debug-scopes',
                 'expansion': 'debug-expansion', 
-                'exec': 'debug-exec'
+                'exec': 'debug-exec',
+                'parser': 'debug-parser'
             }
             
             if option not in option_map:

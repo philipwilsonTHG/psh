@@ -2,10 +2,19 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.99.0"
+__version__ = "0.99.1"
 
 # Version history
 VERSION_HISTORY = """
+0.99.1 (2025-01-23) - Parser Combinator Process Substitution Bug Fix
+- Fixed critical bug where process substitutions were parsed as WORD tokens instead of PROCESS_SUB_OUT
+- Added process_sub_in and process_sub_out to word_like parser definition in parser combinator
+- Process substitution commands like `tee >(grep XFAIL > file.log)` now work correctly
+- Resolved "No such file or directory" errors when using process substitutions with parser combinator
+- Enhanced parser combinator feature parity to handle all process substitution syntax correctly
+- Verified fix with comprehensive testing showing proper I/O filtering and redirection
+- Parser combinator now maintains 100% process substitution compatibility with recursive descent parser
+
 0.99.0 (2025-01-22) - Parser Combinator Feature Parity Achievement Complete (Phase 6)
 - Completed Phase 6 of parser combinator feature parity plan: Advanced I/O and Select
 - Final phase implementation achieving 100% feature parity with recursive descent parser

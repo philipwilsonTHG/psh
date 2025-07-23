@@ -366,9 +366,50 @@ class ParserCombinatorShellParser(AbstractShellParser):
         super().__init__()
         self.config = ParserConfig()  # Default config
         self.heredoc_contents = heredoc_contents or {}
+        # Tracing configuration
+        self.trace_parsing = False
+        self.trace_depth = 0
         self._setup_forward_declarations()
         self._build_grammar()
         self._complete_forward_declarations()
+    
+    def configure(self, **options):
+        """Configure the parser with shell options.
+        
+        Args:
+            **options: Configuration options (e.g., trace_parsing=True)
+        """
+        if 'trace_parsing' in options:
+            self.trace_parsing = options['trace_parsing']
+    
+    def _trace(self, message: str):
+        """Emit trace message if tracing is enabled."""
+        if self.trace_parsing:
+            indent = "  " * self.trace_depth
+            print(f"{indent}{message}")
+    
+    def _enter_rule(self, rule_name: str, tokens: List[Token], pos: int):
+        """Enter a parse rule with tracing."""
+        if self.trace_parsing:
+            token_info = f"@ {tokens[pos]}" if pos < len(tokens) else "@ EOF"
+            self._trace(f"→ {rule_name} {token_info}")
+            self.trace_depth += 1
+    
+    def _exit_rule(self, rule_name: str, success: bool):
+        """Exit a parse rule with tracing."""
+        if self.trace_parsing:
+            self.trace_depth -= 1
+            status = "✓" if success else "✗"
+            self._trace(f"← {rule_name} {status}")
+    
+    def _traced(self, parser: Parser[T], rule_name: str) -> Parser[T]:
+        """Wrap a parser with tracing."""
+        def traced_parse(tokens: List[Token], pos: int) -> ParseResult[T]:
+            self._enter_rule(rule_name, tokens, pos)
+            result = parser.parse(tokens, pos)
+            self._exit_rule(rule_name, result.success)
+            return result
+        return Parser(traced_parse)
     
     def _setup_forward_declarations(self):
         """Setup forward declarations for recursive grammar rules."""
@@ -481,11 +522,13 @@ class ParserCombinatorShellParser(AbstractShellParser):
             .or_else(self.process_sub_out)
         )
         
-        # Word-like tokens include words, strings, and all expansions
+        # Word-like tokens include words, strings, expansions, and process substitutions
         self.word_like = (
             self.word
             .or_else(self.string)
             .or_else(self.expansion)
+            .or_else(self.process_sub_in)
+            .or_else(self.process_sub_out)
         )
         
         # EOF token
@@ -630,11 +673,14 @@ class ParserCombinatorShellParser(AbstractShellParser):
         self.redirection = Parser(parse_redirection)
         
         # Simple command
-        self.simple_command = sequence(
-            many1(self.word_like),
-            many(self.redirection),
-            optional(self.ampersand)
-        ).map(lambda triple: self._build_simple_command(triple[0], triple[1], background=triple[2] is not None))
+        self.simple_command = self._traced(
+            sequence(
+                many1(self.word_like),
+                many(self.redirection),
+                optional(self.ampersand)
+            ).map(lambda triple: self._build_simple_command(triple[0], triple[1], background=triple[2] is not None)),
+            "simple_command"
+        )
         
         # Build function support
         self.function_name = self._build_function_name()
@@ -698,23 +744,29 @@ class ParserCombinatorShellParser(AbstractShellParser):
         self.continue_statement = self._build_continue_statement()
         
         # Control structures
-        self.control_structure = (
-            self.if_statement
-            .or_else(self.while_loop)
-            .or_else(self.for_loop)
-            .or_else(self.case_statement)
-            .or_else(self.select_loop)
-            .or_else(self.subshell_group)
-            .or_else(self.brace_group)
-            .or_else(self.arithmetic_command)
-            .or_else(self.enhanced_test_statement)
-            .or_else(self.break_statement)
-            .or_else(self.continue_statement)
+        self.control_structure = self._traced(
+            (
+                self.if_statement
+                .or_else(self.while_loop)
+                .or_else(self.for_loop)
+                .or_else(self.case_statement)
+                .or_else(self.select_loop)
+                .or_else(self.subshell_group)
+                .or_else(self.brace_group)
+                .or_else(self.arithmetic_command)
+                .or_else(self.enhanced_test_statement)
+                .or_else(self.break_statement)
+                .or_else(self.continue_statement)
+            ),
+            "control_structure"
         )
         
         # Command is either control structure or simple command (not function definitions)
         # Functions are only allowed at statement level
-        self.command = self.control_structure.or_else(self.simple_command)
+        self.command = self._traced(
+            self.control_structure.or_else(self.simple_command), 
+            "command"
+        )
         
         # Pipeline - now uses command instead of just simple_command
         def build_pipeline(commands):
@@ -731,10 +783,13 @@ class ParserCombinatorShellParser(AbstractShellParser):
             # Multiple commands or single simple command - wrap in Pipeline
             return Pipeline(commands=commands) if commands else None
         
-        self.pipeline = separated_by(
-            self.command,
-            self.pipe
-        ).map(build_pipeline)
+        self.pipeline = self._traced(
+            separated_by(
+                self.command,
+                self.pipe
+            ).map(build_pipeline), 
+            "pipeline"
+        )
         
         # And-or list element: either a pipeline or a single command
         self.and_or_element = (
@@ -772,7 +827,7 @@ class ParserCombinatorShellParser(AbstractShellParser):
         self.command_forward.define(self.command)
         
         # Statement uses control_or_pipeline instead of and_or_list
-        self.statement = self.control_or_pipeline
+        self.statement = self._traced(self.control_or_pipeline, "statement")
         self.statement_forward.define(self.statement)
         
         # Statement list parser using forward declaration
@@ -793,8 +848,8 @@ class ParserCombinatorShellParser(AbstractShellParser):
         self.statement_list_forward.define(statement_list_parser)
         self.statement_list = self.statement_list_forward
         
-        # Top level parser
-        self.top_level = self.statement_list
+        # Top level parser with tracing
+        self.top_level = self._traced(self.statement_list, "top_level")
     
     def _build_and_or_list(self, parse_result: tuple) -> AndOrList:
         """Build an AndOrList from parsed components."""
@@ -2364,6 +2419,10 @@ class ParserCombinatorShellParser(AbstractShellParser):
         Raises:
             ParseError: If parsing fails
         """
+        # Debug: Check if tracing is enabled
+        if self.trace_parsing:
+            print(f"[TRACE] Parser combinator parsing {len(tokens)} tokens", file=__import__('sys').stderr)
+        
         self.reset_metrics()
         
         # Filter out EOF tokens
@@ -2476,11 +2535,30 @@ class ParserCombinatorShellParser(AbstractShellParser):
             return token.value
     
     def _build_simple_command(self, word_tokens: List[Token], redirects: List[Redirect], background: bool = False) -> SimpleCommand:
-        """Build a SimpleCommand, optionally with Word AST nodes."""
+        """Build a SimpleCommand with proper token type and quote preservation."""
         cmd = SimpleCommand(redirects=redirects, background=background)
         
         # Build traditional string arguments
         cmd.args = [self._format_token_value(t) for t in word_tokens]
+        
+        # Build argument types and quote types (like recursive descent parser)
+        cmd.arg_types = []
+        cmd.quote_types = []
+        for token in word_tokens:
+            # Map token types to argument types
+            if token.type.name == 'STRING':
+                cmd.arg_types.append('STRING')
+                cmd.quote_types.append(getattr(token, 'quote_type', None))
+            elif token.type.name == 'WORD':
+                cmd.arg_types.append('WORD')
+                cmd.quote_types.append(None)
+            elif token.type.name == 'VARIABLE':
+                cmd.arg_types.append('VARIABLE')
+                cmd.quote_types.append(None)
+            else:
+                # Other expansions
+                cmd.arg_types.append(token.type.name)
+                cmd.quote_types.append(None)
         
         # Build Word AST nodes if enabled
         if self.config.build_word_ast_nodes:

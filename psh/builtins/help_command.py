@@ -120,6 +120,17 @@ class HelpBuiltin(Builtin):
         print("These shell commands are defined internally. Type 'help name' to find out more", file=output)
         print("about the function 'name'.", file=output)
         print(file=output)
+        print("Debug options available via 'set -o' or command line:", file=output)
+        print("  debug-ast                Show AST before execution", file=output)
+        print("  debug-tokens             Show tokens during parsing", file=output)
+        print("  debug-scopes             Show variable scope operations", file=output)
+        print("  debug-expansion          Show parameter/command expansions", file=output)
+        print("  debug-expansion-detail   Show detailed expansion steps", file=output)
+        print("  debug-exec               Show execution flow", file=output)
+        print("  debug-exec-fork          Show fork/exec details", file=output)
+        print("  debug-parser             Show parser tracing", file=output)
+        print("Use 'debug OPTION on/off' or 'debug-ast' for dedicated debug control.", file=output)
+        print(file=output)
         
         # Calculate column layout
         max_width = 79  # Terminal width

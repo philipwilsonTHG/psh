@@ -456,6 +456,12 @@ class Shell:
                 
                 # Note: Alias expansion now happens during execution phase for proper precedence
                 
+                # Configure parser with current shell options
+                parser_config = {
+                    'trace_parsing': self.state.options.get('debug-parser', False)
+                }
+                self.parser_strategy.parser.configure(**parser_config)
+                
                 # Parse using the selected parser implementation
                 ast = self.parser_strategy.parse(tokens)
             
@@ -740,40 +746,32 @@ class Shell:
     def create_parser(self, tokens, source_text=None, **parser_options):
         """Create a parser with configuration based on shell options.
         
+        This method now uses the parser strategy to respect parser selection.
+        
         Args:
             tokens: List of tokens to parse
             source_text: Optional source text for error reporting
             **parser_options: Additional parser options to override
             
         Returns:
-            Configured Parser instance
+            Configured Parser instance or wrapper
         """
-        from .parser import ParserFactory
-        
-        # Build shell options dictionary from current state
-        shell_options = {
-            'posix': self.state.options.get('posix', False),
-            'bash_compat': not self.state.options.get('posix', False),
-            'collect_errors': self.state.options.get('collect_errors', False),
-            'debug_parser': self.state.options.get('debug-parser', False),
-            
-            # Feature toggles based on shell options
-            'enable_aliases': not self.state.options.get('no_aliases', False),
-            'enable_functions': not self.state.options.get('no_functions', False),
-            'enable_arithmetic': not self.state.options.get('no_arithmetic', False),
-            
-            # Enable Word AST nodes for better expansion handling
-            'build_word_ast_nodes': True,
+        # Configure parser with current shell options
+        parser_config = {
+            'trace_parsing': self.state.options.get('debug-parser', False)
         }
+        self.parser_strategy.parser.configure(**parser_config)
         
-        # Add any additional parser-specific options
-        shell_options.update(parser_options)
+        # Create a wrapper that implements the same interface as the old parser
+        class ParserWrapper:
+            def __init__(self, parser_strategy, tokens):
+                self.parser_strategy = parser_strategy
+                self.tokens = tokens
+            
+            def parse(self):
+                return self.parser_strategy.parse(self.tokens)
         
-        return ParserFactory.create_shell_parser(
-            tokens, 
-            source_text=source_text, 
-            shell_options=shell_options
-        )
+        return ParserWrapper(self.parser_strategy, tokens)
     
     def _print_ast_debug(self, ast) -> None:
         """Print AST debug output in the requested format."""
