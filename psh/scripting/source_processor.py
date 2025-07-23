@@ -83,7 +83,8 @@ class SourceProcessor(ScriptComponent):
                         test_command = expanded_test
                 
                 # Check for unclosed heredocs and collect content if needed
-                if self._has_unclosed_heredoc(test_command):
+                # Use the shell's method which properly handles arithmetic expressions
+                if self.shell._contains_heredoc(test_command) and self._has_unclosed_heredoc(test_command):
                     # Continue reading lines to complete heredocs
                     command_buffer = self._collect_heredoc_content(command_buffer, input_source)
                     if command_buffer is None:  # EOF while reading heredoc
@@ -301,7 +302,7 @@ class SourceProcessor(ScriptComponent):
             # Note: Alias expansion now happens during execution phase for proper precedence
             
             # Check if command contains heredocs and parse accordingly
-            if '<<' in command_string:
+            if self.shell._contains_heredoc(command_string):
                 # Use the new lexer with heredoc support
                 from ..lexer import tokenize_with_heredocs
                 tokens, heredoc_map = tokenize_with_heredocs(command_string, strict=self.state.options.get('posix', False))

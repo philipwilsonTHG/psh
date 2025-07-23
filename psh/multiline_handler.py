@@ -221,6 +221,50 @@ class MultiLineInputHandler:
         """Check if command has an unclosed heredoc."""
         import re
         
+        # First check if << only appears inside arithmetic expressions
+        if '<<' in command and '((' in command:
+            # Find all arithmetic expression boundaries
+            arith_start = []
+            arith_end = []
+            i = 0
+            while i < len(command) - 1:
+                if command[i:i+2] == '((':
+                    arith_start.append(i)
+                    i += 2
+                elif command[i:i+2] == '))':
+                    arith_end.append(i + 2)
+                    i += 2
+                else:
+                    i += 1
+            
+            # Find all << positions
+            heredoc_positions = []
+            i = 0
+            while i < len(command) - 1:
+                if command[i:i+2] == '<<':
+                    heredoc_positions.append(i)
+                    i += 2
+                else:
+                    i += 1
+            
+            # Check if all << are inside arithmetic expressions
+            if heredoc_positions and arith_start and arith_end:
+                all_inside_arithmetic = True
+                for pos in heredoc_positions:
+                    inside = False
+                    # Check if this << is inside any arithmetic expression
+                    for j in range(min(len(arith_start), len(arith_end))):
+                        if arith_start[j] < pos < arith_end[j]:
+                            inside = True
+                            break
+                    if not inside:
+                        all_inside_arithmetic = False
+                        break
+                
+                # If all << are inside arithmetic expressions, no heredoc
+                if all_inside_arithmetic:
+                    return False
+        
         # Find all heredoc start markers (<<EOF, <<-EOF, << EOF, etc.)
         # Also handle escaped delimiters like << \EOF
         heredoc_pattern = r'<<(-?)\s*([\'"]?)(\\\s*)?(\w+)\2'

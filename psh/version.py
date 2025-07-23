@@ -2,10 +2,21 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.99.2"
+__version__ = "0.99.3"
 
 # Version history
 VERSION_HISTORY = """
+0.99.3 (2025-01-23) - Fix Bit-Shift Operators in Arithmetic Expressions
+- Fixed critical bug where bit-shift operators (<<, >>) in arithmetic expressions were mistaken for heredoc operators
+- The shell would hang waiting for heredoc input when encountering expressions like ((x=x<<2))
+- Fixed MultiLineInputHandler._has_unclosed_heredoc to check if << appears inside arithmetic expressions
+- Fixed Shell._contains_heredoc to properly detect arithmetic context
+- Fixed SourceProcessor to use shell._contains_heredoc instead of its own incomplete logic
+- Added comprehensive test suite with 10 tests covering bit-shift assignment operations
+- Bit-shift operators now work correctly in all contexts: arithmetic commands, expansions, conditionals
+- All existing heredoc functionality remains intact with no regressions
+- Both parser implementations (recursive descent and parser combinator) handle bit-shifts correctly
+
 0.99.2 (2025-01-23) - Parser Strategy Inheritance for Child Shells
 - Fixed parser strategy inheritance so child shells (command substitution, subshells, process substitution) 
   inherit the parser choice from their parent shell

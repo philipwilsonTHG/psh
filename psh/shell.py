@@ -429,8 +429,8 @@ class Shell:
             # Use strict=False for interactive mode, strict=True for script mode
             strict_mode = self.state.is_script_mode
             
-            # Check if command contains heredocs
-            if '<<' in command_string:
+            # Check if command contains heredocs (but not bit-shift operators in arithmetic)
+            if self._contains_heredoc(command_string):
                 # Use heredoc-aware tokenizer
                 from .lexer import tokenize_with_heredocs
                 tokens, heredoc_map = tokenize_with_heredocs(command_string, strict=strict_mode)
@@ -778,6 +778,63 @@ class Shell:
                 return self.parser_strategy.parse(self.tokens)
         
         return ParserWrapper(self.parser_strategy, tokens)
+    
+    def _contains_heredoc(self, command_string: str) -> bool:
+        """Check if command contains heredoc operators (not bit-shift in arithmetic).
+        
+        Returns True if the command contains << that's likely a heredoc,
+        False if << only appears inside arithmetic expressions.
+        """
+        if '<<' not in command_string:
+            return False
+        
+        # Quick check: if we have arithmetic expressions, check if << is inside them
+        # This is a simple heuristic that handles the common case
+        if '((' in command_string:
+            # Find all arithmetic expression boundaries
+            arith_start = []
+            arith_end = []
+            i = 0
+            while i < len(command_string) - 1:
+                if command_string[i:i+2] == '((':
+                    arith_start.append(i)
+                    i += 2
+                elif command_string[i:i+2] == '))':
+                    arith_end.append(i + 2)
+                    i += 2
+                else:
+                    i += 1
+            
+            # Find all << positions
+            heredoc_positions = []
+            i = 0
+            while i < len(command_string) - 1:
+                if command_string[i:i+2] == '<<':
+                    heredoc_positions.append(i)
+                    i += 2
+                else:
+                    i += 1
+            
+            # Check if all << are inside arithmetic expressions
+            if heredoc_positions and arith_start and arith_end:
+                all_inside_arithmetic = True
+                for pos in heredoc_positions:
+                    inside = False
+                    # Check if this << is inside any arithmetic expression
+                    for j in range(min(len(arith_start), len(arith_end))):
+                        if arith_start[j] < pos < arith_end[j]:
+                            inside = True
+                            break
+                    if not inside:
+                        all_inside_arithmetic = False
+                        break
+                
+                # If all << are inside arithmetic expressions, no heredoc
+                if all_inside_arithmetic:
+                    return False
+        
+        # Default: assume << is a heredoc
+        return True
     
     def _print_ast_debug(self, ast) -> None:
         """Print AST debug output in the requested format."""
