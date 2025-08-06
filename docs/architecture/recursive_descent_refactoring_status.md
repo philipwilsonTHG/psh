@@ -7,7 +7,7 @@ This document tracks the progress of refactoring the recursive descent parser fr
 **Start Date**: 2025-01-06  
 **Target Structure**: Parallel to `combinators/` package
 
-## Current Status: Phase 2 Complete ✅
+## Current Status: Phase 3 Complete ✅
 
 ### Completed Phases
 
@@ -38,11 +38,9 @@ This document tracks the progress of refactoring the recursive descent parser fr
 
 - **Testing**: Parser imports and basic functionality verified ✅
 
-### Remaining Phases
-
-#### Phase 3: Feature Parsers (Next)
-**Status**: Ready to begin
-- **Files to Move** (8 files):
+#### Phase 3: Feature Parsers ✅
+**Completed**: 2025-01-06
+- **Files Moved** (8 files):
   - `commands.py` → `recursive_descent/parsers/commands.py`
   - `control_structures.py` → `recursive_descent/parsers/control_structures.py`
   - `statements.py` → `recursive_descent/parsers/statements.py`
@@ -51,6 +49,13 @@ This document tracks the progress of refactoring the recursive descent parser fr
   - `functions.py` → `recursive_descent/parsers/functions.py`
   - `tests.py` → `recursive_descent/parsers/tests.py`
   - `redirections.py` → `recursive_descent/parsers/redirections.py`
+
+- **Import Updates**:
+  - Fixed deeper nesting imports (.... for reaching psh level)
+  - Updated parser.py to reference new locations
+  - Updated 3 enhanced modules to use new paths
+
+### Remaining Phases
 
 #### Phase 4: Enhanced Features
 **Status**: Pending
@@ -136,39 +141,39 @@ from psh.parser.control_structures import ControlStructureParser
 |-------|-------|--------|
 | Phase 1 | 0 (setup only) | ✅ Complete |
 | Phase 2 | 8 core files | ✅ Complete |
-| Phase 3 | 8 feature parsers | 🔄 Ready to start |
-| Phase 4 | 8 enhanced features | ⏳ Pending |
+| Phase 3 | 8 feature parsers | ✅ Complete |
+| Phase 4 | 8 enhanced features | 🔄 Ready to start |
 | Phase 5 | 4 support files | ⏳ Pending |
 | Phase 6 | 0 (updates only) | ⏳ Pending |
 | Phase 7 | 0 (cleanup only) | ⏳ Pending |
 
 **Total Files to Migrate**: 28  
-**Files Migrated**: 8 (29%)  
-**Files Remaining**: 20 (71%)
+**Files Migrated**: 16 (57%)  
+**Files Remaining**: 12 (43%)
 
 ## Next Steps
 
-1. Begin Phase 3: Move feature parser files
+1. Begin Phase 4: Move enhanced feature files
 2. Update imports within moved files
 3. Update external references to moved files
 4. Test parser functionality
-5. Commit Phase 3 changes
+5. Commit Phase 4 changes
 
-## Commands for Phase 3
+## Commands for Phase 4
 
 ```bash
 # Move files
-python tmp/migrate_recursive_descent.py phase3 --execute
+python tmp/migrate_recursive_descent.py phase4 --execute
 
 # Update imports
-python tmp/fix_phase3_imports.py
+python tmp/fix_phase4_imports.py
 
 # Test
 python -m pytest tests/unit/parser/ -xvs
 
 # Commit
 git add -A psh/parser/
-git commit -m "refactor: Phase 3 - Move feature parsers to recursive_descent package"
+git commit -m "refactor: Phase 4 - Move enhanced features to recursive_descent package"
 ```
 
 ## Notes
