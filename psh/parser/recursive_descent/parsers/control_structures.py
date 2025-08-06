@@ -5,13 +5,13 @@ This module handles parsing of control structures like if, while, for, case, and
 """
 
 from typing import Union, Tuple, List, Optional
-from ..token_types import Token, TokenType
-from ..ast_nodes import (
+from ....token_types import Token, TokenType
+from ....ast_nodes import (
     UnifiedControlStructure, IfConditional, WhileLoop, ForLoop, CStyleForLoop,
     CaseConditional, SelectLoop, BreakStatement, ContinueStatement, Statement,
     StatementList, ExecutionContext, Redirect, CaseItem, CasePattern
 )
-from .recursive_descent.helpers import TokenGroups
+from ..helpers import TokenGroups
 
 
 class ControlStructureParser:

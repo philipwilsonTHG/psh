@@ -5,9 +5,9 @@ This module handles parsing of enhanced test expressions ([[ ... ]]).
 """
 
 from typing import Optional
-from ..token_types import TokenType
-from ..ast_nodes import EnhancedTestStatement, TestExpression, BinaryTestExpression, UnaryTestExpression, CompoundTestExpression, NegatedTestExpression
-from .recursive_descent.helpers import TokenGroups
+from ....token_types import TokenType
+from ....ast_nodes import EnhancedTestStatement, TestExpression, BinaryTestExpression, UnaryTestExpression, CompoundTestExpression, NegatedTestExpression
+from ..helpers import TokenGroups
 
 
 class TestParser:

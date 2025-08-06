@@ -9,7 +9,7 @@ from ..ast_nodes import (
     BreakStatement, ContinueStatement
 )
 from .enhanced_base import EnhancedContextBaseParser, EnhancedParserConfig
-from .statements import StatementParser
+from .recursive_descent.parsers.statements import StatementParser
 
 
 class EnhancedStatementParser(StatementParser):

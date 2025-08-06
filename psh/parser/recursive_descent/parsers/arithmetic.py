@@ -5,9 +5,9 @@ This module handles parsing of arithmetic expressions and commands.
 """
 
 from typing import Optional
-from ..token_types import Token, TokenType
-from ..ast_nodes import ArithmeticEvaluation, ExecutionContext, Redirect
-from ..token_stream import TokenStream
+from ....token_types import Token, TokenType
+from ....ast_nodes import ArithmeticEvaluation, ExecutionContext, Redirect
+from ....token_stream import TokenStream
 
 
 class ArithmeticParser:

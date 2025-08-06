@@ -29,14 +29,14 @@ from .context import ParserContext
 from .support.context_factory import ParserContextFactory
 from .helpers import TokenGroups, ParseError, ErrorContext
 from ..error_collector import ErrorCollector, MultiErrorParseResult, ErrorRecoveryStrategy
-from ..statements import StatementParser
-from ..commands import CommandParser
-from ..control_structures import ControlStructureParser
-from ..tests import TestParser
-from ..arithmetic import ArithmeticParser
-from ..redirections import RedirectionParser
-from ..arrays import ArrayParser
-from ..functions import FunctionParser
+from .parsers.statements import StatementParser
+from .parsers.commands import CommandParser
+from .parsers.control_structures import ControlStructureParser
+from .parsers.tests import TestParser
+from .parsers.arithmetic import ArithmeticParser
+from .parsers.redirections import RedirectionParser
+from .parsers.arrays import ArrayParser
+from .parsers.functions import FunctionParser
 from .support.utils import ParserUtils
 from ..config import ParserConfig, ParsingMode, ErrorHandlingMode
 from ..validation import SemanticAnalyzer, ValidationPipeline, ValidationReport, Issue, Severity

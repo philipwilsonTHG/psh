@@ -6,12 +6,12 @@ and/or lists, and statement sequencing.
 """
 
 from typing import Optional, Union, List
-from ..token_types import Token, TokenType
-from ..ast_nodes import (
+from ....token_types import Token, TokenType
+from ....ast_nodes import (
     Statement, CommandList, AndOrList, BreakStatement, ContinueStatement,
     Pipeline, StatementList
 )
-from .recursive_descent.helpers import TokenGroups
+from ..helpers import TokenGroups
 
 
 class StatementParser:

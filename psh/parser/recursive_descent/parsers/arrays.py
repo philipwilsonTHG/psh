@@ -5,10 +5,10 @@ This module handles parsing of array assignments and initializations.
 """
 
 from typing import List
-from ..token_types import Token, TokenType
-from ..ast_nodes import ArrayAssignment, ArrayInitialization, ArrayElementAssignment
-from ..token_stream import TokenStream
-from .recursive_descent.helpers import TokenGroups
+from ....token_types import Token, TokenType
+from ....ast_nodes import ArrayAssignment, ArrayInitialization, ArrayElementAssignment
+from ....token_stream import TokenStream
+from ..helpers import TokenGroups
 
 
 class ArrayParser:

@@ -4,8 +4,8 @@ Function parsing for PSH shell.
 This module handles parsing of function definitions.
 """
 
-from ..token_types import TokenType
-from ..ast_nodes import FunctionDef, CommandList
+from ....token_types import TokenType
+from ....ast_nodes import FunctionDef, CommandList
 
 
 class FunctionParser:

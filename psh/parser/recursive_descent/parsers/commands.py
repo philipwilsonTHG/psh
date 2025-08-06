@@ -5,15 +5,15 @@ This module handles parsing of commands, pipelines, and command arguments.
 """
 
 from typing import Tuple, Optional, List, Union
-from ..token_types import Token, TokenType
-from ..token_stream import TokenStream
-from ..ast_nodes import (
+from ....token_types import Token, TokenType
+from ....token_stream import TokenStream
+from ....ast_nodes import (
     SimpleCommand, Pipeline, Command, Statement, AndOrList,
     WhileLoop, ForLoop, CStyleForLoop, IfConditional, CaseConditional, 
     SelectLoop, ArithmeticEvaluation, BreakStatement, ContinueStatement,
     SubshellGroup, BraceGroup, ExecutionContext, ArrayAssignment
 )
-from .recursive_descent.helpers import TokenGroups, ParseError, ErrorContext
+from ..helpers import TokenGroups, ParseError, ErrorContext
 
 
 class CommandParser:
@@ -39,7 +39,7 @@ class CommandParser:
             return
         
         # Import RichToken to check if token has parts
-        from ..lexer.token_parts import RichToken
+        from ....lexer.token_parts import RichToken
         
         # If it's a RichToken, check its parts for unclosed expansions
         if isinstance(token, RichToken) and token.parts:
@@ -442,9 +442,9 @@ class CommandParser:
     
     def parse_argument_as_word(self) -> 'Word':
         """Parse an argument as a Word AST node with expansions."""
-        from ..ast_nodes import Word
-        from .word_builder import WordBuilder
-        from ..token_stream import TokenStream
+        from ....ast_nodes import Word
+        from ....word_builder import WordBuilder
+        from ....token_stream import TokenStream
         
         # Check for composite tokens
         stream = TokenStream(self.parser.tokens, self.parser.current)

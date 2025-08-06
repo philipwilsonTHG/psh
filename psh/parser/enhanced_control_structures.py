@@ -9,7 +9,7 @@ from ..ast_nodes import (
     Statement, StatementList
 )
 from .enhanced_base import EnhancedContextBaseParser, EnhancedParserConfig
-from .control_structures import ControlStructureParser
+from .recursive_descent.parsers.control_structures import ControlStructureParser
 
 
 class EnhancedControlStructureParser(ControlStructureParser):

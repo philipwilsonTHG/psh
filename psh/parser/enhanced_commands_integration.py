@@ -6,7 +6,7 @@ from ..token_types import Token
 from ..token_enhanced import TokenContext, SemanticType
 from ..ast_nodes import SimpleCommand, Pipeline, ArrayAssignment
 from .enhanced_base import EnhancedContextBaseParser, EnhancedParserConfig
-from .commands import CommandParser
+from .recursive_descent.parsers.commands import CommandParser
 
 
 class EnhancedCommandParser(CommandParser):
