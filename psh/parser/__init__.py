@@ -26,14 +26,22 @@ except ImportError:
     from .context_factory import ParserContextFactory, ContextConfiguration
     from .context_snapshots import ContextSnapshot, BacktrackingParser, SpeculativeParser
 from .config import ParserConfig, ParsingMode, ErrorHandlingMode
-from .factory import ParserFactory, ConfigurationValidator
 
 # Standard parser components (enhanced features built-in)
 try:
     from .recursive_descent.base_context import ContextBaseParser
+    from .recursive_descent.support.factory import ParserFactory, ConfigurationValidator
+    from .recursive_descent.support.integration_manager import create_fully_enhanced_parser as create_parser
 except ImportError:
-    from .base_context import ContextBaseParser
-from .integration_manager import create_fully_enhanced_parser as create_parser
+    try:
+        from .base_context import ContextBaseParser
+        from .factory import ParserFactory, ConfigurationValidator
+        from .integration_manager import create_fully_enhanced_parser as create_parser
+    except ImportError:
+        # If files are partially moved
+        from .recursive_descent.base_context import ContextBaseParser
+        from .recursive_descent.support.factory import ParserFactory, ConfigurationValidator
+        from .recursive_descent.support.integration_manager import create_fully_enhanced_parser as create_parser
 
 # Public API
 __all__ = [
@@ -71,7 +79,10 @@ def parse(tokens, config=None):
 
 def parse_with_heredocs(tokens, heredoc_map):
     """Parse tokens with heredoc content."""
-    from .utils import parse_with_heredocs as utils_parse_with_heredocs
+    try:
+        from .recursive_descent.support.utils import parse_with_heredocs as utils_parse_with_heredocs
+    except ImportError:
+        from .utils import parse_with_heredocs as utils_parse_with_heredocs
     return utils_parse_with_heredocs(tokens, heredoc_map)
 
 

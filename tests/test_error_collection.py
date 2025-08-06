@@ -2,9 +2,9 @@
 
 import pytest
 from psh.lexer import tokenize
-from psh.parser.main import Parser
-from psh.parser.helpers import ParseError
-from psh.parser.error_collector import ErrorCollector, MultiErrorParseResult, ErrorRecoveryStrategy, RecoveryPoints
+from psh.parser.recursive_descent.parser import Parser
+from psh.parser.recursive_descent.helpers import ParseError
+from psh.parser.recursive_descent.support.error_collector import ErrorCollector, MultiErrorParseResult, ErrorRecoveryStrategy, RecoveryPoints
 from psh.token_types import TokenType
 
 

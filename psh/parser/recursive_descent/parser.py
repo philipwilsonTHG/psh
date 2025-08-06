@@ -28,7 +28,7 @@ from .base_context import ContextBaseParser
 from .context import ParserContext
 from .support.context_factory import ParserContextFactory
 from .helpers import TokenGroups, ParseError, ErrorContext
-from ..error_collector import ErrorCollector, MultiErrorParseResult, ErrorRecoveryStrategy
+from .support.error_collector import ErrorCollector, MultiErrorParseResult, ErrorRecoveryStrategy
 from .parsers.statements import StatementParser
 from .parsers.commands import CommandParser
 from .parsers.control_structures import ControlStructureParser

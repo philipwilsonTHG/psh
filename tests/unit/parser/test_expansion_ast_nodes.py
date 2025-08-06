@@ -5,7 +5,7 @@ from psh.ast_nodes import (
     Word, LiteralPart, ExpansionPart,
     VariableExpansion, CommandSubstitution, ParameterExpansion, ArithmeticExpansion
 )
-from psh.parser.word_builder import WordBuilder
+from psh.parser.recursive_descent.support.word_builder import WordBuilder
 from psh.token_types import Token, TokenType
 
 

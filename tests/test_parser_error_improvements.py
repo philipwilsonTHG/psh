@@ -3,7 +3,7 @@
 import pytest
 from psh.lexer import tokenize
 from psh.parser import Parser
-from psh.parser.helpers import ParseError
+from psh.parser.recursive_descent.helpers import ParseError
 from psh.parser.errors import ParserErrorCatalog, ErrorSuggester
 
 

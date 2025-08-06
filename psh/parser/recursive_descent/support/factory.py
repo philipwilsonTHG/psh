@@ -5,9 +5,9 @@ with different configurations for various use cases.
 """
 
 from typing import List, Optional
-from ..token_types import Token
-from .recursive_descent.parser import Parser
-from .config import ParserConfig, ParsingMode
+from ....token_types import Token
+from ..parser import Parser
+from ...config import ParserConfig, ParsingMode
 
 
 class ParserFactory:

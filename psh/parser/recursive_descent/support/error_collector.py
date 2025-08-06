@@ -3,10 +3,10 @@
 from typing import List, Optional, Set
 from dataclasses import dataclass, field
 try:
-    from .recursive_descent.helpers import ParseError
+    from ..helpers import ParseError
 except ImportError:
-    from .recursive_descent.helpers import ParseError
-from ..token_types import TokenType
+    from ..helpers import ParseError
+from ....token_types import TokenType
 
 
 @dataclass

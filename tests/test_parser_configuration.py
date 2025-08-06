@@ -7,7 +7,7 @@ from psh.parser import (
     ParserFactory, ConfigurationValidator, parse_strict_posix,
     parse_bash_compatible, parse_permissive
 )
-from psh.parser.helpers import ParseError
+from psh.parser.recursive_descent.helpers import ParseError
 
 
 class TestParserConfig:

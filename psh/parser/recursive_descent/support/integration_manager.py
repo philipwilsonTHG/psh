@@ -3,12 +3,12 @@
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
 
-from .recursive_descent.enhanced.base import EnhancedContextBaseParser, EnhancedParserConfig
-from .recursive_descent.enhanced.commands_integration import install_enhanced_command_parser
-from .recursive_descent.enhanced.control_structures import install_enhanced_control_structure_parser
-from .recursive_descent.enhanced.statements import install_enhanced_statement_parser
-from .recursive_descent.enhanced.error_recovery import install_enhanced_error_recovery
-from ..token_types import Token
+from ..enhanced.base import EnhancedContextBaseParser, EnhancedParserConfig
+from ..enhanced.commands_integration import install_enhanced_command_parser
+from ..enhanced.control_structures import install_enhanced_control_structure_parser
+from ..enhanced.statements import install_enhanced_statement_parser
+from ..enhanced.error_recovery import install_enhanced_error_recovery
+from ....token_types import Token
 
 
 @dataclass
@@ -299,23 +299,23 @@ class EnhancedParserIntegrationManager:
         if isinstance(self.parser, EnhancedContextBaseParser):
             if not hasattr(self.parser, 'commands'):
                 # Create a minimal compatibility commands parser
-                from .recursive_descent.enhanced.commands_integration import EnhancedCommandParser
+                from ..enhanced.commands_integration import EnhancedCommandParser
                 self.parser.commands = EnhancedCommandParser(self.parser)
             
             if not hasattr(self.parser, 'control_structures'):
                 # Create a minimal compatibility control structures parser
-                from .recursive_descent.enhanced.control_structures import EnhancedControlStructureParser
+                from ..enhanced.control_structures import EnhancedControlStructureParser
                 self.parser.control_structures = EnhancedControlStructureParser(self.parser)
             
             if not hasattr(self.parser, 'statements'):
                 # Create a minimal compatibility statements parser  
-                from .recursive_descent.enhanced.statements import EnhancedStatementParser
+                from ..enhanced.statements import EnhancedStatementParser
                 self.parser.statements = EnhancedStatementParser(self.parser)
 
 
 def create_fully_enhanced_parser(tokens_or_contract, config: Optional[EnhancedParserConfig] = None):
     """Create a fully enhanced parser with all components integrated."""
-    from .recursive_descent.enhanced.integration import create_enhanced_parser
+    from ..enhanced.integration import create_enhanced_parser
     
     # Create base enhanced parser
     parser = create_enhanced_parser(tokens_or_contract, config)

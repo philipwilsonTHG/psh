@@ -5,8 +5,8 @@ represent expansions within command arguments.
 """
 
 from typing import List, Optional, Tuple
-from ..token_types import Token, TokenType
-from ..ast_nodes import (
+from ....token_types import Token, TokenType
+from ....ast_nodes import (
     Word, WordPart, LiteralPart, ExpansionPart,
     VariableExpansion, CommandSubstitution, ParameterExpansion,
     ArithmeticExpansion, Expansion

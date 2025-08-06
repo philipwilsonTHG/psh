@@ -181,7 +181,7 @@ class BaseParser:
                 self.error_collector.add_error(e)
                 
                 # Import here to avoid circular imports
-                from ..error_collector import RecoveryPoints
+                from .support.error_collector import RecoveryPoints
                 recovery_points = RecoveryPoints()
                 
                 self.panic_mode_recovery(recovery_points.STATEMENT_START)
