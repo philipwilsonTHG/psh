@@ -5,10 +5,10 @@ to work with the centralized ParserContext.
 """
 
 from typing import TYPE_CHECKING
-from .context import ParserContext
+from .recursive_descent.context import ParserContext
 
 if TYPE_CHECKING:
-    from .main import Parser
+    from .recursive_descent.parser import Parser
 
 
 class SubParserBase:

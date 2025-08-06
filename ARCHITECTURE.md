@@ -261,21 +261,35 @@ The parser converts tokens into an Abstract Syntax Tree (AST) using a modular de
 
 The parser has been significantly enhanced with a complete implementation of the Parser High-Priority Improvements Plan:
 
-#### Core Parser Modules
-- **`psh/parser/main.py`** - Main Parser class with delegation orchestration and ParserContext integration
-- **`psh/parser/commands.py`** - Command and pipeline parsing  
-- **`psh/parser/statements.py`** - Statement list and control flow parsing
-- **`psh/parser/control_structures.py`** - All control structures (if, while, for, case, select)
-- **`psh/parser/tests.py`** - Enhanced test expression parsing with regex support
-- **`psh/parser/arithmetic.py`** - Arithmetic command and expression parsing
-- **`psh/parser/redirections.py`** - I/O redirection parsing
-- **`psh/parser/arrays.py`** - Array initialization and assignment parsing
-- **`psh/parser/functions.py`** - Function definition parsing
-- **`psh/parser/utils.py`** - Utility functions and heredoc handling
-- **`psh/parser/base.py`** - Base parser class with token management
-- **`psh/parser/base_context.py`** - New ContextBaseParser using ParserContext
-- **`psh/parser/helpers.py`** - Helper classes and token groups
-- **`psh/parser/__init__.py`** - Clean public API with backward compatibility
+#### Parser Structure
+
+The parser is organized into two main implementations:
+
+##### Recursive Descent Parser (`psh/parser/recursive_descent/`)
+- **`parser.py`** - Main Parser class with delegation orchestration
+- **`base.py`** - Base parser class with token management
+- **`base_context.py`** - ContextBaseParser using ParserContext
+- **`context.py`** - Centralized parser context management
+- **`helpers.py`** - Helper classes and token groups
+- **`parsers/`** - Feature-specific parsers:
+  - `commands.py` - Command and pipeline parsing
+  - `statements.py` - Statement list and control flow parsing
+  - `control_structures.py` - All control structures (if, while, for, case, select)
+  - `tests.py` - Enhanced test expression parsing with regex support
+  - `arithmetic.py` - Arithmetic command and expression parsing
+  - `redirections.py` - I/O redirection parsing
+  - `arrays.py` - Array initialization and assignment parsing
+  - `functions.py` - Function definition parsing
+- **`enhanced/`** - Enhanced parsing features
+- **`support/`** - Support utilities:
+  - `utils.py` - Utility functions and heredoc handling
+  - `context_factory.py` - Parser context factory
+  - `error_collector.py` - Multi-error collection
+  - `word_builder.py` - Word AST node construction
+
+##### Parser Combinator (`psh/parser/combinators/`)
+- Alternative functional parser implementation
+- **`psh/parser/__init__.py`** - Clean public API for parser package
 
 #### Parser Configuration System (v0.85.0)
 - **`psh/parser/config.py`** - Comprehensive ParserConfig with 40+ configuration options

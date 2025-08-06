@@ -3,11 +3,11 @@
 import pytest
 from unittest.mock import Mock
 
-from psh.parser.context import ParserContext, ParserProfiler, HeredocInfo
-from psh.parser.context_factory import ParserContextFactory
-from psh.parser.context_snapshots import ContextSnapshot, BacktrackingParser, SpeculativeParser
+from psh.parser.recursive_descent.context import ParserContext, ParserProfiler, HeredocInfo
+from psh.parser.recursive_descent.support.context_factory import ParserContextFactory
+from psh.parser.recursive_descent.support.context_snapshots import ContextSnapshot, BacktrackingParser, SpeculativeParser
 from psh.parser.config import ParserConfig, ParsingMode, ErrorHandlingMode
-from psh.parser.helpers import ParseError
+from psh.parser.recursive_descent.helpers import ParseError
 from psh.token_types import Token, TokenType
 
 

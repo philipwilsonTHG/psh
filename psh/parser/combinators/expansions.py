@@ -12,7 +12,7 @@ from ...ast_nodes import (
     ArithmeticExpansion, ProcessSubstitution
 )
 from ..config import ParserConfig
-from ..word_builder import WordBuilder
+from ..recursive_descent.support.word_builder import WordBuilder
 from .core import Parser, ParseResult, token
 
 

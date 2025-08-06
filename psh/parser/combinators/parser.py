@@ -125,6 +125,33 @@ class ParserCombinatorShellParser(AbstractShellParser):
         if hasattr(self.commands, 'set_command_parser'):
             self.commands.set_command_parser(self.command)
         
+        # CRITICAL: Update the statement parser to include control structures
+        # The statement parser was built before control structures were available
+        # Now we need to update it to use the full command parser
+        self.commands.statement = (
+            # Try function definitions first
+            self.control.function_def
+            # Then the full command parser (control structures, special commands, and-or lists)
+            .or_else(self.command)
+        )
+        
+        # Rebuild statement_list parser with the updated statement parser
+        # The statement_list was built with the old statement parser that only had and_or_list
+        from .core import optional, many1, separated_by, sequence
+        separator = self.tokens.semicolon.or_else(self.tokens.newline)
+        separators = many1(separator)
+        
+        # Rebuild with simpler logic - use simple many parser
+        # Try parsing statements until we can't parse any more
+        from .core import many
+        self.commands.statement_list = many(
+            sequence(
+                optional(separators),  # Optional leading separators
+                self.commands.statement,  # The statement
+                optional(separators)  # Optional trailing separators
+            ).map(lambda parts: parts[1])  # Extract just the statement
+        ).map(lambda stmts: CommandList(statements=stmts if stmts else []))
+        
         # Build top-level parser (statement list)
         self.top_level = self.commands.statement_list
     
@@ -166,9 +193,9 @@ class ParserCombinatorShellParser(AbstractShellParser):
         # Get the parsed AST
         ast = result.value
         
-        # Ensure we consumed all tokens (allowing trailing whitespace/newlines)
+        # Ensure we consumed all tokens (allowing trailing whitespace/newlines and EOF)
         pos = result.position
-        while pos < len(tokens) and tokens[pos].type.name in ['WHITESPACE', 'NEWLINE']:
+        while pos < len(tokens) and tokens[pos].type.name in ['WHITESPACE', 'NEWLINE', 'EOF']:
             pos += 1
         
         if pos < len(tokens):
