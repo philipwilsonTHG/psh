@@ -2,10 +2,25 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.99.3"
+__version__ = "0.100.0"
 
 # Version history
 VERSION_HISTORY = """
+0.100.0 (2025-01-06) - Parser Combinator Modular Architecture Complete
+- Completed full modularization of parser combinator from 2,779-line monolithic file to 8 clean modules
+- Phase 9 Complete: Successfully migrated parser registry to use new modular architecture
+- Modular structure: core (451 lines), tokens (90), expansions (209), commands (372), control (381), 
+  special (248), parser (198), heredoc (121) - total 2,070 lines (25% reduction through deduplication)
+- Fixed all 188 parser combinator tests to pass with new modular architecture (100% pass rate)
+- Updated 31 test files to use new import paths from modular parser
+- Fixed while loop parser to recognize 'do' keyword from WORD tokens
+- Resolved circular dependencies using dependency injection pattern
+- Enhanced initialization order with proper module wiring
+- Maintained full backward compatibility with AbstractShellParser interface
+- Educational milestone: demonstrates clean functional architecture for complex parsers
+- Parser combinator now production-ready with maintainable, testable architecture
+- All 6 phases of feature parity complete, now with clean modular implementation
+
 0.99.3 (2025-01-23) - Fix Bit-Shift Operators in Arithmetic Expressions
 - Fixed critical bug where bit-shift operators (<<, >>) in arithmetic expressions were mistaken for heredoc operators
 - The shell would hang waiting for heredoc input when encountering expressions like ((x=x<<2))

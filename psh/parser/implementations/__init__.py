@@ -6,7 +6,9 @@ of different parsing approaches.
 """
 
 from .recursive_descent_adapter import RecursiveDescentAdapter
-from .parser_combinator_example import ParserCombinatorShellParser
+
+# Import the new modular parser combinator implementation
+from ..combinators.parser import ParserCombinatorShellParser
 
 __all__ = [
     'RecursiveDescentAdapter',
