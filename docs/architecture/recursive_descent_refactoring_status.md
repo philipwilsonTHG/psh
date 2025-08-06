@@ -7,7 +7,7 @@ This document tracks the progress of refactoring the recursive descent parser fr
 **Start Date**: 2025-01-06  
 **Target Structure**: Parallel to `combinators/` package
 
-## Current Status: Phase 5 Complete ✅
+## Current Status: Phase 6 Complete ✅
 
 ### Completed Phases
 
@@ -86,12 +86,19 @@ This document tracks the progress of refactoring the recursive descent parser fr
   - Fixed combinators package imports for word_builder
   - Updated test imports in 4 test files
 
-### Remaining Phases
+#### Phase 6: Update External References ✅
+**Completed**: 2025-01-06
+- **Files Updated**:
+  - test_parser_visualization.py
+  - test_error_collection.py
+  - test_parser_error_improvements.py
+  - tests_new/unit/parser/test_parser_context.py
+  - sub_parser_base.py
+  - commands.py (fixed word_builder import)
+  
+- **Testing**: Full test suite passing (2593 passed, 162 skipped)
 
-#### Phase 6: Update External References
-**Status**: Pending
-- Update all imports throughout codebase
-- Run comprehensive test suite
+### Remaining Phases
 
 #### Phase 7: Cleanup
 **Status**: Pending
@@ -162,7 +169,7 @@ from psh.parser.control_structures import ControlStructureParser
 | Phase 3 | 8 feature parsers | ✅ Complete |
 | Phase 4 | 8 enhanced features | ✅ Complete |
 | Phase 5 | 4 support files | ✅ Complete |
-| Phase 6 | 0 (updates only) | ⏳ Pending |
+| Phase 6 | 0 (updates only) | ✅ Complete |
 | Phase 7 | 0 (cleanup only) | ⏳ Pending |
 
 **Total Files to Migrate**: 28  
