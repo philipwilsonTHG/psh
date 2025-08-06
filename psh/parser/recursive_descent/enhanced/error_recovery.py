@@ -4,10 +4,10 @@ from typing import List, Optional, Dict, Any, Tuple
 from dataclasses import dataclass
 from enum import Enum
 
-from ..token_types import Token, TokenType
-from ..token_enhanced import LexerError, TokenContext
-from .enhanced_base import EnhancedContextBaseParser
-from .recursive_descent.helpers import ParseError
+from ....token_types import Token, TokenType
+from ....token_enhanced import LexerError, TokenContext
+from .base import EnhancedContextBaseParser
+from ..helpers import ParseError
 
 
 class RecoveryStrategy(Enum):

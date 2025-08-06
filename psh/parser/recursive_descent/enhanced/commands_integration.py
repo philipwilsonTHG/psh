@@ -1,12 +1,12 @@
 """Enhanced integration for existing command parser components."""
 
 from typing import List, Optional, Union, Any
-from ..token_types import Token, TokenType
-from ..token_types import Token
-from ..token_enhanced import TokenContext, SemanticType
-from ..ast_nodes import SimpleCommand, Pipeline, ArrayAssignment
-from .enhanced_base import EnhancedContextBaseParser, EnhancedParserConfig
-from .recursive_descent.parsers.commands import CommandParser
+from ....token_types import Token, TokenType
+from ....token_types import Token
+from ....token_enhanced import TokenContext, SemanticType
+from ....ast_nodes import SimpleCommand, Pipeline, ArrayAssignment
+from .base import EnhancedContextBaseParser, EnhancedParserConfig
+from ..parsers.commands import CommandParser
 
 
 class EnhancedCommandParser(CommandParser):

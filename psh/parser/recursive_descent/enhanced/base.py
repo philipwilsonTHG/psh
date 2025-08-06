@@ -3,12 +3,12 @@
 from typing import List, Optional, Union, Any, Dict
 from dataclasses import dataclass
 
-from .recursive_descent.base_context import ContextBaseParser
-from .recursive_descent.context import ParserContext
-from .config import ParserConfig
-from ..token_types import Token, TokenType
-from ..token_enhanced import TokenContext, SemanticType, LexerError
-from ..lexer.parser_contract import LexerParserContract, extract_legacy_tokens
+from ..base_context import ContextBaseParser
+from ..context import ParserContext
+from ...config import ParserConfig
+from ....token_types import Token, TokenType
+from ....token_enhanced import TokenContext, SemanticType, LexerError
+from ....lexer.parser_contract import LexerParserContract, extract_legacy_tokens
 
 
 @dataclass
@@ -378,7 +378,7 @@ class EnhancedContextBaseParser(ContextBaseParser):
         This method provides enhanced parsing that leverages token metadata,
         context validation, and semantic analysis.
         """
-        from ..ast_nodes import TopLevel, CommandList
+        from ....ast_nodes import TopLevel, CommandList
         
         # Use enhanced parsing with modular structure
         if hasattr(self, 'statements') and hasattr(self.statements, 'parse_command_list'):
@@ -389,7 +389,7 @@ class EnhancedContextBaseParser(ContextBaseParser):
                 return self.statements.parse_command_list()
         
         # Direct enhanced parsing if no modular structure
-        from .recursive_descent.parser import Parser
+        from ..parser import Parser
         
         # Convert our tokens to basic tokens if needed for fallback
         basic_tokens = self._convert_to_basic_tokens(self.ctx.tokens)
@@ -404,7 +404,7 @@ def create_enhanced_parser(
     config: Optional[EnhancedParserConfig] = None
 ) -> EnhancedContextBaseParser:
     """Create an enhanced parser from various input types."""
-    from .recursive_descent.support.context_factory import ParserContextFactory
+    from ..support.context_factory import ParserContextFactory
     
     enhanced_config = config or EnhancedParserConfig()
     
@@ -434,7 +434,7 @@ def parse_with_enhanced_lexer(
 ) -> Any:
     """Parse using enhanced lexer-parser pipeline (now the standard implementation)."""
     # Import here to avoid circular imports
-    from ..lexer.enhanced_integration import enhanced_tokenize
+    from ....lexer.enhanced_integration import enhanced_tokenize
     
     # Get tokens using enhanced lexer (now the only option)
     lexer_result = enhanced_tokenize(input_string, enable_enhancements=True)

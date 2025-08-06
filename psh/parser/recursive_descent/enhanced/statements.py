@@ -1,15 +1,15 @@
 """Enhanced statement parsing using token metadata."""
 
 from typing import Optional, Union, List
-from ..token_types import TokenType
-from ..token_types import Token
-from ..token_enhanced import TokenContext, SemanticType
-from ..ast_nodes import (
+from ....token_types import TokenType
+from ....token_types import Token
+from ....token_enhanced import TokenContext, SemanticType
+from ....ast_nodes import (
     Statement, CommandList, AndOrList, Pipeline, StatementList,
     BreakStatement, ContinueStatement
 )
-from .enhanced_base import EnhancedContextBaseParser, EnhancedParserConfig
-from .recursive_descent.parsers.statements import StatementParser
+from .base import EnhancedContextBaseParser, EnhancedParserConfig
+from ..parsers.statements import StatementParser
 
 
 class EnhancedStatementParser(StatementParser):

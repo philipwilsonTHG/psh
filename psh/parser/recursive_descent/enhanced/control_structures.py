@@ -1,15 +1,15 @@
 """Enhanced control structure parsing using token metadata."""
 
 from typing import Union, List, Optional
-from ..token_types import Token, TokenType
-from ..token_enhanced import TokenContext, SemanticType
-from ..ast_nodes import (
+from ....token_types import Token, TokenType
+from ....token_enhanced import TokenContext, SemanticType
+from ....ast_nodes import (
     UnifiedControlStructure, IfConditional, WhileLoop, ForLoop, 
     CaseConditional, SelectLoop, BreakStatement, ContinueStatement,
     Statement, StatementList
 )
-from .enhanced_base import EnhancedContextBaseParser, EnhancedParserConfig
-from .recursive_descent.parsers.control_structures import ControlStructureParser
+from .base import EnhancedContextBaseParser, EnhancedParserConfig
+from ..parsers.control_structures import ControlStructureParser
 
 
 class EnhancedControlStructureParser(ControlStructureParser):

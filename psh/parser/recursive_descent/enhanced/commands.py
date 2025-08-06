@@ -3,11 +3,11 @@
 from typing import List, Optional, Dict, Any
 from dataclasses import dataclass
 
-from .enhanced_base import EnhancedContextBaseParser, EnhancedParserConfig
-from ..token_types import TokenType
-from ..token_types import Token
-from ..token_enhanced import TokenContext, SemanticType
-from ..ast_nodes import SimpleCommand, TestExpression, BinaryTestExpression, ArrayAssignment
+from .base import EnhancedContextBaseParser, EnhancedParserConfig
+from ....token_types import TokenType
+from ....token_types import Token
+from ....token_enhanced import TokenContext, SemanticType
+from ....ast_nodes import SimpleCommand, TestExpression, BinaryTestExpression, ArrayAssignment
 
 
 @dataclass
@@ -201,7 +201,7 @@ class EnhancedSimpleCommandParser(EnhancedContextBaseParser):
         target_token = self.advance()
         
         # Could add enhanced validation here
-        from ..ast_nodes import Redirection
+        from ....ast_nodes import Redirection
         return Redirection(
             type=redirect_token.type,
             target=target_token.value,
@@ -260,7 +260,7 @@ class EnhancedTestParser(EnhancedContextBaseParser):
         while self.match(TokenType.OR_OR):
             op = self.advance()
             right = self._parse_test_and_expression()
-            from ..ast_nodes import BinaryOperation
+            from ....ast_nodes import BinaryOperation
             left = BinaryOperation(left=left, operator=op.value, right=right)
         
         return left
@@ -272,7 +272,7 @@ class EnhancedTestParser(EnhancedContextBaseParser):
         while self.match(TokenType.AND_AND):
             op = self.advance()
             right = self._parse_test_comparison()
-            from ..ast_nodes import BinaryOperation
+            from ....ast_nodes import BinaryOperation
             left = BinaryOperation(left=left, operator=op.value, right=right)
         
         return left
@@ -307,7 +307,7 @@ class EnhancedTestParser(EnhancedContextBaseParser):
         if self.match(TokenType.BANG):
             op = self.advance()
             expr = self._parse_test_primary()
-            from ..ast_nodes import UnaryOperation
+            from ....ast_nodes import UnaryOperation
             return UnaryOperation(operator=op.value, operand=expr)
         
         # Handle parentheses
@@ -321,12 +321,12 @@ class EnhancedTestParser(EnhancedContextBaseParser):
         if self.peek().value.startswith('-') and len(self.peek().value) == 2:
             op = self.advance()
             operand = self._parse_test_primary()
-            from ..ast_nodes import UnaryOperation
+            from ....ast_nodes import UnaryOperation
             return UnaryOperation(operator=op.value, operand=operand)
         
         # Handle variables and literals
         token = self.advance()
-        from ..ast_nodes import Variable, Literal
+        from ....ast_nodes import Variable, Literal
         
         if token.type == TokenType.VARIABLE:
             return Variable(name=token.value)
@@ -370,7 +370,7 @@ class EnhancedArithmeticParser(EnhancedContextBaseParser):
         while self.match(TokenType.PIPE):  # Bitwise OR
             op = self.advance()
             right = self._parse_arithmetic_and()
-            from ..ast_nodes import BinaryOperation
+            from ....ast_nodes import BinaryOperation
             left = BinaryOperation(left=left, operator=op.value, right=right)
         
         return left
@@ -382,7 +382,7 @@ class EnhancedArithmeticParser(EnhancedContextBaseParser):
         while self.match(TokenType.AMPERSAND):  # Bitwise AND
             op = self.advance()
             right = self._parse_arithmetic_equality()
-            from ..ast_nodes import BinaryOperation
+            from ....ast_nodes import BinaryOperation
             left = BinaryOperation(left=left, operator=op.value, right=right)
         
         return left
@@ -394,7 +394,7 @@ class EnhancedArithmeticParser(EnhancedContextBaseParser):
         while self.match(TokenType.EQUAL, TokenType.NOT_EQUAL):
             op = self.advance()
             right = self._parse_arithmetic_relational()
-            from ..ast_nodes import BinaryOperation
+            from ....ast_nodes import BinaryOperation
             left = BinaryOperation(left=left, operator=op.value, right=right)
         
         return left
@@ -407,7 +407,7 @@ class EnhancedArithmeticParser(EnhancedContextBaseParser):
                          TokenType.LESS_EQUAL, TokenType.GREATER_EQUAL):
             op = self.advance()
             right = self._parse_arithmetic_additive()
-            from ..ast_nodes import BinaryOperation
+            from ....ast_nodes import BinaryOperation
             left = BinaryOperation(left=left, operator=op.value, right=right)
         
         return left
@@ -419,7 +419,7 @@ class EnhancedArithmeticParser(EnhancedContextBaseParser):
         while self.match(TokenType.PLUS, TokenType.MINUS):
             op = self.advance()
             right = self._parse_arithmetic_multiplicative()
-            from ..ast_nodes import BinaryOperation
+            from ....ast_nodes import BinaryOperation
             left = BinaryOperation(left=left, operator=op.value, right=right)
         
         return left
@@ -431,7 +431,7 @@ class EnhancedArithmeticParser(EnhancedContextBaseParser):
         while self.match(TokenType.STAR, TokenType.SLASH, TokenType.PERCENT):
             op = self.advance()
             right = self._parse_arithmetic_unary()
-            from ..ast_nodes import BinaryOperation
+            from ....ast_nodes import BinaryOperation
             left = BinaryOperation(left=left, operator=op.value, right=right)
         
         return left
@@ -441,7 +441,7 @@ class EnhancedArithmeticParser(EnhancedContextBaseParser):
         if self.match(TokenType.PLUS, TokenType.MINUS, TokenType.BANG):
             op = self.advance()
             expr = self._parse_arithmetic_unary()
-            from ..ast_nodes import UnaryOperation
+            from ....ast_nodes import UnaryOperation
             return UnaryOperation(operator=op.value, operand=expr)
         
         return self._parse_arithmetic_primary()
@@ -457,7 +457,7 @@ class EnhancedArithmeticParser(EnhancedContextBaseParser):
         
         # Handle variables and numbers
         token = self.advance()
-        from ..ast_nodes import Variable, Literal
+        from ....ast_nodes import Variable, Literal
         
         if token.type == TokenType.VARIABLE:
             return Variable(name=token.value)

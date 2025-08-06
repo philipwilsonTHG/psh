@@ -2,12 +2,12 @@
 
 from typing import List, Optional, Union, Any, Dict
 
-from .enhanced_base import EnhancedContextBaseParser, EnhancedParserConfig, create_enhanced_parser
-from .enhanced_factory import EnhancedParserFactory, create_development_parser, create_production_parser
-from .enhanced_commands import EnhancedSimpleCommandParser, EnhancedTestParser
-from ..token_types import Token
-from ..token_types import Token
-from ..lexer.parser_contract import LexerParserContract
+from .base import EnhancedContextBaseParser, EnhancedParserConfig, create_enhanced_parser
+from ...factory import EnhancedParserFactory, create_development_parser, create_production_parser
+from .commands import EnhancedSimpleCommandParser, EnhancedTestParser
+from ....token_types import Token
+from ....token_types import Token
+from ....lexer.parser_contract import LexerParserContract
 
 
 def parse_with_enhanced_lexer(
@@ -18,14 +18,14 @@ def parse_with_enhanced_lexer(
 ) -> Any:
     """Parse using enhanced lexer-parser pipeline."""
     # Import here to avoid circular imports
-    from ..lexer.enhanced_integration import enhanced_tokenize
+    from ....lexer.enhanced_integration import enhanced_tokenize
     
     # Get tokens using enhanced lexer
     if use_enhanced_features:
         lexer_result = enhanced_tokenize(input_string, enable_enhancements=True)
     else:
         # Fallback to base lexer
-        from ..lexer import tokenize
+        from ....lexer import tokenize
         lexer_result = tokenize(input_string)
     
     # Create enhanced parser
@@ -102,7 +102,7 @@ def analyze_command_semantics(
     """Analyze command semantics using enhanced parser."""
     # Handle string input by tokenizing first
     if isinstance(input_command, str):
-        from ..lexer.enhanced_integration import enhanced_tokenize
+        from ....lexer.enhanced_integration import enhanced_tokenize
         tokens_or_contract = enhanced_tokenize(input_command, enable_enhancements=True)
     else:
         tokens_or_contract = input_command

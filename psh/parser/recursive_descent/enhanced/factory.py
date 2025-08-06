@@ -2,13 +2,13 @@
 
 from typing import Optional, Union, List
 
-from .enhanced_base import EnhancedContextBaseParser, EnhancedParserConfig
-from .recursive_descent.context import ParserContext
-from .config import ParserConfig
-from ..token_types import Token
-from ..token_types import Token
-from ..lexer.parser_contract import LexerParserContract
-from ..lexer.token_stream_validator import TokenStreamValidationResult
+from .base import EnhancedContextBaseParser, EnhancedParserConfig
+from ..context import ParserContext
+from ...config import ParserConfig
+from ....token_types import Token
+from ....token_types import Token
+from ....lexer.parser_contract import LexerParserContract
+from ....lexer.token_stream_validator import TokenStreamValidationResult
 
 
 class EnhancedParserFactory:
@@ -20,7 +20,7 @@ class EnhancedParserFactory:
         config: Optional[EnhancedParserConfig] = None
     ) -> EnhancedContextBaseParser:
         """Create enhanced parser from lexer contract or token list."""
-        from .enhanced_base import create_enhanced_parser
+        from .base import create_enhanced_parser
         
         enhanced_config = config or EnhancedParserConfig()
         
@@ -41,7 +41,7 @@ class EnhancedParserFactory:
             return EnhancedContextBaseParser(ctx, enhanced_config)
         else:
             # Use standard parser
-            from .recursive_descent.parser import Parser
+            from ..parser import Parser
             return Parser(tokens, config)
     
     @staticmethod
@@ -77,7 +77,7 @@ class ParserContextFactory:
         lexer_validation: Optional[TokenStreamValidationResult] = None
     ) -> ParserContext:
         """Create enhanced parser context."""
-        from .recursive_descent.support.context_factory import ParserContextFactory as BaseFactory
+        from ..support.context_factory import ParserContextFactory as BaseFactory
         
         # Create base context
         base_config = ParserConfig()
@@ -121,7 +121,7 @@ class FullyEnhancedParser(EnhancedContextBaseParser):
         super().__init__(ctx, enhanced_config)
         
         # Initialize all enhancement components
-        from .enhanced_commands import EnhancedSimpleCommandParser, EnhancedTestParser
+        from .commands import EnhancedSimpleCommandParser, EnhancedTestParser
         self.command_parser = EnhancedSimpleCommandParser(ctx, enhanced_config)
         self.test_parser = EnhancedTestParser(ctx, enhanced_config)
     
