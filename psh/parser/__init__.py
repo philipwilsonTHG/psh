@@ -8,45 +8,23 @@ context-aware parsing, semantic analysis, and enhanced error recovery.
 
 from typing import Optional
 
-# Temporary compatibility layer during parser refactoring
-try:
-    # Try to import from new location
-    from .recursive_descent.parser import Parser
-    from .recursive_descent.helpers import ParseError, TokenGroups
-    from .recursive_descent.base import BaseParser
-    from .recursive_descent.context import ParserContext, ParserProfiler, HeredocInfo
-    from .recursive_descent.support.context_factory import ParserContextFactory, ContextConfiguration
-    from .recursive_descent.support.context_snapshots import ContextSnapshot, BacktrackingParser, SpeculativeParser
-except ImportError:
-    # Fall back to old locations if not yet moved
-    from .main import Parser
-    from .helpers import ParseError, TokenGroups
-    from .base import BaseParser
-    from .context import ParserContext, ParserProfiler, HeredocInfo
-    from .context_factory import ParserContextFactory, ContextConfiguration
-    from .context_snapshots import ContextSnapshot, BacktrackingParser, SpeculativeParser
+# Import from final locations
+from .recursive_descent.parser import Parser
+from .recursive_descent.helpers import ParseError, ErrorContext, TokenGroups
+from .recursive_descent.base import BaseParser
+from .recursive_descent.base_context import ContextBaseParser
+from .recursive_descent.context import ParserContext, ParserProfiler, HeredocInfo
+from .recursive_descent.support.context_factory import ParserContextFactory, ContextConfiguration
+from .recursive_descent.support.context_snapshots import ContextSnapshot, BacktrackingParser, SpeculativeParser
+from .recursive_descent.support.factory import ParserFactory, ConfigurationValidator
+from .recursive_descent.support.integration_manager import create_fully_enhanced_parser as create_parser
+from .recursive_descent.support.utils import parse_with_heredocs as utils_parse_with_heredocs
 from .config import ParserConfig, ParsingMode, ErrorHandlingMode
-
-# Standard parser components (enhanced features built-in)
-try:
-    from .recursive_descent.base_context import ContextBaseParser
-    from .recursive_descent.support.factory import ParserFactory, ConfigurationValidator
-    from .recursive_descent.support.integration_manager import create_fully_enhanced_parser as create_parser
-except ImportError:
-    try:
-        from .base_context import ContextBaseParser
-        from .factory import ParserFactory, ConfigurationValidator
-        from .integration_manager import create_fully_enhanced_parser as create_parser
-    except ImportError:
-        # If files are partially moved
-        from .recursive_descent.base_context import ContextBaseParser
-        from .recursive_descent.support.factory import ParserFactory, ConfigurationValidator
-        from .recursive_descent.support.integration_manager import create_fully_enhanced_parser as create_parser
 
 # Public API
 __all__ = [
     # Main API
-    'parse', 'parse_with_heredocs', 'Parser', 'ParseError', 'TokenGroups', 'BaseParser',
+    'parse', 'parse_with_heredocs', 'Parser', 'ParseError', 'ErrorContext', 'TokenGroups', 'BaseParser',
     'ContextBaseParser', 'ParserContext', 'ParserContextFactory', 'ContextConfiguration',
     'ContextSnapshot', 'BacktrackingParser', 'SpeculativeParser', 'ParserProfiler', 'HeredocInfo',
     'ParserConfig', 'ParsingMode', 'ErrorHandlingMode', 'ParserFactory', 'ConfigurationValidator',
@@ -79,10 +57,6 @@ def parse(tokens, config=None):
 
 def parse_with_heredocs(tokens, heredoc_map):
     """Parse tokens with heredoc content."""
-    try:
-        from .recursive_descent.support.utils import parse_with_heredocs as utils_parse_with_heredocs
-    except ImportError:
-        from .utils import parse_with_heredocs as utils_parse_with_heredocs
     return utils_parse_with_heredocs(tokens, heredoc_map)
 
 
@@ -123,28 +97,3 @@ def parse_permissive(tokens, source_text=None):
         Parsed AST (may be partial if errors occurred)
     """
     return ParserFactory.create_permissive_parser(tokens, source_text).parse()
-
-
-
-
-"""Temporary compatibility layer during parser refactoring.
-
-This module provides forwarding imports to maintain backward compatibility
-while migrating the recursive descent parser to its own package.
-"""
-
-# Phase 2: Core forwarding imports
-try:
-    from .recursive_descent.parser import Parser
-    from .recursive_descent.base import BaseParser
-    from .recursive_descent.context import ParserContext
-    from .recursive_descent.helpers import ParseError, ErrorContext, TokenGroups
-except ImportError:
-    # Fall back to original locations if not yet moved
-    from .main import Parser
-    from .base import BaseParser
-    from .context import ParserContext
-    from .helpers import ParseError, ErrorContext, TokenGroups
-
-# Export for backward compatibility
-__all__ = ['Parser', 'BaseParser', 'ParserContext', 'ParseError', 'ErrorContext', 'TokenGroups']

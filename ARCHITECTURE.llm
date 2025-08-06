@@ -18,8 +18,8 @@ Purpose: Optimized reference for LLMs working with PSH codebase
 3. Add tests in `tests/test_shell_options.py`
 
 **Modify parsing behavior:**
-1. Edit relevant file in `psh/parser/` package
-2. Update delegation in `psh/parser/main.py` if new parser modules added
+1. Edit relevant file in `psh/parser/recursive_descent/` package
+2. Update delegation in `psh/parser/recursive_descent/parser.py` if new parser modules added
 3. Use ParserConfig for configuration changes
 4. Add validation rules in `psh/parser/validation/` if needed
 5. Add tests in `tests/test_parser_*.py` or `tests_new/unit/parser/`
@@ -743,7 +743,7 @@ class MyBuiltin(BuiltinCommand):
 - **Expansion parsing:** `psh/lexer/expansion_parser.py` (Phase 3)
 - **Token recognizers:** `psh/lexer/recognizers/` (Phase 4)
 - **Integrated lexer:** `psh/lexer/modular_lexer.py` (Phase 4)
-- **Parser components:** `psh/parser/commands.py`, `psh/parser/control_structures.py`, etc.
+- **Parser components:** `psh/parser/recursive_descent/parsers/commands.py`, `psh/parser/recursive_descent/parsers/control_structures.py`, etc.
 - **Parser helpers:** `psh/parser/helpers.py` (TokenGroups, ParseError, etc.)
 
 ### Key Classes
