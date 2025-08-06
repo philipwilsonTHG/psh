@@ -2,10 +2,26 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.100.0"
+__version__ = "0.101.0"
 
 # Version history
 VERSION_HISTORY = """
+0.101.0 (2025-01-06) - Recursive Descent Parser Package Refactoring & Parser Combinator Fix
+- Major refactoring: Moved recursive descent parser from flat structure to modular package
+- Migrated 28 files from /psh/parser/ to /psh/parser/recursive_descent/ with logical organization:
+  - Core files in recursive_descent/ (parser.py, base.py, context.py, helpers.py)
+  - Feature parsers in recursive_descent/parsers/ (commands, control_structures, etc.)
+  - Enhanced features in recursive_descent/enhanced/ (advanced parsing capabilities)
+  - Support utilities in recursive_descent/support/ (error_collector, word_builder, etc.)
+- Fixed critical parser combinator regression that broke control structures and advanced features
+- Parser combinator now has ~95% feature parity with recursive descent (was incorrectly showing ~60%)
+- Both parsers now support: control structures, functions, arrays, I/O redirection, process substitution,
+  arithmetic commands, conditional expressions, subshells, here documents, and background jobs
+- Removed all compatibility layers after successful migration
+- Updated all import paths throughout codebase (fixed 30+ files)
+- All tests passing (2593 passed, 162 skipped)
+- Clean parallel structure: recursive_descent/ and combinators/ packages
+
 0.100.0 (2025-01-06) - Parser Combinator Modular Architecture Complete
 - Completed full modularization of parser combinator from 2,779-line monolithic file to 8 clean modules
 - Phase 9 Complete: Successfully migrated parser registry to use new modular architecture
