@@ -346,83 +346,108 @@ class ModularLexer:
             self.expansion_context.is_expansion_start(self.position)):
             return self._handle_backtick()
         
-        # Handle quotes (only if enabled)
+        # Handle quotes (only if enabled and not in array assignment)
         if char == '"' and self.config.enable_double_quotes and self.quote_context.is_quote_character(char):
+            # Check if we're inside a potential array assignment - if so, let literal recognizer handle it
+            if self._is_inside_potential_array_assignment():
+                return False
             return self._handle_quote(char)
         if char == "'" and self.config.enable_single_quotes and self.quote_context.is_quote_character(char):
+            # Check if we're inside a potential array assignment - if so, let literal recognizer handle it
+            if self._is_inside_potential_array_assignment():
+                return False
             return self._handle_quote(char)
         
         return False
     
     def _is_inside_potential_array_assignment(self) -> bool:
-        """Check if current position is inside a potential array assignment pattern."""
-        # Look backwards to see if we're inside arr[...] pattern that could be array assignment
+        """Check if we're potentially inside an array assignment pattern.
         
-        # Find the most recent unmatched opening bracket before current position
-        bracket_pos = -1
+        This is used to prevent quote/expansion parsing from breaking up
+        array assignments like arr["key"]=value or arr['key']=value.
+        """
+        # Look backward to see if we're in a pattern like NAME[...
+        # We need to find an unmatched opening bracket preceded by a valid identifier
+        
+        if self.position == 0:
+            return False
+        
+        # Debug output (TEMPORARY)
+        # print(f"DEBUG: Checking array assignment at pos {self.position}, char={self.input[self.position]!r}")
+        
+        # Scan backward from current position
+        pos = self.position - 1
         bracket_count = 0
+        found_opening_bracket = False
+        in_single_quote = False
+        in_double_quote = False
         
-        for i in range(self.position - 1, -1, -1):
-            char = self.input[i]
-            if char == ']':
-                bracket_count += 1
-            elif char == '[':
-                bracket_count -= 1
-                if bracket_count < 0:
-                    # Found unmatched opening bracket
-                    bracket_pos = i
+        while pos >= 0:
+            char = self.input[pos]
+            
+            # Track quotes (going backward, so logic is reversed)
+            if char == '"' and not in_single_quote:
+                in_double_quote = not in_double_quote
+            elif char == "'" and not in_double_quote:
+                in_single_quote = not in_single_quote
+            
+            # Track brackets (only outside quotes)
+            if not in_single_quote and not in_double_quote:
+                if char == ']':
+                    bracket_count += 1
+                elif char == '[':
+                    bracket_count -= 1
+                    if bracket_count < 0:
+                        # Found unmatched opening bracket
+                        found_opening_bracket = True
+                        # Check if it's preceded by a valid identifier
+                        if pos > 0:
+                            # Scan backward to find the start of the identifier
+                            id_end = pos - 1
+                            while id_end >= 0 and self.input[id_end] in ' \t':
+                                id_end -= 1
+                            
+                            if id_end >= 0:
+                                # Find the start of the identifier
+                                id_start = id_end
+                                from .unicode_support import is_identifier_char, is_identifier_start
+                                posix_mode = self.config.posix_mode if self.config else False
+                                
+                                while id_start > 0 and is_identifier_char(self.input[id_start - 1], posix_mode):
+                                    id_start -= 1
+                                
+                                # Check if we have a valid identifier
+                                if id_start <= id_end and is_identifier_start(self.input[id_start], posix_mode):
+                                    identifier = self.input[id_start:id_end + 1]
+                                    if all(is_identifier_char(c, posix_mode) for c in identifier):
+                                        # We're inside an array assignment pattern
+                                        return True
+                        break
+                
+                # Stop at word boundaries (unless we're tracking an array)
+                if char in '|&;(){}' and bracket_count == 0:
                     break
-            elif char in [' ', '\t', '\n', '\r', ';', '|', '&', '(', ')']:
-                # Word boundary - stop searching
-                break
+            
+            pos -= 1
         
-        if bracket_pos == -1:
-            return False  # No unmatched opening bracket found
+        return False
+    
+    def _try_recognizers(self) -> bool:
+        """Try modular recognizers to identify tokens."""
+        result = self.registry.recognize(
+            self.input, self.position, self.context
+        )
         
-        # Check if text before [ looks like a valid variable name
-        var_start = bracket_pos - 1
-        while var_start >= 0:
-            char = self.input[var_start]
-            if char in [' ', '\t', '\n', '\r', ';', '|', '&', '(', ')']:
-                var_start += 1
-                break
-            var_start -= 1
-        else:
-            var_start = 0
-        
-        if var_start >= bracket_pos:
-            return False  # No variable name before [
-        
-        var_name = self.input[var_start:bracket_pos]
-        
-        # Check if it's a valid variable name
-        if not var_name or not var_name[0].isalpha() and var_name[0] != '_':
-            return False
-        if not all(c.isalnum() or c == '_' for c in var_name):
-            return False
-        
-        # Look ahead from current position to see if this could end with ]=... pattern
-        ahead_pos = self.position
-        bracket_count = 1  # We're inside brackets already
-        
-        while ahead_pos < len(self.input):
-            char = self.input[ahead_pos]
-            if char == '[':
-                bracket_count += 1
-            elif char == ']':
-                bracket_count -= 1
-                if bracket_count == 0:
-                    # Found closing bracket - check if followed by =
-                    if (ahead_pos + 1 < len(self.input) and 
-                        self.input[ahead_pos + 1] == '='):
-                        return True
-                    elif (ahead_pos + 2 < len(self.input) and 
-                          self.input[ahead_pos + 1:ahead_pos + 3] == '+='):
-                        return True
-                    return False
-            elif char in [' ', '\t', '\n', '\r']:
-                return False  # Whitespace breaks the pattern
-            ahead_pos += 1
+        if result:
+            token, new_pos = result
+            self.position = new_pos
+            self.emit_token(token.type, token.value, self.get_current_position())
+            
+            # Update context based on token
+            self._update_context_for_token(token.type)
+            self._update_command_position_context(token.type)
+            
+            return True
         
         return False
     

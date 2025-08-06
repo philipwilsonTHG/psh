@@ -140,7 +140,12 @@ class ArrayOperationExecutor:
         # Determine index type based on array type
         if var_obj and isinstance(var_obj.value, AssociativeArray):
             # For associative arrays, index is always a string
+            # Remove quotes if present (from parsed array assignment patterns like arr["key"]=value)
             index = expanded_index
+            if len(index) >= 2:
+                if (index.startswith('"') and index.endswith('"')) or \
+                   (index.startswith("'") and index.endswith("'")):
+                    index = index[1:-1]
         else:
             # For indexed arrays, evaluate arithmetic if needed
             try:
@@ -155,6 +160,12 @@ class ArrayOperationExecutor:
         
         # Expand value
         expanded_value = self.expansion_manager.expand_string_variables(node.value, process_escapes=False)
+        
+        # Remove quotes from value if present (from parsed array assignment patterns)
+        if len(expanded_value) >= 2:
+            if (expanded_value.startswith('"') and expanded_value.endswith('"')) or \
+               (expanded_value.startswith("'") and expanded_value.endswith("'")):
+                expanded_value = expanded_value[1:-1]
         
         # Get or create array
         if var_obj and (isinstance(var_obj.value, IndexedArray) or isinstance(var_obj.value, AssociativeArray)):

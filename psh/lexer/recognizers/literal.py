@@ -126,10 +126,18 @@ class LiteralRecognizer(ContextualRecognizer):
                     continue
                 # Special case: don't terminate on [ if this looks like start of array assignment
                 elif char == '[' and self._is_potential_array_assignment_start(value, input_text, pos):
-                    # Include the [ and continue reading the array assignment
-                    value += char
-                    pos += 1
-                    continue
+                    # Include the entire array assignment pattern including quotes
+                    # This handles patterns like arr["key"]=value
+                    array_part, new_pos = self._collect_array_assignment(input_text, pos)
+                    if array_part:
+                        value += array_part
+                        pos = new_pos
+                        continue
+                    else:
+                        # Fallback to just including the [
+                        value += char
+                        pos += 1
+                        continue
                 # Special case: don't terminate on ] if we're inside an array assignment
                 elif char == ']' and self._is_inside_array_assignment(value):
                     # Include the ] and continue reading
@@ -175,7 +183,24 @@ class LiteralRecognizer(ContextualRecognizer):
             
             # Check for quotes or expansions that would end the word
             # (only if they are enabled in config)
+            # EXCEPTION: Don't break on quotes if we're inside an array assignment
             should_break = False
+            
+            # Special handling for quotes inside array assignments
+            # Check if current value suggests we're collecting an array assignment
+            if self._is_inside_array_assignment(value):
+                # Inside array assignment, include quotes as part of the token
+                if char in ["'", '"']:
+                    value += char
+                    pos += 1
+                    continue
+                # Also don't break on $ or ` inside array assignments
+                elif char in ['$', '`']:
+                    value += char
+                    pos += 1
+                    continue
+            
+            # Normal quote/expansion handling (outside array assignments)
             if char == '$' and self.config and self.config.enable_variable_expansion:
                 # Special case: Check for ANSI-C quotes $'...' within variable assignments
                 if (pos + 1 < len(input_text) and input_text[pos + 1] == "'" and 
@@ -459,33 +484,53 @@ class LiteralRecognizer(ContextualRecognizer):
         
         # Look ahead to see if this looks like arr[...]=... pattern
         # We're at position of '[', scan forward to look for ]=
+        # This needs to be quote-aware to handle arr["key"]=value correctly
         remaining = input_text[pos:]
         bracket_count = 0
         i = 0
-        has_expansions = False
+        in_single_quote = False
+        in_double_quote = False
+        escaped = False
         
         while i < len(remaining):
             char = remaining[i]
-            if char == '[':
-                bracket_count += 1
-            elif char == ']':
-                bracket_count -= 1
-                if bracket_count == 0:
-                    # Found closing bracket, check if followed by = or +=
-                    if i + 1 < len(remaining):
-                        if remaining[i + 1] == '=':
-                            # Array assignment pattern found
-                            return True
-                        elif i + 2 < len(remaining) and remaining[i + 1:i + 3] == '+=':
-                            # Array append assignment pattern found
-                            return True
+            
+            # Handle escape sequences
+            if escaped:
+                escaped = False
+                i += 1
+                continue
+            
+            if char == '\\' and not in_single_quote:
+                escaped = True
+                i += 1
+                continue
+            
+            # Handle quotes - only switch quote state if not in other quote type
+            if char == "'" and not in_double_quote:
+                in_single_quote = not in_single_quote
+            elif char == '"' and not in_single_quote:
+                in_double_quote = not in_double_quote
+            elif not in_single_quote and not in_double_quote:
+                # Only process brackets and other chars when not in quotes
+                if char == '[':
+                    bracket_count += 1
+                elif char == ']':
+                    bracket_count -= 1
+                    if bracket_count == 0:
+                        # Found closing bracket, check if followed by = or +=
+                        if i + 1 < len(remaining):
+                            if remaining[i + 1] == '=':
+                                # Array assignment pattern found
+                                return True
+                            elif i + 2 < len(remaining) and remaining[i + 1:i + 3] == '+=':
+                                # Array append assignment pattern found
+                                return True
+                        return False
+                elif char in [' ', '\t', '\n', '\r']:
+                    # Whitespace breaks the pattern (outside quotes)
                     return False
-            elif char in [' ', '\t', '\n', '\r']:
-                # Whitespace breaks the pattern
-                return False
-            elif char in ['$', '`', "'", '"']:
-                # This indicates expansions/quotes inside brackets
-                has_expansions = True
+            
             i += 1
         
         return False
@@ -498,13 +543,21 @@ class LiteralRecognizer(ContextualRecognizer):
         # Check if we have unmatched opening bracket and this looks like array pattern
         bracket_count = 0
         has_opening_bracket = False
+        in_single_quote = False
+        in_double_quote = False
         
         for char in value:
-            if char == '[':
-                bracket_count += 1
-                has_opening_bracket = True
-            elif char == ']':
-                bracket_count -= 1
+            # Track quotes to ignore brackets inside them
+            if char == "'" and not in_double_quote:
+                in_single_quote = not in_single_quote
+            elif char == '"' and not in_single_quote:
+                in_double_quote = not in_double_quote
+            elif not in_single_quote and not in_double_quote:
+                if char == '[':
+                    bracket_count += 1
+                    has_opening_bracket = True
+                elif char == ']':
+                    bracket_count -= 1
         
         # We're inside array assignment if we have unmatched opening brackets
         return has_opening_bracket and bracket_count > 0
@@ -651,3 +704,149 @@ class LiteralRecognizer(ContextualRecognizer):
                         return False
         
         return True
+
+    def _collect_array_assignment(self, input_text: str, pos: int) -> Tuple[str, int]:
+        """Collect the complete array assignment pattern including quotes.
+
+        Starting at a '[', collect until we find ']=', ']+=' or hit a terminator.
+        This is quote-aware and will include quoted keys.
+
+        Returns (collected_string, new_position) or ("", pos) if not an array assignment.
+        """
+        if pos >= len(input_text) or input_text[pos] != '[':
+            return "", pos
+
+        start_pos = pos
+        result = ""
+        bracket_count = 0
+        in_single_quote = False
+        in_double_quote = False
+        escaped = False
+
+        while pos < len(input_text):
+            char = input_text[pos]
+
+            # Handle escape sequences
+            if escaped:
+                result += char
+                pos += 1
+                escaped = False
+                continue
+
+            if char == '\\' and not in_single_quote:
+                escaped = True
+                result += char
+                pos += 1
+                continue
+
+            # Track quotes
+            if char == "'" and not in_double_quote:
+                in_single_quote = not in_single_quote
+                result += char
+                pos += 1
+                continue
+            elif char == '"' and not in_single_quote:
+                in_double_quote = not in_double_quote
+                result += char
+                pos += 1
+                continue
+
+            # Process characters based on quote state
+            if in_single_quote or in_double_quote:
+                # Inside quotes, just collect everything
+                result += char
+                pos += 1
+            else:
+                # Outside quotes, track brackets and look for assignment
+                if char == '[':
+                    bracket_count += 1
+                    result += char
+                    pos += 1
+                elif char == ']':
+                    bracket_count -= 1
+                    result += char
+                    pos += 1
+
+                    # Check if this closes the array index
+                    if bracket_count == 0:
+                        # Look for = or +=
+                        if pos < len(input_text):
+                            if input_text[pos] == '=':
+                                # Include the = and the value part
+                                result += '='
+                                pos += 1
+                                # Continue collecting the value part until whitespace or operator
+                                value_part, value_pos = self._collect_assignment_value(input_text, pos)
+                                result += value_part
+                                return result, value_pos
+                            elif pos + 1 < len(input_text) and input_text[pos:pos+2] == '+=':
+                                # Include the += and the value part
+                                result += '+='
+                                pos += 2
+                                # Continue collecting the value part
+                                value_part, value_pos = self._collect_assignment_value(input_text, pos)
+                                result += value_part
+                                return result, value_pos
+                        # Not an assignment, return what we have
+                        return result, pos
+                elif char in ' \t\n\r|&;(){}' and bracket_count == 0:
+                    # Hit a terminator outside of brackets
+                    return "", start_pos
+                else:
+                    result += char
+                    pos += 1
+
+        # Reached end of input without finding assignment
+        if in_single_quote or in_double_quote:
+            # Unclosed quote
+            return "", start_pos
+        return "", start_pos
+
+    def _collect_assignment_value(self, input_text: str, pos: int) -> Tuple[str, int]:
+        """Collect the value part of an assignment until a terminator.
+
+        This handles quoted values and continues until it hits whitespace or operators.
+        """
+        result = ""
+        in_single_quote = False
+        in_double_quote = False
+        escaped = False
+
+        while pos < len(input_text):
+            char = input_text[pos]
+
+            # Handle escape sequences
+            if escaped:
+                result += char
+                pos += 1
+                escaped = False
+                continue
+
+            if char == '\\' and not in_single_quote:
+                escaped = True
+                result += char
+                pos += 1
+                continue
+
+            # Track quotes
+            if char == "'" and not in_double_quote:
+                in_single_quote = not in_single_quote
+                result += char
+                pos += 1
+                continue
+            elif char == '"' and not in_single_quote:
+                in_double_quote = not in_double_quote
+                result += char
+                pos += 1
+                continue
+
+            # Check for terminators (only when not in quotes)
+            if not in_single_quote and not in_double_quote:
+                if char in ' \t\n\r|&;(){}' or (char in '<>' and self.config and self.config.enable_redirections):
+                    # Hit a terminator
+                    break
+
+            result += char
+            pos += 1
+
+        return result, pos
