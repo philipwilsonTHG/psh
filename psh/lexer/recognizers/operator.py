@@ -317,12 +317,9 @@ class OperatorRecognizer(ContextualRecognizer):
             return True
         
         elif operator == ']':
-            # ] should only be an operator when matching a previous [
-            # For simplicity, follow the same rule as [
-            if context.command_position:
-                return True  # Allow as operator
-            else:
-                return False  # Treat as part of word
+            # ] should be recognized as an operator in all contexts
+            # The parser will determine if it's a valid closing bracket
+            return True
         
         elif operator in ['=~', '==', '!=']:
             # =~, ==, != are only operators inside [[ ]], otherwise they're words

@@ -432,24 +432,6 @@ class ModularLexer:
         
         return False
     
-    def _try_recognizers(self) -> bool:
-        """Try modular recognizers to identify tokens."""
-        result = self.registry.recognize(
-            self.input, self.position, self.context
-        )
-        
-        if result:
-            token, new_pos = result
-            self.position = new_pos
-            self.emit_token(token.type, token.value, self.get_current_position())
-            
-            # Update context based on token
-            self._update_context_for_token(token.type)
-            self._update_command_position_context(token.type)
-            
-            return True
-        
-        return False
     
     def _handle_expansion(self) -> bool:
         """Handle variable/command/arithmetic expansion."""
@@ -649,7 +631,7 @@ class ModularLexer:
                 break
             
             # Stop at operators
-            if char in '<>&|;(){}!':
+            if char in '<>&|;(){}![]':
                 break
             
             # Stop at quotes and expansions
