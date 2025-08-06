@@ -7,7 +7,7 @@ This document tracks the progress of refactoring the recursive descent parser fr
 **Start Date**: 2025-01-06  
 **Target Structure**: Parallel to `combinators/` package
 
-## Current Status: Phase 4 Complete ✅
+## Current Status: Phase 5 Complete ✅
 
 ### Completed Phases
 
@@ -72,15 +72,21 @@ This document tracks the progress of refactoring the recursive descent parser fr
   - Updated integration_manager.py to reference new locations
   - All internal references between enhanced modules updated
 
-### Remaining Phases
+#### Phase 5: Support Infrastructure ✅
+**Completed**: 2025-01-06
+- **Files Moved** (4 files):
+  - `error_collector.py` → `recursive_descent/support/error_collector.py`
+  - `word_builder.py` → `recursive_descent/support/word_builder.py`
+  - `factory.py` → `recursive_descent/support/factory.py`
+  - `integration_manager.py` → `recursive_descent/support/integration_manager.py`
 
-#### Phase 5: Support Infrastructure
-**Status**: Pending
-- **Files to Move** (4 files):
-  - `error_collector.py` → `recursive_descent/support/`
-  - `word_builder.py` → `recursive_descent/support/`
-  - `factory.py` → `recursive_descent/support/`
-  - `integration_manager.py` → `recursive_descent/support/`
+- **Import Updates**:
+  - Fixed 4-level deep imports in support files (.... for psh level)
+  - Updated parser/__init__.py to reference new locations
+  - Fixed combinators package imports for word_builder
+  - Updated test imports in 4 test files
+
+### Remaining Phases
 
 #### Phase 6: Update External References
 **Status**: Pending
@@ -155,37 +161,34 @@ from psh.parser.control_structures import ControlStructureParser
 | Phase 2 | 8 core files | ✅ Complete |
 | Phase 3 | 8 feature parsers | ✅ Complete |
 | Phase 4 | 8 enhanced features | ✅ Complete |
-| Phase 5 | 4 support files | 🔄 Ready to start |
+| Phase 5 | 4 support files | ✅ Complete |
 | Phase 6 | 0 (updates only) | ⏳ Pending |
 | Phase 7 | 0 (cleanup only) | ⏳ Pending |
 
 **Total Files to Migrate**: 28  
-**Files Migrated**: 24 (86%)  
-**Files Remaining**: 4 (14%)
+**Files Migrated**: 28 (100%)  
+**Files Remaining**: 0 (0%)
 
 ## Next Steps
 
-1. Begin Phase 5: Move remaining support files
-2. Update imports within moved files
-3. Update external references to moved files
-4. Test parser functionality
-5. Commit Phase 5 changes
+1. Begin Phase 6: Update all external references
+2. Run comprehensive test suite
+3. Begin Phase 7: Remove compatibility layers and cleanup
 
-## Commands for Phase 5
+## Commands for Phase 6
 
 ```bash
-# Move files
-python tmp/migrate_recursive_descent.py phase5 --execute
+# Search for any remaining old imports
+grep -r "from psh.parser.main" --include="*.py" .
+grep -r "from psh.parser.commands" --include="*.py" .
+grep -r "from psh.parser.helpers import" --include="*.py" .
 
-# Update imports
-python tmp/fix_phase5_imports.py
+# Run comprehensive tests
+python -m pytest tests/ -x
 
-# Test
-python -m pytest tests/unit/parser/ -xvs
-
-# Commit
-git add -A psh/parser/
-git commit -m "refactor: Phase 5 - Move support files to recursive_descent package"
+# Update any found references and commit
+git add -A
+git commit -m "refactor: Phase 6 - Update all external references"
 ```
 
 ## Notes
