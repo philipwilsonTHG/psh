@@ -27,7 +27,7 @@ class TestErrorCollector:
     
     def test_add_error(self):
         """Test adding errors to collector."""
-        from psh.parser.helpers import ErrorContext
+        from psh.parser.recursive_descent.helpers import ErrorContext
         from psh.token_types import Token, TokenType
         
         collector = ErrorCollector()
@@ -46,7 +46,7 @@ class TestErrorCollector:
         assert collector.should_continue() == True
         
         # Add some errors
-        from psh.parser.helpers import ErrorContext
+        from psh.parser.recursive_descent.helpers import ErrorContext
         from psh.token_types import Token, TokenType
         
         for i in range(5):
@@ -61,7 +61,7 @@ class TestErrorCollector:
         """Test should_continue when max errors reached."""
         collector = ErrorCollector(max_errors=3)
         
-        from psh.parser.helpers import ErrorContext
+        from psh.parser.recursive_descent.helpers import ErrorContext
         from psh.token_types import Token, TokenType
         
         # Add max errors
@@ -77,7 +77,7 @@ class TestErrorCollector:
         """Test should_continue with fatal error."""
         collector = ErrorCollector()
         
-        from psh.parser.helpers import ErrorContext
+        from psh.parser.recursive_descent.helpers import ErrorContext
         from psh.token_types import Token, TokenType
         
         token = Token(TokenType.WORD, "test", 0)
@@ -91,7 +91,7 @@ class TestErrorCollector:
         """Test error summary formatting."""
         collector = ErrorCollector()
         
-        from psh.parser.helpers import ErrorContext
+        from psh.parser.recursive_descent.helpers import ErrorContext
         from psh.token_types import Token, TokenType
         
         # Add a couple of errors
@@ -117,7 +117,7 @@ class TestErrorCollector:
         """Test filtering errors by severity."""
         collector = ErrorCollector()
         
-        from psh.parser.helpers import ErrorContext
+        from psh.parser.recursive_descent.helpers import ErrorContext
         from psh.token_types import Token, TokenType
         
         # Add errors with different severities
@@ -246,7 +246,7 @@ class TestMultiErrorParseResult:
     def test_partial_success_result(self):
         """Test result for partial success with errors."""
         from psh.ast_nodes import CommandList
-        from psh.parser.helpers import ErrorContext
+        from psh.parser.recursive_descent.helpers import ErrorContext
         from psh.token_types import Token, TokenType
         
         ast = CommandList()
@@ -263,7 +263,7 @@ class TestMultiErrorParseResult:
     
     def test_failed_parse_result(self):
         """Test result for failed parse."""
-        from psh.parser.helpers import ErrorContext
+        from psh.parser.recursive_descent.helpers import ErrorContext
         from psh.token_types import Token, TokenType
         
         token = Token(TokenType.WORD, "test", 0)
@@ -279,7 +279,7 @@ class TestMultiErrorParseResult:
     
     def test_format_errors(self):
         """Test error formatting."""
-        from psh.parser.helpers import ErrorContext
+        from psh.parser.recursive_descent.helpers import ErrorContext
         from psh.token_types import Token, TokenType
         
         token1 = Token(TokenType.WORD, "test1", 0)

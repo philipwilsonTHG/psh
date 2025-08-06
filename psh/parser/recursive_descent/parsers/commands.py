@@ -443,7 +443,7 @@ class CommandParser:
     def parse_argument_as_word(self) -> 'Word':
         """Parse an argument as a Word AST node with expansions."""
         from ....ast_nodes import Word
-        from ....word_builder import WordBuilder
+        from ..support.word_builder import WordBuilder
         from ....token_stream import TokenStream
         
         # Check for composite tokens

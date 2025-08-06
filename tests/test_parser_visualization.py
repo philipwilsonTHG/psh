@@ -2,7 +2,7 @@
 
 import pytest
 from psh.lexer import tokenize
-from psh.parser.main import Parser
+from psh.parser.recursive_descent.parser import Parser
 from psh.parser.visualization import ASTPrettyPrinter, ASTDotGenerator, AsciiTreeRenderer
 from psh.parser.visualization.ascii_tree import CompactAsciiTreeRenderer, DetailedAsciiTreeRenderer
 

@@ -81,7 +81,7 @@ class TestEnhancedErrorContext:
     
     def test_error_context_suggestions(self):
         """Test adding suggestions to error context."""
-        from psh.parser.helpers import ErrorContext
+        from psh.parser.recursive_descent.helpers import ErrorContext
         from psh.token_types import Token, TokenType
         
         token = Token(TokenType.WORD, "hten", 0)
@@ -96,7 +96,7 @@ class TestEnhancedErrorContext:
     
     def test_error_context_formatting_with_suggestions(self):
         """Test error context formatting includes suggestions."""
-        from psh.parser.helpers import ErrorContext
+        from psh.parser.recursive_descent.helpers import ErrorContext
         from psh.token_types import Token, TokenType
         
         token = Token(TokenType.WORD, "hten", 0)
@@ -115,7 +115,7 @@ class TestEnhancedErrorContext:
     
     def test_error_template_integration(self):
         """Test integration with error templates."""
-        from psh.parser.helpers import ErrorContext
+        from psh.parser.recursive_descent.helpers import ErrorContext
         from psh.token_types import Token, TokenType
         
         token = Token(TokenType.WORD, "hten", 0)
@@ -201,7 +201,7 @@ class TestErrorRecovery:
     
     def test_expect_with_recovery(self):
         """Test expect_with_recovery method."""
-        from psh.parser.base import BaseParser
+        from psh.parser.recursive_descent.base import BaseParser
         from psh.token_types import TokenType
         
         tokens = tokenize("if true then echo hi fi")
@@ -223,7 +223,7 @@ class TestErrorRecovery:
     
     def test_multiple_suggestions(self):
         """Test that multiple suggestions can be provided."""
-        from psh.parser.helpers import ErrorContext
+        from psh.parser.recursive_descent.helpers import ErrorContext
         from psh.token_types import Token, TokenType
         
         token = Token(TokenType.WORD, "wrong", 0)
