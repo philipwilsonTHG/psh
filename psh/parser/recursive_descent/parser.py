@@ -8,10 +8,10 @@ to specialized parser modules for different language constructs.
 import sys
 from typing import List, Optional, Union, Tuple, Set
 
-from ..token_types import Token, TokenType
-from ..token_stream import TokenStream
-from ..composite_processor import CompositeTokenProcessor, CompositeToken
-from ..ast_nodes import (
+from ...token_types import Token, TokenType
+from ...token_stream import TokenStream
+from ...composite_processor import CompositeTokenProcessor, CompositeToken
+from ...ast_nodes import (
     Command, SimpleCommand, CompoundCommand, Pipeline, CommandList, StatementList, AndOrList, Redirect, 
     FunctionDef, TopLevel, BreakStatement, ContinueStatement, 
     CaseItem, CasePattern, ProcessSubstitution, EnhancedTestStatement, 
@@ -26,20 +26,20 @@ from ..ast_nodes import (
 
 from .base_context import ContextBaseParser
 from .context import ParserContext
-from .context_factory import ParserContextFactory
+from .support.context_factory import ParserContextFactory
 from .helpers import TokenGroups, ParseError, ErrorContext
-from .error_collector import ErrorCollector, MultiErrorParseResult, ErrorRecoveryStrategy
-from .statements import StatementParser
-from .commands import CommandParser
-from .control_structures import ControlStructureParser
-from .tests import TestParser
-from .arithmetic import ArithmeticParser
-from .redirections import RedirectionParser
-from .arrays import ArrayParser
-from .functions import FunctionParser
-from .utils import ParserUtils
-from .config import ParserConfig, ParsingMode, ErrorHandlingMode
-from .validation import SemanticAnalyzer, ValidationPipeline, ValidationReport, Issue, Severity
+from ..error_collector import ErrorCollector, MultiErrorParseResult, ErrorRecoveryStrategy
+from ..statements import StatementParser
+from ..commands import CommandParser
+from ..control_structures import ControlStructureParser
+from ..tests import TestParser
+from ..arithmetic import ArithmeticParser
+from ..redirections import RedirectionParser
+from ..arrays import ArrayParser
+from ..functions import FunctionParser
+from .support.utils import ParserUtils
+from ..config import ParserConfig, ParsingMode, ErrorHandlingMode
+from ..validation import SemanticAnalyzer, ValidationPipeline, ValidationReport, Issue, Severity
 
 
 class Parser(ContextBaseParser):
@@ -216,7 +216,7 @@ class Parser(ContextBaseParser):
     
     def expect_one_of(self, *token_types):
         """Legacy method - expect one of several token types."""
-        from ..token_types import TokenType
+        from ...token_types import TokenType
         token = self.peek()
         if token.type not in token_types:
             expected = [str(tt).replace('TokenType.', '').lower() for tt in token_types]

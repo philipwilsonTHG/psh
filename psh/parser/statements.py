@@ -11,7 +11,7 @@ from ..ast_nodes import (
     Statement, CommandList, AndOrList, BreakStatement, ContinueStatement,
     Pipeline, StatementList
 )
-from .helpers import TokenGroups
+from .recursive_descent.helpers import TokenGroups
 
 
 class StatementParser:

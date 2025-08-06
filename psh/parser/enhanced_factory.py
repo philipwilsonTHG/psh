@@ -3,7 +3,7 @@
 from typing import Optional, Union, List
 
 from .enhanced_base import EnhancedContextBaseParser, EnhancedParserConfig
-from .context import ParserContext
+from .recursive_descent.context import ParserContext
 from .config import ParserConfig
 from ..token_types import Token
 from ..token_types import Token
@@ -41,7 +41,7 @@ class EnhancedParserFactory:
             return EnhancedContextBaseParser(ctx, enhanced_config)
         else:
             # Use standard parser
-            from .main import Parser
+            from .recursive_descent.parser import Parser
             return Parser(tokens, config)
     
     @staticmethod
@@ -77,7 +77,7 @@ class ParserContextFactory:
         lexer_validation: Optional[TokenStreamValidationResult] = None
     ) -> ParserContext:
         """Create enhanced parser context."""
-        from .context_factory import ParserContextFactory as BaseFactory
+        from .recursive_descent.support.context_factory import ParserContextFactory as BaseFactory
         
         # Create base context
         base_config = ParserConfig()

@@ -12,9 +12,9 @@ from ..abstract_parser import (
     AbstractShellParser, ParserCharacteristics, ParserType,
     ParseError as AbstractParseError
 )
-from ..main import Parser
+from ..recursive_descent.parser import Parser
 from ..config import ParserConfig
-from ..helpers import ParseError
+from ..recursive_descent.helpers import ParseError
 from ...ast_nodes import TopLevel, CommandList, ASTNode
 from ...token_types import Token
 

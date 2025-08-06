@@ -1,9 +1,9 @@
 """Factory for creating parser contexts."""
 
 from typing import List, Optional, Dict, Any
-from ..token_types import Token
-from .context import ParserContext
-from .config import ParserConfig, ParsingMode, ErrorHandlingMode
+from ....token_types import Token
+from ..context import ParserContext
+from ...config import ParserConfig, ParsingMode, ErrorHandlingMode
 
 
 class ParserContextFactory:
@@ -266,7 +266,7 @@ class ContextConfiguration:
         
         # Create profiler if not exists
         if not ctx.profiler:
-            from .context import ParserProfiler
+            from ..context import ParserProfiler
             ctx.profiler = ParserProfiler(ctx.config)
         
         return ctx

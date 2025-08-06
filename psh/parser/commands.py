@@ -13,7 +13,7 @@ from ..ast_nodes import (
     SelectLoop, ArithmeticEvaluation, BreakStatement, ContinueStatement,
     SubshellGroup, BraceGroup, ExecutionContext, ArrayAssignment
 )
-from .helpers import TokenGroups, ParseError, ErrorContext
+from .recursive_descent.helpers import TokenGroups, ParseError, ErrorContext
 
 
 class CommandParser:

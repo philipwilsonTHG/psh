@@ -1,7 +1,7 @@
 """Base parser class with common functionality."""
 
 from typing import List, Optional, Set, Tuple
-from ..token_types import Token, TokenType
+from ...token_types import Token, TokenType
 from .helpers import ParseContext, ErrorContext, ParseError, TokenGroups
 
 
@@ -181,7 +181,7 @@ class BaseParser:
                 self.error_collector.add_error(e)
                 
                 # Import here to avoid circular imports
-                from .error_collector import RecoveryPoints
+                from ..error_collector import RecoveryPoints
                 recovery_points = RecoveryPoints()
                 
                 self.panic_mode_recovery(recovery_points.STATEMENT_START)
@@ -260,7 +260,7 @@ class BaseParser:
     
     def _enhance_error_context(self, error_context: ErrorContext, expected_token_type: TokenType) -> None:
         """Enhance error context with smart suggestions."""
-        from .errors import ErrorSuggester, ParserErrorCatalog
+        from ..errors import ErrorSuggester, ParserErrorCatalog
         
         # Add context tokens
         self._add_token_context(error_context)
@@ -292,7 +292,7 @@ class BaseParser:
         
         # Add suggestions based on surrounding tokens
         preceding_tokens = self._get_preceding_tokens(3)
-        from .errors import ErrorSuggester
+        from ..errors import ErrorSuggester
         
         suggestion = ErrorSuggester.suggest_for_context(
             error_context.token.value or "",
@@ -319,7 +319,7 @@ class BaseParser:
     
     def _find_error_template(self, expected_token_type: TokenType, actual_token: Token):
         """Find appropriate error template for the situation."""
-        from .errors import ParserErrorCatalog
+        from ..errors import ParserErrorCatalog
         
         # Map token types to error templates
         token_error_map = {
@@ -335,7 +335,7 @@ class BaseParser:
     
     def _get_do_error_template(self):
         """Get appropriate 'do' error template based on context."""
-        from .errors import ParserErrorCatalog
+        from ..errors import ParserErrorCatalog
         
         # Look for preceding for/while to determine context
         preceding_tokens = self._get_preceding_tokens(5)
@@ -350,7 +350,7 @@ class BaseParser:
     
     def _get_done_error_template(self):
         """Get appropriate 'done' error template based on context."""
-        from .errors import ParserErrorCatalog
+        from ..errors import ParserErrorCatalog
         
         # Look for preceding for/while to determine context
         preceding_tokens = self._get_preceding_tokens(10)

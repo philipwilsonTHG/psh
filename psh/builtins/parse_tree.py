@@ -5,8 +5,8 @@ from typing import List
 from .base import Builtin
 from .registry import builtin
 from ..lexer import tokenize
-from ..parser.main import Parser
-from ..parser.helpers import ParseError
+from ..parser.recursive_descent.parser import Parser
+from ..parser.recursive_descent.helpers import ParseError
 
 
 @builtin

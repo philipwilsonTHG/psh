@@ -11,7 +11,7 @@ from ..ast_nodes import (
     CaseConditional, SelectLoop, BreakStatement, ContinueStatement, Statement,
     StatementList, ExecutionContext, Redirect, CaseItem, CasePattern
 )
-from .helpers import TokenGroups
+from .recursive_descent.helpers import TokenGroups
 
 
 class ControlStructureParser:

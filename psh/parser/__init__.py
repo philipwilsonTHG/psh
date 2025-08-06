@@ -8,17 +8,31 @@ context-aware parsing, semantic analysis, and enhanced error recovery.
 
 from typing import Optional
 
-from .main import Parser
-from .helpers import ParseError, TokenGroups
-from .base import BaseParser
-from .context import ParserContext, ParserProfiler, HeredocInfo
-from .context_factory import ParserContextFactory, ContextConfiguration
-from .context_snapshots import ContextSnapshot, BacktrackingParser, SpeculativeParser
+# Temporary compatibility layer during parser refactoring
+try:
+    # Try to import from new location
+    from .recursive_descent.parser import Parser
+    from .recursive_descent.helpers import ParseError, TokenGroups
+    from .recursive_descent.base import BaseParser
+    from .recursive_descent.context import ParserContext, ParserProfiler, HeredocInfo
+    from .recursive_descent.support.context_factory import ParserContextFactory, ContextConfiguration
+    from .recursive_descent.support.context_snapshots import ContextSnapshot, BacktrackingParser, SpeculativeParser
+except ImportError:
+    # Fall back to old locations if not yet moved
+    from .main import Parser
+    from .helpers import ParseError, TokenGroups
+    from .base import BaseParser
+    from .context import ParserContext, ParserProfiler, HeredocInfo
+    from .context_factory import ParserContextFactory, ContextConfiguration
+    from .context_snapshots import ContextSnapshot, BacktrackingParser, SpeculativeParser
 from .config import ParserConfig, ParsingMode, ErrorHandlingMode
 from .factory import ParserFactory, ConfigurationValidator
 
 # Standard parser components (enhanced features built-in)
-from .base_context import ContextBaseParser
+try:
+    from .recursive_descent.base_context import ContextBaseParser
+except ImportError:
+    from .base_context import ContextBaseParser
 from .integration_manager import create_fully_enhanced_parser as create_parser
 
 # Public API
@@ -100,3 +114,26 @@ def parse_permissive(tokens, source_text=None):
     return ParserFactory.create_permissive_parser(tokens, source_text).parse()
 
 
+
+
+"""Temporary compatibility layer during parser refactoring.
+
+This module provides forwarding imports to maintain backward compatibility
+while migrating the recursive descent parser to its own package.
+"""
+
+# Phase 2: Core forwarding imports
+try:
+    from .recursive_descent.parser import Parser
+    from .recursive_descent.base import BaseParser
+    from .recursive_descent.context import ParserContext
+    from .recursive_descent.helpers import ParseError, ErrorContext, TokenGroups
+except ImportError:
+    # Fall back to original locations if not yet moved
+    from .main import Parser
+    from .base import BaseParser
+    from .context import ParserContext
+    from .helpers import ParseError, ErrorContext, TokenGroups
+
+# Export for backward compatibility
+__all__ = ['Parser', 'BaseParser', 'ParserContext', 'ParseError', 'ErrorContext', 'TokenGroups']

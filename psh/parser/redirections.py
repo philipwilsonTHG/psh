@@ -7,7 +7,7 @@ This module handles parsing of I/O redirections, heredocs, and here-strings.
 from typing import List
 from ..token_types import Token, TokenType
 from ..ast_nodes import Redirect
-from .helpers import TokenGroups
+from .recursive_descent.helpers import TokenGroups
 
 
 class RedirectionParser:

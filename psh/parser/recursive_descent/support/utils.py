@@ -5,8 +5,8 @@ This module contains utility functions for parser operations like heredoc handli
 """
 
 from typing import Union, List, Dict
-from ..token_types import Token
-from ..ast_nodes import CommandList, TopLevel
+from ....token_types import Token
+from ....ast_nodes import CommandList, TopLevel
 
 
 class ParserUtils:
@@ -68,7 +68,7 @@ class ParserUtils:
 
 def parse_with_heredocs(tokens: List[Token], heredoc_map: dict) -> Union[CommandList, TopLevel]:
     """Parse a list of tokens into an AST with pre-collected heredoc content."""
-    from .main import Parser
+    from ..parser import Parser
     parser = Parser(tokens)
     parser.heredoc_map = heredoc_map
     ast = parser.parse()

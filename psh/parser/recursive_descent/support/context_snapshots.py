@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 from typing import List, Dict, Optional, Any
-from .context import ParserContext
+from ..context import ParserContext
 
 
 @dataclass

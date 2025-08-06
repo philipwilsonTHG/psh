@@ -3,8 +3,8 @@
 from typing import List, Optional, Union, Any, Dict
 from dataclasses import dataclass
 
-from .base_context import ContextBaseParser
-from .context import ParserContext
+from .recursive_descent.base_context import ContextBaseParser
+from .recursive_descent.context import ParserContext
 from .config import ParserConfig
 from ..token_types import Token, TokenType
 from ..token_enhanced import TokenContext, SemanticType, LexerError
@@ -389,7 +389,7 @@ class EnhancedContextBaseParser(ContextBaseParser):
                 return self.statements.parse_command_list()
         
         # Direct enhanced parsing if no modular structure
-        from .main import Parser
+        from .recursive_descent.parser import Parser
         
         # Convert our tokens to basic tokens if needed for fallback
         basic_tokens = self._convert_to_basic_tokens(self.ctx.tokens)
@@ -404,7 +404,7 @@ def create_enhanced_parser(
     config: Optional[EnhancedParserConfig] = None
 ) -> EnhancedContextBaseParser:
     """Create an enhanced parser from various input types."""
-    from .context_factory import ParserContextFactory
+    from .recursive_descent.support.context_factory import ParserContextFactory
     
     enhanced_config = config or EnhancedParserConfig()
     

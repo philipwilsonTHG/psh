@@ -6,9 +6,9 @@ into a single, manageable object, improving maintainability and performance trac
 
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Set, Any
-from ..token_types import Token, TokenType
+from ...token_types import Token, TokenType
 from .helpers import ParseError
-from .config import ParserConfig
+from ..config import ParserConfig
 
 
 @dataclass
@@ -260,7 +260,7 @@ class ParserContext:
     def _enhance_error_context(self, error_context, token):
         """Enhance error context with smart suggestions and context tokens."""
         try:
-            from .errors import ErrorSuggester
+            from ..errors import ErrorSuggester
             
             # Add context tokens (3 before and after current position)
             context_tokens = []

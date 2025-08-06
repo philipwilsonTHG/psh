@@ -6,7 +6,7 @@ with different configurations for various use cases.
 
 from typing import List, Optional
 from ..token_types import Token
-from .main import Parser
+from .recursive_descent.parser import Parser
 from .config import ParserConfig, ParsingMode
 
 
