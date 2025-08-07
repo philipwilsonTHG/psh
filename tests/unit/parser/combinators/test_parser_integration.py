@@ -108,8 +108,26 @@ class TestParserIntegration:
         
         result = parser.parse(tokens)
         assert isinstance(result, TopLevel)
-        assert len(result.items) == 1
+
+        # The parser combinator recognizes if/then/fi as keywords even from WORD tokens
+        # This is actually good behavior - it makes the parser more robust
+        assert len(result.items) == 1  # One if statement
+
+        # The item should be an IfConditional
         assert isinstance(result.items[0], IfConditional)
+        if_stmt = result.items[0]
+
+        # Check the condition
+        assert len(if_stmt.condition.statements) == 1
+        assert len(if_stmt.condition.statements[0].pipelines) == 1
+        cmd = if_stmt.condition.statements[0].pipelines[0].commands[0]
+        assert cmd.args == ["test", "condition"]
+
+        # Check the then part
+        assert len(if_stmt.then_part.statements) == 1
+        assert len(if_stmt.then_part.statements[0].pipelines) == 1
+        cmd = if_stmt.then_part.statements[0].pipelines[0].commands[0]
+        assert cmd.args == ["echo", "yes"]
     
     def test_while_loop(self):
         """Test parsing a while loop."""
@@ -128,8 +146,24 @@ class TestParserIntegration:
         
         result = parser.parse(tokens)
         assert isinstance(result, TopLevel)
-        assert len(result.items) == 1
+
+        # The parser combinator recognizes while/do/done as keywords even from WORD tokens
+        assert len(result.items) == 1  # One while loop
+
         assert isinstance(result.items[0], WhileLoop)
+        while_loop = result.items[0]
+
+        # Check the condition
+        assert len(while_loop.condition.statements) == 1
+        assert len(while_loop.condition.statements[0].pipelines) == 1
+        cmd = while_loop.condition.statements[0].pipelines[0].commands[0]
+        assert cmd.args == ["true"]
+
+        # Check the body
+        assert len(while_loop.body.statements) == 1
+        assert len(while_loop.body.statements[0].pipelines) == 1
+        cmd = while_loop.body.statements[0].pipelines[0].commands[0]
+        assert cmd.args == ["echo", "loop"]
     
     def test_for_loop(self):
         """Test parsing a for loop."""
@@ -152,8 +186,24 @@ class TestParserIntegration:
         
         result = parser.parse(tokens)
         assert isinstance(result, TopLevel)
-        assert len(result.items) == 1
+
+        # The parser combinator recognizes for/in/do/done as keywords even from WORD tokens
+        assert len(result.items) == 1  # One for loop
+
         assert isinstance(result.items[0], ForLoop)
+        for_loop = result.items[0]
+
+        # Check the variable
+        assert for_loop.variable == "i"
+
+        # Check the word list
+        assert for_loop.items == ["a", "b", "c"]
+
+        # Check the body
+        assert len(for_loop.body.statements) == 1
+        assert len(for_loop.body.statements[0].pipelines) == 1
+        cmd = for_loop.body.statements[0].pipelines[0].commands[0]
+        assert "echo" in cmd.args
     
     def test_function_definition(self):
         """Test parsing a function definition."""

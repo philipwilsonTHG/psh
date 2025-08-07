@@ -630,8 +630,8 @@ class ModularLexer:
             if is_whitespace(char, self.config.posix_mode):
                 break
             
-            # Stop at operators
-            if char in '<>&|;(){}![]':
+            # Stop at operators (but not brackets - they might be part of glob patterns)
+            if char in '<>&|;(){}!':
                 break
             
             # Stop at quotes and expansions
