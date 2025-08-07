@@ -137,26 +137,74 @@ class ArrayOperationExecutor:
         # Get the variable to check if it's an associative array
         var_obj = self.state.scope_manager.get_variable_object(node.name)
         
-        # Determine index type based on array type
-        if var_obj and isinstance(var_obj.value, AssociativeArray):
-            # For associative arrays, index is always a string
-            # Remove quotes if present (from parsed array assignment patterns like arr["key"]=value)
-            index = expanded_index
-            if len(index) >= 2:
-                if (index.startswith('"') and index.endswith('"')) or \
-                   (index.startswith("'") and index.endswith("'")):
-                    index = index[1:-1]
-        else:
-            # For indexed arrays, evaluate arithmetic if needed
-            try:
-                if any(op in expanded_index for op in ['+', '-', '*', '/', '%', '(', ')']):
-                    index = evaluate_arithmetic(expanded_index, self.shell)
+        # Determine index type - first check if it's numeric or string
+        is_numeric_index = False
+        cleaned_index = expanded_index
+        
+        # Remove quotes if present to check the actual key
+        if len(cleaned_index) >= 2:
+            if (cleaned_index.startswith('"') and cleaned_index.endswith('"')) or \
+               (cleaned_index.startswith("'") and cleaned_index.endswith("'")):
+                cleaned_index = cleaned_index[1:-1]
+        
+        # Try to determine if index is numeric
+        try:
+            # First try direct integer conversion
+            index = int(cleaned_index)
+            is_numeric_index = True
+        except (ValueError, TypeError):
+            # Not a simple integer, check if it's an arithmetic expression
+            # Be more careful about what we consider arithmetic:
+            # - Must have operators with spaces or be in parentheses
+            # - Simple identifiers with hyphens (like "my-key") are NOT arithmetic
+            has_arithmetic = False
+            
+            # Check for clear arithmetic patterns
+            if '(' in cleaned_index and ')' in cleaned_index:
+                # Has parentheses, likely arithmetic
+                has_arithmetic = True
+            elif cleaned_index.strip().isdigit():
+                # Pure number
+                has_arithmetic = True
+            elif any(cleaned_index.startswith(op) for op in ['+', '-']) and cleaned_index[1:].strip().isdigit():
+                # Signed number like +5 or -3
+                has_arithmetic = True
+            else:
+                # Check for arithmetic operators but be smart about it
+                # Split on operators and see if we get numeric parts
+                import re
+                # Match patterns like: number op number (e.g., "1+1", "5-3", "10*2")
+                if re.match(r'^\d+\s*[+\-*/% ]\s*\d+', cleaned_index):
+                    has_arithmetic = True
+                elif re.match(r'^\(\s*\d+\s*[+\-*/% ]\s*\d+\s*\)', cleaned_index):
+                    # Parenthesized arithmetic like "(1+1)"
+                    has_arithmetic = True
                 else:
-                    index = int(expanded_index)
-            except (ValueError, Exception):
-                # Bash compatibility: when string indices are used on indexed arrays
-                # (often due to failed declare -A conversion), treat as index 0
+                    has_arithmetic = False
+            
+            if has_arithmetic:
+                try:
+                    index = evaluate_arithmetic(cleaned_index, self.shell)
+                    is_numeric_index = True
+                except (ValueError, Exception):
+                    # Failed arithmetic, treat as string
+                    index = cleaned_index
+                    is_numeric_index = False
+            else:
+                # It's a string index
+                index = cleaned_index
+                is_numeric_index = False
+        
+        # Handle existing arrays
+        if var_obj and isinstance(var_obj.value, AssociativeArray):
+            # Already an associative array, use string index
+            index = cleaned_index
+        elif var_obj and isinstance(var_obj.value, IndexedArray):
+            # Already an indexed array
+            if not is_numeric_index:
+                # Bash compatibility: string index on indexed array uses 0
                 index = 0
+            # else: use the numeric index computed above
         
         # Expand value
         expanded_value = self.expansion_manager.expand_string_variables(node.value, process_escapes=False)
@@ -171,9 +219,15 @@ class ArrayOperationExecutor:
         if var_obj and (isinstance(var_obj.value, IndexedArray) or isinstance(var_obj.value, AssociativeArray)):
             array = var_obj.value
         else:
-            # Create new indexed array by default
-            array = IndexedArray()
-            self.state.scope_manager.set_variable(node.name, array, attributes=VarAttributes.ARRAY)
+            # Create new array based on index type
+            if is_numeric_index:
+                # Numeric index, create indexed array
+                array = IndexedArray()
+                self.state.scope_manager.set_variable(node.name, array, attributes=VarAttributes.ARRAY)
+            else:
+                # String index, create associative array
+                array = AssociativeArray()
+                self.state.scope_manager.set_variable(node.name, array, attributes=VarAttributes.ARRAY | VarAttributes.ASSOC_ARRAY)
         
         # Handle append mode
         if node.is_append:

@@ -400,28 +400,28 @@ class ModularLexer:
                     if bracket_count < 0:
                         # Found unmatched opening bracket
                         found_opening_bracket = True
-                        # Check if it's preceded by a valid identifier
-                        if pos > 0:
-                            # Scan backward to find the start of the identifier
-                            id_end = pos - 1
-                            while id_end >= 0 and self.input[id_end] in ' \t':
-                                id_end -= 1
+                        # Check if it's IMMEDIATELY preceded by a valid identifier (no space)
+                        # Array assignments look like: arr[index] not arr [index]
+                        if pos > 0 and self.input[pos - 1] not in ' \t\n':
+                            # Character immediately before [ 
+                            from .unicode_support import is_identifier_char, is_identifier_start
+                            posix_mode = self.config.posix_mode if self.config else False
                             
-                            if id_end >= 0:
+                            # Must be an identifier character
+                            if is_identifier_char(self.input[pos - 1], posix_mode):
                                 # Find the start of the identifier
-                                id_start = id_end
-                                from .unicode_support import is_identifier_char, is_identifier_start
-                                posix_mode = self.config.posix_mode if self.config else False
-                                
+                                id_start = pos - 1
                                 while id_start > 0 and is_identifier_char(self.input[id_start - 1], posix_mode):
                                     id_start -= 1
                                 
                                 # Check if we have a valid identifier
-                                if id_start <= id_end and is_identifier_start(self.input[id_start], posix_mode):
-                                    identifier = self.input[id_start:id_end + 1]
-                                    if all(is_identifier_char(c, posix_mode) for c in identifier):
-                                        # We're inside an array assignment pattern
-                                        return True
+                                if is_identifier_start(self.input[id_start], posix_mode):
+                                    # Make sure this identifier is at a word boundary
+                                    if id_start == 0 or self.input[id_start - 1] in ' \t\n;|&(){}':
+                                        identifier = self.input[id_start:pos]
+                                        if all(is_identifier_char(c, posix_mode) for c in identifier):
+                                            # We're inside an array assignment pattern
+                                            return True
                         break
                 
                 # Stop at word boundaries (unless we're tracking an array)
