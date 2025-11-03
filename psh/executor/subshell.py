@@ -107,9 +107,7 @@ class SubshellExecutor:
     def _execute_in_subshell(self, statements, redirects: List['Redirect'], background: bool) -> int:
         """Execute statements in an isolated subshell environment."""
         if background:
-            # Handle background subshell - for now, treat as foreground
-            # TODO: Implement proper background job management for subshells
-            pass
+            return self._execute_background_subshell(statements, redirects)
         
         # Execute in foreground subshell with proper isolation
         return self._execute_foreground_subshell(statements, redirects)
@@ -204,6 +202,62 @@ class SubshellExecutor:
                 self.job_manager.remove_job(job.job_id)
             
             return exit_status
+    
+    def _execute_background_subshell(self, statements, redirects: List['Redirect']) -> int:
+        """Execute subshell in background with job control tracking."""
+        pid = os.fork()
+        
+        if pid == 0:
+            # Child process
+            try:
+                # New process group for background job
+                os.setpgid(0, 0)
+                
+                # Import Shell lazily to avoid circular dependency
+                from ..shell import Shell
+                
+                subshell = Shell(
+                    debug_ast=self.shell.state.debug_ast,
+                    debug_tokens=self.shell.state.debug_tokens,
+                    parent_shell=self.shell,
+                    norc=True
+                )
+                subshell.state._in_forked_child = True
+                
+                # Share I/O streams for consistent output handling
+                subshell.stdout = self.shell.stdout
+                subshell.stderr = self.shell.stderr
+                subshell.stdin = self.shell.stdin
+                
+                # Apply redirections if present
+                if redirects:
+                    subshell.io_manager.apply_redirections(redirects)
+                
+                exit_code = subshell.execute_command_list(statements)
+                os._exit(exit_code)
+            except SystemExit as e:
+                os._exit(e.code if e.code is not None else 0)
+            except Exception as e:
+                print(f"psh: subshell error: {e}", file=sys.stderr)
+                os._exit(1)
+        else:
+            # Parent process
+            try:
+                os.setpgid(pid, pid)
+            except OSError:
+                pass  # Child may have already set pgid
+            
+            job = self.job_manager.create_job(pid, "<subshell>")
+            job.add_process(pid, "subshell")
+            job.foreground = False
+            
+            # Track last background PID ($!)
+            self.shell.state.last_bg_pid = pid
+            
+            if not self.shell.is_script_mode:
+                print(f"[{job.job_id}] {job.pgid}")
+            
+            return 0
     
     def _execute_background_brace_group(self, node: 'BraceGroup', 
                                        visitor: 'ASTVisitor[int]') -> int:

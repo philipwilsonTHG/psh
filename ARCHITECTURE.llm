@@ -1,817 +1,386 @@
 # PSH Architecture Reference for Large Language Models
 
-Version: 0.91.5 (2025-01-21) - Word AST Expansion & Parser Documentation  
-Purpose: Optimized reference for LLMs working with PSH codebase
+Version: 0.101.0 (2025-01-06) – Parser Modularization & Token Pipeline Refresh  
+Purpose: Optimized reference for LLMs working with the PSH codebase
 
 ## Quick Start
 
-### Making Common Changes
+**Add a new builtin command**
+1. Create module in `psh/builtins/` (example: `mycommand.py`) inheriting from `BuiltinCommand`
+2. Register it inside `psh/builtins/registry.py` via `registry.register('name', MyCommand)`
+3. Add behavioral tests in `tests/unit/builtins/` (or create a focused integration test under `tests/integration/builtins/`)
 
-**Add a new builtin command:**
-1. Create file in `psh/builtins/` (e.g., `mycommand.py`)
-2. Implement command class inheriting from `BuiltinCommand`
-3. Register in `psh/builtins/registry.py`
+**Add a new shell option**
+1. Extend `psh/core/state.py` to initialize the option in `ShellState.options`
+2. Update any helpers in `psh/core/options.py` that should honor the option
+3. Document CLI flags or builtin toggles if needed in `psh/builtins/parser_control.py`
+4. Cover the option in `tests/integration/shell_options/test_shell_options_comprehensive.py`
 
-**Add a new shell option:**
-1. Add to `psh/core/options.py` OPTION_HANDLERS
-2. Update `psh/core/state.py` if needed
-3. Add tests in `tests/test_shell_options.py`
+**Modify parsing behavior**
+1. Edit the appropriate module in `psh/parser/recursive_descent/parsers/` (e.g. `commands.py`, `control_structures.py`)
+2. If context handling or configuration changes are required, adjust `ParserContext` in `psh/parser/recursive_descent/context.py`
+3. Use `ParserConfig` (`psh/parser/config.py`) for feature flags; add presets via `ParserFactory` in `psh/parser/recursive_descent/support/factory.py`
+4. Update validation or semantic rules in `psh/parser/validation/`
+5. Add tests under `tests/test_parser_*.py` or `tests_new/unit/parser/`
 
-**Modify parsing behavior:**
-1. Edit relevant file in `psh/parser/recursive_descent/` package
-2. Update delegation in `psh/parser/recursive_descent/parser.py` if new parser modules added
-3. Use ParserConfig for configuration changes
-4. Add validation rules in `psh/parser/validation/` if needed
-5. Add tests in `tests/test_parser_*.py` or `tests_new/unit/parser/`
+**Extend expansion behavior**
+1. Implement the feature in `psh/expansion/` (e.g., extend `parameter_expansion.py` or add a helper in `base.py`)
+2. Register orchestration logic in `psh/expansion/manager.py`
+3. Update ordering-sensitive logic in `ExpansionManager.expand_arguments()` (and relevant helpers)
+4. Add unit tests in `tests/test_expansion_*.py`
 
-**Modify expansion behavior:**
-1. Edit relevant file in `psh/expansion/`
-2. Update `ExpansionManager.expand_argument()` if order changes
-3. Add tests in `tests/test_*_expansion.py`
-
-**Add AST visitor operation:**
-1. Create new visitor in `psh/visitor/`
-2. Inherit from `ASTVisitor[T]`
-3. Implement `visit_*` methods for each node type
+**Add an AST visitor operation**
+1. Create a visitor in `psh/visitor/` inheriting from `ASTVisitor`
+2. Implement `visit_*` methods for the node types you care about
+3. Wire the visitor into `Shell` or a command entry point if it becomes user-facing
 
 ## Component Hierarchy
 
 ```
 psh/
-├── shell.py                 # Main orchestrator (~490 lines)
-├── core/                    # Shared state and exceptions
-│   ├── state.py            # Central state management
-│   ├── scope.py            # Variable scoping
-│   ├── variables.py        # Variable types (arrays)
-│   ├── exceptions.py       # Control flow exceptions
-│   └── options.py          # Shell option handlers
-├── input_preprocessing.py   # Line continuation handling
-├── lexer/                   # Modular lexer package (v0.58.0+)
-│   ├── __init__.py         # Clean public API
-│   ├── core.py            # Main StateMachineLexer class
-│   ├── helpers.py         # LexerHelpers mixin with utility methods
-│   ├── state_handlers.py  # StateHandlers mixin with state machine logic
-│   ├── constants.py       # All lexer constants and character sets
-│   ├── unicode_support.py # Unicode character classification
-│   ├── token_parts.py     # TokenPart and RichToken classes
-│   ├── position.py        # Position tracking, error handling, and lexer configuration
-│   ├── state_context.py   # Unified LexerContext (Phase 1)
-│   ├── transitions.py     # State transition management (Phase 1)
-│   ├── pure_helpers.py    # Stateless helper functions (Phase 2)
-│   ├── enhanced_helpers.py # API wrapper for pure helpers (Phase 2)
-│   ├── quote_parser.py    # Unified quote parsing (Phase 3)
-│   ├── expansion_parser.py # Expansion parsing (Phase 3)
-│   ├── unified_lexer.py   # Integrates unified parsers (Phase 3)
-│   ├── modular_lexer.py   # ModularLexer with all phases (Phase 4)
-│   └── recognizers/       # Token recognition system (Phase 4)
-│       ├── __init__.py
-│       ├── base.py        # TokenRecognizer interface
-│       ├── operator.py    # Operator recognition
-│       ├── keyword.py     # Keyword recognition
-│       ├── literal.py     # Literal recognition
-│       ├── whitespace.py  # Whitespace handling
-│       ├── comment.py     # Comment recognition
-│       └── registry.py    # Recognizer registry
-├── token_types.py          # Unified Token class with metadata and context (v0.91.3)
-├── parser/                  # Enhanced parser package with comprehensive configuration and validation
-│   ├── __init__.py         # Clean public API with backward compatibility
-│   ├── main.py            # Main Parser class with delegation orchestration and ParserContext
-│   ├── base.py            # Base parser class with token management
-│   ├── base_context.py    # ContextBaseParser using ParserContext (v0.85.0)
-│   ├── helpers.py         # Helper classes and token groups
-│   ├── commands.py        # Command and pipeline parsing
-│   ├── statements.py      # Statement list and control flow parsing
-│   ├── control_structures.py # All control structures (if, while, for, case, select)
-│   ├── tests.py           # Enhanced test expression parsing with regex support
-│   ├── arithmetic.py      # Arithmetic command and expression parsing
-│   ├── redirections.py    # I/O redirection parsing
-│   ├── arrays.py          # Array initialization and assignment parsing
-│   ├── functions.py       # Function definition parsing
-│   ├── utils.py           # Utility functions and heredoc handling
-│   ├── config.py          # Parser configuration system (v0.85.0)
-│   ├── factory.py         # ParserFactory with preset configurations (v0.85.0)
-│   ├── context.py         # Centralized ParserContext (v0.85.0)
-│   ├── context_factory.py # Context factory and creation utilities (v0.85.0)
-│   ├── context_snapshots.py # Context snapshots for backtracking (v0.85.0)
-│   ├── abstract_parser.py # Abstract base class for parser implementations
-│   ├── parser_registry.py # Registry and strategy pattern for parsers
-│   ├── word_builder.py    # Word AST node construction utilities
-│   ├── implementations/   # Multiple parser implementations
-│   │   ├── __init__.py
-│   │   ├── parser_combinator_example.py # Functional parser combinator approach
-│   │   └── recursive_descent.py        # Traditional recursive descent (default)
-│   ├── validation/        # AST validation system (v0.85.0)
-│   │   ├── semantic_analyzer.py # Semantic analysis with visitor pattern
-│   │   ├── validation_rules.py  # Modular validation rules
-│   │   ├── symbol_table.py      # Symbol table management
-│   │   ├── warnings.py          # Warning system with severity levels
-│   │   └── validation_pipeline.py # Validation orchestration
-│   ├── visualization/     # Parse tree visualization (v0.85.0)
-│   │   ├── ast_formatter.py    # Pretty printer for human-readable output
-│   │   ├── dot_generator.py    # Graphviz DOT format for diagrams
-│   │   ├── ascii_tree.py       # ASCII tree renderer for terminal
-│   │   └── sexp_renderer.py    # S-expression format for compact display
-├── ast_nodes.py            # AST node definitions
-├── visitor/                # Visitor pattern operations
-│   ├── base.py            # Base visitor classes
-│   └── executor_visitor.py # Default executor (visitor pattern)
-├── expansion/              # Shell expansions
-│   ├── manager.py         # Orchestrates expansions (with Word AST support)
-│   ├── variable.py        # Variable/parameter expansion
-│   ├── command_sub.py     # Command substitution
-│   ├── tilde.py          # Tilde expansion
-│   ├── glob.py           # Pathname expansion
-│   ├── evaluator.py       # Expansion AST node evaluator (v0.91.5)
-│   └── parameter_expansion.py # Complex parameter expansion operations
-├── executor/               # Modular executor package (v0.68.0)
-│   ├── __init__.py        # Public API exports
-│   ├── core.py            # Main ExecutorVisitor (542 lines)
-│   ├── command.py         # Simple command execution
-│   ├── pipeline.py        # Pipeline execution
-│   ├── control_flow.py    # Control structures
-│   ├── array.py           # Array operations
-│   ├── function.py        # Function execution
-│   ├── subshell.py        # Subshell/brace groups
-│   ├── context.py         # ExecutionContext
-│   └── strategies.py      # Command strategies
-├── io_redirect/            # I/O redirection
-│   ├── manager.py        # Orchestrates redirections
-│   ├── file_redirect.py  # File redirections
-│   ├── heredoc.py        # Here documents
-│   └── process_sub.py    # Process substitution
-├── interactive/            # Interactive shell features
-│   ├── repl_loop.py      # Read-eval-print loop
-│   ├── prompt_manager.py # PS1/PS2 prompts
-│   └── history_manager.py # Command history
-├── scripting/              # Script execution
-│   └── script_executor.py # Execute script files
-├── builtins/               # Built-in commands
-│   ├── registry.py       # Central registry
-│   └── *.py             # Individual builtins
-└── utils/                  # Utility modules
+├── shell.py                 # Main orchestrator (visitor executor only)
+├── shell_parser.py          # Optional parser integration helper
+├── composite_processor.py   # Post-lexer composite token merger
+├── token_stream.py          # Parser-oriented token stream helpers
+├── token_transformer.py     # Keyword/context normalization pass
+├── pipeline/                # End-to-end pipeline builder utilities
+│   └── builder.py
+├── core/                    # Shared state, options, traps
+│   ├── state.py             # ShellState and option plumbing
+│   ├── scope.py             # Scope manager with POSIX semantics
+│   ├── scope_enhanced.py    # Advanced scope features
+│   ├── variables.py         # Variable types and exports
+│   ├── exceptions.py        # Control-flow exceptions
+│   └── trap_manager.py      # Signal/exit trap handling
+├── lexer/                   # Unified modular lexer package
+│   ├── modular_lexer.py     # Entry point for tokenization
+│   ├── heredoc_lexer.py     # Tokenization with heredoc capture
+│   ├── state_context.py     # Unified lexer context object
+│   ├── transitions.py       # State machine transitions
+│   ├── enhanced_context.py  # Rich metadata context helpers
+│   ├── context_recognizer.py# Keyword and context detection
+│   ├── quote_parser.py      # Unified quote parsing
+│   ├── expansion_parser.py  # Pre-parse shell expansions
+│   ├── expansion_validator.py
+│   ├── quote_validator.py
+│   ├── heredoc_collector.py
+│   ├── token_stream_validator.py
+│   ├── pure_helpers.py / enhanced_helpers.py
+│   ├── token_parts.py / position.py / unicode_support.py
+│   └── recognizers/         # Token recognizer registry (operators, keywords, literals, etc.)
+├── token_types.py           # Unified Token & TokenType definitions
+├── token_enhanced.py        # Token metadata helpers
+├── parser/                  # Parser packages and registries
+│   ├── __init__.py          # Exports unified recursive-descent API
+│   ├── config.py            # ParserConfig & enums
+│   ├── recursive_descent/
+│   │   ├── parser.py        # Main Parser class (composite-aware)
+│   │   ├── base.py / base_context.py
+│   │   ├── context.py       # ParserContext & profiler
+│   │   ├── helpers.py       # TokenGroups & ParseError
+│   │   ├── parsers/         # commands, control_structures, statements, arrays, etc.
+│   │   ├── enhanced/        # Optional enhanced parsing hooks
+│   │   └── support/         # context_factory, factory, integration_manager, utils, word_builder
+│   ├── combinators/         # Modular parser-combinator implementation
+│   ├── parser_registry.py   # Runtime parser selection (strategy pattern)
+│   ├── abstract_parser.py   # Interface shared by all parser implementations
+│   ├── implementations/     # Recursive descent adapter + archived examples
+│   ├── validation/          # Semantic analyzer & validation pipeline
+│   └── visualization/       # AST renderers (ASCII, DOT, pretty)
+├── expansion/               # POSIX expansion pipeline
+│   ├── manager.py           # Orchestrates expansion order
+│   ├── base.py              # Shared expansion helpers
+│   ├── evaluator.py         # Word AST evaluation support
+│   ├── variable.py / parameter_expansion.py
+│   ├── command_sub.py / tilde.py / glob.py / word_splitter.py
+├── executor/                # Visitor-based executor package
+│   ├── core.py              # ExecutorVisitor (delegates to specialists)
+│   ├── command.py / pipeline.py / control_flow.py
+│   ├── array.py / function.py / subshell.py
+│   └── strategies.py        # Builtin/function/external dispatch
+├── io_redirect/             # Redirection management
+│   ├── manager.py           # IOManager coordinating handlers
+│   ├── file_redirect.py / heredoc.py / process_sub.py
+├── scripting/               # Script execution pipeline
+│   ├── base.py              # ScriptManager
+│   ├── script_executor.py / source_processor.py
+│   └── shebang_handler.py / script_validator.py
+├── interactive/             # REPL, history, completion
+│   ├── base.py              # InteractiveManager wiring
+│   ├── repl_loop.py / prompt_manager.py / history_manager.py / signal_manager.py
+│   └── completion_manager.py
+├── brace_expansion.py / history_expansion.py / multiline_handler.py
+├── builtins/                # Builtin commands (registry + implementations)
+├── job_control.py           # Job control manager (JobManager)
+├── utils/                   # Formatting helpers, path utilities, etc.
+└── pipeline/                # Tokenize → parse → validate → execute helper
 ```
 
 ## Execution Pipeline
 
 ```
-Input → Preprocessing → Tokenization → Parsing → AST → Visitor Execution → Result
-
-1. Input Processing:
-   - Line continuation (\<newline>) removal
-   - History expansion (!!, !n, etc.)
-   - Brace expansion ({a,b}, {1..5})
-
-2. Tokenization (lexer/ package):
-   - 4-phase refactored architecture:
-     - Phase 1: Unified state management (LexerContext)
-     - Phase 2: Pure function helpers (15+ functions)
-     - Phase 3: Unified quote/expansion parsing
-     - Phase 4: Modular token recognition system
-   - Priority-based recognizer dispatch
-   - Advanced state machine with Unicode support
-   - LexerConfig system for feature control
-   - Position tracking with enhanced error handling
-   - Unicode-aware character classification
-   - POSIX compatibility mode
-   - Produces RichToken objects with metadata
-   - Preserves quote information for expansion
-   - Full backward compatibility maintained
-
-3. Parsing (parser/ package):
-   - Enhanced modular parser package with comprehensive configuration and validation
-   - 8 core modules plus extensive configuration and validation systems
-   - Delegation-based main parser orchestrating specialized parsers
-   - Centralized ParserContext for unified state management
-   - Parser configuration system with multiple parsing modes
-   - AST validation system with semantic analysis
-   - Parse tree visualization in multiple formats
-   - Advanced error recovery with multi-error collection
-   - Complete backward compatibility with existing API
-   - Produces validated AST (ast_nodes.py) with optional semantic analysis
-   - Handles all shell constructs with comprehensive error recovery
-
-4. Execution (executor/ package):
-   - Modular executor package with delegation architecture
-   - Main ExecutorVisitor delegates to specialized executors
-   - ExecutionContext manages execution state
-   - Strategy pattern for command execution
-   - Returns exit status
+Input → Preprocessing → Tokenization → Token Normalization → Parsing → Validation → Expansion → Visitor Execution → Result
 ```
 
-## Key Components
+1. **Input Processing**
+   - `input_preprocessing.py` handles line continuations
+   - `history_expansion.HistoryExpander` expands `!` references
+   - `brace_expansion.BraceExpander` expands `{…}` before lexing
 
-### Shell (shell.py)
-**Purpose:** Central orchestrator coordinating all components
-**Key Methods:**
-- `run_command(cmd: str) -> int` - Execute a command string
-- `interactive_loop()` - Start interactive REPL
-- `execute_ast(ast: ASTNode) -> int` - Execute parsed AST
+2. **Tokenization (`psh/lexer/`)**
+   - `ModularLexer` tokenizes with Unicode + contextual rules
+   - `KeywordNormalizer` and `TokenTransformer` enforce context (case keywords, case terminators)
+   - `tokenize_with_heredocs` collects heredoc bodies via `HeredocLexer`
 
-**Initialized Components:**
-```python
-self.state = ShellState()
-self.expansion_manager = ExpansionManager(self)
-self.io_manager = IORedirectManager(self)
-# Executor is now created on-demand in execute methods
-self.job_manager = JobControlManager(self)
-self.alias_manager = AliasManager(self)
-self.function_manager = FunctionManager(self)
-self.builtin_registry = BuiltinRegistry(self)
-self.interactive_manager = InteractiveManager(self)
-self.script_manager = ScriptManager(self)
-```
+3. **Token Post-processing**
+   - `CompositeTokenProcessor` merges adjacent word-like tokens without whitespace into `CompositeToken`
+   - `TokenStream` provides balanced collection/lookahead helpers for parsers
+   - `token_stream_validator` ensures heredoc/token ordering sanity when integration requires it
 
-### ShellState (core/state.py)
-**Purpose:** Centralized state for entire shell
-**Key Attributes:**
-- `environment: Dict[str, str]` - Environment variables
-- `scope_manager: EnhancedScopeManager` - Variable scopes
-- `positional_params: List[str]` - $1, $2, etc.
-- `last_exit_status: int` - $?
-- `shell_pid: int` - $$
-- `last_bg_pid: Optional[int]` - $!
-- `options: Dict[str, bool]` - Shell options
+4. **Parsing (`psh/parser/`)**
+   - Default `Parser` (recursive descent) built from modular sub-parsers
+   - `ParserContextFactory` wires contexts with config, tokens, and source text
+   - `ParserFactory` produces preset configurations (strict POSIX, Bash-compatible, permissive, etc.)
+   - Optional `ParserStrategy` switches between recursive descent and parser-combinator implementations
 
-### ExecutorVisitor (executor/core.py)
-**Purpose:** Main execution engine using visitor pattern with delegation
-**Architecture:**
-- Core visitor (~542 lines) delegates to specialized executors
-- ExecutionContext manages execution state
-- Strategy pattern for command type execution
+5. **Validation (optional)**
+   - `parser/validation/validation_pipeline.py` provides semantic analysis and warnings
+   - Invoked explicitly via pipeline builder or shell options
 
-**Specialized Executors:**
-```python
-# executor/command.py - Simple command execution
-self.command_executor = CommandExecutor(shell)
+6. **Expansion (`psh/expansion/`)**
+   - `ExpansionManager` enforces POSIX ordering across tilde, parameter, command, arithmetic, word splitting, globbing, quote removal
+   - `ExpansionEvaluator` supports Word AST nodes emitted by parser
 
-# executor/pipeline.py - Pipeline execution  
-self.pipeline_executor = PipelineExecutor(shell)
+7. **Execution (`psh/executor/`)**
+   - `ExecutorVisitor` walks AST nodes, leveraging specialized executors and `IOManager`
+   - Returns final exit status; shell captures `$?`
 
-# executor/control_flow.py - Control structures
-self.control_flow_executor = ControlFlowExecutor(shell)
+## Orchestration & State
 
-# executor/array.py - Array operations
-self.array_executor = ArrayOperationExecutor(shell)
+### Shell (`psh/shell.py`)
+- Central entry point; orchestrates state, managers, parser strategy, and execution
+- Initializes `ShellState`, alias/function/job managers, `ExpansionManager`, `IOManager`, `ScriptManager`, `InteractiveManager`, and `HistoryExpander`
+- Uses `ParserStrategy` to honor parser selection (recursive descent vs. combinators); child shells inherit strategy
+- Lazily instantiates `ExecutorVisitor` per execution to ensure fresh delegation wiring
+- Key methods:
+  - `run_command(cmd: str) -> int`
+  - `execute_command_list(command_list: StatementList)`
+  - `execute_toplevel(ast: TopLevel)` / `execute(ast)`
+  - `execute_enhanced_test_statement(test_stmt: EnhancedTestStatement)`
 
-# executor/function.py - Function execution
-self.function_executor = FunctionOperationExecutor(shell)
+### ShellState (`psh/core/state.py`)
+- Centralizes environment, scope manager (`scope.py` / `scope_enhanced.py`), positional parameters, option flags, debug toggles, and stream references
+- Tracks job control metadata, `$?`, `$!`, `$-`, and exported variables
+- Provides option-specific helpers (xtrace, errexit, nounset) delegated to `psh/core/options.py`
+- Coordinates trap installation through `TrapManager`
 
-# executor/subshell.py - Subshells and brace groups
-self.subshell_executor = SubshellExecutor(shell)
-```
+### Parser Integration Helpers
+- `shell_parser.install_parser_integration(shell)` attaches a `ShellParser` instance that consumes shell options (`parser-mode`, `validate-context`, etc.) to build `ParserConfig`
+- `psh/pipeline/builder.py` encapsulates tokenize → parse → validate → execute flows for tooling (`PipelineBuilder.build()` returns `ShellPipeline`)
+- `parser/parser_registry.py` exposes `ParserStrategy` for runtime switching and instrumentation
 
-### ExpansionManager (expansion/manager.py)
-**Purpose:** Orchestrate all expansions in correct order
-**Expansion Order:**
-1. Tilde expansion (~, ~user)
-2. Variable expansion ($var, ${var})
-3. Command substitution ($(...), `...`)
-4. Arithmetic expansion ($((...)))
-5. Word splitting (on $IFS)
-6. Pathname expansion (*, ?, [...])
-7. Quote removal
+## Token Pipeline Details
 
-**Word AST Support (v0.91.5):**
-- Handles Word AST nodes when `build_word_ast_nodes` is enabled
-- `_expand_word_ast_arguments()` processes Word nodes
-- `_expand_word()` evaluates individual Word with proper quoting
-- Uses `ExpansionEvaluator` for clean separation of concerns
-- Maintains backward compatibility with string-based expansion
+1. **Brace Expansion (`brace_expansion.py`)**
+   - Expands `{a,b}` and ranges before lexing; failures fall back to raw input
 
-### Lexer Package (lexer/) - Unified Architecture (v0.91.3)
-**Purpose:** Unified modular lexer with enhanced features as standard
-**Note:** Enhanced lexer deprecation plan completed in v0.91.3. All enhanced features are now built-in standard throughout PSH operation. Compatibility code removed.
+2. **Modular Lexer (`lexer/modular_lexer.py`)**
+   - Combines `LexerHelpers`, `StateHandlers`, `state_context.py`, and recognizer registry to emit unified `Token` instances
+   - Uses `unicode_support.py` for identifier classification and POSIX fallback modes via `LexerConfig`
+   - `recognizers/` includes operator, keyword, literal, whitespace, comment, and process-substitution recognizers
 
-**Core Components (Original v0.58.0):**
-- **StateMachineLexer** (core.py): Main lexer class combining mixins
-- **LexerHelpers** (helpers.py): Utility methods for balanced parsing, operators, word termination
-- **StateHandlers** (state_handlers.py): All state machine transition logic
-- **Constants** (constants.py): Character sets, operators, keywords
-- **Unicode Support** (unicode_support.py): Unicode character classification with POSIX fallback
-- **Token Parts** (token_parts.py): TokenPart and RichToken definitions
-- **Position Tracking** (position.py): Position, LexerState, LexerConfig, error handling
+3. **Keyword Normalization & Token Transformation**
+   - `lexer/keyword_normalizer.KeywordNormalizer` lowers + validates reserved words while preserving user identifiers
+   - `token_transformer.TokenTransformer` enforces context rules (e.g., `;;` allowed only inside `case`)
 
-**Refactored Components (Phases 1-4):**
-- **Phase 1 - State Management:**
-  - `state_context.py`: Unified LexerContext with all state
-  - `transitions.py`: State transition management with history
-  - `enhanced_state_machine.py`: Enhanced lexer using unified state
-- **Phase 2 - Pure Helpers:**
-  - `pure_helpers.py`: 15+ stateless helper functions
-  - `enhanced_helpers.py`: Wrapper maintaining existing API
-- **Phase 3 - Unified Parsing:**
-  - `quote_parser.py`: Unified quote parsing with configurable rules
-  - `expansion_parser.py`: All expansion types ($VAR, ${VAR}, $(...), $((...)))
-  - `unified_lexer.py`: Integrates unified parsers
-- **Phase 4 - Token Recognition:**
-  - `recognizers/base.py`: TokenRecognizer abstract interface
-  - `recognizers/operator.py`: Shell operators with context awareness
-  - `recognizers/keyword.py`: Shell keywords with position validation
-  - `recognizers/literal.py`: Words, identifiers, and numbers
-  - `recognizers/whitespace.py`: Whitespace handling
-  - `recognizers/comment.py`: Comment recognition
-  - `recognizers/registry.py`: Priority-based recognizer dispatch
-  - `modular_lexer.py`: ModularLexer integrating all systems
+4. **Composite Token Processing (`composite_processor.py`)**
+   - Merges contiguous word-like tokens with no whitespace (e.g., `foo${bar}.txt`) into `CompositeToken`
+   - Parser entry points can opt-in via `use_composite_processor=True`; default `parse()` keeps raw tokens unless higher-level integration enables composites
 
-**Key Features:**
-- 4-phase refactored architecture with backward compatibility
-- Unified state management with immutable snapshots
-- Pure function helpers for testability
-- Configurable quote and expansion parsing
-- Priority-based token recognition system
-- Unicode-aware character classification
-- POSIX compatibility mode for ASCII-only operation
-- Comprehensive error handling with position tracking
-- Clean modular design with extensibility points
+5. **Token Stream Utilities (`token_stream.py`)**
+   - Provides `peek`, `advance`, balance collection, composite lookahead, and save/restore mechanics used across parser submodules
 
-**Unicode Functions:**
-```python
-def is_identifier_start(char: str, posix_mode: bool = False) -> bool
-def is_identifier_char(char: str, posix_mode: bool = False) -> bool  
-def is_whitespace(char: str, posix_mode: bool = False) -> bool
-def normalize_identifier(name: str, posix_mode: bool = False, case_sensitive: bool = True) -> str
-def validate_identifier(name: str, posix_mode: bool = False) -> bool
-```
+6. **Heredoc Support (`lexer/heredoc_lexer.py`, `lexer/heredoc_collector.py`)**
+   - Collects heredoc bodies out-of-band while preserving token stream metadata
+   - `tokenize_with_heredocs` returns `(tokens, heredoc_map)` for parser consumption
 
-**Architecture:**
-```python
-# Mixin-based design for modularity
-class StateMachineLexer(LexerHelpers, StateHandlers):
-    def __init__(self, input_string: str, config: Optional[LexerConfig] = None):
-        # Initialize lexer with modular components
-        pass
+7. **Validation & Contracts**
+   - `lexer/token_stream_validator.py` verifies lexer output contracts before parser integration when enhanced mode is active
+   - `lexer/expansion_validator.py` / `lexer/quote_validator.py` provide sanity checks for complex lexing states
 
-# Configuration system
-class LexerConfig:
-    # Core features
-    enable_double_quotes: bool = True
-    enable_single_quotes: bool = True
-    enable_variable_expansion: bool = True
-    # Unicode support
-    posix_mode: bool = False
-    unicode_identifiers: bool = True
-    case_sensitive: bool = True
-    # Error handling
-    strict_mode: bool = False
-    recovery_mode: bool = True
-```
+## Parser Package Highlights
 
-### Enhanced Parser System (v0.85.0)
+### Recursive Descent Package (`psh/parser/recursive_descent/`)
+- **`parser.py`**: Central `Parser` class orchestrating modular parsers; integrates `CompositeTokenProcessor`, uses `ParserContextFactory`, and exposes compatibility methods
+- **`context.py`**: Defines `ParserContext`, profiling utilities, heredoc tracking, backtracking support
+- **`base_context.py`**: Shared context-handling helpers (feature toggles, error policies)
+- **`parsers/`**: Specialized modules for statements, commands, control structures, arithmetic, arrays, redirections, functions, and tests
+- **`helpers.py`**: `ParseError`, `ErrorContext`, `TokenGroups`, and legacy compatibility shims
+- **`enhanced/`**: Optional hook-ins for enriched error recovery and semantic-aware parsing (installed via `integration_manager`)
+- **`support/`**:
+  - `context_factory.py`: Builds `ParserContext` from tokens/config
+  - `factory.py`: Provides `ParserFactory` presets and configuration validation helpers
+  - `integration_manager.py`: Installs enhanced parsing features on demand
+  - `utils.py`: Miscellaneous helpers (`parse_with_heredocs`, context adapters)
+  - `word_builder.py`: Constructs Word AST nodes linking to expansion metadata
 
-**Parser Configuration:**
-```python
-# Multiple parsing modes
-parser = ParserFactory.create_strict_posix_parser(tokens, source_text)
-parser = ParserFactory.create_bash_compatible_parser(tokens, source_text)
-parser = ParserFactory.create_permissive_parser(tokens, source_text)
-parser = ParserFactory.create_educational_parser(tokens, source_text)
+### Parser Configuration & Modes
+- `parser/config.py`: `ParserConfig`, `ParsingMode`, `ErrorHandlingMode` with >40 toggles (validation, error collection, semantic analysis)
+- `parser/parser_registry.py`: `ParserRegistry` and `ParserStrategy` enabling runtime parser swapping with metrics collection
+- `parser/validation/`: `SemanticAnalyzer`, `ValidationPipeline`, rule definitions, warnings, and symbol tables
+- `parser/visualization/`: Formatters for pretty, DOT, ASCII, and S-expression AST outputs
 
-# Custom configuration
-config = ParserConfig(
-    parsing_mode=ParsingMode.EDUCATIONAL,
-    enable_validation=True,
-    collect_errors=True,
-    max_errors=50
-)
-parser = Parser(tokens, config=config)
-```
+### Alternative Implementation (`psh/parser/combinators/`)
+- Fully modular parser-combinator implementation with near parity to recursive descent (`core.py`, `tokens.py`, `commands.py`, `control_structures.py`, etc.)
+- Registered via `ParserRegistry` (aliases: `"combinator"`, `"parser-combinator"`)
+- Used for experimentation, benchmarking, and educational comparisons
 
-**Centralized Parser Context:**
-```python
-# All parser state in unified context
-class ParserContext:
-    tokens: List[Token]
-    current: int
-    config: ParserConfig
-    errors: List[ParseError]
-    scope_stack: List[str]
-    profiler: Optional[ParserProfiler]
-    
-    def enter_scope(self, scope: str): ...
-    def consume(self, token_type: TokenType): ...
-    def match(self, *token_types: TokenType): ...
-```
+## Expansion System
 
-**AST Validation:**
-```python
-# Semantic analysis with validation
-analyzer = SemanticAnalyzer()
-errors, warnings = analyzer.analyze(ast)
+- `expansion/manager.py` orchestrates all expansion phases and exposes debugging toggles
+- `expansion/base.py` centralizes normalization helpers and shared exceptions
+- `expansion/variable.py` / `parameter_expansion.py` handle `$var`, `${var}`, slicing, modifiers
+- `expansion/command_sub.py` executes command substitutions, integrating with shell inheritance rules
+- `expansion/tilde.py` resolves `~` and `~user`
+- `expansion/glob.py` performs pathname expansion while respecting quoting
+- `expansion/word_splitter.py` applies `$IFS`-aware splitting
+- `expansion/evaluator.py` walks Word AST nodes (produced when `ParserConfig.build_word_ast_nodes` is true)
 
-# Validation rules
-validator = ValidationPipeline()
-report = validator.validate(ast)
-```
+## Execution & I/O
 
-**Parse Tree Visualization:**
-```python
-# Multiple output formats
-formatter = ASTPrettyPrinter()
-dot_generator = ASTDotGenerator()
-tree_renderer = ASTAsciiTreeRenderer()
+- `executor/core.py` implements `ExecutorVisitor`, delegating to specialized modules (`command.py`, `pipeline.py`, `control_flow.py`, `array.py`, `function.py`, `subshell.py`)
+- `executor/strategies.py` encapsulates builtin/function/external command execution strategies
+- `io_redirect/manager.py` coordinates file redirects, process substitutions, and heredoc handling; uses `FileRedirector`, `HeredocHandler`, `ProcessSubstitutionHandler`
+- `job_control.JobManager` integrates job monitoring, shell options (`monitor`, `notify`), and process state tracking
 
-# CLI integration
-psh --debug-ast=pretty -c "if true; then echo hi; fi"
-parse-tree -f dot "for i in 1 2 3; do echo $i; done"
-show-ast "case $var in pattern) echo match;; esac"
-```
+## Supporting Systems
 
-### Multiple Parser Implementation System
-
-PSH supports multiple parser implementations through a registry and strategy pattern,
-allowing runtime selection and experimentation with different parsing approaches.
-
-**Parser Registry (parser/parser_registry.py):**
-```python
-# Register parser implementations
-ParserRegistry.register("default", RecursiveDescentParser, aliases=["recursive-descent"])
-ParserRegistry.register("combinator", ParserCombinatorExample, aliases=["pc", "parser-combinator"])
-
-# Create parser instance
-parser = ParserRegistry.create("combinator", config=parser_config)
-
-# Runtime parser switching
-parser_strategy = ParserStrategy("default")
-parser_strategy.switch_parser("combinator")
-parser_strategy.configure(build_word_ast_nodes=True)
-```
-
-**Abstract Parser Interface:**
-```python
-class AbstractShellParser(ABC):
-    """Base interface for all parser implementations."""
-    
-    @abstractmethod
-    def parse(self, tokens: List[Token]) -> TopLevel:
-        """Parse tokens into AST."""
-    
-    @abstractmethod
-    def get_characteristics(self) -> ParserCharacteristics:
-        """Return parser capabilities and features."""
-```
-
-**Parser Strategy Pattern:**
-- Consistent interface regardless of implementation
-- Runtime parser switching capabilities
-- Performance metrics collection
-- Parser comparison testing
-
-### Parser Combinator Implementation
-
-The parser combinator implementation provides a functional programming approach
-to parsing, using composable parser primitives.
-
-**Location:** `parser/implementations/parser_combinator_example.py`
-
-**Key Features:**
-- Functional parser combinators (map, flatMap, or_else, many, etc.)
-- Monadic parser composition
-- Clean separation of parsing logic
-- Backtracking support
-- Left recursion handling
-
-**Basic Combinators:**
-```python
-# Parser type: Parser[T] = Callable[[List[Token], int], Optional[Tuple[T, int]]]
-
-# Primitive parsers
-def token(expected_type: TokenType) -> Parser[Token]:
-    """Parse a single token of expected type."""
-
-def literal(value: str) -> Parser[Token]:
-    """Parse a token with specific value."""
-
-# Combinator operations
-def map(parser: Parser[A], f: Callable[[A], B]) -> Parser[B]:
-    """Transform parser result."""
-
-def flatMap(parser: Parser[A], f: Callable[[A], Parser[B]]) -> Parser[B]:
-    """Monadic bind - sequence parsers."""
-
-def or_else(parser1: Parser[A], parser2: Parser[A]) -> Parser[A]:
-    """Try parser1, if fails try parser2."""
-
-def many(parser: Parser[A]) -> Parser[List[A]]:
-    """Parse zero or more occurrences."""
-```
-
-**Example Usage:**
-```python
-# Parse variable assignment: VAR=value
-assignment_parser = flatMap(
-    token(TokenType.WORD),  # Variable name
-    lambda var: flatMap(
-        literal("="),       # Assignment operator
-        lambda _: map(
-            token(TokenType.WORD),  # Value
-            lambda val: (var.value, val.value)
-        )
-    )
-)
-```
-
-**Advanced Features:**
-1. **Nested Control Structure Handling:**
-   - Level tracking for proper nesting
-   - Correct handling of keywords in context
-   - Example: nested for loops with proper 'done' matching
-
-2. **Function Definition Parsing:**
-   - Both POSIX and bash-style functions
-   - Proper body parsing with control structures
-   - Function name validation
-
-3. **Error Recovery:**
-   - Graceful handling of parse failures
-   - Meaningful error messages
-   - Partial AST construction
-
-**Advantages:**
-- Highly composable and reusable
-- Clear correspondence to grammar rules
-- Easy to extend with new constructs
-- Type-safe parser composition
-- Natural handling of alternatives
-
-**Implementation Highlights:**
-```python
-class ParserCombinatorExample(AbstractShellParser):
-    def __init__(self):
-        # Build parser from combinators
-        self.statement = self._build_statement_parser()
-        self.command = self._build_command_parser()
-        self.control_structure = self._build_control_parser()
-        
-    def parse(self, tokens: List[Token]) -> TopLevel:
-        # Use combinator parsers
-        result = run_parser(self.top_level, tokens)
-        if result:
-            ast, remaining = result
-            return ast
-        raise ParseError("Failed to parse")
-```
-
-**Parser Comparison:**
-- Both recursive descent and parser combinator produce identical ASTs
-- Parser comparison tests ensure compatibility
-- Performance metrics show comparable speed
-- Each approach has different extensibility characteristics
-
-### Key Interfaces
-
-**BuiltinCommand (builtins/base.py):**
-```python
-class BuiltinCommand(ABC):
-    @abstractmethod
-    def execute(self, args: List[str], shell: 'Shell') -> int:
-        """Execute builtin with args, return exit status"""
-```
-
-**ASTVisitor (visitor/base.py):**
-```python
-class ASTVisitor(Generic[T], ABC):
-    def visit(self, node: ASTNode) -> T:
-        """Visit a node, dispatching to visit_* method"""
-        method_name = f'visit_{node.__class__.__name__}'
-        visitor = getattr(self, method_name, self.generic_visit)
-        return visitor(node)
-```
-
-**ParserConfig (parser/config.py):**
-```python
-@dataclass
-class ParserConfig:
-    parsing_mode: ParsingMode = ParsingMode.BASH_COMPAT
-    error_handling: ErrorHandlingMode = ErrorHandlingMode.STRICT
-    enable_validation: bool = False
-    collect_errors: bool = False
-    max_errors: int = 10
-    # ... 40+ more configuration options
-```
-
+- `scripting/base.py` (`ScriptManager`) manages script execution, sourcing, and shebang handling
+- `scripting/script_validator.py` / `source_processor.py` provide linting and pre-processing for scripts
+- `interactive/base.py` coordinates REPL, prompt, history, and signal managers; `repl_loop.py` drives interactive shells
+- `input_sources.py`, `multiline_handler.py`, `line_editor.py` support multi-line editing and input abstraction
+- `token_enhanced.py` adds metadata attachment to tokens (context, source mapping)
+- `utils/token_formatter.py` and friends provide debugging/trace formatting
 
 ## Data Flow Examples
 
 ### Simple Command: `echo "Hello $USER"`
-1. **Tokenize:** [WORD("echo"), STRING("Hello $USER")]
-2. **Parse:** SimpleCommand(args=["echo", "Hello $USER"])
-3. **Execute:**
-   - Expand arguments: ["echo", "Hello alice"]
-   - Resolve command: builtin "echo"
-   - Execute builtin: outputs "Hello alice"
-   - Return: exit status 0
+1. **Tokenizer**: WORD(`echo`), STRING(`Hello $USER`)
+2. **Composite Processor**: STRING + (no adjacent tokens) → unchanged
+3. **Parser**: `SimpleCommand(args=["echo", "Hello $USER"])`
+4. **Expansion**: `"Hello $USER"` → `"Hello alice"` (quote preserves spacing)
+5. **Executor**: Runs builtin `echo`, returns status `0`
 
-### Pipeline: `ls | grep test`
-1. **Parse:** Pipeline([SimpleCommand("ls"), SimpleCommand("grep", "test")])
-2. **Execute:**
-   - Create pipe
-   - Fork for ls (redirect stdout to pipe)
-   - Fork for grep (redirect stdin from pipe)
-   - Wait for both processes
-   - Return: exit status of grep
+### Composite Argument: `file${N}.txt`
+1. **Tokenizer**: WORD(`file`), VARIABLE(`N`), WORD(`.txt`)
+2. **Composite Processor**: merges into COMPOSITE(`file${N}.txt`)
+3. **Parser**: Treats composite as single argument in `SimpleCommand`
+4. **Expansion**: Variable expansion occurs inside composite preserving literal parts
 
-### Variable Assignment: `X=10; echo $X`
-1. **Parse:** StatementList([SimpleCommand with assignment, SimpleCommand])
-2. **Execute:**
-   - First command: set variable X=10
-   - Second command: expand $X to "10", echo it
-   - Return: exit status 0
+### Pipeline With Validation: `ls | grep test`
+1. **PipelineBuilder**: `.tokenize()` uses `ModularLexer`
+2. **Parser**: Produces `Pipeline([SimpleCommand("ls"), SimpleCommand("grep", "test")])`
+3. **ValidationPipeline** (optional): Checks semantic rules (e.g., globbing warnings)
+4. **ExecutorVisitor**: Sets up pipe, forks commands, returns exit status of final command (with `pipefail` awareness)
 
 ## Extension Points
 
-### Adding Features
-
-**New Builtin Command:**
+**New Builtin Command**
 ```python
 # psh/builtins/mybuiltin.py
 from psh.builtins.base import BuiltinCommand
 
 class MyBuiltin(BuiltinCommand):
-    def execute(self, args: List[str], shell: 'Shell') -> int:
+    def execute(self, args: list[str], shell: 'Shell') -> int:
         # Implementation
         return 0
 
 # Register in psh/builtins/registry.py
-self.register('mybuiltin', MyBuiltin)
+registry.register('mybuiltin', MyBuiltin)
 ```
 
-**New AST Operation:**
-```python
-# psh/visitor/myvisitor.py
-from psh.visitor.base import ASTVisitor
+**New Parser Rule**
+1. Add parsing logic in the relevant module under `psh/parser/recursive_descent/parsers/`
+2. Update helper utilities or token groups if the rule needs new token classifications
+3. Provide validation rules in `psh/parser/validation/validation_rules.py` if semantics require checks
 
-class MyVisitor(ASTVisitor[None]):
-    def visit_SimpleCommand(self, node: SimpleCommand) -> None:
-        # Process command
-        pass
-```
-
-**New Expansion Type:**
-1. Add expander class in `psh/expansion/`
-2. Integrate into `ExpansionManager.expand_argument()`
-3. Consider expansion order requirements
+**New Expansion Type**
+1. Implement expander in `psh/expansion/` (e.g., `new_expansion.py`)
+2. Invoke it from `ExpansionManager.expand_arguments()` (or the specific helper it delegates to) in the proper POSIX order slot
+3. Update `ExpansionEvaluator` when Word AST integration is required
+4. Add regression coverage in `tests/test_expansion_new_feature.py`
 
 ## Architecture Invariants
 
-1. **State Centralization:** All state goes through ShellState
-2. **Component Isolation:** Components communicate through Shell instance
-3. **Visitor Pattern:** AST nodes are data-only, operations in visitors
-4. **Exit Status:** All execution returns integer exit status
-5. **Fork for External:** External commands always fork()
-6. **Expansion Order:** Must follow POSIX expansion order
+1. **Centralized State**: All mutable shell state flows through `ShellState`
+2. **Component Isolation**: Managers interact via `Shell` references, not global state
+3. **Visitor Execution**: AST nodes remain data-only; behavior lives in visitors/executors
+4. **POSIX Expansion Order**: Expansion phases must remain in standard order
+5. **Parser Feature Flags**: `ParserConfig` governs all behavior toggles; avoid hard-coded feature switches
+6. **Composite Token Safety**: Composite merging must preserve original token boundaries for metadata consumers
+7. **Exit Status Discipline**: Every execution path returns an integer exit status
 
 ## Testing Conventions
 
-**Test Organization:**
-- Unit tests: `test_<component>.py`
-- Integration tests: `test_integration.py`
-- Bash comparison: `tests/comparison/test_bash_*.py`
-
-**Test Patterns:**
-```python
-def test_feature(shell):  # shell fixture from conftest.py
-    result = shell.run_command("command")
-    assert result == 0  # exit status
-```
+- Pytest entry: `pytest` (configured via `pytest.ini`)
+- Traditional tests live in `tests/`; incremental refactors under `tests_new/unit/`
+- Lexer tests: `tests/test_lexer_*.py` (add new focused cases alongside existing files)
+- Parser tests: `tests/test_parser_*.py`, combinator parity suites in `tests_new/unit/parser/`
+- Expansion tests: `tests/test_expansion_*.py`
+- Executor/integration: `tests/test_executor_*.py`, `tests/test_shell_*.py`, plus golden scripts in `conformance_tests/`
+- Use fixtures from `conftest.py` (`shell`, `tokenizer`, etc.) for consistency
 
 ## Performance Considerations
 
-1. **Tokenizer:** State machine minimizes backtracking
-2. **Parser:** Single-pass recursive descent
-3. **Visitor:** Direct dispatch via Python method lookup
-4. **Expansion:** Lazy evaluation where possible
-5. **Subprocess:** Fork only when necessary
+1. **Lexer**: State machine minimizes backtracking; Unicode classification cached in helpers
+2. **Composite Processor**: Linear scan with adjacency checks, negligible overhead
+3. **Parser**: Modular recursive descent with shared `ParserContext` reduces redundant allocations; composites limit word concatenation work
+4. **Validation**: Optional; keep disabled in performance-sensitive modes
+5. **Executor**: Strategy pattern avoids repeated type checks and supports caching
+6. **Expansion**: Lazy evaluation where possible; Word AST mode offers better caching at cost of tree building
 
 ## Known Limitations
 
-1. **Deep Recursion:** Python stack limits affect shell function recursion
-2. **Pytest Capture:** Command substitution output capture issues in tests
-3. **Builtin Redirections:** Would require forking builtins
-4. **Composite Token Quotes:** Some quote information lost in parser
-
-## Common Patterns
-
-### Manager Pattern
-```python
-class SomeManager:
-    def __init__(self, shell: 'Shell'):
-        self.shell = shell
-        self.state = shell.state
-```
-
-### Visitor Method
-```python
-def visit_NodeType(self, node: NodeType) -> int:
-    # Process node
-    # Recurse to children if needed
-    # Return exit status
-```
-
-### Builtin Implementation
-```python
-class MyBuiltin(BuiltinCommand):
-    def execute(self, args: List[str], shell: 'Shell') -> int:
-        # Validate arguments
-        # Perform operation
-        # Update state if needed
-        # Return exit status
-```
+1. **Python Recursion Limits**: Deeply nested shell functions may exceed Python recursion depth
+2. **Pytest Output Capture**: Command substitution may interfere with pytest’s stdout capture in certain tests
+3. **Builtin Redirections**: Builtins re-use process substitution & FD juggling; some complex redirection combinations still require caution
+4. **Composite Token Metadata**: While `CompositeToken` preserves components, quote attribution can require consulting `components` for precise semantics
 
 ## Quick Reference
 
-### File Locations
-- **Add builtin:** `psh/builtins/` + register in `registry.py`
-- **Modify parsing:** `psh/parser/` package + update delegation in `main.py` if needed
-- **Parser configuration:** `psh/parser/config.py` (ParserConfig, ParsingMode)
-- **Parser factory:** `psh/parser/factory.py` (ParserFactory with presets)
-- **Parser context:** `psh/parser/context.py` (ParserContext, ParserProfiler)
-- **Context factory:** `psh/parser/context_factory.py` (context creation utilities)
-- **Context snapshots:** `psh/parser/context_snapshots.py` (backtracking support)
-- **AST validation:** `psh/parser/validation/` (semantic analysis, validation rules)
-- **Parse visualization:** `psh/parser/visualization/` (AST formatters, tree renderers)
-- **Change expansion:** `psh/expansion/` + `manager.py`
-- **Add shell option:** `psh/core/options.py`
-- **Modify tokenization:** `psh/lexer/` package (see below for specific areas)
-- **Original lexer:** `psh/lexer/core.py`, `helpers.py`, `state_handlers.py`
-- **Lexer constants:** `psh/lexer/constants.py`
-- **Unicode support:** `psh/lexer/unicode_support.py`
-- **Position tracking:** `psh/lexer/position.py`
-- **Configure lexer features:** `LexerConfig` class in `psh/lexer/position.py`
-- **State management:** `psh/lexer/state_context.py`, `transitions.py` (Phase 1)
-- **Pure helpers:** `psh/lexer/pure_helpers.py` (Phase 2)
-- **Quote parsing:** `psh/lexer/quote_parser.py` (Phase 3)
-- **Expansion parsing:** `psh/lexer/expansion_parser.py` (Phase 3)
-- **Token recognizers:** `psh/lexer/recognizers/` (Phase 4)
-- **Integrated lexer:** `psh/lexer/modular_lexer.py` (Phase 4)
-- **Parser components:** `psh/parser/recursive_descent/parsers/commands.py`, `psh/parser/recursive_descent/parsers/control_structures.py`, etc.
-- **Parser helpers:** `psh/parser/helpers.py` (TokenGroups, ParseError, etc.)
-
-### Key Classes
-- `Shell` - Main orchestrator
-- `ShellState` - Central state
-- `ExecutorVisitor` - Main executor with delegation
-- `ExecutionContext` - Execution state management
-- `CommandExecutor` - Simple command execution
-- `PipelineExecutor` - Pipeline execution
-- `ExpansionManager` - Expansion orchestrator (with Word AST support)
-- `ExpansionEvaluator` - Evaluates expansion AST nodes (v0.91.5)
-- `Parser` - Enhanced modular parser with ParserContext integration
-- `ParserContext` - Centralized parser state management (v0.85.0)
-- `ParserConfig` - Comprehensive parser configuration (v0.85.0)
-- `ParserFactory` - Factory with preset configurations (v0.85.0)
-- `ParserRegistry` - Registry for multiple parser implementations
-- `ParserStrategy` - Strategy pattern for parser selection
-- `AbstractShellParser` - Base interface for parser implementations
-- `ParserCombinatorExample` - Functional parser combinator implementation
-- `WordBuilder` - Constructs Word AST nodes with expansions
-- `ParserContextFactory` - Context creation utilities (v0.85.0)
-- `SemanticAnalyzer` - AST semantic analysis (v0.85.0)
-- `ValidationPipeline` - Validation orchestration (v0.85.0)
-- `ASTPrettyPrinter` - Human-readable AST formatting (v0.85.0)
-- `ASTDotGenerator` - Graphviz DOT format generator (v0.85.0)
-- `ASTAsciiTreeRenderer` - Terminal ASCII tree display (v0.85.0)
-- `CommandParser` - Command and pipeline parsing
-- `ControlStructureParser` - Control structure parsing
-- `StateMachineLexer` - Original tokenizer with mixin architecture
-- `LexerHelpers` - Mixin with utility methods
-- `StateHandlers` - Mixin with state machine logic
-- `LexerConfig` - Lexer configuration and feature control
-- `PositionTracker` - Position tracking for error handling
-- `LexerContext` - Unified state representation (Phase 1)
-- `StateManager` - State transition management (Phase 1)
-- `UnifiedQuoteParser` - Configurable quote parsing (Phase 3)
-- `ExpansionParser` - All expansion types (Phase 3)
-- `TokenRecognizer` - Base interface for recognizers (Phase 4)
-- `RecognizerRegistry` - Priority-based dispatch (Phase 4)
-- `ModularLexer` - Integrated lexer with all phases (Phase 4)
-
-### Important Methods
-- `shell.run_command(cmd)` - Execute command
-- `expansion_manager.expand_argument(arg, type)` - Expand argument
-- `parser.parse()` - Parse tokens to AST (delegates to specialized parsers)
-- `parser.parse_with_error_collection()` - Parse with enhanced error collection (v0.85.0)
-- `parser_factory.create_strict_posix_parser()` - Create POSIX-compliant parser (v0.85.0)
-- `semantic_analyzer.analyze(ast)` - Perform semantic analysis (v0.85.0)
-- `validation_pipeline.validate(ast)` - Run validation rules (v0.85.0)
-- `ast_formatter.visit(ast)` - Format AST for display (v0.85.0)
-- `visitor.visit(node)` - Execute AST node
+- **Add builtin**: `psh/builtins/` + `psh/builtins/registry.py`
+- **Modify tokenization**: `psh/lexer/modular_lexer.py` and recognizers; configs via `LexerConfig` in `psh/lexer/position.py`
+- **Keyword normalization**: `psh/lexer/keyword_normalizer.py`
+- **Token transformation**: `psh/token_transformer.py`
+- **Composite tokens**: `psh/composite_processor.py`
+- **Token stream utilities**: `psh/token_stream.py`
+- **Parser entry point**: `psh/parser/__init__.py` (`parse`, `ParserFactory`)
+- **Parser context**: `psh/parser/recursive_descent/context.py`
+- **Parser presets**: `psh/parser/recursive_descent/support/factory.py`
+- **Parser registry/strategy**: `psh/parser/parser_registry.py`
+- **Parser validation**: `psh/parser/validation/validation_pipeline.py`
+- **Expansion manager**: `psh/expansion/manager.py`
+- **Executor visitor**: `psh/executor/core.py`
+- **IO manager**: `psh/io_redirect/manager.py`
+- **Pipeline builder**: `psh/pipeline/builder.py`
+- **Shell options**: `psh/core/state.py`, behaviors in `psh/core/options.py`
+- **Job control**: `psh/job_control.py`
+- **Interactive shell**: `psh/interactive/base.py`, `psh/interactive/repl_loop.py`
+- **Script execution**: `psh/scripting/base.py`, `psh/scripting/script_executor.py`
 
 ## Maintenance
 
-To keep this document updated:
-1. Update version and date at top
-2. Add new components to hierarchy
-3. Update data flow if execution changes
-4. Add new patterns as they emerge
-5. Document new limitations discovered
-6. Keep quick reference current
+1. Update version/date header when architecture changes land (`psh/version.py` authoritative)
+2. Refresh component hierarchy for new modules or reorganizations
+3. Adjust execution pipeline notes when token/parsing steps shift
+4. Keep extension points and quick reference aligned with latest module paths
+5. Cross-check against `ARCHITECTURE.md` and release notes; this file supersedes older human-focused docs when conflicts arise
+6. Document new invariants and known limitations as they appear
 
-Related Documentation:
-- `ARCHITECTURE.md` - Human-focused architecture guide (updated for v0.85.0)
-- `PARSER_HIGH_PRIORITY_IMPLEMENTATION_PLAN.md` - Complete parser enhancement plan (implemented in v0.85.0)
-- `CLAUDE_PARSER_IMPROVEMENTS.md` - Parser improvement analysis and implementation notes
-- `PARSER_ARCHITECTURE.md` - Parser details (legacy)
-- `docs/expansion_executor_architecture.md` - Expansion/execution details
-- `docs/visitor_pattern_implementation.md` - Visitor pattern details
-- `docs/architecture/lexer_architecture.md` - Comprehensive lexer architecture
-- `LEXER_REFACTORING_PLAN.md` - Lexer refactoring phases and timeline (completed)
+Related documentation:
+- `ARCHITECTURE.md` – human-readable guide (pending update to 0.101.0)
+- `ENHANCED_PARSER_INTEGRATION_PLAN.md` – historical context for parser integration
+- `LEXER_REFACTORING_STATUS.md` / `LEXER_REFACTORING_PLAN.md` – lexer migration notes
+- `PARSER_HIGH_PRIORITY_IMPLEMENTATION_PLAN.md` – historical plan for parser enhancements
+- `RELEASE_NOTES_v0.91.3.md` and `psh/version.py` – change history
+- `CLAUDE.md`, `AGENTS.md` – collaboration guidelines for agentic contributors

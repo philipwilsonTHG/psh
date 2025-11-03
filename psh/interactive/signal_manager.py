@@ -98,7 +98,10 @@ class SignalManager(InteractiveComponent):
         """Handle child process state changes."""
         while True:
             try:
-                pid, status = os.waitpid(-1, os.WNOHANG)
+                wait_flags = os.WNOHANG
+                if hasattr(os, "WUNTRACED"):
+                    wait_flags |= os.WUNTRACED
+                pid, status = os.waitpid(-1, wait_flags)
                 if pid == 0:
                     break
                 
