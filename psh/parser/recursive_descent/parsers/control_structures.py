@@ -23,11 +23,8 @@ class ControlStructureParser:
     
     def parse_control_structure_neutral(self) -> UnifiedControlStructure:
         """Parse control structure without setting execution context."""
-        token = self.parser.peek()
-        token_type = token.type
-        if token_type == TokenType.WORD and token.value == 'until':
-            token_type = TokenType.UNTIL
-        
+        token_type = self.parser.peek().type
+
         if token_type == TokenType.IF:
             return self._parse_if_neutral()
         elif token_type == TokenType.WHILE:
@@ -50,11 +47,8 @@ class ControlStructureParser:
     
     def _parse_control_structure(self) -> Statement:
         """Parse any control structure based on current token."""
-        token = self.parser.peek()
-        token_type = token.type
-        if token_type == TokenType.WORD and token.value == 'until':
-            token_type = TokenType.UNTIL
-        
+        token_type = self.parser.peek().type
+
         if token_type == TokenType.IF:
             return self.parse_if_statement()
         elif token_type == TokenType.WHILE:
