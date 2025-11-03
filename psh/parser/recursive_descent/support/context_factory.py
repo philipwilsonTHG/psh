@@ -2,6 +2,7 @@
 
 from typing import List, Optional, Dict, Any
 from ....token_types import Token
+from ....lexer.keyword_normalizer import KeywordNormalizer
 from ..context import ParserContext
 from ...config import ParserConfig, ParsingMode, ErrorHandlingMode
 
@@ -27,8 +28,11 @@ class ParserContextFactory:
         """
         config = config or ParserConfig()
         
+        normalizer = KeywordNormalizer()
+        normalized_tokens = normalizer.normalize(list(tokens))
+
         ctx = ParserContext(
-            tokens=tokens,
+            tokens=normalized_tokens,
             config=config,
             source_text=source_text,
             trace_enabled=config.trace_parsing,

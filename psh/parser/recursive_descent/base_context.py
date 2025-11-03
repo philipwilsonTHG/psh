@@ -32,28 +32,10 @@ class ContextBaseParser:
     
     def match(self, *token_types: TokenType) -> bool:
         """Check if current token matches any of the given types."""
-        token = self.peek()
-        
-        # Compatibility fix for ModularLexer: handle keywords tokenized as WORD
-        if token.type == TokenType.WORD:
-            if (TokenType.IN in token_types and token.value == "in"):
-                return True
-            elif (TokenType.ESAC in token_types and token.value == "esac"):
-                return True
-        
         return self.ctx.match(*token_types)
     
     def expect(self, token_type: TokenType, message: Optional[str] = None) -> Token:
         """Consume token of expected type or raise error."""
-        token = self.peek()
-        
-        # Compatibility fix for ModularLexer: handle keywords tokenized as WORD
-        if token.type == TokenType.WORD:
-            if (token_type == TokenType.IN and token.value == "in"):
-                return self.advance()
-            elif (token_type == TokenType.ESAC and token.value == "esac"):
-                return self.advance()
-        
         return self.ctx.consume(token_type, message)
     
     def consume_if(self, token_type: TokenType) -> Optional[Token]:

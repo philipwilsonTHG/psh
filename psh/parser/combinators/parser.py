@@ -7,6 +7,7 @@ parser that implements the AbstractShellParser interface.
 from typing import List, Optional, Union, Dict, Any, Tuple
 from ...ast_nodes import TopLevel, CommandList, StatementList, ASTNode
 from ...token_types import Token
+from ...lexer.keyword_normalizer import KeywordNormalizer
 from ..abstract_parser import (
     AbstractShellParser, ParserCharacteristics, ParserType,
     ParseMetrics, ParseError
@@ -167,6 +168,9 @@ class ParserCombinatorShellParser(AbstractShellParser):
         Raises:
             ParseError: If parsing fails
         """
+        normalizer = KeywordNormalizer()
+        tokens = normalizer.normalize(list(tokens))
+
         # Reset metrics
         self.reset_metrics()
         
@@ -254,6 +258,9 @@ class ParserCombinatorShellParser(AbstractShellParser):
         Returns:
             Tuple of (AST node or None, position where parsing stopped)
         """
+        normalizer = KeywordNormalizer()
+        tokens = normalizer.normalize(list(tokens))
+
         # Skip leading whitespace/newlines
         start_pos = 0
         while start_pos < len(tokens) and tokens[start_pos].type.name in ['WHITESPACE', 'NEWLINE']:

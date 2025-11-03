@@ -29,6 +29,7 @@ from .token_parts import TokenPart, RichToken
 from .helpers import LexerHelpers
 from .state_handlers import StateHandlers
 from .state_context import LexerContext
+from .keyword_normalizer import KeywordNormalizer
 
 __version__ = "0.91.1"  # Phase 3 Day 2: Clean imports and dependencies
 
@@ -69,6 +70,10 @@ def tokenize(input_string: str, strict: bool = True) -> List[Token]:
         lexer = ModularLexer(expanded_string, config=config)
         tokens = lexer.tokenize()
     
+    # Normalize keywords before running additional transformations
+    normalizer = KeywordNormalizer()
+    tokens = normalizer.normalize(tokens)
+
     # Apply token transformations
     transformer = TokenTransformer()
     tokens = transformer.transform(tokens)
@@ -102,6 +107,10 @@ def tokenize_with_heredocs(input_string: str, strict: bool = True):
     lexer = HeredocLexer(input_string, config=config)
     tokens, heredoc_map = lexer.tokenize_with_heredocs()
     
+    # Normalize keywords before transformations
+    normalizer = KeywordNormalizer()
+    tokens = normalizer.normalize(tokens)
+
     # Apply token transformations
     from ..token_transformer import TokenTransformer
     transformer = TokenTransformer()
