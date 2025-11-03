@@ -1,5 +1,5 @@
 """Central expansion manager that orchestrates all shell expansions."""
-from typing import List, Union, TYPE_CHECKING
+from typing import List, Union, TYPE_CHECKING, Optional
 from ..ast_nodes import Command, SimpleCommand, Redirect, ProcessSubstitution
 from ..core.state import ShellState
 from ..core.exceptions import ExpansionError
@@ -140,21 +140,19 @@ class ExpansionManager:
                         print(f"[EXPANSION]     Array expansion: '{var_expr}' -> {expanded_list}", file=self.state.stderr)
                     args.extend(expanded_list)
                 else:
-                    # Regular variable expansion
                     expanded = self.expand_variable(var_expr)
                     if self.state.options.get('debug-expansion-detail'):
                         print(f"[EXPANSION]     Variable expansion: '{var_expr}' -> '{expanded}'", file=self.state.stderr)
-                    
-                    # Apply word splitting to unquoted variable expansions (POSIX behavior)
+
                     if quote_type is None:
-                        words = self._split_with_ifs(expanded)
-                        if (self.state.options.get('debug-expansion-detail') and
-                                len(words) > 1):
-                            print(f"[EXPANSION]     Word splitting: '{expanded}' -> {words}",
-                                  file=self.state.stderr)
-                        args.extend(words)
-                    else:
-                        args.append(expanded)
+                        words = self._split_with_ifs(expanded, quote_type)
+                        if self.state.options.get('debug-expansion-detail') and len(words) > 1:
+                            print(f"[EXPANSION]     Word splitting: '{expanded}' -> {words}", file=self.state.stderr)
+                        for word in words:
+                            self._process_single_word(word, arg_type, args)
+                        continue
+
+                    args.append(expanded)
             elif arg_type != 'COMPOSITE' and arg.startswith('$') and not (arg.startswith('$(') or arg.startswith('`')):
                 # Variable expansion for unquoted variables (but not COMPOSITE args)
                 # Check if this is an array expansion that produces multiple words
@@ -163,16 +161,12 @@ class ExpansionManager:
                     expanded_list = self.variable_expander.expand_array_to_list(arg)
                     args.extend(expanded_list)
                 else:
-                    # Regular variable expansion
                     expanded = self.expand_variable(arg)
-                    
-                    # Apply word splitting to unquoted variable expansions (POSIX behavior)
-                    words = self._split_with_ifs(expanded)
-                    if (self.state.options.get('debug-expansion-detail') and
-                            len(words) > 1):
-                        print(f"[EXPANSION]     Word splitting: '{expanded}' -> {words}",
-                              file=self.state.stderr)
-                    args.extend(words)
+                    words = self._split_with_ifs(expanded, None)
+                    if self.state.options.get('debug-expansion-detail') and len(words) > 1:
+                        print(f"[EXPANSION]     Word splitting: '{expanded}' -> {words}", file=self.state.stderr)
+                    for word in words:
+                        self._process_single_word(word, 'WORD', args)
             elif arg_type == 'COMPOSITE' or arg_type == 'COMPOSITE_QUOTED':
                 # Composite argument - already concatenated in parser
                 # If it's COMPOSITE_QUOTED, it had quoted parts and shouldn't be glob expanded
@@ -197,98 +191,32 @@ class ExpansionManager:
                     print(f"[EXPANSION]     Command substitution: '{arg}' -> '{output}'", file=self.state.stderr)
                 # POSIX: apply word splitting to unquoted command substitution
                 if output:
-                    words = self._split_with_ifs(output)
-                    if (self.state.options.get('debug-expansion-detail') and
-                            len(words) > 1):
-                        print(f"[EXPANSION]     Word splitting: '{output}' -> {words}",
-                              file=self.state.stderr)
-                    args.extend(words)
+                    words = self._split_with_ifs(output, None)
+                    if self.state.options.get('debug-expansion-detail') and len(words) > 1:
+                        print(f"[EXPANSION]     Word splitting: '{output}' -> {words}", file=self.state.stderr)
+                    for word in words:
+                        self._process_single_word(word, 'WORD', args)
                 # If output is empty, don't add anything
+                continue
             elif arg_type == 'ARITH_EXPANSION':
                 # Arithmetic expansion
                 result = self.execute_arithmetic_expansion(arg)
                 args.append(str(result))
             else:
-                # Handle regular words
-                # Check for embedded variables in unquoted words
                 if arg_type == 'WORD' and '$' in arg:
-                    # Expand embedded variables
                     if self.state.options.get('debug-expansion-detail'):
                         print(f"[EXPANSION]     Before var expansion: '{arg}'", file=self.state.stderr)
-                    expanded_var = self.expand_string_variables(arg)
+                    arg = self.expand_string_variables(arg)
                     if self.state.options.get('debug-expansion-detail'):
-                        print(f"[EXPANSION]     After var expansion: '{expanded_var}'", file=self.state.stderr)
-                    
-                    # Apply word splitting to expanded variables (POSIX behavior)
-                    # Only split if the expansion resulted in something different
-                    if expanded_var != arg and expanded_var:
-                        # Get IFS value for splitting
-                        ifs = self.state.get_variable('IFS', ' \t\n')
-                        if ifs:
-                            # Split the expanded value on IFS characters
-                            words = []
-                            current_word = ''
-                            for char in expanded_var:
-                                if char in ifs:
-                                    if current_word:  # Don't add empty words from consecutive separators
-                                        words.append(current_word)
-                                        current_word = ''
-                                else:
-                                    current_word += char
-                            if current_word:  # Add final word if any
-                                words.append(current_word)
-                            
-                            if len(words) > 1:
-                                if self.state.options.get('debug-expansion-detail'):
-                                    print(f"[EXPANSION]     Word splitting: '{expanded_var}' -> {words}", file=self.state.stderr)
-                                # Handle the rest of the processing for each word separately
-                                for word in words:
-                                    self._process_single_word(word, arg_type, args)
-                                continue  # Skip the normal processing below
-                    
-                    arg = expanded_var
-                
-                # Tilde expansion (only for unquoted words)
-                if arg.startswith('~') and arg_type == 'WORD':
-                    original = arg
-                    arg = self.expand_tilde(arg)
-                    if self.state.options.get('debug-expansion-detail') and original != arg:
-                        print(f"[EXPANSION]     Tilde expansion: '{original}' -> '{arg}'", file=self.state.stderr)
-                
-                # Escape sequence processing (only for unquoted words)
-                if arg_type == 'WORD' and '\\' in arg:
-                    original = arg
-                    arg = self.process_escape_sequences(arg)
-                    if self.state.options.get('debug-expansion-detail'):
-                        print(f"[EXPANSION]     Escape processing: '{original}' -> '{arg}'", file=self.state.stderr)
-                
-                # Check if the argument contains unescaped glob characters and wasn't quoted (unless noglob is set)
-                # Only expand if there are glob characters not preceded by NULL markers
-                has_unescaped_globs = any(
-                    c in arg and not (i > 0 and arg[i-1] == '\x00')
-                    for i, c in enumerate(arg) 
-                    if c in ['*', '?', '[']
-                )
-                
-                if (has_unescaped_globs and arg_type != 'STRING' 
-                    and not self.state.options.get('noglob', False)):
-                    # Perform glob expansion (but clean NULL markers first for glob matching)
-                    clean_arg = arg.replace('\x00', '')
-                    matches = self.glob_expander.expand(clean_arg)
-                    if matches:
-                        if self.state.options.get('debug-expansion-detail'):
-                            print(f"[EXPANSION]     Glob expansion: '{clean_arg}' -> {matches}", file=self.state.stderr)
-                        args.extend(matches)
-                    else:
-                        # No matches, use literal argument (bash behavior)
-                        if self.state.options.get('debug-expansion-detail'):
-                            print(f"[EXPANSION]     Glob expansion: '{clean_arg}' -> no matches", file=self.state.stderr)
-                        # Clean NULL markers before adding
-                        args.append(clean_arg)
-                else:
-                    # Clean NULL markers before adding
-                    clean_arg = arg.replace('\x00', '')
-                    args.append(clean_arg)
+                        print(f"[EXPANSION]     After var expansion: '{arg}'", file=self.state.stderr)
+
+                words = self._split_with_ifs(arg, None)
+                if self.state.options.get('debug-expansion-detail') and len(words) > 1:
+                    print(f"[EXPANSION]     Word splitting: '{arg}' -> {words}", file=self.state.stderr)
+
+                for word in words:
+                    self._process_single_word(word, arg_type, args)
+                continue
         
         # Debug: show post-expansion args
         if self.state.options.get('debug-expansion'):
@@ -432,15 +360,15 @@ class ExpansionManager:
         else:
             return ''  # Empty after splitting
 
-    def _split_with_ifs(self, text: str) -> List[str]:
-        """Split text using the current IFS, preserving the original when no split occurs."""
+    def _split_with_ifs(self, text: Optional[str], quote_type: Optional[str]) -> List[str]:
+        """Split text using the current IFS, preserving quoting rules."""
         if text is None:
+            return []
+
+        if quote_type is not None:
             return [text]
 
         ifs = self.state.get_variable('IFS', ' \t\n')
-        if not ifs:
-            return [text]
-
         return self.word_splitter.split(text, ifs)
     
     def _process_single_word(self, word: str, arg_type: str, args: List[str]) -> None:
