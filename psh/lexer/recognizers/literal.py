@@ -92,6 +92,9 @@ class LiteralRecognizer(ContextualRecognizer):
         if not self.can_recognize(input_text, pos, context):
             return None
         
+        # Track whether we saw inline ANSI-C quote segments
+        saw_inline_ansi = False
+
         # Read until we hit a word terminator
         start_pos = pos
         value = ""
@@ -165,6 +168,7 @@ class LiteralRecognizer(ContextualRecognizer):
                     if ansi_c_content is not None:
                         value += ansi_c_content
                         pos = new_pos
+                        saw_inline_ansi = True
                         continue
                     # If parsing failed, fall through to breaking
                 break
@@ -181,6 +185,7 @@ class LiteralRecognizer(ContextualRecognizer):
                     if ansi_c_content is not None:
                         value += ansi_c_content
                         pos = new_pos
+                        saw_inline_ansi = True
                         continue
                     # If parsing failed, fall through to normal handling
                     should_break = True
@@ -231,6 +236,9 @@ class LiteralRecognizer(ContextualRecognizer):
             start_pos,
             pos
         )
+
+        if saw_inline_ansi and token.quote_type is None:
+            token.quote_type = 'mixed'
         
         return token, pos
     

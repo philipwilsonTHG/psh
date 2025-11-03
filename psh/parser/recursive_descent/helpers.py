@@ -15,7 +15,8 @@ class TokenGroups:
         TokenType.ARITH_EXPANSION, TokenType.PARAM_EXPANSION,
         TokenType.PROCESS_SUB_IN, TokenType.PROCESS_SUB_OUT,
         TokenType.LBRACKET, TokenType.RBRACKET,
-        TokenType.LBRACE, TokenType.RBRACE, TokenType.COMPOSITE
+        TokenType.LBRACE, TokenType.RBRACE, TokenType.COMPOSITE,
+        TokenType.RETURN
     })
     
     # Redirect operators
@@ -56,7 +57,7 @@ class TokenGroups:
     CASE_PATTERN_KEYWORDS: Set[TokenType] = frozenset({
         TokenType.IF, TokenType.THEN, TokenType.ELSE, TokenType.FI, TokenType.ELIF,
         TokenType.WHILE, TokenType.UNTIL, TokenType.DO, TokenType.DONE, TokenType.FOR, TokenType.IN,
-        TokenType.BREAK, TokenType.CONTINUE, TokenType.CASE, TokenType.ESAC,
+        TokenType.BREAK, TokenType.CONTINUE, TokenType.RETURN, TokenType.CASE, TokenType.ESAC,
         TokenType.SELECT, TokenType.FUNCTION
     })
 

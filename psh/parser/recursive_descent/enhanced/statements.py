@@ -4,6 +4,7 @@ from typing import Optional, Union, List
 from ....token_types import TokenType
 from ....token_types import Token
 from ....token_enhanced import TokenContext, SemanticType
+from ....lexer.keyword_defs import matches_keyword
 from ....ast_nodes import (
     Statement, CommandList, AndOrList, Pipeline, StatementList,
     BreakStatement, ContinueStatement
@@ -200,7 +201,7 @@ class EnhancedStatementParser(StatementParser):
         
         # Enhanced function detection using semantic type
         if current_token.metadata.semantic_type == SemanticType.KEYWORD:
-            if current_token.value == 'function':
+            if matches_keyword(current_token, 'function'):
                 return True
         
         # Check for pattern: WORD () or function WORD ()

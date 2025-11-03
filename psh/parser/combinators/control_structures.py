@@ -6,6 +6,7 @@ if/elif/else, loops, case statements, and function definitions.
 
 from typing import List, Optional, Tuple, Union
 from ...token_types import Token, TokenType
+from ...lexer.keyword_defs import matches_keyword
 from ...ast_nodes import (
     # Control structures
     IfConditional, WhileLoop, UntilLoop, ForLoop, CaseConditional, SelectLoop,
@@ -141,7 +142,7 @@ class ControlStructureParsers:
             pos += 1
         
         # Expect 'do'
-        if pos >= len(tokens) or tokens[pos].value != 'do':
+        if pos >= len(tokens) or not matches_keyword(tokens[pos], 'do'):
             return ParseResult(success=False, error="Expected 'do'", position=pos)
         
         return ParseResult(success=True, value=None, position=pos + 1)
@@ -153,7 +154,7 @@ class ControlStructureParsers:
             pos += 1
         
         # Expect 'then'
-        if pos >= len(tokens) or tokens[pos].value != 'then':
+        if pos >= len(tokens) or not matches_keyword(tokens[pos], 'then'):
             return ParseResult(success=False, error="Expected 'then'", position=pos)
         
         return ParseResult(success=True, value=None, position=pos + 1)
@@ -181,14 +182,14 @@ class ControlStructureParsers:
             token = tokens[pos]
             
             # Check for start keyword (increases nesting)
-            if start_keyword and token.value == start_keyword:
+            if start_keyword and matches_keyword(token, start_keyword):
                 nesting_level += 1
                 collected.append(token)
                 pos += 1
                 continue
             
             # Check for end keyword
-            if token.value == end_keyword:
+            if matches_keyword(token, end_keyword):
                 if nesting_level == 0:
                     # Found our end keyword
                     return collected, pos
@@ -220,7 +221,7 @@ class ControlStructureParsers:
                 token = tokens[current_pos]
                 
                 # Check if this is 'then' keyword
-                if token.value == 'then' and token.type.name in ['THEN', 'WORD']:
+                if matches_keyword(token, 'then'):
                     # 'then' must be preceded by a separator
                     if condition_tokens and not saw_separator:
                         return ParseResult(success=False, 
@@ -232,7 +233,7 @@ class ControlStructureParsers:
                     saw_separator = True
                     # Check if next token is 'then'
                     if (current_pos + 1 < len(tokens) and 
-                        tokens[current_pos + 1].value == 'then'):
+                        matches_keyword(tokens[current_pos + 1], 'then')):
                         # Don't include the separator in condition tokens
                         break
                 
@@ -249,7 +250,7 @@ class ControlStructureParsers:
                 current_pos += 1
             
             # Verify we actually found 'then'
-            if current_pos >= len(tokens) or tokens[current_pos].value != 'then':
+            if current_pos >= len(tokens) or not matches_keyword(tokens[current_pos], 'then'):
                 return ParseResult(success=False, 
                                  error=f"Expected 'then' in if statement", 
                                  position=current_pos)
@@ -273,26 +274,30 @@ class ControlStructureParsers:
             
             while current_pos < len(tokens):
                 token = tokens[current_pos]
-                
+
                 # Track nested if statements
-                if token.value == 'if':
+                if matches_keyword(token, 'if'):
                     nesting_level += 1
                     body_tokens.append(token)
                     current_pos += 1
                     continue
-                
+
                 # Check for keywords that might end this body
-                if token.value in ['elif', 'else', 'fi']:
+                if (
+                    matches_keyword(token, 'elif')
+                    or matches_keyword(token, 'else')
+                    or matches_keyword(token, 'fi')
+                ):
                     if nesting_level == 0:
                         # This ends our current body
                         break
-                    elif token.value == 'fi':
+                    elif matches_keyword(token, 'fi'):
                         # This ends a nested if
                         nesting_level -= 1
                     body_tokens.append(token)
                     current_pos += 1
                     continue
-                
+
                 body_tokens.append(token)
                 current_pos += 1
             
@@ -312,7 +317,7 @@ class ControlStructureParsers:
         def parse_if_statement(tokens: List[Token], pos: int) -> ParseResult[IfConditional]:
             """Parse complete if statement."""
             # Check for 'if' keyword
-            if pos >= len(tokens) or tokens[pos].value != 'if':
+            if pos >= len(tokens) or not matches_keyword(tokens[pos], 'if'):
                 return ParseResult(success=False, error="Expected 'if'", position=pos)
             
             pos += 1  # Skip 'if'
@@ -327,7 +332,7 @@ class ControlStructureParsers:
             
             # Parse elif parts
             elif_parts = []
-            while pos < len(tokens) and tokens[pos].value == 'elif':
+            while pos < len(tokens) and matches_keyword(tokens[pos], 'elif'):
                 pos += 1  # Skip 'elif'
                 elif_result = parse_condition_then(tokens, pos)
                 if not elif_result.success:
@@ -337,7 +342,7 @@ class ControlStructureParsers:
             
             # Parse optional else part
             else_part = None
-            if pos < len(tokens) and tokens[pos].value == 'else':
+            if pos < len(tokens) and matches_keyword(tokens[pos], 'else'):
                 pos += 1  # Skip 'else'
                 
                 # Skip optional separator after 'else'
@@ -351,9 +356,9 @@ class ControlStructureParsers:
                 while pos < len(tokens):
                     token = tokens[pos]
                     
-                    if token.value == 'if':
+                    if matches_keyword(token, 'if'):
                         nesting_level += 1
-                    elif token.value == 'fi':
+                    elif matches_keyword(token, 'fi'):
                         if nesting_level == 0:
                             break
                         else:
@@ -374,7 +379,7 @@ class ControlStructureParsers:
                 return ParseResult(success=False, 
                                  error="Unexpected end of input: expected 'fi' to close if statement", 
                                  position=pos)
-            if tokens[pos].value != 'fi':
+            if not matches_keyword(tokens[pos], 'fi'):
                 return ParseResult(success=False, 
                                  error=f"Expected 'fi' to close if statement, got '{tokens[pos].value}'", 
                                  position=pos)
@@ -399,7 +404,7 @@ class ControlStructureParsers:
         def parse_while_loop(tokens: List[Token], pos: int) -> ParseResult[WhileLoop]:
             """Parse while loop."""
             # Check for 'while' keyword
-            if pos >= len(tokens) or tokens[pos].value != 'while':
+            if pos >= len(tokens) or not matches_keyword(tokens[pos], 'while'):
                 return ParseResult(success=False, error="Expected 'while'", position=pos)
             
             pos += 1  # Skip 'while'
@@ -409,15 +414,13 @@ class ControlStructureParsers:
             while pos < len(tokens):
                 token = tokens[pos]
                 # Check for 'do' keyword (either DO token type or WORD with value 'do')
-                if (token.type.name == 'DO' and token.value == 'do') or \
-                   (token.type.name == 'WORD' and token.value == 'do'):
+                if matches_keyword(token, 'do'):
                     break
                 if token.type.name in ['SEMICOLON', 'NEWLINE']:
                     # Check if next token is 'do'
                     if pos + 1 < len(tokens):
                         next_token = tokens[pos + 1]
-                        if (next_token.type.name == 'DO' and next_token.value == 'do') or \
-                           (next_token.type.name == 'WORD' and next_token.value == 'do'):
+                        if matches_keyword(next_token, 'do'):
                             break
                 condition_tokens.append(token)
                 pos += 1
@@ -435,7 +438,7 @@ class ControlStructureParsers:
             # Skip separator and 'do'
             if tokens[pos].type.name in ['SEMICOLON', 'NEWLINE']:
                 pos += 1
-            if pos >= len(tokens) or tokens[pos].value != 'do':
+            if pos >= len(tokens) or not matches_keyword(tokens[pos], 'do'):
                 return ParseResult(success=False, error="Expected 'do' after while condition", position=pos)
             pos += 1  # Skip 'do'
             
@@ -472,7 +475,7 @@ class ControlStructureParsers:
         """Build parser for until/do/done loops."""
         def parse_until_loop(tokens: List[Token], pos: int) -> ParseResult[UntilLoop]:
             """Parse until loop."""
-            if pos >= len(tokens) or tokens[pos].value != 'until':
+            if pos >= len(tokens) or not matches_keyword(tokens[pos], 'until'):
                 return ParseResult(success=False, error="Expected 'until'", position=pos)
             
             pos += 1  # Skip 'until'
@@ -481,14 +484,12 @@ class ControlStructureParsers:
             condition_tokens = []
             while pos < len(tokens):
                 token = tokens[pos]
-                if (token.type.name == 'DO' and token.value == 'do') or \
-                   (token.type.name == 'WORD' and token.value == 'do'):
+                if matches_keyword(token, 'do'):
                     break
                 if token.type.name in ['SEMICOLON', 'NEWLINE']:
                     if pos + 1 < len(tokens):
                         next_token = tokens[pos + 1]
-                        if (next_token.type.name == 'DO' and next_token.value == 'do') or \
-                           (next_token.type.name == 'WORD' and next_token.value == 'do'):
+                        if matches_keyword(next_token, 'do'):
                             break
                 condition_tokens.append(token)
                 pos += 1
@@ -504,7 +505,7 @@ class ControlStructureParsers:
 
             if tokens[pos].type.name in ['SEMICOLON', 'NEWLINE']:
                 pos += 1
-            if pos >= len(tokens) or tokens[pos].value != 'do':
+            if pos >= len(tokens) or not matches_keyword(tokens[pos], 'do'):
                 return ParseResult(success=False, error="Expected 'do' after until condition", position=pos)
             pos += 1
 
@@ -545,7 +546,7 @@ class ControlStructureParsers:
         def parse_for_loop(tokens: List[Token], pos: int) -> ParseResult[ForLoop]:
             """Parse traditional for loop."""
             # Check for 'for' keyword
-            if pos >= len(tokens) or (tokens[pos].type.name != 'FOR' and tokens[pos].value != 'for'):
+            if pos >= len(tokens) or not matches_keyword(tokens[pos], 'for'):
                 return ParseResult(success=False, error="Expected 'for'", position=pos)
             
             pos += 1  # Skip 'for'
@@ -562,7 +563,7 @@ class ControlStructureParsers:
                 pos += 1
 
             has_in_clause = False
-            if pos < len(tokens) and (tokens[pos].type.name == 'IN' or tokens[pos].value == 'in'):
+            if pos < len(tokens) and matches_keyword(tokens[pos], 'in'):
                 has_in_clause = True
                 pos += 1  # Skip 'in'
                 while pos < len(tokens) and tokens[pos].type.name == 'NEWLINE':
@@ -576,12 +577,12 @@ class ControlStructureParsers:
                 # Parse items (words until 'do' or separator+do)
                 while pos < len(tokens):
                     token = tokens[pos]
-                    if token.type.name == 'DO' and token.value == 'do':
+                    if matches_keyword(token, 'do'):
                         break
                     if token.type.name in ['SEMICOLON', 'NEWLINE']:
                         # Check if next token is 'do'
                         if (pos + 1 < len(tokens) and 
-                            tokens[pos + 1].type.name == 'DO'):
+                            matches_keyword(tokens[pos + 1], 'do')):
                             break
                     if token.type.name in ['WORD', 'STRING', 'VARIABLE', 'COMPOSITE']:
                         items.append(self._format_token_value(token))
@@ -599,7 +600,7 @@ class ControlStructureParsers:
             if pos < len(tokens) and tokens[pos].type.name in ['SEMICOLON', 'NEWLINE']:
                 pos += 1
 
-            if pos >= len(tokens) or tokens[pos].value != 'do':
+            if pos >= len(tokens) or not matches_keyword(tokens[pos], 'do'):
                 return ParseResult(success=False, error="Expected 'do' in for loop", position=pos)
             pos += 1  # Skip 'do'
             
@@ -639,7 +640,7 @@ class ControlStructureParsers:
         def parse_c_style_for(tokens: List[Token], pos: int) -> ParseResult[CStyleForLoop]:
             """Parse C-style for loop."""
             # Check for 'for' keyword
-            if pos >= len(tokens) or (tokens[pos].type.name != 'FOR' and tokens[pos].value != 'for'):
+            if pos >= len(tokens) or not matches_keyword(tokens[pos], 'for'):
                 return ParseResult(success=False, error="Expected 'for'", position=pos)
             
             # Check for '((' after 'for'
@@ -681,7 +682,7 @@ class ControlStructureParsers:
             # Skip separator and 'do'
             if pos < len(tokens) and tokens[pos].type.name in ['SEMICOLON', 'NEWLINE']:
                 pos += 1
-            if pos >= len(tokens) or tokens[pos].value != 'do':
+            if pos >= len(tokens) or not matches_keyword(tokens[pos], 'do'):
                 return ParseResult(success=False, error="Expected 'do' after C-style for header", position=pos)
             pos += 1  # Skip 'do'
             
@@ -726,7 +727,7 @@ class ControlStructureParsers:
         def parse_case_statement(tokens: List[Token], pos: int) -> ParseResult[CaseConditional]:
             """Parse case statement."""
             # Check for 'case' keyword
-            if pos >= len(tokens) or (tokens[pos].type.name != 'CASE' and tokens[pos].value != 'case'):
+            if pos >= len(tokens) or not matches_keyword(tokens[pos], 'case'):
                 return ParseResult(success=False, error="Expected 'case'", position=pos)
             
             pos += 1  # Skip 'case'
@@ -740,7 +741,7 @@ class ControlStructureParsers:
             pos += 1
             
             # Expect 'in'
-            if pos >= len(tokens) or (tokens[pos].type.name != 'IN' and tokens[pos].value != 'in'):
+            if pos >= len(tokens) or not matches_keyword(tokens[pos], 'in'):
                 return ParseResult(success=False, error="Expected 'in' after case expression", position=pos)
             
             pos += 1  # Skip 'in'
@@ -751,7 +752,7 @@ class ControlStructureParsers:
             
             # Parse case items until 'esac'
             items = []
-            while pos < len(tokens) and tokens[pos].value != 'esac':
+            while pos < len(tokens) and not matches_keyword(tokens[pos], 'esac'):
                 # Parse pattern(s)
                 patterns = []
                 
@@ -795,7 +796,7 @@ class ControlStructureParsers:
                         tokens[pos + 1].value == ')'):
                         break
                     # Check for 'esac'
-                    if token.value == 'esac':
+                    if matches_keyword(token, 'esac'):
                         break
                     command_tokens.append(token)
                     pos += 1
@@ -836,7 +837,7 @@ class ControlStructureParsers:
                 ))
             
             # Expect 'esac'
-            if pos >= len(tokens) or tokens[pos].value != 'esac':
+            if pos >= len(tokens) or not matches_keyword(tokens[pos], 'esac'):
                 return ParseResult(success=False, error="Expected 'esac' to close case statement", position=pos)
             
             pos += 1  # Skip 'esac'
@@ -857,7 +858,7 @@ class ControlStructureParsers:
         def parse_select_loop(tokens: List[Token], pos: int) -> ParseResult[SelectLoop]:
             """Parse select loop."""
             # Check for 'select' keyword
-            if pos >= len(tokens) or (tokens[pos].type.name != 'SELECT' and tokens[pos].value != 'select'):
+            if pos >= len(tokens) or not matches_keyword(tokens[pos], 'select'):
                 return ParseResult(success=False, error="Expected 'select'", position=pos)
             
             pos += 1  # Skip 'select'
@@ -870,7 +871,7 @@ class ControlStructureParsers:
             pos += 1
             
             # Expect 'in'
-            if pos >= len(tokens) or (tokens[pos].type.name != 'IN' and tokens[pos].value != 'in'):
+            if pos >= len(tokens) or not matches_keyword(tokens[pos], 'in'):
                 return ParseResult(success=False, error="Expected 'in' after variable name", position=pos)
             
             pos += 1  # Skip 'in'
@@ -880,12 +881,12 @@ class ControlStructureParsers:
             item_quote_types = []
             while pos < len(tokens):
                 token = tokens[pos]
-                if token.type.name == 'DO' and token.value == 'do':
+                if matches_keyword(token, 'do'):
                     break
                 if token.type.name in ['SEMICOLON', 'NEWLINE']:
                     # Check if next token is 'do'
                     if (pos + 1 < len(tokens) and 
-                        tokens[pos + 1].type.name == 'DO'):
+                        matches_keyword(tokens[pos + 1], 'do')):
                         break
                 if token.type.name in ['WORD', 'STRING', 'VARIABLE', 'COMMAND_SUB', 
                                       'COMMAND_SUB_BACKTICK', 'ARITH_EXPANSION', 'PARAM_EXPANSION']:
@@ -902,7 +903,7 @@ class ControlStructureParsers:
             # Skip separator and 'do'
             if pos < len(tokens) and tokens[pos].type.name in ['SEMICOLON', 'NEWLINE']:
                 pos += 1
-            if pos >= len(tokens) or tokens[pos].value != 'do':
+            if pos >= len(tokens) or not matches_keyword(tokens[pos], 'do'):
                 return ParseResult(success=False, error="Expected 'do' in select loop", position=pos)
             pos += 1  # Skip 'do'
             
@@ -1099,7 +1100,7 @@ class ControlStructureParsers:
         def parse_function_keyword(tokens: List[Token], pos: int) -> ParseResult[FunctionDef]:
             """Parse function with keyword."""
             # Check for 'function' keyword
-            if pos >= len(tokens) or tokens[pos].value != 'function':
+            if pos >= len(tokens) or not matches_keyword(tokens[pos], 'function'):
                 return ParseResult(success=False, error="Expected 'function' keyword", position=pos)
             pos += 1
             
@@ -1133,7 +1134,7 @@ class ControlStructureParsers:
         def parse_function_with_parens(tokens: List[Token], pos: int) -> ParseResult[FunctionDef]:
             """Parse function with keyword and parentheses."""
             # Check for 'function' keyword
-            if pos >= len(tokens) or tokens[pos].value != 'function':
+            if pos >= len(tokens) or not matches_keyword(tokens[pos], 'function'):
                 return ParseResult(success=False, error="Expected 'function' keyword", position=pos)
             pos += 1
             
@@ -1181,7 +1182,7 @@ class ControlStructureParsers:
         def parse_break(tokens: List[Token], pos: int) -> ParseResult[BreakStatement]:
             """Parse break statement."""
             # Check for 'break' keyword
-            if pos >= len(tokens) or tokens[pos].value != 'break':
+            if pos >= len(tokens) or not matches_keyword(tokens[pos], 'break'):
                 return ParseResult(success=False, error="Expected 'break'", position=pos)
             
             pos += 1  # Skip 'break'
@@ -1209,7 +1210,7 @@ class ControlStructureParsers:
         def parse_continue(tokens: List[Token], pos: int) -> ParseResult[ContinueStatement]:
             """Parse continue statement."""
             # Check for 'continue' keyword
-            if pos >= len(tokens) or tokens[pos].value != 'continue':
+            if pos >= len(tokens) or not matches_keyword(tokens[pos], 'continue'):
                 return ParseResult(success=False, error="Expected 'continue'", position=pos)
             
             pos += 1  # Skip 'continue'

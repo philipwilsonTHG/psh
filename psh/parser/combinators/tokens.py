@@ -6,6 +6,7 @@ used throughout the shell grammar.
 
 from typing import Optional, List, Union
 from ...token_types import Token, TokenType
+from ...lexer.keyword_defs import KEYWORD_TYPE_MAP, matches_keyword
 from .core import Parser, token, keyword, skip, sequence, ParseResult
 
 
@@ -15,6 +16,9 @@ class TokenParsers:
     This class provides a centralized location for all token-level parsers,
     organized by category for easy access and maintenance.
     """
+
+    _KEYWORD_STRINGS = tuple(KEYWORD_TYPE_MAP.keys())
+    _KEYWORD_TYPES = set(KEYWORD_TYPE_MAP.values())
     
     def __init__(self):
         """Initialize all token parsers."""
@@ -173,6 +177,7 @@ class TokenParsers:
         # Word-like tokens (words, strings, expansions)
         self.word_like = (
             self.word
+            .or_else(self.return_kw)
             .or_else(self.string)
             .or_else(self.expansion)
             .or_else(self.process_sub_in)
@@ -263,14 +268,10 @@ class TokenParsers:
         Returns:
             True if token is a keyword
         """
-        keywords = {
-            'if', 'then', 'elif', 'else', 'fi',
-            'while', 'for', 'in', 'do', 'done',
-            'case', 'esac', 'select',
-            'function', 'break', 'continue', 'return'
-        }
-        return (token.type.name == 'WORD' and token.value in keywords) or \
-               (token.type.name in [kw.upper() for kw in keywords])
+        if token.type in self._KEYWORD_TYPES:
+            return True
+
+        return any(matches_keyword(token, kw) for kw in self._KEYWORD_STRINGS)
     
     def is_redirect_operator(self, token: Token) -> bool:
         """Check if a token is a redirection operator.

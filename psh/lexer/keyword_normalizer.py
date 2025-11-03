@@ -4,30 +4,11 @@ from typing import List, Optional
 from .constants import KEYWORDS
 from ..token_types import Token, TokenType
 from ..token_enhanced import SemanticType
+from .keyword_defs import KEYWORD_TYPE_MAP
 
 
 class KeywordNormalizer:
     """Normalize WORD tokens to reserved keyword token types when appropriate."""
-
-    # Mapping from keyword string to TokenType
-    KEYWORD_TYPE_MAP = {
-        'if': TokenType.IF,
-        'then': TokenType.THEN,
-        'else': TokenType.ELSE,
-        'elif': TokenType.ELIF,
-        'fi': TokenType.FI,
-        'for': TokenType.FOR,
-        'select': TokenType.SELECT,
-        'while': TokenType.WHILE,
-        'until': TokenType.UNTIL,
-        'do': TokenType.DO,
-        'done': TokenType.DONE,
-        'case': TokenType.CASE,
-        'esac': TokenType.ESAC,
-        'function': TokenType.FUNCTION,
-        'break': TokenType.BREAK,
-        'continue': TokenType.CONTINUE,
-    }
 
     CONTROL_KEYWORDS = {'if', 'for', 'select', 'while', 'until', 'case', 'function'}
 
@@ -63,7 +44,7 @@ class KeywordNormalizer:
         heredoc_delimiter: Optional[str] = None
         in_heredoc = False
 
-        for index, token in enumerate(tokens):
+        for token in tokens:
             token_lower = token.value if token.value is None else token.value.lower()
             converted_type: Optional[TokenType] = None
 
@@ -95,13 +76,17 @@ class KeywordNormalizer:
                     converted_type = TokenType.IN
                     pending_in = None
                 elif command_position and token_lower in KEYWORDS:
-                    converted_type = self.KEYWORD_TYPE_MAP.get(token_lower)
-                    if token_lower in {'for', 'select', 'case'}:
-                        pending_in = token_lower
+                    if token_lower == 'in' and not pending_in:
+                        converted_type = None
+                    else:
+                        converted_type = KEYWORD_TYPE_MAP.get(token_lower)
+                        if token_lower in {'for', 'select', 'case'}:
+                            pending_in = token_lower
 
             if converted_type:
                 token.type = converted_type
-                token.metadata.semantic_type = SemanticType.KEYWORD
+                if token.metadata:
+                    token.metadata.semantic_type = SemanticType.KEYWORD
             elif token.type == TokenType.IN:
                 # Already tagged as IN by lexer, clear pending state
                 pending_in = None

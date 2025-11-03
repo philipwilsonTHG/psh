@@ -2,6 +2,7 @@
 
 from typing import List, Optional, Set, Tuple
 from ...token_types import Token, TokenType
+from ...lexer.keyword_defs import matches_keyword_type
 from .helpers import ParseContext, ErrorContext, ParseError, TokenGroups
 
 
@@ -39,14 +40,7 @@ class BaseParser:
         """Consume a token of the expected type or raise an error."""
         token = self.peek()
         
-        # Compatibility fix for ModularLexer: handle keywords tokenized as WORD
-        if token.type == TokenType.WORD:
-            if (token_type == TokenType.IN and token.value == "in"):
-                return self.advance()
-            elif (token_type == TokenType.ESAC and token.value == "esac"):
-                return self.advance()
-        
-        if token.type != token_type:
+        if not matches_keyword_type(token, token_type):
             expected = self._token_type_to_string(token_type)
             error_context = ErrorContext(
                 token=token,
@@ -88,14 +82,9 @@ class BaseParser:
         """Check if current token matches any of the given types."""
         token = self.peek()
         
-        # Compatibility fix for ModularLexer: handle keywords tokenized as WORD
-        if token.type == TokenType.WORD:
-            if (TokenType.IN in token_types and token.value == "in"):
-                return True
-            elif (TokenType.ESAC in token_types and token.value == "esac"):
-                return True
-            
-        return token.type in token_types
+        if token.type in token_types:
+            return True
+        return any(matches_keyword_type(token, tt) for tt in token_types)
     
     def match_any(self, token_set: Set[TokenType]) -> bool:
         """Check if current token is in the given set."""
@@ -245,6 +234,7 @@ class BaseParser:
             TokenType.SELECT: "'select'",
             TokenType.BREAK: "'break'",
             TokenType.CONTINUE: "'continue'",
+            TokenType.RETURN: "'return'",
             TokenType.REDIRECT_IN: "'<'",
             TokenType.REDIRECT_OUT: "'>'",
             TokenType.REDIRECT_APPEND: "'>>'",

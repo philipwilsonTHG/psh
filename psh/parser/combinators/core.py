@@ -8,6 +8,7 @@ from typing import List, Optional, Tuple, Callable, TypeVar, Generic
 from dataclasses import dataclass
 
 from ...token_types import Token
+from ...lexer.keyword_defs import matches_keyword
 
 # Type variables for parser combinators
 T = TypeVar('T')
@@ -405,10 +406,7 @@ def keyword(kw: str) -> Parser[Token]:
             return ParseResult(success=False, error=f"Expected keyword '{kw}' but reached end of input", position=pos)
         
         token = tokens[pos]
-        # Check if it's a WORD with the keyword value OR a specific keyword token type
-        kw_token_type = kw.upper()  # Keywords are uppercase in token types
-        if ((token.type.name == 'WORD' and token.value == kw) or 
-            (token.type.name == kw_token_type and token.value == kw)):
+        if matches_keyword(token, kw):
             return ParseResult(success=True, value=token, position=pos + 1)
         
         return ParseResult(success=False, error=f"Expected keyword '{kw}', got {token.value}", position=pos)

@@ -24,8 +24,18 @@ class WordSplitter:
 
         words: List[str] = []
         current_word: List[str] = []
+        escape_next = False
 
         for char in text:
+            if escape_next:
+                current_word.append(char)
+                escape_next = False
+                continue
+
+            if char == '\\':
+                escape_next = True
+                continue
+
             if char in ifs:
                 if current_word:
                     words.append(''.join(current_word))

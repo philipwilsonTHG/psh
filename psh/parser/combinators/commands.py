@@ -229,7 +229,7 @@ class CommandParsers:
             if token.type.name == 'STRING':
                 cmd.arg_types.append('STRING')
                 cmd.quote_types.append(getattr(token, 'quote_type', None))
-            elif token.type.name == 'WORD':
+            elif token.type.name in ('WORD', 'RETURN'):
                 cmd.arg_types.append('WORD')
                 cmd.quote_types.append(None)
             elif token.type.name == 'VARIABLE':

@@ -68,6 +68,7 @@ class TokenType(Enum):
     IN = auto()
     BREAK = auto()
     CONTINUE = auto()
+    RETURN = auto()
     CASE = auto()
     ESAC = auto()
     SELECT = auto()

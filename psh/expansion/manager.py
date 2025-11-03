@@ -210,7 +210,7 @@ class ExpansionManager:
                     if self.state.options.get('debug-expansion-detail'):
                         print(f"[EXPANSION]     After var expansion: '{arg}'", file=self.state.stderr)
 
-                words = self._split_with_ifs(arg, None)
+                words = self._split_with_ifs(arg, quote_type)
                 if self.state.options.get('debug-expansion-detail') and len(words) > 1:
                     print(f"[EXPANSION]     Word splitting: '{arg}' -> {words}", file=self.state.stderr)
 
@@ -340,8 +340,18 @@ class ExpansionManager:
 
         words = []
         current_word = ''
+        escape_next = False
 
         for char in text:
+            if escape_next:
+                current_word += char
+                escape_next = False
+                continue
+
+            if char == '\\':
+                escape_next = True
+                continue
+
             if char in ifs:
                 if current_word:  # Don't add empty words
                     words.append(current_word)

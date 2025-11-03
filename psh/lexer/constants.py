@@ -72,5 +72,5 @@ KEYWORDS = {
     'case', 'esac',
     'select',
     'function',
-    'break', 'continue'
+    'break', 'continue', 'return'
 }

@@ -213,7 +213,7 @@ class CommandParser:
                             arg_value = word_token.value + '=(' + ' '.join(elements) + ')'
                         command.args.append(arg_value)
                         command.arg_types.append('WORD')
-                        command.quote_types.append(None)
+                        command.quote_types.append('array')
                         has_parsed_regular_args = True
                     else:
                         # Parse a potentially composite argument
@@ -427,7 +427,7 @@ class CommandParser:
         
         arg_type, value_fn = type_map.get(token.type, ('WORD', lambda t: t.value))
         value = value_fn(token)
-        quote_type = token.quote_type if token.type == TokenType.STRING else None
+        quote_type = getattr(token, 'quote_type', None)
         
         return value, arg_type, quote_type
     

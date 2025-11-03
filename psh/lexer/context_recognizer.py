@@ -72,7 +72,7 @@ class ContextAwareRecognizer(ABC):
         if token.type in {TokenType.IF, TokenType.THEN, TokenType.ELSE, TokenType.FI,
                          TokenType.WHILE, TokenType.UNTIL, TokenType.DO, TokenType.DONE, TokenType.FOR,
                          TokenType.IN, TokenType.CASE, TokenType.ESAC, TokenType.SELECT,
-                         TokenType.FUNCTION, TokenType.BREAK, TokenType.CONTINUE}:
+                         TokenType.FUNCTION, TokenType.BREAK, TokenType.CONTINUE, TokenType.RETURN}:
             token.set_semantic_type(SemanticType.KEYWORD)
         
         elif token.type in {TokenType.PIPE, TokenType.AND_AND, TokenType.OR_OR,
