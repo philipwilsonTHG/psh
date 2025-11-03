@@ -194,10 +194,26 @@ class JobManager:
                 print(f"\n[{job.job_id}]+  Done                    {job.command}")
                 job.notified = True
                 completed.append(job_id)
-        
+
         # Remove completed jobs after notification
         for job_id in completed:
             self.remove_job(job_id)
+
+    def register_background_job(self, job: Job, shell_state=None, last_pid: Optional[int] = None):
+        """Mark a job as running in the background and update bookkeeping."""
+        job.foreground = False
+        job.notified = False
+
+        # Update shell job markers (%+, %-)
+        if self.current_job is not job:
+            self.previous_job = self.current_job
+            self.current_job = job
+
+        # Update $! with the requested PID (or pgid fallback)
+        if shell_state is not None:
+            shell_state.last_bg_pid = last_pid if last_pid is not None else job.pgid
+
+        return job
     
     def notify_stopped_jobs(self):
         """Print notifications for newly stopped jobs."""

@@ -229,11 +229,15 @@ class SubshellExecutor:
                 subshell.stderr = self.shell.stderr
                 subshell.stdin = self.shell.stdin
                 
-                # Apply redirections if present
-                if redirects:
-                    subshell.io_manager.apply_redirections(redirects)
-                
-                exit_code = subshell.execute_command_list(statements)
+                exit_code = 0
+                saved_fds = []
+                try:
+                    if redirects:
+                        saved_fds = subshell.io_manager.apply_redirections(redirects)
+                    exit_code = subshell.execute_command_list(statements)
+                finally:
+                    if saved_fds:
+                        subshell.io_manager.restore_redirections(saved_fds)
                 os._exit(exit_code)
             except SystemExit as e:
                 os._exit(e.code if e.code is not None else 0)
@@ -249,10 +253,7 @@ class SubshellExecutor:
             
             job = self.job_manager.create_job(pid, "<subshell>")
             job.add_process(pid, "subshell")
-            job.foreground = False
-            
-            # Track last background PID ($!)
-            self.shell.state.last_bg_pid = pid
+            self.job_manager.register_background_job(job, shell_state=self.shell.state, last_pid=pid)
             
             if not self.shell.is_script_mode:
                 print(f"[{job.job_id}] {job.pgid}")
@@ -277,23 +278,28 @@ class SubshellExecutor:
                 
                 # Execute the brace group in current environment (no new shell)
                 # Apply redirections first
-                saved_fds = None
-                if node.redirects:
-                    saved_fds = self.io_manager.apply_redirections(node.redirects)
-                
+                exit_code = 0
+                saved_fds = []
                 try:
+                    if node.redirects:
+                        saved_fds = self.io_manager.apply_redirections(node.redirects)
                     exit_code = visitor.visit(node.statements)
-                    os._exit(exit_code)
                 finally:
-                    # Restore file descriptors if they were saved
                     if saved_fds:
                         self.io_manager.restore_redirections(saved_fds)
-                        
+                os._exit(exit_code)
             except Exception as e:
                 print(f"psh: background brace group error: {e}", file=sys.stderr)
                 os._exit(1)
         else:
             # Parent process
-            # Register background job
-            self.job_manager.add_job(pid, str(node), background=True)
+            try:
+                os.setpgid(pid, pid)
+            except OSError:
+                pass
+            job = self.job_manager.create_job(pid, "<brace-group>")
+            job.add_process(pid, "brace-group")
+            self.job_manager.register_background_job(job, shell_state=self.shell.state, last_pid=pid)
+            if not self.shell.is_script_mode:
+                print(f"[{job.job_id}] {job.pgid}")
             return 0

@@ -268,12 +268,8 @@ class PipelineExecutor:
             # Wait for pipeline completion
             if is_background:
                 # Background pipeline
-                job.foreground = False
-                # Track last background PID using the last process in the pipeline
-                if pids:
-                    self.state.last_bg_pid = pids[-1]
-                else:
-                    self.state.last_bg_pid = job.pgid
+                last_pid = pids[-1] if pids else job.pgid
+                self.job_manager.register_background_job(job, shell_state=self.state, last_pid=last_pid)
                 print(f"[{job.job_id}] {job.pgid}")
                 return 0
             else:
