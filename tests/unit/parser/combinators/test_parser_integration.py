@@ -108,16 +108,8 @@ class TestParserIntegration:
         
         result = parser.parse(tokens)
         assert isinstance(result, TopLevel)
-        
-        # The parser doesn't recognize if/then/fi as keywords from WORD tokens
-        # It parses them as separate commands
-        # This is expected behavior - the lexer should produce IF/THEN/FI tokens
-        # For now, we'll just verify the structure is parsed
-        assert len(result.items) == 3  # Three separate commands
-        
-        # Each item should be an AndOrList with a simple command
-        for item in result.items:
-            assert isinstance(item, AndOrList)
+        assert len(result.items) == 1
+        assert isinstance(result.items[0], IfConditional)
     
     def test_while_loop(self):
         """Test parsing a while loop."""
@@ -136,12 +128,8 @@ class TestParserIntegration:
         
         result = parser.parse(tokens)
         assert isinstance(result, TopLevel)
-        
-        # Similar to if statement - keywords as WORD tokens aren't recognized
-        assert len(result.items) == 3  # Three separate commands
-        
-        for item in result.items:
-            assert isinstance(item, AndOrList)
+        assert len(result.items) == 1
+        assert isinstance(result.items[0], WhileLoop)
     
     def test_for_loop(self):
         """Test parsing a for loop."""
@@ -164,12 +152,8 @@ class TestParserIntegration:
         
         result = parser.parse(tokens)
         assert isinstance(result, TopLevel)
-        
-        # Keywords as WORD tokens aren't recognized as control structures
-        assert len(result.items) == 3  # Three separate commands
-        
-        for item in result.items:
-            assert isinstance(item, AndOrList)
+        assert len(result.items) == 1
+        assert isinstance(result.items[0], ForLoop)
     
     def test_function_definition(self):
         """Test parsing a function definition."""

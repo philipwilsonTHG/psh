@@ -385,7 +385,7 @@ class EnhancedErrorRecovery:
                 name="missing_do",
                 error_indicators=["expected 'do'"],
                 lexer_error_types=[],
-                token_patterns=[TokenType.WHILE, TokenType.FOR],
+                token_patterns=[TokenType.WHILE, TokenType.UNTIL, TokenType.FOR],
                 recovery_action="insert_do",
                 suggestion_template="Add 'do' after loop condition"
             ),

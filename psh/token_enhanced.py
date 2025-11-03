@@ -130,7 +130,7 @@ class EnhancedToken(Token):
         """Check if this token is a keyword."""
         return (self.metadata.semantic_type == SemanticType.KEYWORD or
                 self.type in {TokenType.IF, TokenType.THEN, TokenType.ELSE, TokenType.FI,
-                             TokenType.WHILE, TokenType.DO, TokenType.DONE, TokenType.FOR,
+                             TokenType.WHILE, TokenType.UNTIL, TokenType.DO, TokenType.DONE, TokenType.FOR,
                              TokenType.IN, TokenType.CASE, TokenType.ESAC, TokenType.SELECT,
                              TokenType.FUNCTION, TokenType.BREAK, TokenType.CONTINUE})
     

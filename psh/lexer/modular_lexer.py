@@ -231,6 +231,8 @@ class ModularLexer:
         # Track control keywords for context-sensitive parsing
         elif token_type == TokenType.FOR:
             self.context.recent_control_keyword = 'for'
+        elif token_type == TokenType.UNTIL:
+            self.context.recent_control_keyword = 'until'
         elif token_type == TokenType.CASE:
             self.context.recent_control_keyword = 'case'
         elif token_type == TokenType.SELECT:
@@ -244,7 +246,7 @@ class ModularLexer:
         command_starting_tokens = {
             TokenType.SEMICOLON, TokenType.AND_AND, TokenType.OR_OR,
             TokenType.PIPE, TokenType.LPAREN, TokenType.NEWLINE,
-            TokenType.IF, TokenType.WHILE, TokenType.FOR, TokenType.CASE,
+            TokenType.IF, TokenType.WHILE, TokenType.UNTIL, TokenType.FOR, TokenType.CASE,
             TokenType.THEN, TokenType.DO, TokenType.ELSE, TokenType.ELIF,
             TokenType.LBRACE
         }

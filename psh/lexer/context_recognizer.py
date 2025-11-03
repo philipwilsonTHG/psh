@@ -70,7 +70,7 @@ class ContextAwareRecognizer(ABC):
         
         # Set semantic type based on token type and context
         if token.type in {TokenType.IF, TokenType.THEN, TokenType.ELSE, TokenType.FI,
-                         TokenType.WHILE, TokenType.DO, TokenType.DONE, TokenType.FOR,
+                         TokenType.WHILE, TokenType.UNTIL, TokenType.DO, TokenType.DONE, TokenType.FOR,
                          TokenType.IN, TokenType.CASE, TokenType.ESAC, TokenType.SELECT,
                          TokenType.FUNCTION, TokenType.BREAK, TokenType.CONTINUE}:
             token.set_semantic_type(SemanticType.KEYWORD)

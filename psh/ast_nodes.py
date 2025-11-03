@@ -394,6 +394,16 @@ class WhileLoop(UnifiedControlStructure):
 
 
 @dataclass
+class UntilLoop(UnifiedControlStructure):
+    """Unified until loop that can be both Statement and Command."""
+    condition: StatementList  # The command list that determines loop termination
+    body: StatementList       # Commands to execute repeatedly until condition is true
+    redirects: List[Redirect] = field(default_factory=list)
+    execution_context: ExecutionContext = ExecutionContext.STATEMENT
+    background: bool = False
+
+
+@dataclass
 class ForLoop(UnifiedControlStructure):
     """Unified for loop that can be both Statement and Command."""
     variable: str           # The loop variable name

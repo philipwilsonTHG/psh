@@ -7,7 +7,7 @@ This module handles parsing of control structures like if, while, for, case, and
 from typing import Union, Tuple, List, Optional
 from ....token_types import Token, TokenType
 from ....ast_nodes import (
-    UnifiedControlStructure, IfConditional, WhileLoop, ForLoop, CStyleForLoop,
+    UnifiedControlStructure, IfConditional, WhileLoop, UntilLoop, ForLoop, CStyleForLoop,
     CaseConditional, SelectLoop, BreakStatement, ContinueStatement, Statement,
     StatementList, ExecutionContext, Redirect, CaseItem, CasePattern
 )
@@ -23,12 +23,17 @@ class ControlStructureParser:
     
     def parse_control_structure_neutral(self) -> UnifiedControlStructure:
         """Parse control structure without setting execution context."""
-        token_type = self.parser.peek().type
+        token = self.parser.peek()
+        token_type = token.type
+        if token_type == TokenType.WORD and token.value == 'until':
+            token_type = TokenType.UNTIL
         
         if token_type == TokenType.IF:
             return self._parse_if_neutral()
         elif token_type == TokenType.WHILE:
             return self._parse_while_neutral()
+        elif token_type == TokenType.UNTIL:
+            return self._parse_until_neutral()
         elif token_type == TokenType.FOR:
             return self._parse_for_neutral()
         elif token_type == TokenType.CASE:
@@ -45,12 +50,17 @@ class ControlStructureParser:
     
     def _parse_control_structure(self) -> Statement:
         """Parse any control structure based on current token."""
-        token_type = self.parser.peek().type
+        token = self.parser.peek()
+        token_type = token.type
+        if token_type == TokenType.WORD and token.value == 'until':
+            token_type = TokenType.UNTIL
         
         if token_type == TokenType.IF:
             return self.parse_if_statement()
         elif token_type == TokenType.WHILE:
             return self.parse_while_statement()
+        elif token_type == TokenType.UNTIL:
+            return self.parse_until_statement()
         elif token_type == TokenType.FOR:
             return self.parse_for_statement()
         elif token_type == TokenType.CASE:
@@ -127,13 +137,31 @@ class ControlStructureParser:
         result = self._parse_while_neutral()
         result.execution_context = ExecutionContext.STATEMENT
         return result
-    
+
     def _parse_while_neutral(self) -> WhileLoop:
         """Parse while loop without setting execution context."""
         condition, body, redirects = self._parse_loop_structure(
             TokenType.WHILE, TokenType.DO, TokenType.DONE
         )
         return WhileLoop(
+            condition=condition,
+            body=body,
+            redirects=redirects,
+            background=False
+        )
+
+    def parse_until_statement(self) -> UntilLoop:
+        """Parse until/do/done loop statement."""
+        result = self._parse_until_neutral()
+        result.execution_context = ExecutionContext.STATEMENT
+        return result
+
+    def _parse_until_neutral(self) -> UntilLoop:
+        """Parse until loop without setting execution context."""
+        condition, body, redirects = self._parse_loop_structure(
+            TokenType.UNTIL, TokenType.DO, TokenType.DONE
+        )
+        return UntilLoop(
             condition=condition,
             body=body,
             redirects=redirects,
@@ -188,10 +216,20 @@ class ControlStructureParser:
         # Traditional for loop
         variable = self.parser.expect(TokenType.WORD).value
         self.parser.skip_newlines()
-        self.parser.expect(TokenType.IN)
-        self.parser.skip_newlines()
+
+        items: List[str]
+        quote_types: List[Optional[str]]
+
+        if self.parser.match(TokenType.IN):
+            # Explicit item list provided
+            self.parser.advance()
+            self.parser.skip_newlines()
+            items, quote_types = self._parse_for_iterable()
+        else:
+            # No explicit list - default to positional parameters ("$@")
+            items = ['$@']
+            quote_types = ['"']
         
-        items, quote_types = self._parse_for_iterable()
         self.parser.skip_separators()
         self.parser.expect(TokenType.DO)
         self.parser.skip_newlines()

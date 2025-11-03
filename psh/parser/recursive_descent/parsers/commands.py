@@ -9,7 +9,7 @@ from ....token_types import Token, TokenType
 from ....token_stream import TokenStream
 from ....ast_nodes import (
     SimpleCommand, Pipeline, Command, Statement, AndOrList,
-    WhileLoop, ForLoop, CStyleForLoop, IfConditional, CaseConditional, 
+    WhileLoop, UntilLoop, ForLoop, CStyleForLoop, IfConditional, CaseConditional, 
     SelectLoop, ArithmeticEvaluation, BreakStatement, ContinueStatement,
     SubshellGroup, BraceGroup, ExecutionContext, ArrayAssignment
 )
@@ -301,6 +301,8 @@ class CommandParser:
         # Try parsing as control structure first
         if self.parser.match(TokenType.WHILE):
             return self.parse_while_command()
+        elif self.parser.match(TokenType.UNTIL):
+            return self.parse_until_command()
         elif self.parser.match(TokenType.FOR):
             return self.parse_for_command()
         elif self.parser.match(TokenType.IF):
@@ -478,7 +480,13 @@ class CommandParser:
         result = self.parser.control_structures._parse_while_neutral()
         result.execution_context = ExecutionContext.PIPELINE
         return result
-    
+
+    def parse_until_command(self) -> UntilLoop:
+        """Parse until loop as a command for use in pipelines."""
+        result = self.parser.control_structures._parse_until_neutral()
+        result.execution_context = ExecutionContext.PIPELINE
+        return result
+
     def parse_for_command(self) -> Union[ForLoop, CStyleForLoop]:
         """Parse for loop as a command for use in pipelines."""
         result = self.parser.control_structures._parse_for_neutral()

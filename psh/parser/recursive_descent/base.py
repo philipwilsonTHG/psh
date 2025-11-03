@@ -234,6 +234,7 @@ class BaseParser:
             TokenType.ELIF: "'elif'",
             TokenType.FI: "'fi'",
             TokenType.WHILE: "'while'",
+            TokenType.UNTIL: "'until'",
             TokenType.DO: "'do'",
             TokenType.DONE: "'done'",
             TokenType.FOR: "'for'",
@@ -342,7 +343,7 @@ class BaseParser:
         for token in reversed(preceding_tokens):
             if token.type == TokenType.FOR:
                 return ParserErrorCatalog.MISSING_DO_AFTER_FOR
-            elif token.type == TokenType.WHILE:
+            elif token.type == TokenType.WHILE or token.type == TokenType.UNTIL:
                 return ParserErrorCatalog.MISSING_DO_AFTER_WHILE
         
         # Default to generic missing do
@@ -357,7 +358,7 @@ class BaseParser:
         for token in reversed(preceding_tokens):
             if token.type == TokenType.FOR:
                 return ParserErrorCatalog.UNCLOSED_FOR_LOOP
-            elif token.type == TokenType.WHILE:
+            elif token.type == TokenType.WHILE or token.type == TokenType.UNTIL:
                 return ParserErrorCatalog.UNCLOSED_WHILE_LOOP
         
         return ParserErrorCatalog.UNCLOSED_FOR_LOOP

@@ -67,7 +67,7 @@ OPERATORS_BY_LENGTH = {
 # Keywords that need context checking
 KEYWORDS = {
     'if', 'then', 'else', 'elif', 'fi',
-    'while', 'do', 'done',
+    'while', 'until', 'do', 'done',
     'for', 'in',
     'case', 'esac',
     'select',

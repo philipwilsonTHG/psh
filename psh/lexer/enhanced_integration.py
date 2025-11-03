@@ -243,7 +243,7 @@ class EnhancedModularLexer(EnhancedLexerInterface):
         for token in tokens:
             # Basic semantic type assignment
             if token.type in {TokenType.IF, TokenType.THEN, TokenType.ELSE, TokenType.FI,
-                             TokenType.WHILE, TokenType.DO, TokenType.DONE, TokenType.FOR}:
+                             TokenType.WHILE, TokenType.UNTIL, TokenType.DO, TokenType.DONE, TokenType.FOR}:
                 token.set_semantic_type('keyword')
             elif token.type in {TokenType.PIPE, TokenType.AND_AND, TokenType.OR_OR, 
                                TokenType.SEMICOLON, TokenType.AMPERSAND}:

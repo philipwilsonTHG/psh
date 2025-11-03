@@ -15,7 +15,7 @@ class RecoveryPoints:
     
     # Statement starting tokens
     STATEMENT_START: Set[TokenType] = field(default_factory=lambda: {
-        TokenType.IF, TokenType.WHILE, TokenType.FOR,
+        TokenType.IF, TokenType.WHILE, TokenType.UNTIL, TokenType.FOR,
         TokenType.CASE, TokenType.FUNCTION, TokenType.WORD,
         TokenType.LBRACE, TokenType.DOUBLE_LBRACKET
     })

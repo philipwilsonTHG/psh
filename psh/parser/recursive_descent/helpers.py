@@ -29,7 +29,7 @@ class TokenGroups:
     
     # Control structure keywords
     CONTROL_KEYWORDS: Set[TokenType] = frozenset({
-        TokenType.IF, TokenType.WHILE, TokenType.FOR, 
+        TokenType.IF, TokenType.WHILE, TokenType.UNTIL, TokenType.FOR, 
         TokenType.CASE, TokenType.SELECT, TokenType.BREAK, TokenType.CONTINUE,
         TokenType.DOUBLE_LBRACKET, TokenType.DOUBLE_LPAREN
     })
@@ -55,7 +55,7 @@ class TokenGroups:
     # Keywords that can be valid case patterns
     CASE_PATTERN_KEYWORDS: Set[TokenType] = frozenset({
         TokenType.IF, TokenType.THEN, TokenType.ELSE, TokenType.FI, TokenType.ELIF,
-        TokenType.WHILE, TokenType.DO, TokenType.DONE, TokenType.FOR, TokenType.IN,
+        TokenType.WHILE, TokenType.UNTIL, TokenType.DO, TokenType.DONE, TokenType.FOR, TokenType.IN,
         TokenType.BREAK, TokenType.CONTINUE, TokenType.CASE, TokenType.ESAC,
         TokenType.SELECT, TokenType.FUNCTION
     })

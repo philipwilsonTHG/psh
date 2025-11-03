@@ -51,6 +51,8 @@ class EnhancedControlStructureParser(ControlStructureParser):
             return self._parse_if_enhanced()
         elif token_type == TokenType.WHILE:
             return self._parse_while_enhanced()
+        elif token_type == TokenType.UNTIL:
+            return self.parser.control_structures._parse_until_neutral()
         elif token_type == TokenType.FOR:
             return self._parse_for_enhanced()
         elif token_type == TokenType.CASE:

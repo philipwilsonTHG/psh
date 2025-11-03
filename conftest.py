@@ -12,6 +12,15 @@ def pytest_configure(config):
         "visitor_xfail(reason): mark test as expected to fail when using visitor executor"
     )
 
+    # Ensure subprocesses can import the local psh package when invoked via
+    # ``python -m psh`` by propagating the repository root through PYTHONPATH.
+    repo_root = os.path.dirname(os.path.abspath(__file__))
+    existing = os.environ.get('PYTHONPATH')
+    path_entries = [repo_root]
+    if existing:
+        path_entries.append(existing)
+    os.environ['PYTHONPATH'] = os.pathsep.join(path_entries)
+
 
 def pytest_collection_modifyitems(config, items):
     """Apply xfail marking to tests marked with visitor_xfail."""

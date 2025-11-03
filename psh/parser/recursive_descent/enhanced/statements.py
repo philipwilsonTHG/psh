@@ -224,7 +224,7 @@ class EnhancedStatementParser(StatementParser):
         # Check for control structures using enhanced metadata
         if current_token.metadata.semantic_type == SemanticType.KEYWORD:
             control_keywords = {
-                TokenType.IF, TokenType.WHILE, TokenType.FOR, TokenType.CASE,
+                TokenType.IF, TokenType.WHILE, TokenType.UNTIL, TokenType.FOR, TokenType.CASE,
                 TokenType.SELECT, TokenType.BREAK, TokenType.CONTINUE
             }
             

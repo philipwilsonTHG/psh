@@ -8,6 +8,7 @@ standards, tracking differences, and documenting compatibility.
 import subprocess
 import tempfile
 import os
+import sys
 import json
 import shlex
 from typing import Dict, List, Optional, Tuple, Any
@@ -57,8 +58,11 @@ class ConformanceTestFramework:
             psh_path: Path to PSH executable (default: python -m psh)
             bash_path: Path to bash executable (default: bash)
         """
-        self.psh_path = psh_path or ["python", "-m", "psh"]
+        self.psh_path = psh_path or [sys.executable, "-m", "psh"]
         self.bash_path = bash_path or ["bash"]
+        self.project_root = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), "..", "..")
+        )
         self.differences_catalog = {}
         self.load_differences_catalog()
     
@@ -130,7 +134,13 @@ class ConformanceTestFramework:
     def run_in_psh(self, command: str, env: Dict[str, str] = None, 
                    timeout: float = 10.0) -> CommandResult:
         """Run command in PSH."""
-        return self.run_in_shell(command, self.psh_path, env, timeout)
+        combined_env = dict(env) if env else {}
+        existing_path = combined_env.get("PYTHONPATH") or os.environ.get("PYTHONPATH")
+        pythonpath_parts = [self.project_root]
+        if existing_path:
+            pythonpath_parts.append(existing_path)
+        combined_env["PYTHONPATH"] = os.pathsep.join(pythonpath_parts)
+        return self.run_in_shell(command, self.psh_path, combined_env, timeout)
     
     def run_in_bash(self, command: str, env: Dict[str, str] = None, 
                     timeout: float = 10.0) -> CommandResult:

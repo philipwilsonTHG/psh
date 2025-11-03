@@ -26,7 +26,7 @@ from ..ast_nodes import (
     SimpleCommand, Redirect,
     
     # Control structures
-    WhileLoop, ForLoop, CStyleForLoop, IfConditional, 
+    WhileLoop, UntilLoop, ForLoop, CStyleForLoop, IfConditional, 
     CaseConditional, CaseItem, SelectLoop,
     BreakStatement, ContinueStatement,
     
@@ -221,6 +221,10 @@ class ExecutorVisitor(ASTVisitor[int]):
         """Execute while loop."""
         # Delegate to ControlFlowExecutor
         return self.control_flow_executor.execute_while(node, self.context, self)
+
+    def visit_UntilLoop(self, node: UntilLoop) -> int:
+        """Execute until loop."""
+        return self.control_flow_executor.execute_until(node, self.context, self)
     
     def visit_ForLoop(self, node: ForLoop) -> int:
         """Execute for loop."""

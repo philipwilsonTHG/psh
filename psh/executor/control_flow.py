@@ -3,7 +3,8 @@ Control flow execution support for the PSH executor.
 
 This module handles execution of control structures including:
 - If/elif/else conditionals
-- While loops
+ - While loops
+ - Until loops
 - For loops (standard and C-style)
 - Case statements
 - Select loops
@@ -24,7 +25,7 @@ from ..arithmetic import evaluate_arithmetic
 if TYPE_CHECKING:
     from ..shell import Shell
     from ..ast_nodes import (
-        IfConditional, WhileLoop, ForLoop, CStyleForLoop,
+        IfConditional, WhileLoop, UntilLoop, ForLoop, CStyleForLoop,
         CaseConditional, SelectLoop, BreakStatement, ContinueStatement,
         Redirect
     )
@@ -139,6 +140,36 @@ class ControlFlowExecutor:
                             raise LoopBreak(lb.level - 1)
                         break
                         
+            finally:
+                context.in_pipeline = old_pipeline
+        
+        context.loop_depth -= 1
+        return exit_status
+
+    def execute_until(self, node: 'UntilLoop', context: 'ExecutionContext',
+                      visitor: 'ASTVisitor[int]') -> int:
+        """Execute until loop (runs until condition succeeds)."""
+        exit_status = 0
+        context.loop_depth += 1
+        
+        with self._apply_redirections(node.redirects):
+            old_pipeline = context.in_pipeline
+            context.in_pipeline = False
+            try:
+                while True:
+                    condition_status = visitor.visit(node.condition)
+                    if condition_status == 0:
+                        break
+                    try:
+                        exit_status = visitor.visit(node.body)
+                    except LoopContinue as lc:
+                        if lc.level > 1:
+                            raise LoopContinue(lc.level - 1)
+                        continue
+                    except LoopBreak as lb:
+                        if lb.level > 1:
+                            raise LoopBreak(lb.level - 1)
+                        break
             finally:
                 context.in_pipeline = old_pipeline
         

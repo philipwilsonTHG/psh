@@ -8,7 +8,7 @@ from typing import List, Optional, Tuple, Union
 from ...token_types import Token, TokenType
 from ...ast_nodes import (
     # Control structures
-    IfConditional, WhileLoop, ForLoop, CaseConditional, SelectLoop,
+    IfConditional, WhileLoop, UntilLoop, ForLoop, CaseConditional, SelectLoop,
     CStyleForLoop, CaseItem, CasePattern, FunctionDef,
     # Compound commands
     SubshellGroup, BraceGroup,
@@ -104,6 +104,7 @@ class ControlStructureParsers:
         # Control structure parsers
         self.if_statement = self._build_if_statement()
         self.while_loop = self._build_while_loop()
+        self.until_loop = self._build_until_loop()
         self.for_loop = self._build_for_loops()
         self.case_statement = self._build_case_statement()
         self.select_loop = self._build_select_loop()
@@ -123,6 +124,7 @@ class ControlStructureParsers:
         self.control_structure = (
             self.if_statement
             .or_else(self.while_loop)
+            .or_else(self.until_loop)
             .or_else(self.for_loop)
             .or_else(self.case_statement)
             .or_else(self.select_loop)
@@ -465,6 +467,73 @@ class ControlStructureParsers:
             )
         
         return Parser(parse_while_loop)
+
+    def _build_until_loop(self) -> Parser[UntilLoop]:
+        """Build parser for until/do/done loops."""
+        def parse_until_loop(tokens: List[Token], pos: int) -> ParseResult[UntilLoop]:
+            """Parse until loop."""
+            if pos >= len(tokens) or tokens[pos].value != 'until':
+                return ParseResult(success=False, error="Expected 'until'", position=pos)
+            
+            pos += 1  # Skip 'until'
+
+            # Parse condition until 'do'
+            condition_tokens = []
+            while pos < len(tokens):
+                token = tokens[pos]
+                if (token.type.name == 'DO' and token.value == 'do') or \
+                   (token.type.name == 'WORD' and token.value == 'do'):
+                    break
+                if token.type.name in ['SEMICOLON', 'NEWLINE']:
+                    if pos + 1 < len(tokens):
+                        next_token = tokens[pos + 1]
+                        if (next_token.type.name == 'DO' and next_token.value == 'do') or \
+                           (next_token.type.name == 'WORD' and next_token.value == 'do'):
+                            break
+                condition_tokens.append(token)
+                pos += 1
+
+            if pos >= len(tokens):
+                return ParseResult(success=False, error="Expected 'do' in until loop", position=pos)
+
+            condition_result = self.commands.statement_list.parse(condition_tokens, 0)
+            if not condition_result.success:
+                return ParseResult(success=False,
+                                   error=f"Failed to parse until condition: {condition_result.error}",
+                                   position=pos)
+
+            if tokens[pos].type.name in ['SEMICOLON', 'NEWLINE']:
+                pos += 1
+            if pos >= len(tokens) or tokens[pos].value != 'do':
+                return ParseResult(success=False, error="Expected 'do' after until condition", position=pos)
+            pos += 1
+
+            if pos < len(tokens) and tokens[pos].type.name in ['SEMICOLON', 'NEWLINE']:
+                pos += 1
+
+            body_tokens, done_pos = self._collect_tokens_until_keyword(tokens, pos, 'done', 'do')
+
+            if done_pos >= len(tokens):
+                return ParseResult(success=False, error="Expected 'done' to close until loop", position=pos)
+
+            body_result = self.commands.statement_list.parse(body_tokens, 0)
+            if not body_result.success:
+                return ParseResult(success=False,
+                                   error=f"Failed to parse until body: {body_result.error}",
+                                   position=pos)
+
+            pos = done_pos + 1
+
+            return ParseResult(
+                success=True,
+                value=UntilLoop(
+                    condition=condition_result.value,
+                    body=body_result.value
+                ),
+                position=pos
+            )
+
+        return Parser(parse_until_loop)
     
     def _build_for_loops(self) -> Parser[Union[ForLoop, CStyleForLoop]]:
         """Build parser for both traditional and C-style for loops."""
@@ -487,33 +556,49 @@ class ControlStructureParsers:
             
             var_name = tokens[pos].value
             pos += 1
-            
-            # Expect 'in'
-            if pos >= len(tokens) or (tokens[pos].type.name != 'IN' and tokens[pos].value != 'in'):
-                return ParseResult(success=False, error="Expected 'in' after variable name", position=pos)
-            
-            pos += 1  # Skip 'in'
-            
-            # Parse items (words until 'do' or separator+do)
-            items = []
-            while pos < len(tokens):
-                token = tokens[pos]
-                if token.type.name == 'DO' and token.value == 'do':
-                    break
-                if token.type.name in ['SEMICOLON', 'NEWLINE']:
-                    # Check if next token is 'do'
-                    if (pos + 1 < len(tokens) and 
-                        tokens[pos + 1].type.name == 'DO'):
-                        break
-                if token.type.name in ['WORD', 'STRING', 'VARIABLE']:
-                    items.append(self._format_token_value(token))
+
+            # Skip optional newlines before checking for 'in'
+            while pos < len(tokens) and tokens[pos].type.name == 'NEWLINE':
+                pos += 1
+
+            has_in_clause = False
+            if pos < len(tokens) and (tokens[pos].type.name == 'IN' or tokens[pos].value == 'in'):
+                has_in_clause = True
+                pos += 1  # Skip 'in'
+                while pos < len(tokens) and tokens[pos].type.name == 'NEWLINE':
                     pos += 1
-                else:
-                    break
+
+            items: List[str]
+            item_quote_types: List[Optional[str]]
+            if has_in_clause:
+                items = []
+                item_quote_types = []
+                # Parse items (words until 'do' or separator+do)
+                while pos < len(tokens):
+                    token = tokens[pos]
+                    if token.type.name == 'DO' and token.value == 'do':
+                        break
+                    if token.type.name in ['SEMICOLON', 'NEWLINE']:
+                        # Check if next token is 'do'
+                        if (pos + 1 < len(tokens) and 
+                            tokens[pos + 1].type.name == 'DO'):
+                            break
+                    if token.type.name in ['WORD', 'STRING', 'VARIABLE', 'COMPOSITE']:
+                        items.append(self._format_token_value(token))
+                        quote_type = getattr(token, 'quote_type', None)
+                        item_quote_types.append(quote_type)
+                        pos += 1
+                    else:
+                        break
+            else:
+                # No explicit list - default to positional parameters ("$@")
+                items = ['$@']
+                item_quote_types = ['"']
             
-            # Skip separator and 'do'
+            # Skip optional separator before 'do'
             if pos < len(tokens) and tokens[pos].type.name in ['SEMICOLON', 'NEWLINE']:
                 pos += 1
+
             if pos >= len(tokens) or tokens[pos].value != 'do':
                 return ParseResult(success=False, error="Expected 'do' in for loop", position=pos)
             pos += 1  # Skip 'do'
@@ -541,7 +626,8 @@ class ControlStructureParsers:
                 value=ForLoop(
                     variable=var_name,
                     items=items,
-                    body=body_result.value
+                    body=body_result.value,
+                    item_quote_types=item_quote_types
                 ),
                 position=pos
             )

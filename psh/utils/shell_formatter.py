@@ -3,7 +3,7 @@
 from ..ast_nodes import (
     TopLevel, CommandList, AndOrList, Pipeline, Command, SimpleCommand,
     CompoundCommand, Redirect, FunctionDef, CaseItem, BreakStatement, ContinueStatement,
-    WhileLoop, ForLoop, CStyleForLoop, IfConditional, CaseConditional,
+    WhileLoop, UntilLoop, ForLoop, CStyleForLoop, IfConditional, CaseConditional,
     SelectLoop, ArithmeticEvaluation
 )
 
@@ -101,6 +101,17 @@ class ShellFormatter:
             for redirect in node.redirects:
                 result += ' ' + ShellFormatter._format_redirect(redirect)
             
+            return result
+        elif isinstance(node, UntilLoop):
+            result = "until "
+            result += ShellFormatter.format(node.condition, indent_level)
+            result += "; do\n"
+            result += ShellFormatter.format(node.body, indent_level + 1)
+            result += f"\n{indent}done"
+
+            for redirect in node.redirects:
+                result += ' ' + ShellFormatter._format_redirect(redirect)
+
             return result
         
         elif isinstance(node, ForLoop):

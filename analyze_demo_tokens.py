@@ -117,7 +117,7 @@ def display_analysis(analysis: Dict[str, any]):
                     TokenType.LBRACKET, TokenType.RBRACKET, TokenType.DOUBLE_LPAREN, TokenType.DOUBLE_RPAREN,
                     TokenType.DOUBLE_LBRACKET, TokenType.DOUBLE_RBRACKET],
         'Keywords': [TokenType.IF, TokenType.THEN, TokenType.ELSE, TokenType.FI, TokenType.ELIF,
-                    TokenType.WHILE, TokenType.DO, TokenType.DONE, TokenType.FOR, TokenType.IN,
+                    TokenType.WHILE, TokenType.UNTIL, TokenType.DO, TokenType.DONE, TokenType.FOR, TokenType.IN,
                     TokenType.CASE, TokenType.ESAC, TokenType.FUNCTION, TokenType.BREAK, TokenType.CONTINUE],
         'Expansions': [TokenType.COMMAND_SUB, TokenType.COMMAND_SUB_BACKTICK, TokenType.ARITH_EXPANSION,
                       TokenType.PROCESS_SUB_IN, TokenType.PROCESS_SUB_OUT],

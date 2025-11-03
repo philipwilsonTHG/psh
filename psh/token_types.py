@@ -61,6 +61,7 @@ class TokenType(Enum):
     FI = auto()
     ELIF = auto()
     WHILE = auto()
+    UNTIL = auto()
     DO = auto()
     DONE = auto()
     FOR = auto()

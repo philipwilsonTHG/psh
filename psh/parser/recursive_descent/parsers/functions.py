@@ -82,7 +82,7 @@ class FunctionParser:
             subshell = self.parser.commands.parse_subshell_group()
             # Convert subshell to command list for function body
             return subshell.statements
-        elif self.parser.match(TokenType.IF, TokenType.WHILE, TokenType.FOR, TokenType.CASE, 
+        elif self.parser.match(TokenType.IF, TokenType.WHILE, TokenType.UNTIL, TokenType.FOR, TokenType.CASE, 
                               TokenType.SELECT, TokenType.DOUBLE_LPAREN, TokenType.DOUBLE_LBRACKET):
             # Control structure
             stmt = self.parser.control_structures._parse_control_structure()
