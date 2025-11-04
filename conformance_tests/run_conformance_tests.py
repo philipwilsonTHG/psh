@@ -6,12 +6,58 @@ import os
 import difflib
 import sys
 import signal
+import shutil
 
 # Handle SIGPIPE gracefully for piping to less, head, etc.
 signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
 # Get the directory where this script is located
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+def find_shell(shell_name):
+    """Find the best available shell executable.
+
+    Searches for the shell in the following order:
+    1. Environment variable (BASH_PATH for bash, DASH_PATH for dash)
+    2. Homebrew locations (/opt/homebrew/bin, /usr/local/bin)
+    3. Standard locations (/bin, /usr/bin)
+    4. Shell in PATH
+
+    Args:
+        shell_name: Name of the shell (e.g., 'bash', 'dash')
+
+    Returns:
+        Path to shell executable
+
+    Raises:
+        FileNotFoundError: If shell cannot be found
+    """
+    # Check environment variable
+    env_var = f"{shell_name.upper()}_PATH"
+    if env_var in os.environ:
+        shell_path = os.environ[env_var]
+        if os.path.isfile(shell_path) and os.access(shell_path, os.X_OK):
+            return shell_path
+
+    # Check common locations (Homebrew first, then standard)
+    search_paths = [
+        f"/opt/homebrew/bin/{shell_name}",  # Apple Silicon Homebrew
+        f"/usr/local/bin/{shell_name}",      # Intel Mac Homebrew
+        f"/bin/{shell_name}",                # Standard location
+        f"/usr/bin/{shell_name}",            # Alternative standard location
+    ]
+
+    for path in search_paths:
+        if os.path.isfile(path) and os.access(path, os.X_OK):
+            return path
+
+    # Fall back to shell in PATH
+    shell_in_path = shutil.which(shell_name)
+    if shell_in_path:
+        return shell_in_path
+
+    raise FileNotFoundError(f"Could not find {shell_name} executable")
 
 def run_test(test_input_path, mode, update_golden=False, compare_shell=None):
     golden_file = os.path.splitext(test_input_path)[0] + ".golden"
@@ -144,9 +190,17 @@ def main():
     # Handle comparison shell options
     compare_shell = None
     if args.dash_compare:
-        compare_shell = "/opt/homebrew/bin/dash"
+        try:
+            compare_shell = find_shell("dash")
+        except FileNotFoundError as e:
+            print(f"Error: {e}")
+            sys.exit(1)
     elif args.bash_compare:
-        compare_shell = "/opt/homebrew/bin/bash"
+        try:
+            compare_shell = find_shell("bash")
+        except FileNotFoundError as e:
+            print(f"Error: {e}")
+            sys.exit(1)
     elif args.compare_shell:
         compare_shell = args.compare_shell
 

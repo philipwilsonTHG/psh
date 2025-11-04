@@ -66,28 +66,38 @@ class ConformanceTest(PSHTestCase):
         self.documented_differences = self._load_documented_differences()
         
     def _find_bash(self) -> str:
-        """Find bash executable."""
-        # Common bash locations
+        """Find bash executable.
+
+        Searches for bash in the following order:
+        1. BASH_PATH environment variable (if set)
+        2. Homebrew locations (/opt/homebrew/bin, /usr/local/bin)
+        3. Standard locations (/bin, /usr/bin)
+        4. bash in PATH
+        """
+        # Check environment variable first
+        if "BASH_PATH" in os.environ:
+            bash_path = os.environ["BASH_PATH"]
+            if os.path.isfile(bash_path) and os.access(bash_path, os.X_OK):
+                return bash_path
+
+        # Common bash locations (Homebrew first for newer bash on macOS)
         bash_paths = [
-            '/bin/bash',
-            '/usr/bin/bash',
-            '/usr/local/bin/bash',
-            '/opt/homebrew/bin/bash',
+            '/opt/homebrew/bin/bash',  # Apple Silicon Homebrew (bash 5.x)
+            '/usr/local/bin/bash',      # Intel Mac Homebrew
+            '/bin/bash',                # Standard location
+            '/usr/bin/bash',            # Alternative standard location
         ]
-        
+
         for path in bash_paths:
             if os.path.exists(path):
                 return path
-                
-        # Try which
-        try:
-            result = subprocess.run(['which', 'bash'], 
-                                  capture_output=True, text=True)
-            if result.returncode == 0:
-                return result.stdout.strip()
-        except:
-            pass
-            
+
+        # Try which/shutil.which
+        import shutil
+        bash_in_path = shutil.which('bash')
+        if bash_in_path:
+            return bash_in_path
+
         raise RuntimeError("Cannot find bash for conformance testing")
         
     def _load_documented_differences(self) -> Dict[str, DifferenceType]:
