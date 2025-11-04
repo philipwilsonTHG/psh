@@ -149,10 +149,12 @@ def test_assignment_chain(shell, capsys):
     assert "1 1 1" in captured.out
 
 
-def test_assignment_with_glob_patterns(shell, capsys):
-    """Test assignment with glob patterns (should not expand)."""
-    # Test global assignment for expansion
-    result = shell.run_command('PATTERN="*.txt"; echo $PATTERN')
+def test_assignment_with_glob_patterns(isolated_shell_with_temp_dir, capsys):
+    """Test assignment with glob patterns (should not expand in assignment)."""
+    shell = isolated_shell_with_temp_dir
+    # Test that glob pattern is stored literally in variable (not expanded during assignment)
+    # Note: Using quoted $PATTERN to prevent expansion during echo
+    result = shell.run_command('PATTERN="*.txt"; echo "$PATTERN"')
     assert result == 0
     captured = capsys.readouterr()
     assert "*.txt" in captured.out
