@@ -280,17 +280,20 @@ class TestDisownIntegration:
         """Test disowned job exit doesn't generate notification."""
         # Start a short-lived background job
         shell.run_command('(sleep 0.5; exit 0) &')
-        
+
         # Disown it immediately
         shell.run_command('disown %1')
-        
+
+        # Clear any output from job start notification
+        capsys.readouterr()
+
         # Wait for job to complete
         time.sleep(1)
-        
+
         # Run another command to potentially trigger notifications
         shell.run_command('echo "test"')
         captured = capsys.readouterr()
-        
+
         # Should not see job completion notification
         assert 'Done' not in captured.out
         assert 'Exit' not in captured.out
