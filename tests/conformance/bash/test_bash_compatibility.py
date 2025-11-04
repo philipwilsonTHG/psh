@@ -124,13 +124,12 @@ class TestBashParameterExpansion(ConformanceTest):
         self.assert_identical_behavior('x=hello; echo ${x/l/L}')
         self.assert_identical_behavior('x=hello; echo ${x//l/L}')
 
-    @pytest.mark.xfail(reason="Case modification may not be implemented")
     def test_case_modification(self):
-        """Test bash case modification."""
-        self.assert_bash_specific('x=hello; echo ${x^}')  # First char uppercase
-        self.assert_bash_specific('x=hello; echo ${x^^}')  # All uppercase
-        self.assert_bash_specific('x=HELLO; echo ${x,}')  # First char lowercase
-        self.assert_bash_specific('x=HELLO; echo ${x,,}')  # All lowercase
+        """Test bash case modification - now supported in PSH."""
+        self.assert_identical_behavior('x=hello; echo ${x^}')  # First char uppercase
+        self.assert_identical_behavior('x=hello; echo ${x^^}')  # All uppercase
+        self.assert_identical_behavior('x=HELLO; echo ${x,}')  # First char lowercase
+        self.assert_identical_behavior('x=HELLO; echo ${x,,}')  # All lowercase
 
 
 class TestBashCommandSubstitution(ConformanceTest):
@@ -225,7 +224,7 @@ class TestBashGlobbing(ConformanceTest):
         assert 'a.txt' in result.bash_result.stdout
         assert 'b.txt' in result.bash_result.stdout
 
-    @pytest.mark.xfail(reason="Extended globbing may not be implemented")
+    @pytest.mark.xfail(reason="Extended globbing requires shopt which is not implemented")
     def test_extended_globbing(self):
         """Test bash extended globbing."""
         # These require shopt -s extglob in bash
@@ -298,7 +297,7 @@ class TestBashOptions(ConformanceTest):
         result1 = self.check_behavior('set -o pipefail; true')
         result2 = self.check_behavior('set -u; true')
 
-    @pytest.mark.xfail(reason="Bash-specific options not implemented")
+    @pytest.mark.xfail(reason="shopt builtin not implemented")
     def test_shopt_options(self):
         """Test bash shopt options."""
         self.assert_bash_specific('shopt -s extglob')
@@ -321,7 +320,7 @@ class TestBashRedirection(ConformanceTest):
         result = self.check_behavior('cat << EOF\nhello\nEOF')
         # Both should handle here documents
 
-    @pytest.mark.xfail(reason="Advanced redirection may not be implemented")
+    @pytest.mark.xfail(reason="exec with file descriptors not fully implemented")
     def test_advanced_redirection(self):
         """Test bash advanced redirection."""
         self.assert_bash_specific('exec 3> file.txt')

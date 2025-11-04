@@ -366,26 +366,28 @@ class TestDisownBashCompatibility:
         # Clean up
         shell.run_command('pkill -f "sleep" 2>/dev/null || true')
     
-    @pytest.mark.xfail(reason="Output capture includes job notifications - needs test infrastructure refinement")
     def test_disown_preserves_exit_status(self, shell, capsys):
         """Test disown doesn't change shell exit status inappropriately."""
         # Get current exit status
         shell.run_command('echo $?')
         captured = capsys.readouterr()
         initial_status = captured.out.strip()
-        
+
         # Start and disown a job
         shell.run_command('sleep 30 &')
         shell.run_command('disown %1')
-        
+
+        # Clear output from job start notification
+        capsys.readouterr()
+
         # Exit status should still reflect last command success
         shell.run_command('echo $?')
         captured = capsys.readouterr()
         final_status = captured.out.strip()
-        
+
         # Disown success should give exit status 0
         assert final_status == "0"
-        
+
         # Clean up
         shell.run_command('pkill -f "sleep 30" 2>/dev/null || true')
 
