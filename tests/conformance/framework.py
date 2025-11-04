@@ -11,9 +11,54 @@ import os
 import sys
 import json
 import shlex
+import shutil
 from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass
 from enum import Enum
+
+
+def find_bash() -> str:
+    """Find the best available bash executable.
+
+    Searches for bash in the following order:
+    1. BASH_PATH environment variable (if set)
+    2. /opt/homebrew/bin/bash (Apple Silicon Mac with Homebrew)
+    3. /usr/local/bin/bash (Intel Mac with Homebrew)
+    4. bash in PATH (system bash or CI environment)
+
+    This ensures conformance tests use the latest bash on macOS (via Homebrew)
+    while still working in CI environments where bash is in the standard PATH.
+
+    For CI/CD or custom environments, set the BASH_PATH environment variable:
+        export BASH_PATH=/usr/bin/bash  # or wherever bash is located
+        pytest tests/conformance/
+
+    Returns:
+        Path to bash executable as string (not list)
+    """
+    # Check environment variable first
+    if "BASH_PATH" in os.environ:
+        bash_path = os.environ["BASH_PATH"]
+        if os.path.isfile(bash_path) and os.access(bash_path, os.X_OK):
+            return bash_path
+
+    # Check common Homebrew locations (newer bash on macOS)
+    homebrew_paths = [
+        "/opt/homebrew/bin/bash",  # Apple Silicon
+        "/usr/local/bin/bash",      # Intel Mac
+    ]
+
+    for path in homebrew_paths:
+        if os.path.isfile(path) and os.access(path, os.X_OK):
+            return path
+
+    # Fall back to bash in PATH (works everywhere, including CI)
+    bash_in_path = shutil.which("bash")
+    if bash_in_path:
+        return bash_in_path
+
+    # Last resort: assume bash is available
+    return "bash"
 
 
 class ConformanceResult(Enum):
@@ -53,13 +98,14 @@ class ConformanceTestFramework:
     
     def __init__(self, psh_path: str = None, bash_path: str = None):
         """Initialize conformance test framework.
-        
+
         Args:
             psh_path: Path to PSH executable (default: python -m psh)
-            bash_path: Path to bash executable (default: bash)
+            bash_path: Path to bash executable (default: auto-detected best bash)
         """
         self.psh_path = psh_path or [sys.executable, "-m", "psh"]
-        self.bash_path = bash_path or ["bash"]
+        bash_exec = bash_path or find_bash()
+        self.bash_path = bash_exec if isinstance(bash_exec, list) else [bash_exec]
         self.project_root = os.path.abspath(
             os.path.join(os.path.dirname(__file__), "..", "..")
         )
