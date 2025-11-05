@@ -208,3 +208,29 @@ class Token:
     def is_command_position(self) -> bool:
         """Check if token is in command position."""
         return self.metadata.is_command_position() if self.metadata else False
+
+    @property
+    def normalized_value(self) -> str:
+        """Return a canonical representation suitable for comparisons."""
+        value = self.value or ""
+
+        # Prefer canonical keyword spelling when available
+        try:
+            from .lexer.keyword_defs import keyword_from_type  # Late import avoids cycles
+        except ImportError:
+            keyword_from_type = None  # type: ignore
+        if keyword_from_type is not None:
+            canonical = keyword_from_type(self.type)
+            if canonical:
+                return canonical
+
+        # If metadata marked this as a keyword, normalize to lowercase
+        if self.metadata is not None:
+            try:
+                from .token_enhanced import SemanticType  # Late import avoids cycles
+            except ImportError:
+                SemanticType = None  # type: ignore
+            if SemanticType is not None and self.metadata.semantic_type == SemanticType.KEYWORD:
+                return value.lower()
+
+        return value

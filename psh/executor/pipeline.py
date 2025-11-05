@@ -270,7 +270,7 @@ class PipelineExecutor:
                 # Background pipeline
                 last_pid = pids[-1] if pids else job.pgid
                 self.job_manager.register_background_job(job, shell_state=self.state, last_pid=last_pid)
-                print(f"[{job.job_id}] {job.pgid}")
+                print(f"[{job.job_id}] {job.pgid}", file=self.shell.stderr)
                 return 0
             else:
                 # Foreground pipeline - wait for completion

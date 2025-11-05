@@ -286,8 +286,8 @@ class BaseParser:
         from ..errors import ErrorSuggester
         
         suggestion = ErrorSuggester.suggest_for_context(
-            error_context.token.value or "",
-            [t.value for t in preceding_tokens if t.value]
+            error_context.token,
+            preceding_tokens
         )
         if suggestion:
             error_context.add_suggestion(suggestion)

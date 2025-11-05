@@ -1,0 +1,13 @@
+WORD:cat:None
+HEREDOC:<<:None
+WORD:EOF:None
+NEWLINE:\n:None
+IF:if:None
+WORD:should:None
+WORD:not:None
+WORD:change:None
+NEWLINE:\n:None
+FI:fi:None
+NEWLINE:\n:None
+WORD:EOF:None
+EOF::None

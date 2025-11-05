@@ -6,7 +6,7 @@ if/elif/else, loops, case statements, and function definitions.
 
 from typing import List, Optional, Tuple, Union
 from ...token_types import Token, TokenType
-from ...lexer.keyword_defs import matches_keyword
+from ...lexer.keyword_defs import KeywordGuard, matches_keyword
 from ...ast_nodes import (
     # Control structures
     IfConditional, WhileLoop, UntilLoop, ForLoop, CaseConditional, SelectLoop,
@@ -25,6 +25,13 @@ from .core import (
 )
 from .tokens import TokenParsers
 from .commands import CommandParsers
+
+
+CASE_TERMINATOR_TOKENS = {
+    TokenType.DOUBLE_SEMICOLON: ';;',
+    TokenType.SEMICOLON_AMP: ';&',
+    TokenType.AMP_SEMICOLON: ';;&',
+}
 
 
 class ControlStructureParsers:
@@ -274,24 +281,21 @@ class ControlStructureParsers:
             
             while current_pos < len(tokens):
                 token = tokens[current_pos]
+                guard = KeywordGuard(token)
 
                 # Track nested if statements
-                if matches_keyword(token, 'if'):
+                if guard.matches('if'):
                     nesting_level += 1
                     body_tokens.append(token)
                     current_pos += 1
                     continue
 
                 # Check for keywords that might end this body
-                if (
-                    matches_keyword(token, 'elif')
-                    or matches_keyword(token, 'else')
-                    or matches_keyword(token, 'fi')
-                ):
+                if guard.matches_any('elif', 'else', 'fi'):
                     if nesting_level == 0:
                         # This ends our current body
                         break
-                    elif matches_keyword(token, 'fi'):
+                    if guard.matches('fi'):
                         # This ends a nested if
                         nesting_level -= 1
                     body_tokens.append(token)
@@ -786,9 +790,7 @@ class ControlStructureParsers:
                 while pos < len(tokens):
                     token = tokens[pos]
                     # Check for case terminators
-                    if token.type.name == 'DOUBLE_SEMICOLON' or token.value == ';;':
-                        break
-                    if token.value == ';&' or token.value == ';;&':
+                    if token.type in CASE_TERMINATOR_TOKENS:
                         break
                     # Check if next token is a pattern (word followed by ')')
                     if (pos + 1 < len(tokens) and 
@@ -796,7 +798,7 @@ class ControlStructureParsers:
                         tokens[pos + 1].value == ')'):
                         break
                     # Check for 'esac'
-                    if matches_keyword(token, 'esac'):
+                    if KeywordGuard(token).matches('esac'):
                         break
                     command_tokens.append(token)
                     pos += 1
@@ -815,14 +817,10 @@ class ControlStructureParsers:
                 # Get terminator
                 terminator = ';;'  # Default
                 if pos < len(tokens):
-                    if tokens[pos].type.name == 'DOUBLE_SEMICOLON' or tokens[pos].value == ';;':
-                        terminator = ';;'
-                        pos += 1
-                    elif tokens[pos].value == ';&':
-                        terminator = ';&'
-                        pos += 1
-                    elif tokens[pos].value == ';;&':
-                        terminator = ';;&'
+                    token_type = tokens[pos].type
+                    token_terminator = CASE_TERMINATOR_TOKENS.get(token_type)
+                    if token_terminator:
+                        terminator = token_terminator
                         pos += 1
                 
                 # Skip optional separator after terminator

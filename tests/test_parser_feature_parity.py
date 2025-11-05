@@ -155,14 +155,40 @@ class TestParserFeatureParity:
     def test_case_statements(self):
         """Test case statements."""
         cases = [
-            ParityTestCase("simple case", 
+            ParityTestCase("simple case",
                           "case $x in a) echo A;; b) echo B;; esac"),
             ParityTestCase("case with default",
                           "case $x in a) echo A;; *) echo other;; esac"),
             ParityTestCase("case multiple patterns",
                           "case $x in a|b) echo AB;; c) echo C;; esac"),
+            ParityTestCase("case with pipes and default",
+                          "case $mode in start|stop) echo control;; *) echo default;; esac"),
+            ParityTestCase("case nested in case",
+                          "case $x in a) case $y in 1) echo a1;; esac;; *) echo other;; esac"),
         ]
         
+        for case in cases:
+            self.check_parity(case)
+
+    def test_keyword_sensitive_constructs(self):
+        """Ensure both parsers agree on keyword-heavy combinations."""
+        cases = [
+            ParityTestCase(
+                "if embeds case",
+                "if true; then case $mode in start|stop) echo hi;; *) echo default;; esac; fi"
+            ),
+            ParityTestCase(
+                "for in with nested if",
+                "for file in a b; do if [ -f \"$file\" ]; then echo $file; fi; done"
+            ),
+            ParityTestCase(
+                "select loop with case",
+                "select opt in start stop; do case $opt in start) break;; stop) continue;; esac; done",
+                skip_combinator=True,
+                skip_reason="select not implemented"
+            ),
+        ]
+
         for case in cases:
             self.check_parity(case)
     

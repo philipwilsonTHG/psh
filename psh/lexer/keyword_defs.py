@@ -1,6 +1,6 @@
 """Shared keyword definitions and helpers."""
 
-from typing import Optional
+from typing import Iterable, Optional
 
 from ..token_types import TokenType
 from ..token_enhanced import SemanticType
@@ -68,3 +68,27 @@ def matches_keyword(token, keyword: str) -> bool:
     if expected_type is None:
         return False
     return matches_keyword_type(token, expected_type)
+
+
+def matches_any_keyword(token, keywords: Iterable[str]) -> bool:
+    """Return True if token matches any of the provided keyword strings."""
+    return any(matches_keyword(token, keyword) for keyword in keywords)
+
+
+class KeywordGuard:
+    """Cache keyword comparisons for a token to avoid repeated normalization."""
+
+    __slots__ = ("token", "_cache")
+
+    def __init__(self, token):
+        self.token = token
+        self._cache: dict[str, bool] = {}
+
+    def matches(self, keyword: str) -> bool:
+        keyword = keyword.lower()
+        if keyword not in self._cache:
+            self._cache[keyword] = matches_keyword(self.token, keyword)
+        return self._cache[keyword]
+
+    def matches_any(self, *keywords: str) -> bool:
+        return any(self.matches(keyword) for keyword in keywords)

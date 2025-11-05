@@ -256,7 +256,7 @@ class SubshellExecutor:
             self.job_manager.register_background_job(job, shell_state=self.shell.state, last_pid=pid)
             
             if not self.shell.is_script_mode:
-                print(f"[{job.job_id}] {job.pgid}")
+                print(f"[{job.job_id}] {job.pgid}", file=self.shell.stderr)
             
             return 0
     
@@ -301,5 +301,5 @@ class SubshellExecutor:
             job.add_process(pid, "brace-group")
             self.job_manager.register_background_job(job, shell_state=self.shell.state, last_pid=pid)
             if not self.shell.is_script_mode:
-                print(f"[{job.job_id}] {job.pgid}")
+                print(f"[{job.job_id}] {job.pgid}", file=self.shell.stderr)
             return 0

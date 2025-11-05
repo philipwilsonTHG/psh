@@ -1,0 +1,11 @@
+FOR:for:None
+WORD:file:None
+IN:in:None
+WORD:*.txt:None
+SEMICOLON:;:None
+DO:do:None
+WORD:echo:None
+STRING:$file:None
+SEMICOLON:;:None
+DONE:done:None
+EOF::None

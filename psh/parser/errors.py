@@ -4,6 +4,9 @@ from enum import Enum
 from typing import Dict, List, Optional
 from dataclasses import dataclass
 
+from ..token_types import Token
+from ..lexer.keyword_defs import matches_keyword
+
 
 class ErrorSeverity(Enum):
     """Severity levels for parser errors."""
@@ -296,22 +299,25 @@ class ErrorSuggester:
         return None
     
     @staticmethod
-    def suggest_for_context(token_value: str, preceding_tokens: List[str]) -> Optional[str]:
+    def suggest_for_context(token: Optional[Token], preceding_tokens: List[Token]) -> Optional[str]:
         """Suggest fixes based on surrounding context."""
-        if not preceding_tokens:
+        if not preceding_tokens and token is None:
             return None
-        
-        last_token = preceding_tokens[-1] if preceding_tokens else ""
-        
-        # Context-based suggestions
+
+        def _norm(tok: Optional[Token]) -> str:
+            if tok is None:
+                return ""
+            return tok.normalized_value
+
+        last_token = preceding_tokens[-1] if preceding_tokens else None
+        token_value = _norm(token)
+        last_value = _norm(last_token)
+
         context_suggestions = {
-            # After control keywords
             ("if", "then"): "Add condition before 'then': if condition; then",
             ("for", "do"): "Add variable and list: for var in list; do",
             ("while", "do"): "Add condition before 'do': while condition; do",
             ("case", "in"): "Add expression: case expression in",
-            
-            # After operators
             ("|", ""): "Add command after pipe",
             ("&&", ""): "Add command after &&",
             ("||", ""): "Add command after ||",
@@ -319,19 +325,15 @@ class ErrorSuggester:
             (">>", ""): "Add filename after redirection",
             ("<", ""): "Add filename after redirection",
         }
-        
-        key = (last_token, token_value)
-        result = context_suggestions.get(key)
-        
-        # If no exact match, try some pattern matching
+
+        result = context_suggestions.get((last_value, token_value))
+
         if not result:
-            # Check for 'then' token after if-like words
-            if token_value == "then" and any("if" in token for token in preceding_tokens):
+            if token and matches_keyword(token, "then") and any(matches_keyword(prev, "if") for prev in preceding_tokens):
                 return "Add condition before 'then': if condition; then"
-            # Check for missing commands after operators
-            elif token_value == "" and last_token in ["|", "&&", "||"]:
-                return f"Add command after {last_token}"
-        
+            if (token is None or not (token.value or "")) and last_value in {"|", "&&", "||"}:
+                return f"Add command after {last_value}"
+
         return result
 
 

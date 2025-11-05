@@ -405,7 +405,7 @@ class ExpansionManager:
             if c in ['*', '?', '[']
         )
         
-        if (has_unescaped_globs and arg_type != 'STRING' 
+        if (has_unescaped_globs and arg_type not in ('STRING', 'VARIABLE')
             and not self.state.options.get('noglob', False)):
             # Perform glob expansion (but clean NULL markers first for glob matching)
             import glob

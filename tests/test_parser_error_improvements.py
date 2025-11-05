@@ -5,6 +5,7 @@ from psh.lexer import tokenize
 from psh.parser import Parser
 from psh.parser.recursive_descent.helpers import ParseError
 from psh.parser.errors import ParserErrorCatalog, ErrorSuggester
+from psh.token_types import Token, TokenType
 
 
 class TestParserErrorCatalog:
@@ -60,11 +61,20 @@ class TestErrorSuggester:
     def test_context_suggestions(self):
         """Test context-based suggestions."""
         # Test control structure context
-        suggestion = ErrorSuggester.suggest_for_context("then", ["if", "condition"])
+        suggestion = ErrorSuggester.suggest_for_context(
+            Token(TokenType.WORD, "then", 0),
+            [
+                Token(TokenType.WORD, "if", 0),
+                Token(TokenType.WORD, "condition", 1),
+            ]
+        )
         assert "condition" in suggestion.lower()
         
         # Test operator context
-        suggestion = ErrorSuggester.suggest_for_context("", ["|"])
+        suggestion = ErrorSuggester.suggest_for_context(
+            None,
+            [Token(TokenType.PIPE, "|", 0)]
+        )
         assert "command" in suggestion.lower()
     
     def test_missing_token_suggestions(self):
