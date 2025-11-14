@@ -4,7 +4,7 @@
 
 Python Shell (psh) is a POSIX-compliant shell written entirely in Python, designed for learning shell internals while providing practical functionality. It features a clean, readable codebase with modern architecture and powerful built-in analysis tools.
 
-**Current Version**: 0.91.3 | **Tests**: 2,146 passing | **POSIX Compliance**: ~93%
+**Current Version**: 0.101.0 | **Tests**: 2,865 passing | **POSIX Compliance**: ~93%
 
 *All source code and documentation (except this note) has been written by Claude Code using Sonnet 4 and Opus 4 models.*
 
@@ -31,8 +31,9 @@ psh --format script.sh
 
 - 🔍 **CLI Analysis Tools**: Built-in script formatting, metrics, security analysis, and linting
 - 📚 **Educational Focus**: Clean, readable codebase designed for learning shell internals
-- 🧪 **Comprehensive Testing**: 2,146 tests ensuring reliability and robustness
+- 🧪 **Comprehensive Testing**: 2,865 tests ensuring reliability and robustness
 - 🏗️ **Modern Architecture**: Component-based design with unified lexer and visitor pattern integration
+- 🎓 **Dual Parser Implementation**: Both recursive descent and functional parser combinator with 100% feature parity
 - 📋 **POSIX Compliant**: ~93% compliance with robust bash compatibility
 - 🎯 **Feature Complete**: Supports advanced shell programming with arrays, functions, and control structures
 
@@ -197,7 +198,7 @@ cd psh
 pip install -e .
 
 # Install development dependencies
-pip install -r requirements-dev.txt
+pip install -e ".[dev]"
 
 # Run tests
 python -m pytest tests/
@@ -209,8 +210,10 @@ PSH follows a modern component-based architecture with clear separation of conce
 
 ### Core Components
 - **Shell** (`psh/shell.py`): Main orchestrator coordinating all subsystems
-- **Lexer** (`psh/lexer/`): Unified tokenization with enhanced features as standard (v0.91.3)
-- **Parser** (`psh/parser/`): Recursive descent parser creating comprehensive AST
+- **Lexer** (`psh/lexer/`): Modular tokenization with mixin architecture
+- **Parser** (`psh/parser/`): Dual parser implementation:
+  - **Recursive Descent** (`recursive_descent/`): Production parser with modular package structure
+  - **Parser Combinator** (`combinators/`): Functional parsing with 100% feature parity
 - **Executor** (`psh/executor/`): Command execution with specialized handlers
 - **Expansion** (`psh/expansion/`): All shell expansions with proper precedence
 - **I/O Management** (`psh/io_redirect/`): File operations and redirection handling
@@ -222,11 +225,20 @@ PSH implements the visitor pattern for AST operations, enabling:
 - **Code Transformation**: Formatting, optimization
 - **Extensibility**: Easy addition of new analysis features
 
+### Dual Parser Implementation
+PSH uniquely includes two complete parser implementations:
+- **Recursive Descent Parser**: Production parser with modular package structure, clear error messages, and comprehensive shell support
+- **Parser Combinator**: Functional parsing implementation demonstrating elegant composition and achieving 100% feature parity
+- **Educational Value**: Compare and contrast imperative vs. functional parsing approaches
+- **Parser Selection**: Use `--parser=combinator` flag to switch between implementations
+- **Feature Parity**: Both parsers support all shell constructs (control structures, arrays, process substitution, etc.)
+
 ### Project Statistics
-- **Lines of Code**: ~39,000 across 140 Python files
-- **Test Coverage**: 1,981 tests in 102 test files
+- **Lines of Code**: ~62,800 across 211 Python files
+- **Test Coverage**: 2,865 tests in 138 test files
 - **Architecture**: 8 major components with focused responsibilities
-- **Visitors**: 7 analysis and transformation visitors
+- **Visitors**: 9 analysis and transformation visitors
+- **Dual Parser**: Both recursive descent and parser combinator implementations
 
 ## Testing & Quality
 
@@ -235,21 +247,21 @@ PSH implements the visitor pattern for AST operations, enabling:
 python -m pytest tests/
 
 # Run specific categories
-python -m pytest tests_new/unit/           # Unit tests
-python -m pytest tests_new/integration/    # Integration tests
-python -m pytest tests_new/conformance/    # POSIX/bash compatibility
+python -m pytest tests/unit/           # Unit tests
+python -m pytest tests/integration/    # Integration tests
+python -m pytest tests/conformance/    # POSIX/bash compatibility
 
 # Performance tests
-python -m pytest tests_new/performance/
+python -m pytest tests/performance/
 
 # Coverage reporting
 python -m pytest tests/ --cov=psh --cov-report=html
 ```
 
 **Current Test Statistics:**
-- ✅ 1,981 passing tests
-- ⏭️ 151 skipped tests (platform-specific or interactive)
-- 🧪 63 expected failures (known limitations)
+- ✅ 2,865 passing tests
+- ⏭️ 162 skipped tests (platform-specific or interactive)
+- 🧪 Minimal expected failures
 - 📊 High coverage across all components
 
 ## POSIX Compliance
@@ -292,10 +304,16 @@ PSH welcomes contributions that maintain its educational focus:
 - **Architecture**: Follow component-based design patterns
 
 ### Recent Development
-- **v0.84.0**: Added CLI analysis tools and visitor pattern integration
-- **v0.83.0**: Achieved POSIX alias expansion compliance
-- **v0.82.0**: Implemented command-specific variable assignments
-- **v0.81.0**: Completed history expansion functionality
+- **v0.101.0**: Parser package refactoring - Recursive descent parser modularized into clean package structure
+- **v0.100.0**: Parser combinator modular architecture complete - 2,779 lines to 8 clean modules
+- **v0.99.0**: Parser combinator Phase 6 complete - Advanced I/O & Select loops (100% feature parity achieved)
+- **v0.98.0**: Parser combinator Phase 5 complete - Array support with full bash compatibility
+- **v0.97.0**: Parser combinator Phase 4 complete - Enhanced test expressions `[[ ]]` with all operators
+- **v0.96.0**: Parser combinator Phase 3 complete - Arithmetic commands `((expr))`
+- **v0.95.0**: Parser combinator Phase 2 complete - Compound commands (subshells, brace groups)
+- **v0.94.0**: Parser combinator Phase 1 complete - Process substitution `<(cmd)` and `>(cmd)`
+- **v0.92.0**: Here document support in parser combinator with two-pass parsing
+- **v0.91.7**: Parser combinator implementation complete - All shell syntax features supported
 
 ## License
 
@@ -305,8 +323,10 @@ MIT License - see LICENSE file for details.
 
 PSH serves as an excellent learning resource for:
 - **Shell Implementation**: Understanding lexing, parsing, and execution
+- **Parsing Techniques**: Compare recursive descent vs. functional parser combinator approaches
 - **Language Design**: Seeing how shell features interact and compose
 - **System Programming**: Learning process management and I/O redirection
 - **Software Architecture**: Studying component-based design patterns
+- **Functional Programming**: Parser combinators demonstrate functional composition in real-world parsing
 
-The codebase prioritizes clarity and includes extensive documentation to support learning shell internals and language implementation techniques.
+The codebase prioritizes clarity and includes extensive documentation to support learning shell internals and language implementation techniques. The dual parser implementation provides a unique opportunity to see the same language parsed using both imperative and functional approaches.
