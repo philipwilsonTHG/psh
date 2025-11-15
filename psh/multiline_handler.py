@@ -15,7 +15,7 @@ from .token_types import TokenType
 
 class MultiLineInputHandler:
     """Handles multi-line command input for interactive mode."""
-    
+
     def __init__(self, line_editor: LineEditor, shell):
         self.line_editor = line_editor
         self.shell = shell
@@ -24,6 +24,7 @@ class MultiLineInputHandler:
         self.heredoc_delimiter = None
         self.heredoc_indent = False  # For <<- style
         self.prompt_expander = PromptExpander(shell)
+        self.context_stack: List[str] = []  # Track nested construct contexts
     
     def read_command(self) -> Optional[str]:
         """Read a complete command, possibly spanning multiple lines."""
@@ -58,6 +59,7 @@ class MultiLineInputHandler:
         self.in_heredoc = False
         self.heredoc_delimiter = None
         self.heredoc_indent = False
+        self.context_stack = []
     
     def _get_prompt(self) -> str:
         """Get the appropriate prompt based on current state."""
@@ -66,9 +68,15 @@ class MultiLineInputHandler:
             ps1 = self.shell.variables.get('PS1', '\\u@\\h:\\w\\$ ')
             return self.prompt_expander.expand_prompt(ps1)
         else:
-            # Continuation prompt
-            ps2 = self.shell.variables.get('PS2', '> ')
-            return self.prompt_expander.expand_prompt(ps2)
+            # Continuation prompt - use context-aware prompt if available
+            if self.context_stack:
+                # Build nested context prompt (e.g., "for> ", "for if> ", "for then> ")
+                context_str = ' '.join(self.context_stack)
+                return f"{context_str}> "
+            else:
+                # Fallback to standard PS2
+                ps2 = self.shell.variables.get('PS2', '> ')
+                return self.prompt_expander.expand_prompt(ps2)
     
     def _is_complete_command(self, command: str) -> bool:
         """Check if command is syntactically complete."""
@@ -137,7 +145,7 @@ class MultiLineInputHandler:
             incomplete_patterns = [
                 # Updated patterns for human-readable error messages
                 "Expected 'do'",
-                "Expected 'done'", 
+                "Expected 'done'",
                 "Expected 'fi'",
                 "Expected 'else'",
                 "Expected 'then'",
@@ -156,7 +164,7 @@ class MultiLineInputHandler:
                 "Expected test operand",
                 # New TokenType-based patterns from ParserContext
                 "Expected TokenType.DO",
-                "Expected TokenType.DONE", 
+                "Expected TokenType.DONE",
                 "Expected TokenType.FI",
                 "Expected TokenType.ELSE",
                 "Expected TokenType.THEN",
@@ -170,19 +178,23 @@ class MultiLineInputHandler:
                 "Expected TokenType.LPAREN",
                 # Old patterns for backward compatibility
                 "Expected DO",
-                "Expected DONE", 
+                "Expected DONE",
                 "Expected FI",
                 "Expected ELSE",
                 "Expected THEN",
                 "Expected ESAC",
                 "Expected DOUBLE_RBRACKET",
             ]
-            
+
             for pattern in incomplete_patterns:
                 if pattern in error_msg:
+                    # Update context stack for contextual prompts
+                    self._update_context_stack(command, error_msg)
                     return False
-            
+
             # Other parse errors mean command is complete but invalid
+            # Clear context stack since command is complete (though invalid)
+            self.context_stack = []
             return True
     
     def _has_line_continuation(self, command: str) -> bool:
@@ -387,5 +399,228 @@ class MultiLineInputHandler:
         backtick_count = text.count('`')
         if backtick_count % 2 != 0:
             return True
-        
+
         return False
+
+    def _extract_context_from_error(self, error_msg: str) -> Optional[str]:
+        """Extract parsing context from error message.
+
+        Args:
+            error_msg: Parser error message
+
+        Returns:
+            Context keyword (e.g., 'for', 'if', 'then') or None
+        """
+        # Map error patterns to context keywords
+        # Some patterns map to specific contexts, others need buffer analysis
+        patterns = {
+            "Expected 'fi'": 'if',
+            "Expected TokenType.FI": 'if',
+            "Expected FI": 'if',
+
+            "Expected 'esac'": 'case',
+            "Expected TokenType.ESAC": 'case',
+            "Expected ESAC": 'case',
+
+            "Expected 'then'": 'if',  # if condition, waiting for then
+            "Expected TokenType.THEN": 'if',
+            "Expected THEN": 'if',
+
+            "Expected 'done'": None,  # Could be for, while, or until - need buffer check
+            "Expected TokenType.DONE": None,
+            "Expected DONE": None,
+
+            "Expected 'do'": None,  # Could be for, while, until, or select - need buffer check
+            "Expected TokenType.DO": None,
+            "Expected DO": None,
+
+            "Expected '}'": 'function',  # Function body or brace group
+            "Expected TokenType.RBRACE": 'function',
+
+            "Expected ')'": None,  # Could be subshell or function - need buffer check
+            "Expected TokenType.RPAREN": None,
+
+            "Expected ']]'": 'test',  # Enhanced test expression
+            "Expected TokenType.DOUBLE_RBRACKET": 'test',
+            "Expected DOUBLE_RBRACKET": 'test',
+        }
+
+        # Check each pattern
+        for pattern, context in patterns.items():
+            if pattern in error_msg:
+                return context
+
+        return None
+
+    def _update_context_stack(self, command: str, error_msg: str):
+        """Update context stack based on command buffer and error message.
+
+        Args:
+            command: Full command buffer so far
+            error_msg: Parser error message
+        """
+        # Extract basic context from error
+        error_context = self._extract_context_from_error(error_msg)
+
+        # Clear and rebuild context stack from buffer analysis
+        self.context_stack = []
+
+        # Analyze buffer to find open constructs
+        # We need to track both opening and closing keywords
+        words = command.split()
+
+        # Stack to track nesting (can have multiple contexts at different levels)
+        temp_stack = []
+
+        i = 0
+        while i < len(words):
+            word = words[i].strip()
+
+            # Check for opening keywords
+            if word in ('for', 'while', 'until', 'select'):
+                # Add loop context
+                temp_stack.append({'type': word, 'state': 'condition'})
+                i += 1
+
+            elif word == 'if':
+                # Add if context
+                temp_stack.append({'type': 'if', 'state': 'condition'})
+                i += 1
+
+            elif word == 'then':
+                # Transition if from condition to then
+                for j in range(len(temp_stack) - 1, -1, -1):
+                    if temp_stack[j]['type'] in ('if', 'elif') and temp_stack[j]['state'] in ('condition', 'elif'):
+                        temp_stack[j]['state'] = 'then'
+                        break
+                i += 1
+
+            elif word == 'elif':
+                # Change last if/then to elif
+                for j in range(len(temp_stack) - 1, -1, -1):
+                    if temp_stack[j]['type'] in ('if', 'elif', 'then') and temp_stack[j]['state'] in ('then', 'condition', 'elif'):
+                        temp_stack[j]['type'] = 'elif'
+                        temp_stack[j]['state'] = 'condition'
+                        break
+                i += 1
+
+            elif word == 'else':
+                # Change last if/then to else
+                for j in range(len(temp_stack) - 1, -1, -1):
+                    if temp_stack[j]['type'] in ('if', 'elif', 'then') and temp_stack[j]['state'] in ('then', 'condition', 'elif'):
+                        temp_stack[j]['type'] = 'else'
+                        temp_stack[j]['state'] = 'else'
+                        break
+                i += 1
+
+            elif word == 'do':
+                # Transition loop from condition to body
+                for j in range(len(temp_stack) - 1, -1, -1):
+                    if temp_stack[j]['type'] in ('for', 'while', 'until', 'select') and temp_stack[j]['state'] == 'condition':
+                        temp_stack[j]['state'] = 'body'
+                        break
+                i += 1
+
+            elif word == 'case':
+                temp_stack.append({'type': 'case', 'state': 'open'})
+                i += 1
+
+            elif word in ('function', '()'):
+                # Function definition
+                temp_stack.append({'type': 'function', 'state': 'open'})
+                i += 1
+
+            elif word == '(':
+                # Could be subshell or function
+                if i > 0 and words[i-1].replace('()', '').isidentifier():
+                    temp_stack.append({'type': 'function', 'state': 'open'})
+                else:
+                    temp_stack.append({'type': 'subshell', 'state': 'open'})
+                i += 1
+
+            elif word == '{':
+                temp_stack.append({'type': 'brace', 'state': 'open'})
+                i += 1
+
+            elif word == '[[':
+                temp_stack.append({'type': 'test', 'state': 'open'})
+                i += 1
+
+            # Check for closing keywords that remove contexts
+            elif word == 'fi':
+                # Close the most recent if/elif/else/then
+                for j in range(len(temp_stack) - 1, -1, -1):
+                    if temp_stack[j]['type'] in ('if', 'elif', 'else', 'then'):
+                        temp_stack.pop(j)
+                        break
+                i += 1
+
+            elif word == 'done':
+                # Close the most recent loop
+                for j in range(len(temp_stack) - 1, -1, -1):
+                    if temp_stack[j]['type'] in ('for', 'while', 'until', 'select'):
+                        temp_stack.pop(j)
+                        break
+                i += 1
+
+            elif word == 'esac':
+                # Close the most recent case
+                for j in range(len(temp_stack) - 1, -1, -1):
+                    if temp_stack[j]['type'] == 'case':
+                        temp_stack.pop(j)
+                        break
+                i += 1
+
+            elif word == '}':
+                # Close the most recent brace group or function
+                for j in range(len(temp_stack) - 1, -1, -1):
+                    if temp_stack[j]['type'] in ('brace', 'function'):
+                        temp_stack.pop(j)
+                        break
+                i += 1
+
+            elif word == ')':
+                # Close the most recent subshell or function
+                for j in range(len(temp_stack) - 1, -1, -1):
+                    if temp_stack[j]['type'] in ('subshell', 'function'):
+                        temp_stack.pop(j)
+                        break
+                i += 1
+
+            elif word == ']]':
+                # Close the most recent test
+                for j in range(len(temp_stack) - 1, -1, -1):
+                    if temp_stack[j]['type'] == 'test':
+                        temp_stack.pop(j)
+                        break
+                i += 1
+
+            else:
+                i += 1
+
+        # Build context stack from temp_stack
+        for item in temp_stack:
+            # For loops/if, show the current state
+            if item['type'] in ('for', 'while', 'until', 'select'):
+                self.context_stack.append(item['type'])
+            elif item['type'] == 'if':
+                # Show 'if' if in condition, 'then' if in body
+                if item['state'] == 'then':
+                    self.context_stack.append('then')
+                else:
+                    self.context_stack.append('if')
+            elif item['type'] == 'elif':
+                if item['state'] == 'then':
+                    self.context_stack.append('then')
+                else:
+                    self.context_stack.append('elif')
+            elif item['type'] == 'else':
+                self.context_stack.append('else')
+            elif item['type'] == 'then':
+                self.context_stack.append('then')
+            else:
+                self.context_stack.append(item['type'])
+
+        # If error_context provides specific info and stack is empty, use it
+        if not self.context_stack and error_context:
+            self.context_stack.append(error_context)

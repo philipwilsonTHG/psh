@@ -2,10 +2,28 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.101.0"
+__version__ = "0.102.0"
 
 # Version history
 VERSION_HISTORY = """
+0.102.0 (2025-01-23) - Interactive Nested Prompts Implementation
+- Implemented zsh-style context-aware continuation prompts for interactive mode
+- Added automatic nesting context detection showing current shell construct hierarchy
+- Prompt changes dynamically to reflect context: for>, while>, if>, then>, for if>, etc.
+- Enhanced MultiLineInputHandler with context_stack tracking for nested control structures
+- Implemented _extract_context_from_error() to analyze parser errors for context identification
+- Implemented _update_context_stack() to parse command buffer and track open/closed constructs
+- Modified _get_prompt() to generate contextual PS2 prompts based on nesting hierarchy
+- Proper handling of closing keywords (fi, done, esac, }, ), ]]) to pop context stack
+- Support for all control structures: for, while, until, if, case, select, functions
+- Support for compound commands: subshells (), brace groups {}, enhanced tests [[]]
+- Multi-level nesting fully supported (e.g., for if then> shows nested if inside for loop)
+- Graceful fallback to standard PS2 when context cannot be determined
+- Comprehensive testing with all nesting scenarios verified working correctly
+- Significant UX improvement: users now see visual feedback about command structure
+- Educational value: helps users learn shell syntax through immediate context visibility
+- Matches familiar behavior from zsh and other advanced shells
+
 0.101.0 (2025-01-06) - Recursive Descent Parser Package Refactoring & Parser Combinator Fix
 - Major refactoring: Moved recursive descent parser from flat structure to modular package
 - Migrated 28 files from /psh/parser/ to /psh/parser/recursive_descent/ with logical organization:
