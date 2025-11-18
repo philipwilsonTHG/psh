@@ -147,9 +147,9 @@ def test_function_debug_mode(shell):
     shell.run_command('set +x')
 
 
-def test_function_with_subshell(shell_with_temp_dir, capsys):
+def test_function_with_subshell(isolated_shell_with_temp_dir, capsys):
     """Test function execution in subshell."""
-    shell = shell_with_temp_dir
+    shell = isolated_shell_with_temp_dir
     shell.run_command('VAR=original')
     shell.run_command('modify_var() { VAR=modified; echo "In function: $VAR"; }')
     

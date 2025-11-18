@@ -242,11 +242,33 @@ PSH uniquely includes two complete parser implementations:
 
 ## Testing & Quality
 
+### Running Tests (Recommended)
+
+Use the provided test runner for correct handling of all tests:
+
 ```bash
-# Run full test suite
+# Smart mode (recommended) - handles subshell tests correctly
+python run_tests.py
+# or
+./run_tests.sh
+
+# Quick mode - skip slow tests
+python run_tests.py --quick
+
+# All tests with capture disabled (simpler but noisy)
+python run_tests.py --all-nocapture
+```
+
+### Running Tests Manually
+
+```bash
+# Most tests - run normally
 python -m pytest tests/
 
-# Run specific categories
+# Subshell tests - MUST use -s flag
+python -m pytest tests/integration/subshells/ -s
+
+# Specific categories
 python -m pytest tests/unit/           # Unit tests
 python -m pytest tests/integration/    # Integration tests
 python -m pytest tests/conformance/    # POSIX/bash compatibility
@@ -258,10 +280,12 @@ python -m pytest tests/performance/
 python -m pytest tests/ --cov=psh --cov-report=html
 ```
 
+**Important:** Some tests (subshells, functions with subshells) require pytest's output capture to be disabled (`-s` flag) due to file descriptor handling in forked processes. The `run_tests.py` script handles this automatically.
+
 **Current Test Statistics:**
-- ✅ 2,865 passing tests
-- ⏭️ 162 skipped tests (platform-specific or interactive)
-- 🧪 Minimal expected failures
+- ✅ 2,601 passing tests
+- ⏭️ 172 skipped tests (platform-specific or interactive)
+- ⚠️ 58 xfailed (expected failures for unimplemented features)
 - 📊 High coverage across all components
 
 ## POSIX Compliance
