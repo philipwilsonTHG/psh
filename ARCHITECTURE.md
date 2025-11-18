@@ -4,7 +4,7 @@
 
 Python Shell (psh) is designed with a clean, component-based architecture that separates concerns and makes the codebase easy to understand, test, and extend. The shell follows a traditional interpreter pipeline: lexing → parsing → expansion → execution, with each phase carefully designed for educational clarity and correctness.
 
-**Current Version**: 0.101.0 (as of 2025-01-23)
+**Current Version**: 0.103.0 (as of 2025-11-18)
 
 **Note:** For LLM-optimized architecture documentation, see `ARCHITECTURE.llm`
 
@@ -658,7 +658,8 @@ executor/
 ├── __init__.py          # Public API exports
 ├── core.py              # Main ExecutorVisitor (542 lines, down from ~2000)
 ├── command.py           # Simple command execution with strategies
-├── pipeline.py          # Pipeline execution and process management  
+├── pipeline.py          # Pipeline execution and process management
+├── process_launcher.py  # Unified process creation (NEW in v0.103.0)
 ├── control_flow.py      # Control structures (if, loops, case, select)
 ├── array.py             # Array initialization and element operations
 ├── function.py          # Function definition and execution
@@ -666,6 +667,62 @@ executor/
 ├── context.py           # ExecutionContext state management
 └── strategies.py        # Command type execution strategies
 ```
+
+#### Unified Process Creation (NEW in v0.103.0)
+
+PSH uses a centralized `ProcessLauncher` component for all process creation, eliminating code duplication and ensuring consistent behavior across all fork points:
+
+**File**: `executor/process_launcher.py` (~365 lines)
+
+**Key Components**:
+```python
+class ProcessRole(Enum):
+    """Role of process in job control structure"""
+    SINGLE = "single"                    # Standalone command
+    PIPELINE_LEADER = "pipeline_leader"  # First command in pipeline
+    PIPELINE_MEMBER = "pipeline_member"  # Non-first command in pipeline
+
+@dataclass
+class ProcessConfig:
+    """Configuration for launching a process"""
+    role: ProcessRole
+    pgid: Optional[int] = None           # Process group to join
+    foreground: bool = True              # Foreground vs background
+    sync_pipe_r: Optional[int] = None    # Pipeline synchronization (read end)
+    sync_pipe_w: Optional[int] = None    # Pipeline synchronization (write end)
+    io_setup: Optional[Callable] = None  # I/O redirection callback
+
+class ProcessLauncher:
+    """Unified component for all process creation"""
+
+    def launch(self, execute_fn: Callable[[], int],
+               config: ProcessConfig) -> Tuple[int, int]:
+        """Launch process with proper job control setup.
+
+        Returns (pid, pgid) - process ID and process group ID
+        """
+        # 1. Fork process
+        # 2. Child: Set process group, reset signals, execute function
+        # 3. Parent: Set process group (race avoidance), return info
+```
+
+**Benefits**:
+- **Single Source of Truth**: All process creation flows through one component
+- **Eliminates Duplication**: Replaced ~150 lines of duplicated code across 6 fork locations
+- **Consistent Signal Handling**: Centralized `_reset_child_signals()` method
+- **Proper Synchronization**: Implements pipe-based synchronization for pipelines (C1)
+- **Unified Job Control**: Consistent process group setup and terminal control transfer
+
+**Used By**:
+- `PipelineExecutor` - All pipeline commands
+- `ExternalExecutionStrategy` - External commands
+- `BuiltinExecutionStrategy` - Background builtins
+- `SubshellExecutor` - Foreground/background subshells and brace groups
+
+**Critical Improvements** (implemented in v0.103.0):
+1. **C1: Pipe-based Pipeline Synchronization**: Replaces polling with atomic pipe-based coordination
+2. **C2: Self-pipe SIGCHLD Handler**: Moves SIGCHLD work out of signal context
+3. **C3: Unified Process Creation**: Single ProcessLauncher for all forks
 
 #### Core Architecture
 ```python

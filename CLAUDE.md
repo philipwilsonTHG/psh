@@ -15,8 +15,14 @@ Python Shell (psh) is an educational Unix shell implementation designed to teach
 ## Quick Start Commands
 
 ```bash
-# Run tests
-python -m pytest tests/                    # Main test suite (3000+ tests)
+# Run tests (RECOMMENDED - uses smart test runner)
+python run_tests.py                        # Smart mode - handles all test types correctly
+python run_tests.py --quick                # Fast tests only
+python run_tests.py --all-nocapture        # Simple mode - run all with -s
+
+# Run tests manually (for specific scenarios)
+python -m pytest tests/                    # Most tests (note: subshell tests will fail)
+python -m pytest tests/integration/subshells/ -s  # Subshell tests (MUST use -s)
 python -m pytest tests/test_foo.py -v     # Specific test file
 python -m pytest tests/unit/builtins/ -v  # Specific test category
 python -m pytest -k "test_name" -xvs      # Specific test with output
@@ -28,7 +34,7 @@ python run_conformance_tests.py --posix-only    # POSIX compliance only
 python run_conformance_tests.py --bash-only     # Bash compatibility only
 python run_conformance_tests.py --summary-only  # Just show summary
 
-# Run specific test categories  
+# Run specific test categories
 python -m pytest tests/unit/              # Unit tests (builtins, expansion, lexer, parser)
 python -m pytest tests/integration/       # Integration tests (pipelines, control flow)
 python -m pytest tests/system/            # System tests (interactive, initialization)
@@ -43,6 +49,7 @@ python -m psh -c "echo hello"             # Run command
 python -m psh --debug-ast                  # Show AST before execution
 python -m psh --debug-tokens              # Show tokenization
 python -m psh --debug-expansion           # Trace expansions
+python -m psh --debug-exec                 # Debug executor (process groups, signals)
 python -m psh --validate script.sh        # Validate without executing
 ```
 
@@ -95,22 +102,27 @@ PSH uses a modern, well-organized test suite:
 
 ### Known Test Issues
 
-1. **Interactive Test Limitations**: 
+1. **Subshell Tests Require Special Handling** (IMPORTANT):
+   - Tests in `tests/integration/subshells/` MUST be run with pytest's `-s` flag
+   - Reason: Pytest's output capture interferes with file descriptor operations in forked child processes
+   - When PSH forks for a subshell and redirects to a file, the child inherits pytest's capture objects instead of real file descriptors
+   - **Solution**: Use the provided test runner (`python run_tests.py`) which handles this automatically
+   - **Manual workaround**: `python -m pytest tests/integration/subshells/ -s`
+   - Affected tests: ~43 subshell tests + some function/variable tests
+   - Status: All functionality works correctly; this is purely a test infrastructure issue
+   - Documentation: See `tests/integration/subshells/README.md` for detailed explanation
+
+2. **Interactive Test Limitations**:
    - Interactive tests in `tests/system/interactive/` are currently skipped
    - Use pexpect but have process management issues
    - Marked with `pytest.mark.skip` until pexpect issues resolved
 
-2. **Pytest Collection Best Practices**: 
-   - Don't name source files starting with `test_` 
+3. **Pytest Collection Best Practices**:
+   - Don't name source files starting with `test_`
    - Don't name classes starting with `Test` unless they're actual test classes
    - These will confuse pytest's test collection
 
-3. **I/O Redirection Tests**: 
-   - Tests involving I/O redirection may conflict with pytest's output capture
-   - Use PSH-compatible fixtures instead of pytest's capsys for complex redirection
-   - Modern test suite has proper fixture isolation to handle this
-
-4. **Legacy Test Issues (Resolved)**: 
+4. **Legacy Test Issues (Resolved)**:
    - Previous test isolation problems were resolved in 2025 migration
    - Legacy tests archived in `tests_archived/` for historical reference
 
@@ -151,12 +163,24 @@ Each manager handles a specific aspect:
 - `ExpansionManager` - Variable, command substitution, globs, etc.
 - `IOManager` - Redirections, pipes, heredocs
 - `JobManager` - Background jobs, job control
+- `ProcessLauncher` - Unified process creation with proper job control (NEW in v0.103.0)
 - `FunctionManager` - Shell function definitions
 - `AliasManager` - Shell aliases
+
+### Process Execution Architecture
+PSH uses a unified process creation system for all forked processes:
+- **ProcessLauncher** (`psh/executor/process_launcher.py`) - Single source of truth for all process creation
+- **ProcessRole Enum**: SINGLE, PIPELINE_LEADER, PIPELINE_MEMBER
+- **ProcessConfig**: Configuration for launch (role, pgid, foreground, sync pipes, I/O setup)
+- **Benefits**: Eliminates code duplication, consistent signal handling, centralized job control
+- **Used by**: Pipelines, external commands, builtins (background), subshells, brace groups
 
 ### Execution Flow
 ```
 Input → Line Continuation → Tokenization → Parsing → AST → Expansion → Execution
+                                                                         ↓
+                                                                   ProcessLauncher
+                                                                   (fork + job control)
 ```
 
 ## Development Guidelines
@@ -177,7 +201,10 @@ Choose the right fixture based on test type:
    - Testing I/O redirection
    - Testing pipelines
    - Testing job control
+   - Testing subshells
    - File system operations
+   - **IMPORTANT**: Tests with subshells + file redirections MUST be run with `-s` flag
+   - Use the test runner (`python run_tests.py`) to handle this automatically
 
 3. **System Tests** (use `subprocess`):
    - Testing full shell behavior
