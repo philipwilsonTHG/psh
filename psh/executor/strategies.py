@@ -393,12 +393,15 @@ class ExternalExecutionStrategy(ExecutionStrategy):
             job.foreground = True
             shell.job_manager.set_foreground_job(job)
 
-            if original_pgid is not None:
+            if original_pgid is not None and shell.state.supports_job_control:
                 shell.state.foreground_pgid = pgid
                 try:
-                    os.tcsetpgrp(0, pgid)
-                except:
-                    pass
+                    os.tcsetpgrp(shell.state.terminal_fd, pgid)
+                    if shell.state.options.get('debug-exec'):
+                        print(f"DEBUG ExternalStrategy: Transferred terminal control to pgid {pgid}", file=sys.stderr)
+                except OSError as e:
+                    if shell.state.options.get('debug-exec'):
+                        print(f"WARNING ExternalStrategy: Failed to transfer terminal control: {e}", file=sys.stderr)
 
             # Use job manager to wait (it handles SIGCHLD)
             exit_status = shell.job_manager.wait_for_job(job)
@@ -407,10 +410,14 @@ class ExternalExecutionStrategy(ExecutionStrategy):
             if original_pgid is not None:
                 shell.state.foreground_pgid = None
                 shell.job_manager.set_foreground_job(None)
-                try:
-                    os.tcsetpgrp(0, original_pgid)
-                except:
-                    pass
+                if shell.state.supports_job_control:
+                    try:
+                        os.tcsetpgrp(shell.state.terminal_fd, original_pgid)
+                        if shell.state.options.get('debug-exec'):
+                            print(f"DEBUG ExternalStrategy: Restored terminal control to shell (pgid {original_pgid})", file=sys.stderr)
+                    except OSError as e:
+                        if shell.state.options.get('debug-exec'):
+                            print(f"DEBUG ExternalStrategy: Failed to restore terminal control: {e}", file=sys.stderr)
 
             # Clean up
             from ..job_control import JobState

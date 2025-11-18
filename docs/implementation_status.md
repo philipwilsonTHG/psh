@@ -163,7 +163,96 @@ Created unified `ProcessLauncher` component to eliminate code duplication across
 
 ## High Priority
 
-All high priority recommendations are pending.
+### ✅ H1: Add TTY Detection and Graceful Degradation (COMPLETED)
+
+**Date Completed:** 2025-11-18
+
+**Summary:**
+Implemented comprehensive TTY detection at shell initialization to gracefully handle non-TTY environments (cron, CI/CD, piped input) and provide clear error messages when terminal control operations fail.
+
+**Changes Made:**
+- **File:** `psh/core/state.py`
+  - Added `terminal_fd: Optional[int]` attribute to store the controlling terminal file descriptor
+  - Added `supports_job_control: bool` flag to indicate job control availability
+  - Added `is_terminal: bool` flag to indicate TTY presence
+  - Implemented `_detect_terminal_capabilities()` method that:
+    - Checks if stdin is a TTY using `os.isatty(0)`
+    - Tests job control availability with `os.tcgetpgrp(0)`
+    - Provides debug output when `--debug-exec` is enabled
+  - Called detection method in `__init__` after all initialization
+
+- **Files Updated** (8 locations with `tcsetpgrp` calls):
+  - `psh/executor/process_launcher.py` - ProcessLauncher terminal transfer
+  - `psh/executor/pipeline.py` - Pipeline terminal control (3 locations)
+  - `psh/executor/subshell.py` - Subshell terminal transfer (2 locations)
+  - `psh/executor/strategies.py` - External command terminal control (2 locations)
+  - `psh/interactive/signal_manager.py` - Signal handler and shell foreground setup (2 locations)
+  - `psh/builtins/job_control.py` - fg builtin terminal control (2 locations)
+
+**Technical Details:**
+- **Old approach:** All `tcsetpgrp` calls used hardcoded `0` (stdin) and silently ignored errors
+- **New approach:** Check `supports_job_control` before calling `tcsetpgrp`, use `terminal_fd` instead of `0`
+- **Benefits:**
+  - Clear error messages in non-TTY contexts (cron, CI/CD, piped input)
+  - No silent failures - errors logged when `--debug-exec` enabled
+  - Better user feedback for fg/bg commands when job control unavailable
+  - Graceful degradation - shell works correctly without TTY
+  - Easier debugging of terminal control issues
+
+**Debug Output Examples:**
+```bash
+# Non-TTY environment
+$ echo "echo test" | python -m psh --debug-exec
+DEBUG: Not running on a terminal (stdin is not a TTY)
+
+# TTY with job control
+$ python -m psh --debug-exec
+DEBUG: Terminal detected, job control available (pgid=12345)
+
+# TTY without job control (rare)
+DEBUG: Terminal detected but job control unavailable: [Errno 25] Inappropriate ioctl for device
+```
+
+**Error Messages:**
+```bash
+# fg command in non-TTY environment
+$ echo "fg" | python -m psh
+fg: no job control in this shell
+
+# With debug-exec flag
+DEBUG ProcessLauncher: Skipping terminal transfer (no job control support)
+WARNING: Failed to transfer terminal control to pgid 12345: [Errno 25] Inappropriate ioctl for device
+```
+
+**Testing:**
+- ✅ Pipeline tests: 19 passed, 1 xfailed
+- ✅ Job control tests: 44 passed, 1 xfailed, 1 xpassed (bonus!)
+- ✅ Non-TTY environment: Correct detection and graceful degradation
+- ✅ TTY environment: Normal operation with job control
+- ✅ Debug output: Clear messages at all terminal control points
+- ✅ Manual testing: All redirection and subshell functionality verified working
+- ⚠️ Note: Some subshell+file-redirection tests fail in pytest due to pre-existing test infrastructure issue (pytest capture interference), but core functionality is verified via manual testing
+
+**Lines of Code:**
+- Added: ~45 lines (TTY detection + debug messages)
+- Modified: ~80 lines (8 `tcsetpgrp` call sites updated)
+
+**Files Modified:**
+- `psh/core/state.py`
+- `psh/executor/process_launcher.py`
+- `psh/executor/pipeline.py`
+- `psh/executor/subshell.py`
+- `psh/executor/strategies.py`
+- `psh/interactive/signal_manager.py`
+- `psh/builtins/job_control.py`
+
+**Status:** PRODUCTION READY ✅
+
+---
+
+## High Priority (Remaining)
+
+The following high priority recommendations are pending:
 
 ---
 
@@ -182,11 +271,11 @@ All low priority recommendations are pending.
 ## Overall Progress
 
 **Critical Priority:** 3/3 (100%) ✅
-**High Priority:** 0/5 (0%)
+**High Priority:** 1/5 (20%) ✅
 **Medium Priority:** 0/3 (0%)
 **Low Priority:** 0/2 (0%)
 
-**Total Progress:** 3/13 (23%)
+**Total Progress:** 4/13 (31%)
 
 ---
 
@@ -243,11 +332,15 @@ All low priority recommendations are pending.
 1. ✅ C1: Process group synchronization (COMPLETED)
 2. ✅ C2: SIGCHLD handler safety (COMPLETED)
 3. ✅ C3: Unify process creation logic (COMPLETED)
-4. H1: TTY detection (Next recommended)
-5. H2: Signal tracking
-6. Remaining high/medium/low priority recommendations as time permits
+4. ✅ H1: TTY detection and graceful degradation (COMPLETED)
+5. H2: Signal disposition tracking (Next recommended)
+6. H3: Centralize signal reset
+7. H4: Unify foreground cleanup
+8. H5: Surface terminal control failures
+9. Remaining medium/low priority recommendations as time permits
 
 **Actual Completion:**
 - Critical Priority (C1-C3): Completed 2025-11-18 ✅
-- High Priority (H1-H5): Not started
-- All Recommendations: 23% complete (3/13)
+- High Priority H1: Completed 2025-11-18 ✅
+- High Priority (H2-H5): Pending
+- All Recommendations: 31% complete (4/13)

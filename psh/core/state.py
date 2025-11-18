@@ -115,7 +115,12 @@ class ShellState:
         
         # Process state
         self._in_forked_child = False
-        
+
+        # Terminal capabilities (set by _detect_terminal_capabilities)
+        self.terminal_fd: Optional[int] = None
+        self.supports_job_control: bool = False
+        self.is_terminal: bool = False
+
         # Special mode for specific eval tests that need output capture
         self._eval_test_mode = False
         
@@ -142,6 +147,9 @@ class ShellState:
         # Original signal handlers for restoration
         # Used when traps are removed to restore original behavior
         self._original_signal_handlers = {}
+
+        # Detect terminal capabilities after initialization
+        self._detect_terminal_capabilities()
     
     @property
     def eval_test_mode(self) -> bool:
@@ -349,3 +357,44 @@ class ShellState:
         if self.options.get('verbose'): opts.append('v')
         if self.options.get('xtrace'): opts.append('x')
         return ''.join(opts)
+
+    def _detect_terminal_capabilities(self):
+        """Detect if we have a controlling terminal with job control support.
+
+        This determines whether we can use tcsetpgrp(), tcgetpgrp(), etc.
+        Results are cached in state for efficient checks.
+        """
+        try:
+            # Check if stdin is a TTY
+            if os.isatty(0):
+                self.is_terminal = True
+                self.terminal_fd = 0
+
+                # Check if we can actually do job control
+                # Some TTY environments don't support it (e.g., emacs shell-mode)
+                try:
+                    current_pgid = os.tcgetpgrp(0)
+                    self.supports_job_control = True
+
+                    if self.options.get('debug-exec'):
+                        print(f"DEBUG: Terminal detected, job control available (pgid={current_pgid})",
+                              file=sys.stderr)
+                except OSError as e:
+                    # TTY but no job control available
+                    self.supports_job_control = False
+                    if self.options.get('debug-exec'):
+                        print(f"DEBUG: Terminal detected but job control unavailable: {e}",
+                              file=sys.stderr)
+            else:
+                self.is_terminal = False
+                self.supports_job_control = False
+                if self.options.get('debug-exec'):
+                    print(f"DEBUG: Not running on a terminal (stdin is not a TTY)",
+                          file=sys.stderr)
+        except (OSError, AttributeError):
+            # Platform doesn't support TTY detection
+            self.is_terminal = False
+            self.supports_job_control = False
+            if self.options.get('debug-exec'):
+                print(f"DEBUG: Platform doesn't support TTY detection",
+                      file=sys.stderr)

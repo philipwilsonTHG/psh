@@ -350,15 +350,20 @@ class ProcessLauncher:
 
         # Transfer terminal control if foreground
         if foreground and original_pgid is not None:
-            try:
-                os.tcsetpgrp(0, pgid)
-                self.state.foreground_pgid = pgid
+            if self.state.supports_job_control:
+                try:
+                    os.tcsetpgrp(self.state.terminal_fd, pgid)
+                    self.state.foreground_pgid = pgid
+                    if self.state.options.get('debug-exec'):
+                        print(f"DEBUG ProcessLauncher: Transferred terminal to job pgid {pgid}",
+                              file=sys.stderr)
+                except OSError as e:
+                    if self.state.options.get('debug-exec'):
+                        print(f"WARNING: Failed to transfer terminal control to pgid {pgid}: {e}",
+                              file=sys.stderr)
+            else:
                 if self.state.options.get('debug-exec'):
-                    print(f"DEBUG ProcessLauncher: Transferred terminal to job pgid {pgid}",
-                          file=sys.stderr)
-            except OSError as e:
-                if self.state.options.get('debug-exec'):
-                    print(f"DEBUG ProcessLauncher: Failed to transfer terminal: {e}",
+                    print(f"DEBUG ProcessLauncher: Skipping terminal transfer (no job control support)",
                           file=sys.stderr)
 
         return job

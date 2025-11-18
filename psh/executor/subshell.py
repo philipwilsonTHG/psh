@@ -171,12 +171,14 @@ class SubshellExecutor:
         pid, pgid = self.launcher.launch(execute_fn, config)
 
         # Transfer terminal control to subshell if interactive
-        if is_interactive and original_pgid is not None:
+        if is_interactive and original_pgid is not None and self.state.supports_job_control:
             try:
-                os.tcsetpgrp(0, pgid)
-            except OSError:
-                # Not a controlling terminal or permission issue
-                pass
+                os.tcsetpgrp(self.state.terminal_fd, pgid)
+                if self.state.options.get('debug-exec'):
+                    print(f"DEBUG Subshell: Transferred terminal control to subshell pgid {pgid}", file=sys.stderr)
+            except OSError as e:
+                if self.state.options.get('debug-exec'):
+                    print(f"WARNING Subshell: Failed to transfer terminal control: {e}", file=sys.stderr)
 
         # Create job for tracking the subshell
         job = self.job_manager.create_job(pgid, "<subshell>")
@@ -187,12 +189,14 @@ class SubshellExecutor:
         exit_status = self.job_manager.wait_for_job(job)
 
         # Restore terminal control to parent shell if interactive
-        if is_interactive and original_pgid is not None:
+        if is_interactive and original_pgid is not None and self.state.supports_job_control:
             try:
-                os.tcsetpgrp(0, original_pgid)
-            except OSError:
-                # Not a controlling terminal or permission issue
-                pass
+                os.tcsetpgrp(self.state.terminal_fd, original_pgid)
+                if self.state.options.get('debug-exec'):
+                    print(f"DEBUG Subshell: Restored terminal control to shell (pgid {original_pgid})", file=sys.stderr)
+            except OSError as e:
+                if self.state.options.get('debug-exec'):
+                    print(f"DEBUG Subshell: Failed to restore terminal control: {e}", file=sys.stderr)
 
         # Clean up job
         if job.state.name == 'DONE':

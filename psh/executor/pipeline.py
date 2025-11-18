@@ -230,16 +230,19 @@ class PipelineExecutor:
             # Transfer terminal control immediately for foreground pipelines
             # This prevents SIGTTOU in children before wait method is called
             if not is_background and original_pgid is not None:
-                try:
+                if self.state.supports_job_control:
+                    try:
+                        if self.state.options.get('debug-exec'):
+                            print(f"DEBUG Pipeline: Transferring terminal control from {original_pgid} to {pgid}", file=sys.stderr)
+                        os.tcsetpgrp(self.state.terminal_fd, pgid)
+                        if self.state.options.get('debug-exec'):
+                            print(f"DEBUG Pipeline: Terminal control transferred successfully", file=sys.stderr)
+                    except OSError as e:
+                        if self.state.options.get('debug-exec'):
+                            print(f"WARNING Pipeline: Failed to transfer terminal control: {e}", file=sys.stderr)
+                else:
                     if self.state.options.get('debug-exec'):
-                        print(f"DEBUG Pipeline: Transferring terminal control from {original_pgid} to {pgid}", file=sys.stderr)
-                    os.tcsetpgrp(0, pgid)
-                    if self.state.options.get('debug-exec'):
-                        print(f"DEBUG Pipeline: Terminal control transferred successfully", file=sys.stderr)
-                except Exception as e:
-                    if self.state.options.get('debug-exec'):
-                        print(f"DEBUG Pipeline: Failed to transfer terminal control: {e}", file=sys.stderr)
-                    pass  # Ignore errors - may not have terminal control
+                        print(f"DEBUG Pipeline: Skipping terminal transfer (no job control support)", file=sys.stderr)
             
             # Wait for pipeline completion
             if is_background:
@@ -265,10 +268,10 @@ class PipelineExecutor:
             # Clean up pipes on error
             pipeline_ctx.close_pipes()
             # Restore terminal control on error
-            if not is_background and original_pgid is not None:
+            if not is_background and original_pgid is not None and self.state.supports_job_control:
                 try:
-                    os.tcsetpgrp(0, original_pgid)
-                except:
+                    os.tcsetpgrp(self.state.terminal_fd, original_pgid)
+                except OSError:
                     pass
             raise
     
@@ -306,10 +309,14 @@ class PipelineExecutor:
         # Restore terminal control
         if original_pgid is not None:
             self.state.foreground_pgid = None
-            try:
-                os.tcsetpgrp(0, original_pgid)
-            except:
-                pass
+            if self.state.supports_job_control:
+                try:
+                    os.tcsetpgrp(self.state.terminal_fd, original_pgid)
+                    if self.state.options.get('debug-exec'):
+                        print(f"DEBUG Pipeline: Restored terminal control to shell (pgid {original_pgid})", file=sys.stderr)
+                except OSError as e:
+                    if self.state.options.get('debug-exec'):
+                        print(f"DEBUG Pipeline: Failed to restore terminal control: {e}", file=sys.stderr)
         
         self.job_manager.set_foreground_job(None)
         

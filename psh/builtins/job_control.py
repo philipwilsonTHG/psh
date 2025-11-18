@@ -81,10 +81,14 @@ class FgBuiltin(Builtin):
         # Give it terminal control FIRST before sending SIGCONT
         shell.job_manager.set_foreground_job(job)
         job.foreground = True
-        try:
-            os.tcsetpgrp(0, job.pgid)
-        except OSError as e:
-            print(f"fg: can't set terminal control: {e}", file=sys.stderr)
+        if shell.state.supports_job_control:
+            try:
+                os.tcsetpgrp(shell.state.terminal_fd, job.pgid)
+            except OSError as e:
+                print(f"fg: can't set terminal control: {e}", file=sys.stderr)
+                return 1
+        else:
+            print(f"fg: no job control in this shell", file=sys.stderr)
             return 1
         
         # Continue stopped job
@@ -102,10 +106,11 @@ class FgBuiltin(Builtin):
         exit_status = shell.job_manager.wait_for_job(job)
         
         # Restore terminal control to shell
-        try:
-            os.tcsetpgrp(0, os.getpgrp())
-        except OSError:
-            pass
+        if shell.state.supports_job_control:
+            try:
+                os.tcsetpgrp(shell.state.terminal_fd, os.getpgrp())
+            except OSError:
+                pass
         
         # Remove job if completed
         if job.state == JobState.DONE:
