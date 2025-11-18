@@ -93,39 +93,44 @@ def shell_with_temp_dir(shell, temp_dir):
 @pytest.fixture
 def isolated_shell_with_temp_dir(temp_dir):
     """Shell instance isolated from pytest's stream capture for redirection tests.
-    
+
     This fixture creates a completely fresh shell instance that doesn't
     interfere with pytest's I/O capture, suitable for testing redirections.
+
+    NOTE: Due to pytest's output capture mechanism interfering with file
+    descriptor operations in forked child processes, some tests using this
+    fixture may fail when run as part of a full suite but pass individually
+    or when run with pytest's `-s` flag (disable capture).
     """
     from psh.shell import Shell
     import sys
     import os
-    
+
     # Store original working directory and change to temp directory FIRST
     original_cwd = os.getcwd()
     original_pwd = os.environ.get('PWD', original_cwd)
     os.chdir(temp_dir)
     os.environ['PWD'] = temp_dir
-    
+
     # Create a completely fresh shell instance (now in temp directory)
     shell = Shell()
-    
+
     # Store original file descriptors to ensure proper cleanup
     original_stdin = sys.stdin
     original_stdout = sys.stdout
     original_stderr = sys.stderr
-    
+
     yield shell
-    
+
     # Ensure streams are restored (defensive cleanup)
     sys.stdin = original_stdin
     sys.stdout = original_stdout
     sys.stderr = original_stderr
-    
+
     # Restore original working directory and PWD environment
     os.chdir(original_cwd)
     os.environ['PWD'] = original_pwd
-    
+
     # Reset shell state to prevent leakage
     if hasattr(shell, 'reset_state'):
         shell.reset_state()

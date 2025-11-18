@@ -12,9 +12,9 @@ import os
 class TestSubshellExecution:
     """Test basic subshell command execution."""
     
-    def test_simple_command_execution(self, shell_with_temp_dir):
+    def test_simple_command_execution(self, isolated_shell_with_temp_dir):
         """Test basic command execution in subshell."""
-        shell = shell_with_temp_dir
+        shell = isolated_shell_with_temp_dir
         
         script = '''
         (echo "hello from subshell") > output.txt
@@ -27,9 +27,9 @@ class TestSubshellExecution:
             output = f.read().strip()
         assert output == "hello from subshell"
     
-    def test_multiple_commands_in_subshell(self, shell_with_temp_dir):
+    def test_multiple_commands_in_subshell(self, isolated_shell_with_temp_dir):
         """Test multiple commands in a single subshell."""
-        shell = shell_with_temp_dir
+        shell = isolated_shell_with_temp_dir
         
         script = '''
         (
@@ -47,9 +47,9 @@ class TestSubshellExecution:
         expected = "first command\nsecond command\nthird command"
         assert output == expected
     
-    def test_semicolon_separated_commands(self, shell_with_temp_dir):
+    def test_semicolon_separated_commands(self, isolated_shell_with_temp_dir):
         """Test semicolon-separated commands in subshell."""
-        shell = shell_with_temp_dir
+        shell = isolated_shell_with_temp_dir
         
         script = '''
         (echo "one"; echo "two"; echo "three") > output.txt
@@ -66,9 +66,9 @@ class TestSubshellExecution:
 class TestSubshellVariableIsolation:
     """Test variable isolation in subshells."""
     
-    def test_variable_modification_isolation(self, shell_with_temp_dir):
+    def test_variable_modification_isolation(self, isolated_shell_with_temp_dir):
         """Test that variable changes in subshell don't affect parent."""
-        shell = shell_with_temp_dir
+        shell = isolated_shell_with_temp_dir
         
         script = '''
         VAR="original"
@@ -87,9 +87,9 @@ class TestSubshellVariableIsolation:
             parent_content = f.read().strip()
         assert parent_content == "In parent: original"
     
-    def test_variable_creation_isolation(self, shell_with_temp_dir):
+    def test_variable_creation_isolation(self, isolated_shell_with_temp_dir):
         """Test that new variables in subshell don't affect parent."""
-        shell = shell_with_temp_dir
+        shell = isolated_shell_with_temp_dir
         
         script = '''
         (NEW_VAR="created in subshell"; echo "In subshell: $NEW_VAR") > subshell_output.txt
@@ -107,9 +107,9 @@ class TestSubshellVariableIsolation:
             parent_content = f.read().strip()
         assert parent_content == "In parent: undefined"
     
-    def test_variable_inheritance_from_parent(self, shell_with_temp_dir):
+    def test_variable_inheritance_from_parent(self, isolated_shell_with_temp_dir):
         """Test that subshell inherits variables from parent."""
-        shell = shell_with_temp_dir
+        shell = isolated_shell_with_temp_dir
         
         script = '''
         PARENT_VAR="from parent"
@@ -124,9 +124,9 @@ class TestSubshellVariableIsolation:
             output = f.read().strip()
         assert output == "Inherited: from parent and also from parent"
     
-    def test_environment_variable_inheritance(self, shell_with_temp_dir):
+    def test_environment_variable_inheritance(self, isolated_shell_with_temp_dir):
         """Test that environment variables are inherited by subshells."""
-        shell = shell_with_temp_dir
+        shell = isolated_shell_with_temp_dir
         
         script = '''
         export EXPORTED_VAR="exported value"
@@ -145,9 +145,9 @@ class TestSubshellVariableIsolation:
 class TestSubshellExitStatus:
     """Test exit status behavior in subshells."""
     
-    def test_successful_command_exit_status(self, shell_with_temp_dir):
+    def test_successful_command_exit_status(self, isolated_shell_with_temp_dir):
         """Test that successful subshell returns 0."""
-        shell = shell_with_temp_dir
+        shell = isolated_shell_with_temp_dir
         
         script = '''
         (echo "success"; true)
@@ -161,9 +161,9 @@ class TestSubshellExitStatus:
             output = f.read().strip()
         assert output == "Exit status: 0"
     
-    def test_failed_command_exit_status(self, shell_with_temp_dir):
+    def test_failed_command_exit_status(self, isolated_shell_with_temp_dir):
         """Test that subshell exit status is that of the last command."""
-        shell = shell_with_temp_dir
+        shell = isolated_shell_with_temp_dir
         
         script = '''
         (echo "before failure"; false; echo "after failure")
@@ -178,9 +178,9 @@ class TestSubshellExitStatus:
         # The last command (echo) succeeds, so exit status should be 0
         assert output == "Exit status: 0"
     
-    def test_explicit_exit_in_subshell(self, shell_with_temp_dir):
+    def test_explicit_exit_in_subshell(self, isolated_shell_with_temp_dir):
         """Test explicit exit in subshell."""
-        shell = shell_with_temp_dir
+        shell = isolated_shell_with_temp_dir
         
         script = '''
         (echo "before exit"; exit 42; echo "after exit")
@@ -194,9 +194,9 @@ class TestSubshellExitStatus:
             output = f.read().strip()
         assert output == "Exit status: 42"
     
-    def test_last_command_determines_exit_status(self, shell_with_temp_dir):
+    def test_last_command_determines_exit_status(self, isolated_shell_with_temp_dir):
         """Test that last command in subshell determines exit status."""
-        shell = shell_with_temp_dir
+        shell = isolated_shell_with_temp_dir
         
         script = '''
         (false; true; echo "done")
@@ -210,9 +210,9 @@ class TestSubshellExitStatus:
             output = f.read().strip()
         assert output == "Exit status: 0"
     
-    def test_subshell_ending_with_false(self, shell_with_temp_dir):
+    def test_subshell_ending_with_false(self, isolated_shell_with_temp_dir):
         """Test that subshell ending with false returns 1."""
-        shell = shell_with_temp_dir
+        shell = isolated_shell_with_temp_dir
         
         script = '''
         (echo "before false"; false)
@@ -230,9 +230,9 @@ class TestSubshellExitStatus:
 class TestSubshellRedirection:
     """Test I/O redirection in subshells."""
     
-    def test_output_redirection(self, shell_with_temp_dir):
+    def test_output_redirection(self, isolated_shell_with_temp_dir):
         """Test output redirection from subshells."""
-        shell = shell_with_temp_dir
+        shell = isolated_shell_with_temp_dir
         
         script = '''
         (echo "line1"; echo "line2"; echo "line3") > redirected.txt
@@ -246,9 +246,9 @@ class TestSubshellRedirection:
         assert content == "line1\nline2\nline3"
     
     @pytest.mark.xfail(reason="Input redirection with while read conflicts with pytest output capture")
-    def test_input_redirection(self, shell_with_temp_dir):
+    def test_input_redirection(self, isolated_shell_with_temp_dir):
         """Test input redirection to subshells."""
-        shell = shell_with_temp_dir
+        shell = isolated_shell_with_temp_dir
         
         # Create input file
         with open('input.txt', 'w') as f:
@@ -266,9 +266,9 @@ class TestSubshellRedirection:
         assert content == "Read: input line 1\nRead: input line 2"
     
     @pytest.mark.xfail(reason="Stderr redirection in subshells may have implementation issues")
-    def test_error_redirection(self, shell_with_temp_dir):
+    def test_error_redirection(self, isolated_shell_with_temp_dir):
         """Test error redirection from subshells."""
-        shell = shell_with_temp_dir
+        shell = isolated_shell_with_temp_dir
         
         script = '''
         (echo "stdout"; echo "stderr" >&2) 2> error.txt > output.txt
@@ -286,9 +286,9 @@ class TestSubshellRedirection:
         assert stderr_content == "stderr"
     
     @pytest.mark.skip(reason="Background subshells not fully implemented")
-    def test_background_execution(self, shell_with_temp_dir):
+    def test_background_execution(self, isolated_shell_with_temp_dir):
         """Test background execution of subshells."""
-        shell = shell_with_temp_dir
+        shell = isolated_shell_with_temp_dir
         
         script = '''
         (sleep 1; echo "background done") &
@@ -303,9 +303,9 @@ class TestSubshellRedirection:
 class TestSubshellAdvanced:
     """Test advanced subshell scenarios."""
     
-    def test_nested_subshells(self, shell_with_temp_dir):
+    def test_nested_subshells(self, isolated_shell_with_temp_dir):
         """Test nested subshells with variable isolation."""
-        shell = shell_with_temp_dir
+        shell = isolated_shell_with_temp_dir
         
         script = '''
         VAR="level0"
@@ -329,9 +329,9 @@ class TestSubshellAdvanced:
         expected = "Level 1: level1\nLevel 2: level2\nBack to level 1: level1\nLevel 0: level0"
         assert content == expected
     
-    def test_function_inheritance(self, shell_with_temp_dir):
+    def test_function_inheritance(self, isolated_shell_with_temp_dir):
         """Test that functions are inherited by subshells."""
-        shell = shell_with_temp_dir
+        shell = isolated_shell_with_temp_dir
         
         script = '''
         my_function() {
@@ -348,9 +348,9 @@ class TestSubshellAdvanced:
             content = f.read().strip()
         assert content == "Function called with: from subshell"
     
-    def test_control_structures_in_subshells(self, shell_with_temp_dir):
+    def test_control_structures_in_subshells(self, isolated_shell_with_temp_dir):
         """Test control structures within subshells."""
-        shell = shell_with_temp_dir
+        shell = isolated_shell_with_temp_dir
         
         script = '''
         (
@@ -372,9 +372,9 @@ class TestSubshellAdvanced:
         expected = "Number: 1\nFound two: 2\nNumber: 3"
         assert content == expected
     
-    def test_pipes_within_subshells(self, shell_with_temp_dir):
+    def test_pipes_within_subshells(self, isolated_shell_with_temp_dir):
         """Test pipes within subshells."""
-        shell = shell_with_temp_dir
+        shell = isolated_shell_with_temp_dir
         
         script = '''
         (echo -e "apple\\nbanana\\ncherry" | grep "a") > output.txt
@@ -389,9 +389,9 @@ class TestSubshellAdvanced:
         assert "apple" in content and "banana" in content
         assert "cherry" not in content
     
-    def test_directory_change_isolation(self, shell_with_temp_dir):
+    def test_directory_change_isolation(self, isolated_shell_with_temp_dir):
         """Test that directory changes in subshells are isolated."""
-        shell = shell_with_temp_dir
+        shell = isolated_shell_with_temp_dir
         
         # Create a subdirectory
         os.makedirs('subdir', exist_ok=True)
@@ -423,9 +423,9 @@ class TestSubshellAdvanced:
 class TestSubshellArrayOperations:
     """Test array operations in subshells."""
     
-    def test_array_modification_isolation(self, shell_with_temp_dir):
+    def test_array_modification_isolation(self, isolated_shell_with_temp_dir):
         """Test that array modifications in subshell don't affect parent."""
-        shell = shell_with_temp_dir
+        shell = isolated_shell_with_temp_dir
         
         script = '''
         arr=(one two three)
@@ -444,9 +444,9 @@ class TestSubshellArrayOperations:
             parent_content = f.read().strip()
         assert parent_content == "In parent: two"
     
-    def test_array_inheritance(self, shell_with_temp_dir):
+    def test_array_inheritance(self, isolated_shell_with_temp_dir):
         """Test that arrays are inherited by subshells."""
-        shell = shell_with_temp_dir
+        shell = isolated_shell_with_temp_dir
         
         script = '''
         fruits=(apple banana cherry)
@@ -464,9 +464,9 @@ class TestSubshellArrayOperations:
 class TestSubshellCompatibility:
     """Test edge cases and compatibility scenarios."""
     
-    def test_positional_parameter_inheritance(self, shell_with_temp_dir):
+    def test_positional_parameter_inheritance(self, isolated_shell_with_temp_dir):
         """Test that positional parameters are inherited."""
-        shell = shell_with_temp_dir
+        shell = isolated_shell_with_temp_dir
         
         # Set up positional parameters by running a function
         script = '''
@@ -483,9 +483,9 @@ class TestSubshellCompatibility:
             output = f.read().strip()
         assert output == "Subshell sees: arg1 arg2 arg3"
     
-    def test_dollar_question_propagation(self, shell_with_temp_dir):
+    def test_dollar_question_propagation(self, isolated_shell_with_temp_dir):
         """Test that $? is properly propagated from subshells."""
-        shell = shell_with_temp_dir
+        shell = isolated_shell_with_temp_dir
         
         script = '''
         (exit 123)
@@ -500,9 +500,9 @@ class TestSubshellCompatibility:
             output = f.read().strip()
         assert output == "Captured exit status: 123"
     
-    def test_process_id_behavior(self, shell_with_temp_dir):
+    def test_process_id_behavior(self, isolated_shell_with_temp_dir):
         """Test $$ behavior in subshells."""
-        shell = shell_with_temp_dir
+        shell = isolated_shell_with_temp_dir
         
         script = '''
         parent_pid=$$
@@ -518,9 +518,9 @@ class TestSubshellCompatibility:
         # PSH implementation may vary
         assert "Parent:" in output and "Subshell:" in output
     
-    def test_empty_subshell(self, shell_with_temp_dir):
+    def test_empty_subshell(self, isolated_shell_with_temp_dir):
         """Test empty subshell execution."""
-        shell = shell_with_temp_dir
+        shell = isolated_shell_with_temp_dir
         
         script = '''
         ()
@@ -534,9 +534,9 @@ class TestSubshellCompatibility:
             output = f.read().strip()
         assert output == "Empty subshell exit status: 0"
     
-    def test_whitespace_handling(self, shell_with_temp_dir):
+    def test_whitespace_handling(self, isolated_shell_with_temp_dir):
         """Test various whitespace patterns in subshells."""
-        shell = shell_with_temp_dir
+        shell = isolated_shell_with_temp_dir
         
         script = '''
         (   echo "whitespace before"   ) > output1.txt
@@ -552,9 +552,9 @@ class TestSubshellCompatibility:
                 output = f.read().strip()
             assert output == expected
     
-    def test_subshell_with_comments(self, shell_with_temp_dir):
+    def test_subshell_with_comments(self, isolated_shell_with_temp_dir):
         """Test subshells containing comments."""
-        shell = shell_with_temp_dir
+        shell = isolated_shell_with_temp_dir
         
         script = '''
         (
@@ -577,9 +577,9 @@ class TestSubshellErrorHandling:
     """Test error handling in subshells."""
     
     @pytest.mark.xfail(reason="PSH may not propagate command not found errors from subshells")
-    def test_command_not_found_in_subshell(self, shell_with_temp_dir):
+    def test_command_not_found_in_subshell(self, isolated_shell_with_temp_dir):
         """Test handling of command not found errors in subshells."""
-        shell = shell_with_temp_dir
+        shell = isolated_shell_with_temp_dir
         
         script = '''
         (echo "before"; nonexistent_command; echo "after") 2> error.txt
@@ -597,9 +597,9 @@ class TestSubshellErrorHandling:
         # Exit status should be non-zero
         assert not status.endswith("0")
     
-    def test_syntax_error_handling(self, shell_with_temp_dir):
+    def test_syntax_error_handling(self, isolated_shell_with_temp_dir):
         """Test handling of syntax errors in subshells."""
-        shell = shell_with_temp_dir
+        shell = isolated_shell_with_temp_dir
         
         script = '''
         echo "before subshell" > before.txt
@@ -614,9 +614,9 @@ class TestSubshellErrorHandling:
         for filename in ['before.txt', 'valid.txt', 'after.txt']:
             assert os.path.exists(filename)
     
-    def test_variable_expansion_errors(self, shell_with_temp_dir):
+    def test_variable_expansion_errors(self, isolated_shell_with_temp_dir):
         """Test handling of variable expansion in subshells."""
-        shell = shell_with_temp_dir
+        shell = isolated_shell_with_temp_dir
         
         script = '''
         unset UNDEFINED_VAR

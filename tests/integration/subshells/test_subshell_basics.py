@@ -9,9 +9,9 @@ import pytest
 import os
 
 
-def test_subshell_basic_execution(shell_with_temp_dir):
+def test_subshell_basic_execution(isolated_shell_with_temp_dir):
     """Test basic subshell command execution."""
-    shell = shell_with_temp_dir
+    shell = isolated_shell_with_temp_dir
     
     # Test basic subshell execution with output redirection
     result = shell.run_command('(echo "hello from subshell") > subshell_output.txt')
@@ -23,9 +23,9 @@ def test_subshell_basic_execution(shell_with_temp_dir):
     assert "hello from subshell" in content
 
 
-def test_subshell_variable_isolation(shell_with_temp_dir):
+def test_subshell_variable_isolation(isolated_shell_with_temp_dir):
     """Test that variables set in subshell don't affect parent."""
-    shell = shell_with_temp_dir
+    shell = isolated_shell_with_temp_dir
     
     # Set a variable in parent
     shell.run_command('PARENT_VAR=parent_value')
@@ -44,9 +44,9 @@ def test_subshell_variable_isolation(shell_with_temp_dir):
     assert "In subshell: subshell_value new_value" in output
 
 
-def test_subshell_with_pipelines(shell_with_temp_dir):
+def test_subshell_with_pipelines(isolated_shell_with_temp_dir):
     """Test subshell containing pipelines."""
-    shell = shell_with_temp_dir
+    shell = isolated_shell_with_temp_dir
     
     result = shell.run_command('(echo "line1"; echo "line2") | wc -l > line_count.txt')
     assert result == 0
@@ -72,9 +72,9 @@ def test_subshell_exit_status(shell):
     assert result == 42
 
 
-def test_subshell_with_conditionals(shell_with_temp_dir):
+def test_subshell_with_conditionals(isolated_shell_with_temp_dir):
     """Test subshell containing conditional statements."""
-    shell = shell_with_temp_dir
+    shell = isolated_shell_with_temp_dir
     shell.run_command('TEST_VAR=hello')
     
     result = shell.run_command('(if [ "$TEST_VAR" = "hello" ]; then echo "match"; else echo "no match"; fi) > conditional_output.txt')
@@ -85,9 +85,9 @@ def test_subshell_with_conditionals(shell_with_temp_dir):
     assert "match" in output
 
 
-def test_subshell_with_loops(shell_with_temp_dir):
+def test_subshell_with_loops(isolated_shell_with_temp_dir):
     """Test subshell containing loops."""
-    shell = shell_with_temp_dir
+    shell = isolated_shell_with_temp_dir
     
     result = shell.run_command('(for i in 1 2 3; do echo "Item: $i"; done) > loop_output.txt')
     assert result == 0
@@ -99,9 +99,9 @@ def test_subshell_with_loops(shell_with_temp_dir):
     assert "Item: 3" in output
 
 
-def test_subshell_with_functions(shell_with_temp_dir):
+def test_subshell_with_functions(isolated_shell_with_temp_dir):
     """Test function calls within subshells."""
-    shell = shell_with_temp_dir
+    shell = isolated_shell_with_temp_dir
     
     # Define function in parent
     shell.run_command('test_func() { echo "Function called with: $1"; }')
@@ -115,9 +115,9 @@ def test_subshell_with_functions(shell_with_temp_dir):
     assert "Function called with: subshell param" in output
 
 
-def test_subshell_input_redirection(shell_with_temp_dir):
+def test_subshell_input_redirection(isolated_shell_with_temp_dir):
     """Test subshell with input redirection."""
-    shell = shell_with_temp_dir
+    shell = isolated_shell_with_temp_dir
     
     # Create input file
     with open('input.txt', 'w') as f:
@@ -147,9 +147,9 @@ def test_subshell_error_handling(shell):
 
 
 @pytest.mark.xfail(reason="PSH may not support nested subshell parsing")
-def test_nested_subshells(shell_with_temp_dir):
+def test_nested_subshells(isolated_shell_with_temp_dir):
     """Test nested subshells."""
-    shell = shell_with_temp_dir
+    shell = isolated_shell_with_temp_dir
     
     result = shell.run_command('(echo "outer"; (echo "inner")) > nested_output.txt')
     assert result == 0
@@ -160,9 +160,9 @@ def test_nested_subshells(shell_with_temp_dir):
     assert "inner" in output
 
 
-def test_subshell_with_background_jobs(shell_with_temp_dir):
+def test_subshell_with_background_jobs(isolated_shell_with_temp_dir):
     """Test subshell with background job execution."""
-    shell = shell_with_temp_dir
+    shell = isolated_shell_with_temp_dir
     
     # Run subshell in background
     result = shell.run_command('(echo "background subshell"; echo "done") > bg_output.txt &')
@@ -178,9 +178,9 @@ def test_subshell_with_background_jobs(shell_with_temp_dir):
         assert "done" in content
 
 
-def test_subshell_environment_inheritance(shell_with_temp_dir):
+def test_subshell_environment_inheritance(isolated_shell_with_temp_dir):
     """Test that subshell inherits parent environment."""
-    shell = shell_with_temp_dir
+    shell = isolated_shell_with_temp_dir
     
     # Set environment variable
     shell.run_command('export INHERITED_VAR=inherited_value')
@@ -194,9 +194,9 @@ def test_subshell_environment_inheritance(shell_with_temp_dir):
     assert "Inherited: inherited_value" in output
 
 
-def test_subshell_current_directory(shell_with_temp_dir):
+def test_subshell_current_directory(isolated_shell_with_temp_dir):
     """Test subshell directory isolation."""
-    shell = shell_with_temp_dir
+    shell = isolated_shell_with_temp_dir
     original_dir = os.getcwd()
     
     # Create subdirectory
@@ -216,9 +216,9 @@ def test_subshell_current_directory(shell_with_temp_dir):
 
 
 @pytest.mark.xfail(reason="Complex subshell redirections may not be fully implemented")
-def test_subshell_complex_redirections(shell_with_temp_dir):
+def test_subshell_complex_redirections(isolated_shell_with_temp_dir):
     """Test complex redirection patterns with subshells."""
-    shell = shell_with_temp_dir
+    shell = isolated_shell_with_temp_dir
     
     # Multiple redirections in subshell
     result = shell.run_command('(echo "stdout"; echo "stderr" >&2) > out.txt 2> err.txt')
