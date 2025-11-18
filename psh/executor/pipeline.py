@@ -141,7 +141,11 @@ class PipelineExecutor:
             if self.state.options.get('debug-exec'):
                 print(f"DEBUG Pipeline: Cannot get original PGID: {e}", file=sys.stderr)
             original_pgid = None
-        
+
+        # Create synchronization pipe for process group setup
+        # This replaces the time.sleep() polling loop with atomic synchronization
+        sync_pipe_r, sync_pipe_w = os.pipe()
+
         try:
             # Fork processes for each command
             for i, command in enumerate(node.commands):
@@ -165,27 +169,37 @@ class PipelineExecutor:
                             # Also ensure we set signal disposition to ignore SIGTTOU temporarily
                             # until parent transfers terminal control
                             signal.signal(signal.SIGTTOU, signal.SIG_IGN)
+
+                            # Close sync pipe (leader doesn't need it)
+                            try:
+                                os.close(sync_pipe_r)
+                                os.close(sync_pipe_w)
+                            except OSError:
+                                pass
                         else:
                             # Other children must join the process group of the first child
-                            # We need to wait for the parent to set our process group
-                            # Check if we're already in a process group (parent may have set it)
-                            import time
-                            for attempt in range(50):  # Try for up to 50ms
-                                try:
+                            # Wait for parent to signal that process groups are ready
+                            # This uses pipe-based synchronization (atomic and deterministic)
+                            # Close write end (not needed in child)
+                            os.close(sync_pipe_w)
+
+                            # Block on read - will unblock when parent closes write end
+                            try:
+                                # Read will return EOF when parent closes write end
+                                os.read(sync_pipe_r, 1)
+                                if self.state.options.get('debug-exec'):
                                     current_pgid = os.getpgrp()
-                                    # If we're not in our own process group, we've been moved
-                                    if current_pgid != os.getpid():
-                                        if self.state.options.get('debug-exec'):
-                                            print(f"DEBUG Pipeline: Child {os.getpid()} joined pgid {current_pgid} after {attempt} attempts", file=sys.stderr)
-                                        break
+                                    print(f"DEBUG Pipeline: Child {os.getpid()} synchronized, pgid is {current_pgid}", file=sys.stderr)
+                            except OSError:
+                                # EOF or error - parent closed pipe
+                                pass
+                            finally:
+                                # Close read end
+                                try:
+                                    os.close(sync_pipe_r)
                                 except OSError:
                                     pass
-                                time.sleep(0.001)  # Wait 1ms
-                            else:
-                                # If we get here, we timed out
-                                if self.state.options.get('debug-exec'):
-                                    final_pgid = os.getpgrp()
-                                    print(f"DEBUG Pipeline: Child {os.getpid()} timed out, pgid is {final_pgid}", file=sys.stderr)
+
                             # Ignore SIGTTOU until parent sets up terminal control
                             signal.signal(signal.SIGTTOU, signal.SIG_IGN)
                         
@@ -240,7 +254,21 @@ class PipelineExecutor:
                             pass  # Race condition - child may have set it already
                     pids.append(pid)
                     pipeline_ctx.add_process(pid)
-            
+
+            # All children forked and process groups set
+            # Signal children by closing sync pipe
+            try:
+                os.close(sync_pipe_r)
+            except OSError:
+                pass
+            try:
+                os.close(sync_pipe_w)
+            except OSError:
+                pass
+
+            if self.state.options.get('debug-exec'):
+                print(f"DEBUG Pipeline: Process group synchronization complete, pgid={pgid}", file=sys.stderr)
+
             # Create job entry for tracking
             job = self.job_manager.create_job(pgid, command_string)
             for i, pid in enumerate(pids):
@@ -277,6 +305,15 @@ class PipelineExecutor:
                 return self._wait_for_foreground_pipeline(job, node, original_pgid)
                 
         except Exception as e:
+            # Clean up sync pipe on error
+            try:
+                os.close(sync_pipe_r)
+            except OSError:
+                pass
+            try:
+                os.close(sync_pipe_w)
+            except OSError:
+                pass
             # Clean up pipes on error
             pipeline_ctx.close_pipes()
             # Restore terminal control on error
