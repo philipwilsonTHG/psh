@@ -1,9 +1,12 @@
 """Debug control commands for convenient AST debugging."""
 
 import sys
-from typing import List
+from typing import List, TYPE_CHECKING
 from .base import Builtin
 from .registry import builtin
+
+if TYPE_CHECKING:
+    from ..shell import Shell
 
 
 @builtin
@@ -212,3 +215,52 @@ class DebugBuiltin(Builtin):
         else:
             self.error("too many arguments", shell)
             return 1
+
+
+@builtin
+class SignalsBuiltin(Builtin):
+    """Show signal handler state and history."""
+
+    name = "signals"
+
+    def execute(self, args: List[str], shell: 'Shell') -> int:
+        """Execute the signals builtin.
+
+        Usage: signals [OPTIONS]
+
+        Options:
+            -v, --verbose     Show full history and stack traces
+            -h, --help        Show this help message
+
+        Examples:
+            signals           # Show current signal handlers
+            signals -v        # Show detailed history
+        """
+        # Parse options
+        verbose = False
+
+        for arg in args[1:]:
+            if arg in ('-v', '--verbose'):
+                verbose = True
+            elif arg in ('-h', '--help'):
+                print(self.__doc__)
+                return 0
+            else:
+                self.error(f"unknown option: {arg}", shell)
+                self.error("Use: signals [-v|--verbose] [-h|--help]", shell)
+                return 1
+
+        # Get the signal registry
+        from ..utils.signal_utils import get_signal_registry
+
+        registry = get_signal_registry(create=False)
+
+        if registry is None:
+            print("Signal registry not initialized", file=sys.stderr)
+            return 1
+
+        # Generate and print report
+        report = registry.report(verbose=verbose)
+        print(report)
+
+        return 0

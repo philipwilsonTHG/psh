@@ -5,7 +5,7 @@ import sys
 from typing import Optional, Callable, Dict
 from .base import InteractiveComponent
 from ..job_control import JobState
-from ..utils.signal_utils import SignalNotifier
+from ..utils.signal_utils import SignalNotifier, get_signal_registry
 
 
 class SignalManager(InteractiveComponent):
@@ -21,6 +21,9 @@ class SignalManager(InteractiveComponent):
 
         # Guard against reentrancy in notification processing
         self._in_sigchld_processing = False
+
+        # Get global signal registry for tracking
+        self._signal_registry = get_signal_registry(create=True)
         
     def execute(self, *args, **kwargs):
         """Set up signal handlers based on shell mode."""
@@ -36,32 +39,50 @@ class SignalManager(InteractiveComponent):
     def _setup_script_mode_handlers(self):
         """Set up simpler signal handling for script mode."""
         # Script mode: use default signal behaviors
-        signal.signal(signal.SIGINT, signal.SIG_DFL)   # Default SIGINT behavior
-        signal.signal(signal.SIGTSTP, signal.SIG_DFL)  # Default SIGTSTP behavior
-        signal.signal(signal.SIGTTOU, signal.SIG_IGN)  # Still ignore terminal output stops
-        signal.signal(signal.SIGTTIN, signal.SIG_IGN)  # Still ignore terminal input stops
-        signal.signal(signal.SIGCHLD, signal.SIG_DFL)  # Default child handling
-        signal.signal(signal.SIGPIPE, signal.SIG_DFL)  # Handle broken pipes properly
+        self._signal_registry.register(signal.SIGINT, signal.SIG_DFL, "SignalManager:script")
+        self._signal_registry.register(signal.SIGTSTP, signal.SIG_DFL, "SignalManager:script")
+        self._signal_registry.register(signal.SIGTTOU, signal.SIG_IGN, "SignalManager:script")
+        self._signal_registry.register(signal.SIGTTIN, signal.SIG_IGN, "SignalManager:script")
+        self._signal_registry.register(signal.SIGCHLD, signal.SIG_DFL, "SignalManager:script")
+        self._signal_registry.register(signal.SIGPIPE, signal.SIG_DFL, "SignalManager:script")
         
     def _setup_interactive_mode_handlers(self):
         """Set up full signal handling for interactive mode."""
-        # Store original handlers for restoration
-        self._original_handlers[signal.SIGINT] = signal.signal(signal.SIGINT, self._handle_signal_with_trap_check)
-        self._original_handlers[signal.SIGTERM] = signal.signal(signal.SIGTERM, self._handle_signal_with_trap_check)
-        self._original_handlers[signal.SIGHUP] = signal.signal(signal.SIGHUP, self._handle_signal_with_trap_check)
-        self._original_handlers[signal.SIGQUIT] = signal.signal(signal.SIGQUIT, self._handle_signal_with_trap_check)
-        self._original_handlers[signal.SIGTSTP] = signal.signal(signal.SIGTSTP, signal.SIG_IGN)
-        self._original_handlers[signal.SIGTTOU] = signal.signal(signal.SIGTTOU, signal.SIG_IGN)
-        self._original_handlers[signal.SIGTTIN] = signal.signal(signal.SIGTTIN, signal.SIG_IGN)
-        self._original_handlers[signal.SIGCHLD] = signal.signal(signal.SIGCHLD, self._handle_sigchld)
-        self._original_handlers[signal.SIGPIPE] = signal.signal(signal.SIGPIPE, signal.SIG_DFL)
+        # Store original handlers for restoration and register with tracking
+        self._original_handlers[signal.SIGINT] = self._signal_registry.register(
+            signal.SIGINT, self._handle_signal_with_trap_check, "SignalManager:interactive"
+        )
+        self._original_handlers[signal.SIGTERM] = self._signal_registry.register(
+            signal.SIGTERM, self._handle_signal_with_trap_check, "SignalManager:interactive"
+        )
+        self._original_handlers[signal.SIGHUP] = self._signal_registry.register(
+            signal.SIGHUP, self._handle_signal_with_trap_check, "SignalManager:interactive"
+        )
+        self._original_handlers[signal.SIGQUIT] = self._signal_registry.register(
+            signal.SIGQUIT, self._handle_signal_with_trap_check, "SignalManager:interactive"
+        )
+        self._original_handlers[signal.SIGTSTP] = self._signal_registry.register(
+            signal.SIGTSTP, signal.SIG_IGN, "SignalManager:interactive"
+        )
+        self._original_handlers[signal.SIGTTOU] = self._signal_registry.register(
+            signal.SIGTTOU, signal.SIG_IGN, "SignalManager:interactive"
+        )
+        self._original_handlers[signal.SIGTTIN] = self._signal_registry.register(
+            signal.SIGTTIN, signal.SIG_IGN, "SignalManager:interactive"
+        )
+        self._original_handlers[signal.SIGCHLD] = self._signal_registry.register(
+            signal.SIGCHLD, self._handle_sigchld, "SignalManager:interactive"
+        )
+        self._original_handlers[signal.SIGPIPE] = self._signal_registry.register(
+            signal.SIGPIPE, signal.SIG_DFL, "SignalManager:interactive"
+        )
         
     def restore_default_handlers(self):
         """Restore default signal handlers."""
         # Restore all saved handlers
         for sig, handler in self._original_handlers.items():
             try:
-                signal.signal(sig, handler)
+                self._signal_registry.register(sig, handler, "SignalManager:restore")
             except Exception:
                 # Signal may not be valid on this platform
                 pass
@@ -95,7 +116,7 @@ class SignalManager(InteractiveComponent):
             self._handle_sigint(signum, frame)
         else:
             # For other signals, use default behavior
-            signal.signal(signum, signal.SIG_DFL)
+            self._signal_registry.register(signum, signal.SIG_DFL, "SignalManager:default")
             os.kill(os.getpid(), signum)
     
     def _handle_sigint(self, signum, frame):
