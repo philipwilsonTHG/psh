@@ -9,6 +9,7 @@ import os
 import sys
 from typing import List, TYPE_CHECKING
 from contextlib import contextmanager
+from .process_launcher import ProcessLauncher, ProcessConfig, ProcessRole
 
 if TYPE_CHECKING:
     from ..shell import Shell
@@ -36,6 +37,7 @@ class SubshellExecutor:
         self.state = shell.state
         self.job_manager = shell.job_manager
         self.io_manager = shell.io_manager
+        self.launcher = ProcessLauncher(shell.state, shell.job_manager, shell.io_manager)
     
     @contextmanager
     def _apply_redirections(self, redirects: List['Redirect']):
@@ -123,183 +125,174 @@ class SubshellExecutor:
                 original_pgid = os.tcgetpgrp(0)
             except:
                 pass
-        
-        pid = os.fork()
-        
-        if pid == 0:
-            # Child process - create isolated shell
+
+        # Create execution function
+        def execute_fn():
+            # Import Shell here to avoid circular import
+            from ..shell import Shell
+
+            # Create new shell instance with copied environment
+            subshell = Shell(
+                debug_ast=self.shell.state.debug_ast,
+                debug_tokens=self.shell.state.debug_tokens,
+                parent_shell=self.shell,  # Copy variables/functions
+                norc=True
+            )
+
+            # Inherit I/O streams from parent shell for test compatibility
+            subshell.stdout = self.shell.stdout
+            subshell.stderr = self.shell.stderr
+            subshell.stdin = self.shell.stdin
+
+            # Apply redirections if any
+            saved_fds = None
+            if redirects:
+                saved_fds = subshell.io_manager.apply_redirections(redirects)
+
+            # Execute statements in isolated environment
+            exit_code = subshell.execute_command_list(statements)
+
+            # Flush output streams before returning
+            # This is critical because os._exit() doesn't flush buffers
             try:
-                # Create new process group for the subshell
-                os.setpgid(0, 0)
-                
-                # Import Shell here to avoid circular import
-                from ..shell import Shell
-                
-                # Create new shell instance with copied environment
-                subshell = Shell(
-                    debug_ast=self.shell.state.debug_ast,
-                    debug_tokens=self.shell.state.debug_tokens,
-                    parent_shell=self.shell,  # Copy variables/functions
-                    norc=True
-                )
-                subshell.state._in_forked_child = True
-                
-                # Inherit I/O streams from parent shell for test compatibility
-                subshell.stdout = self.shell.stdout
-                subshell.stderr = self.shell.stderr
-                subshell.stdin = self.shell.stdin
-                
-                # Apply redirections if any
-                saved_fds = None
-                if redirects:
-                    saved_fds = subshell.io_manager.apply_redirections(redirects)
-                
-                # Execute statements in isolated environment  
-                exit_code = subshell.execute_command_list(statements)
-                os._exit(exit_code)
-                
-            except SystemExit as e:
-                # Handle explicit exit calls
-                os._exit(e.code if e.code is not None else 0)
-            except Exception as e:
-                print(f"psh: subshell error: {e}", file=sys.stderr)
-                os._exit(1)
-        else:
-            # Parent process - use job manager to wait for child
-            try:
-                # Set the child's process group 
-                os.setpgid(pid, pid)
-            except OSError:
-                # Race condition - child may have already done it
+                subshell.stdout.flush()
+                subshell.stderr.flush()
+            except:
                 pass
-            
-            # Transfer terminal control to subshell if interactive
-            if is_interactive and original_pgid is not None:
-                try:
-                    os.tcsetpgrp(0, pid)
-                except OSError:
-                    # Not a controlling terminal or permission issue
-                    pass
-            
-            # Create job for tracking the subshell
-            job = self.job_manager.create_job(pid, "<subshell>")
-            job.add_process(pid, "subshell")
-            job.foreground = True
-            
-            # Use job manager to wait (handles SIGCHLD properly)
-            exit_status = self.job_manager.wait_for_job(job)
-            
-            # Restore terminal control to parent shell if interactive
-            if is_interactive and original_pgid is not None:
-                try:
-                    os.tcsetpgrp(0, original_pgid)
-                except OSError:
-                    # Not a controlling terminal or permission issue
-                    pass
-            
-            # Clean up job
-            if job.state.name == 'DONE':
-                self.job_manager.remove_job(job.job_id)
-            
-            return exit_status
+
+            return exit_code
+
+        # Configure launch
+        config = ProcessConfig(
+            role=ProcessRole.SINGLE,
+            foreground=True
+        )
+
+        pid, pgid = self.launcher.launch(execute_fn, config)
+
+        # Transfer terminal control to subshell if interactive
+        if is_interactive and original_pgid is not None:
+            try:
+                os.tcsetpgrp(0, pgid)
+            except OSError:
+                # Not a controlling terminal or permission issue
+                pass
+
+        # Create job for tracking the subshell
+        job = self.job_manager.create_job(pgid, "<subshell>")
+        job.add_process(pid, "subshell")
+        job.foreground = True
+
+        # Use job manager to wait (handles SIGCHLD properly)
+        exit_status = self.job_manager.wait_for_job(job)
+
+        # Restore terminal control to parent shell if interactive
+        if is_interactive and original_pgid is not None:
+            try:
+                os.tcsetpgrp(0, original_pgid)
+            except OSError:
+                # Not a controlling terminal or permission issue
+                pass
+
+        # Clean up job
+        if job.state.name == 'DONE':
+            self.job_manager.remove_job(job.job_id)
+
+        return exit_status
     
     def _execute_background_subshell(self, statements, redirects: List['Redirect']) -> int:
         """Execute subshell in background with job control tracking."""
-        pid = os.fork()
-        
-        if pid == 0:
-            # Child process
+        # Create execution function
+        def execute_fn():
+            # Import Shell lazily to avoid circular dependency
+            from ..shell import Shell
+
+            subshell = Shell(
+                debug_ast=self.shell.state.debug_ast,
+                debug_tokens=self.shell.state.debug_tokens,
+                parent_shell=self.shell,
+                norc=True
+            )
+
+            # Share I/O streams for consistent output handling
+            subshell.stdout = self.shell.stdout
+            subshell.stderr = self.shell.stderr
+            subshell.stdin = self.shell.stdin
+
+            exit_code = 0
+            saved_fds = []
             try:
-                # New process group for background job
-                os.setpgid(0, 0)
-                
-                # Import Shell lazily to avoid circular dependency
-                from ..shell import Shell
-                
-                subshell = Shell(
-                    debug_ast=self.shell.state.debug_ast,
-                    debug_tokens=self.shell.state.debug_tokens,
-                    parent_shell=self.shell,
-                    norc=True
-                )
-                subshell.state._in_forked_child = True
-                
-                # Share I/O streams for consistent output handling
-                subshell.stdout = self.shell.stdout
-                subshell.stderr = self.shell.stderr
-                subshell.stdin = self.shell.stdin
-                
-                exit_code = 0
-                saved_fds = []
+                if redirects:
+                    saved_fds = subshell.io_manager.apply_redirections(redirects)
+                exit_code = subshell.execute_command_list(statements)
+            finally:
+                if saved_fds:
+                    subshell.io_manager.restore_redirections(saved_fds)
+                # Flush output streams before returning
                 try:
-                    if redirects:
-                        saved_fds = subshell.io_manager.apply_redirections(redirects)
-                    exit_code = subshell.execute_command_list(statements)
-                finally:
-                    if saved_fds:
-                        subshell.io_manager.restore_redirections(saved_fds)
-                os._exit(exit_code)
-            except SystemExit as e:
-                os._exit(e.code if e.code is not None else 0)
-            except Exception as e:
-                print(f"psh: subshell error: {e}", file=sys.stderr)
-                os._exit(1)
-        else:
-            # Parent process
-            try:
-                os.setpgid(pid, pid)
-            except OSError:
-                pass  # Child may have already set pgid
-            
-            job = self.job_manager.create_job(pid, "<subshell>")
-            job.add_process(pid, "subshell")
-            self.job_manager.register_background_job(job, shell_state=self.shell.state, last_pid=pid)
-            
-            if not self.shell.is_script_mode:
-                print(f"[{job.job_id}] {job.pgid}", file=self.shell.stderr)
-            
-            return 0
+                    subshell.stdout.flush()
+                    subshell.stderr.flush()
+                except:
+                    pass
+
+            return exit_code
+
+        # Configure launch
+        config = ProcessConfig(
+            role=ProcessRole.SINGLE,
+            foreground=False
+        )
+
+        pid, pgid = self.launcher.launch(execute_fn, config)
+
+        # Create and register background job
+        job = self.job_manager.create_job(pgid, "<subshell>")
+        job.add_process(pid, "subshell")
+        self.job_manager.register_background_job(job, shell_state=self.shell.state, last_pid=pid)
+
+        if not self.shell.is_script_mode:
+            print(f"[{job.job_id}] {job.pgid}", file=self.shell.stderr)
+
+        return 0
     
-    def _execute_background_brace_group(self, node: 'BraceGroup', 
+    def _execute_background_brace_group(self, node: 'BraceGroup',
                                        visitor: 'ASTVisitor[int]') -> int:
         """
         Execute brace group in background.
-        
+
         Note: Background execution requires forking, but the brace group
         semantics are preserved within the forked process.
         """
-        pid = os.fork()
-        
-        if pid == 0:
-            # Child process
+        # Create execution function
+        def execute_fn():
+            # Execute the brace group in current environment (no new shell)
+            # Apply redirections first
+            exit_code = 0
+            saved_fds = []
             try:
-                # Create new process group
-                os.setpgid(0, 0)
-                
-                # Execute the brace group in current environment (no new shell)
-                # Apply redirections first
-                exit_code = 0
-                saved_fds = []
-                try:
-                    if node.redirects:
-                        saved_fds = self.io_manager.apply_redirections(node.redirects)
-                    exit_code = visitor.visit(node.statements)
-                finally:
-                    if saved_fds:
-                        self.io_manager.restore_redirections(saved_fds)
-                os._exit(exit_code)
-            except Exception as e:
-                print(f"psh: background brace group error: {e}", file=sys.stderr)
-                os._exit(1)
-        else:
-            # Parent process
-            try:
-                os.setpgid(pid, pid)
-            except OSError:
-                pass
-            job = self.job_manager.create_job(pid, "<brace-group>")
-            job.add_process(pid, "brace-group")
-            self.job_manager.register_background_job(job, shell_state=self.shell.state, last_pid=pid)
-            if not self.shell.is_script_mode:
-                print(f"[{job.job_id}] {job.pgid}", file=self.shell.stderr)
-            return 0
+                if node.redirects:
+                    saved_fds = self.io_manager.apply_redirections(node.redirects)
+                exit_code = visitor.visit(node.statements)
+            finally:
+                if saved_fds:
+                    self.io_manager.restore_redirections(saved_fds)
+
+            return exit_code
+
+        # Configure launch
+        config = ProcessConfig(
+            role=ProcessRole.SINGLE,
+            foreground=False
+        )
+
+        pid, pgid = self.launcher.launch(execute_fn, config)
+
+        # Create and register background job
+        job = self.job_manager.create_job(pgid, "<brace-group>")
+        job.add_process(pid, "brace-group")
+        self.job_manager.register_background_job(job, shell_state=self.shell.state, last_pid=pid)
+
+        if not self.shell.is_script_mode:
+            print(f"[{job.job_id}] {job.pgid}", file=self.shell.stderr)
+
+        return 0

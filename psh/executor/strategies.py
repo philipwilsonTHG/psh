@@ -10,6 +10,7 @@ import sys
 import signal
 from abc import ABC, abstractmethod
 from typing import List, Optional, TYPE_CHECKING
+from .process_launcher import ProcessLauncher, ProcessConfig, ProcessRole
 
 if TYPE_CHECKING:
     from ..shell import Shell
@@ -135,74 +136,47 @@ class BuiltinExecutionStrategy(ExecutionStrategy):
             print(f"psh: {cmd_name}: {e}", file=sys.stderr)
             return 1
     
-    def _execute_builtin_in_background(self, cmd_name: str, args: List[str], 
+    def _execute_builtin_in_background(self, cmd_name: str, args: List[str],
                                      shell: 'Shell', context: 'ExecutionContext',
                                      redirects: Optional[List['Redirect']] = None) -> int:
         """Execute a builtin command in background by forking a subshell."""
-        import os
-        import sys
-        
-        # Save current terminal foreground process group
-        try:
-            original_pgid = os.tcgetpgrp(0)
-        except:
-            original_pgid = None
-        
-        # Fork a child process to run the builtin
-        pid = os.fork()
-        
-        if pid == 0:
-            # Child process - run the builtin in a subshell
-            try:
-                # Set flag to indicate we're in a forked child
-                shell.state._in_forked_child = True
-                
-                # Create new process group
-                os.setpgid(0, 0)
-                
-                # Reset signal handlers for child
-                import signal
-                signal.signal(signal.SIGINT, signal.SIG_DFL)
-                signal.signal(signal.SIGTSTP, signal.SIG_DFL)
-                signal.signal(signal.SIGTTOU, signal.SIG_DFL)
-                signal.signal(signal.SIGTTIN, signal.SIG_DFL)
-                
-                # Apply redirections if any
-                if redirects:
-                    from ..ast_nodes import SimpleCommand
-                    temp_command = SimpleCommand(args=[cmd_name] + args, redirects=redirects)
-                    shell.io_manager.setup_child_redirections(temp_command)
-                
-                # Execute the builtin
-                builtin = shell.builtin_registry.get(cmd_name)
-                if builtin:
-                    exit_code = builtin.execute([cmd_name] + args, shell)
-                    os._exit(exit_code)
-                else:
-                    os._exit(127)
-                    
-            except Exception as e:
-                print(f"psh: {cmd_name}: {e}", file=sys.stderr)
-                os._exit(1)
-        else:
-            # Parent process - set up job control
-            try:
-                # Set child's process group
-                os.setpgid(pid, pid)
-            except OSError:
-                pass  # Child may have already set it
-            
-            # Create job and register it
-            job = shell.job_manager.create_job(pid, f"{cmd_name} {' '.join(args)}")
-            job.add_process(pid, cmd_name)
-            job.foreground = False
-            shell.state.last_bg_pid = pid
-            
-            # Print job assignment notification (only in interactive mode)
-            if not shell.state.is_script_mode:
-                print(f"[{job.job_id}] {pid}")
-            
-            return 0
+        # Create process launcher
+        launcher = ProcessLauncher(shell.state, shell.job_manager, shell.io_manager)
+
+        # Create execution function
+        def execute_fn():
+            # Apply redirections if any
+            if redirects:
+                from ..ast_nodes import SimpleCommand
+                temp_command = SimpleCommand(args=[cmd_name] + args, redirects=redirects)
+                shell.io_manager.setup_child_redirections(temp_command)
+
+            # Execute the builtin
+            builtin = shell.builtin_registry.get(cmd_name)
+            if builtin:
+                return builtin.execute([cmd_name] + args, shell)
+            else:
+                return 127
+
+        # Configure as background job
+        config = ProcessConfig(
+            role=ProcessRole.SINGLE,
+            foreground=False
+        )
+
+        pid, pgid = launcher.launch(execute_fn, config)
+
+        # Create job and register it
+        job = shell.job_manager.create_job(pgid, f"{cmd_name} {' '.join(args)}")
+        job.add_process(pid, cmd_name)
+        job.foreground = False
+        shell.state.last_bg_pid = pid
+
+        # Print job assignment notification (only in interactive mode)
+        if not shell.state.is_script_mode:
+            print(f"[{job.job_id}] {pid}")
+
+        return 0
 
 
 class FunctionExecutionStrategy(ExecutionStrategy):
@@ -353,99 +327,94 @@ class ExternalExecutionStrategy(ExecutionStrategy):
                 os._exit(127)
         
         # Save current terminal foreground process group
-        try:
-            original_pgid = os.tcgetpgrp(0)
-        except:
-            original_pgid = None
-        
-        # Normal execution - fork a child process
-        pid = os.fork()
-        
-        if pid == 0:
-            # Child process
+        original_pgid = None
+        if not background:
             try:
-                # Set flag to indicate we're in a forked child
-                shell.state._in_forked_child = True
-                
-                # Create new process group
-                os.setpgid(0, 0)
-                
-                # Reset signal handlers to default
-                signal.signal(signal.SIGINT, signal.SIG_DFL)
-                signal.signal(signal.SIGTSTP, signal.SIG_DFL)
-                signal.signal(signal.SIGTTOU, signal.SIG_DFL)
-                signal.signal(signal.SIGTTIN, signal.SIG_DFL)
-                
-                # Set up redirections if any
-                if redirects:
-                    # Create a dummy command object for the io_manager
-                    from ..ast_nodes import SimpleCommand
-                    temp_command = SimpleCommand(args=full_args, redirects=redirects)
-                    shell.io_manager.setup_child_redirections(temp_command)
-                
-                # Execute the command with proper environment
-                if shell.state.options.get('debug-exec'):
-                    print(f"DEBUG ExternalStrategy: execvpe {full_args[0]} with PATH={shell.env.get('PATH', 'NOT_SET')[:50]}...", 
-                          file=sys.stderr)
+                original_pgid = os.tcgetpgrp(0)
+            except:
+                pass
+
+        # Create process launcher
+        launcher = ProcessLauncher(shell.state, shell.job_manager, shell.io_manager)
+
+        # Create execution function
+        def execute_fn():
+            # Set up redirections if any
+            if redirects:
+                # Create a dummy command object for the io_manager
+                from ..ast_nodes import SimpleCommand
+                temp_command = SimpleCommand(args=full_args, redirects=redirects)
+                shell.io_manager.setup_child_redirections(temp_command)
+
+            # Execute the command with proper environment
+            if shell.state.options.get('debug-exec'):
+                print(f"DEBUG ExternalStrategy: execvpe {full_args[0]} with "
+                      f"PATH={shell.env.get('PATH', 'NOT_SET')[:50]}...",
+                      file=sys.stderr)
+
+            try:
                 os.execvpe(full_args[0], full_args, shell.env)
             except FileNotFoundError:
                 # Write to stderr file descriptor
                 error_msg = f"psh: {full_args[0]}: command not found\n"
                 os.write(2, error_msg.encode('utf-8'))
-                os._exit(127)
+                return 127
             except OSError as e:
                 # Write to stderr file descriptor
                 error_msg = f"psh: {full_args[0]}: {e}\n"
                 os.write(2, error_msg.encode('utf-8'))
-                os._exit(126)
+                return 126
+
+            # Not reached if exec succeeds
+            return 127
+
+        # Configure launch
+        config = ProcessConfig(
+            role=ProcessRole.SINGLE,
+            foreground=not background
+        )
+
+        pid, pgid = launcher.launch(execute_fn, config)
+
+        # Create job for tracking
+        job = shell.job_manager.create_job(pgid, " ".join(str(arg) for arg in full_args))
+        job.add_process(pid, str(full_args[0]))
+
+        if background:
+            # Background job
+            job.foreground = False
+            shell.state.last_bg_pid = pid
+            # Print job assignment notification (only in interactive mode)
+            if not shell.state.is_script_mode:
+                print(f"[{job.job_id}] {pid}")
+            return 0
         else:
-            # Parent process
-            # Set child's process group
-            try:
-                os.setpgid(pid, pid)
-            except:
-                pass  # Race condition - child may have already done it
-            
-            # Create job for tracking
-            job = shell.job_manager.create_job(pid, " ".join(str(arg) for arg in full_args))
-            job.add_process(pid, str(full_args[0]))
-            
-            if background:
-                # Background job
-                job.foreground = False
-                # Note: context.background_job should be set by caller
-                shell.state.last_bg_pid = pid
-                # Print job assignment notification (only in interactive mode)
-                if not shell.state.is_script_mode:
-                    print(f"[{job.job_id}] {pid}")
-                return 0
-            else:
-                # Foreground job - give it terminal control
-                job.foreground = True
-                shell.job_manager.set_foreground_job(job)
-                
-                if original_pgid is not None:
-                    shell.state.foreground_pgid = pid
-                    try:
-                        os.tcsetpgrp(0, pid)
-                    except:
-                        pass
-                
-                # Use job manager to wait (it handles SIGCHLD)
-                exit_status = shell.job_manager.wait_for_job(job)
-                
-                # Restore terminal control
-                if original_pgid is not None:
-                    shell.state.foreground_pgid = None
-                    shell.job_manager.set_foreground_job(None)
-                    try:
-                        os.tcsetpgrp(0, original_pgid)
-                    except:
-                        pass
-                
-                # Clean up
-                from ..job_control import JobState
-                if job.state == JobState.DONE:
-                    shell.job_manager.remove_job(job.job_id)
-                
-                return exit_status
+            # Foreground job - give it terminal control
+            job.foreground = True
+            shell.job_manager.set_foreground_job(job)
+
+            if original_pgid is not None:
+                shell.state.foreground_pgid = pgid
+                try:
+                    os.tcsetpgrp(0, pgid)
+                except:
+                    pass
+
+            # Use job manager to wait (it handles SIGCHLD)
+            exit_status = shell.job_manager.wait_for_job(job)
+
+            # Restore terminal control
+            if original_pgid is not None:
+                shell.state.foreground_pgid = None
+                shell.job_manager.set_foreground_job(None)
+                try:
+                    os.tcsetpgrp(0, original_pgid)
+                except:
+                    pass
+
+            # Clean up
+            from ..job_control import JobState
+            if job.state == JobState.DONE:
+                shell.job_manager.remove_job(job.job_id)
+
+            return exit_status

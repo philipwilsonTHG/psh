@@ -9,6 +9,7 @@ import os
 import sys
 import signal
 from typing import List, Optional, Tuple, TYPE_CHECKING
+from .process_launcher import ProcessLauncher, ProcessConfig, ProcessRole
 
 if TYPE_CHECKING:
     from ..shell import Shell
@@ -72,6 +73,7 @@ class PipelineExecutor:
         self.shell = shell
         self.state = shell.state
         self.job_manager = shell.job_manager
+        self.launcher = ProcessLauncher(shell.state, shell.job_manager, shell.io_manager)
     
     def execute(self, node: 'Pipeline', context: 'ExecutionContext', 
                 visitor: 'ASTVisitor[int]') -> int:
@@ -150,110 +152,56 @@ class PipelineExecutor:
             # Fork processes for each command
             for i, command in enumerate(node.commands):
                 is_last_command = (i == len(node.commands) - 1)
-                pid = os.fork()
-                
-                if pid == 0:
-                    # Child process
-                    try:
+
+                # Determine process role
+                if i == 0:
+                    role = ProcessRole.PIPELINE_LEADER
+                else:
+                    role = ProcessRole.PIPELINE_MEMBER
+
+                # Create execution function for this command
+                def make_execute_fn(cmd_index, cmd_node):
+                    """Create execution function for pipeline command.
+
+                    This closure captures the command index and node for execution.
+                    """
+                    def execute_fn():
                         # Create forked context
                         child_context = pipeline_context.fork_context()
-                        
-                        # Set flag to indicate we're in a forked child
-                        self.state._in_forked_child = True
-                        
-                        # Set process group - this must be done before resetting signal handlers
-                        # to avoid SIGTTOU when child tries to write to terminal
-                        if i == 0:
-                            # First child becomes process group leader
-                            os.setpgid(0, 0)
-                            # Also ensure we set signal disposition to ignore SIGTTOU temporarily
-                            # until parent transfers terminal control
-                            signal.signal(signal.SIGTTOU, signal.SIG_IGN)
 
-                            # Close sync pipe (leader doesn't need it)
-                            try:
-                                os.close(sync_pipe_r)
-                                os.close(sync_pipe_w)
-                            except OSError:
-                                pass
-                        else:
-                            # Other children must join the process group of the first child
-                            # Wait for parent to signal that process groups are ready
-                            # This uses pipe-based synchronization (atomic and deterministic)
-                            # Close write end (not needed in child)
-                            os.close(sync_pipe_w)
+                        # Set up pipeline redirections (stdin/stdout)
+                        self._setup_pipeline_redirections(cmd_index, pipeline_ctx)
 
-                            # Block on read - will unblock when parent closes write end
-                            try:
-                                # Read will return EOF when parent closes write end
-                                os.read(sync_pipe_r, 1)
-                                if self.state.options.get('debug-exec'):
-                                    current_pgid = os.getpgrp()
-                                    print(f"DEBUG Pipeline: Child {os.getpid()} synchronized, pgid is {current_pgid}", file=sys.stderr)
-                            except OSError:
-                                # EOF or error - parent closed pipe
-                                pass
-                            finally:
-                                # Close read end
-                                try:
-                                    os.close(sync_pipe_r)
-                                except OSError:
-                                    pass
-
-                            # Ignore SIGTTOU until parent sets up terminal control
-                            signal.signal(signal.SIGTTOU, signal.SIG_IGN)
-                        
-                        # Reset most signal handlers to default (but keep SIGTTOU ignored)
-                        signal.signal(signal.SIGINT, signal.SIG_DFL)
-                        signal.signal(signal.SIGTSTP, signal.SIG_DFL)
-                        # Keep SIGTTOU ignored - it was set above
-                        signal.signal(signal.SIGTTIN, signal.SIG_DFL)
-                        
-                        # Set up pipeline redirections
-                        self._setup_pipeline_redirections(i, pipeline_ctx)
-                        
-                        # For the last command in foreground pipeline, ensure terminal access
-                        if is_last_command and not is_background:
-                            # Restore terminal signal handling for interactive commands
+                        # For the last command in foreground pipeline, restore terminal signals
+                        if cmd_index == len(node.commands) - 1 and not is_background:
                             signal.signal(signal.SIGTTOU, signal.SIG_DFL)
                             signal.signal(signal.SIGTTIN, signal.SIG_DFL)
-                        
+
                         # Execute command with pipeline context
-                        # Note: visitor is a special parameter because we need the
-                        # ExecutorVisitor instance to execute commands
                         # IMPORTANT: Update visitor's context to use the child_context
                         original_context = visitor.context
                         visitor.context = child_context
-                        exit_status = visitor.visit(command)
-                        os._exit(exit_status)
-                    except SystemExit as e:
-                        # Handle explicit exit
-                        os._exit(e.code if e.code is not None else 0)
-                    except Exception as e:
-                        print(f"psh: {e}", file=sys.stderr)
-                        os._exit(1)
-                else:
-                    # Parent process
-                    if i == 0:
-                        # First child becomes the process group leader
-                        pgid = pid
-                        # Try to set the first child's process group from parent side too
-                        try:
-                            os.setpgid(pid, pid)
-                        except OSError:
-                            pass  # Child may have already set it
-                    else:
-                        # Set process group for subsequent children to join the pipeline
-                        try:
-                            os.setpgid(pid, pgid)
-                            if self.state.options.get('debug-exec'):
-                                print(f"DEBUG Pipeline: Parent set child {pid} to pgid {pgid}", file=sys.stderr)
-                        except OSError as e:
-                            if self.state.options.get('debug-exec'):
-                                print(f"DEBUG Pipeline: Parent failed to set pgid for {pid}: {e}", file=sys.stderr)
-                            pass  # Race condition - child may have set it already
-                    pids.append(pid)
-                    pipeline_ctx.add_process(pid)
+                        exit_status = visitor.visit(cmd_node)
+
+                        return exit_status
+
+                    return execute_fn
+
+                # Configure process launch
+                config = ProcessConfig(
+                    role=role,
+                    pgid=pgid if i > 0 else None,
+                    foreground=not is_background,
+                    sync_pipe_r=sync_pipe_r,
+                    sync_pipe_w=sync_pipe_w,
+                    io_setup=None  # I/O setup is done in execute_fn
+                )
+
+                # Launch the process
+                pid, pgid = self.launcher.launch(make_execute_fn(i, command), config)
+
+                pids.append(pid)
+                pipeline_ctx.add_process(pid)
 
             # All children forked and process groups set
             # Signal children by closing sync pipe
