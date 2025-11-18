@@ -88,7 +88,7 @@ class Shell:
         # Legacy executor removed - using visitor pattern exclusively
         self.script_manager = ScriptManager(self)
         self.interactive_manager = InteractiveManager(self)
-        
+
         # Initialize history expander
         from .history_expansion import HistoryExpander
         self.history_expander = HistoryExpander(self)
@@ -134,7 +134,7 @@ class Shell:
         
         if not self.is_script_mode and is_interactive and not self.norc:
             self._load_rc_file()
-    
+
     def _setup_compatibility_properties(self):
         """Set up properties for backward compatibility."""
         # These will be removed in later phases

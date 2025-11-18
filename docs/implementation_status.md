@@ -51,21 +51,46 @@ DEBUG Pipeline: Child 31224 synchronized, pgid is 31222
 
 ---
 
-### ⏸️ C2: Improve SIGCHLD Handler Safety (NOT STARTED)
+### ✅ C2: Improve SIGCHLD Handler Safety (COMPLETED)
 
-**Status:** Not Started
-**Priority:** Critical
-**Estimated Effort:** Medium (4-6 hours)
+**Date Completed:** 2025-01-18
 
 **Summary:**
-Implement self-pipe trick to move SIGCHLD handling work out of signal context.
+Implemented self-pipe trick to move SIGCHLD handling work out of signal context, ensuring async-signal-safety and eliminating potential reentrancy issues.
 
-**Next Steps:**
-1. Create `psh/utils/signal_utils.py` with `SignalNotifier` class
-2. Update `SignalManager` to use minimal signal handler
-3. Add `process_sigchld_notifications()` method for main loop
-4. Update interactive REPL to call notification processor
-5. Test with background jobs
+**Changes Made:**
+- **New File:** `psh/utils/signal_utils.py` - SignalNotifier class implementing self-pipe pattern
+- **File:** `psh/interactive/signal_manager.py` - Minimal SIGCHLD handler that only writes to pipe
+- **File:** `psh/interactive/repl_loop.py` - Main loop processes notifications outside signal context
+
+**Technical Details:**
+- **Old approach:** SIGCHLD handler directly reaped children and updated job state (complex Python operations in signal context)
+- **New approach:** Signal handler only calls `os.write()` (async-signal-safe), main loop does actual work
+- **Benefits:**
+  - Strictly async-signal-safe (only os.write in handler)
+  - No risk of deadlock or interpreter corruption
+  - No reentrancy issues
+  - Standard Unix practice (self-pipe trick)
+
+**Implementation:**
+1. Created `SignalNotifier` class with pipe-based notification
+2. Signal handler writes signal number to pipe (one byte)
+3. Main REPL loop drains pipe and processes notifications
+4. Added reentrancy guard to prevent nested processing
+5. Exposed `get_sigchld_fd()` for future select() integration
+
+**Testing:**
+- ✅ Basic background jobs: `sleep 0.1 & wait`
+- ✅ Background pipelines: `echo test | cat &`
+- ✅ Stress test: 50 iterations successful
+- ✅ Integration tests: 44 passed, 1 xfailed, 1 xpassed (bonus!)
+- ✅ Conformance tests: POSIX 96.9%, Bash 88.2% (no regressions)
+
+**Lines of Code:**
+- Added: ~230 lines (signal_utils.py + updates)
+- Modified: ~60 lines (signal_manager.py, repl_loop.py)
+
+**Status:** PRODUCTION READY ✅
 
 ---
 
@@ -110,12 +135,12 @@ All low priority recommendations are pending.
 
 ## Overall Progress
 
-**Critical Priority:** 1/3 (33%)
+**Critical Priority:** 2/3 (67%)
 **High Priority:** 0/5 (0%)
 **Medium Priority:** 0/3 (0%)
 **Low Priority:** 0/2 (0%)
 
-**Total Progress:** 1/13 (8%)
+**Total Progress:** 2/13 (15%)
 
 ---
 

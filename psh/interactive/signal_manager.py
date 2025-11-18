@@ -5,15 +5,22 @@ import sys
 from typing import Optional, Callable, Dict
 from .base import InteractiveComponent
 from ..job_control import JobState
+from ..utils.signal_utils import SignalNotifier
 
 
 class SignalManager(InteractiveComponent):
     """Manages signal handling for the interactive shell."""
-    
+
     def __init__(self, shell):
         super().__init__(shell)
         self._original_handlers: Dict[int, Callable] = {}
         self._interactive_mode = not shell.state.is_script_mode
+
+        # Self-pipe for safe SIGCHLD handling
+        self._sigchld_notifier = SignalNotifier()
+
+        # Guard against reentrancy in notification processing
+        self._in_sigchld_processing = False
         
     def execute(self, *args, **kwargs):
         """Set up signal handlers based on shell mode."""
@@ -59,6 +66,10 @@ class SignalManager(InteractiveComponent):
                 # Signal may not be valid on this platform
                 pass
         self._original_handlers.clear()
+
+        # Clean up signal notifier resources
+        if hasattr(self, '_sigchld_notifier'):
+            self._sigchld_notifier.close()
         
     def _handle_signal_with_trap_check(self, signum, frame):
         """Handle signals with trap checking."""
@@ -95,35 +106,73 @@ class SignalManager(InteractiveComponent):
         # which is set in execute_pipeline
         
     def _handle_sigchld(self, signum, frame):
-        """Handle child process state changes."""
-        while True:
-            try:
-                wait_flags = os.WNOHANG
-                if hasattr(os, "WUNTRACED"):
-                    wait_flags |= os.WUNTRACED
-                pid, status = os.waitpid(-1, wait_flags)
-                if pid == 0:
+        """Minimal signal handler - just notify main loop.
+
+        This is async-signal-safe (only calls os.write via SignalNotifier).
+        The actual child reaping happens in process_sigchld_notifications().
+        """
+        self._sigchld_notifier.notify(signal.SIGCHLD)
+
+    def process_sigchld_notifications(self):
+        """Process pending SIGCHLD notifications.
+
+        This should be called from the main REPL loop periodically.
+        It does the actual job reaping outside of signal handler context,
+        which is safe and avoids reentrancy issues.
+        """
+        # Prevent reentrancy
+        if self._in_sigchld_processing:
+            return
+
+        self._in_sigchld_processing = True
+        try:
+            # Drain notification pipe
+            notifications = self._sigchld_notifier.drain_notifications()
+
+            if not notifications:
+                return
+
+            # Now do the actual child reaping (safe outside signal context)
+            while True:
+                try:
+                    wait_flags = os.WNOHANG
+                    if hasattr(os, "WUNTRACED"):
+                        wait_flags |= os.WUNTRACED
+                    pid, status = os.waitpid(-1, wait_flags)
+                    if pid == 0:
+                        break
+
+                    job = self.job_manager.get_job_by_pid(pid)
+                    if job:
+                        job.update_process_status(pid, status)
+                        job.update_state()
+
+                        # Check if entire job is stopped
+                        if job.state == JobState.STOPPED and job.foreground:
+                            # Stopped foreground job - mark as not notified so it will be shown
+                            job.notified = False
+
+                            # Return control to shell
+                            try:
+                                os.tcsetpgrp(0, os.getpgrp())
+                            except OSError:
+                                pass
+
+                except OSError:
+                    # No more children
                     break
-                
-                job = self.job_manager.get_job_by_pid(pid)
-                if job:
-                    job.update_process_status(pid, status)
-                    job.update_state()
-                    
-                    # Check if entire job is stopped
-                    if job.state == JobState.STOPPED and job.foreground:
-                        # Stopped foreground job - mark as not notified so it will be shown
-                        job.notified = False
-                        
-                        # Return control to shell
-                        try:
-                            os.tcsetpgrp(0, os.getpgrp())
-                        except OSError:
-                            pass
-                            
-            except OSError:
-                # No more children
-                break
+        finally:
+            self._in_sigchld_processing = False
+
+    def get_sigchld_fd(self) -> int:
+        """Get file descriptor for SIGCHLD notifications.
+
+        Can be used with select() to wait for child events in event loops.
+
+        Returns:
+            Read file descriptor for SIGCHLD notifications
+        """
+        return self._sigchld_notifier.get_fd()
                 
     def ensure_foreground(self):
         """Ensure shell is in its own process group and is foreground."""

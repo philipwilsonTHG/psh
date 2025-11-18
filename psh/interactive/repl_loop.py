@@ -44,11 +44,17 @@ class REPLLoop(InteractiveComponent):
         
         while True:
             try:
+                # Process any pending SIGCHLD notifications
+                # This is the self-pipe pattern: signal handler writes to pipe,
+                # main loop processes notifications outside signal context
+                if hasattr(self.shell, 'signal_manager'):
+                    self.shell.signal_manager.process_sigchld_notifications()
+
                 # Check for completed background jobs (only if notify option is disabled)
                 # When notify is enabled, jobs are notified immediately when they complete
                 if not self.state.options.get('notify', False):
                     self.job_manager.notify_completed_jobs()
-                
+
                 # Check for stopped jobs (from Ctrl-Z)
                 self.job_manager.notify_stopped_jobs()
                 
