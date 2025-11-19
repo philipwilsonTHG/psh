@@ -57,11 +57,12 @@ class InteractiveManager:
                        os.environ.get('PSH_IN_FORKED_CHILD') == '1')
         
         if not skip_signals:
-            # Ensure shell is in its own process group for job control
-            self.signal_manager.ensure_foreground()
-            
-            # Set up signal handlers
+            # Set up signal handlers FIRST to ignore SIGTTOU/SIGTTIN
+            # This must happen before ensure_foreground() to avoid being stopped
             self.signal_manager.setup_signal_handlers()
+
+            # Now safe to ensure shell is in its own process group for job control
+            self.signal_manager.ensure_foreground()
     
     def run_interactive_loop(self):
         """Run the interactive shell loop."""
