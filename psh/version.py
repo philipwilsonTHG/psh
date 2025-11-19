@@ -2,10 +2,30 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.103.0"
+__version__ = "0.104.0"
 
 # Version history
 VERSION_HISTORY = """
+0.104.0 (2025-11-19) - Complete All High Priority Executor Improvements (H4 + H5)
+- 🎉 MAJOR MILESTONE: All critical and high priority executor improvements complete! (8/8, 100%)
+- Implemented H4 from executor improvements plan: unified foreground job cleanup
+- Created JobManager.restore_shell_foreground() as single source of truth for terminal restoration
+- Replaced scattered cleanup logic in 5 locations across 4 files (pipeline, strategies, subshell, fg builtin)
+- Consistent cleanup ensures terminal always restored to shell after foreground jobs
+- Implemented H5 from executor improvements plan: surface terminal control failures
+- Created JobManager.transfer_terminal_control(pgid, context) as single source of truth for all tcsetpgrp calls
+- Replaced 8 scattered tcsetpgrp calls across 7 files with unified method
+- Enhanced logging: all terminal control failures now visible with --debug-exec flag
+- Context strings provide clear diagnostic information (Pipeline, Subshell, ProcessLauncher, etc.)
+- Returns success/failure bool for caller decision making
+- Foundation for future metrics tracking (process_metrics integration ready)
+- Benefits: single source of truth, consistent error handling, better debugging, reduced code
+- Net code reduction: H4 (-30 lines), H5 (-7 lines) with significantly better structure
+- All tests passing: 43 subshell + 2 function/variable tests, no regressions
+- Files modified: job_control.py, process_launcher.py, subshell.py, pipeline.py, strategies.py, signal_manager.py, job_control.py (builtin)
+- Executor improvements progress: 8/13 complete (62%), Critical 3/3 (100%), High Priority 5/5 (100%) ✅
+- Remaining work: Medium priority (3 items) and Low priority (2 items) - all optional enhancements
+
 0.103.0 (2025-11-19) - Centralize Child Signal Reset Logic (H3)
 - Implemented H3 from executor improvements plan: centralized child signal reset logic
 - Added SignalManager.reset_child_signals() as single source of truth for all child processes
