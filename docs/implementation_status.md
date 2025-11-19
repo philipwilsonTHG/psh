@@ -365,15 +365,71 @@ issues = registry.validate()
 
 ---
 
+## Critical Signal Fix
+
+### ✅ Signal Ordering Fix (COMPLETED)
+
+**Date Completed:** 2025-11-19
+
+**Summary:**
+Fixed critical shell suspension bug caused by incorrect signal handler initialization order. The shell would hang before showing a prompt because it tried to take terminal control before ignoring SIGTTOU/SIGTTIN.
+
+**Root Cause:**
+In `psh/interactive/base.py`, the initialization code called `ensure_foreground()` BEFORE `setup_signal_handlers()`. This meant:
+1. Shell tried to call `tcsetpgrp()` to take terminal control
+2. SIGTTOU was not yet ignored (handlers not set up)
+3. Kernel sent SIGTTOU to the process
+4. Process was suspended (stopped state)
+5. Appeared as a "hang" - Ctrl-C/Ctrl-Z didn't work, only kill -TERM worked
+
+**The Fix:**
+Reordered initialization in `psh/interactive/base.py` (lines 59-65):
+```python
+if not skip_signals:
+    # Set up signal handlers FIRST to ignore SIGTTOU/SIGTTIN
+    # This must happen before ensure_foreground() to avoid being stopped
+    self.signal_manager.setup_signal_handlers()
+
+    # Now safe to ensure shell is in its own process group for job control
+    self.signal_manager.ensure_foreground()
+```
+
+**Testing:**
+- ✅ Shell starts successfully in interactive mode
+- ✅ Quick test suite passes (all tests)
+- ✅ No regressions in job control or signal handling
+
+**Files Modified:**
+- `psh/interactive/base.py` (critical ordering fix)
+
+**Commit:** a5440f8
+
+**Status:** PRODUCTION READY ✅
+
+---
+
 ## High Priority (Remaining)
 
-The following high priority recommendations are pending:
+The following high priority recommendations require re-implementation to work with the signal ordering fix:
 
 **H3: Centralize Child Signal Reset Logic** - Create shared helper method for signal reset across all fork paths.
+  - Status: Attempted but conflicts with signal ordering fix
+  - Needs: Investigation into why accessing shell.signal_manager property causes issues
+  - Previous commit (reverted): 2389229
 
 **H4: Unify Foreground Job Cleanup** - Consolidate terminal restoration and state cleanup logic.
+  - Status: Pending (depends on H3 investigation)
+  - Previous commit (reverted): Included in reverted batch
 
 **H5: Surface Terminal Control Failures** - Enhanced logging and metrics for tcsetpgrp failures.
+  - Status: Pending (depends on H3 investigation)
+  - Previous commit (reverted): Included in reverted batch
+
+**Known Issue with H3:**
+When H3 is applied after the signal ordering fix, the shell still hangs. Investigation needed to understand:
+1. Why does adding the `shell.signal_manager` property break initialization?
+2. Is there a timing issue with PropertyProxyManager.reset_child_signals() access?
+3. Does ProcessLauncher initialization need to be deferred?
 
 ---
 
