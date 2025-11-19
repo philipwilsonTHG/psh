@@ -103,7 +103,6 @@ class TestBooleanBuiltins:
         captured = capsys.readouterr()
         assert "1\n2" in captured.out
     
-    @pytest.mark.xfail(reason="PSH doesn't support until loops")
     def test_false_in_until_loop(self, shell, capsys):
         """Test false in until loop (with break to avoid infinite loop)."""
         cmd = '''

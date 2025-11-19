@@ -136,7 +136,6 @@ class TestForLoops:
         assert "i: 1" in captured.out
         assert "i: 2" in captured.out
     
-    @pytest.mark.xfail(reason="PSH doesn't support 'for arg;' syntax (without 'in')")
     def test_for_loop_no_list(self, shell, capsys):
         """Test for loop without list (uses positional parameters)."""
         cmd = '''
