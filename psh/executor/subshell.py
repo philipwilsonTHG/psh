@@ -119,12 +119,21 @@ class SubshellExecutor:
         # Save current terminal foreground process group
         original_pgid = None
         # Check if we're in interactive mode (stdin is a tty and not in script mode)
+        # AND we're actually the foreground process group (not running under pytest/etc)
         is_interactive = sys.stdin.isatty() and not self.shell.is_script_mode
         if is_interactive:
             try:
-                original_pgid = os.tcgetpgrp(0)
+                current_fg_pgid = os.tcgetpgrp(0)
+                our_pgid = os.getpgrp()
+                # Only treat as interactive if WE are the foreground process group
+                # This prevents issues when running under pytest with -s flag
+                if current_fg_pgid == our_pgid:
+                    original_pgid = current_fg_pgid
+                else:
+                    # We're not in control of the terminal, don't try to manipulate it
+                    is_interactive = False
             except:
-                pass
+                is_interactive = False
 
         # Create execution function
         def execute_fn():
@@ -138,6 +147,10 @@ class SubshellExecutor:
                 parent_shell=self.shell,  # Copy variables/functions
                 norc=True
             )
+
+            # Mark as forked child so builtins use os.write() which respects dup2()
+            # This is critical for output redirection to work correctly in subshells
+            subshell.state._in_forked_child = True
 
             # Inherit I/O streams from parent shell for test compatibility
             subshell.stdout = self.shell.stdout
