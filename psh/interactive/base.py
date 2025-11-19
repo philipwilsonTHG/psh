@@ -49,10 +49,12 @@ class InteractiveManager:
         
         # Skip signal setup when running under pytest to avoid affecting subprocess tests
         # UNLESS we're specifically testing signal handling
+        # Also skip if we're in a forked child process (subshell/pipeline)
         import sys
         import os
-        skip_signals = ('pytest' in sys.modules and 
-                       os.environ.get('PSH_TEST_SIGNALS') != '1')
+        skip_signals = (('pytest' in sys.modules and
+                        os.environ.get('PSH_TEST_SIGNALS') != '1') or
+                       os.environ.get('PSH_IN_FORKED_CHILD') == '1')
         
         if not skip_signals:
             # Ensure shell is in its own process group for job control
