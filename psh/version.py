@@ -2,10 +2,22 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.102.0"
+__version__ = "0.102.1"
 
 # Version history
 VERSION_HISTORY = """
+0.102.1 (2025-11-19) - Critical Signal Ordering Fix
+- Fixed critical shell suspension bug where psh would hang before showing prompt
+- Root cause: Signal handler initialization happened AFTER terminal control takeover
+- When shell called tcsetpgrp() before ignoring SIGTTOU/SIGTTIN, kernel suspended the process
+- Reordered initialization in psh/interactive/base.py to call setup_signal_handlers() BEFORE ensure_foreground()
+- Shell now properly ignores job control signals before attempting terminal control operations
+- All tests passing, no regressions in signal handling or job control
+- Production-critical fix: shell now starts successfully in all environments
+- Documented investigation of H3/H4/H5 conflicts with signal ordering fix
+- H3 (Centralize Child Signal Reset), H4 (Unify Foreground Cleanup), H5 (Surface Terminal Control Failures)
+  remain to be re-implemented with compatibility for signal ordering fix
+
 0.102.0 (2025-01-23) - Interactive Nested Prompts Implementation
 - Implemented zsh-style context-aware continuation prompts for interactive mode
 - Added automatic nesting context detection showing current shell construct hierarchy
