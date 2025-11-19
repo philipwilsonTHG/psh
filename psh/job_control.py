@@ -263,27 +263,53 @@ class JobManager:
                     return job
             return None
     
+    def restore_shell_foreground(self):
+        """Restore shell to foreground and clean up state.
+
+        This should be called after any foreground job completes
+        to ensure terminal and bookkeeping are properly reset.
+
+        This is the single source of truth for foreground job cleanup,
+        implementing H4 from the executor improvements plan.
+        """
+        shell_pgid = os.getpgrp()
+
+        # Clear foreground job tracking
+        self.set_foreground_job(None)
+        if self.shell_state is not None and hasattr(self.shell_state, 'foreground_pgid'):
+            self.shell_state.foreground_pgid = None
+
+        # Restore terminal control to shell
+        if self.shell_state and self.shell_state.supports_job_control:
+            try:
+                os.tcsetpgrp(self.shell_state.terminal_fd, shell_pgid)
+                if self.shell_state.options.get('debug-exec'):
+                    print(f"DEBUG JobManager: Restored terminal to shell (pgid {shell_pgid})", file=sys.stderr)
+            except OSError as e:
+                if self.shell_state.options.get('debug-exec'):
+                    print(f"DEBUG JobManager: Failed to restore terminal: {e}", file=sys.stderr)
+
     def wait_for_job(self, job: Job, collect_all_statuses: bool = False) -> int:
         """Wait for a job to complete or stop.
-        
+
         Args:
             job: The job to wait for
             collect_all_statuses: If True, collect exit codes from all processes
-            
+
         Returns:
             Exit status (or list of statuses if collect_all_statuses is True)
         """
         exit_status = 0
         all_exit_statuses = []
-        
+
         while job.any_process_running():
             try:
                 # Wait for any child in the job's process group
                 pid, status = os.waitpid(-job.pgid, os.WUNTRACED)
-                
+
                 # Update process status
                 job.update_process_status(pid, status)
-                
+
                 # Extract exit status
                 proc_exit_status = 0
                 if os.WIFEXITED(status):
@@ -292,7 +318,7 @@ class JobManager:
                     proc_exit_status = 128 + os.WTERMSIG(status)
                 elif os.WIFSTOPPED(status):
                     proc_exit_status = 128 + os.WSTOPSIG(status)
-                
+
                 # Find which process this is
                 for i, proc in enumerate(job.processes):
                     if proc.pid == pid:
@@ -301,14 +327,14 @@ class JobManager:
                             while len(all_exit_statuses) <= i:
                                 all_exit_statuses.append(0)
                             all_exit_statuses[i] = proc_exit_status
-                        
+
                         # If this was the last process in the pipeline
                         if i == len(job.processes) - 1:
                             exit_status = proc_exit_status
-                
+
             except OSError:
                 break
-        
+
         # If processes were already reaped by SIGCHLD handler, get exit status from stored status
         if not job.any_process_running() and job.processes:
             for i, proc in enumerate(job.processes):
@@ -321,27 +347,27 @@ class JobManager:
                         proc_exit_status = 128 + os.WTERMSIG(status)
                     elif os.WIFSTOPPED(status):
                         proc_exit_status = 128 + os.WSTOPSIG(status)
-                    
+
                     if collect_all_statuses:
                         while len(all_exit_statuses) <= i:
                             all_exit_statuses.append(0)
                         all_exit_statuses[i] = proc_exit_status
-                    
+
                     # Last process determines default exit status
                     if i == len(job.processes) - 1:
                         exit_status = proc_exit_status
-        
+
         # Update job state
         old_state = job.state
         job.update_state()
-        
+
         # If notify option is enabled and job just completed, notify immediately
         if (self.shell_state and self.shell_state.options.get('notify', False) and
             old_state != JobState.DONE and job.state == JobState.DONE and
             not job.foreground and not job.notified):
             print(f"\n[{job.job_id}]+  Done                    {job.command}")
             job.notified = True
-        
+
         if collect_all_statuses:
             return all_exit_statuses
         return exit_status

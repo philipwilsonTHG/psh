@@ -223,15 +223,9 @@ class SubshellExecutor:
         # Use job manager to wait (handles SIGCHLD properly)
         exit_status = self.job_manager.wait_for_job(job)
 
-        # Restore terminal control to parent shell if interactive
-        if is_interactive and original_pgid is not None and self.state.supports_job_control:
-            try:
-                os.tcsetpgrp(self.state.terminal_fd, original_pgid)
-                if self.state.options.get('debug-exec'):
-                    print(f"DEBUG Subshell: Restored terminal control to shell (pgid {original_pgid})", file=sys.stderr)
-            except OSError as e:
-                if self.state.options.get('debug-exec'):
-                    print(f"DEBUG Subshell: Failed to restore terminal control: {e}", file=sys.stderr)
+        # Restore terminal control to parent shell if interactive (H4)
+        if is_interactive:
+            self.job_manager.restore_shell_foreground()
 
         # Clean up job
         if job.state.name == 'DONE':

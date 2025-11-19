@@ -104,13 +104,9 @@ class FgBuiltin(Builtin):
         
         # Wait for it
         exit_status = shell.job_manager.wait_for_job(job)
-        
-        # Restore terminal control to shell
-        if shell.state.supports_job_control:
-            try:
-                os.tcsetpgrp(shell.state.terminal_fd, os.getpgrp())
-            except OSError:
-                pass
+
+        # Restore terminal control to shell (H4)
+        shell.job_manager.restore_shell_foreground()
         
         # Remove job if completed
         if job.state == JobState.DONE:

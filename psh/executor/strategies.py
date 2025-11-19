@@ -408,18 +408,8 @@ class ExternalExecutionStrategy(ExecutionStrategy):
             # Use job manager to wait (it handles SIGCHLD)
             exit_status = shell.job_manager.wait_for_job(job)
 
-            # Restore terminal control
-            if original_pgid is not None:
-                shell.state.foreground_pgid = None
-                shell.job_manager.set_foreground_job(None)
-                if shell.state.supports_job_control:
-                    try:
-                        os.tcsetpgrp(shell.state.terminal_fd, original_pgid)
-                        if shell.state.options.get('debug-exec'):
-                            print(f"DEBUG ExternalStrategy: Restored terminal control to shell (pgid {original_pgid})", file=sys.stderr)
-                    except OSError as e:
-                        if shell.state.options.get('debug-exec'):
-                            print(f"DEBUG ExternalStrategy: Failed to restore terminal control: {e}", file=sys.stderr)
+            # Restore terminal control and clean up foreground job state (H4)
+            shell.job_manager.restore_shell_foreground()
 
             # Clean up
             from ..job_control import JobState

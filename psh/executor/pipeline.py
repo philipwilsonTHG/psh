@@ -269,12 +269,9 @@ class PipelineExecutor:
                 pass
             # Clean up pipes on error
             pipeline_ctx.close_pipes()
-            # Restore terminal control on error
-            if not is_background and original_pgid is not None and self.state.supports_job_control:
-                try:
-                    os.tcsetpgrp(self.state.terminal_fd, original_pgid)
-                except OSError:
-                    pass
+            # Restore terminal control on error (H4)
+            if not is_background:
+                self.job_manager.restore_shell_foreground()
             raise
     
     def _wait_for_foreground_pipeline(self, job: 'Job', node: 'Pipeline', original_pgid: Optional[int] = None) -> int:
@@ -308,19 +305,8 @@ class PipelineExecutor:
             # Normal behavior: return exit status of last command
             exit_status = self.job_manager.wait_for_job(job)
         
-        # Restore terminal control
-        if original_pgid is not None:
-            self.state.foreground_pgid = None
-            if self.state.supports_job_control:
-                try:
-                    os.tcsetpgrp(self.state.terminal_fd, original_pgid)
-                    if self.state.options.get('debug-exec'):
-                        print(f"DEBUG Pipeline: Restored terminal control to shell (pgid {original_pgid})", file=sys.stderr)
-                except OSError as e:
-                    if self.state.options.get('debug-exec'):
-                        print(f"DEBUG Pipeline: Failed to restore terminal control: {e}", file=sys.stderr)
-        
-        self.job_manager.set_foreground_job(None)
+        # Restore terminal control and clean up foreground job state (H4)
+        self.job_manager.restore_shell_foreground()
         
         # Remove completed job
         from ..job_control import JobState
