@@ -2,10 +2,24 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.102.1"
+__version__ = "0.103.0"
 
 # Version history
 VERSION_HISTORY = """
+0.103.0 (2025-11-19) - Centralize Child Signal Reset Logic (H3)
+- Implemented H3 from executor improvements plan: centralized child signal reset logic
+- Added SignalManager.reset_child_signals() as single source of truth for all child processes
+- Updated ProcessLauncher to use centralized signal reset when available
+- Fixed ProcessLauncher fallback to include SIGPIPE (was missing in previous implementation)
+- Updated all 4 ProcessLauncher instantiation sites to pass signal_manager parameter
+- Used parameter passing approach instead of property pattern (property caused initialization hangs)
+- Signal manager accessed via shell.interactive_manager.signal_manager at instantiation sites
+- Backward compatible: falls back to local reset if signal_manager unavailable
+- Benefits: single source of truth, consistent signal handling, easier maintenance
+- All tests passing: 43 subshell + 2 function/variable tests, no regressions
+- Files modified: signal_manager.py, process_launcher.py, subshell.py, pipeline.py, strategies.py
+- Executor improvements progress: 6/13 complete (46%), High Priority 3/5 (60%)
+
 0.102.1 (2025-11-19) - Critical Signal Ordering Fix
 - Fixed critical shell suspension bug where psh would hang before showing prompt
 - Root cause: Signal handler initialization happened AFTER terminal control takeover
