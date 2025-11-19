@@ -191,12 +191,8 @@ class SignalManager(InteractiveComponent):
                             # Stopped foreground job - mark as not notified so it will be shown
                             job.notified = False
 
-                            # Return control to shell
-                            if self.state.supports_job_control:
-                                try:
-                                    os.tcsetpgrp(self.state.terminal_fd, os.getpgrp())
-                                except OSError:
-                                    pass
+                            # Return control to shell (H5)
+                            self.job_manager.transfer_terminal_control(os.getpgrp(), "SignalManager:SIGCHLD")
 
                 except OSError:
                     # No more children
@@ -224,9 +220,8 @@ class SignalManager(InteractiveComponent):
             if shell_pgid != shell_pid:
                 os.setpgid(0, shell_pid)
 
-            # Make shell the foreground process group
-            if self.state.supports_job_control:
-                os.tcsetpgrp(self.state.terminal_fd, shell_pid)
+            # Make shell the foreground process group (H5)
+            self.job_manager.transfer_terminal_control(shell_pid, "SignalManager:ensure_foreground")
         except OSError:
             # Not a terminal or already set
             pass

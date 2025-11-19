@@ -262,7 +262,51 @@ class JobManager:
                 if job.command.startswith(spec):
                     return job
             return None
-    
+
+    def transfer_terminal_control(self, pgid: int, context: str = "") -> bool:
+        """Transfer terminal control to a process group.
+
+        This is the single source of truth for all tcsetpgrp() calls,
+        implementing H5 from the executor improvements plan.
+
+        Args:
+            pgid: Process group ID to transfer control to
+            context: Optional context string for debug messages (e.g., "Pipeline", "Subshell")
+
+        Returns:
+            True if transfer was successful, False otherwise
+        """
+        if not self.shell_state or not self.shell_state.supports_job_control:
+            if self.shell_state and self.shell_state.options.get('debug-exec'):
+                print(f"DEBUG {context}: Skipping terminal transfer (no TTY support)", file=sys.stderr)
+            return False
+
+        try:
+            os.tcsetpgrp(self.shell_state.terminal_fd, pgid)
+
+            if self.shell_state.options.get('debug-exec'):
+                ctx_str = f"{context}: " if context else ""
+                print(f"DEBUG {ctx_str}Transferred terminal control to pgid {pgid}", file=sys.stderr)
+
+            # Record metrics if available
+            if hasattr(self.shell_state, 'process_metrics'):
+                self.shell_state.process_metrics.record_terminal_transfer_success()
+
+            return True
+
+        except OSError as e:
+            # Log the failure
+            if self.shell_state.options.get('debug-exec'):
+                ctx_str = f"{context}: " if context else ""
+                print(f"WARNING {ctx_str}Failed to transfer terminal control to pgid {pgid}: {e}",
+                      file=sys.stderr)
+
+            # Record metrics if available
+            if hasattr(self.shell_state, 'process_metrics'):
+                self.shell_state.process_metrics.record_terminal_transfer_failure()
+
+            return False
+
     def restore_shell_foreground(self):
         """Restore shell to foreground and clean up state.
 
@@ -279,15 +323,8 @@ class JobManager:
         if self.shell_state is not None and hasattr(self.shell_state, 'foreground_pgid'):
             self.shell_state.foreground_pgid = None
 
-        # Restore terminal control to shell
-        if self.shell_state and self.shell_state.supports_job_control:
-            try:
-                os.tcsetpgrp(self.shell_state.terminal_fd, shell_pgid)
-                if self.shell_state.options.get('debug-exec'):
-                    print(f"DEBUG JobManager: Restored terminal to shell (pgid {shell_pgid})", file=sys.stderr)
-            except OSError as e:
-                if self.shell_state.options.get('debug-exec'):
-                    print(f"DEBUG JobManager: Failed to restore terminal: {e}", file=sys.stderr)
+        # Restore terminal control to shell (H5)
+        self.transfer_terminal_control(shell_pgid, "JobManager:restore")
 
     def wait_for_job(self, job: Job, collect_all_statuses: bool = False) -> int:
         """Wait for a job to complete or stop.

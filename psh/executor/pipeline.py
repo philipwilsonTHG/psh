@@ -229,22 +229,10 @@ class PipelineExecutor:
             # Close pipes in parent
             pipeline_ctx.close_pipes()
             
-            # Transfer terminal control immediately for foreground pipelines
+            # Transfer terminal control immediately for foreground pipelines (H5)
             # This prevents SIGTTOU in children before wait method is called
             if not is_background and original_pgid is not None:
-                if self.state.supports_job_control:
-                    try:
-                        if self.state.options.get('debug-exec'):
-                            print(f"DEBUG Pipeline: Transferring terminal control from {original_pgid} to {pgid}", file=sys.stderr)
-                        os.tcsetpgrp(self.state.terminal_fd, pgid)
-                        if self.state.options.get('debug-exec'):
-                            print(f"DEBUG Pipeline: Terminal control transferred successfully", file=sys.stderr)
-                    except OSError as e:
-                        if self.state.options.get('debug-exec'):
-                            print(f"WARNING Pipeline: Failed to transfer terminal control: {e}", file=sys.stderr)
-                else:
-                    if self.state.options.get('debug-exec'):
-                        print(f"DEBUG Pipeline: Skipping terminal transfer (no job control support)", file=sys.stderr)
+                self.job_manager.transfer_terminal_control(pgid, "Pipeline")
             
             # Wait for pipeline completion
             if is_background:

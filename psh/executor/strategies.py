@@ -395,15 +395,10 @@ class ExternalExecutionStrategy(ExecutionStrategy):
             job.foreground = True
             shell.job_manager.set_foreground_job(job)
 
-            if original_pgid is not None and shell.state.supports_job_control:
-                shell.state.foreground_pgid = pgid
-                try:
-                    os.tcsetpgrp(shell.state.terminal_fd, pgid)
-                    if shell.state.options.get('debug-exec'):
-                        print(f"DEBUG ExternalStrategy: Transferred terminal control to pgid {pgid}", file=sys.stderr)
-                except OSError as e:
-                    if shell.state.options.get('debug-exec'):
-                        print(f"WARNING ExternalStrategy: Failed to transfer terminal control: {e}", file=sys.stderr)
+            # Transfer terminal control (H5)
+            if original_pgid is not None:
+                if shell.job_manager.transfer_terminal_control(pgid, "ExternalStrategy"):
+                    shell.state.foreground_pgid = pgid
 
             # Use job manager to wait (it handles SIGCHLD)
             exit_status = shell.job_manager.wait_for_job(job)

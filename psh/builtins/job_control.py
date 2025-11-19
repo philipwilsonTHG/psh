@@ -78,17 +78,14 @@ class FgBuiltin(Builtin):
         # Print the command being resumed
         print(job.command)
         
-        # Give it terminal control FIRST before sending SIGCONT
+        # Give it terminal control FIRST before sending SIGCONT (H5)
         shell.job_manager.set_foreground_job(job)
         job.foreground = True
-        if shell.state.supports_job_control:
-            try:
-                os.tcsetpgrp(shell.state.terminal_fd, job.pgid)
-            except OSError as e:
-                print(f"fg: can't set terminal control: {e}", file=sys.stderr)
-                return 1
-        else:
-            print(f"fg: no job control in this shell", file=sys.stderr)
+        if not shell.job_manager.transfer_terminal_control(job.pgid, "fg builtin"):
+            if not shell.state.supports_job_control:
+                print(f"fg: no job control in this shell", file=sys.stderr)
+            else:
+                print(f"fg: can't set terminal control", file=sys.stderr)
             return 1
         
         # Continue stopped job

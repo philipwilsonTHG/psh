@@ -205,15 +205,9 @@ class SubshellExecutor:
 
         pid, pgid = self.launcher.launch(execute_fn, config)
 
-        # Transfer terminal control to subshell if interactive
-        if is_interactive and original_pgid is not None and self.state.supports_job_control:
-            try:
-                os.tcsetpgrp(self.state.terminal_fd, pgid)
-                if self.state.options.get('debug-exec'):
-                    print(f"DEBUG Subshell: Transferred terminal control to subshell pgid {pgid}", file=sys.stderr)
-            except OSError as e:
-                if self.state.options.get('debug-exec'):
-                    print(f"WARNING Subshell: Failed to transfer terminal control: {e}", file=sys.stderr)
+        # Transfer terminal control to subshell if interactive (H5)
+        if is_interactive and original_pgid is not None:
+            self.job_manager.transfer_terminal_control(pgid, "Subshell")
 
         # Create job for tracking the subshell
         job = self.job_manager.create_job(pgid, "<subshell>")
