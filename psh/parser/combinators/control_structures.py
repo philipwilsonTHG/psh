@@ -786,20 +786,40 @@ class ControlStructureParsers:
                     pos += 1
                 
                 # Parse commands until case terminator
+                # Track nesting depth to handle nested case statements correctly
                 command_tokens = []
+                nesting_depth = 0
                 while pos < len(tokens):
                     token = tokens[pos]
-                    # Check for case terminators
-                    if token.type in CASE_TERMINATOR_TOKENS:
-                        break
-                    # Check if next token is a pattern (word followed by ')')
-                    if (pos + 1 < len(tokens) and 
-                        token.type.name in ['WORD', 'STRING'] and 
-                        tokens[pos + 1].value == ')'):
-                        break
-                    # Check for 'esac'
-                    if KeywordGuard(token).matches('esac'):
-                        break
+
+                    # Track nesting for case statements
+                    if KeywordGuard(token).matches('case'):
+                        nesting_depth += 1
+                        command_tokens.append(token)
+                        pos += 1
+                        continue
+                    elif KeywordGuard(token).matches('esac'):
+                        if nesting_depth > 0:
+                            # This esac closes a nested case
+                            nesting_depth -= 1
+                            command_tokens.append(token)
+                            pos += 1
+                            continue
+                        else:
+                            # This esac closes the outer case - stop collecting
+                            break
+
+                    # Only check for terminators when not in a nested case
+                    if nesting_depth == 0:
+                        # Check for case terminators
+                        if token.type in CASE_TERMINATOR_TOKENS:
+                            break
+                        # Check if next token is a pattern (word followed by ')')
+                        if (pos + 1 < len(tokens) and
+                            token.type.name in ['WORD', 'STRING'] and
+                            tokens[pos + 1].value == ')'):
+                            break
+
                     command_tokens.append(token)
                     pos += 1
                 
