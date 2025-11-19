@@ -1,6 +1,6 @@
 # Executor Improvements Implementation Status
 
-**Last Updated:** 2025-11-18
+**Last Updated:** 2025-11-19
 
 ## Critical Priority
 
@@ -408,28 +408,87 @@ if not skip_signals:
 
 ---
 
+### ✅ H3: Centralize Child Signal Reset Logic (COMPLETED)
+
+**Date Completed:** 2025-11-19
+
+**Summary:**
+Centralized all child process signal reset logic into `SignalManager.reset_child_signals()`, eliminating code duplication across ProcessLauncher and ensuring consistent signal handling for all forked child processes.
+
+**Changes Made:**
+- **File:** `psh/interactive/signal_manager.py`
+  - Added `reset_child_signals()` method as single source of truth (lines 234-268)
+  - Resets SIGINT, SIGQUIT, SIGTSTP, SIGTTOU, SIGTTIN, SIGCHLD, SIGPIPE to SIG_DFL
+  - Platform-safe implementation with proper error handling
+  - Comprehensive documentation of signals and their purposes
+
+- **File:** `psh/executor/process_launcher.py`
+  - Added optional `signal_manager` parameter to `__init__` (line 78)
+  - Updated `_child_setup_and_exec` to use centralized method when available (lines 212-217)
+  - Updated fallback `_reset_child_signals` to include SIGPIPE (lines 297-319)
+  - Updated docstring with new signature example (lines 61-64)
+
+- **Updated all ProcessLauncher instantiation sites** (4 locations):
+  - `psh/executor/subshell.py:40` - SubshellExecutor.__init__
+  - `psh/executor/pipeline.py:76` - PipelineExecutor.__init__
+  - `psh/executor/strategies.py:144` - _execute_builtin_in_background
+  - `psh/executor/strategies.py:338` - _execute_external_command
+
+**Implementation Approach:**
+- Used parameter passing instead of property pattern (property caused hangs during RC file loading)
+- Signal manager accessed via `shell.interactive_manager.signal_manager` at instantiation sites
+- Backward compatible: falls back to local reset if signal_manager unavailable
+- Each instantiation site includes guard: `hasattr(shell, 'interactive_manager')`
+
+**Technical Details:**
+- **Old approach:** Duplicated signal reset code in ProcessLauncher._reset_child_signals() with SIGPIPE missing
+- **New approach:** Single `SignalManager.reset_child_signals()` method used by all fork paths
+- **Benefits:**
+  - Single source of truth for child signal reset
+  - Consistent signal handling across all processes
+  - SIGPIPE now properly reset (was missing in fallback)
+  - Easier to maintain and update
+  - Bug fixes apply everywhere automatically
+
+**Why Property Pattern Failed:**
+During investigation, we discovered that adding a `signal_manager` property to Shell class caused the shell to hang. This was due to the property being accessed during RC file loading, before interactive_manager was fully initialized. The solution was to pass signal_manager directly as a parameter instead of using a property.
+
+**Testing:**
+- ✅ Shell starts successfully with all H3 changes
+- ✅ Subshells work correctly: `(echo 'subshell test')`
+- ✅ Pipelines work correctly: `echo test | cat`
+- ✅ Background jobs work correctly
+- ✅ Quick test suite: All phases passed (43 subshell + 2 function/variable tests)
+- ✅ No regressions in signal handling or job control
+
+**Lines of Code:**
+- Added: ~70 lines (reset_child_signals method + comments + instantiation updates)
+- Modified: ~18 lines (ProcessLauncher updates + fallback fix)
+
+**Files Modified:**
+- `psh/interactive/signal_manager.py` (centralized method)
+- `psh/executor/process_launcher.py` (integration + fallback fix)
+- `psh/executor/subshell.py` (instantiation update)
+- `psh/executor/pipeline.py` (instantiation update)
+- `psh/executor/strategies.py` (2 instantiation updates)
+- `psh/shell.py` (whitespace cleanup)
+
+**Commit:** e02d6c8
+
+**Status:** PRODUCTION READY ✅
+
+---
+
 ## High Priority (Remaining)
 
-The following high priority recommendations require re-implementation to work with the signal ordering fix:
-
-**H3: Centralize Child Signal Reset Logic** - Create shared helper method for signal reset across all fork paths.
-  - Status: Attempted but conflicts with signal ordering fix
-  - Needs: Investigation into why accessing shell.signal_manager property causes issues
-  - Previous commit (reverted): 2389229
+The following high priority recommendations are pending:
 
 **H4: Unify Foreground Job Cleanup** - Consolidate terminal restoration and state cleanup logic.
-  - Status: Pending (depends on H3 investigation)
-  - Previous commit (reverted): Included in reverted batch
+  - Status: Pending
+  - Next recommended implementation
 
 **H5: Surface Terminal Control Failures** - Enhanced logging and metrics for tcsetpgrp failures.
-  - Status: Pending (depends on H3 investigation)
-  - Previous commit (reverted): Included in reverted batch
-
-**Known Issue with H3:**
-When H3 is applied after the signal ordering fix, the shell still hangs. Investigation needed to understand:
-1. Why does adding the `shell.signal_manager` property break initialization?
-2. Is there a timing issue with PropertyProxyManager.reset_child_signals() access?
-3. Does ProcessLauncher initialization need to be deferred?
+  - Status: Pending
 
 ---
 
@@ -448,11 +507,11 @@ All low priority recommendations are pending.
 ## Overall Progress
 
 **Critical Priority:** 3/3 (100%) ✅
-**High Priority:** 2/5 (40%) ✅
+**High Priority:** 3/5 (60%) ✅
 **Medium Priority:** 0/3 (0%)
 **Low Priority:** 0/2 (0%)
 
-**Total Progress:** 5/13 (38%)
+**Total Progress:** 6/13 (46%)
 
 ---
 
@@ -511,13 +570,14 @@ All low priority recommendations are pending.
 3. ✅ C3: Unify process creation logic (COMPLETED)
 4. ✅ H1: TTY detection and graceful degradation (COMPLETED)
 5. ✅ H2: Signal disposition tracking (COMPLETED)
-6. H3: Centralize signal reset (Next recommended)
-7. H4: Unify foreground cleanup
+6. ✅ H3: Centralize signal reset (COMPLETED)
+7. H4: Unify foreground cleanup (Next recommended)
 8. H5: Surface terminal control failures
 9. Remaining medium/low priority recommendations as time permits
 
 **Actual Completion:**
 - Critical Priority (C1-C3): Completed 2025-11-18 ✅
 - High Priority H1-H2: Completed 2025-11-18 ✅
-- High Priority (H3-H5): Pending
-- All Recommendations: 38% complete (5/13)
+- High Priority H3: Completed 2025-11-19 ✅
+- High Priority (H4-H5): Pending
+- All Recommendations: 46% complete (6/13)
