@@ -104,6 +104,17 @@ class ProcessLauncher:
         Raises:
             OSError: If fork() fails
         """
+        # Flush Python's stdout/stderr before forking to prevent buffered content
+        # from being inherited by the child process and potentially written to
+        # redirected output files
+        import sys
+        try:
+            sys.stdout.flush()
+            sys.stderr.flush()
+        except (AttributeError, OSError):
+            # stdout/stderr might not support flush() in some contexts
+            pass
+
         pid = os.fork()
 
         if pid == 0:  # Child process
