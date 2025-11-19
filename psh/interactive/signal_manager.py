@@ -218,7 +218,7 @@ class SignalManager(InteractiveComponent):
         """Ensure shell is in its own process group and is foreground."""
         shell_pid = os.getpid()
         shell_pgid = os.getpgrp()
-        
+
         try:
             # Only set process group if we're not already the leader
             if shell_pgid != shell_pid:
@@ -230,3 +230,39 @@ class SignalManager(InteractiveComponent):
         except OSError:
             # Not a terminal or already set
             pass
+
+    def reset_child_signals(self):
+        """Reset all signals to default in child process.
+
+        This should be called in all forked child processes to ensure
+        they don't inherit the shell's custom signal handlers. It's the
+        single source of truth for which signals need to be reset.
+
+        Signals reset to default:
+        - SIGINT: Allow child to handle interrupts
+        - SIGQUIT: Allow child to handle quit requests
+        - SIGTSTP: Allow child to handle suspend requests
+        - SIGTTOU: Allow child to write to terminal
+        - SIGTTIN: Allow child to read from terminal
+        - SIGCHLD: Allow child to handle child process signals
+        - SIGPIPE: Allow child to handle broken pipe signals
+
+        This method is platform-safe and will skip signals not available
+        on the current platform.
+        """
+        signals_to_reset = [
+            signal.SIGINT,
+            signal.SIGQUIT,
+            signal.SIGTSTP,
+            signal.SIGTTOU,
+            signal.SIGTTIN,
+            signal.SIGCHLD,
+            signal.SIGPIPE,
+        ]
+
+        for sig in signals_to_reset:
+            try:
+                signal.signal(sig, signal.SIG_DFL)
+            except (OSError, ValueError):
+                # Signal not available on this platform
+                pass

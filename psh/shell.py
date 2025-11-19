@@ -155,7 +155,7 @@ class Shell:
     
     def __setattr__(self, name, value):
         """Delegate attribute setting to state for compatibility."""
-        if name in ('state', '_state_properties', 'builtin_registry', 'builtins', 
+        if name in ('state', '_state_properties', 'builtin_registry', 'builtins',
                    'alias_manager', 'function_manager', 'job_manager', 'expansion_manager',
                    'io_manager', 'executor_manager', 'script_manager', 'interactive_manager',
                    'history_expander'):
@@ -164,10 +164,10 @@ class Shell:
             setattr(self.state, name, value)
         else:
             super().__setattr__(name, value)
-    
-    
-    
-    
+
+
+
+
     # Legacy execute_command and execute_pipeline methods removed
     # All execution now goes through the visitor pattern
     
