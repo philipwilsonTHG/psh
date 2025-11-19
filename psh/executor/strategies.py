@@ -140,9 +140,9 @@ class BuiltinExecutionStrategy(ExecutionStrategy):
                                      shell: 'Shell', context: 'ExecutionContext',
                                      redirects: Optional[List['Redirect']] = None) -> int:
         """Execute a builtin command in background by forking a subshell."""
-        # Create process launcher with signal_manager for centralized child signal reset (H3)
-        signal_manager = shell.interactive_manager.signal_manager if hasattr(shell, 'interactive_manager') else None
-        launcher = ProcessLauncher(shell.state, shell.job_manager, shell.io_manager, signal_manager)
+        # Create process launcher with centralized child signal reset (H3)
+        launcher = ProcessLauncher(shell.state, shell.job_manager, shell.io_manager,
+                                   shell.interactive_manager.signal_manager)
 
         # Create execution function
         def execute_fn():
@@ -335,9 +335,9 @@ class ExternalExecutionStrategy(ExecutionStrategy):
             except:
                 pass
 
-        # Create process launcher with signal_manager for centralized child signal reset (H3)
-        signal_manager = shell.interactive_manager.signal_manager if hasattr(shell, 'interactive_manager') else None
-        launcher = ProcessLauncher(shell.state, shell.job_manager, shell.io_manager, signal_manager)
+        # Create process launcher with centralized child signal reset (H3)
+        launcher = ProcessLauncher(shell.state, shell.job_manager, shell.io_manager,
+                                   shell.interactive_manager.signal_manager)
 
         # Create execution function
         def execute_fn():

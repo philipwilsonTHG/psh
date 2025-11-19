@@ -73,9 +73,9 @@ class PipelineExecutor:
         self.shell = shell
         self.state = shell.state
         self.job_manager = shell.job_manager
-        # Get signal_manager for centralized child signal reset (H3)
-        signal_manager = shell.interactive_manager.signal_manager if hasattr(shell, 'interactive_manager') else None
-        self.launcher = ProcessLauncher(shell.state, shell.job_manager, shell.io_manager, signal_manager)
+        # Use centralized child signal reset (H3)
+        self.launcher = ProcessLauncher(shell.state, shell.job_manager, shell.io_manager,
+                                        shell.interactive_manager.signal_manager)
     
     def execute(self, node: 'Pipeline', context: 'ExecutionContext', 
                 visitor: 'ASTVisitor[int]') -> int:

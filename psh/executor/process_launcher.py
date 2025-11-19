@@ -59,9 +59,8 @@ class ProcessLauncher:
     - Terminal control transfer
 
     Usage:
-        # Get signal_manager for centralized child signal reset (H3)
-        signal_manager = shell.interactive_manager.signal_manager if hasattr(shell, 'interactive_manager') else None
-        launcher = ProcessLauncher(shell.state, shell.job_manager, shell.io_manager, signal_manager)
+        launcher = ProcessLauncher(shell.state, shell.job_manager, shell.io_manager,
+                                   shell.interactive_manager.signal_manager)
 
         # Simple foreground command
         config = ProcessConfig(role=ProcessRole.SINGLE, foreground=True)
@@ -77,14 +76,14 @@ class ProcessLauncher:
     """
 
     def __init__(self, shell_state: 'ShellState', job_manager: 'JobManager',
-                 io_manager: 'IOManager', signal_manager=None):
+                 io_manager: 'IOManager', signal_manager: 'SignalManager'):
         """Initialize the process launcher.
 
         Args:
             shell_state: Shell state for options and configuration
             job_manager: Job manager for tracking processes
             io_manager: I/O manager for redirections
-            signal_manager: Optional signal manager for child signal reset (H3)
+            signal_manager: Signal manager for child signal reset (H3)
         """
         self.state = shell_state
         self.job_manager = job_manager
@@ -211,12 +210,8 @@ class ProcessLauncher:
             # Temporarily ignore SIGTTOU to avoid being stopped when setting terminal
             signal.signal(signal.SIGTTOU, signal.SIG_IGN)
 
-            # Reset other signals to default (use centralized method if available)
-            if self.signal_manager:
-                self.signal_manager.reset_child_signals()
-            else:
-                # Fallback for backward compatibility
-                self._reset_child_signals()
+            # Reset other signals to default (H3: centralized method)
+            self.signal_manager.reset_child_signals()
 
             # For foreground jobs in final position, restore SIGTTOU to default
             # This will be set appropriately by the caller if needed
@@ -293,30 +288,6 @@ class ProcessLauncher:
                 pass  # Child may have already set it
 
         return pgid
-
-    def _reset_child_signals(self):
-        """Reset all signals to default in child process (fallback).
-
-        This is a fallback implementation for when signal_manager is not available.
-        The centralized version in SignalManager should be preferred.
-        This is called after SIGTTOU is set to SIG_IGN to allow process group changes.
-        """
-        signals_to_reset = [
-            signal.SIGINT,
-            signal.SIGQUIT,
-            signal.SIGTSTP,
-            # SIGTTOU is already handled separately
-            signal.SIGTTIN,
-            signal.SIGCHLD,
-            signal.SIGPIPE,
-        ]
-
-        for sig in signals_to_reset:
-            try:
-                signal.signal(sig, signal.SIG_DFL)
-            except (OSError, ValueError):
-                # Signal not available on this platform
-                pass
 
     def launch_job(self, execute_fn: Callable[[], int],
                    command_str: str,
