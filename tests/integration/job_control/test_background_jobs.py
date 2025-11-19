@@ -189,14 +189,18 @@ class TestJobCompletion:
         assert jobs_result == 0
         # Output should be empty or show no running jobs
 
-    @pytest.mark.xfail(reason="This test is flaky")
     def test_wait_exit_status(self, shell):
-        """Test that wait returns the exit status of background job."""
+        """Test that wait returns the exit status of background job.
+
+        This test was previously marked xfail due to flakiness, but is now
+        reliable thanks to executor improvements (H4/H5) that fixed job control
+        and terminal restoration.
+        """
         # Start background job that succeeds
         shell.run_command('true &')
         wait_result = shell.run_command('wait')
         assert wait_result == 0
-        
+
         # Start background job that fails
         shell.run_command('false &')
         wait_result = shell.run_command('wait')
