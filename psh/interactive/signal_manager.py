@@ -38,8 +38,21 @@ class SignalManager(InteractiveComponent):
             
     def _setup_script_mode_handlers(self):
         """Set up simpler signal handling for script mode."""
-        # Script mode: use default signal behaviors
-        self._signal_registry.register(signal.SIGINT, signal.SIG_DFL, "SignalManager:script")
+        # Script mode: Still check for traps, but use default for job control signals
+        # Trappable signals should check for user-defined traps
+        self._original_handlers[signal.SIGINT] = self._signal_registry.register(
+            signal.SIGINT, self._handle_signal_with_trap_check, "SignalManager:script"
+        )
+        self._original_handlers[signal.SIGTERM] = self._signal_registry.register(
+            signal.SIGTERM, self._handle_signal_with_trap_check, "SignalManager:script"
+        )
+        self._original_handlers[signal.SIGHUP] = self._signal_registry.register(
+            signal.SIGHUP, self._handle_signal_with_trap_check, "SignalManager:script"
+        )
+        self._original_handlers[signal.SIGQUIT] = self._signal_registry.register(
+            signal.SIGQUIT, self._handle_signal_with_trap_check, "SignalManager:script"
+        )
+        # Job control signals: use default in script mode (can be stopped/suspended)
         self._signal_registry.register(signal.SIGTSTP, signal.SIG_DFL, "SignalManager:script")
         self._signal_registry.register(signal.SIGTTOU, signal.SIG_IGN, "SignalManager:script")
         self._signal_registry.register(signal.SIGTTIN, signal.SIG_IGN, "SignalManager:script")
@@ -121,10 +134,15 @@ class SignalManager(InteractiveComponent):
     
     def _handle_sigint(self, signum, frame):
         """Handle Ctrl-C (SIGINT) default behavior."""
-        # Just print a newline - the command loop will handle the rest
-        print()
-        # The signal will be delivered to the foreground process group
-        # which is set in execute_pipeline
+        if self.state.is_script_mode:
+            # In script mode, SIGINT should terminate the script
+            self._signal_registry.register(signum, signal.SIG_DFL, "SignalManager:default")
+            os.kill(os.getpid(), signum)
+        else:
+            # In interactive mode, just print a newline - the command loop will handle the rest
+            print()
+            # The signal will be delivered to the foreground process group
+            # which is set in execute_pipeline
         
     def _handle_sigchld(self, signum, frame):
         """Minimal signal handler - just notify main loop.
