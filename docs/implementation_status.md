@@ -538,12 +538,96 @@ Created unified `restore_shell_foreground()` method in JobManager as the single 
 
 ---
 
+### ✅ H5: Surface Terminal Control Failures (COMPLETED)
+
+**Date Completed:** 2025-11-19
+
+**Summary:**
+Created unified `JobManager.transfer_terminal_control()` method as single source of truth for all tcsetpgrp() calls. Replaced 8 scattered tcsetpgrp calls across the codebase with calls to the unified method, providing consistent logging and error handling.
+
+**Changes Made:**
+- **File:** `psh/job_control.py:266-308`
+  - Added `transfer_terminal_control(pgid, context)` method
+  - Returns bool to indicate success/failure
+  - Logs failures when `--debug-exec` enabled
+  - Optional metrics tracking if `process_metrics` exists
+  - Takes optional `context` string for better debug messages
+  - Updated `restore_shell_foreground()` to use unified method (line 327)
+
+- **Replaced tcsetpgrp calls in 7 files** (8 total locations):
+  - `psh/executor/process_launcher.py:372-375` - ProcessLauncher terminal transfer
+  - `psh/executor/subshell.py:208-210` - Subshell terminal control
+  - `psh/executor/pipeline.py:232-235` - Pipeline terminal transfer
+  - `psh/executor/strategies.py:398-401` - External command terminal control
+  - `psh/interactive/signal_manager.py:194-195` - SIGCHLD handler
+  - `psh/interactive/signal_manager.py:223-224` - ensure_foreground()
+  - `psh/builtins/job_control.py:81-89` - fg builtin
+
+**Technical Details:**
+- **Old approach:** 8 direct `os.tcsetpgrp()` calls with inconsistent error handling
+- **New approach:** Single unified method with consistent behavior
+- **Benefits:**
+  - Single source of truth for terminal control transfer
+  - Visible failures when debugging (`--debug-exec` flag)
+  - Consistent logging across all components
+  - Returns success/failure for caller decision making
+  - Metrics tracking foundation for future observability
+  - Reduced code (~76 lines deleted, ~69 lines added = net -7 lines)
+
+**Debug Output Examples:**
+```bash
+# Successful transfer
+$ psh --debug-exec -c "echo test"
+DEBUG Pipeline: Transferred terminal control to pgid 12345
+
+# Failed transfer (no TTY)
+$ echo "echo test" | psh --debug-exec
+DEBUG Pipeline: Skipping terminal transfer (no TTY support)
+
+# Transfer failure with error
+WARNING ProcessLauncher: Failed to transfer terminal control to pgid 12345: [Errno 25] Inappropriate ioctl for device
+```
+
+**Context String Examples:**
+- "Pipeline" - PipelineExecutor
+- "Subshell" - SubshellExecutor
+- "ProcessLauncher" - ProcessLauncher
+- "ExternalStrategy" - ExternalExecutionStrategy
+- "SignalManager:SIGCHLD" - SIGCHLD handler
+- "SignalManager:ensure_foreground" - ensure_foreground()
+- "fg builtin" - fg builtin command
+- "JobManager:restore" - restore_shell_foreground()
+
+**Testing:**
+- ✅ Quick test suite: All phases passed
+- ✅ Subshell tests: 43 passed, 1 skipped, 5 xfailed, 1 xpassed
+- ✅ Function/variable tests: 2 passed
+- ✅ No regressions in terminal control or job control functionality
+- ✅ Verified only one tcsetpgrp call remains (inside unified method)
+
+**Lines of Code:**
+- Added: ~69 lines (unified method + context strings)
+- Removed: ~76 lines (scattered tcsetpgrp calls)
+- Net change: -7 lines with significantly better structure
+
+**Files Modified:**
+- `psh/job_control.py` (unified method)
+- `psh/executor/process_launcher.py`
+- `psh/executor/subshell.py`
+- `psh/executor/pipeline.py`
+- `psh/executor/strategies.py`
+- `psh/interactive/signal_manager.py` (2 locations)
+- `psh/builtins/job_control.py`
+
+**Commit:** 24710b6
+
+**Status:** PRODUCTION READY ✅
+
+---
+
 ## High Priority (Remaining)
 
-The following high priority recommendations are pending:
-
-**H5: Surface Terminal Control Failures** - Enhanced logging and metrics for tcsetpgrp failures.
-  - Status: Pending
+All high priority recommendations have been completed! ✅
 
 ---
 
@@ -562,11 +646,11 @@ All low priority recommendations are pending.
 ## Overall Progress
 
 **Critical Priority:** 3/3 (100%) ✅
-**High Priority:** 4/5 (80%) ✅
+**High Priority:** 5/5 (100%) ✅ **COMPLETE!**
 **Medium Priority:** 0/3 (0%)
 **Low Priority:** 0/2 (0%)
 
-**Total Progress:** 7/13 (54%)
+**Total Progress:** 8/13 (62%)
 
 ---
 
@@ -619,6 +703,8 @@ All low priority recommendations are pending.
 
 **Critical Priority Complete!** All 3 critical recommendations (C1-C3) have been successfully implemented and tested.
 
+**High Priority Complete!** All 5 high priority recommendations (H1-H5) have been successfully implemented and tested.
+
 **Priority Order:**
 1. ✅ C1: Process group synchronization (COMPLETED)
 2. ✅ C2: SIGCHLD handler safety (COMPLETED)
@@ -627,13 +713,15 @@ All low priority recommendations are pending.
 5. ✅ H2: Signal disposition tracking (COMPLETED)
 6. ✅ H3: Centralize signal reset (COMPLETED)
 7. ✅ H4: Unify foreground cleanup (COMPLETED)
-8. H5: Surface terminal control failures (Next recommended)
-9. Remaining medium/low priority recommendations as time permits
+8. ✅ H5: Surface terminal control failures (COMPLETED)
+9. Medium priority recommendations (M1-M3) as time permits
+10. Low priority recommendations (L1-L2) as time permits
 
 **Actual Completion:**
 - Critical Priority (C1-C3): Completed 2025-11-18 ✅
 - High Priority H1-H2: Completed 2025-11-18 ✅
 - High Priority H3: Completed 2025-11-19 ✅
 - High Priority H4: Completed 2025-11-19 ✅
-- High Priority H5: Pending
-- All Recommendations: 54% complete (7/13)
+- High Priority H5: Completed 2025-11-19 ✅
+- **All Critical and High Priority: 100% complete (8/8)** 🎉
+- Total Progress: 62% complete (8/13)
