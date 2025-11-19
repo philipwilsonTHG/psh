@@ -479,13 +479,68 @@ During investigation, we discovered that adding a `signal_manager` property to S
 
 ---
 
+### ✅ H4: Unify Foreground Job Cleanup (COMPLETED)
+
+**Date Completed:** 2025-11-19
+
+**Summary:**
+Created unified `restore_shell_foreground()` method in JobManager as the single source of truth for all foreground job cleanup, eliminating scattered terminal restoration and state cleanup logic across the codebase.
+
+**Changes Made:**
+- **File:** `psh/job_control.py:266-290` - Added `restore_shell_foreground()` method
+  - Clears `foreground_pgid` state
+  - Calls `set_foreground_job(None)` to clear job tracking
+  - Restores terminal control to shell using `os.tcsetpgrp()`
+  - Provides consistent debug output when `--debug-exec` enabled
+
+- **Replaced scattered cleanup in 5 locations**:
+  - `psh/executor/pipeline.py:312` - Normal pipeline completion
+  - `psh/executor/pipeline.py:273-274` - Pipeline error path
+  - `psh/executor/strategies.py:412` - External command completion
+  - `psh/executor/subshell.py:228` - Subshell completion
+  - `psh/builtins/job_control.py:109` - fg builtin completion
+
+**Technical Details:**
+- **Old approach:** Terminal restoration scattered across 5 locations with inconsistent cleanup
+  - Some paths cleared `foreground_pgid`, others didn't
+  - Some paths called `set_foreground_job(None)`, others didn't
+  - Inconsistent debug output patterns
+  - Different approaches to getting shell pgid
+- **New approach:** Single `JobManager.restore_shell_foreground()` method handles all cleanup
+- **Benefits:**
+  - Single source of truth for foreground cleanup
+  - Consistent cleanup across all code paths (normal + error)
+  - No missed terminal restoration
+  - Easier to maintain and extend
+  - Simplified calling code (1 line instead of 10+)
+
+**Testing:**
+- ✅ Quick test suite: All phases passed
+- ✅ Subshell tests: 43 passed, 1 skipped, 5 xfailed, 1 xpassed
+- ✅ Function/variable tests: 2 passed
+- ✅ No regressions in pipeline, external command, or job control functionality
+
+**Lines of Code:**
+- Added: ~25 lines (restore_shell_foreground method)
+- Removed: ~55 lines (scattered cleanup code)
+- Net reduction: ~30 lines with significantly better organization
+
+**Files Modified:**
+- `psh/job_control.py` (unified method)
+- `psh/executor/pipeline.py` (2 call sites)
+- `psh/executor/strategies.py` (1 call site)
+- `psh/executor/subshell.py` (1 call site)
+- `psh/builtins/job_control.py` (1 call site)
+
+**Commit:** 9dbfda0
+
+**Status:** PRODUCTION READY ✅
+
+---
+
 ## High Priority (Remaining)
 
 The following high priority recommendations are pending:
-
-**H4: Unify Foreground Job Cleanup** - Consolidate terminal restoration and state cleanup logic.
-  - Status: Pending
-  - Next recommended implementation
 
 **H5: Surface Terminal Control Failures** - Enhanced logging and metrics for tcsetpgrp failures.
   - Status: Pending
@@ -507,11 +562,11 @@ All low priority recommendations are pending.
 ## Overall Progress
 
 **Critical Priority:** 3/3 (100%) ✅
-**High Priority:** 3/5 (60%) ✅
+**High Priority:** 4/5 (80%) ✅
 **Medium Priority:** 0/3 (0%)
 **Low Priority:** 0/2 (0%)
 
-**Total Progress:** 6/13 (46%)
+**Total Progress:** 7/13 (54%)
 
 ---
 
@@ -571,13 +626,14 @@ All low priority recommendations are pending.
 4. ✅ H1: TTY detection and graceful degradation (COMPLETED)
 5. ✅ H2: Signal disposition tracking (COMPLETED)
 6. ✅ H3: Centralize signal reset (COMPLETED)
-7. H4: Unify foreground cleanup (Next recommended)
-8. H5: Surface terminal control failures
+7. ✅ H4: Unify foreground cleanup (COMPLETED)
+8. H5: Surface terminal control failures (Next recommended)
 9. Remaining medium/low priority recommendations as time permits
 
 **Actual Completion:**
 - Critical Priority (C1-C3): Completed 2025-11-18 ✅
 - High Priority H1-H2: Completed 2025-11-18 ✅
 - High Priority H3: Completed 2025-11-19 ✅
-- High Priority (H4-H5): Pending
-- All Recommendations: 46% complete (6/13)
+- High Priority H4: Completed 2025-11-19 ✅
+- High Priority H5: Pending
+- All Recommendations: 54% complete (7/13)
