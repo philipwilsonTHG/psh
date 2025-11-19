@@ -127,6 +127,10 @@ class KeywordNormalizer:
         if token_type in {TokenType.LPAREN, TokenType.LBRACE}:
             return True
 
+        # After closing a case pattern with ), we're in command position
+        if token_type == TokenType.RPAREN:
+            return True
+
         if token_type == TokenType.IN and pending_in:
             return False
 
