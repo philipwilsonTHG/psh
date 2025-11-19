@@ -1,6 +1,6 @@
 # PSH Architecture Reference for Large Language Models
 
-Version: 0.101.0 (2025-01-06) – Parser Modularization & Token Pipeline Refresh  
+Version: 0.104.0 (2025-01-19) – Executor Improvements & Signal Management Complete
 Purpose: Optimized reference for LLMs working with the PSH codebase
 
 ## Quick Start
@@ -97,6 +97,8 @@ psh/
 │   ├── core.py              # ExecutorVisitor (delegates to specialists)
 │   ├── command.py / pipeline.py / control_flow.py
 │   ├── array.py / function.py / subshell.py
+│   ├── process_launcher.py  # Unified process creation (C1,C2,C3,H3)
+│   ├── context.py           # ExecutionContext state management
 │   └── strategies.py        # Builtin/function/external dispatch
 ├── io_redirect/             # Redirection management
 │   ├── manager.py           # IOManager coordinating handlers
@@ -255,6 +257,18 @@ Input → Preprocessing → Tokenization → Token Normalization → Parsing →
 ## Execution & I/O
 
 - `executor/core.py` implements `ExecutorVisitor`, delegating to specialized modules (`command.py`, `pipeline.py`, `control_flow.py`, `array.py`, `function.py`, `subshell.py`)
+- `executor/process_launcher.py` provides unified process creation with job control:
+  - **ProcessRole**: SINGLE, PIPELINE_LEADER, PIPELINE_MEMBER
+  - **ProcessConfig**: role, pgid, foreground, sync pipes, I/O setup callback
+  - **ProcessLauncher.launch()**: Single source of truth for all fork() calls
+  - **Improvements (v0.103.0-v0.104.0)**:
+    - C1: Pipe-based pipeline synchronization (replaces polling)
+    - C2: Self-pipe SIGCHLD handler (async-safe signal handling)
+    - C3: Unified process creation (eliminates duplication)
+    - H3: Centralized child signal reset via required SignalManager
+    - H4: Unified foreground job cleanup (JobManager.restore_shell_foreground)
+    - H5: Surface terminal control failures (explicit tcsetpgrp error handling)
+  - **Architecture Notes**: signal_manager is required parameter (no fallback code)
 - `executor/strategies.py` encapsulates builtin/function/external command execution strategies
 - `io_redirect/manager.py` coordinates file redirects, process substitutions, and heredoc handling; uses `FileRedirector`, `HeredocHandler`, `ProcessSubstitutionHandler`
 - `job_control.JobManager` integrates job monitoring, shell options (`monitor`, `notify`), and process state tracking

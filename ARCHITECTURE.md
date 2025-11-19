@@ -4,7 +4,7 @@
 
 Python Shell (psh) is designed with a clean, component-based architecture that separates concerns and makes the codebase easy to understand, test, and extend. The shell follows a traditional interpreter pipeline: lexing → parsing → expansion → execution, with each phase carefully designed for educational clarity and correctness.
 
-**Current Version**: 0.103.0 (as of 2025-11-18)
+**Current Version**: 0.104.0 (as of 2025-11-19)
 
 **Note:** For LLM-optimized architecture documentation, see `ARCHITECTURE.llm`
 
@@ -709,9 +709,10 @@ class ProcessLauncher:
 **Benefits**:
 - **Single Source of Truth**: All process creation flows through one component
 - **Eliminates Duplication**: Replaced ~150 lines of duplicated code across 6 fork locations
-- **Consistent Signal Handling**: Centralized `_reset_child_signals()` method
+- **Consistent Signal Handling**: Centralized signal reset via required SignalManager
 - **Proper Synchronization**: Implements pipe-based synchronization for pipelines (C1)
 - **Unified Job Control**: Consistent process group setup and terminal control transfer
+- **Clean Architecture**: Removed backward compatibility code in v0.104.0 (-29 lines)
 
 **Used By**:
 - `PipelineExecutor` - All pipeline commands
@@ -723,6 +724,19 @@ class ProcessLauncher:
 1. **C1: Pipe-based Pipeline Synchronization**: Replaces polling with atomic pipe-based coordination
 2. **C2: Self-pipe SIGCHLD Handler**: Moves SIGCHLD work out of signal context
 3. **C3: Unified Process Creation**: Single ProcessLauncher for all forks
+
+**Signal Management & Terminal Control** (completed in v0.104.0):
+1. **H1: TTY Detection & Graceful Degradation**: Proper terminal capability detection
+2. **H2: Signal Disposition Tracking**: Track signal handler state across job transitions
+3. **H3: Centralized Child Signal Reset**: SignalManager.reset_child_signals() required (no fallback)
+4. **H4: Unified Foreground Job Cleanup**: JobManager.restore_shell_foreground() consolidation
+5. **H5: Surface Terminal Control Failures**: Explicit error handling for tcsetpgrp() failures
+
+**Architecture Notes** (v0.104.0):
+- ProcessLauncher requires `signal_manager` parameter (no longer Optional)
+- All 4 instantiation sites simplified to direct access: `shell.interactive_manager.signal_manager`
+- Removed fallback `_reset_child_signals()` method (dead code elimination)
+- Benefits: Cleaner code, clearer contract, -29 lines of backward compatibility code
 
 #### Core Architecture
 ```python
