@@ -159,6 +159,12 @@ Each major subsystem has its own CLAUDE.md with detailed guidance:
 | **Lexer** | `psh/lexer/CLAUDE.md` | Tokenization, recognizers, quote/expansion parsing |
 | **Parser** | `psh/parser/CLAUDE.md` | Recursive descent parsing, AST construction |
 | **Executor** | `psh/executor/CLAUDE.md` | Command execution, process management, control flow |
+| **Expansion** | `psh/expansion/CLAUDE.md` | Variable, command, tilde, glob expansion |
+| **Core/State** | `psh/core/CLAUDE.md` | Shell state, variables, scopes, options |
+| **Builtins** | `psh/builtins/CLAUDE.md` | Built-in commands, registration, adding new builtins |
+| **I/O Redirect** | `psh/io_redirect/CLAUDE.md` | Redirections, heredocs, process substitution |
+| **Visitor** | `psh/visitor/CLAUDE.md` | AST visitor pattern, traversal, transformation |
+| **Interactive** | `psh/interactive/CLAUDE.md` | REPL, job control, history, completion |
 
 These provide focused documentation for working within each subsystem.
 
