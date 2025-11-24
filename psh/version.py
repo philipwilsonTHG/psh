@@ -2,10 +2,24 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.104.0"
+__version__ = "0.105.0"
 
 # Version history
 VERSION_HISTORY = """
+0.105.0 (2025-11-24) - Code Quality and Subsystem Documentation
+- Consolidated duplicate assignment utilities into psh/core/assignment_utils.py
+- Extracted long methods in LiteralRecognizer and CommandParser into focused helpers
+- Completed legacy ParseContext migration to ParserContext with backward-compatible wrapper
+- Added comprehensive CLAUDE.md documentation for 6 subsystems:
+  - psh/expansion/CLAUDE.md: expansion order, variable/command substitution
+  - psh/core/CLAUDE.md: state management, scoping, variables
+  - psh/builtins/CLAUDE.md: builtin registration, adding commands
+  - psh/io_redirect/CLAUDE.md: redirections, heredocs, process substitution
+  - psh/visitor/CLAUDE.md: AST visitor pattern, traversal
+  - psh/interactive/CLAUDE.md: job control, REPL, history, completion
+- Updated main CLAUDE.md with complete subsystem reference table (9 total)
+- All tests passing, no regressions
+
 0.104.0 (2025-11-19) - Complete All High Priority Executor Improvements (H4 + H5)
 - 🎉 MAJOR MILESTONE: All critical and high priority executor improvements complete! (8/8, 100%)
 - Implemented H4 from executor improvements plan: unified foreground job cleanup
