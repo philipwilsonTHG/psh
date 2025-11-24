@@ -15,13 +15,14 @@ from typing import List, Tuple, Optional, TYPE_CHECKING
 from contextlib import contextmanager
 
 from .strategies import (
-    ExecutionStrategy, 
+    ExecutionStrategy,
     SpecialBuiltinExecutionStrategy,
     BuiltinExecutionStrategy,
     FunctionExecutionStrategy,
     AliasExecutionStrategy,
     ExternalExecutionStrategy
 )
+from ..core.assignment_utils import is_valid_assignment, extract_assignments, is_exported
 
 if TYPE_CHECKING:
     from ..shell import Shell
@@ -252,30 +253,11 @@ class CommandExecutor:
 
     def _extract_assignments(self, args: List[str]) -> List[Tuple[str, str]]:
         """Extract variable assignments from beginning of arguments."""
-        assignments = []
-        
-        for arg in args:
-            if '=' in arg and self._is_valid_assignment(arg):
-                var, value = arg.split('=', 1)
-                assignments.append((var, value))
-            else:
-                # Stop at first non-assignment
-                break
-        
-        return assignments
-    
+        return extract_assignments(args)
+
     def _is_valid_assignment(self, arg: str) -> bool:
         """Check if argument is a valid variable assignment."""
-        if '=' not in arg:
-            return False
-        
-        var_name = arg.split('=', 1)[0]
-        # Variable name must start with letter or underscore
-        if not var_name or not (var_name[0].isalpha() or var_name[0] == '_'):
-            return False
-        
-        # Rest must be alphanumeric or underscore
-        return all(c.isalnum() or c == '_' for c in var_name[1:])
+        return is_valid_assignment(arg)
     
     def _handle_pure_assignments(self, node: 'SimpleCommand', 
                                 assignments: List[Tuple[str, str]]) -> int:
@@ -333,7 +315,7 @@ class CommandExecutor:
     
     def _is_exported(self, var_name: str) -> bool:
         """Check if a variable is exported."""
-        return var_name in os.environ
+        return is_exported(var_name)
     
     def _expand_assignment_value(self, value: str) -> str:
         """Expand a value used in variable assignment."""

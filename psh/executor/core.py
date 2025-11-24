@@ -46,6 +46,7 @@ from ..ast_nodes import (
     ProcessSubstitution, SubshellGroup, BraceGroup
 )
 from ..core.exceptions import LoopBreak, LoopContinue, UnboundVariableError, ReadonlyVariableError
+from ..core.assignment_utils import is_valid_assignment, extract_assignments, is_exported
 from ..builtins.function_support import FunctionReturn
 from ..job_control import JobState
 
@@ -272,35 +273,15 @@ class ExecutorVisitor(ASTVisitor[int]):
     
     def _extract_assignments(self, args: List[str]) -> List[Tuple[str, str]]:
         """Extract variable assignments from beginning of arguments."""
-        assignments = []
-        
-        for arg in args:
-            if '=' in arg and self._is_valid_assignment(arg):
-                var, value = arg.split('=', 1)
-                assignments.append((var, value))
-            else:
-                # Stop at first non-assignment
-                break
-        
-        return assignments
-    
+        return extract_assignments(args)
+
     def _is_valid_assignment(self, arg: str) -> bool:
         """Check if argument is a valid variable assignment."""
-        if '=' not in arg:
-            return False
-        
-        var_name = arg.split('=', 1)[0]
-        # Variable name must start with letter or underscore
-        if not var_name or not (var_name[0].isalpha() or var_name[0] == '_'):
-            return False
-        
-        # Rest must be alphanumeric or underscore
-        return all(c.isalnum() or c == '_' for c in var_name[1:])
-    
+        return is_valid_assignment(arg)
+
     def _is_exported(self, var_name: str) -> bool:
         """Check if a variable is exported."""
-        # This would check variable attributes when implemented
-        return var_name in os.environ
+        return is_exported(var_name)
     
     
     def _evaluate_arithmetic(self, expr: str) -> int:
