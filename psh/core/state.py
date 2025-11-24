@@ -306,41 +306,7 @@ class ShellState:
         elif name.isdigit():
             return self.get_positional_param(int(name))
         return ''
-    
-    # Backward-compatible properties for debug flags
-    @property
-    def debug_ast(self) -> bool:
-        """Get debug-ast option."""
-        return self.options.get('debug-ast', False)
-    
-    @debug_ast.setter
-    def debug_ast(self, value: bool):
-        """Set debug-ast option."""
-        self.options['debug-ast'] = value
-    
-    @property
-    def debug_tokens(self) -> bool:
-        """Get debug-tokens option."""
-        return self.options.get('debug-tokens', False)
-    
-    @debug_tokens.setter
-    def debug_tokens(self, value: bool):
-        """Set debug-tokens option."""
-        self.options['debug-tokens'] = value
-    
-    @property
-    def debug_scopes(self) -> bool:
-        """Get debug-scopes option."""
-        return self.options.get('debug-scopes', False)
-    
-    @debug_scopes.setter
-    def debug_scopes(self, value: bool):
-        """Set debug-scopes option."""
-        self.options['debug-scopes'] = value
-        # Also update scope manager
-        if hasattr(self, 'scope_manager'):
-            self.scope_manager.enable_debug(value)
-    
+
     def get_option_string(self) -> str:
         """Get string representation of set options for $- special variable."""
         opts = []
