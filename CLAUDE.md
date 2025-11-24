@@ -150,11 +150,23 @@ PSH uses a modern, well-organized test suite:
 
 ## Architecture Quick Reference
 
+### Subsystem Documentation
+
+Each major subsystem has its own CLAUDE.md with detailed guidance:
+
+| Subsystem | Location | Purpose |
+|-----------|----------|---------|
+| **Lexer** | `psh/lexer/CLAUDE.md` | Tokenization, recognizers, quote/expansion parsing |
+| **Parser** | `psh/parser/CLAUDE.md` | Recursive descent parsing, AST construction |
+| **Executor** | `psh/executor/CLAUDE.md` | Command execution, process management, control flow |
+
+These provide focused documentation for working within each subsystem.
+
 ### Key Files
 - `psh/shell.py` - Main orchestrator (~500 lines)
-- `psh/parser.py` - Recursive descent parser
-- `psh/lexer/` - Modular tokenizer package with mixin architecture
-- `psh/visitor/executor_visitor.py` - Main execution engine
+- `psh/parser/` - Recursive descent parser package
+- `psh/lexer/` - Modular tokenizer package with recognizer architecture
+- `psh/executor/` - Execution engine with visitor pattern
 - `psh/core/state.py` - Central state management
 - `psh/expansion/manager.py` - Orchestrates all expansions
 
