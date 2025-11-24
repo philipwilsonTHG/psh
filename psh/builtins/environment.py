@@ -181,9 +181,6 @@ class SetBuiltin(Builtin):
                     # Special handling for debug-scopes
                     if option == 'debug-scopes':
                         shell.state.scope_manager.enable_debug(True)
-                    # visitor-executor option removed - visitor is now the only executor
-                    elif option == 'visitor-executor':
-                        pass  # Silently ignore for backward compatibility
                     return 0
                 else:
                     self.error(f"invalid option: {option}", shell)
@@ -221,9 +218,6 @@ class SetBuiltin(Builtin):
                     # Special handling for debug-scopes
                     if option == 'debug-scopes':
                         shell.state.scope_manager.enable_debug(False)
-                    # visitor-executor option removed - visitor is now the only executor
-                    elif option == 'visitor-executor':
-                        print("psh: set: visitor-executor: option is deprecated (visitor is now the only executor)", file=sys.stderr)
                 return 0
             
             # Otherwise, treat as positional parameters

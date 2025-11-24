@@ -96,13 +96,6 @@ def main():
         force_interactive = True
         args.remove("--force-interactive")
     
-    # Legacy executor flags removed - visitor is the only executor
-    if "--visitor-executor" in args:
-        args.remove("--visitor-executor")  # Silently ignore for backward compatibility
-    if "--legacy-executor" in args:
-        print("Warning: --legacy-executor is deprecated and ignored (visitor executor is now the only executor)", file=sys.stderr)
-        args.remove("--legacy-executor")
-    
     # Extract RC file flags
     if "--norc" in args:
         norc = True
@@ -188,8 +181,6 @@ def main():
             print("  --metrics        Analyze script and print code metrics")
             print("  --security       Perform security analysis on script")
             print("  --lint           Perform linting analysis on script")
-            print("  --visitor-executor Deprecated flag (visitor is now the only executor)")
-            print("  --legacy-executor Deprecated flag (no longer supported)")
             print("\nArguments:")
             print("  script           Script file to execute")
             print("  args             Arguments passed to script or command")
