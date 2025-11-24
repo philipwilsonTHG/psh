@@ -102,12 +102,26 @@ class CommandParser:
     def parse_command(self) -> SimpleCommand:
         """Parse a single command with its arguments and redirections."""
         command = SimpleCommand()
-        
+
         # Check if we should build Word AST nodes
         build_words = self.parser.config.build_word_ast_nodes
         if build_words:
             command.words = []
-        
+
+        # Validate command start
+        self._validate_command_start()
+
+        # Parse all arguments and redirections
+        self._parse_command_elements(command, build_words)
+
+        # Check for background execution
+        if self.parser.consume_if_match(TokenType.AMPERSAND):
+            command.background = True
+
+        return command
+
+    def _validate_command_start(self) -> None:
+        """Validate that we're at a valid command start position."""
         # Check for unexpected tokens
         if self.parser.match_any(TokenGroups.CASE_TERMINATORS):
             error_context = ErrorContext(
@@ -116,128 +130,149 @@ class CommandParser:
                 position=self.parser.peek().position
             )
             raise ParseError(error_context)
-        
+
         # Ensure we have at least one word-like token
         if not self.parser.match_any(TokenGroups.WORD_LIKE):
             raise self.parser._error("Expected command")
-        
-        # Track whether we've parsed any regular arguments yet
+
+    def _parse_command_elements(self, command: SimpleCommand, build_words: bool) -> None:
+        """Parse arguments, redirections, and array assignments for a command."""
         has_parsed_regular_args = False
-        
-        # Parse arguments and redirections
+
         while (self.parser.match_any(TokenGroups.WORD_LIKE | TokenGroups.REDIRECTS) or
-               (command.args and len(command.args) > 0 and 
-                command.args[0] in ('test', '[') and 
+               (command.args and len(command.args) > 0 and
+                command.args[0] in ('test', '[') and
                 self.parser.match(TokenType.EXCLAMATION))):
+
             if self.parser.match_any(TokenGroups.REDIRECTS):
                 redirect = self.parser.redirections.parse_redirect()
                 command.redirects.append(redirect)
+
             elif self.parser.match(TokenType.WORD) and self._is_fd_duplication(self.parser.peek().value):
-                # Handle fd duplication like >&2, 2>&1 that come as WORD tokens
                 redirect = self.parser.redirections.parse_fd_dup_word()
                 command.redirects.append(redirect)
+
             elif self.parser.match(TokenType.EXCLAMATION):
-                # Handle exclamation tokens as arguments for test commands
                 token = self.parser.advance()
                 command.args.append(token.value)
                 command.arg_types.append('EXCLAMATION')
                 command.quote_types.append(None)
                 has_parsed_regular_args = True
+
             else:
-                # Only check for array assignments if we haven't parsed any regular args yet
+                # Only check for array assignments if no regular args parsed yet
                 if not has_parsed_regular_args and self.parser.arrays.is_array_assignment():
                     array_assignment = self.parser.arrays.parse_array_assignment()
                     command.array_assignments.append(array_assignment)
                 else:
-                    # Special case: check if this is arr=(...) syntax for declare/local
-                    # Handle both old lexer (arr=) and new lexer (arr =) patterns
-                    is_array_init = False
-                    word_token = None
-                    
-                    if self.parser.match(TokenType.WORD):
-                        word_token = self.parser.peek()
-                        if word_token.value.endswith('=') and self.parser.peek_ahead(1) and self.parser.peek_ahead(1).type == TokenType.LPAREN:
-                            # Old lexer: arr=(...)
-                            is_array_init = True
-                            self.parser.advance()
-                        elif (self.parser.peek_ahead(1) and self.parser.peek_ahead(1).type == TokenType.WORD and 
-                              self.parser.peek_ahead(1).value == '=' and
-                              self.parser.peek_ahead(2) and self.parser.peek_ahead(2).type == TokenType.LPAREN):
-                            # New lexer: arr = (...)
-                            is_array_init = True
-                            word_token = self.parser.advance()
-                            self.parser.advance()  # consume =
-                    
-                    if is_array_init:
-                        # This is array initialization syntax like arr=(...)
-                        # Parse it as a single argument
-                        lparen = self.parser.advance()  # consume LPAREN
-                        
-                        # Collect elements until RPAREN, preserving original representation
-                        elements = []
-                        element_start_pos = self.parser.current
-                        
-                        while not self.parser.match(TokenType.RPAREN) and not self.parser.at_end():
-                            if self.parser.match_any(TokenGroups.WORD_LIKE):
-                                # Parse the composite argument normally
-                                elem_value, _, _ = self.parse_composite_argument()
-                                
-                                # Now reconstruct original representation by examining the consumed tokens
-                                element_end_pos = self.parser.current
-                                original_tokens = self.parser.tokens[element_start_pos:element_end_pos]
-                                
-                                # Reconstruct the original representation with proper quoting
-                                original_repr_parts = []
-                                for token in original_tokens:
-                                    if token.type == TokenType.STRING and token.quote_type:
-                                        # Reconstruct quoted string
-                                        original_repr_parts.append(token.quote_type + token.value + token.quote_type)
-                                    else:
-                                        # Use token value as-is
-                                        original_repr_parts.append(token.value)
-                                
-                                elements.append(''.join(original_repr_parts))
-                                element_start_pos = self.parser.current
-                            else:
-                                raise self.parser._error("Expected array element")
-                        
-                        if not self.parser.consume_if_match(TokenType.RPAREN):
-                            raise self.parser._error("Expected ')' to close array initialization")
-                        
-                        # Build the complete argument - need to include the '=' sign!
-                        if word_token.value.endswith('='):
-                            # Old lexer: word already contains =
-                            arg_value = word_token.value + '(' + ' '.join(elements) + ')'
-                        else:
-                            # New lexer: need to add the = sign
-                            arg_value = word_token.value + '=(' + ' '.join(elements) + ')'
-                        command.args.append(arg_value)
-                        command.arg_types.append('WORD')
-                        command.quote_types.append('array')
-                        has_parsed_regular_args = True
+                    has_parsed_regular_args = self._parse_argument(
+                        command, build_words, has_parsed_regular_args
+                    )
+
+    def _parse_argument(self, command: SimpleCommand, build_words: bool,
+                       has_parsed_regular_args: bool) -> bool:
+        """Parse a single argument, handling array initialization specially.
+
+        Returns:
+            True if a regular argument was parsed (updates has_parsed_regular_args)
+        """
+        # Check for array initialization syntax: arr=(...) or arr = (...)
+        is_array_init, word_token = self._check_array_initialization()
+
+        if is_array_init:
+            arg_value = self._parse_array_initialization(word_token)
+            command.args.append(arg_value)
+            command.arg_types.append('WORD')
+            command.quote_types.append('array')
+            return True
+
+        # Parse a potentially composite argument
+        if build_words:
+            word = self.parse_argument_as_word()
+            command.words.append(word)
+            command.args.append(str(word))
+            command.arg_types.append('WORD')
+            command.quote_types.append(word.quote_type)
+        else:
+            arg_value, arg_type, quote_type = self.parse_composite_argument()
+            command.args.append(arg_value)
+            command.arg_types.append(arg_type)
+            command.quote_types.append(quote_type)
+
+        return True
+
+    def _check_array_initialization(self) -> Tuple[bool, Optional[Token]]:
+        """Check if current position is array initialization syntax.
+
+        Returns:
+            Tuple of (is_array_init, word_token)
+        """
+        if not self.parser.match(TokenType.WORD):
+            return False, None
+
+        word_token = self.parser.peek()
+
+        # Old lexer pattern: arr=(...)
+        if (word_token.value.endswith('=') and
+            self.parser.peek_ahead(1) and
+            self.parser.peek_ahead(1).type == TokenType.LPAREN):
+            self.parser.advance()
+            return True, word_token
+
+        # New lexer pattern: arr = (...)
+        if (self.parser.peek_ahead(1) and
+            self.parser.peek_ahead(1).type == TokenType.WORD and
+            self.parser.peek_ahead(1).value == '=' and
+            self.parser.peek_ahead(2) and
+            self.parser.peek_ahead(2).type == TokenType.LPAREN):
+            word_token = self.parser.advance()
+            self.parser.advance()  # consume =
+            return True, word_token
+
+        return False, None
+
+    def _parse_array_initialization(self, word_token: Token) -> str:
+        """Parse array initialization syntax arr=(...).
+
+        Args:
+            word_token: The array variable name token
+
+        Returns:
+            Complete array initialization string like "arr=(elem1 elem2)"
+        """
+        self.parser.advance()  # consume LPAREN
+
+        elements = []
+        element_start_pos = self.parser.current
+
+        while not self.parser.match(TokenType.RPAREN) and not self.parser.at_end():
+            if self.parser.match_any(TokenGroups.WORD_LIKE):
+                self.parse_composite_argument()  # consume element
+
+                # Reconstruct original representation
+                element_end_pos = self.parser.current
+                original_tokens = self.parser.tokens[element_start_pos:element_end_pos]
+
+                original_repr_parts = []
+                for token in original_tokens:
+                    if token.type == TokenType.STRING and token.quote_type:
+                        original_repr_parts.append(token.quote_type + token.value + token.quote_type)
                     else:
-                        # Parse a potentially composite argument
-                        if build_words:
-                            # Build Word AST node
-                            word = self.parse_argument_as_word()
-                            command.words.append(word)
-                            # Also add string representation for compatibility
-                            command.args.append(str(word))
-                            command.arg_types.append('WORD')  # TODO: preserve original type
-                            command.quote_types.append(word.quote_type)
-                        else:
-                            # Traditional string parsing
-                            arg_value, arg_type, quote_type = self.parse_composite_argument()
-                            command.args.append(arg_value)
-                            command.arg_types.append(arg_type)
-                            command.quote_types.append(quote_type)
-                        has_parsed_regular_args = True
-        
-        # Check for background execution
-        if self.parser.consume_if_match(TokenType.AMPERSAND):
-            command.background = True
-        
-        return command
+                        original_repr_parts.append(token.value)
+
+                elements.append(''.join(original_repr_parts))
+                element_start_pos = self.parser.current
+            else:
+                raise self.parser._error("Expected array element")
+
+        if not self.parser.consume_if_match(TokenType.RPAREN):
+            raise self.parser._error("Expected ')' to close array initialization")
+
+        # Build complete argument
+        if word_token.value.endswith('='):
+            return word_token.value + '(' + ' '.join(elements) + ')'
+        else:
+            return word_token.value + '=(' + ' '.join(elements) + ')'
     
     def parse_pipeline(self) -> Pipeline:
         """Parse a pipeline (commands connected by |)."""

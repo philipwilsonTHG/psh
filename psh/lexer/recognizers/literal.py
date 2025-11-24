@@ -83,178 +83,26 @@ class LiteralRecognizer(ContextualRecognizer):
         return True
     
     def recognize(
-        self, 
-        input_text: str, 
-        pos: int, 
+        self,
+        input_text: str,
+        pos: int,
         context: LexerContext
     ) -> Optional[Tuple[Token, int]]:
         """Recognize literal tokens."""
         if not self.can_recognize(input_text, pos, context):
             return None
-        
-        # Track whether we saw inline ANSI-C quote segments
-        saw_inline_ansi = False
 
-        # Read until we hit a word terminator
         start_pos = pos
-        value = ""
-        
-        while pos < len(input_text):
-            char = input_text[pos]
-            
-            # Special case: if this is a $ that can't start a valid expansion,
-            # include it in the word even though it's normally a terminator
-            if (char == '$' and self.config and self.config.enable_variable_expansion and 
-                not self._can_start_valid_expansion(input_text, pos)):
-                value += char
-                pos += 1
-                continue
-            
-            # Check for word terminators
-            if self._is_word_terminator(char, context):
-                # Special case: don't terminate on = if we just collected + for +=
-                if char == '=' and value.endswith('+'):
-                    # Include the = in +=
-                    value += char
-                    pos += 1
-                    continue
-                # Special case: don't terminate on = if this looks like a variable assignment
-                elif char == '=' and self._is_variable_assignment_start(value):
-                    # Include the = and continue reading the value part
-                    value += char
-                    pos += 1
-                    continue
-                # Special case: don't terminate on [ if this looks like start of array assignment
-                elif char == '[' and self._is_potential_array_assignment_start(value, input_text, pos):
-                    # Include the entire array assignment pattern including quotes
-                    # This handles patterns like arr["key"]=value
-                    array_part, new_pos = self._collect_array_assignment(input_text, pos)
-                    if array_part:
-                        value += array_part
-                        pos = new_pos
-                        continue
-                    else:
-                        # Fallback to just including the [
-                        value += char
-                        pos += 1
-                        continue
-                # Special case: don't terminate on ] if we're inside an array assignment
-                elif char == ']' and self._is_inside_array_assignment(value):
-                    # Include the ] and continue reading
-                    value += char
-                    pos += 1
-                    continue
-                # Special case: don't terminate on + if this looks like array assignment and next char is =
-                elif char == '+' and self._looks_like_array_assignment_before_plus_equals(value, input_text, pos):
-                    # Include the + and continue (the = will be handled by next iteration)
-                    value += char
-                    pos += 1
-                    continue
-                # Special case: don't terminate on $ if we're inside an array assignment
-                elif char == '$' and self._is_inside_array_assignment(value):
-                    # Include the $ and continue reading the variable inside array assignment
-                    value += char
-                    pos += 1
-                    continue
-                # Special case: don't terminate on ( or ) if we're inside an array assignment
-                elif char in ['(', ')'] and self._is_inside_array_assignment(value):
-                    # Include the parentheses and continue reading (for arithmetic expansion)
-                    value += char
-                    pos += 1
-                    continue
-                # Special case: don't terminate on arithmetic operators if we're inside an array assignment
-                elif char in ['+', '-', '*', '/', '%'] and self._is_inside_array_assignment(value):
-                    # Include the arithmetic operators and continue reading
-                    value += char
-                    pos += 1
-                    continue
-                # Special case: don't terminate on $ if this is ANSI-C quote in variable assignment or concatenation
-                elif (char == '$' and pos + 1 < len(input_text) and input_text[pos + 1] == "'" and 
-                      (self._is_in_variable_assignment_value(value) or self._is_in_string_concatenation(value))):
-                    # We're in a variable assignment or string concatenation and found $' - parse the ANSI-C quote inline
-                    ansi_c_content, new_pos = self._parse_ansi_c_quote_inline(input_text, pos)
-                    if ansi_c_content is not None:
-                        value += ansi_c_content
-                        pos = new_pos
-                        saw_inline_ansi = True
-                        continue
-                    # If parsing failed, fall through to breaking
-                break
-            
-            # Check for quotes or expansions that would end the word
-            # (only if they are enabled in config)
-            # EXCEPTION: Don't break on quotes if we're inside an array assignment
-            should_break = False
-            
-            # Special handling for quotes inside array assignments
-            # Check if current value suggests we're collecting an array assignment
-            if self._is_inside_array_assignment(value):
-                # Inside array assignment, include quotes as part of the token
-                if char in ["'", '"']:
-                    value += char
-                    pos += 1
-                    continue
-                # Also don't break on $ or ` inside array assignments
-                elif char in ['$', '`']:
-                    value += char
-                    pos += 1
-                    continue
-            
-            # Normal quote/expansion handling (outside array assignments)
-            if char == '$' and self.config and self.config.enable_variable_expansion:
-                # Special case: Check for ANSI-C quotes $'...' within variable assignments
-                if (pos + 1 < len(input_text) and input_text[pos + 1] == "'" and 
-                    self._is_in_variable_assignment_value(value)):
-                    # We're in a variable assignment and found $' - parse the ANSI-C quote inline
-                    ansi_c_content, new_pos = self._parse_ansi_c_quote_inline(input_text, pos)
-                    if ansi_c_content is not None:
-                        value += ansi_c_content
-                        pos = new_pos
-                        saw_inline_ansi = True
-                        continue
-                    # If parsing failed, fall through to normal handling
-                    should_break = True
-                else:
-                    should_break = True
-            elif char == '`' and self.config and self.config.enable_command_substitution:
-                should_break = True
-            elif char == "'" and self.config and self.config.enable_single_quotes:
-                should_break = True
-            elif char == '"' and self.config and self.config.enable_double_quotes:
-                should_break = True
-            
-            if should_break:
-                break
-            
-            # Check if # starts a comment (not part of word)
-            if char == '#' and self._is_comment_start(input_text, pos, context):
-                break
-            
-            # Handle escape sequences
-            if char == '\\' and pos + 1 < len(input_text):
-                next_char = input_text[pos + 1]
-                # Include the escaped character (preserve the backslash for later processing)
-                value += char + next_char
-                pos += 2
-                
-                # Special case: if we escaped a $, and the next character is (,
-                # we need to continue reading to include the ( as part of the word
-                # This prevents $(command) from being recognized as command substitution
-                if next_char == '$' and pos < len(input_text) and input_text[pos] == '(':
-                    # Continue reading - the ( is part of the literal word, not a subshell
-                    continue
-                
-                continue
-            
-            value += char
-            pos += 1
-        
+
+        # Collect the literal value using helper method
+        value, pos, saw_inline_ansi = self._collect_literal_value(input_text, pos, context)
+
         if not value:
             return None
-        
+
         # Determine token type based on content
         token_type = self._classify_literal(value, context)
-        
+
         token = Token(
             token_type,
             value,
@@ -264,8 +112,162 @@ class LiteralRecognizer(ContextualRecognizer):
 
         if saw_inline_ansi and token.quote_type is None:
             token.quote_type = 'mixed'
-        
+
         return token, pos
+
+    def _collect_literal_value(
+        self,
+        input_text: str,
+        pos: int,
+        context: LexerContext
+    ) -> Tuple[str, int, bool]:
+        """Collect literal value characters until a terminator is reached.
+
+        Returns:
+            Tuple of (collected_value, new_position, saw_inline_ansi)
+        """
+        value = ""
+        saw_inline_ansi = False
+
+        while pos < len(input_text):
+            char = input_text[pos]
+
+            # Handle invalid $ expansions as literal characters
+            if (char == '$' and self.config and self.config.enable_variable_expansion and
+                not self._can_start_valid_expansion(input_text, pos)):
+                value += char
+                pos += 1
+                continue
+
+            # Check for word terminators with special case handling
+            if self._is_word_terminator(char, context):
+                result = self._handle_terminator_special_cases(
+                    char, value, input_text, pos, context
+                )
+                if result is not None:
+                    action, value, pos, ansi_flag = result
+                    if ansi_flag:
+                        saw_inline_ansi = True
+                    if action == 'continue':
+                        continue
+                    elif action == 'break':
+                        break
+                else:
+                    break
+
+            # Handle quotes inside array assignments
+            if self._is_inside_array_assignment(value):
+                if char in ["'", '"', '$', '`']:
+                    value += char
+                    pos += 1
+                    continue
+
+            # Check for quotes/expansions that would end the word
+            should_break, value, pos, ansi_flag = self._handle_quote_or_expansion(
+                char, value, input_text, pos
+            )
+            if ansi_flag:
+                saw_inline_ansi = True
+            if should_break:
+                break
+            if pos > len(input_text) - 1 or input_text[pos] != char:
+                # Position advanced, continue loop
+                continue
+
+            # Check if # starts a comment
+            if char == '#' and self._is_comment_start(input_text, pos, context):
+                break
+
+            # Handle escape sequences
+            if char == '\\' and pos + 1 < len(input_text):
+                next_char = input_text[pos + 1]
+                value += char + next_char
+                pos += 2
+                continue
+
+            value += char
+            pos += 1
+
+        return value, pos, saw_inline_ansi
+
+    def _handle_terminator_special_cases(
+        self,
+        char: str,
+        value: str,
+        input_text: str,
+        pos: int,
+        context: LexerContext
+    ) -> Optional[Tuple[str, str, int, bool]]:
+        """Handle special cases where we don't break on word terminators.
+
+        Returns:
+            None if should break normally, otherwise tuple of:
+            (action, new_value, new_pos, saw_ansi) where action is 'continue' or 'break'
+        """
+        # += operator handling
+        if char == '=' and value.endswith('+'):
+            return ('continue', value + char, pos + 1, False)
+
+        # Variable assignment (VAR=value)
+        if char == '=' and self._is_variable_assignment_start(value):
+            return ('continue', value + char, pos + 1, False)
+
+        # Array assignment start (arr[key]=value)
+        if char == '[' and self._is_potential_array_assignment_start(value, input_text, pos):
+            array_part, new_pos = self._collect_array_assignment(input_text, pos)
+            if array_part:
+                return ('continue', value + array_part, new_pos, False)
+            return ('continue', value + char, pos + 1, False)
+
+        # Inside array assignment - don't break on these characters
+        if self._is_inside_array_assignment(value):
+            if char in [']', '$', '(', ')', '+', '-', '*', '/', '%']:
+                return ('continue', value + char, pos + 1, False)
+
+        # Array assignment before +=
+        if char == '+' and self._looks_like_array_assignment_before_plus_equals(value, input_text, pos):
+            return ('continue', value + char, pos + 1, False)
+
+        # ANSI-C quote in assignment or concatenation
+        if (char == '$' and pos + 1 < len(input_text) and input_text[pos + 1] == "'" and
+            (self._is_in_variable_assignment_value(value) or self._is_in_string_concatenation(value))):
+            ansi_c_content, new_pos = self._parse_ansi_c_quote_inline(input_text, pos)
+            if ansi_c_content is not None:
+                return ('continue', value + ansi_c_content, new_pos, True)
+
+        return None  # Normal break
+
+    def _handle_quote_or_expansion(
+        self,
+        char: str,
+        value: str,
+        input_text: str,
+        pos: int
+    ) -> Tuple[bool, str, int, bool]:
+        """Handle quotes or expansions that might end the word.
+
+        Returns:
+            Tuple of (should_break, new_value, new_pos, saw_ansi)
+        """
+        # Check for ANSI-C quotes in variable assignments
+        if char == '$' and self.config and self.config.enable_variable_expansion:
+            if (pos + 1 < len(input_text) and input_text[pos + 1] == "'" and
+                self._is_in_variable_assignment_value(value)):
+                ansi_c_content, new_pos = self._parse_ansi_c_quote_inline(input_text, pos)
+                if ansi_c_content is not None:
+                    return (False, value + ansi_c_content, new_pos, True)
+            return (True, value, pos, False)
+
+        if char == '`' and self.config and self.config.enable_command_substitution:
+            return (True, value, pos, False)
+
+        if char == "'" and self.config and self.config.enable_single_quotes:
+            return (True, value, pos, False)
+
+        if char == '"' and self.config and self.config.enable_double_quotes:
+            return (True, value, pos, False)
+
+        return (False, value, pos, False)
     
     def _is_comment_start(self, input_text: str, pos: int, context: LexerContext) -> bool:
         """Check if # at current position starts a comment."""
