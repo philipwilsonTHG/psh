@@ -29,9 +29,6 @@ class EchoBuiltin(Builtin):
     
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Echo arguments to stdout."""
-        # Debug: log arguments
-        # print(f"DEBUG: echo args = {args}", file=sys.stderr)
-        
         # Parse flags
         suppress_newline, interpret_escapes, start_idx = self._parse_flags(args)
         
@@ -238,9 +235,6 @@ class PrintfBuiltin(Builtin):
         arguments = args[2:]
         
         try:
-            # Debug: print the actual format string received
-            # print(f"DEBUG: format_str = {repr(format_str)}", file=sys.stderr)
-            
             # Process format string with POSIX-compliant behavior
             output = self._process_format_string_posix(format_str, arguments)
             self._write_output(output, shell)

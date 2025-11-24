@@ -204,8 +204,6 @@ class Shell:
         
         try:
             result = self._evaluate_test_expression(test_stmt.expression)
-            # DEBUG
-            # print(f"DEBUG: Enhanced test result={result}, returning {0 if result else 1}", file=sys.stderr)
             return 0 if result else 1
         except Exception as e:
             print(f"psh: [[: {e}", file=sys.stderr)

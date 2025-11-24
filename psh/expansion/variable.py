@@ -108,7 +108,6 @@ class VariableExpander:
                     if var and isinstance(var.value, IndexedArray):
                         # Return the indices as space-separated list
                         indices = var.value.indices()
-                        # print(f"DEBUG: Array {array_name} indices: {indices}", file=sys.stderr)
                         return ' '.join(str(i) for i in indices)
                     elif var and isinstance(var.value, AssociativeArray):
                         # Return the keys as space-separated list

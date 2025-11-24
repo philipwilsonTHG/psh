@@ -371,10 +371,7 @@ class ModularLexer:
         
         if self.position == 0:
             return False
-        
-        # Debug output (TEMPORARY)
-        # print(f"DEBUG: Checking array assignment at pos {self.position}, char={self.input[self.position]!r}")
-        
+
         # Scan backward from current position
         pos = self.position - 1
         bracket_count = 0
