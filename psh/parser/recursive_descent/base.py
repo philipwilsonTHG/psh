@@ -3,16 +3,18 @@
 from typing import List, Optional, Set, Tuple
 from ...token_types import Token, TokenType
 from ...lexer.keyword_defs import matches_keyword_type
-from .helpers import ParseContext, ErrorContext, ParseError, TokenGroups
+from .helpers import ErrorContext, ParseError, TokenGroups
 
 
 class BaseParser:
     """Base parser with token management and common utilities."""
-    
+
     def __init__(self, tokens: List[Token]):
         self.tokens = tokens
         self.current = 0
-        self.context = ParseContext()
+        # Error recovery state (previously in ParseContext)
+        self._in_error_recovery = False
+        self._error_sync_tokens: Set[TokenType] = set()
     
     # === Token Management ===
     
@@ -126,33 +128,33 @@ class BaseParser:
             self.advance()
     
     # === Error Recovery ===
-    
+
     def with_error_recovery(self, sync_tokens: Set[TokenType]):
         """Context manager for error recovery."""
-        old_recovery = self.context.in_error_recovery
-        old_sync = self.context.error_sync_tokens
-        
-        self.context.in_error_recovery = True
-        self.context.error_sync_tokens = sync_tokens
-        
+        old_recovery = self._in_error_recovery
+        old_sync = self._error_sync_tokens
+
+        self._in_error_recovery = True
+        self._error_sync_tokens = sync_tokens
+
         try:
             yield
         finally:
-            self.context.in_error_recovery = old_recovery
-            self.context.error_sync_tokens = old_sync
-    
+            self._in_error_recovery = old_recovery
+            self._error_sync_tokens = old_sync
+
     def panic_mode_recovery(self, sync_tokens: Set[TokenType]) -> None:
         """Recover using panic mode - skip tokens until sync point.
-        
+
         Args:
             sync_tokens: Set of tokens to synchronize on
         """
-        self.context.in_error_recovery = True
-        
+        self._in_error_recovery = True
+
         while not self.at_end() and not self.match_any(sync_tokens):
             self.advance()
-        
-        self.context.in_error_recovery = False
+
+        self._in_error_recovery = False
     
     def parse_statement_with_recovery(self):
         """Parse statement with automatic recovery.

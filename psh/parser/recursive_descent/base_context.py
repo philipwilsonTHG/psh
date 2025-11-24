@@ -242,13 +242,9 @@ class BaseParser(ContextBaseParser):
         from .support.context_factory import ParserContextFactory
         ctx = ParserContextFactory.create(tokens)
         super().__init__(ctx)
-        
+
         # Expose tokens and current for backward compatibility
         self.tokens = self.ctx.tokens
-        
-        # Import old ParseContext for compatibility
-        from .helpers import ParseContext
-        self.context = ParseContext()
     
     @property
     def current(self) -> int:

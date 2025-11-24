@@ -33,6 +33,60 @@ from .parsers.statements import StatementParser
 from .parsers.commands import CommandParser
 from .parsers.control_structures import ControlStructureParser
 from .parsers.tests import TestParser
+
+
+class ContextWrapper:
+    """Wrapper providing context manager support for ParserContext.
+
+    This provides backward compatibility for code that uses:
+        with parser.context:
+            parser.context.in_arithmetic = True
+            ...
+    """
+
+    def __init__(self, ctx: ParserContext):
+        self._ctx = ctx
+        self._saved_states = []
+
+    # Forward attribute access to ctx
+    def __getattr__(self, name):
+        return getattr(self._ctx, name)
+
+    def __setattr__(self, name, value):
+        if name.startswith('_'):
+            object.__setattr__(self, name, value)
+        else:
+            setattr(self._ctx, name, value)
+
+    def push_context(self, context: str) -> None:
+        """Push a parsing context onto the stack."""
+        self._ctx.enter_scope(context)
+
+    def pop_context(self) -> Optional[str]:
+        """Pop a parsing context from the stack."""
+        return self._ctx.exit_scope()
+
+    def __enter__(self):
+        """Save current state for context manager."""
+        saved = {
+            'in_test_expr': self._ctx.in_test_expr,
+            'in_arithmetic': self._ctx.in_arithmetic,
+            'in_case_pattern': self._ctx.in_case_pattern,
+            'in_function_body': self._ctx.in_function_body,
+            'in_command_substitution': self._ctx.in_command_substitution,
+        }
+        self._saved_states.append(saved)
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Restore previous state."""
+        if self._saved_states:
+            saved = self._saved_states.pop()
+            for key, value in saved.items():
+                setattr(self._ctx, key, value)
+        return False
+
+
 from .parsers.arithmetic import ArithmeticParser
 from .parsers.redirections import RedirectionParser
 from .parsers.arrays import ArrayParser
@@ -79,24 +133,16 @@ class Parser(ContextBaseParser):
         self.config = self.ctx.config
         self.source_text = self.ctx.source_text
         self.source_lines = self.ctx.source_lines
-        
-        # Create legacy context compatibility wrapper
-        from .helpers import ParseContext
-        self.context = ParseContext()
-        
-        # Set initial state from our context
-        self.context.in_function_body = self.ctx.in_function_body
-        self.context.in_arithmetic = self.ctx.in_arithmetic
-        self.context.in_test_expr = self.ctx.in_test_expr
-        self.context.in_case_pattern = self.ctx.in_case_pattern
-        self.context.in_command_substitution = self.ctx.in_command_substitution
-        
+
         # Error collection support - use config settings
         if self.ctx.config.collect_errors:
             self.error_collector = ErrorCollector(max_errors=self.ctx.config.max_errors)
         else:
             self.error_collector = None
         
+        # Context wrapper for backward compatibility
+        self._context_wrapper = ContextWrapper(self.ctx)
+
         # Initialize specialized parsers
         self.statements = StatementParser(self)
         self.commands = CommandParser(self)
@@ -108,6 +154,11 @@ class Parser(ContextBaseParser):
         self.functions = FunctionParser(self)
         self.utils = ParserUtils(self)
     
+    @property
+    def context(self) -> ContextWrapper:
+        """Legacy context wrapper for backward compatibility."""
+        return self._context_wrapper
+
     def _error(self, message: str, token: Optional[Token] = None) -> ParseError:
         """Create a ParseError with context."""
         # Delegate to the context-based error method
@@ -243,17 +294,9 @@ class Parser(ContextBaseParser):
             def __exit__(self, exc_type, exc_val, exc_tb):
                 self.parser.ctx.error_recovery_mode = self.old_recovery
                 return False
-                
+
         return ErrorRecoveryContext(self)
-    
-    def _sync_legacy_context(self):
-        """Synchronize legacy context state with main context."""
-        self.ctx.in_function_body = self.context.in_function_body
-        self.ctx.in_arithmetic = self.context.in_arithmetic
-        self.ctx.in_test_expr = self.context.in_test_expr
-        self.ctx.in_case_pattern = self.context.in_case_pattern
-        self.ctx.in_command_substitution = self.context.in_command_substitution
-    
+
     # === AST Validation ===
     
     def parse_and_validate(self) -> Tuple[Optional[Union[CommandList, TopLevel]], ValidationReport]:
@@ -331,10 +374,7 @@ class Parser(ContextBaseParser):
                 if item:
                     top_level.items.append(item)
                 self.skip_separators()
-                
-                # Sync legacy context state periodically
-                self._sync_legacy_context()
-            
+
             return self._simplify_result(top_level)
         finally:
             # End profiling if enabled
