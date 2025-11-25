@@ -328,8 +328,10 @@ class ExternalExecutionStrategy(ExecutionStrategy):
                 os._exit(127)
         
         # Save current terminal foreground process group
+        # Skip terminal control when running under pytest to avoid SIGTTOU issues
         original_pgid = None
-        if not background:
+        is_pytest = 'PYTEST_CURRENT_TEST' in os.environ or 'pytest' in sys.modules
+        if not background and not is_pytest:
             try:
                 original_pgid = os.tcgetpgrp(0)
             except:

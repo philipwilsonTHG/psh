@@ -122,7 +122,9 @@ class SubshellExecutor:
         original_pgid = None
         # Check if we're in interactive mode (stdin is a tty and not in script mode)
         # AND we're actually the foreground process group (not running under pytest/etc)
-        is_interactive = sys.stdin.isatty() and not self.shell.is_script_mode
+        # Also check for pytest environment to be extra safe
+        is_pytest = 'PYTEST_CURRENT_TEST' in os.environ or 'pytest' in sys.modules
+        is_interactive = sys.stdin.isatty() and not self.shell.is_script_mode and not is_pytest
         if is_interactive:
             try:
                 current_fg_pgid = os.tcgetpgrp(0)

@@ -137,14 +137,19 @@ class PipelineExecutor:
         pipeline_context = pipeline_context.with_pipeline_context(pipeline_ctx)
         
         # Save original terminal process group for restoration
-        try:
-            original_pgid = os.tcgetpgrp(0)
-            if self.state.options.get('debug-exec'):
-                print(f"DEBUG Pipeline: Original terminal PGID: {original_pgid}", file=sys.stderr)
-        except Exception as e:
-            if self.state.options.get('debug-exec'):
-                print(f"DEBUG Pipeline: Cannot get original PGID: {e}", file=sys.stderr)
+        # Skip terminal control when running under pytest to avoid SIGTTOU issues
+        is_pytest = 'PYTEST_CURRENT_TEST' in os.environ or 'pytest' in sys.modules
+        if is_pytest:
             original_pgid = None
+        else:
+            try:
+                original_pgid = os.tcgetpgrp(0)
+                if self.state.options.get('debug-exec'):
+                    print(f"DEBUG Pipeline: Original terminal PGID: {original_pgid}", file=sys.stderr)
+            except Exception as e:
+                if self.state.options.get('debug-exec'):
+                    print(f"DEBUG Pipeline: Cannot get original PGID: {e}", file=sys.stderr)
+                original_pgid = None
 
         # Create synchronization pipe for process group setup
         # This replaces the time.sleep() polling loop with atomic synchronization
