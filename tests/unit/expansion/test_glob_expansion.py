@@ -118,7 +118,6 @@ class TestCharacterClasses:
         # Clean up
         shell.run_command('rm -f file[123ab]')
     
-    @pytest.mark.xfail(reason="PSH doesn't support negated character classes [!...]")
     def test_negated_character_class(self, shell, capsys):
         """Test negated character class [!...]."""
         # Create test files

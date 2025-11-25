@@ -72,6 +72,28 @@ class HistoryExpander:
             
             # Handle history expansion
             elif char == '!' and i + 1 < len(command) and command[i+1] != '=':
+                # Skip if we're inside [...] bracket expression (for glob patterns like [!abc])
+                # Look backwards for [ without closing ]
+                j = i - 1
+                bracket_depth = 0
+                in_bracket = False
+                while j >= 0:
+                    if command[j] == ']':
+                        bracket_depth += 1
+                    elif command[j] == '[':
+                        if bracket_depth == 0:
+                            in_bracket = True
+                            break
+                        else:
+                            bracket_depth -= 1
+                    j -= 1
+
+                if in_bracket:
+                    # We're inside [...], don't do history expansion
+                    result.append(char)
+                    i += 1
+                    continue
+
                 # Skip if we're inside ${...} parameter expansion
                 # Look backwards for ${ without closing }
                 j = i - 1

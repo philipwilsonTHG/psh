@@ -128,9 +128,28 @@ class LiteralRecognizer(ContextualRecognizer):
         """
         value = ""
         saw_inline_ansi = False
+        in_glob_bracket = False  # Track if we're inside [...] glob pattern
 
         while pos < len(input_text):
             char = input_text[pos]
+
+            # Handle glob bracket expressions [...]
+            # When we see '[', collect until ']' as part of the word
+            if char == '[' and not in_glob_bracket:
+                # Check if this looks like a glob pattern (not array assignment)
+                if not self._is_potential_array_assignment_start(value, input_text, pos):
+                    in_glob_bracket = True
+                    value += char
+                    pos += 1
+                    continue
+
+            if in_glob_bracket:
+                # Inside [...], collect everything including ! and other special chars
+                value += char
+                pos += 1
+                if char == ']':
+                    in_glob_bracket = False
+                continue
 
             # Handle invalid $ expansions as literal characters
             if (char == '$' and self.config and self.config.enable_variable_expansion and
