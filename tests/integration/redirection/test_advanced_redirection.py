@@ -193,7 +193,6 @@ class TestProcessSubstitution:
         # Should fail gracefully
         assert result != 0
 
-    @pytest.mark.xfail(reason="PSH errexit mode doesn't stop execution after redirection failures")
     def test_redirection_with_errexit(self, shell):
         """Test redirection error handling with set -e."""
         # Enable errexit

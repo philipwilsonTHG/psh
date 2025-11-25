@@ -324,7 +324,6 @@ class TestCommandNotFound:
         assert result != 0
         # Pipeline should handle the error appropriately
 
-    @pytest.mark.xfail(reason="errexit option is not being enforced in execution engine")
     def test_command_not_found_with_errexit(self, shell):
         """Test command not found with set -e."""
         # Enable errexit
