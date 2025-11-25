@@ -2,10 +2,24 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.105.0"
+__version__ = "0.106.0"
 
 # Version history
 VERSION_HISTORY = """
+0.106.0 (2025-11-25) - Code Cleanup and Pythonic Refactoring
+- Refactored non-Pythonic length checks across 14 files (34 patterns)
+- Changed `len(x) == 0` to `not x` and `len(x) > 0` to `bool(x)` for idiomatic Python
+- Removed dead code and commented debug statements from multiple modules
+- Removed archived backup files and obsolete development/migration scripts
+- Removed deprecated legacy executor flag handling from __main__.py and environment.py
+- Removed duplicate debug properties in state.py and orphaned SubParserBase class
+- Net reduction of ~8,000+ lines of dead/obsolete code
+- All tests passing (2616 passed, 80 skipped, 52 xfailed)
+- Files cleaned: state.py, token_stream_validator.py, bracket_tracker.py, quote_validator.py,
+  heredoc_collector.py, state_context.py, parser.py, context.py, error_collector.py,
+  semantic_analyzer.py, test_command.py, base.py, security_visitor.py, signal_utils.py,
+  script_validator.py
+
 0.105.0 (2025-11-24) - Code Quality and Subsystem Documentation
 - Consolidated duplicate assignment utilities into psh/core/assignment_utils.py
 - Extracted long methods in LiteralRecognizer and CommandParser into focused helpers
