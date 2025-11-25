@@ -545,7 +545,7 @@ class Parser(ContextBaseParser):
     
     def _simplify_result(self, top_level: TopLevel) -> Union[CommandList, TopLevel]:
         """Simplify result for backward compatibility when possible."""
-        if len(top_level.items) == 0:
+        if not top_level.items:
             return CommandList()
         elif len(top_level.items) == 1:
             item = top_level.items[0]

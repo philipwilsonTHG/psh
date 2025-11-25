@@ -35,7 +35,7 @@ class TokenStreamValidationResult:
     @property
     def has_issues(self) -> bool:
         """Check if there are any validation issues."""
-        return len(self.all_issues) > 0
+        return bool(self.all_issues)
 
 
 class TokenStreamValidator:
@@ -107,7 +107,7 @@ class TokenStreamValidator:
         validated_tokens = self._mark_tokens_with_issues(tokens, errors + warnings + infos)
         
         return TokenStreamValidationResult(
-            is_valid=len(errors) == 0,
+            is_valid=not errors,
             errors=errors,
             warnings=warnings,
             infos=infos,
@@ -144,7 +144,7 @@ class TokenStreamValidator:
                             token.metadata.error_info = error
         
         return QuoteValidationResult(
-            is_valid=len(errors) == 0,
+            is_valid=not errors,
             errors=errors,
             warnings=warnings,
             quote_info=[]
@@ -175,7 +175,7 @@ class TokenStreamValidator:
                     combined_errors.append(error)
             
             return QuoteValidationResult(
-                is_valid=len(combined_errors) == 0,
+                is_valid=not combined_errors,
                 errors=combined_errors,
                 warnings=combined_warnings,
                 quote_info=token_result.quote_info + text_result.quote_info

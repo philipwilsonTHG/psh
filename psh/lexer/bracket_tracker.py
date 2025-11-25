@@ -152,7 +152,7 @@ class BracketTracker:
                 unmatched_opens.append(pair)
         
         return BracketValidationResult(
-            is_valid=len(self.errors) == 0,
+            is_valid=not self.errors,
             errors=self.errors,
             warnings=self.warnings,
             pairs=self.pairs,
@@ -329,7 +329,7 @@ class BracketTracker:
             ))
         
         return BracketValidationResult(
-            is_valid=len(errors) == 0,
+            is_valid=not errors,
             errors=errors,
             warnings=[],
             pairs=[],

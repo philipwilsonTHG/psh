@@ -71,7 +71,7 @@ class HeredocCollector:
     
     def has_pending_heredocs(self) -> bool:
         """Check if there are heredocs waiting for content."""
-        return len(self.pending) > 0
+        return bool(self.pending)
     
     def collect_line(self, line: str) -> List[Tuple[str, bool]]:
         """

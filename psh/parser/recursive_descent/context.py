@@ -379,7 +379,7 @@ class ParserContext:
     
     def should_collect_errors(self) -> bool:
         """Check if errors should be collected rather than thrown."""
-        return self.config.collect_errors or len(self.errors) > 0
+        return self.config.collect_errors or bool(self.errors)
     
     def should_attempt_recovery(self) -> bool:
         """Check if error recovery should be attempted."""

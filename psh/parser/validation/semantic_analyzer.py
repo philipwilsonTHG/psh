@@ -129,7 +129,7 @@ class SemanticAnalyzer(ASTVisitor[None]):
             return
         
         command_name = None
-        if node.args and len(node.args) > 0:
+        if node.args:
             command_name = node.args[0]
         
         # Check for return statement

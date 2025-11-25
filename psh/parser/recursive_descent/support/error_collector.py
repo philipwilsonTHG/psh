@@ -89,11 +89,11 @@ class ErrorCollector:
     
     def has_errors(self) -> bool:
         """Check if any errors have been collected.
-        
+
         Returns:
             True if errors have been collected
         """
-        return len(self.errors) > 0
+        return bool(self.errors)
     
     def get_error_count(self) -> int:
         """Get number of collected errors.
@@ -231,12 +231,12 @@ class MultiErrorParseResult:
         """
         self.ast = ast
         self.errors = errors or []
-        self.success = ast is not None and len(self.errors) == 0
-        self.partial_success = ast is not None and len(self.errors) > 0
-    
+        self.success = ast is not None and not self.errors
+        self.partial_success = ast is not None and bool(self.errors)
+
     def has_errors(self) -> bool:
         """Check if parsing had errors."""
-        return len(self.errors) > 0
+        return bool(self.errors)
     
     def get_error_count(self) -> int:
         """Get number of parse errors."""

@@ -61,7 +61,7 @@ class ScriptValidator(ScriptComponent):
                         printable_chars += 1
                 
                 # If less than 70% printable characters, consider it binary
-                if len(chunk) > 0 and (printable_chars / len(chunk)) < 0.70:
+                if chunk and (printable_chars / len(chunk)) < 0.70:
                     return True
                 
                 # Check for common binary file signatures

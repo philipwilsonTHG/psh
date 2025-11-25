@@ -27,7 +27,7 @@ class TestBuiltin(Builtin):
     
     def _evaluate_test(self, args: List[str], shell: 'Shell') -> int:
         """Evaluate test expression."""
-        if len(args) == 0:
+        if not args:
             return 1  # False
         
         # Check for leading ! (negation)
@@ -35,7 +35,7 @@ class TestBuiltin(Builtin):
         if args[0] == '!':
             negate = True
             args = args[1:]  # Remove the !
-            if len(args) == 0:
+            if not args:
                 return 1  # ! with no args is false
         
         # Evaluate the expression
@@ -49,7 +49,7 @@ class TestBuiltin(Builtin):
     
     def _evaluate_expression(self, args: List[str], shell: 'Shell') -> int:
         """Evaluate test expression without negation."""
-        if len(args) == 0:
+        if not args:
             return 1  # False
         
         if len(args) == 1:

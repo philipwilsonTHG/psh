@@ -59,7 +59,7 @@ class LexerContext:
     
     def in_quotes(self) -> bool:
         """Check if we're inside any quote context."""
-        return len(self.quote_stack) > 0
+        return bool(self.quote_stack)
     
     def current_quote_type(self) -> Optional[str]:
         """Get the current quote type if in quotes."""
@@ -127,11 +127,11 @@ class LexerContext:
     
     def is_in_nested_structure(self) -> bool:
         """Check if we're inside any nested structure."""
-        return (self.bracket_depth > 0 or 
-                self.paren_depth > 0 or 
-                self.brace_depth > 0 or 
+        return (self.bracket_depth > 0 or
+                self.paren_depth > 0 or
+                self.brace_depth > 0 or
                 self.arithmetic_depth > 0 or
-                len(self.quote_stack) > 0)
+                bool(self.quote_stack))
     
     def get_nesting_summary(self) -> Dict[str, int]:
         """Get a summary of current nesting levels."""

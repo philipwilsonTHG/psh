@@ -123,7 +123,7 @@ class ASTTransformer(ASTVisitor[ASTNode]):
                 setattr(node, field.name, new_list)
             
             # Handle tuples (like elif_parts in IfConditional)
-            elif isinstance(value, tuple) and len(value) > 0:
+            elif isinstance(value, tuple) and value:
                 new_items = []
                 for item in value:
                     if isinstance(item, ASTNode):

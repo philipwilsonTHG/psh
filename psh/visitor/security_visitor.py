@@ -186,7 +186,7 @@ class SecurityVisitor(ASTVisitor[None]):
         self.function_stack.append(node.name)
         self.visit(node.body)
         self.function_stack.pop()
-        self.in_function = len(self.function_stack) > 0
+        self.in_function = bool(self.function_stack)
     
     def visit_ForLoop(self, node: ForLoop) -> None:
         """Analyze for loops for security issues."""

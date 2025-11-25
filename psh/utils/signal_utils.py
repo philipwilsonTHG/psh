@@ -120,7 +120,7 @@ class SignalNotifier:
             # Restore flags
             fcntl.fcntl(self._pipe_r, fcntl.F_SETFL, flags)
 
-            return len(data) > 0
+            return bool(data)
         except OSError:
             # No data available
             return False

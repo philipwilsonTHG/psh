@@ -150,12 +150,12 @@ class QuoteValidator:
             ))
         
         return QuoteValidationResult(
-            is_valid=len(errors) == 0,
+            is_valid=not errors,
             errors=errors,
             warnings=warnings,
             quote_info=quote_info
         )
-    
+
     def validate_quotes_in_tokens(
         self,
         tokens: List[Token]
@@ -183,12 +183,12 @@ class QuoteValidator:
             quote_info.extend(token_result.quote_info)
         
         return QuoteValidationResult(
-            is_valid=len(errors) == 0,
+            is_valid=not errors,
             errors=errors,
             warnings=warnings,
             quote_info=quote_info
         )
-    
+
     def _validate_token_part_quotes(
         self,
         token: Token,
@@ -243,12 +243,12 @@ class QuoteValidator:
             ))
         
         return QuoteValidationResult(
-            is_valid=len(errors) == 0,
+            is_valid=not errors,
             errors=errors,
             warnings=warnings,
             quote_info=quote_info
         )
-    
+
     def _is_escaped(self, text: str, position: int) -> bool:
         """Check if a character at position is escaped."""
         if position == 0:
