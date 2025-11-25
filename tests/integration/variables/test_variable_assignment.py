@@ -37,15 +37,19 @@ def test_assignment_with_expansion(shell):
     assert shell.state.get_variable("PREFIX") == ""
 
 
-@pytest.mark.xfail(reason="Command-prefixed environment variables may not be fully implemented")
-def test_assignment_affects_command_environment(shell, capsys):
+def test_assignment_affects_command_environment():
     """Test assignment affects the command's environment."""
+    import subprocess
+    import sys
     # Test that command-prefixed variables work with external commands
-    # This is a POSIX feature that PSH may not fully implement yet
-    result = shell.run_command('TEST_VAR=hello sh -c "echo Variable: $TEST_VAR"')
-    assert result == 0
-    captured = capsys.readouterr()
-    assert "hello" in captured.out
+    # Using subprocess directly since external command output can't be captured by capsys
+    result = subprocess.run(
+        [sys.executable, '-m', 'psh', '-c', 'TEST_VAR=hello sh -c "echo Variable: $TEST_VAR"'],
+        capture_output=True,
+        text=True
+    )
+    assert result.returncode == 0
+    assert "hello" in result.stdout
 
 
 def test_assignment_with_spaces_in_value(shell, capsys):
@@ -83,15 +87,19 @@ def test_assignment_with_equals_in_value(shell, capsys):
     assert "x=y+z" in captured.out
 
 
-@pytest.mark.xfail(reason="Command-prefixed environment variables may not be fully implemented")
-def test_multiple_assignments_with_builtin(shell, capsys):
+def test_multiple_assignments_with_builtin():
     """Test multiple assignments with builtin command."""
+    import subprocess
+    import sys
     # Test multiple command-prefixed assignments with a simple external command
-    # This is a POSIX feature that PSH may not fully implement yet
-    result = shell.run_command('A=1 B=2 C=3 sh -c "echo Variables: $A$B$C"')
-    assert result == 0
-    captured = capsys.readouterr()
-    assert "123" in captured.out
+    # Using subprocess directly since external command output can't be captured by capsys
+    result = subprocess.run(
+        [sys.executable, '-m', 'psh', '-c', 'A=1 B=2 C=3 sh -c "echo Variables: $A$B$C"'],
+        capture_output=True,
+        text=True
+    )
+    assert result.returncode == 0
+    assert "123" in result.stdout
 
 
 def test_assignment_with_command_substitution(shell, capsys):
@@ -238,24 +246,31 @@ def test_assignment_with_pipe(shell_with_temp_dir):
     assert "value" in content
 
 
-def test_assignment_precedence_over_existing(shell, capsys):
+def test_assignment_precedence_over_existing():
     """Test local assignment takes precedence over existing variable."""
-    shell.state.set_variable("VAR", "global")
+    import subprocess
+    import sys
     # Test that command-prefixed variables override globals for that command
-    result = shell.run_command('VAR=local printenv VAR')
-    if result != 0:
-        # Alternative: test with global assignment override
-        result = shell.run_command('VAR=local; echo $VAR')
-        assert result == 0
-        captured = capsys.readouterr()
-        assert "local" in captured.out
-        # Reset for next test
-        shell.state.set_variable("VAR", "global")
-    else:
-        captured = capsys.readouterr()
-        assert "local" in captured.out
-    # Global should be unchanged
-    assert shell.state.get_variable("VAR") == "global"
+    # Using subprocess since printenv is external and output can't be captured by capsys
+    result = subprocess.run(
+        [sys.executable, '-m', 'psh', '-c', 'VAR=global; VAR=local printenv VAR'],
+        capture_output=True,
+        text=True
+    )
+    assert result.returncode == 0
+    assert "local" in result.stdout
+
+    # Also verify global isn't changed after the command
+    result2 = subprocess.run(
+        [sys.executable, '-m', 'psh', '-c', 'VAR=global; VAR=local printenv VAR; echo $VAR'],
+        capture_output=True,
+        text=True
+    )
+    assert result2.returncode == 0
+    # Output should be: local\nglobal\n
+    lines = result2.stdout.strip().split('\n')
+    assert lines[0] == 'local'  # printenv output
+    assert lines[1] == 'global'  # echo output (VAR should be restored)
 
 
 def test_assignment_with_subshell(shell, capsys):

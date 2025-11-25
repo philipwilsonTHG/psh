@@ -289,29 +289,56 @@ class CommandExecutor:
             return self.state.last_exit_code
     
     def _apply_command_assignments(self, assignments: List[Tuple[str, str]]) -> dict:
-        """Apply variable assignments for command execution."""
+        """Apply variable assignments for command execution.
+
+        For command-prefixed assignments (FOO=bar cmd), we need to:
+        1. Set the variable in shell state (for builtins/functions that use $VAR)
+        2. Set the variable in shell.env (for external commands that use os.environ)
+
+        Returns a dict with both state and env values for restoration.
+        """
         saved_vars = {}
-        
+
         for var, value in assignments:
-            saved_vars[var] = self.state.get_variable(var)
+            # Save both shell state and environment values
+            saved_vars[var] = {
+                'state': self.state.get_variable(var),
+                'env': self.shell.env.get(var)  # May be None if not in env
+            }
             # Apply all expansions to assignment values
             value = self._expand_assignment_value(value)
             try:
                 self.state.set_variable(var, value)
+                # Also set in shell.env for external commands
+                self.shell.env[var] = value
             except:
                 from ..core.exceptions import ReadonlyVariableError
                 raise ReadonlyVariableError(var)
-        
+
         return saved_vars
     
     def _restore_command_assignments(self, saved_vars: dict):
-        """Restore variables after command execution."""
-        for var, old_value in saved_vars.items():
+        """Restore variables after command execution.
+
+        Restores both shell state and shell.env to their original values.
+        """
+        for var, saved in saved_vars.items():
             if not self._is_exported(var):
-                if old_value is None:
+                # Restore shell state variable
+                old_state_value = saved['state']
+                if old_state_value is None:
                     self.state.unset_variable(var)
                 else:
-                    self.state.set_variable(var, old_value)
+                    self.state.set_variable(var, old_state_value)
+
+                # Restore shell.env
+                old_env_value = saved['env']
+                if old_env_value is None:
+                    # Variable wasn't in env before, remove it
+                    if var in self.shell.env:
+                        del self.shell.env[var]
+                else:
+                    self.shell.env[var] = old_env_value
     
     def _is_exported(self, var_name: str) -> bool:
         """Check if a variable is exported."""

@@ -31,17 +31,16 @@ class TestSimpleCommandExecution:
         assert result == 0
         assert shell.state.get_variable("VAR") == "value"
     
-    @pytest.mark.xfail(reason="Temporary variable assignments may not work as expected in PSH")
-    def test_command_with_variable_assignment(self, shell, capsys):
+    def test_command_with_variable_assignment(self, captured_shell):
         """Test command with preceding variable assignment."""
-        result = shell.run_command("TEST_VAR=hello echo $TEST_VAR")
+        result = captured_shell.run_command("TEST_VAR=hello echo $TEST_VAR")
         assert result == 0
-        
-        captured = capsys.readouterr()
-        assert "hello" in captured.out
-        
-        # Variable should not persist in global scope
-        assert shell.state.get_variable("TEST_VAR") is None
+
+        output = captured_shell.get_stdout()
+        assert "hello" in output
+
+        # Variable should not persist in global scope (returns empty string for unset)
+        assert captured_shell.state.get_variable("TEST_VAR") == ""
     
     def test_external_command_execution(self, shell, capsys):
         """Test external command execution."""
