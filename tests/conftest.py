@@ -199,14 +199,23 @@ def captured_shell():
         # Replace sys streams during execution
         sys.stdout = captured_stdout
         sys.stderr = captured_stderr
-        
+
+        # Also replace shell's internal streams to capture all output
+        # Some code uses shell.stderr directly instead of sys.stderr
+        original_shell_stdout = shell.stdout
+        original_shell_stderr = shell.stderr
+        shell.stdout = captured_stdout
+        shell.stderr = captured_stderr
+
         try:
             result = original_run_command(command_string, add_to_history)
         finally:
             # Always restore
             sys.stdout = original_sys_stdout
             sys.stderr = original_sys_stderr
-        
+            shell.stdout = original_shell_stdout
+            shell.stderr = original_shell_stderr
+
         return result
     
     # Replace run_command
@@ -232,17 +241,33 @@ def captured_shell():
 @pytest.fixture(autouse=True)
 def reset_environment():
     """Reset environment between tests.
-    
+
     This fixture automatically runs before each test to ensure
     a clean environment state.
     """
     # Store original environment
     original_cwd = os.getcwd()
-    
+
+    # Store original values of test-related environment variables
+    # These are variables that tests commonly set and should be isolated
+    test_env_vars = ['TEST_VAR', 'TEST_VAR1', 'TEST_VAR2', 'MY_VAR', 'MY_TEST_VAR',
+                     'TEST_RC_VAR', 'ENV_VAR', 'TEST_AFTER_ERROR']
+    original_env = {var: os.environ.get(var) for var in test_env_vars}
+
     yield
-    
+
     # Restore original state
     os.chdir(original_cwd)
+
+    # Restore environment variables to their original state
+    for var, original_value in original_env.items():
+        if original_value is None:
+            # Variable wasn't set before test, remove it if it exists now
+            if var in os.environ:
+                del os.environ[var]
+        else:
+            # Variable was set before, restore its original value
+            os.environ[var] = original_value
 
 
 @pytest.fixture

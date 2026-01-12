@@ -395,25 +395,25 @@ class TestLoopControl:
         assert "count: 2" in captured.out
         assert "count: 3" not in captured.out
     
-    @pytest.mark.xfail(reason="Break outside loop error handling may vary")
-    def test_break_outside_loop_error(self, shell, capsys):
+    def test_break_outside_loop_error(self, captured_shell):
         """Test error when break is used outside a loop."""
-        result = shell.run_command("break")
+        result = captured_shell.run_command("break")
         assert result != 0
-        
-        captured = capsys.readouterr()
+
         # Should produce some kind of error message
-        assert captured.err or "break" in captured.out.lower()
-    
-    @pytest.mark.xfail(reason="Continue outside loop error handling may vary")
-    def test_continue_outside_loop_error(self, shell, capsys):
+        stderr = captured_shell.get_stderr()
+        stdout = captured_shell.get_stdout()
+        assert stderr or "break" in stdout.lower()
+
+    def test_continue_outside_loop_error(self, captured_shell):
         """Test error when continue is used outside a loop."""
-        result = shell.run_command("continue")
+        result = captured_shell.run_command("continue")
         assert result != 0
-        
-        captured = capsys.readouterr()
-        # Should produce some kind of error message  
-        assert captured.err or "continue" in captured.out.lower()
+
+        # Should produce some kind of error message
+        stderr = captured_shell.get_stderr()
+        stdout = captured_shell.get_stdout()
+        assert stderr or "continue" in stdout.lower()
 
 
 class TestComplexControlFlow:

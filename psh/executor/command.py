@@ -321,24 +321,25 @@ class CommandExecutor:
         """Restore variables after command execution.
 
         Restores both shell state and shell.env to their original values.
+        Command-prefixed assignments (FOO=bar cmd) are always temporary,
+        even for exported variables.
         """
         for var, saved in saved_vars.items():
-            if not self._is_exported(var):
-                # Restore shell state variable
-                old_state_value = saved['state']
-                if old_state_value is None:
-                    self.state.unset_variable(var)
-                else:
-                    self.state.set_variable(var, old_state_value)
+            # Restore shell state variable
+            old_state_value = saved['state']
+            if old_state_value is None:
+                self.state.unset_variable(var)
+            else:
+                self.state.set_variable(var, old_state_value)
 
-                # Restore shell.env
-                old_env_value = saved['env']
-                if old_env_value is None:
-                    # Variable wasn't in env before, remove it
-                    if var in self.shell.env:
-                        del self.shell.env[var]
-                else:
-                    self.shell.env[var] = old_env_value
+            # Restore shell.env
+            old_env_value = saved['env']
+            if old_env_value is None:
+                # Variable wasn't in env before, remove it
+                if var in self.shell.env:
+                    del self.shell.env[var]
+            else:
+                self.shell.env[var] = old_env_value
     
     def _is_exported(self, var_name: str) -> bool:
         """Check if a variable is exported."""
