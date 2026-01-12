@@ -2,10 +2,11 @@
 """Enhanced line editor with vi/emacs key bindings and history search."""
 
 import os
+import select
 import sys
 import termios
 import tty
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Callable
 from enum import Enum, auto
 
 from .tab_completion import TerminalManager, CompletionEngine
@@ -58,12 +59,19 @@ class LineEditor:
         self.redo_stack = []
         self.save_undo_state()
     
-    def read_line(self, prompt: str = "") -> Optional[str]:
-        """Read a line with editing and key binding support."""
+    def read_line(self, prompt: str = "", sigwinch_fd: int = -1,
+                   sigwinch_drain: Optional[Callable[[], bool]] = None) -> Optional[str]:
+        """Read a line with editing and key binding support.
+
+        Args:
+            prompt: The prompt string to display
+            sigwinch_fd: File descriptor for SIGWINCH notifications (-1 to disable)
+            sigwinch_drain: Callback to drain SIGWINCH notifications (returns True if any)
+        """
         # Print prompt
         sys.stdout.write(prompt)
         sys.stdout.flush()
-        
+
         self.buffer = []
         self.cursor_pos = 0
         self.history_pos = len(self.history)
@@ -71,16 +79,35 @@ class LineEditor:
         self.completion_state = None
         self.current_prompt = prompt
         self.search_mode = False
-        
+
         # Reset vi mode to insert
         if self.edit_mode == 'vi':
             self.mode = EditMode.VI_INSERT
             self.vi_repeat_count = ""
             self.vi_pending_motion = None
-        
+
+        # Build list of fds to monitor
+        stdin_fd = sys.stdin.fileno()
+        watch_fds = [stdin_fd]
+        if sigwinch_fd >= 0:
+            watch_fds.append(sigwinch_fd)
+
         with self.terminal:
             while True:
                 try:
+                    # Use select() to wait for input or resize signal
+                    if sigwinch_fd >= 0:
+                        readable, _, _ = select.select(watch_fds, [], [])
+
+                        # Check for resize notification
+                        if sigwinch_fd in readable:
+                            if sigwinch_drain:
+                                sigwinch_drain()
+                            self.redraw_line()
+                            # Don't continue - also check if stdin is readable
+                            if stdin_fd not in readable:
+                                continue
+
                     char = sys.stdin.read(1)
                 except OSError as e:
                     # Handle I/O errors (e.g., terminal disconnected)
@@ -748,15 +775,37 @@ class LineEditor:
         """Clear screen and redraw current line."""
         # Clear screen
         sys.stdout.write('\033[2J\033[H')
-        
+
         # Redraw prompt and current line
         sys.stdout.write(self.current_prompt)
         sys.stdout.write(''.join(self.buffer))
-        
+
         # Position cursor
         if self.cursor_pos < len(self.buffer):
             sys.stdout.write('\b' * (len(self.buffer) - self.cursor_pos))
-        
+
+        sys.stdout.flush()
+
+    def redraw_line(self):
+        """Redraw the current prompt and input line in place.
+
+        Used after terminal resize (SIGWINCH) to fix display corruption.
+        Moves to start of line, clears, and redraws prompt + buffer.
+        """
+        # Move to beginning of line
+        sys.stdout.write('\r')
+
+        # Clear from cursor to end of line
+        sys.stdout.write('\033[K')
+
+        # Redraw prompt and buffer
+        sys.stdout.write(self.current_prompt)
+        sys.stdout.write(''.join(self.buffer))
+
+        # Reposition cursor
+        if self.cursor_pos < len(self.buffer):
+            sys.stdout.write('\b' * (len(self.buffer) - self.cursor_pos))
+
         sys.stdout.flush()
     
     def _handle_interrupt(self):

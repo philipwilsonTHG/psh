@@ -29,13 +29,20 @@ class MultiLineInputHandler:
     def read_command(self) -> Optional[str]:
         """Read a complete command, possibly spanning multiple lines."""
         self.buffer = []
-        
+
+        # Get SIGWINCH notification fd from signal manager if available
+        sigwinch_fd = -1
+        sigwinch_drain = None
+        if hasattr(self.shell, 'signal_manager') and self.shell.signal_manager:
+            sigwinch_fd = self.shell.signal_manager.get_sigwinch_fd()
+            sigwinch_drain = self.shell.signal_manager.drain_sigwinch_notifications
+
         while True:
             # Determine prompt
             prompt = self._get_prompt()
-            
+
             # Read one line
-            line = self.line_editor.read_line(prompt)
+            line = self.line_editor.read_line(prompt, sigwinch_fd, sigwinch_drain)
             if line is None:  # EOF
                 if self.buffer:
                     print("\npsh: syntax error: unexpected end of file")

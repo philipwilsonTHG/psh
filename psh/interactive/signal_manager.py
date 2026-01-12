@@ -19,6 +19,9 @@ class SignalManager(InteractiveComponent):
         # Self-pipe for safe SIGCHLD handling
         self._sigchld_notifier = SignalNotifier()
 
+        # Self-pipe for safe SIGWINCH handling (terminal resize)
+        self._sigwinch_notifier = SignalNotifier()
+
         # Guard against reentrancy in notification processing
         self._in_sigchld_processing = False
 
@@ -89,6 +92,9 @@ class SignalManager(InteractiveComponent):
         self._original_handlers[signal.SIGPIPE] = self._signal_registry.register(
             signal.SIGPIPE, signal.SIG_DFL, "SignalManager:interactive"
         )
+        self._original_handlers[signal.SIGWINCH] = self._signal_registry.register(
+            signal.SIGWINCH, self._handle_sigwinch, "SignalManager:interactive"
+        )
         
     def restore_default_handlers(self):
         """Restore default signal handlers."""
@@ -104,6 +110,8 @@ class SignalManager(InteractiveComponent):
         # Clean up signal notifier resources
         if hasattr(self, '_sigchld_notifier'):
             self._sigchld_notifier.close()
+        if hasattr(self, '_sigwinch_notifier'):
+            self._sigwinch_notifier.close()
         
     def _handle_signal_with_trap_check(self, signum, frame):
         """Handle signals with trap checking."""
@@ -209,7 +217,33 @@ class SignalManager(InteractiveComponent):
             Read file descriptor for SIGCHLD notifications
         """
         return self._sigchld_notifier.get_fd()
-                
+
+    def _handle_sigwinch(self, signum, frame):
+        """Handle terminal resize signal - async-signal-safe.
+
+        Just notifies via self-pipe; actual redraw happens in main loop.
+        """
+        self._sigwinch_notifier.notify(signal.SIGWINCH)
+
+    def get_sigwinch_fd(self) -> int:
+        """Get file descriptor for SIGWINCH notifications.
+
+        Can be used with select() to wait for resize events in input loops.
+
+        Returns:
+            Read file descriptor for SIGWINCH notifications
+        """
+        return self._sigwinch_notifier.get_fd()
+
+    def drain_sigwinch_notifications(self) -> bool:
+        """Drain any pending SIGWINCH notifications.
+
+        Returns:
+            True if there were any pending notifications
+        """
+        notifications = self._sigwinch_notifier.drain_notifications()
+        return len(notifications) > 0
+
     def ensure_foreground(self):
         """Ensure shell is in its own process group and is foreground."""
         shell_pid = os.getpid()
@@ -241,6 +275,7 @@ class SignalManager(InteractiveComponent):
         - SIGTTIN: Allow child to read from terminal
         - SIGCHLD: Allow child to handle child process signals
         - SIGPIPE: Allow child to handle broken pipe signals
+        - SIGWINCH: Allow child to handle terminal resize signals
 
         This method is platform-safe and will skip signals not available
         on the current platform.
@@ -253,6 +288,7 @@ class SignalManager(InteractiveComponent):
             signal.SIGTTIN,
             signal.SIGCHLD,
             signal.SIGPIPE,
+            signal.SIGWINCH,
         ]
 
         for sig in signals_to_reset:
