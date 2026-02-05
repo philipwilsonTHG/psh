@@ -28,6 +28,7 @@ from . import parse_tree
 from . import debug_control
 from . import parser_control
 from . import parser_experiment
+from . import shell_options
 
 # Re-export for convenience
 __all__ = ['registry', 'builtin', 'Builtin']

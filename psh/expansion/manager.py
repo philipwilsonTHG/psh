@@ -169,21 +169,15 @@ class ExpansionManager:
                         self._process_single_word(word, 'WORD', args)
             elif arg_type == 'COMPOSITE' or arg_type == 'COMPOSITE_QUOTED':
                 # Composite argument - already concatenated in parser
-                # If it's COMPOSITE_QUOTED, it had quoted parts and shouldn't be glob expanded
-                
+                # Quoted glob chars are marked with \x00 prefix by the parser/lexer
+
                 # First, expand variables and command substitutions if present
                 if '$' in arg or '`' in arg:
                     arg = self.expand_string_variables(arg)
-                
-                # Only expand globs for non-quoted composites (unless noglob is set)
-                if (arg_type == 'COMPOSITE' and any(c in arg for c in ['*', '?', '[']) 
-                    and not self.state.options.get('noglob', False)):
-                    # Perform glob expansion
-                    matches = self.glob_expander.expand(arg)
-                    args.extend(matches)
-                else:
-                    # No glob expansion - quoted composite, no glob chars, or noglob set
-                    args.append(arg)
+
+                # Process through _process_single_word which handles \x00 markers
+                # for distinguishing quoted vs unquoted glob characters
+                self._process_single_word(arg, arg_type, args)
             elif arg_type in ('COMMAND_SUB', 'COMMAND_SUB_BACKTICK'):
                 # Command substitution
                 output = self.execute_command_substitution(arg)
@@ -383,7 +377,7 @@ class ExpansionManager:
             if c in ['*', '?', '[']
         )
         
-        if (has_unescaped_globs and arg_type not in ('STRING', 'VARIABLE')
+        if (has_unescaped_globs and arg_type != 'STRING'
             and not self.state.options.get('noglob', False)):
             # Perform glob expansion (but clean NULL markers first for glob matching)
             import glob
@@ -395,11 +389,15 @@ class ExpansionManager:
                     print(f"[EXPANSION]     Glob expansion: '{clean_word}' -> {sorted(matches)}", file=self.state.stderr)
                 args.extend(sorted(matches))
             else:
-                # No matches, use literal argument (bash behavior)
+                # No matches
                 if self.state.options.get('debug-expansion-detail'):
                     print(f"[EXPANSION]     Glob expansion: '{clean_word}' -> no matches", file=self.state.stderr)
-                # Clean NULL markers before adding
-                args.append(clean_word)
+                if self.state.options.get('nullglob', False):
+                    # nullglob: patterns with no matches expand to nothing
+                    pass
+                else:
+                    # Default: use literal argument (bash default behavior)
+                    args.append(clean_word)
         else:
             # Clean NULL markers before adding
             clean_word = word.replace('\x00', '')

@@ -348,17 +348,21 @@ class CommandExecutor:
     def _expand_assignment_value(self, value: str) -> str:
         """Expand a value used in variable assignment."""
         # Handle all expansions in order, without word splitting
-        
+
         # 1. Tilde expansion (only at start)
         if value.startswith('~'):
             value = self.expansion_manager.expand_tilde(value)
-        
+
         # 2. Variable and command substitution expansion
         if '$' in value or '`' in value:
             # This complex expansion logic will use the expansion manager
             # For now, use a simplified version
             value = self.expansion_manager.expand_string_variables(value)
-        
+
+        # 3. Clean NULL markers used for glob protection in composites
+        if '\x00' in value:
+            value = value.replace('\x00', '')
+
         return value
     
     def _print_xtrace(self, cmd_name: str, args: List[str]):

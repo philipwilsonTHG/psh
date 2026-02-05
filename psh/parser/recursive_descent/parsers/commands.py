@@ -406,13 +406,14 @@ class CommandParser:
             for token in composite:
                 # Check for unclosed expansions in composite parts
                 self._check_for_unclosed_expansions(token)
-                
+
                 # Track if any part was quoted
                 if token.type == TokenType.STRING:
                     has_quoted_part = True
-                
-                # Convert token to string representation
-                if token.type == TokenType.VARIABLE:
+                    # Mark glob chars from quoted sections as non-globbable
+                    # using \x00 prefix, but skip chars inside ${...} expansions
+                    parts.append(self._mark_quoted_globs(token.value))
+                elif token.type == TokenType.VARIABLE:
                     parts.append(f"${token.value}")
                 elif token.type in (TokenType.LBRACKET, TokenType.RBRACKET):
                     # Include brackets as-is for glob patterns
@@ -476,7 +477,36 @@ class CommandParser:
             return f"${value}"
         else:
             return f"${value}"
-    
+
+    @staticmethod
+    def _mark_quoted_globs(value: str) -> str:
+        """Mark glob characters in quoted strings with \\x00 prefix.
+
+        Skips characters inside ${...} expansions since those are
+        part of variable syntax, not glob patterns.
+        """
+        result = []
+        i = 0
+        brace_depth = 0
+        while i < len(value):
+            ch = value[i]
+            if ch == '$' and i + 1 < len(value) and value[i + 1] == '{':
+                result.append('${')
+                brace_depth += 1
+                i += 2
+                continue
+            if ch == '}' and brace_depth > 0:
+                brace_depth -= 1
+                result.append('}')
+                i += 1
+                continue
+            if brace_depth == 0 and ch in ('*', '?', '['):
+                result.append(f'\x00{ch}')
+            else:
+                result.append(ch)
+            i += 1
+        return ''.join(result)
+
     def parse_argument_as_word(self) -> 'Word':
         """Parse an argument as a Word AST node with expansions."""
         from ....ast_nodes import Word

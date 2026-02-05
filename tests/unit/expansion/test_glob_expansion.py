@@ -276,7 +276,6 @@ class TestGlobEscaping:
         # Clean up
         shell.run_command('rm -f file1.txt file2.txt')
     
-    @pytest.mark.xfail(reason="PSH doesn't expand globs when any part of word is quoted")
     def test_partial_quoting(self, shell, capsys):
         """Test partial quoting of patterns."""
         # Create test files
@@ -372,7 +371,6 @@ class TestGlobInContext:
         # Clean up
         shell.run_command('rm -f loop*.txt')
     
-    @pytest.mark.xfail(reason="PSH doesn't perform glob expansion on variable expansion results")
     def test_glob_with_variable(self, shell, capsys):
         """Test glob with variable expansion."""
         # Create test files

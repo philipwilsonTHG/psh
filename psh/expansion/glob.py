@@ -17,24 +17,23 @@ class GlobExpander:
     def expand(self, pattern: str) -> List[str]:
         """
         Expand glob pattern.
-        
-        Returns a list of matching filenames, or the original pattern
-        if no matches are found (bash behavior).
+
+        Returns a list of matching filenames, or an empty list
+        if no matches are found.
         """
         # Check if the pattern contains glob characters
         if not any(c in pattern for c in ['*', '?', '[']):
             return [pattern]
-        
+
         # Perform glob expansion
         dotglob = self.state.options.get('dotglob', False)
         matches = glob.glob(pattern, include_hidden=dotglob)
-        
+
         if matches:
             # Sort matches for consistent output
             return sorted(matches)
         else:
-            # No matches, return literal pattern (bash behavior)
-            return [pattern]
+            return []
     
     def should_expand(self, arg: str, arg_type: str) -> bool:
         """

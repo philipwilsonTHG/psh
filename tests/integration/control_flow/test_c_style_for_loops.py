@@ -231,7 +231,6 @@ class TestCStyleForControlFlow:
 class TestCStyleForIORedirection:
     """Test C-style for loops with I/O redirection."""
     
-    @pytest.mark.xfail(reason="pytest I/O capture interferes with shell redirection")
     def test_c_style_with_output_redirection(self, isolated_shell_with_temp_dir):
         """Test C-style for loop with output redirection."""
         shell = isolated_shell_with_temp_dir
@@ -242,7 +241,6 @@ class TestCStyleForIORedirection:
             content = f.read()
             assert content == "0\n1\n2\n"
     
-    @pytest.mark.xfail(reason="pytest I/O capture interferes with shell redirection")
     def test_c_style_with_append_redirection(self, isolated_shell_with_temp_dir):
         """Test C-style for loop with append redirection."""
         shell = isolated_shell_with_temp_dir
@@ -253,7 +251,6 @@ class TestCStyleForIORedirection:
             content = f.read()
             assert content == "start\nline 1\nline 2\n"
     
-    @pytest.mark.xfail(reason="pytest I/O capture interferes with shell redirection")
     def test_c_style_with_input_redirection(self, isolated_shell_with_temp_dir):
         """Test C-style for loop reading from file."""
         shell = isolated_shell_with_temp_dir

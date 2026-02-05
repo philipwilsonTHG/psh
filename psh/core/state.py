@@ -70,8 +70,12 @@ class ShellState:
             'verbose': False,      # -v: echo input lines as read
             'ignoreeof': False,    # -o ignoreeof: don't exit on EOF
             'nolog': False,        # -o nolog: don't log function definitions
-            # Bash compatibility options
+            # Bash compatibility options (shopt)
             'dotglob': False,      # dotglob: glob matches dotfiles
+            'nullglob': False,     # nullglob: glob with no matches returns empty
+            'extglob': False,      # extglob: extended globbing patterns
+            'nocaseglob': False,   # nocaseglob: case-insensitive globbing
+            'globstar': False,     # globstar: ** matches recursively
             'braceexpand': True,   # -o braceexpand: enable brace expansion (default on)
             'emacs': False,        # -o emacs: emacs key bindings (context-dependent)
             'vi': False,           # -o vi: vi key bindings (off for set -o display)

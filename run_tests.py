@@ -131,6 +131,9 @@ Examples:
                 '--ignore=tests/integration/subshells/',
                 '--ignore=tests/integration/functions/test_function_advanced.py',
                 '--ignore=tests/integration/variables/test_variable_assignment.py',
+                '--deselect=tests/integration/control_flow/test_c_style_for_loops.py::TestCStyleForIORedirection::test_c_style_with_output_redirection',
+                '--deselect=tests/integration/control_flow/test_c_style_for_loops.py::TestCStyleForIORedirection::test_c_style_with_append_redirection',
+                '--deselect=tests/integration/control_flow/test_c_style_for_loops.py::TestCStyleForIORedirection::test_c_style_with_input_redirection',
             ]
             if args.quick:
                 cmd.extend(['-m', 'not slow'])
@@ -152,6 +155,9 @@ Examples:
             cmd = base_cmd + [
                 'tests/integration/functions/test_function_advanced.py::test_function_with_subshell',
                 'tests/integration/variables/test_variable_assignment.py::test_assignment_with_subshell',
+                'tests/integration/control_flow/test_c_style_for_loops.py::TestCStyleForIORedirection::test_c_style_with_output_redirection',
+                'tests/integration/control_flow/test_c_style_for_loops.py::TestCStyleForIORedirection::test_c_style_with_append_redirection',
+                'tests/integration/control_flow/test_c_style_for_loops.py::TestCStyleForIORedirection::test_c_style_with_input_redirection',
                 '-s'
             ]
 

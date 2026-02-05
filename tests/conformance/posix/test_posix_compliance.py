@@ -418,8 +418,7 @@ class TestPOSIXShellParameters(ConformanceTest):
     def test_special_parameters(self):
         """Test special parameters."""
         # Process ID will differ between PSH and bash processes
-        with pytest.raises(AssertionError, match="PSH and bash behavior differs"):
-            self.assert_identical_behavior('echo $$')  # Process ID
+        self.assert_documented_difference('echo $$', 'PROCESS_ID_DIFFERENCE')
 
         # Exit status should work identically
         self.assert_identical_behavior('true; echo $?')  # Exit status

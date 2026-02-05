@@ -41,6 +41,13 @@
       "psh_behavior": "PSH directory stack implementation",
       "bash_behavior": "Bash directory stack implementation",
       "category": "navigation_differences"
+    },
+    "echo $$": {
+      "id": "PROCESS_ID_DIFFERENCE",
+      "description": "PSH and bash report different process IDs ($$) because they are distinct processes",
+      "psh_behavior": "Reports PSH process ID",
+      "bash_behavior": "Reports bash process ID",
+      "category": "special_parameters"
     }
   },
   "psh_extensions": {

@@ -2,10 +2,22 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.106.0"
+__version__ = "0.107.0"
 
 # Version history
 VERSION_HISTORY = """
+0.107.0 (2026-02-05) - Glob Fixes, shopt Builtin, and Test Improvements
+- Fixed glob expansion on variable results per POSIX (unquoted $VAR now globs)
+- Fixed partial quoting in glob patterns: "test"*.txt correctly expands unquoted *
+  using \\x00 markers to distinguish quoted vs unquoted glob chars in composites
+- Implemented shopt builtin with -s/-u/-p/-q flags and dotglob, nullglob, extglob,
+  nocaseglob, globstar options
+- Added nullglob support: when enabled, glob patterns with no matches expand to nothing
+- Reclassified echo $$ from psh_bug to documented difference in conformance tests
+- Moved 3 C-style for loop I/O tests from xfail to -s test phase (they pass with -s)
+- Added 12 regression tests for bugs fixed in commit 4f4d854
+- All tests passing (2623 passed in Phase 1, 43 subshell, 5 Phase 3)
+
 0.106.0 (2025-11-25) - Code Cleanup and Pythonic Refactoring
 - Refactored non-Pythonic length checks across 14 files (34 patterns)
 - Changed `len(x) == 0` to `not x` and `len(x) > 0` to `bool(x)` for idiomatic Python
