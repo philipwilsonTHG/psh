@@ -57,6 +57,13 @@ def test_substitution_trimming_newlines(shell, capsys):
     assert captured.out.strip() == 'hello'
 
 
+def test_substitution_strips_all_trailing_newlines(shell, capsys):
+    """POSIX requires stripping ALL trailing newlines, not just one."""
+    shell.run_command('x=$(printf "hello\\n\\n\\n"); echo "$x"')
+    captured = capsys.readouterr()
+    assert captured.out.strip() == 'hello'
+
+
 def test_nested_dollar_paren_substitution(shell, capsys):
     """Test nested $(command) substitutions."""
     shell.run_command('echo $(echo $(echo hello))')

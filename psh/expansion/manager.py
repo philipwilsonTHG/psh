@@ -335,32 +335,10 @@ class ExpansionManager:
             return text
 
         ifs = self.state.get_variable('IFS', ' \t\n')
-        if not ifs:
+        if ifs == '':
             return text
 
-        words = []
-        current_word = ''
-        escape_next = False
-
-        for char in text:
-            if escape_next:
-                current_word += char
-                escape_next = False
-                continue
-
-            if char == '\\':
-                escape_next = True
-                continue
-
-            if char in ifs:
-                if current_word:  # Don't add empty words
-                    words.append(current_word)
-                    current_word = ''
-            else:
-                current_word += char
-
-        if current_word:  # Add final word if any
-            words.append(current_word)
+        words = self.word_splitter.split(text, ifs)
 
         # Return list only if we actually split into multiple words
         if len(words) > 1:

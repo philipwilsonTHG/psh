@@ -4,49 +4,109 @@ from typing import List, Optional
 
 
 class WordSplitter:
-    """Split words according to the shell's IFS rules."""
+    """Split words according to the shell's IFS rules.
+
+    Implements POSIX-compliant IFS word splitting:
+    - IFS whitespace characters (space, tab, newline) are trimmed from
+      start/end and consecutive occurrences collapse into one delimiter.
+    - Non-whitespace IFS characters always produce a field boundary,
+      preserving empty fields (e.g., 'a::b' with IFS=':' yields ['a', '', 'b']).
+    - Each non-whitespace IFS char, along with any adjacent IFS whitespace,
+      delimits a field (POSIX 2.6.5).
+    - Backslash-escaped characters are preserved (not treated as delimiters),
+      since psh performs escape processing after word splitting.
+    - If IFS is None (unset), default ' \\t\\n' is used.
+    - If IFS is '' (empty string), no splitting occurs.
+    """
 
     def split(self, text: str, ifs: Optional[str]) -> List[str]:
         """Split text using IFS characters.
 
         Args:
             text: The string to split.
-            ifs: The shell's IFS value (None or empty string disables splitting).
+            ifs: The shell's IFS value. None means unset (use default),
+                 empty string means no splitting.
 
         Returns:
-            List of resulting words. If no splitting occurs, returns the original string as a single element.
+            List of resulting fields after splitting.
         """
         if text is None:
             return []
 
-        if not ifs:
+        # Unset IFS uses default splitting
+        if ifs is None:
+            ifs = ' \t\n'
+
+        # Empty IFS means no splitting
+        if ifs == '':
             return [text]
 
-        words: List[str] = []
-        current_word: List[str] = []
-        escape_next = False
+        # Separate IFS into whitespace and non-whitespace characters
+        ifs_whitespace = set(c for c in ifs if c in ' \t\n')
+        ifs_non_whitespace = set(c for c in ifs if c not in ' \t\n')
 
-        for char in text:
-            if escape_next:
-                current_word.append(char)
-                escape_next = False
+        fields: List[str] = []
+        current_field: List[str] = []
+        i = 0
+
+        # Skip leading IFS whitespace (but not backslash-escaped whitespace)
+        while i < len(text) and text[i] in ifs_whitespace:
+            i += 1
+
+        while i < len(text):
+            char = text[i]
+
+            # Backslash escapes the next character, preventing it from
+            # being treated as an IFS delimiter
+            if char == '\\' and i + 1 < len(text):
+                current_field.append(char)
+                current_field.append(text[i + 1])
+                i += 2
                 continue
 
-            if char == '\\':
-                escape_next = True
-                continue
-
-            if char in ifs:
-                if current_word:
-                    words.append(''.join(current_word))
-                    current_word = []
+            if char in ifs_non_whitespace:
+                # Non-whitespace IFS character - always a separator.
+                # Append current field (even if empty, to produce empty fields).
+                fields.append(''.join(current_field))
+                current_field = []
+                i += 1
+                # Skip adjacent IFS whitespace after non-whitespace delimiter
+                while i < len(text) and text[i] in ifs_whitespace:
+                    i += 1
+            elif char in ifs_whitespace:
+                # IFS whitespace - skip it, then check what follows.
+                j = i
+                while j < len(text) and text[j] in ifs_whitespace:
+                    j += 1
+                if j < len(text) and text[j] in ifs_non_whitespace:
+                    # Whitespace is adjacent to a non-whitespace IFS char.
+                    # Per POSIX, they form a single delimiter together.
+                    # Advance past the whitespace AND the non-ws delimiter,
+                    # finalizing current field as part of this combined delimiter.
+                    fields.append(''.join(current_field))
+                    current_field = []
+                    i = j + 1
+                    # Skip any IFS whitespace after the non-ws delimiter too
+                    while i < len(text) and text[i] in ifs_whitespace:
+                        i += 1
+                else:
+                    # Pure whitespace delimiter (or trailing whitespace).
+                    # Only produces a field boundary if current_field is non-empty.
+                    if current_field:
+                        fields.append(''.join(current_field))
+                        current_field = []
+                    i = j
             else:
-                current_word.append(char)
+                # Regular character
+                current_field.append(char)
+                i += 1
 
-        if current_word:
-            words.append(''.join(current_word))
+        # Add last field if any
+        if current_field:
+            fields.append(''.join(current_field))
 
-        if len(words) > 1:
-            return words
+        # If no fields were found, return empty list
+        if not fields:
+            return []
 
-        return [text]
+        return fields

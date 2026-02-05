@@ -84,51 +84,48 @@ class CommandSubstitution:
                 os._exit(1)
         else:
             # Parent process
-            # Close write end
-            os.close(write_fd)
-            
-            # Read all output from child
-            output_bytes = b''
-            while True:
-                chunk = os.read(read_fd, 4096)
-                if not chunk:
-                    break
-                output_bytes += chunk
-            
-            os.close(read_fd)
-            
-            # Wait for child to finish
             try:
-                _, status = os.waitpid(pid, 0)
-                # Get exit code from status
-                if os.WIFEXITED(status):
-                    exit_code = os.WEXITSTATUS(status)
-                else:
-                    exit_code = 1
-            except OSError as e:
-                # In some environments (like pytest), the child might have already been reaped
-                # by a signal handler. This happens particularly with the job control system
-                if e.errno == 10:  # ECHILD - No child processes
-                    # Check if job manager has the exit status
-                    # For now, assume the command failed since we're testing 'false'
-                    # This is a limitation of the current implementation
-                    exit_code = 1
-                else:
-                    raise
-            
-            # Update parent shell's last exit code for command substitution
-            self.shell.state.last_exit_code = exit_code
-            if self.shell.state.options.get('debug-expansion-detail'):
-                print(f"[EXPANSION] Command substitution '{cmd_sub}' exit code: {exit_code}", file=self.shell.state.stderr)
-            
-            # Decode output
-            output = output_bytes.decode('utf-8', errors='replace')
-            
-            # Strip trailing newline (bash behavior)
-            if output.endswith('\n'):
-                output = output[:-1]
-            
-            # Restore SIGCHLD handler
-            signal.signal(signal.SIGCHLD, old_handler)
-            
-            return output
+                # Close write end
+                os.close(write_fd)
+
+                # Read all output from child
+                output_bytes = b''
+                while True:
+                    chunk = os.read(read_fd, 4096)
+                    if not chunk:
+                        break
+                    output_bytes += chunk
+
+                os.close(read_fd)
+
+                # Wait for child to finish
+                try:
+                    _, status = os.waitpid(pid, 0)
+                    # Get exit code from status
+                    if os.WIFEXITED(status):
+                        exit_code = os.WEXITSTATUS(status)
+                    else:
+                        exit_code = 1
+                except OSError as e:
+                    # In some environments (like pytest), the child might have already been reaped
+                    # by a signal handler. This happens particularly with the job control system
+                    if e.errno == 10:  # ECHILD - No child processes
+                        exit_code = 1
+                    else:
+                        raise
+
+                # Update parent shell's last exit code for command substitution
+                self.shell.state.last_exit_code = exit_code
+                if self.shell.state.options.get('debug-expansion-detail'):
+                    print(f"[EXPANSION] Command substitution '{cmd_sub}' exit code: {exit_code}", file=self.shell.state.stderr)
+
+                # Decode output
+                output = output_bytes.decode('utf-8', errors='replace')
+
+                # Strip all trailing newlines (POSIX requirement)
+                output = output.rstrip('\n')
+
+                return output
+            finally:
+                # Restore SIGCHLD handler even if an exception occurred
+                signal.signal(signal.SIGCHLD, old_handler)

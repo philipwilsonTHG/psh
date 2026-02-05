@@ -424,17 +424,25 @@ class TestGlobOptions:
         """Test dotglob option for hidden files."""
         # Create test files
         shell.run_command('touch .hidden visible')
-        
+
         # Default - no hidden files
         shell.run_command('echo *')
         captured = capsys.readouterr()
         assert ".hidden" not in captured.out
-        
-        # With dotglob (if supported)
-        shell.run_command('shopt -s dotglob 2>/dev/null || true')
+        assert "visible" in captured.out
+
+        # Enable dotglob
+        shell.state.options['dotglob'] = True
         shell.run_command('echo *')
         captured = capsys.readouterr()
-        # Might include hidden files
-        
+        assert ".hidden" in captured.out
+        assert "visible" in captured.out
+
+        # Disable dotglob
+        shell.state.options['dotglob'] = False
+        shell.run_command('echo *')
+        captured = capsys.readouterr()
+        assert ".hidden" not in captured.out
+
         # Clean up
         shell.run_command('rm -f .hidden visible')

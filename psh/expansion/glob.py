@@ -26,7 +26,8 @@ class GlobExpander:
             return [pattern]
         
         # Perform glob expansion
-        matches = glob.glob(pattern)
+        dotglob = self.state.options.get('dotglob', False)
+        matches = glob.glob(pattern, include_hidden=dotglob)
         
         if matches:
             # Sort matches for consistent output

@@ -86,16 +86,9 @@ class CommentRecognizer(ContextualRecognizer):
         if prev_char in [' ', '\t', '\n', '\r']:
             return True
         
-        # After operators that can be followed by comments
-        comment_preceding_ops = {'|', '&', ';', '(', '{'}
+        # After operators/metacharacters that can precede comments
+        comment_preceding_ops = {'|', '&', ';', '(', ')', '{', '}'}
         if prev_char in comment_preceding_ops:
             return True
-        
-        # At the start of a word (unlikely but possible)
-        if pos > 0:
-            # Look back for word boundaries
-            word_boundaries = {' ', '\t', '\n', '\r', '|', '&', ';', '(', ')', '{', '}'}
-            if prev_char in word_boundaries:
-                return True
-        
+
         return False
