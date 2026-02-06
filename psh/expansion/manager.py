@@ -116,6 +116,14 @@ class ExpansionManager:
                             print(f"[EXPANSION]     Array expansion in quotes: '{arg}' -> {expanded_list}", file=self.state.stderr)
                         args.extend(expanded_list)
                         continue
+                    elif self._contains_at_expansion(arg):
+                        # String contains $@ or ${@} with surrounding text
+                        # e.g., "x$@y" -> multiple args with prefix/suffix distributed
+                        expanded_words = self._expand_at_in_string(arg)
+                        if self.state.options.get('debug-expansion-detail'):
+                            print(f"[EXPANSION]     \"$@\" in string: '{arg}' -> {expanded_words}", file=self.state.stderr)
+                        args.extend(expanded_words)
+                        continue
                     else:
                         # Expand variables within the string
                         original = arg
@@ -149,7 +157,7 @@ class ExpansionManager:
                         if self.state.options.get('debug-expansion-detail') and len(words) > 1:
                             print(f"[EXPANSION]     Word splitting: '{expanded}' -> {words}", file=self.state.stderr)
                         for word in words:
-                            self._process_single_word(word, arg_type, args)
+                            self._process_single_word(word, arg_type, args, from_expansion=True)
                         continue
 
                     args.append(expanded)
@@ -166,14 +174,17 @@ class ExpansionManager:
                     if self.state.options.get('debug-expansion-detail') and len(words) > 1:
                         print(f"[EXPANSION]     Word splitting: '{expanded}' -> {words}", file=self.state.stderr)
                     for word in words:
-                        self._process_single_word(word, 'WORD', args)
+                        self._process_single_word(word, 'WORD', args, from_expansion=True)
             elif arg_type == 'COMPOSITE' or arg_type == 'COMPOSITE_QUOTED':
                 # Composite argument - already concatenated in parser
                 # Quoted glob chars are marked with \x00 prefix by the parser/lexer
 
                 # First, expand variables and command substitutions if present
+                # For COMPOSITE_QUOTED, protect glob chars from expansion results
                 if '$' in arg or '`' in arg:
-                    arg = self.expand_string_variables(arg)
+                    arg = self.expand_string_variables(
+                        arg, protect_glob_chars=(arg_type == 'COMPOSITE_QUOTED')
+                    )
 
                 # Process through _process_single_word which handles \x00 markers
                 # for distinguishing quoted vs unquoted glob characters
@@ -189,7 +200,7 @@ class ExpansionManager:
                     if self.state.options.get('debug-expansion-detail') and len(words) > 1:
                         print(f"[EXPANSION]     Word splitting: '{output}' -> {words}", file=self.state.stderr)
                     for word in words:
-                        self._process_single_word(word, 'WORD', args)
+                        self._process_single_word(word, 'WORD', args, from_expansion=True)
                 # If output is empty, don't add anything
                 continue
             elif arg_type == 'ARITH_EXPANSION':
@@ -197,10 +208,12 @@ class ExpansionManager:
                 result = self.execute_arithmetic_expansion(arg)
                 args.append(str(result))
             else:
+                had_expansion = False
                 if arg_type == 'WORD' and '$' in arg:
                     if self.state.options.get('debug-expansion-detail'):
                         print(f"[EXPANSION]     Before var expansion: '{arg}'", file=self.state.stderr)
                     arg = self.expand_string_variables(arg)
+                    had_expansion = True
                     if self.state.options.get('debug-expansion-detail'):
                         print(f"[EXPANSION]     After var expansion: '{arg}'", file=self.state.stderr)
 
@@ -209,9 +222,9 @@ class ExpansionManager:
                     print(f"[EXPANSION]     Word splitting: '{arg}' -> {words}", file=self.state.stderr)
 
                 for word in words:
-                    self._process_single_word(word, arg_type, args)
+                    self._process_single_word(word, arg_type, args, from_expansion=had_expansion)
                 continue
-        
+
         # Debug: show post-expansion args
         if self.state.options.get('debug-expansion'):
             print(f"[EXPANSION] Result: {args}", file=self.state.stderr)
@@ -353,10 +366,72 @@ class ExpansionManager:
         ifs = self.state.get_variable('IFS', ' \t\n')
         return self.word_splitter.split(text, ifs)
     
-    def _process_single_word(self, word: str, arg_type: str, args: List[str]) -> None:
-        """Process a single word through tilde expansion, escape processing, and globbing."""
-        # Tilde expansion (only for unquoted words)
-        if word.startswith('~') and arg_type == 'WORD':
+    @staticmethod
+    def _contains_at_expansion(text: str) -> bool:
+        """Check if text contains $@ or ${@} (but is not exactly $@)."""
+        import re
+        # Match $@ or ${@} that aren't the entire string
+        return bool(re.search(r'(?<!\$)\$@|\$\{@\}', text)) and text != '$@'
+
+    def _expand_at_in_string(self, text: str) -> List[str]:
+        """Expand $@ or ${@} inside a double-quoted string with prefix/suffix.
+
+        For "x$@y" with params (a, b), produces: ["xa", "by"]
+        For "x$@y" with no params, produces: ["xy"]
+        """
+        import re
+        # Find the first $@ or ${@}
+        match = re.search(r'\$\{@\}|\$@', text)
+        if not match:
+            return [self.expand_string_variables(text)]
+
+        prefix = text[:match.start()]
+        suffix = text[match.end():]
+
+        # Expand variables in prefix and suffix (other $vars)
+        if prefix and ('$' in prefix or '`' in prefix):
+            prefix = self.expand_string_variables(prefix)
+        if suffix and ('$' in suffix or '`' in suffix):
+            # Check for additional $@ in suffix (handle recursively)
+            if self._contains_at_expansion(suffix) or suffix == '$@':
+                # Recursive case: "x$@$@y" etc.
+                suffix_words = self._expand_at_in_string(suffix)
+            else:
+                suffix_words = [self.expand_string_variables(suffix)]
+        else:
+            suffix_words = [suffix]
+
+        params = list(self.state.positional_params)
+
+        if not params:
+            # No params: join prefix with first suffix word
+            result = [prefix + suffix_words[0]] + suffix_words[1:]
+            return result
+
+        # Distribute: prefix on first param, suffix on last param
+        result = []
+        if len(params) == 1:
+            result.append(prefix + params[0] + suffix_words[0])
+        else:
+            result.append(prefix + params[0])
+            result.extend(params[1:-1])
+            result.append(params[-1] + suffix_words[0])
+        # Add any remaining suffix words (from recursive $@ expansion)
+        result.extend(suffix_words[1:])
+        return result
+
+    def _process_single_word(self, word: str, arg_type: str, args: List[str],
+                            from_expansion: bool = False) -> None:
+        """Process a single word through tilde expansion, escape processing, and globbing.
+
+        Args:
+            word: The word to process
+            arg_type: The argument type ('WORD', 'COMPOSITE', etc.)
+            args: Output list to append results to
+            from_expansion: If True, skip tilde expansion (word came from variable/command expansion)
+        """
+        # Tilde expansion (only for unquoted words, not from expansion results)
+        if word.startswith('~') and arg_type == 'WORD' and not from_expansion:
             original = word
             word = self.expand_tilde(word)
             if self.state.options.get('debug-expansion-detail') and original != word:
@@ -408,16 +483,21 @@ class ExpansionManager:
             clean_word = word.replace('\x00', '')
             args.append(clean_word)
     
-    def expand_string_variables(self, text: str, process_escapes: bool = True) -> str:
+    def expand_string_variables(self, text: str, process_escapes: bool = True,
+                                protect_glob_chars: bool = False) -> str:
         """
         Expand variables and arithmetic in a string.
         Used for here strings and double-quoted strings.
-        
+
         Args:
             text: The text to expand
             process_escapes: Whether to process escape sequences (default True)
+            protect_glob_chars: Whether to mark glob chars in expansion results
+                              with \\x00 to prevent pathname expansion (default False)
         """
-        return self.variable_expander.expand_string_variables(text, process_escapes)
+        return self.variable_expander.expand_string_variables(
+            text, process_escapes, protect_glob_chars=protect_glob_chars
+        )
     
     def process_escape_sequences(self, text: str) -> str:
         """Process escape sequences in unquoted words."""

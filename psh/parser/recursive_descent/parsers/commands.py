@@ -412,7 +412,15 @@ class CommandParser:
                     has_quoted_part = True
                     # Mark glob chars from quoted sections as non-globbable
                     # using \x00 prefix, but skip chars inside ${...} expansions
-                    parts.append(self._mark_quoted_globs(token.value))
+                    marked = self._mark_quoted_globs(token.value)
+                    # For single-quoted strings, also protect $ and ` from expansion
+                    if getattr(token, 'quote_type', None) == "'":
+                        marked = marked.replace('$', '\x00$').replace('`', '\x00`')
+                    elif getattr(token, 'quote_type', None) == '"':
+                        # Brace-protect trailing $var to prevent name absorption
+                        # from adjacent tokens (e.g., "$var"bar -> ${var}bar)
+                        marked = self._brace_protect_trailing_var(marked)
+                    parts.append(marked)
                 elif token.type == TokenType.VARIABLE:
                     parts.append(f"${token.value}")
                 elif token.type in (TokenType.LBRACKET, TokenType.RBRACKET):
@@ -477,6 +485,18 @@ class CommandParser:
             return f"${value}"
         else:
             return f"${value}"
+
+    @staticmethod
+    def _brace_protect_trailing_var(value: str) -> str:
+        """Convert trailing $var to ${var} to prevent name absorption in composites.
+
+        When a double-quoted STRING like "$var" is concatenated with adjacent
+        tokens, $var at the end could merge with the next token's text
+        (e.g., "$var"bar becomes $varbar). Converting to ${var} prevents this.
+        """
+        import re
+        # Match $name at end of string (but not ${...}, $(...), $((, or special vars)
+        return re.sub(r'\$([A-Za-z_][A-Za-z0-9_]*)$', r'${\1}', value)
 
     @staticmethod
     def _mark_quoted_globs(value: str) -> str:

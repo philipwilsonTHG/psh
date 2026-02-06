@@ -676,19 +676,39 @@ class VariableExpander:
         
         return expanded
 
-    def expand_string_variables(self, text: str, process_escapes: bool = True) -> str:
+    @staticmethod
+    def _protect_glob_chars(text: str) -> str:
+        """Prefix glob metacharacters with \\x00 to prevent globbing."""
+        result = []
+        for ch in text:
+            if ch in ('*', '?', '['):
+                result.append('\x00')
+            result.append(ch)
+        return ''.join(result)
+
+    def expand_string_variables(self, text: str, process_escapes: bool = True,
+                                protect_glob_chars: bool = False) -> str:
         """Expand variables and arithmetic in a string (for here strings and quoted strings)
-        
+
         Args:
             text: The text to expand
             process_escapes: Whether to process escape sequences like \\n, \\t (default True)
                            Set to False for array contexts where escapes should be literal
+            protect_glob_chars: Whether to mark glob chars in expansion results with \\x00
+                              to prevent pathname expansion (default False)
         """
         
+        def _append_expansion(value: str) -> None:
+            """Append an expansion result, optionally protecting glob chars."""
+            if protect_glob_chars:
+                result.append(self._protect_glob_chars(value))
+            else:
+                result.append(value)
+
         result = []
         i = 0
         while i < len(text):
-            if text[i] == '$' and i + 1 < len(text):
+            if text[i] == '$' and i + 1 < len(text) and not (i > 0 and text[i - 1] == '\x00'):
                 if text[i + 1] == '(' and i + 2 < len(text) and text[i + 2] == '(':
                     # $((...)) arithmetic expansion
                     # Find the matching ))
@@ -702,7 +722,7 @@ class VariableExpander:
                                 # Found the closing ))
                                 arith_expr = text[i:j + 2]  # Include $((...)))
                                 arith_result = self.shell.expansion_manager.execute_arithmetic_expansion(arith_expr)
-                                result.append(str(arith_result))
+                                _append_expansion(str(arith_result))
                                 i = j + 2
                                 break
                             else:
@@ -729,7 +749,7 @@ class VariableExpander:
                         cmd_sub = text[i:j]  # Include $(...)
                         output = self.shell.expansion_manager.command_sub.execute(cmd_sub)
                         # In string context, preserve the output as-is
-                        result.append(output)
+                        _append_expansion(output)
                         i = j
                         continue
                 elif text[i + 1] == '{':
@@ -745,7 +765,7 @@ class VariableExpander:
                     if brace_count == 0:
                         var_expr = text[i:j]  # Include ${...}
                         expanded = self.expand_variable(var_expr)
-                        result.append(expanded)
+                        _append_expansion(expanded)
                         i = j
                         continue
                 else:
@@ -754,7 +774,7 @@ class VariableExpander:
                     # Special single-char variables
                     if j < len(text) and text[j] in '?$!#@*0123456789':
                         var_expr = text[i:j + 1]
-                        result.append(self.expand_variable(var_expr))
+                        _append_expansion(self.expand_variable(var_expr))
                         i = j + 1
                         continue
                     # Regular variable name
@@ -762,10 +782,10 @@ class VariableExpander:
                         j += 1
                     if j > i + 1:
                         var_expr = text[i:j]
-                        result.append(self.expand_variable(var_expr))
+                        _append_expansion(self.expand_variable(var_expr))
                         i = j
                         continue
-            elif text[i] == '`':
+            elif text[i] == '`' and not (i > 0 and text[i - 1] == '\x00'):
                 # Backtick command substitution
                 j = i + 1
                 while j < len(text) and text[j] != '`':
@@ -776,7 +796,7 @@ class VariableExpander:
                 if j < len(text) and text[j] == '`':
                     cmd_sub = text[i:j + 1]  # Include `...`
                     output = self.shell.expansion_manager.command_sub.execute(cmd_sub)
-                    result.append(output)
+                    _append_expansion(output)
                     i = j + 1
                     continue
             elif text[i] == '\\' and i + 1 < len(text):

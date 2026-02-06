@@ -89,27 +89,8 @@ class CommandExecutor:
                 assignments.append((var, expanded_value))
             
             # Check if we have only assignments (no command)
-            # Need to account for split assignments that consume multiple tokens
-            tokens_consumed = 0
-            for i, (var, value) in enumerate(raw_assignments):
-                # Check if this was a split assignment
-                if i < len(node.args) - 1:
-                    arg = node.args[tokens_consumed]
-                    arg_type = node.arg_types[tokens_consumed] if tokens_consumed < len(node.arg_types) else 'WORD'
-                    next_arg_type = node.arg_types[tokens_consumed + 1] if tokens_consumed + 1 < len(node.arg_types) else 'WORD'
-                    if (arg_type == 'WORD' and arg.endswith('=') and 
-                        next_arg_type in ('PARAM_EXPANSION', 'COMMAND_SUB', 
-                                         'COMMAND_SUB_BACKTICK', 'ARITH_EXPANSION',
-                                         'VARIABLE')):
-                        # This assignment consumed 2 tokens
-                        tokens_consumed += 2
-                    else:
-                        # Normal assignment consumed 1 token
-                        tokens_consumed += 1
-                else:
-                    # Last assignment
-                    tokens_consumed += 1
-            
+            tokens_consumed = len(raw_assignments)
+
             if assignments and tokens_consumed == len(node.args):
                 # Pure assignment (no command)
                 return self._handle_pure_assignments(node, assignments)
@@ -219,25 +200,7 @@ class CommandExecutor:
             arg = node.args[i]
             arg_type = node.arg_types[i] if i < len(node.arg_types) else 'WORD'
             
-            # Check if this is a WORD ending with = followed by an expansion
-            if (arg_type == 'WORD' and arg.endswith('=') and 
-                i + 1 < len(node.args) and 
-                i + 1 < len(node.arg_types) and
-                node.arg_types[i + 1] in ('PARAM_EXPANSION', 'COMMAND_SUB', 
-                                         'COMMAND_SUB_BACKTICK', 'ARITH_EXPANSION',
-                                         'VARIABLE')):
-                # This is an assignment split across tokens
-                var = arg[:-1]  # Remove the trailing =
-                if self._is_valid_assignment(var + '=x'):  # Check if var name is valid
-                    # The value is the next token
-                    value = node.args[i + 1]
-                    assignments.append((var, value))
-                    i += 2  # Skip both tokens
-                    continue
-                else:
-                    # Not a valid assignment, stop here
-                    break
-            elif arg_type in ('WORD', 'COMPOSITE', 'COMPOSITE_QUOTED'):
+            if arg_type in ('WORD', 'COMPOSITE', 'COMPOSITE_QUOTED'):
                 if '=' in arg and self._is_valid_assignment(arg):
                     var, value = arg.split('=', 1)
                     assignments.append((var, value))
@@ -276,8 +239,7 @@ class CommandExecutor:
             saved_exit_code = self.state.last_exit_code
             
             for var, value in assignments:
-                # Apply all expansions to assignment values
-                value = self._expand_assignment_value(value)
+                # Values are already expanded in execute()
                 try:
                     self.state.set_variable(var, value)
                 except:
@@ -305,8 +267,7 @@ class CommandExecutor:
                 'state': self.state.get_variable(var),
                 'env': self.shell.env.get(var)  # May be None if not in env
             }
-            # Apply all expansions to assignment values
-            value = self._expand_assignment_value(value)
+            # Values are already expanded by _extract_assignments_raw / execute()
             try:
                 self.state.set_variable(var, value)
                 # Also set in shell.env for external commands
