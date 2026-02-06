@@ -92,7 +92,9 @@ class Job:
             JobState.DONE: "Done"
         }[self.state]
         
-        return f"[{self.job_id}]{marker}  {state_str:<12} {self.command}"
+        # Match bash format: [N]+  State                 command &
+        suffix = " &" if self.state == JobState.RUNNING and not self.foreground else ""
+        return f"[{self.job_id}]{marker}  {state_str:<24}{self.command}{suffix}"
 
 
 class JobManager:

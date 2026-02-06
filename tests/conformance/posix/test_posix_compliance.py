@@ -245,9 +245,8 @@ class TestPOSIXQuoteRemoval(ConformanceTest):
         """Test backslash quote removal."""
         self.assert_identical_behavior('echo hello\\ world')
         self.assert_identical_behavior('echo \\$USER')
-        # PSH and bash handle escaped command substitution differently
-        with pytest.raises(AssertionError, match="PSH and bash behavior differs"):
-            self.assert_identical_behavior('echo \\$(echo test)')
+        # Both shells reject this as syntax error with exit code 2; error message format differs
+        self.assert_documented_difference('echo \\$(echo test)', 'ERROR_MESSAGE_FORMAT')
 
     def test_mixed_quoting(self):
         """Test mixed quoting styles."""

@@ -32,7 +32,14 @@
       "id": "PUSHD_BEHAVIOR",
       "description": "PSH pushd behavior may differ in directory stack handling",
       "psh_behavior": "PSH directory stack implementation",
-      "bash_behavior": "Bash directory stack implementation", 
+      "bash_behavior": "Bash directory stack implementation",
+      "category": "navigation_differences"
+    },
+    "pushd /tmp": {
+      "id": "PUSHD_CWD_DIFFERENCE",
+      "description": "Both shells correctly push CWD and change to /tmp. Output differs because PSH and bash run from different working directories in the conformance test environment.",
+      "psh_behavior": "Shows /tmp followed by PSH's CWD on stack",
+      "bash_behavior": "Shows /tmp followed by bash's CWD (temp directory) on stack",
       "category": "navigation_differences"
     },
     "popd": {
@@ -48,6 +55,13 @@
       "psh_behavior": "Reports PSH process ID",
       "bash_behavior": "Reports bash process ID",
       "category": "special_parameters"
+    },
+    "echo \\$(echo test)": {
+      "id": "ERROR_MESSAGE_FORMAT",
+      "description": "Both shells reject backslash-escaped $( as syntax error with exit code 2. Error message format differs.",
+      "psh_behavior": "Syntax error with PSH error format",
+      "bash_behavior": "Syntax error with bash error format",
+      "category": "error_format_differences"
     }
   },
   "psh_extensions": {

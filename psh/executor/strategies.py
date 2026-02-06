@@ -170,8 +170,7 @@ class BuiltinExecutionStrategy(ExecutionStrategy):
         # Create job and register it
         job = shell.job_manager.create_job(pgid, f"{cmd_name} {' '.join(args)}")
         job.add_process(pid, cmd_name)
-        job.foreground = False
-        shell.state.last_bg_pid = pid
+        shell.job_manager.register_background_job(job, shell_state=shell.state, last_pid=pid)
 
         # Print job assignment notification (only in interactive mode)
         if not shell.state.is_script_mode:
@@ -385,9 +384,8 @@ class ExternalExecutionStrategy(ExecutionStrategy):
         job.add_process(pid, str(full_args[0]))
 
         if background:
-            # Background job
-            job.foreground = False
-            shell.state.last_bg_pid = pid
+            # Background job - register properly so current_job is set
+            shell.job_manager.register_background_job(job, shell_state=shell.state, last_pid=pid)
             # Print job assignment notification (only in interactive mode)
             if not shell.state.is_script_mode:
                 print(f"[{job.job_id}] {pid}")

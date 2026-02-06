@@ -121,12 +121,12 @@ class Shell:
         self.stderr = sys.stderr
         self.stdin = sys.stdin
         
-        # Load history
-        self.interactive_manager.load_history()
-        
-        # Load RC file for interactive shells
         # Allow force_interactive for testing purposes
         is_interactive = getattr(self, '_force_interactive', sys.stdin.isatty())
+
+        # Load history only for interactive shells (bash doesn't load history in non-interactive mode)
+        if is_interactive:
+            self.interactive_manager.load_history()
         
         # Set emacs mode based on interactive status (bash behavior)
         # Interactive: emacs on (for line editing), Non-interactive: emacs off

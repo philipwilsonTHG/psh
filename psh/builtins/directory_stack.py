@@ -170,19 +170,24 @@ class PushdBuiltin(Builtin):
         try:
             # Get current directory from PWD to preserve logical path
             current_dir = shell.env.get('PWD', os.getcwd())
-            
+
             # Change to directory first to validate it exists and is accessible
             os.chdir(directory)
-            
-            # Push new directory onto stack (using logical path)
+
+            # Ensure current directory is on stack before pushing new one
+            # In bash, stack[0] always represents the CWD
+            if not stack.stack:
+                stack.initialize(current_dir)
+
+            # Push new directory onto stack (becomes new CWD at stack[0])
             stack.push(directory)
-            
+
             # Update PWD variables
             self._update_pwd_vars(directory, shell)
-            
+
             # Print the stack
             self._print_stack(stack, shell)
-            
+
             return 0
         except FileNotFoundError:
             self.error(f"{directory}: No such file or directory", shell)
