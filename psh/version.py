@@ -2,10 +2,29 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.113.0"
+__version__ = "0.114.0"
 
 # Version history
 VERSION_HISTORY = """
+0.114.0 (2026-02-06) - Fix 5 Expansion/Assignment Bugs
+- Fixed split assignments absorbing next token across whitespace: FOO= $BAR is now
+  correctly parsed as empty assignment + command, not FOO=$BAR
+- Fixed single-quoted assignment values losing quote context: FOO='$HOME' now keeps
+  $HOME literal by marking $ and ` with NULL prefix in single-quoted composite parts
+- Fixed quoted expansion results triggering globbing in composites: var='*';
+  echo foo"$var"bar now prints foo*bar instead of glob results
+- Fixed tilde expansion running on variable/command expansion results: words from
+  expansion starting with ~ no longer undergo tilde expansion (POSIX compliance)
+- Fixed "$@" inside larger double-quoted strings: "x$@y" with params (a,b) now
+  produces two words [xa] [by] instead of one word [xa by]
+- Added PARAM_EXPANSION to composite token set so var=${path##*/} is properly
+  composited (was broken when split-assignment workaround was removed)
+- Added _brace_protect_trailing_var() to prevent variable name absorption across
+  composite token boundaries ("$var"bar no longer expands $varbar)
+- Removed double-expansion of assignment values in _handle_pure_assignments() and
+  _apply_command_assignments() (values already expanded in execute())
+- All tests passing (762 integration, 1286 unit, 43 subshell)
+
 0.113.0 (2026-02-06) - Implement Extended Globbing (extglob)
 - Implemented bash-compatible extended globbing with five pattern operators:
   ?(pat|pat) zero or one, *(pat|pat) zero or more, +(pat|pat) one or more,
