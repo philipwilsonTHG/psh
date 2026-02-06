@@ -1,0 +1,699 @@
+# PSH Subsystem Internals
+
+This document describes how the four core subsystems of PSH work: lexing, parsing, expansion, and evaluation. Together they form the pipeline that transforms raw shell input into executed commands.
+
+```
+Input → Lexer → Tokens → Parser → AST → Expansion → Evaluation/Execution
+```
+
+---
+
+## Table of Contents
+
+1. [Lexer](#1-lexer)
+2. [Parser](#2-parser)
+3. [Expansion](#3-expansion)
+4. [Evaluation (Executor/Visitor)](#4-evaluation)
+5. [End-to-End Flow](#5-end-to-end-flow)
+
+---
+
+## 1. Lexer
+
+The lexer transforms raw shell input strings into a stream of typed tokens. It lives in `psh/lexer/` and is built around a **modular recognizer pattern** where specialized recognizer classes handle different token types.
+
+### 1.1 Tokenization Pipeline
+
+The public API is `tokenize()` in `psh/lexer/__init__.py:36`. The full pipeline is:
+
+```
+Input String
+    ↓
+BraceExpander          {a,b,c} → a b c
+    ↓
+ModularLexer           Core tokenization engine
+    ↓
+KeywordNormalizer      Normalizes keyword tokens based on context
+    ↓
+TokenTransformer       Post-processing transforms
+    ↓
+Token List
+```
+
+For commands containing heredocs, `tokenize_with_heredocs()` (`__init__.py:84`) uses `HeredocLexer` instead of `ModularLexer` to handle heredoc content collection.
+
+### 1.2 Token Types
+
+Token types are defined in `psh/token_types.py` as an enum (`TokenType`). Key categories:
+
+| Category | Examples | Token Types |
+|----------|----------|-------------|
+| Basic | words, EOF | `WORD`, `EOF`, `NEWLINE` |
+| Operators | `\|`, `&&`, `>>` | `PIPE`, `AND_AND`, `OR_OR`, `REDIRECT_OUT`, `REDIRECT_APPEND` |
+| Quotes/Strings | `"..."`, `'...'` | `STRING`, `VARIABLE` |
+| Expansions | `$(...)`, `$((...))` | `COMMAND_SUB`, `ARITH_EXPANSION`, `PARAM_EXPANSION`, `PROCESS_SUB_IN`, `PROCESS_SUB_OUT` |
+| Grouping | `(`, `)`, `{`, `}` | `LPAREN`, `RPAREN`, `LBRACE`, `RBRACE`, `DOUBLE_LPAREN`, `DOUBLE_RPAREN` |
+| Keywords | `if`, `then`, `fi` | `IF`, `THEN`, `FI`, `WHILE`, `DO`, `DONE`, `FOR`, `CASE`, `ESAC`, etc. |
+| Case terminators | `;;`, `;&` | `DOUBLE_SEMICOLON`, `SEMICOLON_AMP`, `AMP_SEMICOLON` |
+| Assignments | `=`, `+=` | `ASSIGN`, `PLUS_ASSIGN` |
+
+Each `Token` is a dataclass with `type`, `value`, `position` (start), and optional `line`/`column` fields.
+
+### 1.3 ModularLexer
+
+The core tokenization engine (`psh/lexer/modular_lexer.py`, ~900 lines) drives the main loop:
+
+```python
+# Simplified tokenization loop (modular_lexer.py:277-306)
+def tokenize(self, input_text):
+    while pos < len(input_text):
+        # 1. Skip whitespace
+        # 2. Try quotes and expansions (unified Phase 3 approach)
+        # 3. Try modular recognizers in priority order
+        # 4. Fall back to word tokenization
+```
+
+### 1.4 Recognizer Architecture
+
+Recognizers inherit from `TokenRecognizer` (`psh/lexer/recognizers/base.py:9`) and implement:
+
+- `can_recognize(input_text, pos, context) -> bool` -- fast eligibility check
+- `recognize(input_text, pos, context) -> Optional[Tuple[Token, int]]` -- actual recognition
+- `priority` property -- higher values are tried first
+
+The `RecognizerRegistry` (`psh/lexer/recognizers/registry.py:9`) maintains a priority-sorted list and tries each recognizer in order.
+
+**Default recognizers and priorities:**
+
+| Priority | Recognizer | Handles |
+|----------|-----------|---------|
+| 160 | `ProcessSubstitutionRecognizer` | `<(...)` and `>(...)` |
+| 150 | `OperatorRecognizer` | Shell operators (`\|`, `&&`, `>>`, `;`, etc.) |
+| 90 | `KeywordRecognizer` | Reserved words (`if`, `while`, `for`, etc.) |
+| 70 | `LiteralRecognizer` | Words, identifiers, assignments |
+| 60 | `CommentRecognizer` | `# comments` |
+| 30 | `WhitespaceRecognizer` | Spaces, tabs (skipped) |
+
+**Operator recognition** uses greedy longest-match: 3-character operators are tried before 2-character, before 1-character. This ensures `>>=` is matched before `>>` before `>`.
+
+**Keyword recognition** is context-sensitive: `if` is only recognized as a keyword at command position. In `echo if`, the `if` is tokenized as `WORD`. The `KeywordRecognizer` (`psh/lexer/recognizers/keyword.py:105`) validates context before accepting a keyword.
+
+### 1.5 LexerContext (State Machine)
+
+`LexerContext` (`psh/lexer/state_context.py`) tracks all parsing state:
+
+- **Nesting depths**: `paren_depth`, `bracket_depth`, `brace_depth`
+- **Quote state**: `in_single_quote`, `in_double_quote`, `quote_stack`
+- **Parsing context flags**: `in_arithmetic`, `in_command_substitution`, `at_command_position`, `in_array_assignment`
+
+The `StateMachine` component (`psh/lexer/state_machine.py`) manages transitions between lexer states (`NORMAL`, `IN_DOUBLE_QUOTE`, `IN_SINGLE_QUOTE`, `IN_BACKTICK`, etc.) using `StateTransition` objects with conditions, actions, and priorities.
+
+### 1.6 Quote and Expansion Parsing
+
+Two specialized parsers handle complex nested constructs:
+
+- **QuoteParser** (`psh/lexer/quote_parser.py`): Parses single-quoted, double-quoted, and ANSI-C (`$'...'`) strings. Double quotes allow nested expansions; single quotes are literal.
+
+- **ExpansionParser** (`psh/lexer/expansion_parser.py`): Parses `$VAR`, `${VAR}`, `${VAR:-default}`, `$(command)`, `$((expr))`, and `` `command` ``. Handles arbitrary nesting depth (e.g., `$(echo ${VAR:-$(cmd)})`) by tracking parenthesis and brace counts.
+
+### 1.7 Heredoc Lexer
+
+`HeredocLexer` (`psh/lexer/heredoc_lexer.py`) handles heredoc tokenization:
+- Detects `<<DELIM` and `<<-DELIM` (tab-stripping) syntax
+- Collects content lines until the delimiter is found
+- Tracks whether the delimiter was quoted (disables expansion in content)
+- Returns content via the heredoc map for AST population
+
+### 1.8 Unicode Support
+
+`psh/lexer/unicode_support.py` provides Unicode-aware character classification:
+- `is_identifier_start()`: Letters and `_` (Unicode or ASCII based on POSIX mode)
+- `is_identifier_char()`: Letters, digits, marks, and `_`
+- `is_whitespace()`: Unicode whitespace categories or ASCII-only
+- `normalize_identifier()`: NFC normalization for consistent comparison
+
+---
+
+## 2. Parser
+
+The parser transforms the token stream into an Abstract Syntax Tree (AST). It uses a **recursive descent** approach with specialized sub-parsers for different grammar constructs. The parser lives in `psh/parser/`.
+
+### 2.1 Parser Architecture
+
+The main parser class (`psh/parser/recursive_descent/parser.py`, 669 lines) delegates to specialized parsers:
+
+```
+Parser (main orchestrator)
+├── StatementParser       Statement-level constructs, and/or lists
+├── CommandParser         Simple commands, pipelines, arguments
+├── ControlStructureParser  if/while/for/case/select
+├── TestParser            [[ ... ]] expressions
+├── ArithmeticParser      (( ... )) commands
+├── RedirectionParser     I/O redirections and heredocs
+├── ArrayParser           Array assignments and initialization
+└── FunctionParser        Function definitions
+```
+
+**Entry point**: `Parser.parse()` (`parser.py:362`) processes top-level items (functions or statements) until EOF, producing a `TopLevel` or `CommandList` AST node.
+
+### 2.2 Parser Context
+
+`ParserContext` (`psh/parser/recursive_descent/context.py`, dataclass) centralizes all parsing state:
+
+- **Token navigation**: `peek(offset)`, `advance()`, `match(*types)`, `consume(type)` (lines 193-236)
+- **Scope tracking**: `enter_scope(scope)`, `exit_scope()`, `scope_stack` for nesting depth (lines 297-331)
+- **Context flags**: `in_arithmetic`, `in_test_expr`, `in_function_body`, `in_case_pattern`, `in_command_substitution`
+- **Loop/function depth**: `loop_depth`, `function_depth`, `conditional_depth`
+- **Heredoc management**: `register_heredoc()`, `add_heredoc_line()`, `close_heredoc()` (lines 410-443)
+- **Profiling/tracing**: `enter_rule()`, `exit_rule()` with optional trace output (lines 335-356)
+
+### 2.3 Grammar Rules and Parsing Methods
+
+#### Statement Level (`parsers/statements.py`)
+
+```
+TopLevel      → (FunctionDef | CommandList)*
+CommandList   → Statement (';' | '\n' Statement)*
+Statement     → AndOrList
+AndOrList     → Pipeline (('&&' | '||') Pipeline)*
+```
+
+- `parse_command_list()` (lines 33-58): Parses semicolon/newline-separated statements
+- `parse_and_or_list()` (lines 83-104): Handles `&&`/`||` chains with left-to-right associativity
+
+#### Command Level (`parsers/commands.py`, 616 lines)
+
+```
+Pipeline      → ['!'] Command ('|' Command)*
+Command       → SimpleCommand | CompoundCommand
+SimpleCommand → [assignments...] [arguments...] [redirects...] ['&']
+```
+
+- `parse_pipeline()`: Creates `Pipeline` node with optional NOT prefix
+- `parse_command()` (lines 102-121): Parses a single command with arguments, redirections, and background flag
+- `parse_composite_argument()`: Handles arguments containing expansions and mixed quoting
+
+#### Control Structures (`parsers/control_structures.py`, 470 lines)
+
+```
+IfStatement    → 'if' CommandList ';' 'then' CommandList ('elif' ...)* ['else' CommandList] 'fi'
+WhileLoop      → 'while' CommandList ';' 'do' CommandList ';' 'done'
+UntilLoop      → 'until' CommandList ';' 'do' CommandList ';' 'done'
+ForLoop        → 'for' WORD ['in' WORD*] ';' 'do' CommandList ';' 'done'
+CStyleForLoop  → 'for' '((' init ';' cond ';' update '))' ';' 'do' CommandList ';' 'done'
+CaseStatement  → 'case' WORD 'in' (pattern ')' CommandList ';;')* 'esac'
+SelectLoop     → 'select' WORD 'in' WORD* ';' 'do' CommandList ';' 'done'
+```
+
+Each has a `parse_*_statement()` method and a neutral variant (`parse_control_structure_neutral()`) for use in pipelines where the control structure runs in a subshell.
+
+#### Test Expressions (`parsers/tests.py`)
+
+```
+TestExpr     → TestOrExpr
+TestOrExpr   → TestAndExpr ('||' TestAndExpr)*
+TestAndExpr  → TestUnary ('&&' TestUnary)*
+TestUnary    → ['!'] TestPrimary
+TestPrimary  → UnaryOp WORD | WORD BinaryOp WORD | '(' TestExpr ')'
+```
+
+Operator precedence (lowest to highest): `||`, `&&`, `!`, binary/unary operators. Supports `-f`, `-d`, `-e`, `-z`, `-n`, `==`, `!=`, `<`, `>`, `=~`, `-eq`, `-ne`, `-lt`, `-le`, `-gt`, `-ge`.
+
+#### Redirections (`parsers/redirections.py`)
+
+```
+Redirect → [FD] ('<' | '>' | '>>' | '<<' | '<<<' | '>&' | '<&') TARGET
+```
+
+- `parse_redirect()` (lines 62-76): Single redirection
+- `_parse_heredoc()` (lines 78-99): Heredoc with delimiter detection
+- `_parse_dup_redirect()`: FD duplication (`2>&1`)
+
+#### Functions (`parsers/functions.py`)
+
+```
+FunctionDef → 'function' NAME ['()'] CompoundCommand
+            | NAME '()' CompoundCommand
+```
+
+- `is_function_def()` (lines 18-41): Lookahead disambiguation
+- `parse_compound_command()` (lines 66+): Body can be `{ ... }` or `( ... )`
+
+#### Arrays (`parsers/arrays.py`)
+
+```
+ArrayInit    → NAME '=(' element* ')' | NAME '+=(' element* ')'
+ArrayElement → NAME '[' index ']' '=' value | NAME '[' index ']' '+=' value
+```
+
+- `is_array_assignment()` (lines 21-115): Lookahead with position save/restore
+
+### 2.4 AST Node Types
+
+AST nodes are defined in `psh/ast_nodes.py` (474 lines) as dataclasses inheriting from `ASTNode`:
+
+```
+ASTNode
+├── Statement
+│   ├── AndOrList          Pipeline chain with && / ||
+│   ├── FunctionDef        Function definition
+│   ├── BreakStatement     break [n]
+│   ├── ContinueStatement  continue [n]
+│   └── UnifiedControlStructure
+│       ├── IfConditional
+│       ├── WhileLoop / UntilLoop
+│       ├── ForLoop / CStyleForLoop
+│       ├── CaseConditional
+│       ├── SelectLoop
+│       └── ArithmeticEvaluation
+│
+├── Command
+│   ├── SimpleCommand      command args redirects
+│   └── CompoundCommand
+│       ├── SubshellGroup   (...)
+│       └── BraceGroup      {...}
+│
+├── Expansion
+│   ├── ParameterExpansion  ${var:-default}
+│   ├── CommandSubstitution $(cmd)
+│   ├── VariableExpansion   $var
+│   └── ArithmeticExpansion $((expr))
+│
+├── TestExpression
+│   ├── BinaryTestExpression
+│   ├── UnaryTestExpression
+│   ├── CompoundTestExpression
+│   └── NegatedTestExpression
+│
+├── Redirect               I/O redirection
+├── ProcessSubstitution    <(cmd), >(cmd)
+└── Word                   Mixed literal/expansion content
+    └── WordPart (LiteralPart | ExpansionPart)
+```
+
+**Key node: `SimpleCommand`** (`ast_nodes.py:186`):
+```python
+@dataclass
+class SimpleCommand(Command):
+    args: List[str]                          # Argument values
+    arg_types: List[str]                     # Token type names (WORD, STRING, etc.)
+    quote_types: List[Optional[str]]         # Quote character used per arg
+    redirects: List[Redirect]                # I/O redirections
+    background: bool                         # Terminated with &
+    array_assignments: List[ArrayAssignment] # Assignments before command
+    words: Optional[List[Word]]              # Word AST nodes (optional)
+```
+
+**Unified control structures** implement both `Statement` and `CompoundCommand` with an `ExecutionContext` enum (`STATEMENT` or `PIPELINE`), allowing them to appear in pipelines (e.g., `while read line; do ...; done | sort`).
+
+### 2.5 Error Handling and Recovery
+
+The parser supports three error handling modes via `ParserConfig`:
+
+- **STRICT**: Raises `ParseError` immediately on first error
+- **COLLECT**: Collects multiple errors and continues parsing
+- **RECOVER**: Attempts recovery using panic mode synchronization
+
+`ParseError` includes an `ErrorContext` with token, position, line/column, suggestions, and error code. The error catalog (`psh/parser/errors.py`) defines error templates like `E001: Missing ';' before 'then'`.
+
+Recovery uses **panic mode**: skip tokens until reaching a synchronization point (e.g., `fi`, `done`, `;`, `EOF`).
+
+### 2.6 Parser Configuration
+
+`ParserConfig` (`psh/parser/config.py`, 349 lines) controls parsing behavior:
+
+- **Modes**: `STRICT_POSIX`, `BASH_COMPAT` (default), `PERMISSIVE`, `EDUCATIONAL`
+- **Feature toggles**: `enable_arithmetic`, `enable_arrays`, `allow_bash_conditionals`, `enable_process_substitution`
+- **Error handling**: `collect_errors`, `enable_error_recovery`
+- **Debugging**: `trace_parsing`, `profile_parsing`
+- **AST options**: `build_word_ast_nodes` (creates detailed `Word` nodes)
+
+---
+
+## 3. Expansion
+
+The expansion subsystem transforms shell words (variables, command substitutions, globs, etc.) into their final values before command execution. It lives in `psh/expansion/`.
+
+### 3.1 Expansion Order (POSIX)
+
+The `ExpansionManager` (`psh/expansion/manager.py:16`, 669 lines) processes expansions in strict POSIX order:
+
+```
+1. Brace Expansion      {a,b,c}         Handled by lexer (preprocessing)
+2. Tilde Expansion      ~, ~user        TildeExpander
+3. Variable Expansion   $VAR, ${VAR}    VariableExpander
+4. Command Substitution $(cmd), `cmd`   CommandSubstitution
+5. Arithmetic Expansion $((expr))       execute_arithmetic_expansion()
+6. Word Splitting       on IFS          WordSplitter
+7. Pathname Expansion   *, ?, [...]     GlobExpander
+8. Quote Removal        strip quotes    During processing
+```
+
+### 3.2 ExpansionManager
+
+The central orchestrator owns all expander instances:
+
+```python
+class ExpansionManager:
+    def __init__(self, shell):
+        self.variable_expander = VariableExpander(shell)
+        self.command_sub = CommandSubstitution(shell)
+        self.tilde_expander = TildeExpander(shell)
+        self.glob_expander = GlobExpander(shell)
+        self.word_splitter = WordSplitter()
+```
+
+**Primary entry point**: `expand_arguments(command: SimpleCommand) -> List[str]` (`manager.py:41`) handles both legacy string-based expansion and modern Word AST-based expansion. It:
+
+1. Detects and sets up process substitutions via `IOManager`
+2. Routes each argument through the appropriate expansion chain based on `arg_types` and `quote_types`
+3. Handles special cases like `"$@"` and `"${arr[@]}"` producing multiple arguments
+4. Applies word splitting to unquoted results
+5. Applies pathname (glob) expansion
+6. Cleans up NULL markers used to protect escaped glob characters
+
+### 3.3 Variable Expansion
+
+`VariableExpander` (`psh/expansion/variable.py`, 947 lines) handles the most complex expansion type:
+
+**Simple variables**: `$VAR`, `${VAR}`
+
+**Special variables**: `$?` (exit status), `$$` (PID), `$!` (last bg PID), `$#` (arg count), `$@`, `$*`, `$0`-`$9`
+
+**Parameter expansion operators** (`psh/expansion/parameter_expansion.py`, 399 lines):
+
+| Operator | Meaning |
+|----------|---------|
+| `${VAR:-default}` | Use default if unset/null |
+| `${VAR:=default}` | Assign default if unset/null |
+| `${VAR:+value}` | Use value if set and non-null |
+| `${VAR:?error}` | Error if unset/null |
+| `${#VAR}` | String length |
+| `${VAR#pattern}` | Remove shortest prefix |
+| `${VAR##pattern}` | Remove longest prefix |
+| `${VAR%pattern}` | Remove shortest suffix |
+| `${VAR%%pattern}` | Remove longest suffix |
+| `${VAR/pat/repl}` | Replace first match |
+| `${VAR//pat/repl}` | Replace all matches |
+| `${VAR/#pat/repl}` | Replace prefix |
+| `${VAR/%pat/repl}` | Replace suffix |
+| `${VAR^}` | Uppercase first character |
+| `${VAR^^}` | Uppercase all |
+| `${VAR,}` | Lowercase first character |
+| `${VAR,,}` | Lowercase all |
+| `${VAR:offset:length}` | Substring extraction |
+| `${!prefix*}` | Variable name matching |
+
+**Array expansions**: `${arr[0]}`, `${arr[@]}`, `${arr[*]}`, `${#arr[@]}`, `${!arr[@]}`
+
+**Pattern matching** uses `PatternMatcher` (`parameter_expansion.py:333`) to convert shell glob patterns to Python regex.
+
+### 3.4 Command Substitution
+
+`CommandSubstitution` (`psh/expansion/command_sub.py`, 134 lines) handles `$(cmd)` and `` `cmd` ``:
+
+1. Forks child process via `os.fork()`
+2. Captures stdout through a pipe
+3. Creates a temporary Shell instance in the child
+4. Executes the command
+5. Strips trailing newlines (POSIX behavior)
+
+### 3.5 Arithmetic Expansion
+
+`execute_arithmetic_expansion()` (`manager.py:480`) handles `$((expr))`:
+
+1. Pre-expands `$var` and `${var}` references within the expression
+2. Pre-expands nested command substitutions
+3. Delegates evaluation to `evaluate_arithmetic()` in `psh/arithmetic.py`
+
+### 3.6 Other Expanders
+
+- **TildeExpander** (`psh/expansion/tilde.py`): `~` maps to `$HOME`, `~user` looks up the user's home via `pwd.getpwnam()`
+- **GlobExpander** (`psh/expansion/glob.py`): Uses Python's `glob.glob()` for pathname expansion. Returns sorted matches or the original pattern if no matches (bash behavior). Respects the `noglob` option.
+- **WordSplitter** (`psh/expansion/word_splitter.py`): Splits unquoted results on `$IFS` characters (default `" \t\n"`). Empty IFS means no splitting.
+
+### 3.7 Quote Effects on Expansion
+
+| Quote Type | Variable | Command Sub | Glob | Word Split |
+|------------|----------|-------------|------|------------|
+| Unquoted | Yes | Yes | Yes | Yes |
+| `"double"` | Yes | Yes | No | No |
+| `'single'` | No | No | No | No |
+| `$'ansi'` | Escape seqs | No | No | No |
+
+### 3.8 NULL Marker Pattern
+
+To prevent glob expansion of escaped characters (`\*`, `\?`, `\[`), the expansion system uses a NULL byte (`\x00`) marker:
+
+```python
+# During expansion: mark escaped glob chars
+if next_char in '*?[':
+    result.append(f'\x00{next_char}')  # Prevents glob matching
+
+# Before final output: clean markers
+clean_word = word.replace('\x00', '')
+```
+
+---
+
+## 4. Evaluation
+
+The evaluation subsystem executes AST nodes using the **visitor pattern**. The visitor infrastructure lives in `psh/visitor/` and the execution logic in `psh/executor/`.
+
+### 4.1 Visitor Pattern
+
+**Base class**: `ASTVisitor[T]` (`psh/visitor/base.py:15`) provides double dispatch:
+
+```python
+class ASTVisitor(ABC, Generic[T]):
+    def visit(self, node: ASTNode) -> T:
+        # Dispatch to visit_{NodeClassName} via cached method lookup
+        method_name = f'visit_{node.__class__.__name__}'
+        return getattr(self, method_name, self.generic_visit)(node)
+```
+
+The method cache (`_method_cache` dict) avoids repeated `getattr` calls.
+
+Additional base classes:
+- **`ASTTransformer`** (`base.py:64`): Returns modified/replaced AST nodes; `transform_children()` recursively processes child nodes
+- **`CompositeVisitor`** (`base.py:136`): Runs multiple visitors in sequence
+
+### 4.2 ExecutorVisitor
+
+`ExecutorVisitor` (`psh/executor/core.py:54`, extends `ASTVisitor[int]`) is the main execution engine. It returns exit codes (int) and delegates to specialized executors:
+
+```
+ExecutorVisitor
+├── CommandExecutor         Simple command execution
+├── PipelineExecutor        Pipeline execution and process management
+├── ControlFlowExecutor     if/while/for/case/select
+├── FunctionOperationExecutor  Function calls and scope
+├── SubshellExecutor        Subshells and brace groups
+└── ArrayOperationExecutor  Array operations
+```
+
+**Visitor method dispatch** (core.py:113-409):
+
+| Method | Delegates To |
+|--------|-------------|
+| `visit_TopLevel` | Iterates top-level statements |
+| `visit_StatementList` | Executes statements, implements errexit |
+| `visit_AndOrList` | Short-circuit `&&`/`\|\|` evaluation |
+| `visit_Pipeline` | `PipelineExecutor` |
+| `visit_SimpleCommand` | `CommandExecutor` |
+| `visit_IfConditional` | `ControlFlowExecutor` |
+| `visit_WhileLoop` | `ControlFlowExecutor` |
+| `visit_ForLoop` | `ControlFlowExecutor` |
+| `visit_CaseConditional` | `ControlFlowExecutor` |
+| `visit_SubshellGroup` | `SubshellExecutor` |
+| `visit_BraceGroup` | `SubshellExecutor` |
+| `visit_FunctionDef` | `FunctionOperationExecutor` |
+| `visit_ArithmeticEvaluation` | Arithmetic evaluator |
+| `visit_BreakStatement` | Raises `LoopBreak` exception |
+| `visit_ContinueStatement` | Raises `LoopContinue` exception |
+
+### 4.3 Command Execution
+
+`CommandExecutor` (`psh/executor/command.py:36`, 517 lines) handles simple commands through phases:
+
+**Phase 1: Extract assignments** (lines 82-112)
+- Extracts `VAR=value` assignments before the command name
+- Pure assignments (no command) are handled directly
+
+**Phase 2: Expand arguments** (lines 121-165)
+- Calls `ExpansionManager.expand_arguments()` on the remaining args
+- Handles xtrace output if enabled
+
+**Phase 3: Execute via strategy pattern** (lines 177-179)
+- Tries execution strategies in priority order
+
+**Phase 4: Restore temporary variables** (lines 182-183)
+- Command-prefixed assignments (`FOO=bar cmd`) are always temporary
+
+#### Execution Strategies
+
+Strategies (`psh/executor/strategies.py:22`) are tried in order:
+
+1. **SpecialBuiltinExecutionStrategy**: POSIX special builtins (`:`, `break`, `continue`, `eval`, `exec`, `exit`, `export`, `readonly`, `return`, `set`, `shift`, `trap`, `unset`). Highest priority; precedes functions.
+
+2. **FunctionExecutionStrategy**: User-defined shell functions. Creates a new scope, sets positional parameters, executes the function body.
+
+3. **BuiltinExecutionStrategy**: Regular builtins (`cd`, `echo`, `pwd`, `test`, etc.). Executes in the current shell process.
+
+4. **AliasExecutionStrategy**: Shell aliases. Expands the alias, re-tokenizes and re-parses, then executes. Detects infinite recursion.
+
+5. **ExternalExecutionStrategy**: External programs. Forks via `ProcessLauncher`, calls `os.execvpe()` in the child.
+
+### 4.4 Pipeline Execution
+
+`PipelineExecutor` (`psh/executor/pipeline.py:62`, 500 lines) handles multi-command pipelines:
+
+1. **Create pipes**: `len(commands) - 1` OS pipes for connecting stdout→stdin
+2. **Synchronization pipe**: Prevents race conditions during process group setup
+3. **Fork each command** via `ProcessLauncher`:
+   - First command: `PIPELINE_LEADER` role (creates new process group)
+   - Subsequent: `PIPELINE_MEMBER` role (joins existing group)
+4. **I/O setup**: Each child redirects stdin from previous pipe and stdout to next pipe
+5. **Terminal control**: Transfers terminal to pipeline process group for foreground jobs
+6. **Wait**: `job_manager.wait_for_job()` collects exit statuses
+7. **Result**: Returns last command's exit code (or first non-zero with `pipefail`)
+
+**Single command optimization**: If the pipeline has only one command, it executes directly without forking.
+
+### 4.5 ProcessLauncher
+
+`ProcessLauncher` (`psh/executor/process_launcher.py:49`, 349 lines) is the unified process creation system for all forked processes:
+
+```python
+class ProcessRole(Enum):
+    SINGLE           # Standalone command (creates own PGID)
+    PIPELINE_LEADER  # First in pipeline (creates PGID)
+    PIPELINE_MEMBER  # Non-first in pipeline (joins existing PGID)
+```
+
+**`launch()` method** (lines 93-128):
+1. Flushes stdout/stderr to prevent output duplication
+2. Calls `os.fork()`
+3. **Child**: Sets process group, resets signal handlers, sets up I/O, executes, calls `os._exit()`
+4. **Parent**: Sets child's process group from parent side (race condition mitigation), returns `(pid, pgid)`
+
+**Process group synchronization** (for pipelines):
+- Parent creates a sync pipe before forking
+- `PIPELINE_LEADER` closes both ends immediately after `setpgid`
+- `PIPELINE_MEMBER` blocks on read until parent closes write end
+- Parent closes write end after all forks complete, unblocking all members
+
+### 4.6 Control Flow
+
+`ControlFlowExecutor` (`psh/executor/control_flow.py:36`, 634 lines):
+
+- **If**: Evaluates condition, executes matching branch (then/elif/else)
+- **While/Until**: Loops with `LoopBreak`/`LoopContinue` exception handling; tracks `loop_depth` for nested break/continue levels
+- **For**: Expands item list (with glob and word splitting), iterates setting loop variable
+- **C-style for**: Evaluates arithmetic init/condition/update expressions
+- **Case**: Expands expression, matches patterns with `fnmatch`. Handles `;;` (exit), `;&` (fall-through), `;;&` (continue testing)
+- **Select**: Displays numbered menu to stderr, reads selection, sets `REPLY` and loop variable
+
+**Control flow uses exceptions**:
+- `LoopBreak(level)`: Exit from nested loops
+- `LoopContinue(level)`: Continue in nested loops
+- `FunctionReturn(exit_code)`: Return from function
+- `SystemExit`: Exit entire shell
+
+### 4.7 Subshell and Brace Group Execution
+
+`SubshellExecutor` (`psh/executor/subshell.py:23`, 328 lines):
+
+| Feature | Subshell `(...)` | Brace Group `{...}` |
+|---------|-----------------|---------------------|
+| Process | Forks child | Current process |
+| Variables | Isolated (don't propagate) | Shared (persist) |
+| Process group | New PGID | No change |
+| Redirections | In child | Via context manager |
+
+**Foreground subshell execution**:
+1. Creates execute function that makes a child Shell instance
+2. Marks as forked child, inherits I/O streams
+3. Launches via `ProcessLauncher` with `SINGLE` role
+4. Transfers terminal control, waits, restores
+
+### 4.8 Function Execution
+
+`FunctionOperationExecutor` (`psh/executor/function.py:21`, 137 lines):
+
+1. Looks up function in `FunctionManager`
+2. Saves current context (positional params, function name, script name)
+3. Pushes new variable scope
+4. Sets positional parameters (`$1`, `$2`, etc.) and special variables (`$#`, `$@`, `$*`)
+5. Executes function body via visitor
+6. Catches `FunctionReturn` exception for return value
+7. Pops scope and restores context
+
+### 4.9 Execution Context
+
+`ExecutionContext` (`psh/executor/context.py:17`, 189 lines) encapsulates execution state:
+
+```python
+@dataclass
+class ExecutionContext:
+    in_pipeline: bool = False
+    in_subshell: bool = False
+    in_forked_child: bool = False
+    loop_depth: int = 0
+    current_function: Optional[str] = None
+    pipeline_context: Optional[PipelineContext] = None
+    background_job: Optional[Job] = None
+    exec_mode: bool = False
+```
+
+Provides factory methods like `fork_context()`, `subshell_context()`, `pipeline_context_enter()`, `loop_context_enter()`.
+
+### 4.10 Exit Code Propagation
+
+- Updated in `state.last_exit_code` after each statement
+- Available via `$?`
+- Special codes: 0 (success), 1 (error), 2 (usage), 126 (not executable), 127 (not found), 128+N (signal N), 130 (SIGINT)
+
+---
+
+## 5. End-to-End Flow
+
+Here is how `echo "Hello $USER" | wc -w` is processed:
+
+### Step 1: Lexing
+
+```
+"echo \"Hello $USER\" | wc -w"
+    ↓ ModularLexer
+[WORD:"echo", STRING:"Hello $USER", PIPE:"|", WORD:"wc", WORD:"-w"]
+```
+
+The `STRING` token preserves the double-quoted content with the `$USER` variable reference.
+
+### Step 2: Parsing
+
+```
+Pipeline
+├── SimpleCommand(args=["echo", "Hello $USER"], arg_types=["WORD", "STRING"],
+│                 quote_types=[None, '"'])
+└── SimpleCommand(args=["wc", "-w"], arg_types=["WORD", "WORD"])
+```
+
+### Step 3: Expansion (during execution of first command)
+
+```
+"Hello $USER" → "Hello pwilson"     (variable expansion, no word split in quotes)
+```
+
+### Step 4: Evaluation
+
+1. `visit_Pipeline` → `PipelineExecutor`
+2. Creates one pipe
+3. Forks child 1 (PIPELINE_LEADER): `echo "Hello pwilson"` with stdout → pipe write end
+4. Forks child 2 (PIPELINE_MEMBER): `wc -w` with stdin ← pipe read end
+5. Closes pipes in parent
+6. Transfers terminal to pipeline process group
+7. Waits for both children
+8. Returns `wc`'s exit code (0)
+
+Output: `2`
