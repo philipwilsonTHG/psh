@@ -33,29 +33,34 @@ from .keyword_normalizer import KeywordNormalizer
 
 __version__ = "0.91.1"  # Phase 3 Day 2: Clean imports and dependencies
 
-def tokenize(input_string: str, strict: bool = True) -> List[Token]:
+def tokenize(input_string: str, strict: bool = True, shell_options: dict = None) -> List[Token]:
     """
     Tokenize a shell command string using the unified lexer implementation.
-    
-    This function provides the main entry point for shell tokenization with 
-    comprehensive Unicode support, metadata tracking, context awareness, and 
+
+    This function provides the main entry point for shell tokenization with
+    comprehensive Unicode support, metadata tracking, context awareness, and
     enhanced error handling - all features built into the standard Token class.
-    
+
     Args:
         input_string: The shell command string to tokenize
         strict: If True, use strict mode (batch); if False, use interactive mode
-        
+        shell_options: Optional shell options dict to configure extglob etc.
+
     Returns:
         List of tokens representing the parsed command
     """
     from ..brace_expansion import BraceExpander, BraceExpansionError
     from ..token_transformer import TokenTransformer
-    
+
     # Create appropriate lexer config based on strict mode
     if strict:
         config = LexerConfig.create_batch_config()
     else:
         config = LexerConfig.create_interactive_config()
+
+    # Apply shell options to lexer config
+    if shell_options and shell_options.get('extglob', False):
+        config.enable_extglob = True
     
     try:
         # Expand braces first
@@ -81,27 +86,32 @@ def tokenize(input_string: str, strict: bool = True) -> List[Token]:
     return tokens
 
 
-def tokenize_with_heredocs(input_string: str, strict: bool = True):
+def tokenize_with_heredocs(input_string: str, strict: bool = True, shell_options: dict = None):
     """
     Tokenize a shell command string with heredoc support.
-    
+
     This function tokenizes shell commands that may contain heredocs,
     collecting the heredoc content for later processing.
-    
+
     Args:
         input_string: The shell command string to tokenize
         strict: If True, use strict mode (batch); if False, use interactive mode
-        
+        shell_options: Optional shell options dict to configure extglob etc.
+
     Returns:
         Tuple of (tokens, heredoc_map) where heredoc_map contains collected heredoc content
     """
     from .heredoc_lexer import HeredocLexer
-    
+
     # Create appropriate lexer config based on strict mode
     if strict:
         config = LexerConfig.create_batch_config()
     else:
         config = LexerConfig.create_interactive_config()
+
+    # Apply shell options to lexer config
+    if shell_options and shell_options.get('extglob', False):
+        config.enable_extglob = True
     
     # Use heredoc lexer
     lexer = HeredocLexer(input_string, config=config)

@@ -63,6 +63,10 @@ class LiteralRecognizer(ContextualRecognizer):
             # Inside [[ ]], < and > are comparison operators that should be tokenized as words
             if char in ['<', '>'] and context.bracket_depth > 0:
                 return True  # Can be part of word
+            # Extglob: !( and +( should be treated as word start, not operator
+            if char in ('!', '+') and self.config and self.config.enable_extglob:
+                if pos + 1 < len(input_text) and input_text[pos + 1] == '(':
+                    return True  # Start of extglob pattern
             return False
         
         # Skip quotes and expansions based on configuration, but only if they can be fully handled
@@ -154,6 +158,24 @@ class LiteralRecognizer(ContextualRecognizer):
             # Handle invalid $ expansions as literal characters
             if (char == '$' and self.config and self.config.enable_variable_expansion and
                 not self._can_start_valid_expansion(input_text, pos)):
+                value += char
+                pos += 1
+                continue
+
+            # Extglob: when we see '(' and value ends with an extglob prefix,
+            # collect the balanced parenthesized group as part of this word
+            if (char == '(' and self.config and self.config.enable_extglob
+                    and value and value[-1] in '?*+@!'):
+                collected, new_pos = self._collect_extglob_parens(input_text, pos)
+                if collected is not None:
+                    value += collected
+                    pos = new_pos
+                    continue
+
+            # Extglob: + and ! are in WORD_TERMINATORS but when extglob is
+            # enabled and they are followed by (, they are part of the word
+            if (char in ('+', '!') and self.config and self.config.enable_extglob
+                    and pos + 1 < len(input_text) and input_text[pos + 1] == '('):
                 value += char
                 pos += 1
                 continue
@@ -871,3 +893,41 @@ class LiteralRecognizer(ContextualRecognizer):
             pos += 1
 
         return result, pos
+
+    def _collect_extglob_parens(self, input_text: str, pos: int) -> Tuple[Optional[str], int]:
+        """Collect balanced parenthesized group for extglob patterns.
+
+        Called when pos points to '(' and the preceding character was an
+        extglob prefix (?*+@!). Collects the entire (...) including
+        nested extglob and regular parens.
+
+        Returns (collected_string, new_position) or (None, pos) if unbalanced.
+        """
+        if pos >= len(input_text) or input_text[pos] != '(':
+            return None, pos
+
+        depth = 1
+        result = '('
+        i = pos + 1
+
+        while i < len(input_text) and depth > 0:
+            ch = input_text[i]
+
+            if ch == '\\' and i + 1 < len(input_text):
+                result += ch + input_text[i + 1]
+                i += 2
+                continue
+
+            if ch == '(':
+                depth += 1
+            elif ch == ')':
+                depth -= 1
+
+            result += ch
+            i += 1
+
+        if depth != 0:
+            # Unbalanced parentheses
+            return None, pos
+
+        return result, i

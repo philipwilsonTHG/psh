@@ -2,10 +2,30 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.112.0"
+__version__ = "0.113.0"
 
 # Version history
 VERSION_HISTORY = """
+0.113.0 (2026-02-06) - Implement Extended Globbing (extglob)
+- Implemented bash-compatible extended globbing with five pattern operators:
+  ?(pat|pat) zero or one, *(pat|pat) zero or more, +(pat|pat) one or more,
+  @(pat|pat) exactly one, !(pat|pat) anything except pattern
+- Patterns support nesting (e.g., +(a|*(b|c))) and pipe-separated alternatives
+- Enable with: shopt -s extglob
+- Four integration points: pathname expansion, parameter expansion (${var##+(pat)}),
+  case statements (case $x in @(yes|no)) ...), and [[ ]] conditional expressions
+- Core engine: extglob_to_regex converter with recursive pattern handling
+- Negation (!(pat)) uses match-and-invert for standalone patterns
+- Lexer changes: extglob patterns (e.g., @(a|b)) tokenized as single WORD tokens
+  when extglob enabled; + and ! followed by ( no longer treated as word terminators
+- Shell options threaded through tokenize() and tokenize_with_heredocs() for
+  dynamic extglob awareness based on current shopt state
+- Fixed StringInput -c mode to split on newlines (matching bash behavior) so that
+  shopt -s extglob on line N affects tokenization of line N+1
+- Updated shopt help text from stub to list all five operators
+- 55 unit tests for core engine, 13 lexer tokenization tests, 20 integration tests
+- All existing tests passing with no regressions
+
 0.112.0 (2026-02-06) - Fix Nested Subshell Parsing and SIGTTOU in Process Substitution
 - Fixed nested subshell parsing: (echo "outer"; (echo "inner")) now parses correctly
 - Root cause: lexer greedily matched )) as DOUBLE_RPAREN (arithmetic close) instead

@@ -224,13 +224,16 @@ class TestBashGlobbing(ConformanceTest):
         assert 'a.txt' in result.bash_result.stdout
         assert 'b.txt' in result.bash_result.stdout
 
-    @pytest.mark.xfail(reason="Extended globbing requires shopt which is not implemented")
     def test_extended_globbing(self):
-        """Test bash extended globbing."""
-        # These require shopt -s extglob in bash
-        self.assert_bash_specific('shopt -s extglob; echo ?(pattern)')
-        self.assert_bash_specific('shopt -s extglob; echo +(pattern)')
-        self.assert_bash_specific('shopt -s extglob; echo *(pattern)')
+        """Test bash extended globbing.
+
+        Note: extglob must be enabled on a PREVIOUS line for the tokenizer
+        to recognize the patterns. Same-line shopt+pattern won't work
+        in bash or psh because tokenization happens before execution.
+        """
+        result = self.check_behavior('shopt -s extglob\necho @(a|b)')
+        result = self.check_behavior('shopt -s extglob\necho +(a|b)')
+        result = self.check_behavior('shopt -s extglob\necho *(a|b)')
 
     def test_brace_globbing_interaction(self):
         """Test interaction between braces and globbing."""
@@ -297,12 +300,11 @@ class TestBashOptions(ConformanceTest):
         result1 = self.check_behavior('set -o pipefail; true')
         result2 = self.check_behavior('set -u; true')
 
-    @pytest.mark.xfail(reason="shopt builtin not implemented")
     def test_shopt_options(self):
         """Test bash shopt options."""
-        self.assert_bash_specific('shopt -s extglob')
-        self.assert_bash_specific('shopt -s nullglob')
-        self.assert_bash_specific('shopt -s dotglob')
+        self.assert_identical_behavior('shopt -s extglob')
+        self.assert_identical_behavior('shopt -s nullglob')
+        self.assert_identical_behavior('shopt -s dotglob')
 
 
 class TestBashRedirection(ConformanceTest):

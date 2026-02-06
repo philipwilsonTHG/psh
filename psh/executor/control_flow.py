@@ -329,7 +329,7 @@ class ControlFlowExecutor:
                         # Convert bash-style escape sequences for fnmatch
                         fnmatch_pattern = self._convert_case_pattern_for_fnmatch(expanded_pattern)
                         
-                        if fnmatch.fnmatch(expr, fnmatch_pattern):
+                        if self._match_case_pattern(expr, fnmatch_pattern):
                             # Execute the commands for this case
                             exit_status = visitor.visit(case_item.commands)
                             
@@ -595,6 +595,14 @@ class ControlFlowExecutor:
         
         return result
     
+    def _match_case_pattern(self, string: str, pattern: str) -> bool:
+        """Match a string against a case pattern with extglob support."""
+        if self.state.options.get('extglob', False):
+            from ..expansion.extglob import contains_extglob, match_extglob
+            if contains_extglob(pattern):
+                return match_extglob(pattern, string)
+        return fnmatch.fnmatch(string, pattern)
+
     def _convert_case_pattern_for_fnmatch(self, pattern: str) -> str:
         """Convert bash-style case pattern escapes to fnmatch format.
         

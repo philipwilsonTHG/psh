@@ -248,8 +248,7 @@ class Shell:
                 return left == right
             else:
                 # Unquoted pattern should be treated as glob pattern
-                import fnmatch
-                return fnmatch.fnmatch(left, right)
+                return self._pattern_match(left, right)
         elif expr.operator == '!=':
             # Shell pattern non-matching
             # If the right operand was quoted, treat it as literal string
@@ -259,8 +258,7 @@ class Shell:
                 return left != right
             else:
                 # Unquoted pattern should be treated as glob pattern
-                import fnmatch
-                return not fnmatch.fnmatch(left, right)
+                return not self._pattern_match(left, right)
         elif expr.operator == '<':
             # Lexicographic comparison
             return left < right
@@ -329,6 +327,15 @@ class Shell:
         
         return ''.join(result)
     
+    def _pattern_match(self, string: str, pattern: str) -> bool:
+        """Match string against a shell pattern, with extglob support."""
+        if self.state.options.get('extglob', False):
+            from .expansion.extglob import contains_extglob, match_extglob
+            if contains_extglob(pattern):
+                return match_extglob(pattern, string)
+        import fnmatch
+        return fnmatch.fnmatch(string, pattern)
+
     def _evaluate_unary_test(self, expr: UnaryTestExpression) -> bool:
         """Evaluate unary test expression."""
         # Handle -v operator specially since it needs shell state
@@ -431,7 +438,8 @@ class Shell:
             if self._contains_heredoc(command_string):
                 # Use heredoc-aware tokenizer
                 from .lexer import tokenize_with_heredocs
-                tokens, heredoc_map = tokenize_with_heredocs(command_string, strict=strict_mode)
+                tokens, heredoc_map = tokenize_with_heredocs(command_string, strict=strict_mode,
+                                                              shell_options=self.state.options)
                 
                 # Debug: Print tokens if requested
                 if self.debug_tokens:
@@ -449,7 +457,8 @@ class Shell:
                 ast = parse_with_heredocs(tokens, heredoc_map)
             else:
                 # Regular tokenization
-                tokens = tokenize(command_string, strict=strict_mode)
+                tokens = tokenize(command_string, strict=strict_mode,
+                                  shell_options=self.state.options)
                 
                 # Debug: Print tokens if requested
                 if self.debug_tokens:

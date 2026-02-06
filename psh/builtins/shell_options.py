@@ -139,7 +139,7 @@ class ShoptBuiltin(Builtin):
 
     Available options:
       dotglob      Glob patterns match files beginning with '.'
-      extglob      Extended pattern matching (stub)
+      extglob      Extended pattern matching: ?()|*()|+()|@()|!()
       globstar     '**' matches all files and directories recursively
       nocaseglob   Case-insensitive pathname expansion
       nullglob     Patterns with no matches expand to nothing"""

@@ -127,6 +127,7 @@ class LexerConfig:
     enable_tilde_expansion: bool = True    # Process ~user
     enable_glob_patterns: bool = True      # Process *, ?, [...]
     enable_regex_operators: bool = True    # Process =~ operator
+    enable_extglob: bool = False          # Process ?()|*()|+()|@()|!() extended globs
     
     # === CHARACTER HANDLING ===
     

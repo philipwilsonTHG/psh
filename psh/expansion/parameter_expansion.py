@@ -8,11 +8,16 @@ if TYPE_CHECKING:
 
 class ParameterExpansion:
     """Advanced parameter expansion operations."""
-    
+
     def __init__(self, shell: 'Shell'):
         self.shell = shell
         self.state = shell.state
         self.pattern_matcher = PatternMatcher()
+
+    @property
+    def _extglob(self) -> bool:
+        """Whether extglob is currently enabled."""
+        return self.state.options.get('extglob', False)
     
     def parse_expansion(self, expr: str) -> Tuple[str, str, str]:
         """
@@ -164,7 +169,7 @@ class ParameterExpansion:
     # Pattern removal
     def remove_shortest_prefix(self, value: str, pattern: str) -> str:
         """Remove shortest matching prefix."""
-        regex = self.pattern_matcher.shell_pattern_to_regex(pattern, anchored=True, from_start=True)
+        regex = self.pattern_matcher.shell_pattern_to_regex(pattern, anchored=True, from_start=True, extglob_enabled=self._extglob)
         # Make the regex non-greedy for shortest match
         regex = regex.replace('.*', '.*?')
         match = re.match(regex, value)
@@ -174,7 +179,7 @@ class ParameterExpansion:
     
     def remove_longest_prefix(self, value: str, pattern: str) -> str:
         """Remove longest matching prefix."""
-        regex = self.pattern_matcher.shell_pattern_to_regex(pattern, anchored=True, from_start=True)
+        regex = self.pattern_matcher.shell_pattern_to_regex(pattern, anchored=True, from_start=True, extglob_enabled=self._extglob)
         # For longest match, use greedy regex (default behavior)
         # Try to find the longest prefix that matches
         match = re.match(regex, value)
@@ -185,7 +190,7 @@ class ParameterExpansion:
     
     def remove_shortest_suffix(self, value: str, pattern: str) -> str:
         """Remove shortest matching suffix."""
-        regex = self.pattern_matcher.shell_pattern_to_regex(pattern, anchored=True, from_start=False)
+        regex = self.pattern_matcher.shell_pattern_to_regex(pattern, anchored=True, from_start=False, extglob_enabled=self._extglob)
         # Convert to end-anchored regex
         regex = regex.rstrip('$') + '$'
         
@@ -197,7 +202,7 @@ class ParameterExpansion:
     
     def remove_longest_suffix(self, value: str, pattern: str) -> str:
         """Remove longest matching suffix."""
-        regex = self.pattern_matcher.shell_pattern_to_regex(pattern, anchored=True, from_start=False)
+        regex = self.pattern_matcher.shell_pattern_to_regex(pattern, anchored=True, from_start=False, extglob_enabled=self._extglob)
         # Convert to end-anchored regex
         regex = regex.rstrip('$') + '$'
         
@@ -210,19 +215,19 @@ class ParameterExpansion:
     # Pattern substitution
     def substitute_first(self, value: str, pattern: str, replacement: str) -> str:
         """Replace first match."""
-        regex = self.pattern_matcher.shell_pattern_to_regex(pattern, anchored=False)
+        regex = self.pattern_matcher.shell_pattern_to_regex(pattern, anchored=False, extglob_enabled=self._extglob)
         replacement = self._process_replacement_escapes(replacement)
         return re.sub(regex, replacement, value, count=1)
     
     def substitute_all(self, value: str, pattern: str, replacement: str) -> str:
         """Replace all matches."""
-        regex = self.pattern_matcher.shell_pattern_to_regex(pattern, anchored=False)
+        regex = self.pattern_matcher.shell_pattern_to_regex(pattern, anchored=False, extglob_enabled=self._extglob)
         replacement = self._process_replacement_escapes(replacement)
         return re.sub(regex, replacement, value)
     
     def substitute_prefix(self, value: str, pattern: str, replacement: str) -> str:
         """Replace prefix match."""
-        regex = self.pattern_matcher.shell_pattern_to_regex(pattern, anchored=True, from_start=True)
+        regex = self.pattern_matcher.shell_pattern_to_regex(pattern, anchored=True, from_start=True, extglob_enabled=self._extglob)
         match = re.match(regex, value)
         if match:
             # Process escape sequences in replacement
@@ -232,7 +237,7 @@ class ParameterExpansion:
     
     def substitute_suffix(self, value: str, pattern: str, replacement: str) -> str:
         """Replace suffix match."""
-        regex = self.pattern_matcher.shell_pattern_to_regex(pattern, anchored=True, from_start=False)
+        regex = self.pattern_matcher.shell_pattern_to_regex(pattern, anchored=True, from_start=False, extglob_enabled=self._extglob)
         # Convert to end-anchored regex
         regex = regex.rstrip('$') + '$'
         
@@ -291,7 +296,7 @@ class ParameterExpansion:
     # Case modification
     def uppercase_first(self, value: str, pattern: str = '?') -> str:
         """Convert first matching char to uppercase."""
-        regex = self.pattern_matcher.shell_pattern_to_regex(pattern, anchored=False)
+        regex = self.pattern_matcher.shell_pattern_to_regex(pattern, anchored=False, extglob_enabled=self._extglob)
         
         # Find first match
         match = re.search(regex, value)
@@ -302,7 +307,7 @@ class ParameterExpansion:
     
     def uppercase_all(self, value: str, pattern: str = '?') -> str:
         """Convert all matching chars to uppercase."""
-        regex = self.pattern_matcher.shell_pattern_to_regex(pattern, anchored=False)
+        regex = self.pattern_matcher.shell_pattern_to_regex(pattern, anchored=False, extglob_enabled=self._extglob)
         
         def upper_repl(match):
             return match.group(0).upper()
@@ -311,7 +316,7 @@ class ParameterExpansion:
     
     def lowercase_first(self, value: str, pattern: str = '?') -> str:
         """Convert first matching char to lowercase."""
-        regex = self.pattern_matcher.shell_pattern_to_regex(pattern, anchored=False)
+        regex = self.pattern_matcher.shell_pattern_to_regex(pattern, anchored=False, extglob_enabled=self._extglob)
         
         # Find first match
         match = re.search(regex, value)
@@ -322,7 +327,7 @@ class ParameterExpansion:
     
     def lowercase_all(self, value: str, pattern: str = '?') -> str:
         """Convert all matching chars to lowercase."""
-        regex = self.pattern_matcher.shell_pattern_to_regex(pattern, anchored=False)
+        regex = self.pattern_matcher.shell_pattern_to_regex(pattern, anchored=False, extglob_enabled=self._extglob)
         
         def lower_repl(match):
             return match.group(0).lower()
@@ -332,16 +337,24 @@ class ParameterExpansion:
 
 class PatternMatcher:
     """Convert shell patterns to regex and perform matching."""
-    
-    def shell_pattern_to_regex(self, pattern: str, anchored: bool = False, from_start: bool = True) -> str:
+
+    def shell_pattern_to_regex(self, pattern: str, anchored: bool = False,
+                               from_start: bool = True,
+                               extglob_enabled: bool = False) -> str:
         """
         Convert shell glob pattern to Python regex.
-        
+
         Args:
-            pattern: Shell pattern with *, ?, [...] 
+            pattern: Shell pattern with *, ?, [...]
             anchored: If True, pattern must match from start or end
             from_start: If anchored, whether to anchor at start (True) or end (False)
+            extglob_enabled: If True and pattern contains extglob, use extglob converter
         """
+        if extglob_enabled:
+            from .extglob import contains_extglob, extglob_to_regex
+            if contains_extglob(pattern):
+                return extglob_to_regex(pattern, anchored=anchored,
+                                        from_start=from_start)
         regex_parts = []
         i = 0
         

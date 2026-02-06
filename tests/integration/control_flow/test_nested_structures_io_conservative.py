@@ -269,7 +269,6 @@ EOF
 class TestNestedStructuresRegression:
     """Test that nested structures don't break basic shell functionality."""
     
-    @pytest.mark.xfail(reason="Complex redirection in nested structures may not work")
     def test_simple_command_after_nested_structure(self, temp_dir):
         """Test that simple commands work after complex nested structures."""
         script = '''
@@ -302,7 +301,6 @@ class TestNestedStructuresRegression:
             complex_output = f.read().strip()
         assert complex_output == "one"
     
-    @pytest.mark.xfail(reason="Output redirection in complex nested structures may fail")
     def test_variable_assignment_after_nesting(self, temp_dir):
         """Test that variable assignments work correctly after nested structures."""
         script = '''

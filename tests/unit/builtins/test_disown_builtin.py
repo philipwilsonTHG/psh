@@ -18,7 +18,6 @@ import os
 class TestDisownBuiltin:
     """Test disown builtin functionality."""
     
-    @pytest.mark.xfail(reason="Current job handling needs refinement - disown without args requires a current job")
     def test_disown_current_job(self, shell, capsys):
         """Test disowning the current job."""
         # Start a background job
@@ -116,7 +115,6 @@ class TestDisownBuiltin:
         # Clean up
         shell.run_command('pkill -f "sleep" 2>/dev/null || true')
     
-    @pytest.mark.xfail(reason="Current job detection for -r option needs refinement")
     def test_disown_running_jobs_only(self, shell, capsys):
         """Test disowning only running jobs with -r option."""
         # Start background jobs

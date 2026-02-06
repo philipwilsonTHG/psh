@@ -116,7 +116,7 @@ class SourceProcessor(ScriptComponent):
                 else:
                     # Check if command is complete by trying to parse it
                     try:
-                        tokens = tokenize(test_command)
+                        tokens = tokenize(test_command, shell_options=self.state.options)
                         # Try parsing to see if command is complete
                         from ..parser import Parser
                         parser = Parser(tokens, source_text=test_command)
@@ -290,8 +290,8 @@ class SourceProcessor(ScriptComponent):
                     return 1
                 command_string = expanded_command
             
-            tokens = tokenize(command_string)
-            
+            tokens = tokenize(command_string, shell_options=self.state.options)
+
             # Debug: Print tokens if requested
             if self.state.debug_tokens:
                 print("=== Token Debug Output ===", file=sys.stderr)
@@ -305,7 +305,8 @@ class SourceProcessor(ScriptComponent):
             if self.shell._contains_heredoc(command_string):
                 # Use the new lexer with heredoc support
                 from ..lexer import tokenize_with_heredocs
-                tokens, heredoc_map = tokenize_with_heredocs(command_string, strict=self.state.options.get('posix', False))
+                tokens, heredoc_map = tokenize_with_heredocs(command_string, strict=self.state.options.get('posix', False),
+                                                              shell_options=self.state.options)
                 # Parse with heredoc map
                 from ..parser import parse_with_heredocs
                 ast = parse_with_heredocs(tokens, heredoc_map)

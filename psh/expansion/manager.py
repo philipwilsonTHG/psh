@@ -373,9 +373,14 @@ class ExpansionManager:
         # Only expand if there are glob characters not preceded by NULL markers
         has_unescaped_globs = any(
             c in word and not (i > 0 and word[i-1] == '\x00')
-            for i, c in enumerate(word) 
+            for i, c in enumerate(word)
             if c in ['*', '?', '[']
         )
+
+        # Also check for extglob patterns
+        if not has_unescaped_globs and self.state.options.get('extglob', False):
+            from .extglob import contains_extglob
+            has_unescaped_globs = contains_extglob(word)
         
         if (has_unescaped_globs and arg_type != 'STRING'
             and not self.state.options.get('noglob', False)):

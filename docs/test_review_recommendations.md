@@ -1,20 +1,22 @@
 # Test Suite Review & Recommendations
 
 **Date**: 2026-02-06
-**Version**: 0.107.0
+**Version**: 0.113.0
 
 ## Current State
 
-| Metric | Value | Change from 0.97.0 |
+| Metric | Value | Change from 0.112.0 |
 |--------|-------|---------------------|
-| Passed | 2,671 | +30 |
-| Failed | 0 (1 intermittent race condition) | — |
-| Skipped | 172 | — |
-| XFail | 41 | -7 |
-| POSIX Compliance | 98.4% | +1.5% |
-| Bash Compatibility | 91.8% | +3.6% |
+| Total Tests | 3,021 | +88 |
+| Passed | 2,803 | +88 |
+| Failed | 0 | — |
+| Skipped | 173 | — |
+| XFail | 36 | -4 |
+| XPass | 0 | -2 |
+| POSIX Compliance | 98.4% | — |
+| Bash Compatibility | 91.8% | — |
 
-The test suite is in good shape -- zero real failures, well-organized structure, and clear categorization of expected issues. Items 1-6 from the original recommendations have been implemented in v0.107.0. All 4 conformance bugs from recommendation 7 have been resolved.
+The test suite is in good shape -- zero real failures, well-organized structure, and clear categorization of expected issues. All original recommendations 1-8 have been implemented. Subsequent fixes addressed SIGTTOU signal issues, nested subshell parsing, and full extglob implementation.
 
 ---
 
@@ -40,7 +42,7 @@ The test suite is in good shape -- zero real failures, well-organized structure,
 
 Created `psh/builtins/shell_options.py` with full `shopt` implementation:
 - Flags: `-s` (set), `-u` (unset), `-p` (print reusable), `-q` (query silently)
-- Options: `dotglob`, `nullglob`, `extglob` (stub), `nocaseglob`, `globstar`
+- Options: `dotglob`, `nullglob`, `extglob`, `nocaseglob`, `globstar`
 - Added `nullglob` support in glob expansion (no-match returns empty instead of literal)
 - 16 tests in `tests/unit/builtins/test_shopt.py`
 
@@ -54,7 +56,7 @@ Created `tests/regression/test_bug_fixes_4f4d854.py` with 12 tests covering:
 
 ---
 
-## Completed Recommendations (v0.107.0, 2026-02-06)
+## Completed Recommendations (v0.108.0)
 
 ### ~~7. Fix Remaining Conformance Bugs (4 bugs)~~ DONE
 
@@ -67,7 +69,7 @@ All 4 `psh_bug` conformance items resolved:
 
 ---
 
-## Completed Recommendations (v0.110.0, 2026-02-06)
+## Completed Recommendations (v0.110.0)
 
 ### ~~8. Fix the Intermittent Race Condition~~ DONE
 
@@ -75,22 +77,81 @@ Fixed `_wait_for_all` in `psh/builtins/job_control.py` to collect exit statuses 
 
 ---
 
+## Additional Fixes (v0.111.0 - v0.112.0)
+
+### ~~9. Fix SIGTTOU in Subshell Pipelines~~ DONE (v0.111.0)
+
+Fixed subshell child processes getting killed by SIGTTOU (signal 22, exit code 150) when running pipelines with a controlling terminal. Root cause: `reset_child_signals()` set SIGTTOU to SIG_DFL for all forked children, but subshell children act as mini-shells that may call `tcsetpgrp()` and need SIGTTOU ignored.
+
+- Added `signal.signal(SIGTTOU, SIG_IGN)` in subshell `execute_fn` (`psh/executor/subshell.py`)
+- Made pipeline `_wait_for_foreground_pipeline()` skip `restore_shell_foreground()` when terminal control was never transferred
+- Added test isolation cleanup (`_reap_children`, `_cleanup_shell`) to conftest.py files
+
+### ~~10. Fix Nested Subshell Parsing and Process Substitution SIGTTOU~~ DONE (v0.112.0)
+
+Fixed nested subshell syntax `(echo "outer"; (echo "inner"))` failing with parse error. Root cause: the lexer greedily matched `))` as `DOUBLE_RPAREN` (arithmetic close) instead of two separate `RPAREN` tokens.
+
+- Added context check in `psh/lexer/recognizers/operator.py`: `))` is only `DOUBLE_RPAREN` when `arithmetic_depth > 0`
+- Removed xfail from `test_nested_subshells` (now passes)
+- Guarded `restore_shell_foreground()` in `ExternalExecutionStrategy` with `original_pgid is not None`, preventing SIGTTOU when tests are piped through tee
+- Added SIGTTOU `SIG_IGN` in process substitution child fork (`psh/io_redirect/process_sub.py`)
+
+---
+
+## Completed Recommendations (v0.113.0)
+
+### ~~11. Implement `extglob` Extended Globbing~~ DONE
+
+Full implementation of bash-compatible extended globbing with five pattern operators:
+
+| Operator | Meaning |
+|----------|---------|
+| `?(pat\|pat)` | Zero or one occurrence |
+| `*(pat\|pat)` | Zero or more occurrences |
+| `+(pat\|pat)` | One or more occurrences |
+| `@(pat\|pat)` | Exactly one occurrence |
+| `!(pat\|pat)` | Anything except pattern |
+
+Patterns support nesting (e.g., `+(a|*(b|c))`) and pipe-separated alternatives. Enable with `shopt -s extglob` (must be set on a previous line, matching bash tokenization behavior).
+
+**Four integration points**, all working:
+1. **Pathname expansion** -- `echo @(a|b).txt` matches files via `expand_extglob()` in `psh/expansion/glob.py`
+2. **Parameter expansion** -- `${var//@(a|b)/X}` via `extglob_to_regex()` in `PatternMatcher`
+3. **Case statements** -- `case $x in @(yes|no)) ...` via `_match_case_pattern()` in `psh/executor/control_flow.py`
+4. **Conditional expressions** -- `[[ $x == @(yes|no) ]]` via `_pattern_match()` in `psh/shell.py`
+
+**Implementation details:**
+- Core engine: `psh/expansion/extglob.py` with recursive extglob-to-regex converter
+- Negation `!(pat)` uses match-and-invert for standalone patterns, negative lookahead for inline
+- Lexer: extglob patterns tokenized as single WORD tokens when enabled; `+` and `!` followed by `(` no longer treated as word terminators
+- Shell options threaded through `tokenize()` and `tokenize_with_heredocs()` for dynamic extglob awareness
+- Fixed `StringInput` `-c` mode to split on newlines so `shopt` on line N affects tokenization of line N+1
+- 88 new tests: 55 unit (pattern engine), 13 lexer (tokenization), 20 integration (all 4 contexts)
+
+### ~~12. Remove XPass Markers~~ DONE
+
+Removed xfail markers from two tests that now pass:
+- `test_simple_command_after_nested_structure` in `test_nested_structures_io_conservative.py`
+- `test_variable_assignment_after_nesting` in `test_nested_structures_io_conservative.py`
+
+Updated conformance test markers:
+- `test_extended_globbing` -- removed xfail, now uses `check_behavior()` with multi-line extglob commands
+- `test_shopt_options` -- removed xfail, now uses `assert_identical_behavior()` for shopt commands
+
+---
+
 ## Remaining Recommendations
 
 ### 1. Reclassify Conformance Test Errors
 
-9 conformance results are `test_error` but most are actually known missing features (extglob, exec FDs). They should be reclassified as `documented_difference` with appropriate notes, which would give a more accurate picture of actual compliance.
+9 conformance results are `test_error` but most are actually known missing features (exec FDs, error expansion). They should be reclassified as `documented_difference` with appropriate notes, which would give a more accurate picture of actual compliance.
 
-### 2. Implement `extglob` (Medium-term)
-
-The `shopt` builtin now supports toggling `extglob`, but the glob expansion engine doesn't implement extended globbing patterns (`?(pattern)`, `*(pattern)`, etc.). Implementing this would resolve 2+ conformance test errors.
-
-### 3. Fill Performance Test Gaps
+### 2. Fill Performance Test Gaps
 
 - `tests/performance/memory/` and `tests/performance/stress/` are empty directories
 - Consider adding memory and stress tests for expansion, parsing, and process creation
 
-### 4. Interactive Test Strategy
+### 3. Interactive Test Strategy
 
 119 tests behind `--run-interactive` and 20 requiring `pexpect`. These cover history, tab completion, line editing, and job control. Current options:
 - Install `pexpect` and enable those 20 tests
@@ -101,7 +162,7 @@ The `shopt` builtin now supports toggling `extglob`, but the glob expansion engi
 
 ## Detailed Breakdown
 
-### Skipped Tests (172 total)
+### Skipped Tests (173 total)
 
 | Category | Count | Details |
 |----------|-------|---------|
@@ -114,34 +175,33 @@ The `shopt` builtin now supports toggling `extglob`, but the glob expansion engi
 | Other individual skips | 4 | Here doc functions, ANSI-C quoting, composite words, background subshell |
 | Line editing | 1 | Cursor movement |
 
-### XFail Tests (41 total)
+### XFail Tests (36 total)
 
 #### By Classification
 
 | Classification | Count | Description |
 |----------------|-------|-------------|
 | Test Infrastructure | 1 | Alias expansion in non-interactive mode |
-| Missing Features | 2 | extglob, exec FDs |
+| Missing Features | 1 | exec FDs |
 | Design Differences | 3 | Escaped command sub, POSIX variable scoping |
-| Other | 35 | Alias expansion, control flow, functions, builtins, parsing |
+| Other | 31 | Alias expansion, control flow, functions, builtins, parsing |
 
 #### By Subsystem
 
 | Subsystem | Count | Tests |
 |-----------|-------|-------|
 | Parsing/Expansion | 9 | Character classes, error recovery, mixed quoting, logical ops, brace expansion edge cases |
-| Control Flow | 5 | Case fallthrough, heredoc in case, while-read pipes, nested structures (2) |
+| Control Flow | 3 | Case fallthrough, heredoc in case, while-read pipes |
 | Aliases | 6 | Expansion timing, special chars, subshell inheritance, array syntax, pipe, args |
-| Subshells | 5 | Nested subshells, complex redirections, process sub, stderr redirect, command not found |
-| Conformance | 2 | Extended globbing, advanced redirection |
+| Subshells | 4 | Complex redirections, process sub, stderr redirect, command not found |
+| Conformance | 2 | Advanced redirection, exec FDs |
 | Functions | 4 | Background job, pipeline filter, pipeline chain, many commands |
-| Builtins | 4 | Declare nameref, disown (2), history clear |
+| Builtins | 3 | Declare nameref, history clear, disown |
 | Job Control | 1 | Background job redirection error |
 | While Loops | 1 | Command condition with read |
 | Performance | 1 | Long brace expansion |
 | Pipelines | 1 | Error in middle |
 | Parameters | 1 | Scoping |
-| Arrays | 1 | Parameter expansion operators |
 
 ### Conformance Results (239 total)
 
@@ -155,14 +215,13 @@ The `shopt` builtin now supports toggling `extglob`, but the glob expansion engi
 
 #### PSH Bugs (0)
 
-All previously reported bugs have been resolved. See "Completed Recommendations (v0.107.0, 2026-02-06)" above.
+All previously reported bugs have been resolved. See completed recommendations above.
 
 #### Test Errors (9)
 
 1. `unset x; echo ${x:?undefined}` -- Error expansion for unset variables (POSIX)
 2. `x=; echo ${x:?empty}` -- Error expansion for empty variables (POSIX)
-3. `shopt -s extglob; echo ?(pattern)` -- Extended globbing (Bash)
-4-6. Duplicate test-level errors for extglob, redirection
+3-6. Test-level errors for redirection and exec FD operations
 7. `exec 3> file.txt` -- Exec with numbered file descriptors (Bash)
 8-9. Alias and other test-level errors
 
@@ -188,14 +247,16 @@ All previously reported bugs have been resolved. See "Completed Recommendations 
 - The `run_tests.py` smart runner properly handles the pytest `-s` issue for subshells and I/O tests
 - xfail reasons are specific and actionable
 - Conformance framework gives objective compliance metrics
-- 97%+ of tests (2,671/2,712+ non-skipped) pass
+- 97%+ of tests (2,803/3,021 non-skipped) pass
 - Regression tests guard against re-introduction of fixed bugs
+- SIGTTOU signal handling is robust across subshells, pipelines, and process substitution
+- Nested subshell parsing works correctly alongside arithmetic expressions
+- Extended globbing (extglob) is fully implemented across all four shell contexts
 
 ---
 
 ## Summary: Recommended Next Steps
 
 1. Reclassify 9 conformance test errors for more accurate metrics
-2. Implement `extglob` glob expansion patterns
-3. Add performance/stress tests
-4. Enable interactive tests with `pexpect`
+2. Add performance/stress tests
+3. Enable interactive tests with `pexpect`

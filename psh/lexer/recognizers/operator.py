@@ -236,12 +236,19 @@ class OperatorRecognizer(ContextualRecognizer):
         for length in sorted(self.OPERATORS.keys(), reverse=True):
             if pos + length <= len(input_text):
                 candidate = input_text[pos:pos + length]
-                
+
                 if candidate in self.OPERATORS[length]:
+                    # Extglob: don't match ! as EXCLAMATION when followed by (
+                    if (candidate == '!' and self.config
+                            and self.config.enable_extglob
+                            and pos + 1 < len(input_text)
+                            and input_text[pos + 1] == '('):
+                        return None
+
                     # Check configuration to see if this operator is enabled
                     if not self._is_operator_enabled(candidate):
                         continue
-                        
+
                     # Check if operator is valid in current context
                     if self.is_valid_in_context(candidate, context):
                         token_type = self.OPERATORS[length][candidate]
@@ -252,7 +259,7 @@ class OperatorRecognizer(ContextualRecognizer):
                             pos + length
                         )
                         return token, pos + length
-        
+
         return None
     
     def _is_operator_enabled(self, operator: str) -> bool:

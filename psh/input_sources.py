@@ -109,13 +109,14 @@ class StringInput(InputSource):
         from .input_preprocessing import process_line_continuations
         processed_command = process_line_continuations(command)
         
-        # For single commands (e.g., from run_command or -c option), don't split on newlines
-        # to preserve multi-line strings in quotes
-        if name in ("<command>", "-c"):
+        # For run_command (single-line commands), return as one chunk
+        # For -c and scripts, split on newlines for line-by-line processing
+        # (needed for shopt options that affect tokenization of subsequent lines)
+        if name == "<command>":
             # Single command mode - return the whole command as one line
             self.lines = [processed_command] if processed_command else []
         else:
-            # Script mode - split into lines for multi-line processing
+            # Script mode and -c mode - split into lines for multi-line processing
             self.lines = processed_command.split('\n')
         
         self.current = 0
