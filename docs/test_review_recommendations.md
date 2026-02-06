@@ -67,26 +67,30 @@ All 4 `psh_bug` conformance items resolved:
 
 ---
 
+## Completed Recommendations (v0.110.0, 2026-02-06)
+
+### ~~8. Fix the Intermittent Race Condition~~ DONE
+
+Fixed `_wait_for_all` in `psh/builtins/job_control.py` to collect exit statuses from already-completed jobs before waiting for running ones. Previously, if a background job (e.g. `false &`) completed and was reaped before `wait` was called, its exit status was lost because the `while` loop only iterated over non-DONE jobs. Now DONE jobs are checked first for their stored exit status, then removed. Verified stable over 20 consecutive runs.
+
+---
+
 ## Remaining Recommendations
 
-### 1. Fix the Intermittent Race Condition
-
-`TestJobCompletion::test_wait_exit_status` in `tests/integration/job_control/test_background_jobs.py:207` -- intermittent `assert 0 != 0` due to background job timing. Add a proper synchronization mechanism or increase the delay.
-
-### 2. Reclassify Conformance Test Errors
+### 1. Reclassify Conformance Test Errors
 
 9 conformance results are `test_error` but most are actually known missing features (extglob, exec FDs). They should be reclassified as `documented_difference` with appropriate notes, which would give a more accurate picture of actual compliance.
 
-### 3. Implement `extglob` (Medium-term)
+### 2. Implement `extglob` (Medium-term)
 
 The `shopt` builtin now supports toggling `extglob`, but the glob expansion engine doesn't implement extended globbing patterns (`?(pattern)`, `*(pattern)`, etc.). Implementing this would resolve 2+ conformance test errors.
 
-### 4. Fill Performance Test Gaps
+### 3. Fill Performance Test Gaps
 
 - `tests/performance/memory/` and `tests/performance/stress/` are empty directories
 - Consider adding memory and stress tests for expansion, parsing, and process creation
 
-### 5. Interactive Test Strategy
+### 4. Interactive Test Strategy
 
 119 tests behind `--run-interactive` and 20 requiring `pexpect`. These cover history, tab completion, line editing, and job control. Current options:
 - Install `pexpect` and enable those 20 tests
@@ -191,8 +195,7 @@ All previously reported bugs have been resolved. See "Completed Recommendations 
 
 ## Summary: Recommended Next Steps
 
-1. Fix intermittent job control race condition
-2. Reclassify 9 conformance test errors for more accurate metrics
-3. Implement `extglob` glob expansion patterns
-4. Add performance/stress tests
-5. Enable interactive tests with `pexpect`
+1. Reclassify 9 conformance test errors for more accurate metrics
+2. Implement `extglob` glob expansion patterns
+3. Add performance/stress tests
+4. Enable interactive tests with `pexpect`

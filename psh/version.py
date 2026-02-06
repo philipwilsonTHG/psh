@@ -2,10 +2,19 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.109.0"
+__version__ = "0.110.0"
 
 # Version history
 VERSION_HISTORY = """
+0.110.0 (2026-02-06) - Fix Intermittent Job Control Race Condition
+- Fixed wait builtin race condition in _wait_for_all(): if a background job
+  (e.g. false &) completed before wait was called, its exit status was lost
+  because the loop only iterated non-DONE jobs
+- Now collects exit statuses from already-completed (DONE) jobs first, then
+  waits for any still-running jobs
+- Verified stable over 20 consecutive runs of the previously flaky test
+- All tests passing
+
 0.109.0 (2026-02-06) - Resolve All 12 Code Review Observations
 - Fixed all 6 remaining code review items (7-12); all 12 now resolved
 - WhitespaceRecognizer: removed unnecessary string building and Token construction,

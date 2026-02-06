@@ -203,40 +203,43 @@ class WaitBuiltin(Builtin):
     def _wait_for_all(self, shell: 'Shell') -> int:
         """Wait for all child processes to complete."""
         exit_status = 0
-        
-        # Wait for all jobs in job manager
+
+        # Collect exit statuses from jobs that already completed (reaped by
+        # SIGCHLD handler before wait was called) and clean them up.
+        done_jobs = [job for job in shell.job_manager.jobs.values()
+                     if job.state == JobState.DONE]
+        for job in done_jobs:
+            if job.processes:
+                last_proc = job.processes[-1]
+                if last_proc.status is not None:
+                    exit_status = self._extract_exit_status(last_proc.status)
+            shell.job_manager.remove_job(job.job_id)
+
+        # Wait for all still-running jobs
         while shell.job_manager.count_active_jobs() > 0:
-            # Get all active jobs
-            active_jobs = [job for job in shell.job_manager.jobs.values() 
-                          if job.state != JobState.DONE]
-            
+            active_jobs = [job for job in shell.job_manager.jobs.values()
+                          if job.state == JobState.RUNNING]
+
             if not active_jobs:
                 break
-                
+
             for job in active_jobs:
-                if job.state == JobState.RUNNING:
-                    # Wait for this job
-                    status = shell.job_manager.wait_for_job(job)
-                    exit_status = status
-                    
-                    # Clean up completed jobs
-                    if job.state == JobState.DONE:
-                        shell.job_manager.remove_job(job.job_id)
-                elif job.state == JobState.STOPPED:
-                    # Don't wait for stopped jobs - they won't complete
-                    continue
-        
+                status = shell.job_manager.wait_for_job(job)
+                exit_status = status
+
+                if job.state == JobState.DONE:
+                    shell.job_manager.remove_job(job.job_id)
+
         # Also check for any orphaned processes not in jobs
         while True:
             try:
                 pid, status = os.waitpid(-1, os.WNOHANG)
                 if pid == 0:
                     break
-                # Extract exit status
                 exit_status = self._extract_exit_status(status)
             except (ChildProcessError, OSError):
                 break
-        
+
         return exit_status
     
     def _wait_for_specific(self, specs: List[str], shell: 'Shell') -> int:
