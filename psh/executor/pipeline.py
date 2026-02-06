@@ -271,17 +271,12 @@ class PipelineExecutor:
         """Wait for a foreground pipeline to complete."""
         job.foreground = True
         self.job_manager.set_foreground_job(job)
-        
-        # Ensure we have the original pgid for restoration
-        if original_pgid is None:
-            try:
-                original_pgid = os.tcgetpgrp(0)
-            except:
-                original_pgid = None
-        
-        # Terminal control should already be transferred by caller
-        # No need to transfer again here
-        
+
+        # Note: original_pgid is intentionally None when terminal control was
+        # not transferred (e.g., in pytest or non-interactive subshells).
+        # Do NOT re-fetch it here — that would cause tcsetpgrp() to be called
+        # from a background process group, triggering SIGTTOU.
+
         if self.state.options.get('pipefail') and len(node.commands) > 1:
             # Get all exit statuses for pipefail
             all_statuses = self.job_manager.wait_for_job(job, collect_all_statuses=True)
@@ -297,15 +292,22 @@ class PipelineExecutor:
         else:
             # Normal behavior: return exit status of last command
             exit_status = self.job_manager.wait_for_job(job)
-        
+
         # Restore terminal control and clean up foreground job state (H4)
-        self.job_manager.restore_shell_foreground()
-        
+        if original_pgid is not None:
+            # Terminal control was transferred — restore it to the shell
+            self.job_manager.restore_shell_foreground()
+        else:
+            # Terminal control was NOT transferred — just clean up state
+            self.job_manager.set_foreground_job(None)
+            if self.job_manager.shell_state is not None and hasattr(self.job_manager.shell_state, 'foreground_pgid'):
+                self.job_manager.shell_state.foreground_pgid = None
+
         # Remove completed job
         from ..job_control import JobState
         if job.state == JobState.DONE:
             self.job_manager.remove_job(job.job_id)
-        
+
         return exit_status
     
     def _is_simple_builtin_pipeline(self, node: 'Pipeline') -> bool:

@@ -16,38 +16,61 @@ PSH_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PSH_ROOT))
 
 from psh.shell import Shell
+from psh.job_control import JobState
+
+
+def _reap_children():
+    """Reap any zombie child processes to prevent leakage between tests."""
+    while True:
+        try:
+            pid, _ = os.waitpid(-1, os.WNOHANG)
+            if pid == 0:
+                break
+        except ChildProcessError:
+            break
+        except OSError:
+            break
+
+
+def _cleanup_shell(shell_instance):
+    """Wait for background jobs and reap zombies after a test."""
+    for job in list(shell_instance.job_manager.jobs.values()):
+        if job.state == JobState.RUNNING:
+            try:
+                shell_instance.job_manager.wait_for_job(job)
+            except (OSError, Exception):
+                pass
+    shell_instance.job_manager.jobs.clear()
+    _reap_children()
 
 
 @pytest.fixture
 def shell():
     """Create a fresh shell instance for testing.
-    
+
     This fixture creates a new Shell instance with clean state for each test.
     Unlike the main test suite, this doesn't capture output automatically.
     """
-    shell = Shell()
-    # Reset to clean state if method exists
-    if hasattr(shell, 'reset_state'):
-        shell.reset_state()
-    return shell
+    shell_instance = Shell()
+    yield shell_instance
+    _cleanup_shell(shell_instance)
 
 
 @pytest.fixture
 def clean_shell():
     """Create a shell instance with completely fresh environment.
-    
+
     This fixture creates a shell with minimal environment setup,
     useful for testing core functionality without interference.
     """
-    shell = Shell()
-    if hasattr(shell, 'reset_state'):
-        shell.reset_state()
+    shell_instance = Shell()
     # Clear environment variables except essentials
     essential_vars = {'PATH', 'HOME', 'USER', 'SHELL'}
-    for var in list(shell.state.variables.keys()):
+    for var in list(shell_instance.state.variables.keys()):
         if var not in essential_vars:
-            del shell.state.variables[var]
-    return shell
+            del shell_instance.state.variables[var]
+    yield shell_instance
+    _cleanup_shell(shell_instance)
 
 
 @pytest.fixture
@@ -122,6 +145,9 @@ def isolated_shell_with_temp_dir(temp_dir):
 
     yield shell
 
+    # Clean up jobs and zombie processes
+    _cleanup_shell(shell)
+
     # Ensure streams are restored (defensive cleanup)
     sys.stdin = original_stdin
     sys.stdout = original_stdout
@@ -130,10 +156,6 @@ def isolated_shell_with_temp_dir(temp_dir):
     # Restore original working directory and PWD environment
     os.chdir(original_cwd)
     os.environ['PWD'] = original_pwd
-
-    # Reset shell state to prevent leakage
-    if hasattr(shell, 'reset_state'):
-        shell.reset_state()
 
 
 class MockStdout:

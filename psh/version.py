@@ -2,10 +2,23 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.110.0"
+__version__ = "0.111.0"
 
 # Version history
 VERSION_HISTORY = """
+0.111.0 (2026-02-06) - Fix SIGTTOU in Subshell Pipelines
+- Fixed subshell child processes getting killed by SIGTTOU (signal 22, exit
+  code 150) when running pipelines with a controlling terminal
+- Root cause: reset_child_signals() set SIGTTOU to SIG_DFL for all forked
+  children, but subshell children act as mini-shells that may call tcsetpgrp()
+  and need SIGTTOU ignored (standard shell behavior)
+- Added SIG_IGN for SIGTTOU in subshell execute_fn (subshell.py)
+- Made pipeline _wait_for_foreground_pipeline() skip restore_shell_foreground()
+  when terminal control was never transferred, preventing unnecessary tcsetpgrp()
+  calls from non-foreground process groups
+- Added test isolation cleanup (_reap_children, _cleanup_shell) to both
+  conftest.py files to prevent zombie process leakage between tests
+
 0.110.0 (2026-02-06) - Fix Intermittent Job Control Race Condition
 - Fixed wait builtin race condition in _wait_for_all(): if a background job
   (e.g. false &) completed before wait was called, its exit status was lost
