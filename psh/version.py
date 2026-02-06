@@ -2,10 +2,20 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.114.0"
+__version__ = "0.115.0"
 
 # Version history
 VERSION_HISTORY = """
+0.115.0 (2026-02-06) - Architectural Improvements: Word AST, Token Adjacency, Expansion Consolidation
+- Added golden behavioral test suite (149 parametrized tests) as safety net for pipeline changes
+- Added first-class token adjacency tracking (adjacent_to_previous field on Token)
+- Simplified composite detection to use adjacency field instead of position arithmetic
+- Added per-part quote context (quoted, quote_char) to LiteralPart and ExpansionPart AST nodes
+- Enhanced Word AST composite word building with per-part quote tracking
+- Rewrote _expand_word() with full per-part quote-aware expansion logic
+- Consolidated ExpansionEvaluator to delegate to VariableExpander (reduced from ~430 to ~85 lines)
+- Added parallel verification infrastructure for Word AST vs string expansion paths
+
 0.114.0 (2026-02-06) - Fix 5 Expansion/Assignment Bugs
 - Fixed split assignments absorbing next token across whitespace: FOO= $BAR is now
   correctly parsed as empty assignment + command, not FOO=$BAR

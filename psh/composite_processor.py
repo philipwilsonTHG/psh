@@ -197,8 +197,7 @@ class CompositeTokenProcessor:
                 continue
             
             # Check if this token is adjacent to the previous one
-            prev_token = tokens[i - 1]
-            if token.position != prev_token.end_position:
+            if not token.adjacent_to_previous:
                 # Not adjacent, end of composite
                 break
             

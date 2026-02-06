@@ -538,17 +538,10 @@ class CommandParser:
         composite = stream.peek_composite_sequence()
         
         if composite:
-            # Build composite word from multiple tokens
-            quote_type = None
-            for token in composite:
-                if token.type == TokenType.STRING and token.quote_type:
-                    quote_type = token.quote_type
-                    break
-            
-            # Advance parser position
+            # Build composite word from multiple tokens.
+            # Per-part quote context is handled inside build_composite_word().
             self.parser.current = stream.pos + len(composite)
-            
-            return WordBuilder.build_composite_word(composite, quote_type)
+            return WordBuilder.build_composite_word(composite)
         else:
             # Single token
             if self.parser.match_any(TokenGroups.WORD_LIKE):

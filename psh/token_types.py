@@ -129,6 +129,7 @@ class Token:
     quote_type: Optional[str] = None  # Track the quote character used (' or " or None)
     line: Optional[int] = None  # Line number (1-based)
     column: Optional[int] = None  # Column number (1-based)
+    adjacent_to_previous: bool = False  # True if no whitespace between this and previous token
     metadata: Optional['TokenMetadata'] = field(default=None)  # Rich metadata (imported from token_enhanced)
     parts: Optional[List['TokenPart']] = field(default=None)  # Token parts (imported from lexer.token_parts)
     
@@ -143,14 +144,15 @@ class Token:
     
     @classmethod
     def from_basic_token(
-        cls, 
+        cls,
         type: TokenType,
         value: str,
         position: int,
         end_position: int = 0,
         quote_type: Optional[str] = None,
         line: Optional[int] = None,
-        column: Optional[int] = None
+        column: Optional[int] = None,
+        adjacent_to_previous: bool = False
     ) -> 'Token':
         """Create unified Token from basic token information."""
         return cls(
@@ -159,6 +161,7 @@ class Token:
             position=position,
             end_position=end_position,
             quote_type=quote_type,
+            adjacent_to_previous=adjacent_to_previous,
             line=line,
             column=column
         )
@@ -173,7 +176,7 @@ class Token:
         """Create Token from another Token (for compatibility)."""
         if isinstance(token, cls):
             return token  # Already a unified token
-        
+
         # Create new token with metadata
         new_token = cls(
             type=token.type,
@@ -181,15 +184,16 @@ class Token:
             position=token.position,
             end_position=token.end_position,
             quote_type=token.quote_type,
+            adjacent_to_previous=getattr(token, 'adjacent_to_previous', False),
             line=token.line,
             column=token.column
         )
-        
+
         if metadata:
             new_token.metadata = metadata
         if parts:
             new_token.parts = parts
-            
+
         return new_token
     
     def add_context(self, context):

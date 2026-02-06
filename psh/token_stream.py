@@ -171,25 +171,23 @@ class TokenStream:
             return None
         
         composite = [first_token]
-        last_end_pos = first_token.end_position
-        
+
         # Look ahead for adjacent tokens
         offset = 1
         while True:
             next_token = self.peek(offset)
             if not next_token:
                 break
-            
-            # Check if adjacent
-            if next_token.position != last_end_pos:
+
+            # Check if adjacent (using first-class field set by lexer)
+            if not next_token.adjacent_to_previous:
                 break
-            
+
             # Check if word-like
             if next_token.type not in WORD_LIKE:
                 break
-            
+
             composite.append(next_token)
-            last_end_pos = next_token.end_position
             offset += 1
         
         # Only return if we found a composite (more than one token)

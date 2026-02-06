@@ -120,79 +120,75 @@ class ExpansionParsers:
     
     def build_word_from_token(self, token: Token) -> Word:
         """Build a Word AST node from a token.
-        
+
         Args:
             token: Token to convert to Word
-            
+
         Returns:
             Word AST node with appropriate parts
         """
+        qt = getattr(token, 'quote_type', None)
+        is_quoted = qt is not None
+
         # Use TokenType enum values
         if token.type.name == 'STRING':
             # String token - check for quote type
-            quote_type = getattr(token, 'quote_type', None)
-            return Word(parts=[LiteralPart(token.value)], quote_type=quote_type)
-        
+            return Word(parts=[LiteralPart(token.value, quoted=is_quoted, quote_char=qt)],
+                        quote_type=qt)
+
         elif token.type.name == 'VARIABLE':
             # Variable expansion
             expansion = VariableExpansion(token.value)
-            return Word(parts=[ExpansionPart(expansion)])
-        
+            return Word(parts=[ExpansionPart(expansion, quoted=is_quoted, quote_char=qt)])
+
         elif token.type.name == 'COMMAND_SUB':
             # Command substitution $(...)
-            # Extract command from $(...)
             cmd = token.value[2:-1] if token.value.startswith('$(') and token.value.endswith(')') else token.value
-            
-            # Validate the command substitution content
+
             if not self._validate_command_substitution(cmd):
                 from ..errors import ParseError
                 raise ParseError(f"Invalid command substitution: {token.value}")
-            
+
             expansion = CommandSubstitution(cmd, backtick_style=False)
-            return Word(parts=[ExpansionPart(expansion)])
-        
+            return Word(parts=[ExpansionPart(expansion, quoted=is_quoted, quote_char=qt)])
+
         elif token.type.name == 'COMMAND_SUB_BACKTICK':
             # Backtick command substitution
-            # Extract command from `...`
             cmd = token.value[1:-1] if token.value.startswith('`') and token.value.endswith('`') else token.value
-            
-            # Validate the command substitution content
+
             if not self._validate_command_substitution(cmd):
                 from ..errors import ParseError
                 raise ParseError(f"Invalid command substitution: {token.value}")
-            
+
             expansion = CommandSubstitution(cmd, backtick_style=True)
-            return Word(parts=[ExpansionPart(expansion)])
-        
+            return Word(parts=[ExpansionPart(expansion, quoted=is_quoted, quote_char=qt)])
+
         elif token.type.name == 'ARITH_EXPANSION':
-            # Arithmetic expansion $((...))]
-            # Extract expression from $((...))
+            # Arithmetic expansion $((...))
             expr = token.value[3:-2] if token.value.startswith('$((') and token.value.endswith('))') else token.value
             expansion = ArithmeticExpansion(expr)
-            return Word(parts=[ExpansionPart(expansion)])
-        
+            return Word(parts=[ExpansionPart(expansion, quoted=is_quoted, quote_char=qt)])
+
         elif token.type.name == 'PARAM_EXPANSION':
             # Parameter expansion - use WordBuilder to parse
             expansion = WordBuilder.parse_expansion_token(token)
-            return Word(parts=[ExpansionPart(expansion)])
-        
+            return Word(parts=[ExpansionPart(expansion, quoted=is_quoted, quote_char=qt)])
+
         elif token.type.name == 'PROCESS_SUB_IN':
             # Process substitution <(...)
-            # Extract command from <(...)
             cmd = token.value[2:-1] if token.value.startswith('<(') and token.value.endswith(')') else token.value[2:]
             expansion = ProcessSubstitution(direction='in', command=cmd)
-            return Word(parts=[ExpansionPart(expansion)])
-        
+            return Word(parts=[ExpansionPart(expansion, quoted=is_quoted, quote_char=qt)])
+
         elif token.type.name == 'PROCESS_SUB_OUT':
             # Process substitution >(...)
-            # Extract command from >(...)
             cmd = token.value[2:-1] if token.value.startswith('>(') and token.value.endswith(')') else token.value[2:]
             expansion = ProcessSubstitution(direction='out', command=cmd)
-            return Word(parts=[ExpansionPart(expansion)])
-        
+            return Word(parts=[ExpansionPart(expansion, quoted=is_quoted, quote_char=qt)])
+
         else:
             # Regular word token
-            return Word(parts=[LiteralPart(text=token.value)])
+            return Word(parts=[LiteralPart(text=token.value, quoted=is_quoted, quote_char=qt)])
     
     def _validate_command_substitution(self, cmd_str: str) -> bool:
         """Parse and validate command substitution content.

@@ -183,8 +183,15 @@ class ModularLexer:
         line = start_pos.line if isinstance(start_pos, Position) else None
         column = start_pos.column if isinstance(start_pos, Position) else None
         
-        token = Token(token_type, value, start_offset, end_offset, quote_type, line, column)
-        
+        # Compute adjacency: this token is adjacent if it starts where the previous token ended
+        adjacent = False
+        if self.tokens:
+            prev = self.tokens[-1]
+            adjacent = (start_offset == prev.end_position)
+
+        token = Token(token_type, value, start_offset, end_offset, quote_type,
+                      line, column, adjacent)
+
         # Convert to RichToken if we have parts
         if self.current_parts:
             rich_token = RichToken.from_token(token, self.current_parts)
@@ -596,7 +603,12 @@ class ModularLexer:
                 start_position = self.position_tracker.get_position_at_offset(token.position)
                 token.line = start_position.line
                 token.column = start_position.column
-            
+
+            # Compute adjacency
+            if self.tokens:
+                prev = self.tokens[-1]
+                token.adjacent_to_previous = (token.position == prev.end_position)
+
             # Add token
             self.tokens.append(token)
             

@@ -108,7 +108,9 @@ class WordPart(ASTNode):
 class LiteralPart(WordPart):
     """Literal text part of a word."""
     text: str
-    
+    quoted: bool = False  # Was this in a quoted context?
+    quote_char: Optional[str] = None  # Which quote: "'" or '"' or None
+
     def __str__(self):
         return self.text
 
@@ -117,7 +119,9 @@ class LiteralPart(WordPart):
 class ExpansionPart(WordPart):
     """Expansion part of a word."""
     expansion: Expansion
-    
+    quoted: bool = False  # Was this in a quoted context?
+    quote_char: Optional[str] = None  # Which quote: "'" or '"' or None
+
     def __str__(self):
         return str(self.expansion)
 

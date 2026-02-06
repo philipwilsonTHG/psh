@@ -100,31 +100,41 @@ class WordBuilder:
     @staticmethod
     def build_word_from_token(token: Token, quote_type: Optional[str] = None) -> Word:
         """Build a Word from a single token."""
-        if token.type in (TokenType.VARIABLE, TokenType.COMMAND_SUB, 
+        is_quoted = quote_type is not None
+        if token.type in (TokenType.VARIABLE, TokenType.COMMAND_SUB,
                           TokenType.COMMAND_SUB_BACKTICK, TokenType.ARITH_EXPANSION,
                           TokenType.PARAM_EXPANSION):
             # This is an expansion token
             expansion = WordBuilder.parse_expansion_token(token)
-            return Word(parts=[ExpansionPart(expansion)], quote_type=quote_type)
+            return Word(parts=[ExpansionPart(expansion, quoted=is_quoted, quote_char=quote_type)],
+                        quote_type=quote_type)
         else:
             # This is a literal token
-            return Word(parts=[LiteralPart(token.value)], quote_type=quote_type)
+            return Word(parts=[LiteralPart(token.value, quoted=is_quoted, quote_char=quote_type)],
+                        quote_type=quote_type)
     
     @staticmethod
     def build_composite_word(tokens: List[Token], quote_type: Optional[str] = None) -> Word:
-        """Build a Word from multiple tokens (for composite words)."""
+        """Build a Word from multiple tokens (for composite words).
+
+        Each part carries its own quote context derived from the token's
+        quote_type.  Composites don't have a single quote_type — each
+        part carries its own.
+        """
         parts: List[WordPart] = []
-        
+
         for token in tokens:
+            qt = getattr(token, 'quote_type', None)
+            is_quoted = qt is not None
             if token.type in (TokenType.VARIABLE, TokenType.COMMAND_SUB,
-                            TokenType.COMMAND_SUB_BACKTICK, TokenType.ARITH_EXPANSION,
-                            TokenType.PARAM_EXPANSION):
+                              TokenType.COMMAND_SUB_BACKTICK, TokenType.ARITH_EXPANSION,
+                              TokenType.PARAM_EXPANSION):
                 expansion = WordBuilder.parse_expansion_token(token)
-                parts.append(ExpansionPart(expansion))
+                parts.append(ExpansionPart(expansion, quoted=is_quoted, quote_char=qt))
             else:
-                parts.append(LiteralPart(token.value))
-        
-        return Word(parts=parts, quote_type=quote_type)
+                parts.append(LiteralPart(token.value, quoted=is_quoted, quote_char=qt))
+
+        return Word(parts=parts, quote_type=None)
     
     @staticmethod
     def build_word_from_string(text: str, token_type: str = 'WORD', 

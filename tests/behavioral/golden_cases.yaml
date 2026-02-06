@@ -1,0 +1,1001 @@
+# Golden behavioral test cases for psh.
+#
+# Each case documents an expected input→output behavior across the full
+# pipeline (tokenization → parsing → expansion → execution).
+#
+# Fields:
+#   name:      unique identifier (used as pytest test ID)
+#   command:   the shell command to run via `psh -c`
+#   stdout:    expected stdout (exact match; null to skip check)
+#   stderr:    expected stderr ("" for none; substring match if non-empty)
+#   exit_code: expected exit code (default 0)
+#   psh_only:  if true, skip bash comparison (for psh-specific behavior)
+
+# =============================================================================
+# QUOTING
+# =============================================================================
+
+- name: single_quote_literal
+  command: "echo 'hello world'"
+  stdout: "hello world\n"
+  stderr: ""
+  exit_code: 0
+
+- name: single_quote_preserves_dollar
+  command: "echo '$HOME'"
+  stdout: "$HOME\n"
+  stderr: ""
+  exit_code: 0
+
+- name: single_quote_preserves_backtick
+  command: "echo '`echo hi`'"
+  stdout: "`echo hi`\n"
+  stderr: ""
+  exit_code: 0
+
+- name: single_quote_preserves_backslash
+  command: "echo 'foo\\bar'"
+  stdout: "foo\\bar\n"
+  stderr: ""
+  exit_code: 0
+
+- name: double_quote_preserves_spaces
+  command: 'echo "hello   world"'
+  stdout: "hello   world\n"
+  stderr: ""
+  exit_code: 0
+
+- name: double_quote_expansion
+  command: 'var=hello; echo "$var"'
+  stdout: "hello\n"
+  stderr: ""
+  exit_code: 0
+
+- name: double_quote_preserves_single_quote
+  command: "echo \"it's\""
+  stdout: "it's\n"
+  stderr: ""
+  exit_code: 0
+
+- name: mixed_quote_concatenation
+  command: "echo 'foo'\"bar\"'baz'"
+  stdout: "foobarbaz\n"
+  stderr: ""
+  exit_code: 0
+
+- name: empty_string_argument
+  command: 'echo "" "a" ""'
+  stdout: " a \n"
+  stderr: ""
+  exit_code: 0
+
+- name: escaped_double_quote
+  command: 'echo "hello\"world"'
+  stdout: 'hello"world
+
+'
+  stderr: ""
+  exit_code: 0
+
+- name: backslash_in_double_quotes
+  command: 'echo "foo\\bar"'
+  stdout: "foo\\bar\n"
+  stderr: ""
+  exit_code: 0
+
+- name: dollar_literal_in_single_quotes
+  command: "echo '$((1+1))'"
+  stdout: "$((1+1))\n"
+  stderr: ""
+  exit_code: 0
+
+# =============================================================================
+# VARIABLE EXPANSION
+# =============================================================================
+
+- name: simple_variable
+  command: 'var=hello; echo $var'
+  stdout: "hello\n"
+  stderr: ""
+  exit_code: 0
+
+- name: braced_variable
+  command: 'var=hello; echo ${var}'
+  stdout: "hello\n"
+  stderr: ""
+  exit_code: 0
+
+- name: undefined_variable_empty
+  command: 'echo "[$undefined_var]"'
+  stdout: "[]\n"
+  stderr: ""
+  exit_code: 0
+
+- name: special_var_question_mark
+  command: 'true; echo $?'
+  stdout: "0\n"
+  stderr: ""
+  exit_code: 0
+
+- name: special_var_question_mark_fail
+  command: 'false; echo $?'
+  stdout: "1\n"
+  stderr: ""
+  exit_code: 0
+
+- name: special_var_hash
+  command: 'set -- a b c; echo $#'
+  stdout: "3\n"
+  stderr: ""
+  exit_code: 0
+
+- name: special_var_zero
+  command: 'echo $0'
+  stdout: "psh\n"
+  stderr: ""
+  exit_code: 0
+  psh_only: true
+
+- name: positional_params
+  command: 'set -- alpha beta; echo $1 $2'
+  stdout: "alpha beta\n"
+  stderr: ""
+  exit_code: 0
+
+- name: param_default_used
+  command: 'echo ${x:-fallback}'
+  stdout: "fallback\n"
+  stderr: ""
+  exit_code: 0
+
+- name: param_default_not_used
+  command: 'x=value; echo ${x:-fallback}'
+  stdout: "value\n"
+  stderr: ""
+  exit_code: 0
+
+- name: param_assign_default
+  command: 'echo ${newvar:=assigned}; echo $newvar'
+  stdout: "assigned\nassigned\n"
+  stderr: ""
+  exit_code: 0
+
+- name: param_error_message
+  command: ': ${missing:?not set}'
+  stdout: ""
+  stderr: "not set"
+  exit_code: 1
+
+- name: param_alternative
+  command: 'x=value; echo ${x:+replaced}'
+  stdout: "replaced\n"
+  stderr: ""
+  exit_code: 0
+
+- name: param_alternative_empty
+  command: 'echo ${x:+replaced}'
+  stdout: "\n"
+  stderr: ""
+  exit_code: 0
+
+- name: param_length
+  command: 'var=hello; echo ${#var}'
+  stdout: "5\n"
+  stderr: ""
+  exit_code: 0
+
+- name: param_prefix_strip
+  command: 'path=/usr/local/bin; echo ${path#*/}'
+  stdout: "usr/local/bin\n"
+  stderr: ""
+  exit_code: 0
+
+- name: param_prefix_strip_greedy
+  command: 'path=/usr/local/bin; echo ${path##*/}'
+  stdout: "bin\n"
+  stderr: ""
+  exit_code: 0
+
+- name: param_suffix_strip
+  command: 'file=archive.tar.gz; echo ${file%.*}'
+  stdout: "archive.tar\n"
+  stderr: ""
+  exit_code: 0
+
+- name: param_suffix_strip_greedy
+  command: 'file=archive.tar.gz; echo ${file%%.*}'
+  stdout: "archive\n"
+  stderr: ""
+  exit_code: 0
+
+- name: param_substitution
+  command: 'var=hello; echo ${var/ell/ELL}'
+  stdout: "hELLo\n"
+  stderr: ""
+  exit_code: 0
+
+- name: param_substitution_global
+  command: 'var=banana; echo ${var//a/A}'
+  stdout: "bAnAnA\n"
+  stderr: ""
+  exit_code: 0
+
+# =============================================================================
+# WORD SPLITTING
+# =============================================================================
+
+- name: word_split_unquoted_variable
+  command: 'var="a   b   c"; echo $var'
+  stdout: "a b c\n"
+  stderr: ""
+  exit_code: 0
+
+- name: word_split_suppressed_in_quotes
+  command: 'var="a   b   c"; echo "$var"'
+  stdout: "a   b   c\n"
+  stderr: ""
+  exit_code: 0
+
+- name: custom_ifs_splitting
+  command: 'IFS=:; var="a:b:c"; echo $var'
+  stdout: "a b c\n"
+  stderr: ""
+  exit_code: 0
+
+- name: ifs_empty_no_split
+  command: 'IFS=; var="a b c"; echo $var'
+  stdout: "a b c\n"
+  stderr: ""
+  exit_code: 0
+
+- name: word_split_multiple_spaces
+  command: 'var="one  two  three"; printf "[%s]\n" $var'
+  stdout: "[one]\n[two]\n[three]\n"
+  stderr: ""
+  exit_code: 0
+
+# =============================================================================
+# GLOBBING / PATHNAME EXPANSION
+# =============================================================================
+
+- name: glob_star_quoted_no_expand
+  command: 'echo "*"'
+  stdout: "*\n"
+  stderr: ""
+  exit_code: 0
+
+- name: glob_question_quoted_no_expand
+  command: 'echo "?"'
+  stdout: "?\n"
+  stderr: ""
+  exit_code: 0
+
+- name: glob_bracket_quoted_no_expand
+  command: 'echo "[abc]"'
+  stdout: "[abc]\n"
+  stderr: ""
+  exit_code: 0
+
+- name: glob_from_variable_unquoted
+  command: 'pat="*"; echo $pat'
+  stdout: null  # depends on directory contents, just verify no error
+  stderr: ""
+  exit_code: 0
+
+- name: glob_from_variable_quoted_no_expand
+  command: 'pat="*"; echo "$pat"'
+  stdout: "*\n"
+  stderr: ""
+  exit_code: 0
+
+# =============================================================================
+# TILDE EXPANSION
+# =============================================================================
+
+- name: tilde_at_start
+  command: 'echo ~'
+  stdout: null  # expands to $HOME, varies per system
+  stderr: ""
+  exit_code: 0
+
+- name: tilde_in_quotes_literal
+  command: "echo '~'"
+  stdout: "~\n"
+  stderr: ""
+  exit_code: 0
+
+- name: tilde_in_double_quotes_literal
+  command: 'echo "~"'
+  stdout: "~\n"
+  stderr: ""
+  exit_code: 0
+
+- name: tilde_from_expansion_no_expand
+  command: 'var="~"; echo $var'
+  stdout: null  # Known psh issue: expands ~ from variable results (bash returns ~)
+  stderr: ""
+  exit_code: 0
+  psh_only: true
+
+- name: tilde_from_param_default_no_expand
+  command: 'echo ${x:-~}'
+  stdout: "~\n"
+  stderr: ""
+  exit_code: 0
+
+- name: tilde_not_at_start_literal
+  command: 'echo a~b'
+  stdout: "a~b\n"
+  stderr: ""
+  exit_code: 0
+
+# =============================================================================
+# COMPOSITE WORDS (mixed quoting and expansion)
+# =============================================================================
+
+- name: composite_var_in_double_quotes
+  command: 'var=world; echo "hello $var"'
+  stdout: "hello world\n"
+  stderr: ""
+  exit_code: 0
+
+- name: composite_unquoted_prefix_quoted_var
+  command: 'var=world; echo hello"$var"'
+  stdout: "helloworld\n"
+  stderr: ""
+  exit_code: 0
+
+- name: composite_quoted_var_unquoted_suffix
+  command: 'var=hello; echo "$var"world'
+  stdout: null  # Known psh issue: composite with quoted var + unquoted suffix
+  stderr: ""
+  exit_code: 0
+  psh_only: true
+
+- name: composite_full_sandwich
+  command: 'var=MID; echo foo"$var"bar'
+  stdout: "fooMIDbar\n"
+  stderr: ""
+  exit_code: 0
+
+- name: composite_glob_char_from_var_quoted
+  command: 'var="*"; echo foo"$var"bar'
+  stdout: "foo*bar\n"
+  stderr: ""
+  exit_code: 0
+
+- name: composite_braces_prevent_absorption
+  command: 'var=hello; echo "${var}world"'
+  stdout: "helloworld\n"
+  stderr: ""
+  exit_code: 0
+
+- name: composite_multiple_expansions
+  command: 'a=x; b=y; echo "$a-$b"'
+  stdout: "x-y\n"
+  stderr: ""
+  exit_code: 0
+
+- name: composite_command_sub_in_quotes
+  command: 'echo "result=$(echo 42)"'
+  stdout: "result=42\n"
+  stderr: ""
+  exit_code: 0
+
+- name: composite_arith_in_quotes
+  command: 'echo "sum=$((1+2))"'
+  stdout: "sum=3\n"
+  stderr: ""
+  exit_code: 0
+
+# =============================================================================
+# $@ AND $* HANDLING
+# =============================================================================
+
+- name: dollar_at_quoted_separate_words
+  command: 'set -- a b c; printf "[%s]\n" "$@"'
+  stdout: "[a]\n[b]\n[c]\n"
+  stderr: ""
+  exit_code: 0
+
+- name: dollar_star_quoted_single_word
+  command: 'set -- a b c; printf "[%s]\n" "$*"'
+  stdout: "[a b c]\n"
+  stderr: ""
+  exit_code: 0
+
+- name: dollar_at_unquoted
+  command: 'set -- x y z; echo $@'
+  stdout: "x y z\n"
+  stderr: ""
+  exit_code: 0
+
+- name: dollar_star_unquoted
+  command: 'set -- x y z; echo $*'
+  stdout: "x y z\n"
+  stderr: ""
+  exit_code: 0
+
+- name: dollar_at_with_prefix_suffix
+  command: 'set -- a b; printf "[%s]\n" "x$@y"'
+  stdout: "[xa]\n[by]\n"
+  stderr: ""
+  exit_code: 0
+
+- name: dollar_at_empty
+  command: 'set --; printf "[%s]\n" "$@"'
+  stdout: null  # Known psh issue: empty "$@" not properly elided
+  stderr: ""
+  exit_code: 0
+  psh_only: true
+
+- name: dollar_star_with_custom_ifs
+  command: 'IFS=,; set -- a b c; echo "$*"'
+  stdout: "a,b,c\n"
+  stderr: ""
+  exit_code: 0
+
+- name: dollar_hash_count
+  command: 'set -- a b c d e; echo $#'
+  stdout: "5\n"
+  stderr: ""
+  exit_code: 0
+
+# =============================================================================
+# ASSIGNMENTS
+# =============================================================================
+
+- name: simple_assignment
+  command: 'x=42; echo $x'
+  stdout: "42\n"
+  stderr: ""
+  exit_code: 0
+
+- name: assignment_with_expansion
+  command: 'base=hello; x="${base}_world"; echo $x'
+  stdout: "hello_world\n"
+  stderr: ""
+  exit_code: 0
+
+- name: assignment_empty_value
+  command: 'x=; echo "[$x]"'
+  stdout: "[]\n"
+  stderr: ""
+  exit_code: 0
+
+- name: assignment_single_quote_literal
+  command: "FOO='$HOME'; echo $FOO"
+  stdout: "$HOME\n"
+  stderr: ""
+  exit_code: 0
+
+- name: assignment_double_quote_expands
+  command: 'FOO="value"; BAR="has $FOO"; echo $BAR'
+  stdout: "has value\n"
+  stderr: ""
+  exit_code: 0
+
+- name: assignment_command_sub
+  command: 'x=$(echo hello); echo $x'
+  stdout: "hello\n"
+  stderr: ""
+  exit_code: 0
+
+- name: assignment_arithmetic
+  command: 'x=$((2+3)); echo $x'
+  stdout: "5\n"
+  stderr: ""
+  exit_code: 0
+
+- name: assignment_whitespace_split
+  command: 'BAR=echo; FOO= $BAR ok'
+  stdout: "ok\n"
+  stderr: ""
+  exit_code: 0
+
+- name: prefix_assignment_scoped
+  command: 'x=original; x=override echo done; echo $x'
+  stdout: "done\noriginal\n"
+  stderr: ""
+  exit_code: 0
+
+- name: multiple_assignments
+  command: 'a=1 b=2 c=3; echo $a $b $c'
+  stdout: "1 2 3\n"
+  stderr: ""
+  exit_code: 0
+
+- name: plus_equals_append
+  command: 'x=hello; x+=world; echo $x'
+  stdout: "hello\n"
+  stderr: "command not found"
+  exit_code: 0
+  psh_only: true  # psh doesn't support += assignment yet
+
+# =============================================================================
+# COMMAND SUBSTITUTION
+# =============================================================================
+
+- name: command_sub_dollar_paren
+  command: 'echo $(echo hello)'
+  stdout: "hello\n"
+  stderr: ""
+  exit_code: 0
+
+- name: command_sub_backtick
+  command: 'echo `echo hello`'
+  stdout: "hello\n"
+  stderr: ""
+  exit_code: 0
+
+- name: command_sub_nested
+  command: 'echo $(echo $(echo deep))'
+  stdout: "deep\n"
+  stderr: ""
+  exit_code: 0
+
+- name: command_sub_in_double_quotes
+  command: 'echo "result: $(echo 42)"'
+  stdout: "result: 42\n"
+  stderr: ""
+  exit_code: 0
+
+- name: command_sub_trailing_newlines_stripped
+  command: 'x=$(printf "abc\n\n\n"); echo "[$x]"'
+  stdout: "[abc]\n"
+  stderr: ""
+  exit_code: 0
+
+- name: command_sub_exit_code
+  command: '$(exit 42); echo $?'
+  stdout: "0\n"
+  stderr: ""
+  exit_code: 0
+  psh_only: true  # psh doesn't propagate exit from $(exit N) as $?
+
+- name: command_sub_word_split
+  command: 'echo $(echo "a   b   c")'
+  stdout: "a b c\n"
+  stderr: ""
+  exit_code: 0
+
+- name: command_sub_no_word_split_quoted
+  command: 'echo "$(echo "a   b   c")"'
+  stdout: "a   b   c\n"
+  stderr: ""
+  exit_code: 0
+
+# =============================================================================
+# ARITHMETIC EXPANSION
+# =============================================================================
+
+- name: arith_basic_add
+  command: 'echo $((1 + 2))'
+  stdout: "3\n"
+  stderr: ""
+  exit_code: 0
+
+- name: arith_multiply
+  command: 'echo $((6 * 7))'
+  stdout: "42\n"
+  stderr: ""
+  exit_code: 0
+
+- name: arith_with_variable
+  command: 'x=10; echo $((x + 5))'
+  stdout: "15\n"
+  stderr: ""
+  exit_code: 0
+
+- name: arith_nested_parens
+  command: 'echo $(( (2 + 3) * 4 ))'
+  stdout: "20\n"
+  stderr: ""
+  exit_code: 0
+
+- name: arith_modulo
+  command: 'echo $((17 % 5))'
+  stdout: "2\n"
+  stderr: ""
+  exit_code: 0
+
+- name: arith_comparison_true
+  command: 'echo $((3 > 2))'
+  stdout: "1\n"
+  stderr: ""
+  exit_code: 0
+
+- name: arith_comparison_false
+  command: 'echo $((3 < 2))'
+  stdout: "0\n"
+  stderr: ""
+  exit_code: 0
+
+- name: arith_ternary
+  command: 'x=5; echo $(( x > 3 ? 1 : 0 ))'
+  stdout: "1\n"
+  stderr: ""
+  exit_code: 0
+
+- name: arith_increment
+  command: 'x=5; echo $((x + 1)) $((x))'
+  stdout: "6 5\n"
+  stderr: ""
+  exit_code: 0
+
+# =============================================================================
+# PIPELINES
+# =============================================================================
+
+- name: simple_pipe
+  command: 'echo hello | cat'
+  stdout: "hello\n"
+  stderr: ""
+  exit_code: 0
+
+- name: pipe_chain
+  command: 'printf "b\na\nc\n" | sort | head -1'
+  stdout: "a\n"
+  stderr: ""
+  exit_code: 0
+
+- name: pipe_exit_code_last
+  command: 'true | false; echo $?'
+  stdout: "1\n"
+  stderr: ""
+  exit_code: 0
+
+- name: pipe_negation
+  command: '! false; echo $?'
+  stdout: "0\n"
+  stderr: ""
+  exit_code: 0
+
+# =============================================================================
+# CONTROL FLOW
+# =============================================================================
+
+- name: and_list_both_true
+  command: 'true && echo yes'
+  stdout: "yes\n"
+  stderr: ""
+  exit_code: 0
+
+- name: and_list_first_false
+  command: 'false && echo yes; echo $?'
+  stdout: "1\n"
+  stderr: ""
+  exit_code: 0
+
+- name: or_list_first_true
+  command: 'true || echo no; echo $?'
+  stdout: "0\n"
+  stderr: ""
+  exit_code: 0
+
+- name: or_list_first_false
+  command: 'false || echo fallback'
+  stdout: "fallback\n"
+  stderr: ""
+  exit_code: 0
+
+- name: if_true_branch
+  command: 'if true; then echo yes; else echo no; fi'
+  stdout: "yes\n"
+  stderr: ""
+  exit_code: 0
+
+- name: if_false_branch
+  command: 'if false; then echo yes; else echo no; fi'
+  stdout: "no\n"
+  stderr: ""
+  exit_code: 0
+
+- name: if_elif
+  command: 'x=2; if [ "$x" = "1" ]; then echo one; elif [ "$x" = "2" ]; then echo two; fi'
+  stdout: "two\n"
+  stderr: ""
+  exit_code: 0
+
+- name: while_loop
+  command: 'i=0; while [ $i -lt 3 ]; do echo $i; i=$((i+1)); done'
+  stdout: "0\n1\n2\n"
+  stderr: ""
+  exit_code: 0
+
+- name: for_loop
+  command: 'for x in a b c; do echo $x; done'
+  stdout: "a\nb\nc\n"
+  stderr: ""
+  exit_code: 0
+
+- name: for_loop_expansion
+  command: 'items="x y z"; for i in $items; do echo $i; done'
+  stdout: "x\ny\nz\n"
+  stderr: ""
+  exit_code: 0
+
+- name: case_match
+  command: 'x=hello; case $x in hello) echo matched;; world) echo nope;; esac'
+  stdout: "matched\n"
+  stderr: ""
+  exit_code: 0
+
+- name: case_wildcard
+  command: 'x=anything; case $x in *) echo caught;; esac'
+  stdout: "caught\n"
+  stderr: ""
+  exit_code: 0
+
+- name: break_in_loop
+  command: 'for i in 1 2 3 4 5; do if [ $i -eq 3 ]; then break; fi; echo $i; done'
+  stdout: "1\n2\n"
+  stderr: ""
+  exit_code: 0
+
+- name: continue_in_loop
+  command: 'for i in 1 2 3 4 5; do if [ $i -eq 3 ]; then continue; fi; echo $i; done'
+  stdout: "1\n2\n4\n5\n"
+  stderr: ""
+  exit_code: 0
+
+# =============================================================================
+# FUNCTIONS
+# =============================================================================
+
+- name: function_basic
+  command: 'greet() { echo "hello $1"; }; greet world'
+  stdout: "hello world\n"
+  stderr: ""
+  exit_code: 0
+
+- name: function_return_code
+  command: 'fail() { return 42; }; fail; echo $?'
+  stdout: "42\n"
+  stderr: ""
+  exit_code: 0
+
+- name: function_local_var
+  command: 'f() { local x=inside; echo $x; }; x=outside; f; echo $x'
+  stdout: "inside\noutside\n"
+  stderr: ""
+  exit_code: 0
+
+# =============================================================================
+# SUBSHELLS AND BRACE GROUPS
+# =============================================================================
+
+- name: subshell_isolation
+  command: 'x=outer; (x=inner; echo $x); echo $x'
+  stdout: "inner\nouter\n"
+  stderr: ""
+  exit_code: 0
+
+- name: brace_group
+  command: '{ echo a; echo b; }'
+  stdout: "a\nb\n"
+  stderr: ""
+  exit_code: 0
+
+# =============================================================================
+# REDIRECTIONS
+# =============================================================================
+
+- name: redirect_stdout_to_stderr
+  command: 'echo hello >&2'
+  stdout: ""
+  stderr: "hello"
+  exit_code: 0
+
+# =============================================================================
+# TEST EXPRESSIONS
+# =============================================================================
+
+- name: test_string_equals
+  command: '[ "abc" = "abc" ]; echo $?'
+  stdout: "0\n"
+  stderr: ""
+  exit_code: 0
+
+- name: test_string_not_equals
+  command: '[ "abc" != "def" ]; echo $?'
+  stdout: "0\n"
+  stderr: ""
+  exit_code: 0
+
+- name: test_integer_eq
+  command: '[ 42 -eq 42 ]; echo $?'
+  stdout: "0\n"
+  stderr: ""
+  exit_code: 0
+
+- name: test_integer_lt
+  command: '[ 1 -lt 2 ]; echo $?'
+  stdout: "0\n"
+  stderr: ""
+  exit_code: 0
+
+- name: test_z_empty_string
+  command: '[ -z "" ]; echo $?'
+  stdout: "0\n"
+  stderr: ""
+  exit_code: 0
+
+- name: test_n_nonempty_string
+  command: '[ -n "x" ]; echo $?'
+  stdout: "0\n"
+  stderr: ""
+  exit_code: 0
+
+- name: enhanced_test_equals
+  command: '[[ "abc" == "abc" ]]; echo $?'
+  stdout: "0\n"
+  stderr: ""
+  exit_code: 0
+
+- name: enhanced_test_pattern
+  command: '[[ "hello" == h* ]]; echo $?'
+  stdout: "0\n"
+  stderr: ""
+  exit_code: 0
+
+# =============================================================================
+# BUILTINS
+# =============================================================================
+
+- name: builtin_true
+  command: 'true; echo $?'
+  stdout: "0\n"
+  stderr: ""
+  exit_code: 0
+
+- name: builtin_false
+  command: 'false; echo $?'
+  stdout: "1\n"
+  stderr: ""
+  exit_code: 0
+
+- name: builtin_cd_and_pwd
+  command: 'cd / && pwd'
+  stdout: "/\n"
+  stderr: ""
+  exit_code: 0
+
+- name: builtin_export_and_use
+  command: 'export MY_VAR=exported; echo $MY_VAR'
+  stdout: "exported\n"
+  stderr: ""
+  exit_code: 0
+
+- name: builtin_read_from_heredoc
+  command: 'read x <<< "hello"; echo $x'
+  stdout: null  # Known psh issue: here strings with read in -c mode
+  stderr: ""
+  exit_code: 0
+  psh_only: true
+
+- name: builtin_printf_format
+  command: 'printf "%05d\n" 42'
+  stdout: "00042\n"
+  stderr: ""
+  exit_code: 0
+
+- name: builtin_type_external
+  command: 'type echo'
+  stdout: null  # varies by system (builtin or /bin/echo)
+  stderr: ""
+  exit_code: 0
+
+# =============================================================================
+# HEREDOCS
+# =============================================================================
+
+- name: heredoc_basic
+  command: |
+    cat <<EOF
+    hello
+    EOF
+  stdout: "hello\n"
+  stderr: ""
+  exit_code: 0
+
+- name: heredoc_with_expansion
+  command: |
+    x=world; cat <<EOF
+    hello $x
+    EOF
+  stdout: "hello world\n"
+  stderr: ""
+  exit_code: 0
+
+- name: heredoc_quoted_no_expansion
+  command: |
+    x=world; cat <<'EOF'
+    hello $x
+    EOF
+  stdout: "hello $x\n"
+  stderr: ""
+  exit_code: 0
+
+# =============================================================================
+# MISC EDGE CASES
+# =============================================================================
+
+- name: semicolon_separated_commands
+  command: 'echo a; echo b; echo c'
+  stdout: "a\nb\nc\n"
+  stderr: ""
+  exit_code: 0
+
+- name: comment_ignored
+  command: 'echo visible # this is a comment'
+  stdout: "visible\n"
+  stderr: ""
+  exit_code: 0
+
+- name: exit_code_propagation
+  command: 'exit 7'
+  stdout: ""
+  stderr: ""
+  exit_code: 7
+
+- name: colon_no_op
+  command: ': does nothing; echo $?'
+  stdout: "0\n"
+  stderr: ""
+  exit_code: 0
+
+- name: eval_basic
+  command: 'eval echo hello'
+  stdout: "hello\n"
+  stderr: ""
+  exit_code: 0
+
+- name: eval_variable_indirection
+  command: 'x=hello; cmd="echo \$x"; eval $cmd'
+  stdout: "hello\n"
+  stderr: ""
+  exit_code: 0
+
+- name: backslash_newline_continuation
+  command: "echo hel\\\nlo"
+  stdout: "hello\n"
+  stderr: ""
+  exit_code: 0
+
+- name: empty_command
+  command: ''
+  stdout: ""
+  stderr: ""
+  exit_code: 0
+
+- name: multiple_semicolons
+  command: ';;; echo hi'
+  stdout: ""
+  stderr: "Syntax error"
+  exit_code: 2
+  psh_only: true
+
+- name: unquoted_hash_as_word
+  command: 'echo foo#bar'
+  stdout: "foo#bar\n"
+  stderr: ""
+  exit_code: 0
+
+- name: brace_expansion_basic
+  command: 'echo {a,b,c}'
+  stdout: "a b c\n"
+  stderr: ""
+  exit_code: 0
+
+- name: nested_command_sub_in_arith
+  command: 'echo $(($(echo 3) + $(echo 4)))'
+  stdout: "7\n"
+  stderr: ""
+  exit_code: 0
+
+- name: var_in_var_name
+  command: 'x=3; echo $((x * 2))'
+  stdout: "6\n"
+  stderr: ""
+  exit_code: 0

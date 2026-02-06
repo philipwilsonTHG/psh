@@ -170,24 +170,83 @@ class TestRecursiveDescentWordAST:
         assert word.parts[0].text == "single quoted"
         assert str(word) == "'single quoted'"
     
-    @pytest.mark.skip(reason="Composite word parsing not yet implemented")
     def test_composite_word(self):
         """Test Word AST for composite words with mixed content."""
         config = ParserConfig(build_word_ast_nodes=True)
         parser = RecursiveDescentAdapter()
         parser.config = config
-        
-        # This would require the lexer to handle composite tokens differently
+
         tokens = tokenize("echo prefix-$USER-suffix")
         ast = parser.parse(tokens)
-        
+
         cmd = ast.statements[0].pipelines[0].commands[0]
         word = cmd.words[1]
         assert len(word.parts) == 3
         assert isinstance(word.parts[0], LiteralPart)
         assert word.parts[0].text == "prefix-"
+        assert not word.parts[0].quoted  # unquoted literal
         assert isinstance(word.parts[1], ExpansionPart)
         assert isinstance(word.parts[1].expansion, VariableExpansion)
+        assert not word.parts[1].quoted  # unquoted expansion
         assert isinstance(word.parts[2], LiteralPart)
         assert word.parts[2].text == "-suffix"
         assert str(word) == "prefix-$USER-suffix"
+        # Composite words have no single quote_type
+        assert word.quote_type is None
+
+    def test_composite_word_mixed_quotes(self):
+        """Test Word AST for composite words with mixed quoted/unquoted parts.
+
+        Note: The lexer tokenizes "$var" as a single STRING token (with the
+        expansion inside), not as a separate VARIABLE token.  The per-part
+        quote context correctly tracks this as quoted.  Full expansion
+        parsing inside STRING tokens is tracked in a separate xfail test.
+        """
+        config = ParserConfig(build_word_ast_nodes=True)
+        parser = RecursiveDescentAdapter()
+        parser.config = config
+
+        tokens = tokenize('echo foo"$var"bar')
+        ast = parser.parse(tokens)
+
+        cmd = ast.statements[0].pipelines[0].commands[0]
+        assert cmd.words is not None
+        word = cmd.words[1]
+        # 3 parts: foo (unquoted), $var (quoted STRING), bar (unquoted)
+        assert len(word.parts) == 3
+        # foo - unquoted literal
+        assert isinstance(word.parts[0], LiteralPart)
+        assert word.parts[0].text == "foo"
+        assert not word.parts[0].quoted
+        # "$var" - quoted literal (STRING token, expansion not yet decomposed)
+        assert isinstance(word.parts[1], LiteralPart)
+        assert word.parts[1].text == "$var"
+        assert word.parts[1].quoted
+        assert word.parts[1].quote_char == '"'
+        # bar - unquoted literal
+        assert isinstance(word.parts[2], LiteralPart)
+        assert word.parts[2].text == "bar"
+        assert not word.parts[2].quoted
+        # Composite has no single quote_type
+        assert word.quote_type is None
+
+    def test_composite_word_single_quote_part(self):
+        """Test Word AST for composite with single-quoted part."""
+        config = ParserConfig(build_word_ast_nodes=True)
+        parser = RecursiveDescentAdapter()
+        parser.config = config
+
+        tokens = tokenize("echo FOO='value'")
+        ast = parser.parse(tokens)
+
+        cmd = ast.statements[0].pipelines[0].commands[0]
+        word = cmd.words[1]
+        # Should have FOO= (unquoted) and value (single-quoted)
+        assert len(word.parts) == 2
+        assert isinstance(word.parts[0], LiteralPart)
+        assert word.parts[0].text == "FOO="
+        assert not word.parts[0].quoted
+        assert isinstance(word.parts[1], LiteralPart)
+        assert word.parts[1].text == "value"
+        assert word.parts[1].quoted
+        assert word.parts[1].quote_char == "'"

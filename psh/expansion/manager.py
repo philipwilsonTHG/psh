@@ -41,7 +41,7 @@ class ExpansionManager:
     def expand_arguments(self, command: SimpleCommand) -> List[str]:
         """
         Expand all arguments in a command.
-        
+
         This method orchestrates all expansions in the correct order:
         1. Brace expansion (handled by tokenizer)
         2. Tilde expansion
@@ -54,7 +54,22 @@ class ExpansionManager:
         """
         # Check if command has Word AST nodes
         if hasattr(command, 'words') and command.words:
-            return self._expand_word_ast_arguments(command)
+            result = self._expand_word_ast_arguments(command)
+
+            # Parallel verification: run string path too and compare
+            if self.state.options.get('verify-word-ast', False):
+                string_result = self._expand_string_arguments(command)
+                if result != string_result:
+                    import sys
+                    print(
+                        f"[WORD-AST-VERIFY] Divergence detected!\n"
+                        f"  command args: {command.args}\n"
+                        f"  word_ast result: {result}\n"
+                        f"  string result:  {string_result}",
+                        file=sys.stderr
+                    )
+
+            return result
         else:
             # Fall back to existing string-based expansion
             return self._expand_string_arguments(command)
@@ -253,40 +268,170 @@ class ExpansionManager:
         return args
     
     def _expand_word(self, word) -> Union[str, List[str]]:
-        """Expand a Word AST node.
-        
+        """Expand a Word AST node using per-part quote context.
+
+        Uses structural information from Word parts instead of \\x00
+        markers to determine glob suppression, word splitting, and
+        tilde expansion behavior.
+
         Returns:
-            Either a single string or a list of strings (for word splitting).
+            Either a single string or a list of strings (for word splitting
+            or ``$@`` expansion).
         """
-        from ..ast_nodes import Word, LiteralPart, ExpansionPart
-        
+        from ..ast_nodes import (
+            Word, LiteralPart, ExpansionPart,
+            VariableExpansion, CommandSubstitution,
+            ParameterExpansion, ArithmeticExpansion,
+        )
+
         if not isinstance(word, Word):
-            # Not a Word node, treat as string
             return str(word)
-        
+
+        # Single-quoted word: no expansion at all
         if word.quote_type == "'":
-            # Single quotes: no expansion
             return self._word_to_string(word)
-        
-        # Process each part
-        result_parts = []
+
+        # Double-quoted word (uniform quote_type on the Word itself):
+        # expand variables/commands but no word splitting or globbing
+        if word.quote_type == '"':
+            return self._expand_double_quoted_word(word)
+
+        # --- Composite / unquoted word ---
+        # Track properties needed for post-expansion steps
+        has_unquoted_glob = False
+        has_expansion = False
+        all_parts_quoted = True
+        result_parts: list = []
+
         for part in word.parts:
             if isinstance(part, LiteralPart):
-                result_parts.append(part.text)
+                text = part.text
+                if part.quoted and part.quote_char == "'":
+                    # Single-quoted literal: completely literal
+                    result_parts.append(text)
+                elif part.quoted and part.quote_char == '"':
+                    # Double-quoted literal: expand variables inside
+                    if '$' in text or '`' in text:
+                        text = self.expand_string_variables(text)
+                    result_parts.append(text)
+                else:
+                    all_parts_quoted = False
+                    # Unquoted literal: tilde on first part if leading ~
+                    if not has_expansion and not result_parts and text.startswith('~'):
+                        text = self.expand_tilde(text)
+                    # Track unquoted glob chars
+                    if any(c in text for c in '*?['):
+                        has_unquoted_glob = True
+                    result_parts.append(text)
+
             elif isinstance(part, ExpansionPart):
+                has_expansion = True
                 expanded = self._expand_expansion(part.expansion)
-                result_parts.append(expanded)
-        
-        # Join parts and handle word splitting if unquoted
+                if part.quoted:
+                    # Quoted expansion: no word splitting, no globbing on result
+                    result_parts.append(expanded)
+                else:
+                    all_parts_quoted = False
+                    result_parts.append(expanded)
+
         result = ''.join(result_parts)
-        
-        if word.quote_type is None:
-            # Unquoted: perform word splitting
-            return self._split_words(result)
-        else:
-            # Quoted: return as single word
-            return result
+
+        # Word splitting: only if there are any unquoted parts
+        if not all_parts_quoted and has_expansion:
+            words = self._split_with_ifs(result, None)
+            if len(words) > 1:
+                # Glob each split word if there are unquoted glob chars
+                if has_unquoted_glob and not self.state.options.get('noglob', False):
+                    return self._glob_words(words)
+                return words
+            elif len(words) == 1:
+                result = words[0]
+            else:
+                return ''
+
+        # Glob expansion on the single result
+        if has_unquoted_glob and not self.state.options.get('noglob', False):
+            globbed = self._glob_words([result])
+            if len(globbed) == 1:
+                return globbed[0]
+            return globbed
+
+        return result
     
+    def _expand_double_quoted_word(self, word) -> Union[str, List[str]]:
+        """Expand a uniformly double-quoted Word (quote_type='"').
+
+        Handles ``$@`` splitting and variable/command expansion but
+        suppresses word splitting and globbing.
+        """
+        from ..ast_nodes import LiteralPart, ExpansionPart, VariableExpansion
+
+        result_parts: list = []
+        for part in word.parts:
+            if isinstance(part, LiteralPart):
+                text = part.text
+                if '$' in text or '`' in text:
+                    # Check for $@ inside text
+                    if self._contains_at_expansion(text) or text == '$@':
+                        expanded_words = self._expand_at_in_string(text)
+                        if len(expanded_words) > 1:
+                            return expanded_words
+                        text = expanded_words[0] if expanded_words else ''
+                    else:
+                        text = self.expand_string_variables(text)
+                result_parts.append(text)
+            elif isinstance(part, ExpansionPart):
+                exp = part.expansion
+                # Handle "$@" splitting
+                if isinstance(exp, VariableExpansion) and exp.name == '@':
+                    params = list(self.state.positional_params)
+                    if not params:
+                        continue  # "$@" with no params produces nothing
+                    # If there's surrounding text, distribute prefix/suffix
+                    prefix = ''.join(result_parts)
+                    result_parts.clear()
+                    # Collect suffix parts
+                    suffix_parts = []
+                    found = False
+                    for p2 in word.parts:
+                        if p2 is part:
+                            found = True
+                            continue
+                        if found:
+                            if isinstance(p2, LiteralPart):
+                                suffix_parts.append(p2.text)
+                            elif isinstance(p2, ExpansionPart):
+                                suffix_parts.append(self._expand_expansion(p2.expansion))
+                    suffix = ''.join(suffix_parts)
+
+                    if len(params) == 1:
+                        return prefix + params[0] + suffix
+                    words = [prefix + params[0]]
+                    words.extend(params[1:-1])
+                    words.append(params[-1] + suffix)
+                    return words
+
+                expanded = self._expand_expansion(exp)
+                result_parts.append(expanded)
+
+        return ''.join(result_parts)
+
+    def _glob_words(self, words: List[str]) -> List[str]:
+        """Apply glob expansion to a list of words."""
+        result = []
+        for w in words:
+            if any(c in w for c in '*?['):
+                matches = self.glob_expander.expand(w)
+                if matches:
+                    result.extend(sorted(matches))
+                elif self.state.options.get('nullglob', False):
+                    pass  # nullglob: no matches -> nothing
+                else:
+                    result.append(w)
+            else:
+                result.append(w)
+        return result
+
     def _word_to_string(self, word) -> str:
         """Convert a Word AST node to a string without expansion."""
         from ..ast_nodes import LiteralPart, ExpansionPart

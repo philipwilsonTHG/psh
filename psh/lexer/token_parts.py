@@ -35,6 +35,7 @@ class RichToken(Token):
             position=token.position,
             end_position=token.end_position,
             quote_type=token.quote_type,
+            adjacent_to_previous=token.adjacent_to_previous,
             line=token.line,
             column=token.column,
             parts=parts or [],
