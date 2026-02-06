@@ -4,7 +4,7 @@
 
 Python Shell (psh) is a POSIX-compliant shell written entirely in Python, designed for learning shell internals while providing practical functionality. It features a clean, readable codebase with modern architecture and powerful built-in analysis tools.
 
-**Current Version**: 0.101.0 | **Tests**: 2,865 passing | **POSIX Compliance**: ~93%
+**Current Version**: 0.113.0 | **Tests**: 3,021 total | **POSIX Compliance**: ~98%
 
 *All source code and documentation (except this note) has been written by Claude Code using Sonnet 4 and Opus 4 models.*
 
@@ -31,10 +31,10 @@ psh --format script.sh
 
 - 🔍 **CLI Analysis Tools**: Built-in script formatting, metrics, security analysis, and linting
 - 📚 **Educational Focus**: Clean, readable codebase designed for learning shell internals
-- 🧪 **Comprehensive Testing**: 2,865 tests ensuring reliability and robustness
+- 🧪 **Comprehensive Testing**: 3,021 tests ensuring reliability and robustness
 - 🏗️ **Modern Architecture**: Component-based design with unified lexer and visitor pattern integration
 - 🎓 **Dual Parser Implementation**: Both recursive descent and functional parser combinator with 100% feature parity
-- 📋 **POSIX Compliant**: ~93% compliance with robust bash compatibility
+- 📋 **POSIX Compliant**: ~98% compliance with robust bash compatibility
 - 🎯 **Feature Complete**: Supports advanced shell programming with arrays, functions, and control structures
 
 ## CLI Analysis Tools ✨
@@ -90,7 +90,7 @@ Complexity:
 - **Arithmetic Expansion**: `$((expr))` with full operator support and command substitution
 - **Brace Expansion**: `{a,b,c}`, `{1..10}`, `{a..z}` with nesting
 - **Process Substitution**: `<(cmd)` and `>(cmd)` for advanced I/O patterns
-- **Glob Expansion**: `*`, `?`, `[abc]`, `[a-z]` with quote handling
+- **Glob Expansion**: `*`, `?`, `[abc]`, `[a-z]` with quote handling and extended globbing (`extglob`)
 
 ### Programming Constructs ✅
 - **Control Structures**: `if/then/else`, `while`, `for`, `case`, C-style `for ((;;))`
@@ -234,8 +234,8 @@ PSH uniquely includes two complete parser implementations:
 - **Feature Parity**: Both parsers support all shell constructs (control structures, arrays, process substitution, etc.)
 
 ### Project Statistics
-- **Lines of Code**: ~62,800 across 211 Python files
-- **Test Coverage**: 2,865 tests in 138 test files
+- **Lines of Code**: ~62,000 across 214 Python files
+- **Test Coverage**: 3,021 tests in 154 test files
 - **Architecture**: 8 major components with focused responsibilities
 - **Visitors**: 9 analysis and transformation visitors
 - **Dual Parser**: Both recursive descent and parser combinator implementations
@@ -283,21 +283,21 @@ python -m pytest tests/ --cov=psh --cov-report=html
 **Important:** Some tests (subshells, functions with subshells) require pytest's output capture to be disabled (`-s` flag) due to file descriptor handling in forked processes. The `run_tests.py` script handles this automatically.
 
 **Current Test Statistics:**
-- ✅ 2,601 passing tests
-- ⏭️ 172 skipped tests (platform-specific or interactive)
-- ⚠️ 58 xfailed (expected failures for unimplemented features)
+- ✅ 2,808 passing tests
+- ⏭️ 173 skipped tests (platform-specific or interactive)
+- ⚠️ 36 xfailed (expected failures for unimplemented features)
 - 📊 High coverage across all components
 
 ## POSIX Compliance
 
-PSH achieves approximately **93% POSIX compliance** while maintaining bash compatibility:
+PSH achieves approximately **98% POSIX compliance** and **92% bash compatibility**:
 
 ### Compliance Highlights
-- ✅ **Shell Grammar**: 95% - All major constructs supported
-- ✅ **Parameter Expansion**: 90% - All standard forms implemented
+- ✅ **Shell Grammar**: 98% - All major constructs supported
+- ✅ **Parameter Expansion**: 95% - All standard forms implemented
 - ✅ **I/O Redirection**: 95% - Complete standard redirection support
 - ✅ **Control Structures**: 100% - Full if/while/for/case support
-- ✅ **Built-in Commands**: 89% - Most essential commands implemented
+- ✅ **Built-in Commands**: 95% - Most essential commands implemented
 
 ### Bash Compatibility
 PSH includes many bash extensions while maintaining POSIX compliance:
@@ -306,13 +306,13 @@ PSH includes many bash extensions while maintaining POSIX compliance:
 - Brace expansion and process substitution
 - Advanced parameter expansion with string manipulation
 - C-style for loops and arithmetic commands
+- Extended globbing (`shopt -s extglob`) with `?()`, `*()`, `+()`, `@()`, `!()` operators
 
 ## Known Limitations
 
 While PSH implements most shell features, some limitations remain:
 
 - **Signal Handling**: `trap` builtin not yet implemented
-- **Extended Globbing**: No support for `?(pattern)`, `*(pattern)` forms
 - **Deep Recursion**: Recursive functions hit Python stack limits
 - **Some Advanced Features**: Minor gaps in specialized POSIX utilities
 
@@ -328,16 +328,16 @@ PSH welcomes contributions that maintain its educational focus:
 - **Architecture**: Follow component-based design patterns
 
 ### Recent Development
+- **v0.113.0**: Extended globbing (`extglob`) - Five pattern operators `?()`, `*()`, `+()`, `@()`, `!()` across all shell contexts
+- **v0.112.0**: Fix nested subshell parsing and SIGTTOU in process substitution
+- **v0.108.0**: Fix 4 conformance bugs, achieve 0 PSH bugs - POSIX compliance 98.4%, bash compatibility 91.8%
+- **v0.107.0**: Glob fixes, `shopt` builtin with dotglob/nullglob/extglob/nocaseglob/globstar
+- **v0.104.0**: Complete all high priority executor improvements - unified process management
+- **v0.102.0**: Interactive nested prompts - zsh-style context-aware continuation prompts
 - **v0.101.0**: Parser package refactoring - Recursive descent parser modularized into clean package structure
 - **v0.100.0**: Parser combinator modular architecture complete - 2,779 lines to 8 clean modules
 - **v0.99.0**: Parser combinator Phase 6 complete - Advanced I/O & Select loops (100% feature parity achieved)
-- **v0.98.0**: Parser combinator Phase 5 complete - Array support with full bash compatibility
-- **v0.97.0**: Parser combinator Phase 4 complete - Enhanced test expressions `[[ ]]` with all operators
-- **v0.96.0**: Parser combinator Phase 3 complete - Arithmetic commands `((expr))`
-- **v0.95.0**: Parser combinator Phase 2 complete - Compound commands (subshells, brace groups)
-- **v0.94.0**: Parser combinator Phase 1 complete - Process substitution `<(cmd)` and `>(cmd)`
-- **v0.92.0**: Here document support in parser combinator with two-pass parsing
-- **v0.91.7**: Parser combinator implementation complete - All shell syntax features supported
+- **v0.94.0-v0.98.0**: Parser combinator feature parity phases 1-5 complete
 
 ## License
 
