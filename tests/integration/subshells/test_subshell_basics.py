@@ -146,7 +146,6 @@ def test_subshell_error_handling(shell):
     assert result != 0
 
 
-@pytest.mark.xfail(reason="PSH may not support nested subshell parsing")
 def test_nested_subshells(isolated_shell_with_temp_dir):
     """Test nested subshells."""
     shell = isolated_shell_with_temp_dir

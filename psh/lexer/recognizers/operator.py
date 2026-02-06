@@ -336,7 +336,14 @@ class OperatorRecognizer(ContextualRecognizer):
             if context.bracket_depth > 0:
                 return False  # Don't recognize as redirect operators inside [[ ]]
             return True  # Outside [[ ]], they are normal redirections
-        
+
+        elif operator == '))':
+            # )) is only valid as DOUBLE_RPAREN when closing an arithmetic
+            # context like (( expr )). Outside arithmetic, )) should be
+            # tokenized as two separate RPAREN tokens (e.g., nested subshells:
+            # (echo "outer"; (echo "inner")) ).
+            return context.arithmetic_depth > 0
+
         # Most operators are valid in any context
         return True
     

@@ -2,10 +2,22 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.111.0"
+__version__ = "0.112.0"
 
 # Version history
 VERSION_HISTORY = """
+0.112.0 (2026-02-06) - Fix Nested Subshell Parsing and SIGTTOU in Process Substitution
+- Fixed nested subshell parsing: (echo "outer"; (echo "inner")) now parses correctly
+- Root cause: lexer greedily matched )) as DOUBLE_RPAREN (arithmetic close) instead
+  of two separate RPAREN tokens when closing nested subshells
+- Added context check: )) is only DOUBLE_RPAREN when arithmetic_depth > 0
+- Removed xfail from test_nested_subshells (now passes)
+- Fixed SIGTTOU suspension when running tests piped through tee
+- ExternalExecutionStrategy now only calls restore_shell_foreground() when terminal
+  control was actually transferred, matching the fix applied to pipeline.py in v0.111.0
+- Added SIGTTOU SIG_IGN in process substitution child fork (process_sub.py), matching
+  the subshell child fix from v0.111.0
+
 0.111.0 (2026-02-06) - Fix SIGTTOU in Subshell Pipelines
 - Fixed subshell child processes getting killed by SIGTTOU (signal 22, exit
   code 150) when running pipelines with a controlling terminal
