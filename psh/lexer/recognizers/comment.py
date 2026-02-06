@@ -3,7 +3,7 @@
 from typing import Optional, Tuple
 from .base import ContextualRecognizer
 from ..state_context import LexerContext
-from ...token_types import Token, TokenType
+from ...token_types import Token
 
 
 class CommentRecognizer(ContextualRecognizer):
@@ -34,33 +34,20 @@ class CommentRecognizer(ContextualRecognizer):
         return self._is_comment_start(input_text, pos, context)
     
     def recognize(
-        self, 
-        input_text: str, 
-        pos: int, 
+        self,
+        input_text: str,
+        pos: int,
         context: LexerContext
     ) -> Optional[Tuple[Token, int]]:
-        """Recognize comment tokens."""
+        """Skip past comment, returning (None, new_pos)."""
         if not self.can_recognize(input_text, pos, context):
             return None
-        
-        start_pos = pos
-        comment_text = ""
-        
-        # Read until end of line
+
+        # Advance past all characters until end of line
         while pos < len(input_text) and input_text[pos] != '\n':
-            comment_text += input_text[pos]
             pos += 1
-        
-        # Create comment token (usually skipped by lexer)
-        token = Token(
-            TokenType.COMMENT if hasattr(TokenType, 'COMMENT') else TokenType.WORD,
-            comment_text,
-            start_pos,
-            pos
-        )
-        
-        # Return None token to indicate comment should be skipped
-        # But return the new position so lexer knows where to continue
+
+        # Return None token with new position to indicate skip
         return None, pos
     
     def _is_comment_start(

@@ -3,78 +3,58 @@
 from typing import Optional, Tuple
 from .base import TokenRecognizer
 from ..state_context import LexerContext
-from ...token_types import Token, TokenType
+from ...token_types import Token
 from ..unicode_support import is_whitespace
 
 
 class WhitespaceRecognizer(TokenRecognizer):
-    """Recognizes whitespace tokens."""
-    
+    """Recognizes whitespace tokens.
+
+    Whitespace is skipped (not emitted as tokens). This recognizer
+    advances past whitespace and returns (None, new_pos) so the
+    lexer knows where to continue.
+    """
+
     @property
     def priority(self) -> int:
         """Low priority for whitespace."""
         return 30
-    
+
     def can_recognize(
-        self, 
-        input_text: str, 
-        pos: int, 
+        self,
+        input_text: str,
+        pos: int,
         context: LexerContext
     ) -> bool:
         """Check if current position is whitespace."""
         if pos >= len(input_text):
             return False
-        
+
         char = input_text[pos]
-        
+
         # Skip newlines (handled by operator recognizer)
         if char == '\n':
             return False
-        
+
         # Check for whitespace (excluding newlines)
         return is_whitespace(char, posix_mode=context.posix_mode)
-    
+
     def recognize(
-        self, 
-        input_text: str, 
-        pos: int, 
+        self,
+        input_text: str,
+        pos: int,
         context: LexerContext
     ) -> Optional[Tuple[Token, int]]:
-        """Recognize whitespace sequences."""
+        """Skip past whitespace, returning (None, new_pos)."""
         if not self.can_recognize(input_text, pos, context):
             return None
-        
-        start_pos = pos
-        whitespace = ""
-        
-        # Consume all consecutive whitespace (except newlines)
+
+        # Advance past all consecutive whitespace (except newlines)
         while pos < len(input_text):
             char = input_text[pos]
-            
-            # Stop at newlines (handled separately)
-            if char == '\n':
+            if char == '\n' or not is_whitespace(char, posix_mode=context.posix_mode):
                 break
-            
-            # Stop at non-whitespace
-            if not is_whitespace(char, posix_mode=context.posix_mode):
-                break
-            
-            whitespace += char
             pos += 1
-        
-        if not whitespace:
-            return None
-        
-        # In most shell contexts, whitespace is not tokenized as separate tokens
-        # Instead, it's skipped. However, we create a token for completeness
-        # and let the lexer decide whether to emit it.
-        token = Token(
-            TokenType.WHITESPACE if hasattr(TokenType, 'WHITESPACE') else TokenType.WORD,
-            whitespace,
-            start_pos,
-            pos
-        )
-        
-        # Return None to indicate whitespace should be skipped
-        # The lexer will handle advancing the position
-        return None
+
+        # Return None token with new position to indicate skip
+        return None, pos

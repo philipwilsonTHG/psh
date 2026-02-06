@@ -1,4 +1,5 @@
 """Command substitution implementation."""
+import errno
 import os
 import sys
 import tempfile
@@ -89,12 +90,13 @@ class CommandSubstitution:
                 os.close(write_fd)
 
                 # Read all output from child
-                output_bytes = b''
+                chunks = []
                 while True:
                     chunk = os.read(read_fd, 4096)
                     if not chunk:
                         break
-                    output_bytes += chunk
+                    chunks.append(chunk)
+                output_bytes = b''.join(chunks)
 
                 os.close(read_fd)
 
@@ -109,7 +111,7 @@ class CommandSubstitution:
                 except OSError as e:
                     # In some environments (like pytest), the child might have already been reaped
                     # by a signal handler. This happens particularly with the job control system
-                    if e.errno == 10:  # ECHILD - No child processes
+                    if e.errno == errno.ECHILD:
                         exit_code = 1
                     else:
                         raise

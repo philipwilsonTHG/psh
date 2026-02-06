@@ -2,10 +2,27 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.108.0"
+__version__ = "0.109.0"
 
 # Version history
 VERSION_HISTORY = """
+0.109.0 (2026-02-06) - Resolve All 12 Code Review Observations
+- Fixed all 6 remaining code review items (7-12); all 12 now resolved
+- WhitespaceRecognizer: removed unnecessary string building and Token construction,
+  now just advances position and returns (None, new_pos) like CommentRecognizer
+- Removed hasattr(TokenType, 'WHITESPACE'/'COMMENT') guards and unused Token
+  construction from both whitespace and comment recognizers
+- Both WhitespaceRecognizer and CommentRecognizer now consistently return
+  (None, new_pos) for skipped regions (was inconsistent: None vs (None, pos))
+- Removed unused ExpansionComponent abstract base class from psh/expansion/base.py;
+  no expansion component inherited from it and their interfaces intentionally differ
+- Fixed O(n^2) bytestring concatenation in command substitution: now collects
+  chunks in a list and joins with b''.join() for O(n) performance
+- Replaced hardcoded errno 10 with errno.ECHILD for readability and portability
+- Cleaned up old conformance result files from 2025
+- Updated docs/code_review_observations.md: all 12 items marked FIXED
+- All tests passing
+
 0.108.0 (2026-02-06) - Fix 4 Conformance Bugs, Achieve 0 PSH Bugs
 - Resolved all 4 remaining psh_bug conformance items (was 4, now 0)
 - POSIX compliance: 98.4% (up from 97.7%), bash compatibility: 91.8% (up from 89.1%)

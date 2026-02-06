@@ -345,23 +345,23 @@ class TestWhitespaceRecognizer:
     def test_space_recognition(self, recognizer, context):
         """Test recognition of spaces."""
         result = recognizer.recognize(' ', 0, context)
-        assert result is None  # Whitespace recognizer returns None to skip
-        
+        assert result == (None, 1)  # Whitespace skipped, position advanced
+
         result = recognizer.recognize('   ', 0, context)
-        assert result is None
-    
+        assert result == (None, 3)
+
     def test_tab_recognition(self, recognizer, context):
         """Test recognition of tabs."""
         result = recognizer.recognize('\t', 0, context)
-        assert result is None  # Should be skipped
-        
+        assert result == (None, 1)  # Whitespace skipped, position advanced
+
         result = recognizer.recognize('\t\t\t', 0, context)
-        assert result is None
-    
+        assert result == (None, 3)
+
     def test_mixed_whitespace(self, recognizer, context):
         """Test recognition of mixed whitespace."""
         result = recognizer.recognize(' \t ', 0, context)
-        assert result is None  # Should be skipped
+        assert result == (None, 3)  # Whitespace skipped, position advanced
 
 
 class TestCommentRecognizer:

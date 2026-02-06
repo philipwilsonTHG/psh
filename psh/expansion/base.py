@@ -1,14 +1,9 @@
-"""Base classes for expansion components."""
-from abc import ABC, abstractmethod
-from ..core.state import ShellState
+"""Base module for expansion components.
 
-class ExpansionComponent(ABC):
-    """Base class for all expansion components."""
-    
-    def __init__(self, shell_state: ShellState):
-        self.state = shell_state
-    
-    @abstractmethod
-    def expand(self, value: str) -> str:
-        """Expand the given value."""
-        pass
+Note: The expansion components (GlobExpander, CommandSubstitution,
+VariableExpander, TildeExpander) all take a Shell instance in their
+constructor and have method signatures tailored to their specific
+needs (e.g., GlobExpander.expand returns List[str], CommandSubstitution
+uses execute() not expand()). A common abstract base class was removed
+as it did not fit the varying interfaces.
+"""
