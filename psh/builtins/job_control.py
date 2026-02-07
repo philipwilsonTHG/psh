@@ -24,13 +24,11 @@ class JobsBuiltin(Builtin):
         """Execute the jobs builtin."""
         # Parse options
         show_pids_only = False
-        show_long_format = False
-
         for arg in args[1:]:
             if arg == '-p':
                 show_pids_only = True
             elif arg == '-l':
-                show_long_format = True
+                pass  # TODO: implement long format
             elif arg.startswith('-'):
                 self.error(f"invalid option: {arg}", shell)
                 return 1
@@ -245,7 +243,6 @@ class WaitBuiltin(Builtin):
     def _wait_for_specific(self, specs: List[str], shell: 'Shell') -> int:
         """Wait for specific processes or jobs."""
         exit_status = 0
-        found_any = False
 
         for spec in specs:
             if spec.startswith('%'):
@@ -256,7 +253,6 @@ class WaitBuiltin(Builtin):
                     exit_status = 127
                     continue
 
-                found_any = True
                 if job.state == JobState.DONE:
                     # Already completed - get exit status from last process
                     if job.processes:
@@ -287,7 +283,6 @@ class WaitBuiltin(Builtin):
                 # Check if it's a known job
                 job = shell.job_manager.get_job_by_pid(pid)
                 if job:
-                    found_any = True
                     # Wait for the entire job containing this PID
                     if job.state != JobState.DONE:
                         if job.state == JobState.STOPPED:
@@ -311,13 +306,11 @@ class WaitBuiltin(Builtin):
                         _, status = os.waitpid(pid, os.WNOHANG)
                         if status != 0:
                             # Process already terminated
-                            found_any = True
                             exit_status = self._extract_exit_status(status)
                         else:
                             # Process still running - wait for it
                             try:
                                 _, status = os.waitpid(pid, 0)
-                                found_any = True
                                 exit_status = self._extract_exit_status(status)
                             except (ChildProcessError, OSError):
                                 print(f"wait: pid {pid} is not a child of this shell",

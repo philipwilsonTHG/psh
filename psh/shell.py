@@ -761,7 +761,7 @@ class Shell:
         """Get signal handler (compatibility wrapper)."""
         return self.interactive_manager.signal_manager._handle_sigchld
 
-    def create_parser(self, tokens, source_text=None, **parser_options):
+    def create_parser(self, tokens, source_text=None, **_parser_options):
         """Create a parser with configuration based on shell options.
         
         This method now uses the parser strategy to respect parser selection.

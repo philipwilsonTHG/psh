@@ -80,7 +80,6 @@ class ArrayParser:
         elif self.parser.match(TokenType.WORD) and self.parser.peek().value == '[':
             # Look ahead to verify this is really an array assignment
             # by checking for ] followed by = or +=
-            temp_pos = self.parser.current
             self.parser.advance()  # skip [
 
             # Skip tokens until we find ] or give up

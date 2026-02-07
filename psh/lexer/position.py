@@ -65,7 +65,6 @@ class LexerError(SyntaxError):
 
                 if line_num == self.position.line:
                     # Add error pointer
-                    pointer_pos = 7 + (self.position.column - 1)  # Account for line number prefix
                     context_lines.append(f"       | {' ' * (self.position.column - 1)}^")
 
         return f"""

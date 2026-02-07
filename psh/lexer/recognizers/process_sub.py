@@ -62,7 +62,6 @@ class ProcessSubstitutionRecognizer(TokenRecognizer):
 
         # Read until we find the matching )
         paren_count = 1
-        content_start = pos
 
         while pos < len(input_text) and paren_count > 0:
             char = input_text[pos]

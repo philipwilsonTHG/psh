@@ -72,7 +72,7 @@ class EnhancedErrorRecovery:
                 result = strategy(parse_error)
                 if result and result.success:
                     return result
-            except Exception as recovery_error:
+            except Exception:
                 # Recovery strategy failed, try next one
                 continue
 

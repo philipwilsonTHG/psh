@@ -160,8 +160,6 @@ class PipelineExecutor:
         try:
             # Fork processes for each command
             for i, command in enumerate(node.commands):
-                is_last_command = (i == len(node.commands) - 1)
-
                 # Determine process role
                 if i == 0:
                     role = ProcessRole.PIPELINE_LEADER
@@ -188,7 +186,6 @@ class PipelineExecutor:
 
                         # Execute command with pipeline context
                         # IMPORTANT: Update visitor's context to use the child_context
-                        original_context = visitor.context
                         visitor.context = child_context
                         exit_status = visitor.visit(cmd_node)
 
@@ -252,7 +249,7 @@ class PipelineExecutor:
                 # Foreground pipeline - wait for completion
                 return self._wait_for_foreground_pipeline(job, node, original_pgid)
 
-        except Exception as e:
+        except Exception:
             # Clean up sync pipe on error
             try:
                 os.close(sync_pipe_r)
@@ -456,7 +453,7 @@ class PipelineExecutor:
                 # Return exit status of last command
                 return proc2.returncode
 
-            except FileNotFoundError as e:
+            except FileNotFoundError:
                 # If command not found, try executing as builtins
                 return self._execute_builtin_to_builtin_pipeline(first_cmd, second_cmd, visitor)
             except Exception:

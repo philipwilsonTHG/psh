@@ -736,7 +736,6 @@ class LiteralRecognizer(ContextualRecognizer):
             return False
 
         # Allow strings that are valid identifiers or contain path-like characters
-        allowed_chars = set()
         for i, char in enumerate(value):
             if i == 0:
                 if not (is_identifier_start(char, posix_mode) or char in '/.~'):

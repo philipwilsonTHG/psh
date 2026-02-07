@@ -105,11 +105,9 @@ class GetoptsBuiltin(Builtin):
         if len(args) > 3:
             # Parse provided arguments
             argv = args[3:]
-            argv_start = 0
         else:
             # Parse positional parameters
             argv = shell.positional_params
-            argv_start = 0
 
         # Check if we've processed all arguments
         arg_index = optind - 1  # Convert to 0-based

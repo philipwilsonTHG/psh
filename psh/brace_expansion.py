@@ -726,7 +726,6 @@ class BraceExpander:
         # For single digit negative padded number like -3 with end 03,
         # we don't pad the negative numbers
         start_val = int(start)
-        end_val = int(end)
 
         # If start is negative without padding and end has padding
         if start_val < 0 and not has_start_padding and has_end_padding:

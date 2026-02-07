@@ -358,8 +358,6 @@ class PrintfBuiltin(Builtin):
             'original': ''
         }
 
-        start_pos = i
-
         # Parse flags (-+# 0)
         while i < len(format_str) and format_str[i] in '-+# 0':
             if format_str[i] not in spec['flags']:  # Avoid duplicate flags

@@ -265,7 +265,6 @@ class TokenStream:
             if not self.at_end():
                 next_token = self.peek()
                 if next_token:
-                    current_val = expr_parts[-1] if expr_parts else ""
                     # Add space between word tokens
                     if token.type == TokenType.WORD and next_token.type == TokenType.WORD:
                         expr_parts.append(' ')

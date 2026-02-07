@@ -100,7 +100,6 @@ class OperatorRecognizer(ContextualRecognizer):
             if pos >= len(input_text) or input_text[pos] not in '><':
                 return None
 
-            direction = input_text[pos]
             pos += 1
 
             # Must be followed by &
@@ -113,13 +112,10 @@ class OperatorRecognizer(ContextualRecognizer):
                 return None
 
             if input_text[pos] == '-':
-                target = '-'
                 pos += 1
             elif input_text[pos].isdigit():
-                target_start = pos
                 while pos < len(input_text) and input_text[pos].isdigit():
                     pos += 1
-                target = input_text[target_start:pos]
             else:
                 return None
 
@@ -133,20 +129,17 @@ class OperatorRecognizer(ContextualRecognizer):
             return token, pos
 
         # Check if we have a leading digit (N>&M pattern where we're at > or <)
-        leading_digit = None
         if pos > 0 and input_text[pos-1].isdigit():
             # Need to backtrack to include the digit
             digit_start = pos - 1
             while digit_start > 0 and input_text[digit_start-1].isdigit():
                 digit_start -= 1
-            leading_digit = input_text[digit_start:pos]
             start_pos = digit_start
 
         # Now we're at > or <
         if pos >= len(input_text) or input_text[pos] not in '><':
             return None
 
-        direction = input_text[pos]
         pos += 1
 
         # Must be followed by &
@@ -159,13 +152,10 @@ class OperatorRecognizer(ContextualRecognizer):
             return None
 
         if input_text[pos] == '-':
-            target = '-'
             pos += 1
         elif input_text[pos].isdigit():
-            target_start = pos
             while pos < len(input_text) and input_text[pos].isdigit():
                 pos += 1
-            target = input_text[target_start:pos]
         else:
             return None
 

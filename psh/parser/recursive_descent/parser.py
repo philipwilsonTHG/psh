@@ -84,7 +84,7 @@ class ContextWrapper:
         self._saved_states.append(saved)
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, _exc_type, _exc_val, _exc_tb):
         """Restore previous state."""
         if self._saved_states:
             saved = self._saved_states.pop()
@@ -260,7 +260,7 @@ class Parser(ContextBaseParser):
         """Legacy method with recovery hint."""
         try:
             return self.expect(token_type)
-        except Exception as e:
+        except Exception:
             if recovery_hint:
                 print(f"Recovery hint: {recovery_hint}")
             raise
@@ -290,7 +290,7 @@ class Parser(ContextBaseParser):
                 self.old_recovery = self.parser.ctx.error_recovery_mode
                 return self
 
-            def __exit__(self, exc_type, exc_val, exc_tb):
+            def __exit__(self, _exc_type, _exc_val, _exc_tb):
                 self.parser.ctx.error_recovery_mode = self.old_recovery
                 return False
 

@@ -242,7 +242,7 @@ class SpeculationContext:
         self.snapshot_id = self.parser.enter_speculation()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type, _exc_val, _exc_tb):
         # Determine if we should commit based on whether an exception occurred
         commit = exc_type is None
         self.parser.exit_speculation(self.snapshot_id, commit)

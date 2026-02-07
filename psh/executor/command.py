@@ -276,9 +276,6 @@ class CommandExecutor:
                     self.state.stderr.write(trace_line)
                     self.state.stderr.flush()
 
-            # Save the current exit code before expansions
-            saved_exit_code = self.state.last_exit_code
-
             for var, value in assignments:
                 # Values are already expanded in execute()
                 try:
@@ -430,8 +427,6 @@ class CommandExecutor:
                               node: 'SimpleCommand', context: 'ExecutionContext',
                               bypass_aliases: bool = False, bypass_functions: bool = False) -> int:
         """Execute command using the appropriate strategy."""
-        original_cmd_name = cmd_name
-
         # Note: The 'command' builtin handles its own bypass logic internally
 
         # Create strategy list based on bypass requirements

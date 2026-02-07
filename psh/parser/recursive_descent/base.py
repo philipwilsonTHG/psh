@@ -311,7 +311,7 @@ class BaseParser:
 
         error_context.add_context_tokens(context_tokens)
 
-    def _find_error_template(self, expected_token_type: TokenType, actual_token: Token):
+    def _find_error_template(self, expected_token_type: TokenType, _actual_token: Token):
         """Find appropriate error template for the situation."""
         from ..errors import ParserErrorCatalog
 
@@ -356,7 +356,7 @@ class BaseParser:
 
         return ParserErrorCatalog.UNCLOSED_FOR_LOOP
 
-    def _get_contextual_suggestion(self, expected_token_type: TokenType, actual_token: Token) -> Optional[str]:
+    def _get_contextual_suggestion(self, expected_token_type: TokenType, _actual_token: Token) -> Optional[str]:
         """Get contextual suggestion based on parser state."""
         # Check if we're in specific parsing contexts
         if expected_token_type == TokenType.THEN:

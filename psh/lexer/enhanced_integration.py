@@ -283,7 +283,7 @@ class EnhancedModularLexer(EnhancedLexerInterface):
 
                 return result
 
-        except Exception as e:
+        except Exception:
             # Validation failed, return minimal result
             return TokenStreamValidationResult(
                 is_valid=False,
@@ -350,7 +350,7 @@ class EnhancedModularLexer(EnhancedLexerInterface):
         try:
             base_tokens = self._get_base_tokens(text)
             enhanced_tokens = [Token.from_token(token) for token in base_tokens]
-        except Exception as e:
+        except Exception:
             # Even base lexer failed - create minimal tokens
             base_lexer_failed = True
             enhanced_tokens = [Token(

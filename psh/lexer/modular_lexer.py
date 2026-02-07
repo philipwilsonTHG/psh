@@ -382,7 +382,6 @@ class ModularLexer:
         # Scan backward from current position
         pos = self.position - 1
         bracket_count = 0
-        found_opening_bracket = False
         in_single_quote = False
         in_double_quote = False
 
@@ -403,7 +402,6 @@ class ModularLexer:
                     bracket_count -= 1
                     if bracket_count < 0:
                         # Found unmatched opening bracket
-                        found_opening_bracket = True
                         # Check if it's IMMEDIATELY preceded by a valid identifier (no space)
                         # Array assignments look like: arr[index] not arr [index]
                         if pos > 0 and self.input[pos - 1] not in ' \t\n':
@@ -594,7 +592,6 @@ class ModularLexer:
                 return True
 
             # Update position
-            old_pos = self.position
             self.position = new_pos
 
             # Add line/column information to token if missing

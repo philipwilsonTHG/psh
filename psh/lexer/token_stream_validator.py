@@ -376,7 +376,7 @@ class TokenStreamValidator:
     def validate_single_token(
         self,
         token: Token,
-        position_in_stream: int = 0
+        _position_in_stream: int = 0
     ) -> TokenStreamValidationResult:
         """Validate a single token (useful for incremental validation)."""
         return self.validate_token_stream([token])

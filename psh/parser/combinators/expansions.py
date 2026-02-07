@@ -260,10 +260,6 @@ class ExpansionParsers:
         Returns:
             Parser that handles all word types
         """
-        # Import token parsers
-        from .tokens import TokenParsers
-        tokens = TokenParsers()
-
         def parse_word(token_list: List[Token], pos: int) -> ParseResult[Word]:
             """Parse any word-like token into a Word AST node."""
             if pos >= len(token_list):

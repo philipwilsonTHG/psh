@@ -212,7 +212,7 @@ class ControlFlowExecutor:
                     # Set loop variable
                     try:
                         self.state.set_variable(node.variable, item)
-                    except ReadonlyVariableError as e:
+                    except ReadonlyVariableError:
                         print(f"psh: {node.variable}: readonly variable", file=self.state.stderr)
                         return 1
 

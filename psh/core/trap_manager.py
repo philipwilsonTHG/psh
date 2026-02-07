@@ -96,8 +96,6 @@ class TrapManager:
 
     def _set_signal_handler(self, signal_spec: str, action: str):
         """Set a signal handler for the given signal."""
-        signal_value = self.signal_map[signal_spec]
-
         # Special handling for pseudo-signals
         if signal_spec in ('EXIT', 'DEBUG', 'ERR'):
             self.state.trap_handlers[signal_spec] = action
@@ -111,8 +109,6 @@ class TrapManager:
 
     def _ignore_signal(self, signal_spec: str):
         """Set signal to be ignored."""
-        signal_value = self.signal_map[signal_spec]
-
         # Special handling for pseudo-signals
         if signal_spec in ('EXIT', 'DEBUG', 'ERR'):
             self.state.trap_handlers[signal_spec] = ''
@@ -124,8 +120,6 @@ class TrapManager:
 
     def _reset_trap(self, signal_spec: str):
         """Reset signal to default behavior."""
-        signal_value = self.signal_map[signal_spec]
-
         # Special handling for pseudo-signals
         if signal_spec in ('EXIT', 'DEBUG', 'ERR'):
             if signal_spec in self.state.trap_handlers:
@@ -160,7 +154,7 @@ class TrapManager:
             saved_exit_code = self.state.last_exit_code
 
             # Execute trap command
-            exit_code = self.shell.run_command(action, add_to_history=False)
+            self.shell.run_command(action, add_to_history=False)
 
             # For most signals, restore the exit code
             # EXIT trap should preserve the exit code it sets

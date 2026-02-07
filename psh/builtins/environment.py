@@ -403,7 +403,7 @@ class UnsetBuiltin(Builtin):
 
                             # Unset the element
                             var_obj.value.unset(index)
-                        except Exception as e:
+                        except Exception:
                             # Bash compatibility: treat string indices on indexed arrays as index 0
                             try:
                                 var_obj.value.unset(0)

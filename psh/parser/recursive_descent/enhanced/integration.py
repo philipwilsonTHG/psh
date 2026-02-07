@@ -11,7 +11,7 @@ from .commands import EnhancedSimpleCommandParser, EnhancedTestParser
 
 def parse_with_enhanced_lexer(
     input_string: str,
-    lexer_config: Optional[Any] = None,
+    _lexer_config: Optional[Any] = None,
     parser_config: Optional[EnhancedParserConfig] = None,
     use_enhanced_features: bool = True
 ) -> Any:

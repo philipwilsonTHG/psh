@@ -38,7 +38,7 @@ class TerminalManager:
         self.enter_raw_mode()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type, _exc_val, _exc_tb):
         self.exit_raw_mode()
 
 

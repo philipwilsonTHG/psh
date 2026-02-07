@@ -78,7 +78,7 @@ class CommandSubstitution:
                     exit_code = e.code if e.code is not None else 0
 
                 os._exit(exit_code)
-            except Exception as e:
+            except Exception:
                 # Exit with error
                 os._exit(1)
         else:

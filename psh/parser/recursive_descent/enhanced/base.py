@@ -129,7 +129,7 @@ class SemanticAnalyzer:
 
         return issues
 
-    def analyze_command_structure(self, ast_node, tokens: List[Token]) -> List[SemanticIssue]:
+    def analyze_command_structure(self, _ast_node, tokens: List[Token]) -> List[SemanticIssue]:
         """Analyze command structure using both AST and enhanced tokens."""
         issues = []
 
@@ -427,7 +427,7 @@ def create_enhanced_parser(
 
 def parse_with_enhanced_lexer(
     input_string: str,
-    lexer_config: Optional[Any] = None,
+    _lexer_config: Optional[Any] = None,
     parser_config: Optional[EnhancedParserConfig] = None,
     use_enhanced_features: bool = True  # Now always true, parameter kept for backward compatibility
 ) -> Any:

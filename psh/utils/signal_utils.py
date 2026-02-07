@@ -335,7 +335,7 @@ class SignalRegistry:
         try:
             previous = signal.signal(sig, handler)
             return previous
-        except (OSError, ValueError) as e:
+        except (OSError, ValueError):
             # Signal not valid on this platform
             # Remove the record we just added
             self._history[sig].pop()

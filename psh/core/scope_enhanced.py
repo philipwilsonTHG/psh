@@ -271,7 +271,7 @@ class EnhancedScopeManager:
                     # For now, just try to convert or evaluate simple expressions
                     result = self._evaluate_integer(str_value)
                     return str(result)  # Store as string, but evaluated as integer
-                except Exception as e:
+                except Exception:
                     return "0"
             return "0"
 

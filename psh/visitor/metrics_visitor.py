@@ -250,7 +250,6 @@ class MetricsVisitor(ASTVisitor[None]):
 
         # Track per-function metrics
         old_function = self.current_function
-        old_complexity = self.metrics.cyclomatic_complexity
 
         self.current_function = node.name
         function_start_complexity = self.metrics.cyclomatic_complexity

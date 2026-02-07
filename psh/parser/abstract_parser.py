@@ -263,8 +263,8 @@ class AbstractIncrementalParser(AbstractShellParser):
 
     @abstractmethod
     def parse_incremental(self, tokens: List[Token],
-                         previous_ast: Optional[ASTNode] = None,
-                         change_position: Optional[int] = None) -> ASTNode:
+                         _previous_ast: Optional[ASTNode] = None,
+                         _change_position: Optional[int] = None) -> ASTNode:
         """Parse incrementally, reusing previous parse results.
         
         Args:
@@ -279,7 +279,7 @@ class AbstractIncrementalParser(AbstractShellParser):
 
     @abstractmethod
     def get_reusable_nodes(self, ast: ASTNode,
-                          change_position: int) -> List[ASTNode]:
+                          _change_position: int) -> List[ASTNode]:
         """Identify AST nodes that can be reused in incremental parsing.
         
         Args:

@@ -182,9 +182,8 @@ class SubshellExecutor:
             subshell.stdin = self.shell.stdin
 
             # Apply redirections if any
-            saved_fds = None
             if redirects:
-                saved_fds = subshell.io_manager.apply_redirections(redirects)
+                subshell.io_manager.apply_redirections(redirects)
 
             # Execute statements in isolated environment
             exit_code = subshell.execute_command_list(statements)

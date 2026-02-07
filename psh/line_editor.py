@@ -542,7 +542,6 @@ class LineEditor:
             # For multi-line commands, convert to single line for editing
             if '\n' in history_entry:
                 # Multi-line command - convert to single line with semicolons
-                lines = [line.strip() for line in history_entry.split('\n') if line.strip()]
                 # Join lines with appropriate separators
                 single_line = self._convert_multiline_to_single(history_entry)
                 self._replace_line(single_line)

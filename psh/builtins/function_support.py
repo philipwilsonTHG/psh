@@ -191,7 +191,7 @@ class DeclareBuiltin(Builtin):
         # Rest must be alphanumeric or underscore
         return all(c.isalnum() or c == '_' for c in name[1:])
 
-    def _declare_variables(self, options: dict, args: List[str], shell: 'Shell', original_args: List[str] = None) -> int:
+    def _declare_variables(self, options: dict, args: List[str], shell: 'Shell', _original_args=None) -> int:
         """Handle variable declarations."""
         # Build attributes from options
         attributes = VarAttributes.NONE
@@ -521,7 +521,7 @@ class DeclareBuiltin(Builtin):
                 evaluator = ArithmeticEvaluator(shell.state)
                 result = evaluator.evaluate(str_value)
                 return str(result)  # Return as string but evaluated
-            except Exception as e:
+            except Exception:
                 # Fall back to simple int conversion
                 try:
                     return str(int(str_value))

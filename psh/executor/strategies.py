@@ -67,7 +67,7 @@ class SpecialBuiltinExecutionStrategy(ExecutionStrategy):
             # Use the builtin's execute method
             # Builtins expect the command name as the first argument
             return builtin.execute([cmd_name] + args, shell)
-        except SystemExit as e:
+        except SystemExit:
             # Some builtins like 'exit' raise SystemExit
             raise
         except Exception as e:
@@ -123,7 +123,7 @@ class BuiltinExecutionStrategy(ExecutionStrategy):
             # The builtin will check context.in_forked_child to determine output method
             # Builtins expect the command name as the first argument
             return builtin.execute([cmd_name] + args, shell)
-        except SystemExit as e:
+        except SystemExit:
             # Some builtins like 'exit' raise SystemExit
             raise
         except Exception as e:

@@ -106,7 +106,7 @@ class KeywordNormalizer:
     def _next_command_position(
         self,
         token: Token,
-        current_command_position: bool,
+        _current_command_position: bool,
         pending_in: Optional[str],
     ) -> bool:
         """Determine whether the next token should be treated as command position."""

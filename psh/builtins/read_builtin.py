@@ -400,7 +400,7 @@ class ReadBuiltin(Builtin):
                 while True:
                     try:
                         char = os.read(fd, 1).decode('utf-8', errors='replace')
-                    except OSError as e:
+                    except OSError:
                         # Error reading - return what we have
                         return None if not chars else ''.join(chars)
 
