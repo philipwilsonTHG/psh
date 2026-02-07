@@ -101,8 +101,6 @@ class EnhancedCommandParser(CommandParser):
                 command.array_assignments.append(assignment)
             else:
                 command.args.append(assignment_token.value)
-                command.arg_types.append('ASSIGNMENT')
-                command.quote_types.append(assignment_token.quote_type)
             
             self.parser.advance()
     
@@ -185,8 +183,6 @@ class EnhancedCommandParser(CommandParser):
         # Add command name
         token = self.parser.advance()
         command.args.append(token.value)
-        command.arg_types.append(token.type.name)
-        command.quote_types.append(token.quote_type)
         
         return True
     
@@ -250,8 +246,6 @@ class EnhancedCommandParser(CommandParser):
                 # Regular argument
                 token = self.parser.advance()
                 command.args.append(token.value)
-                command.arg_types.append(token.type.name)
-                command.quote_types.append(token.quote_type)
                 has_parsed_regular_args = True
     
     def _can_continue_parsing(self) -> bool:

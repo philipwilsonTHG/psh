@@ -15,9 +15,19 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from psh.ast_nodes import (
     TopLevel, StatementList, SimpleCommand, Pipeline, AndOrList,
     WhileLoop, ForLoop, IfConditional, FunctionDef, BreakStatement,
-    Redirect
+    Redirect, Word, LiteralPart, ExpansionPart, VariableExpansion
 )
 from psh.visitor import FormatterVisitor, ValidatorVisitor
+
+
+def _word(text, quote_type=None):
+    """Helper to create a Word from a string."""
+    return Word.from_string(text, quote_type)
+
+
+def _var_word(name):
+    """Helper to create a Word for a variable expansion."""
+    return Word(parts=[ExpansionPart(VariableExpansion(name))])
 
 
 def create_sample_ast():
@@ -36,10 +46,10 @@ def create_sample_ast():
     #     done
     #     echo "Total files: $total"
     # }
-    # 
+    #
     # count_files > output.log
     # ```
-    
+
     ast = TopLevel(items=[
         # Function definition
         FunctionDef(
@@ -50,11 +60,11 @@ def create_sample_ast():
                     Pipeline(commands=[
                         SimpleCommand(
                             args=['local', 'total=0'],
-                            arg_types=['WORD', 'WORD']
+                            words=[_word('local'), _word('total=0')]
                         )
                     ])
                 ]),
-                
+
                 # for file in *.txt
                 ForLoop(
                     variable='file',
@@ -67,7 +77,7 @@ def create_sample_ast():
                                     Pipeline(commands=[
                                         SimpleCommand(
                                             args=['[', '-f', '$file', ']'],
-                                            arg_types=['WORD', 'WORD', 'VARIABLE', 'WORD']
+                                            words=[_word('['), _word('-f'), _var_word('file'), _word(']')]
                                         )
                                     ])
                                 ])
@@ -78,8 +88,7 @@ def create_sample_ast():
                                     Pipeline(commands=[
                                         SimpleCommand(
                                             args=['echo', 'Processing $file'],
-                                            arg_types=['WORD', 'STRING'],
-                                            quote_types=[None, '"']
+                                            words=[_word('echo'), _word('Processing $file', '"')]
                                         )
                                     ])
                                 ]),
@@ -88,7 +97,7 @@ def create_sample_ast():
                                     Pipeline(commands=[
                                         SimpleCommand(
                                             args=['total=$((total + 1))'],
-                                            arg_types=['WORD']
+                                            words=[_word('total=$((total + 1))')]
                                         )
                                     ])
                                 ])
@@ -96,27 +105,26 @@ def create_sample_ast():
                         )
                     ])
                 ),
-                
+
                 # echo "Total files: $total"
                 AndOrList(pipelines=[
                     Pipeline(commands=[
                         SimpleCommand(
                             args=['echo', 'Total files: $total'],
-                            arg_types=['WORD', 'STRING'],
-                            quote_types=[None, '"']
+                            words=[_word('echo'), _word('Total files: $total', '"')]
                         )
                     ])
                 ])
             ])
         ),
-        
+
         # count_files > output.log
         StatementList(statements=[
             AndOrList(pipelines=[
                 Pipeline(commands=[
                     SimpleCommand(
                         args=['count_files'],
-                        arg_types=['WORD'],
+                        words=[_word('count_files')],
                         redirects=[
                             Redirect(type='>', target='output.log')
                         ]
@@ -125,7 +133,7 @@ def create_sample_ast():
             ])
         ])
     ])
-    
+
     return ast
 
 
@@ -136,11 +144,11 @@ def create_error_ast():
         StatementList(statements=[
             AndOrList(pipelines=[
                 Pipeline(commands=[
-                    SimpleCommand(args=[], arg_types=[])
+                    SimpleCommand()
                 ])
             ])
         ]),
-        
+
         # break outside of loop
         StatementList(statements=[
             AndOrList(pipelines=[
@@ -149,25 +157,28 @@ def create_error_ast():
                 ])
             ])
         ]),
-        
+
         # cd with too many arguments
         StatementList(statements=[
             AndOrList(pipelines=[
                 Pipeline(commands=[
                     SimpleCommand(
                         args=['cd', 'dir1', 'dir2'],
-                        arg_types=['WORD', 'WORD', 'WORD']
+                        words=[_word('cd'), _word('dir1'), _word('dir2')]
                     )
                 ])
             ])
         ]),
-        
+
         # While loop with break exceeding nesting
         WhileLoop(
             condition=StatementList(statements=[
                 AndOrList(pipelines=[
                     Pipeline(commands=[
-                        SimpleCommand(args=['true'], arg_types=['WORD'])
+                        SimpleCommand(
+                            args=['true'],
+                            words=[_word('true')]
+                        )
                     ])
                 ])
             ]),
@@ -180,18 +191,18 @@ def create_error_ast():
             ])
         )
     ])
-    
+
     return ast
 
 
 def demonstrate_formatter():
     """Demonstrate the formatter visitor."""
     print("=== FORMATTER VISITOR DEMO ===\n")
-    
+
     ast = create_sample_ast()
     formatter = FormatterVisitor(indent=2)
     formatted = formatter.visit(ast)
-    
+
     print("Formatted output:")
     print("-" * 40)
     print(formatted)
@@ -202,7 +213,7 @@ def demonstrate_formatter():
 def demonstrate_validator():
     """Demonstrate the validator visitor."""
     print("=== VALIDATOR VISITOR DEMO ===\n")
-    
+
     # First, validate a correct AST
     print("Validating correct AST:")
     ast = create_sample_ast()
@@ -210,7 +221,7 @@ def demonstrate_validator():
     validator.visit(ast)
     print(validator.get_summary())
     print()
-    
+
     # Now validate an AST with errors
     print("Validating AST with errors:")
     error_ast = create_error_ast()
@@ -223,16 +234,16 @@ def demonstrate_validator():
 def demonstrate_multiple_visitors():
     """Demonstrate using multiple visitors on the same AST."""
     print("=== MULTIPLE VISITORS DEMO ===\n")
-    
+
     ast = create_sample_ast()
-    
+
     # Format and validate the same AST
     formatter = FormatterVisitor()
     validator = ValidatorVisitor()
-    
+
     formatted = formatter.visit(ast)
     validator.visit(ast)
-    
+
     print("Formatted code:")
     print(formatted)
     print("\nValidation results:")
@@ -243,26 +254,26 @@ def demonstrate_multiple_visitors():
 def demonstrate_ast_analysis():
     """Demonstrate analyzing AST structure."""
     print("=== AST ANALYSIS DEMO ===\n")
-    
+
     from psh.visitor.base import ASTVisitor
-    
+
     class NodeCounterVisitor(ASTVisitor[None]):
         """Count different types of nodes in the AST."""
-        
+
         def __init__(self):
             self.counts = {}
-        
+
         def visit(self, node):
             node_type = node.__class__.__name__
             self.counts[node_type] = self.counts.get(node_type, 0) + 1
             # Continue visiting children
             super().visit(node)
-        
+
         def generic_visit(self, node):
             # For this visitor, we want to visit all nodes
             # so we don't raise an error for unknown nodes
             from dataclasses import is_dataclass, fields
-            
+
             if is_dataclass(node):
                 for field in fields(node):
                     value = getattr(node, field.name)
@@ -272,11 +283,11 @@ def demonstrate_ast_analysis():
                                 self.visit(item)
                     elif hasattr(value, '__class__') and hasattr(value.__class__, '__name__'):
                         self.visit(value)
-    
+
     ast = create_sample_ast()
     counter = NodeCounterVisitor()
     counter.visit(ast)
-    
+
     print("Node type counts:")
     for node_type, count in sorted(counter.counts.items()):
         print(f"  {node_type}: {count}")

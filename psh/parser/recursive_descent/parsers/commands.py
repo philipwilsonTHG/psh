@@ -151,8 +151,6 @@ class CommandParser:
             elif self.parser.match(TokenType.EXCLAMATION):
                 token = self.parser.advance()
                 command.args.append(token.value)
-                command.arg_types.append('EXCLAMATION')
-                command.quote_types.append(None)
                 from ....ast_nodes import Word, LiteralPart
                 command.words.append(Word(parts=[LiteralPart(token.value)]))
                 has_parsed_regular_args = True
@@ -180,8 +178,6 @@ class CommandParser:
         if is_array_init:
             arg_value = self._parse_array_initialization(word_token)
             command.args.append(arg_value)
-            command.arg_types.append('WORD')
-            command.quote_types.append('array')
             from ....ast_nodes import Word, LiteralPart
             command.words.append(Word(parts=[LiteralPart(arg_value)]))
             return True
@@ -192,10 +188,6 @@ class CommandParser:
         # Use inner content for args (without surrounding quotes)
         inner = ''.join(str(part) for part in word.parts)
         command.args.append(inner)
-        # Derive arg_type from word structure for backward compat
-        arg_type, qt = self._word_to_arg_type(word)
-        command.arg_types.append(arg_type)
-        command.quote_types.append(qt)
 
         return True
 
@@ -473,57 +465,6 @@ class CommandParser:
             return f"${value}"
         else:
             return f"${value}"
-
-    @staticmethod
-    def _word_to_arg_type(word) -> Tuple[str, Optional[str]]:
-        """Derive legacy arg_type and quote_type from a Word AST node.
-
-        Returns (arg_type, quote_type) compatible with the string-based
-        expansion path, so that assignment extraction, the ``test`` builtin,
-        and other consumers that inspect arg_types/quote_types continue to
-        work correctly.
-        """
-        from ....ast_nodes import LiteralPart, ExpansionPart
-
-        if word.quote_type == "'":
-            return 'STRING', "'"
-        if word.quote_type == "$'":
-            return 'STRING', "$'"
-        if word.quote_type == '"':
-            return 'STRING', '"'
-        # Multi-part (composite) words
-        if len(word.parts) > 1:
-            has_quoted = any(p.quoted for p in word.parts)
-            return ('COMPOSITE_QUOTED' if has_quoted else 'COMPOSITE'), None
-        # Single-part words
-        if len(word.parts) == 1:
-            part = word.parts[0]
-            if isinstance(part, ExpansionPart):
-                from ....ast_nodes import (
-                    VariableExpansion, CommandSubstitution,
-                    ParameterExpansion, ArithmeticExpansion,
-                )
-                exp = part.expansion
-                if isinstance(exp, VariableExpansion):
-                    return 'VARIABLE', part.quote_char
-                elif isinstance(exp, CommandSubstitution):
-                    if exp.backtick_style:
-                        return 'COMMAND_SUB_BACKTICK', part.quote_char
-                    return 'COMMAND_SUB', part.quote_char
-                elif isinstance(exp, ArithmeticExpansion):
-                    return 'ARITH_EXPANSION', part.quote_char
-                elif isinstance(exp, ParameterExpansion):
-                    return 'PARAM_EXPANSION', part.quote_char
-                return 'VARIABLE', part.quote_char
-            if isinstance(part, LiteralPart) and part.quoted:
-                return 'STRING', part.quote_char
-            # Detect process substitution from literal text
-            if isinstance(part, LiteralPart) and not part.quoted:
-                if part.text.startswith('<(') and part.text.endswith(')'):
-                    return 'PROCESS_SUB_IN', None
-                if part.text.startswith('>(') and part.text.endswith(')'):
-                    return 'PROCESS_SUB_OUT', None
-        return 'WORD', None
 
     def parse_argument_as_word(self) -> 'Word':
         """Parse an argument as a Word AST node with expansions."""

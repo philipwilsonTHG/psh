@@ -40,7 +40,9 @@ class TestCompositeTokenParsing:
         assert len(cmd.args) == 2
         assert cmd.args[0] == 'echo'
         assert cmd.args[1] == 'helloworld'
-        assert cmd.arg_types[1] in ('COMPOSITE_QUOTED', 'WORD')
+        # Composite word: has multiple parts including quoted part
+        word = cmd.words[1]
+        assert len(word.parts) > 1 or word.is_quoted
 
     def test_multiple_adjacent_strings(self):
         """Test parsing of multiple adjacent quoted strings."""
@@ -50,7 +52,9 @@ class TestCompositeTokenParsing:
         assert len(cmd.args) == 2
         assert cmd.args[0] == 'cat'
         assert cmd.args[1] == 'part1part2part3'
-        assert cmd.arg_types[1] in ('COMPOSITE_QUOTED', 'WORD')
+        # Multiple parts form a composite word
+        word = cmd.words[1]
+        assert len(word.parts) > 1 or word.is_quoted
 
     def test_mixed_quote_types(self):
         """Test parsing of mixed single and double quotes."""
@@ -60,7 +64,8 @@ class TestCompositeTokenParsing:
         assert len(cmd.args) == 2
         assert cmd.args[0] == 'echo'
         assert cmd.args[1] == 'doublesinglemixed'
-        assert cmd.arg_types[1] in ('COMPOSITE_QUOTED', 'WORD')
+        word = cmd.words[1]
+        assert len(word.parts) > 1 or word.is_quoted
 
     def test_composite_with_spaces(self):
         """Test that spaces break composite tokens."""
@@ -71,9 +76,9 @@ class TestCompositeTokenParsing:
         assert cmd.args[0] == 'echo'
         assert cmd.args[1] == 'hello'
         assert cmd.args[2] == 'world'
-        # These should not be composite
-        assert cmd.arg_types[1] != 'COMPOSITE_QUOTED'
-        assert cmd.arg_types[2] != 'COMPOSITE_QUOTED'
+        # These should not be composite — each is a single-part word
+        assert cmd.words[1].is_quoted  # "hello" is quoted
+        assert cmd.words[2].is_unquoted_literal  # world is plain literal
 
 
 class TestCompositeTokensInComplexStructures:
@@ -94,9 +99,9 @@ class TestCompositeTokensInComplexStructures:
         assert len(cmd.args) == 3
         assert cmd.args[0] == 'cp'
         assert cmd.args[1] == 'filename'
-        assert cmd.arg_types[1] in ('COMPOSITE_QUOTED', 'WORD')
+        assert len(cmd.words[1].parts) > 1 or cmd.words[1].is_quoted
         assert cmd.args[2] == 'destdir/'
-        assert cmd.arg_types[2] in ('COMPOSITE_QUOTED', 'WORD')
+        assert len(cmd.words[2].parts) > 1 or cmd.words[2].is_quoted
 
     def test_composite_in_pipeline(self):
         """Test composite tokens in pipeline commands."""
@@ -110,13 +115,13 @@ class TestCompositeTokensInComplexStructures:
         cmd1 = pipeline.commands[0]
         assert cmd1.args[0] == 'cat'
         assert cmd1.args[1] == 'filename'
-        assert cmd1.arg_types[1] in ('COMPOSITE_QUOTED', 'WORD')
+        assert len(cmd1.words[1].parts) > 1 or cmd1.words[1].is_quoted
 
         # Second command: grep
         cmd2 = pipeline.commands[1]
         assert cmd2.args[0] == 'grep'
         assert cmd2.args[1] == 'patterntext'
-        assert cmd2.arg_types[1] in ('COMPOSITE_QUOTED', 'WORD')
+        assert len(cmd2.words[1].parts) > 1 or cmd2.words[1].is_quoted
 
     def test_composite_in_redirection(self):
         """Test composite tokens in file redirection."""
@@ -156,7 +161,7 @@ class TestCompositeTokensInComplexStructures:
 
         assert inner_cmd.args[0] == 'echo'
         assert inner_cmd.args[1] == 'subshell'
-        assert inner_cmd.arg_types[1] in ('COMPOSITE_QUOTED', 'WORD')
+        assert len(inner_cmd.words[1].parts) > 1 or inner_cmd.words[1].is_quoted
 
 
 class TestCompositeEdgeCases:
@@ -175,7 +180,7 @@ class TestCompositeEdgeCases:
 
         assert len(cmd.args) == 2
         assert cmd.args[1] == 'hello'  # Empty string concatenated
-        assert cmd.arg_types[1] in ('COMPOSITE_QUOTED', 'WORD')
+        assert len(cmd.words[1].parts) > 1 or cmd.words[1].is_quoted
 
     def test_escaped_quotes_in_composite(self):
         """Test composite with escaped quotes."""
@@ -196,7 +201,7 @@ class TestCompositeEdgeCases:
 
         assert len(cmd.args) == 2
         assert cmd.args[1] == '123456'
-        assert cmd.arg_types[1] in ('COMPOSITE_QUOTED', 'WORD')
+        assert len(cmd.words[1].parts) > 1 or cmd.words[1].is_quoted
 
     def test_special_chars_composite(self):
         """Test composite with special characters."""
@@ -205,7 +210,7 @@ class TestCompositeEdgeCases:
 
         assert len(cmd.args) == 2
         assert cmd.args[1] == 'hello-world'
-        assert cmd.arg_types[1] in ('COMPOSITE_QUOTED', 'WORD')
+        assert len(cmd.words[1].parts) > 1 or cmd.words[1].is_quoted
 
     def test_long_composite_chain(self):
         """Test very long chain of composite tokens."""
@@ -219,4 +224,4 @@ class TestCompositeEdgeCases:
         assert len(cmd.args) == 2
         expected = ''.join(f'part{i}' for i in range(10))
         assert cmd.args[1] == expected
-        assert cmd.arg_types[1] in ('COMPOSITE_QUOTED', 'WORD')
+        assert len(cmd.words[1].parts) > 1 or cmd.words[1].is_quoted

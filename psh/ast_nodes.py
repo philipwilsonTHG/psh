@@ -243,14 +243,10 @@ class Command(ASTNode):
 class SimpleCommand(Command):
     """Traditional command with arguments (formerly Command class)."""
     args: List[str] = field(default_factory=list)
-    arg_types: List[str] = field(default_factory=list)  # Track if arg was quoted
-    quote_types: List[Optional[str]] = field(default_factory=list)  # Track quote character used (' or " or None)
     redirects: List[Redirect] = field(default_factory=list)
     background: bool = False
     array_assignments: List[ArrayAssignment] = field(default_factory=list)  # Array assignments before command
-    
-    # New field for storing Word objects (optional for backward compatibility)
-    words: Optional[List[Word]] = None  # If set, represents args as Word objects with expansions
+    words: List[Word] = field(default_factory=list)  # Args as Word objects with expansions
 
 
 class CompoundCommand(Command):

@@ -220,26 +220,7 @@ class CommandParsers:
         
         # Build traditional string arguments
         cmd.args = [self.expansions.format_token_value(t) for t in word_tokens]
-        
-        # Build argument types and quote types (like recursive descent parser)
-        cmd.arg_types = []
-        cmd.quote_types = []
-        for token in word_tokens:
-            # Map token types to argument types
-            if token.type.name == 'STRING':
-                cmd.arg_types.append('STRING')
-                cmd.quote_types.append(getattr(token, 'quote_type', None))
-            elif token.type.name in ('WORD', 'RETURN'):
-                cmd.arg_types.append('WORD')
-                cmd.quote_types.append(None)
-            elif token.type.name == 'VARIABLE':
-                cmd.arg_types.append('VARIABLE')
-                cmd.quote_types.append(None)
-            else:
-                # Other expansions
-                cmd.arg_types.append(token.type.name)
-                cmd.quote_types.append(None)
-        
+
         # Build Word AST nodes
         cmd.words = []
         for token in word_tokens:
