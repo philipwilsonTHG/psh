@@ -420,15 +420,14 @@ class EnhancedValidatorVisitor(ValidatorVisitor):
     
     def _check_undefined_variables_in_command(self, node: SimpleCommand):
         """Check for undefined variables in command arguments."""
-        for i, (arg, arg_type) in enumerate(zip(node.args, node.arg_types)):
+        words = node.words if node.words else []
+        for i, (arg, word) in enumerate(zip(node.args, words)):
             # Skip the command itself
             if i == 0:
                 continue
-            
-            # Check based on argument type
-            if arg_type in ['WORD', 'STRING']:
-                self._check_string_for_undefined_vars(arg, node)
-            elif arg_type == 'VARIABLE':
+
+            # Check based on Word structure
+            if word.is_variable_expansion:
                 # Direct variable reference like $VAR
                 var_name = self._extract_variable_name(arg)
                 if var_name and not self.var_tracker.is_defined(var_name):
@@ -437,6 +436,8 @@ class EnhancedValidatorVisitor(ValidatorVisitor):
                             f"Possible use of undefined variable '${var_name}'",
                             node
                         )
+            else:
+                self._check_string_for_undefined_vars(arg, node)
     
     def _check_string_for_undefined_vars(self, text: str, node: ASTNode):
         """Check a string for undefined variable references."""
@@ -478,32 +479,33 @@ class EnhancedValidatorVisitor(ValidatorVisitor):
     
     def _check_quoting_issues(self, node: SimpleCommand):
         """Check for potential quoting issues."""
-        for i, (arg, arg_type) in enumerate(zip(node.args, node.arg_types)):
+        words = node.words if node.words else []
+        for i, (arg, word) in enumerate(zip(node.args, words)):
             # Skip command name
             if i == 0:
                 continue
-            
+
             # Check unquoted variables
-            if arg_type == 'WORD' and '$' in arg:
+            if not word.is_quoted and '$' in arg:
                 # Skip if in arithmetic context
                 if self._in_arithmetic_context:
                     continue
-                
+
                 # Skip numeric comparisons
                 if i > 0 and node.args[i-1] in ['-eq', '-ne', '-lt', '-le', '-gt', '-ge']:
                     continue
-                
+
                 # Skip if it looks like an assignment
                 if '=' in arg and i < len(node.args) - 1:
                     continue
-                
+
                 self._add_info(
                     f"Unquoted variable expansion '{arg}' may cause word splitting",
                     node
                 )
-            
+
             # Check for unquoted globs
-            if arg_type == 'WORD' and any(c in arg for c in ['*', '?', '[']):
+            if word.is_unquoted_literal and any(c in arg for c in ['*', '?', '[']):
                 if not self._looks_like_intentional_glob(arg, node):
                     self._add_warning(
                         f"Unquoted pattern '{arg}' will undergo pathname expansion",
@@ -526,10 +528,12 @@ class EnhancedValidatorVisitor(ValidatorVisitor):
         
         # Check for potential command injection
         if self.config.check_command_injection:
+            words = node.words if node.words else []
             for i, arg in enumerate(node.args[1:], 1):
                 # Look for unquoted variable expansions with dangerous characters
                 if '$' in arg and any(char in arg for char in [';', '&&', '||', '|', '`']):
-                    if node.arg_types[i] == 'WORD':  # Unquoted
+                    word = words[i] if i < len(words) else None
+                    if word and not word.is_quoted:  # Unquoted
                         self._add_error(
                             f"Potential command injection: unquoted expansion '{arg}' contains shell metacharacters",
                             node
@@ -668,41 +672,41 @@ class EnhancedValidatorVisitor(ValidatorVisitor):
     def _check_test_command_quoting(self, node: SimpleCommand):
         """Check for common quoting issues in test commands."""
         args = node.args[1:]  # Skip the command itself
-        arg_types = node.arg_types[1:]
-        
+        words = node.words[1:] if node.words else []
+
         # Look for file test operators followed by unquoted variables
         file_ops = ['-f', '-d', '-e', '-r', '-w', '-x', '-s', '-L', '-h']
         string_ops = ['=', '==', '!=', '<', '>']
-        
-        for i, (arg, arg_type) in enumerate(zip(args, arg_types)):
+
+        for i, (arg, word) in enumerate(zip(args, words)):
             # Check if this is a file test operator
             if arg in file_ops and i + 1 < len(args):
                 next_arg = args[i + 1]
-                next_type = arg_types[i + 1]
-                
+                next_word = words[i + 1] if i + 1 < len(words) else None
+
                 # If next arg is unquoted and contains variable
-                if next_type == 'WORD' and '$' in next_arg:
+                if next_word and not next_word.is_quoted and '$' in next_arg:
                     self._add_warning(
                         f"Unquoted variable '{next_arg}' in test - may fail if value contains spaces",
                         node
                     )
-            
+
             # Check string comparisons
             elif arg in string_ops:
                 # Check both sides of operator
                 if i > 0:
                     prev_arg = args[i - 1]
-                    prev_type = arg_types[i - 1]
-                    if prev_type == 'WORD' and '$' in prev_arg:
+                    prev_word = words[i - 1] if i - 1 < len(words) else None
+                    if prev_word and not prev_word.is_quoted and '$' in prev_arg:
                         self._add_warning(
                             f"Unquoted variable '{prev_arg}' in test comparison - use quotes",
                             node
                         )
-                
+
                 if i + 1 < len(args):
                     next_arg = args[i + 1]
-                    next_type = arg_types[i + 1]
-                    if next_type == 'WORD' and '$' in next_arg:
+                    next_word = words[i + 1] if i + 1 < len(words) else None
+                    if next_word and not next_word.is_quoted and '$' in next_arg:
                         self._add_warning(
                             f"Unquoted variable '{next_arg}' in test comparison - use quotes",
                             node

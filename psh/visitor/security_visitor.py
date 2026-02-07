@@ -103,11 +103,12 @@ class SecurityVisitor(ASTVisitor[None]):
         
         # Check for unquoted variable expansions in dangerous contexts
         if cmd in ['eval', 'sh', 'bash', 'zsh', 'ksh']:
-            # Check if arg_types exists and has enough elements
-            if hasattr(node, 'arg_types') and len(node.arg_types) > 1:
-                for i, (arg, arg_type) in enumerate(zip(node.args[1:], node.arg_types[1:])):
-                    # VARIABLE or WORD with $ means unquoted variable expansion
-                    if (arg_type == 'VARIABLE' or (arg_type == 'WORD' and '$' in arg)):
+            words = node.words if node.words else []
+            if len(words) > 1:
+                for i, (arg, word) in enumerate(zip(node.args[1:], words[1:])):
+                    # Variable expansion or unquoted word with $
+                    if (word.is_variable_expansion or
+                            (not word.is_quoted and '$' in arg)):
                         self.issues.append(SecurityIssue(
                             'HIGH',
                             'UNQUOTED_EXPANSION',
@@ -115,7 +116,7 @@ class SecurityVisitor(ASTVisitor[None]):
                             node
                         ))
             else:
-                # Fallback: check args directly if no type info
+                # Fallback: check args directly if no Word info
                 for arg in node.args[1:]:
                     if '$' in arg:
                         self.issues.append(SecurityIssue(
