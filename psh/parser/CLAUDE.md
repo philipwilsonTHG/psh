@@ -288,6 +288,29 @@ python -m psh --debug-tokens   # Show tokens before parsing
 python -m psh --validate       # Parse and validate without executing
 ```
 
+## Word AST
+
+The parser always builds **Word AST nodes** for command arguments. Each
+`SimpleCommand.words` list contains `Word` objects with `LiteralPart` and
+`ExpansionPart` nodes carrying per-part quote context (`quoted`, `quote_char`).
+
+```python
+# "hello $USER!" becomes:
+Word(parts=[
+    LiteralPart("hello ", quoted=True, quote_char='"'),
+    ExpansionPart(VariableExpansion("USER"), quoted=True, quote_char='"'),
+    LiteralPart("!", quoted=True, quote_char='"'),
+], quote_type='"')
+```
+
+`WordBuilder` (`support/word_builder.py`) constructs Word nodes from tokens:
+- Decomposes double-quoted STRING tokens with RichToken parts into expansion nodes
+- Detects parameter expansion operators in VARIABLE tokens (e.g. `${x:6}`)
+- Handles composite words by building multi-part Words with per-part quote context
+
+The `_word_to_arg_type()` method derives backward-compatible `arg_types` from
+Word structure for consumers that still inspect `command.arg_types`.
+
 ## Configuration
 
 `ParserConfig` controls parser behavior:
@@ -299,5 +322,4 @@ class ParserConfig:
     enable_bash_extensions: bool = True
     collect_errors: bool = False      # Multi-error mode
     max_errors: int = 10
-    build_word_ast_nodes: bool = False
 ```

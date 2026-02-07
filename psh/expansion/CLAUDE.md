@@ -45,37 +45,52 @@ class ExpansionManager:
         self.word_splitter = WordSplitter()
 
     def expand_arguments(self, command: SimpleCommand) -> List[str]:
-        """Expand all arguments in POSIX order."""
-        ...
+        """Expand all arguments using Word AST nodes."""
+        return self._expand_word_ast_arguments(command)
 ```
 
-### 2. ExpansionComponent Base Class
+### 2. Word AST Expansion (Primary Path)
 
-All expanders inherit from a simple base:
+Arguments are expanded using Word AST nodes. Each `Word` contains
+`LiteralPart` and `ExpansionPart` nodes with per-part quote context.
+The `_expand_word()` method walks the parts and applies expansions
+based on each part's `quoted` and `quote_char` fields:
 
 ```python
-class ExpansionComponent(ABC):
-    def __init__(self, shell_state: ShellState):
-        self.state = shell_state
-
-    @abstractmethod
-    def expand(self, value: str) -> str:
-        """Expand the given value."""
-        pass
+def _expand_word(self, word: Word) -> Union[str, List[str]]:
+    # Single-quoted: return literal
+    # Double-quoted: expand vars/commands, no splitting/globbing
+    # ANSI-C ($'...'): return literal (lexer already processed escapes)
+    # Composite/unquoted: per-part expansion with splitting/globbing
 ```
 
-### 3. NULL Marker Pattern
+Key behaviors controlled by Word AST structure:
+- **Glob suppression**: Quoted `LiteralPart`/`ExpansionPart` nodes suppress globbing
+- **Word splitting**: Only triggered when there are unquoted expansion results
+- **Tilde expansion**: Only on first unquoted literal, not after escape processing
+- **Escape processing**: `_process_unquoted_escapes()` handles `\$`, `\\`, `\~`, `\*` etc.
+- **Assignment detection**: Words containing `=` with valid var name suppress word splitting
 
-To prevent unwanted glob expansion of escaped characters:
+### 3. ExpansionEvaluator
+
+`ExpansionEvaluator` evaluates expansion AST nodes by reconstructing the
+canonical string form and delegating to `VariableExpander`:
 
 ```python
-# Escaped glob characters use NULL (\x00) marker
-if next_char in '*?[':
-    result.append(f'\x00{next_char}')  # Prevents glob matching
-
-# Clean markers before final output
-clean_word = word.replace('\x00', '')
+class ExpansionEvaluator:
+    def evaluate(self, expansion: Expansion) -> str:
+        # VariableExpansion → expand_variable("$name")
+        # ParameterExpansion → expand_variable("${param op word}")
+        # CommandSubstitution → command_sub.execute("$(cmd)")
+        # ArithmeticExpansion → execute_arithmetic_expansion("$((expr))")
 ```
+
+### 4. NULL Marker Pattern (expand_string_variables only)
+
+The `\x00` marker pattern is used **only** in `expand_string_variables()`
+(heredocs, here strings, control flow contexts) — NOT in the argument
+expansion pipeline. The Word AST path uses structural quote information
+instead of markers.
 
 ## Expansion Order (POSIX)
 
@@ -167,17 +182,15 @@ Different quote types affect expansion:
 | `'single'` | No                | No          | No   | No         |
 | `$'ansi'`  | Escape sequences  | No          | No   | No         |
 
-### Array Expansion in Quotes
+### Array and $@ Expansion in Quotes
 
-Special handling for `"${arr[@]}"`:
+`"$@"` splitting is handled in `_expand_double_quoted_word()`. When an
+`ExpansionPart` contains `VariableExpansion(name='@')`, the method
+distributes prefix/suffix text across positional parameters:
 
 ```python
-# "$@" and "${arr[@]}" in double quotes produce multiple arguments
-if arg == '$@':
-    args.extend(self.state.positional_params)
-elif self.variable_expander.is_array_expansion(arg):
-    expanded_list = self.variable_expander.expand_array_to_list(arg)
-    args.extend(expanded_list)
+# "x$@y" with params (a, b) → ["xa", "by"]
+# "$@" with no params → nothing
 ```
 
 ### IFS Word Splitting
@@ -228,9 +241,11 @@ python -m psh --debug-expansion-detail -c 'echo "${arr[@]}"'
 
 5. **Nested Expansions**: Command substitution can contain variable expansions: `$(echo $HOME)`
 
-6. **NULL Markers**: Don't forget to clean `\x00` markers before returning final values.
+6. **NULL Markers**: `\x00` markers are only used in `expand_string_variables()` (heredocs, etc.), NOT in the argument expansion pipeline. The Word AST path uses structural quote info.
 
 7. **IFS Edge Cases**: Empty IFS means no word splitting; unset IFS uses default `" \t\n"`.
+
+8. **Assignment Word Splitting**: Words containing `VAR=value` suppress word splitting even with unquoted expansions (POSIX behavior).
 
 ## Debug Options
 
@@ -241,10 +256,8 @@ python -m psh --debug-expansion-detail # Trace each expansion step
 
 Output example:
 ```
-[EXPANSION] Expanding command: ['echo', '$HOME', '*.txt']
-[EXPANSION]   Variable expansion: '$HOME' -> '/Users/user'
-[EXPANSION]   Glob expansion: '*.txt' -> ['a.txt', 'b.txt']
-[EXPANSION] Result: ['echo', '/Users/user', 'a.txt', 'b.txt']
+[EXPANSION] Expanding Word AST command: ['echo', '$HOME', '*.txt']
+[EXPANSION] Word AST Result: ['echo', '/Users/user', 'a.txt', 'b.txt']
 ```
 
 ## Integration Points
@@ -263,8 +276,10 @@ Output example:
 
 ### With Parser (`psh/parser/`)
 
-- Parser provides `arg_types` and `quote_types` metadata
-- Word AST nodes can be expanded via `ExpansionEvaluator`
+- Parser always builds Word AST nodes (`command.words`) with per-part quote context
+- `arg_types` and `quote_types` are derived from Word structure for backward compatibility
+- `ExpansionEvaluator` evaluates Word AST expansion nodes
+- `WordBuilder` (in `parser/recursive_descent/support/`) constructs Word nodes from tokens
 
 ### With Arithmetic (`psh/arithmetic.py`)
 
