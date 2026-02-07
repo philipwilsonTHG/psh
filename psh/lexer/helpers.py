@@ -68,8 +68,7 @@ class LexerHelpers:
                 return ''  # Return empty string to continue the line
             self.advance()  # Skip the escaped character
             if next_char == '$':
-                # Use a special marker for escaped dollar to prevent variable expansion
-                return '\x00$'  # NULL character followed by $
+                return '$'  # Escaped dollar is literal $
             return next_char
         else:
             # Single quotes - no escaping

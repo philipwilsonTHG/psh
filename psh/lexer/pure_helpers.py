@@ -232,8 +232,7 @@ def handle_escape_sequence(
             # Escaped newline is a line continuation - remove it
             return '', pos + 2
         elif next_char == '$':
-            # Use a special marker for escaped dollar to prevent variable expansion
-            return '\x00$', pos + 2  # NULL character followed by $
+            return '$', pos + 2  # Escaped dollar is literal $
         else:
             return next_char, pos + 2
     else:

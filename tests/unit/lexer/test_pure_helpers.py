@@ -180,7 +180,7 @@ class TestEscapeSequenceHandling:
         assert pos == 2
         
         escaped, pos = pure_helpers.handle_escape_sequence("\\$", 0, None)
-        assert escaped == "\x00$"  # Special marker for escaped $
+        assert escaped == "$"  # Escaped dollar is literal $
         assert pos == 2
     
     def test_handle_escape_in_double_quotes(self):

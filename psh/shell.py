@@ -307,24 +307,20 @@ class Shell:
             raise ValueError(f"unknown binary operator: {expr.operator}")
     
     def _process_escape_sequences(self, text: str) -> str:
-        """Process escape sequences in text for pattern matching."""
+        """Process escape sequences in test expression operands."""
         if not text or '\\' not in text:
             return text
-        
-        from .lexer.pure_helpers import handle_escape_sequence
-        
+
         result = []
         i = 0
         while i < len(text):
             if text[i] == '\\' and i + 1 < len(text):
-                # Process escape sequence
-                escaped_char, new_pos = handle_escape_sequence(text, i, quote_context=None)
-                result.append(escaped_char)
-                i = new_pos
+                result.append(text[i + 1])
+                i += 2
             else:
                 result.append(text[i])
                 i += 1
-        
+
         return ''.join(result)
     
     def _pattern_match(self, string: str, pattern: str) -> bool:
