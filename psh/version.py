@@ -2,10 +2,30 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.119.0"
+__version__ = "0.120.0"
 
 # Version history
 VERSION_HISTORY = """
+0.120.0 (2026-02-07) - Complete arg_types Migration to Word AST
+- Removed arg_types and quote_types fields from SimpleCommand dataclass
+- Changed words field from Optional[List[Word]] to List[Word] (always present)
+- Added Word helper properties: is_quoted, is_unquoted_literal, is_variable_expansion,
+  has_expansion_parts, has_unquoted_expansion, effective_quote_char
+- Migrated all remaining arg_types consumers to Word AST inspection:
+  - enhanced_validator_visitor: 4 methods migrated
+  - security_visitor: unquoted expansion detection via Word properties
+  - formatter_visitor: quote reconstruction via word.effective_quote_char
+  - debug_ast_visitor: shows Word structure summary instead of arg_types list
+  - ascii_tree/sexp_renderer: Word-based compact argument display
+  - shell_formatter: quote restoration via Word properties
+  - command.py: removed arg_types forwarding and fallback
+  - expansion/manager.py: removed arg_types/quote_types writes after process sub
+- Deleted _word_to_arg_type() (50 lines) from recursive descent parser
+- Removed all arg_types/quote_types append calls from 3 parser implementations
+- Updated composite token handling tests to use Word AST assertions
+- 31 new unit tests for Word helper properties
+- All 2930+ tests passing with zero regressions
+
 0.119.0 (2026-02-07) - Medium-Value Improvements: Parser Fixes, Dead Code Removal, AST Migration
 - Fixed parameter expansion parsing for /#, /%, and : (substring) operators in WordBuilder:
   uses earliest-position matching instead of naive first-occurrence search, adds /#/%/: to
