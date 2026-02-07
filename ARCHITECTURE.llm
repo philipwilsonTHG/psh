@@ -1,6 +1,6 @@
 # PSH Architecture Reference for Large Language Models
 
-Version: 0.104.0 (2025-01-19) – Executor Improvements & Signal Management Complete
+Version: 0.120.0 (2026-02-07) – Word AST Migration Complete, arg_types Removed
 Purpose: Optimized reference for LLMs working with the PSH codebase
 
 ## Quick Start
@@ -40,7 +40,6 @@ Purpose: Optimized reference for LLMs working with the PSH codebase
 psh/
 ├── shell.py                 # Main orchestrator (visitor executor only)
 ├── shell_parser.py          # Optional parser integration helper
-├── composite_processor.py   # Post-lexer composite token merger
 ├── token_stream.py          # Parser-oriented token stream helpers
 ├── token_transformer.py     # Keyword/context normalization pass
 ├── pipeline/                # End-to-end pipeline builder utilities
@@ -135,8 +134,8 @@ Input → Preprocessing → Tokenization → Token Normalization → Parsing →
    - `tokenize_with_heredocs` collects heredoc bodies via `HeredocLexer`
 
 3. **Token Post-processing**
-   - `CompositeTokenProcessor` merges adjacent word-like tokens without whitespace into `CompositeToken`
-   - `TokenStream` provides balanced collection/lookahead helpers for parsers
+   - `TokenStream` provides balanced collection, composite lookahead (`peek_composite_sequence()`), and helpers for parsers
+   - Adjacent word-like tokens without whitespace are detected by `TokenStream` and built into composite `Word` AST nodes by `WordBuilder` during parsing
    - `token_stream_validator` ensures heredoc/token ordering sanity when integration requires it
 
 4. **Parsing (`psh/parser/`)**
@@ -151,7 +150,8 @@ Input → Preprocessing → Tokenization → Token Normalization → Parsing →
 
 6. **Expansion (`psh/expansion/`)**
    - `ExpansionManager` enforces POSIX ordering across tilde, parameter, command, arithmetic, word splitting, globbing, quote removal
-   - `ExpansionEvaluator` supports Word AST nodes emitted by parser
+   - `_expand_word()` walks `Word` AST parts using per-part quote context (no marker strings): single-quoted parts are literal, double-quoted expand variables but suppress splitting/globbing, unquoted parts get full expansion
+   - `ExpansionEvaluator` evaluates expansion AST nodes (`VariableExpansion`, `ParameterExpansion`, `CommandSubstitution`, `ArithmeticExpansion`)
 
 7. **Execution (`psh/executor/`)**
    - `ExecutorVisitor` walks AST nodes, leveraging specialized executors and `IOManager`
@@ -196,12 +196,9 @@ Input → Preprocessing → Tokenization → Token Normalization → Parsing →
    - `token_transformer.TokenTransformer` enforces context rules (e.g., `;;` allowed only inside `case`)
    - Downstream code should match keywords via `matches_keyword`, `matches_keyword_type`, or `KeywordGuard` rather than inspecting `token.value`
 
-4. **Composite Token Processing (`composite_processor.py`)**
-   - Merges contiguous word-like tokens with no whitespace (e.g., `foo${bar}.txt`) into `CompositeToken`
-   - Parser entry points can opt-in via `use_composite_processor=True`; default `parse()` keeps raw tokens unless higher-level integration enables composites
-
-5. **Token Stream Utilities (`token_stream.py`)**
-   - Provides `peek`, `advance`, balance collection, composite lookahead, and save/restore mechanics used across parser submodules
+4. **Token Stream Utilities (`token_stream.py`)**
+   - Provides `peek`, `advance`, balance collection, composite lookahead (`peek_composite_sequence()`), and save/restore mechanics used across parser submodules
+   - Adjacent tokens without whitespace (e.g., `foo${bar}.txt`) are detected via `adjacent_to_previous` token flags and built into composite `Word` AST nodes during parsing by `WordBuilder`
 
 6. **Heredoc Support (`lexer/heredoc_lexer.py`, `lexer/heredoc_collector.py`)**
    - Collects heredoc bodies out-of-band while preserving token stream metadata
@@ -214,7 +211,7 @@ Input → Preprocessing → Tokenization → Token Normalization → Parsing →
 ## Parser Package Highlights
 
 ### Recursive Descent Package (`psh/parser/recursive_descent/`)
-- **`parser.py`**: Central `Parser` class orchestrating modular parsers; integrates `CompositeTokenProcessor`, uses `ParserContextFactory`, and exposes compatibility methods
+- **`parser.py`**: Central `Parser` class orchestrating modular parsers; uses `ParserContextFactory` and exposes compatibility methods
 - **`context.py`**: Defines `ParserContext`, profiling utilities, heredoc tracking, backtracking support
 - **`base_context.py`**: Shared context-handling helpers (feature toggles, error policies)
 - **`parsers/`**: Specialized modules for statements, commands, control structures, arithmetic, arrays, redirections, functions, and tests
@@ -252,7 +249,7 @@ Input → Preprocessing → Tokenization → Token Normalization → Parsing →
 - `expansion/tilde.py` resolves `~` and `~user`
 - `expansion/glob.py` performs pathname expansion while respecting quoting
 - `expansion/word_splitter.py` applies `$IFS`-aware splitting
-- `expansion/evaluator.py` walks Word AST nodes (produced when `ParserConfig.build_word_ast_nodes` is true)
+- `expansion/evaluator.py` walks Word AST expansion nodes (`VariableExpansion`, `ParameterExpansion`, etc.)
 
 ## Execution & I/O
 
@@ -286,16 +283,14 @@ Input → Preprocessing → Tokenization → Token Normalization → Parsing →
 
 ### Simple Command: `echo "Hello $USER"`
 1. **Tokenizer**: WORD(`echo`), STRING(`Hello $USER`)
-2. **Composite Processor**: STRING + (no adjacent tokens) → unchanged
-3. **Parser**: `SimpleCommand(args=["echo", "Hello $USER"])`
-4. **Expansion**: `"Hello $USER"` → `"Hello alice"` (quote preserves spacing)
-5. **Executor**: Runs builtin `echo`, returns status `0`
+2. **Parser**: `SimpleCommand(args=["echo", "Hello $USER"], words=[Word("echo"), Word(parts=[LiteralPart("Hello "), ExpansionPart(VariableExpansion("USER"))], quote_type='"')])`
+3. **Expansion**: Word AST walk — double-quoted word expands variables but suppresses splitting/globbing → `"Hello alice"`
+4. **Executor**: Runs builtin `echo`, returns status `0`
 
 ### Composite Argument: `file${N}.txt`
-1. **Tokenizer**: WORD(`file`), VARIABLE(`N`), WORD(`.txt`)
-2. **Composite Processor**: merges into COMPOSITE(`file${N}.txt`)
-3. **Parser**: Treats composite as single argument in `SimpleCommand`
-4. **Expansion**: Variable expansion occurs inside composite preserving literal parts
+1. **Tokenizer**: WORD(`file`), VARIABLE(`N`), WORD(`.txt`) — adjacent (no whitespace)
+2. **Parser**: `WordBuilder.build_composite_word()` merges into single `Word(parts=[LiteralPart("file"), ExpansionPart(ParameterExpansion("N")), LiteralPart(".txt")])`
+3. **Expansion**: Per-part expansion using Word AST quote context; variable expansion occurs preserving literal parts
 
 ### Pipeline With Validation: `ls | grep test`
 1. **PipelineBuilder**: `.tokenize()` uses `ModularLexer`
@@ -337,7 +332,7 @@ registry.register('mybuiltin', MyBuiltin)
 3. **Visitor Execution**: AST nodes remain data-only; behavior lives in visitors/executors
 4. **POSIX Expansion Order**: Expansion phases must remain in standard order
 5. **Parser Feature Flags**: `ParserConfig` governs all behavior toggles; avoid hard-coded feature switches
-6. **Composite Token Safety**: Composite merging must preserve original token boundaries for metadata consumers
+6. **Word AST as Source of Truth**: `SimpleCommand.words` is the sole structural representation for argument metadata (quoting, expansion types). Use Word helper properties (`is_quoted`, `is_unquoted_literal`, `is_variable_expansion`, `has_expansion_parts`, `has_unquoted_expansion`, `effective_quote_char`) instead of string-based type checks. The legacy `arg_types`/`quote_types` fields were removed in v0.120.0.
 7. **Exit Status Discipline**: Every execution path returns an integer exit status
 
 ## Testing Conventions
@@ -355,18 +350,16 @@ registry.register('mybuiltin', MyBuiltin)
 ## Performance Considerations
 
 1. **Lexer**: State machine minimizes backtracking; Unicode classification cached in helpers
-2. **Composite Processor**: Linear scan with adjacency checks, negligible overhead
-3. **Parser**: Modular recursive descent with shared `ParserContext` reduces redundant allocations; composites limit word concatenation work
-4. **Validation**: Optional; keep disabled in performance-sensitive modes
-5. **Executor**: Strategy pattern avoids repeated type checks and supports caching
-6. **Expansion**: Lazy evaluation where possible; Word AST mode offers better caching at cost of tree building
+2. **Parser**: Modular recursive descent with shared `ParserContext` reduces redundant allocations; `TokenStream.peek_composite_sequence()` detects adjacent tokens efficiently
+3. **Validation**: Optional; keep disabled in performance-sensitive modes
+4. **Executor**: Strategy pattern avoids repeated type checks and supports caching
+5. **Expansion**: Word AST walk provides per-part quote context without marker strings; lazy evaluation where possible
 
 ## Known Limitations
 
 1. **Python Recursion Limits**: Deeply nested shell functions may exceed Python recursion depth
-2. **Pytest Output Capture**: Command substitution may interfere with pytest’s stdout capture in certain tests
+2. **Pytest Output Capture**: Command substitution may interfere with pytest's stdout capture in certain tests; subshell tests require `-s` flag
 3. **Builtin Redirections**: Builtins re-use process substitution & FD juggling; some complex redirection combinations still require caution
-4. **Composite Token Metadata**: While `CompositeToken` preserves components, quote attribution can require consulting `components` for precise semantics
 
 ## Quick Reference
 
@@ -374,7 +367,6 @@ registry.register('mybuiltin', MyBuiltin)
 - **Modify tokenization**: `psh/lexer/modular_lexer.py` and recognizers; configs via `LexerConfig` in `psh/lexer/position.py`
 - **Keyword normalization**: `psh/lexer/keyword_normalizer.py`
 - **Token transformation**: `psh/token_transformer.py`
-- **Composite tokens**: `psh/composite_processor.py`
 - **Token stream utilities**: `psh/token_stream.py`
 - **Parser entry point**: `psh/parser/__init__.py` (`parse`, `ParserFactory`)
 - **Parser context**: `psh/parser/recursive_descent/context.py`
@@ -400,7 +392,7 @@ registry.register('mybuiltin', MyBuiltin)
 6. Document new invariants and known limitations as they appear
 
 Related documentation:
-- `ARCHITECTURE.md` – human-readable guide (pending update to 0.101.0)
+- `ARCHITECTURE.md` – human-readable guide
 - `ENHANCED_PARSER_INTEGRATION_PLAN.md` – historical context for parser integration
 - `LEXER_REFACTORING_STATUS.md` / `LEXER_REFACTORING_PLAN.md` – lexer migration notes
 - `PARSER_HIGH_PRIORITY_IMPLEMENTATION_PLAN.md` – historical plan for parser enhancements

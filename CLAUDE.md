@@ -199,6 +199,24 @@ PSH uses a unified process creation system for all forked processes:
 - **Benefits**: Eliminates code duplication, consistent signal handling, centralized job control
 - **Used by**: Pipelines, external commands, builtins (background), subshells, brace groups
 
+### Word AST (SimpleCommand Arguments)
+The parser always builds **Word AST nodes** for command arguments. Each
+`SimpleCommand.words` list contains `Word` objects with `LiteralPart` and
+`ExpansionPart` nodes carrying per-part quote context (`quoted`, `quote_char`).
+
+As of v0.120.0, `words` is the **sole** argument metadata representation.
+The legacy `arg_types`/`quote_types` string lists have been removed.
+Use Word helper properties for semantic queries:
+
+| Property | Replaces | Purpose |
+|----------|----------|---------|
+| `word.is_quoted` | `arg_type == 'STRING'` | True if wholly quoted |
+| `word.is_unquoted_literal` | `arg_type == 'WORD'` | Plain unquoted word |
+| `word.is_variable_expansion` | `arg_type == 'VARIABLE'` | Single `$VAR` expansion |
+| `word.has_expansion_parts` | checking for expansion types | Any expansion present |
+| `word.has_unquoted_expansion` | unquoted + `$` in arg | Vulnerable to splitting |
+| `word.effective_quote_char` | `quote_types[i]` | The quote char (`'`, `"`, `$'`, or None) |
+
 ### Execution Flow
 ```
 Input → Line Continuation → Tokenization → Parsing → AST → Expansion → Execution
@@ -339,28 +357,23 @@ class MyVisitor(ASTVisitor[T]):
 
 ## Current Development Status
 
-**Version**: 0.97.0 (see version.py for detailed history)
+**Version**: 0.120.0 (see version.py for detailed history)
 
 **Recent Work**:
-- **Parser Combinator Feature Parity Implementation (Phase 4 Complete - v0.97.0)**: Enhanced Test Expressions
-  - Full implementation of `[[ ]]` conditional expressions with comprehensive operator support
-  - Added all binary operators: `==`, `!=`, `=`, `<`, `>`, `=~`, `-eq`, `-ne`, `-lt`, `-le`, `-gt`, `-ge`
-  - Added all unary operators: `-f`, `-d`, `-e`, `-r`, `-w`, `-x`, `-s`, `-z`, `-n`, and more
-  - Implemented negation with `!` operator and logical operators via shell constructs
-  - Enhanced test expressions work seamlessly in control structures (if, while, for)
-  - Fixed critical unary test evaluation bug in shell execution engine
-  - Parser combinator now supports ~98% of critical shell syntax (4/6 phases complete)
-- **Parser Combinator Arithmetic Commands (Phase 3 Complete - v0.96.0)**: Full `((expression))` support
-- **Parser Combinator Compound Commands (Phase 2 Complete - v0.95.0)**: Subshells and brace groups
-- **Parser Combinator Process Substitution (Phase 1 Complete - v0.94.0)**: `<(cmd)` and `>(cmd)`
-
-**Parser Combinator Feature Parity Progress**: 67% complete (4/6 phases)
-- ✅ Process Substitution (`<(cmd)`, `>(cmd)`)
-- ✅ Compound Commands (`(subshell)`, `{ group; }`)
-- ✅ Arithmetic Commands (`((expression))`)
-- ✅ Enhanced Test Expressions (`[[ conditional ]]`)
-- 🔲 Array Support (`arr=(a b c)`)
-- 🔲 Advanced I/O & Select
+- **Complete arg_types Migration to Word AST (v0.120.0)**:
+  - Removed `arg_types` and `quote_types` fields from `SimpleCommand` dataclass
+  - `words: List[Word]` is now a required field (was `Optional`)
+  - Added Word helper properties: `is_quoted`, `is_unquoted_literal`, `is_variable_expansion`,
+    `has_expansion_parts`, `has_unquoted_expansion`, `effective_quote_char`
+  - All visitors (validator, security, formatter, debug, linter) migrated to Word AST
+  - Deleted `_word_to_arg_type()` legacy bridge method from parser
+- **Parser Fixes, Dead Code Removal, AST Migration (v0.118.0-v0.119.0)**:
+  - Removed CompositeTokenProcessor (Word AST handles composites natively)
+  - Removed dead StateHandlers mixin (597 lines)
+  - Fixed parameter expansion parsing for `/#`, `/%`, and `:` operators
+  - Migrated execution-path arg_types consumers to Word AST inspection
+- **Parser Combinator Feature Parity (Phases 1-4 Complete, v0.94.0-v0.97.0)**:
+  - Process substitution, compound commands, arithmetic, enhanced test expressions
 
 **Active Issues**:
 - Test isolation problems with subprocess tests
