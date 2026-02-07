@@ -39,11 +39,6 @@ class TestContainsExtglob:
         assert not contains_extglob('\\?(a|b)')
         assert not contains_extglob('\\*(a|b)')
 
-    def test_null_marked(self):
-        """NULL-marked chars should not trigger extglob."""
-        assert not contains_extglob('\x00?(a|b)')
-        assert not contains_extglob('\x00*(a|b)')
-
     def test_mixed_with_regular_glob(self):
         assert contains_extglob('file_@(a|b).txt')
         assert contains_extglob('*.+(c|h)')
@@ -183,11 +178,6 @@ class TestExtglobToRegex:
         regex = extglob_to_regex('*', anchored=False, for_pathname=True)
         assert re.fullmatch(regex, 'abc') is not None
         assert re.fullmatch(regex, 'a/b') is None
-
-    def test_null_markers_become_literal(self):
-        regex = extglob_to_regex('\x00*', anchored=False)
-        assert re.fullmatch(regex, '*') is not None
-        assert re.fullmatch(regex, 'abc') is None
 
     def test_escaped_chars(self):
         regex = extglob_to_regex('\\*', anchored=False)

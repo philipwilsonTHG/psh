@@ -638,7 +638,7 @@ class VariableExpander:
         result = []
         i = 0
         while i < len(text):
-            if text[i] == '$' and i + 1 < len(text) and not (i > 0 and text[i - 1] == '\x00'):
+            if text[i] == '$' and i + 1 < len(text):
                 if text[i + 1] == '(' and i + 2 < len(text) and text[i + 2] == '(':
                     # $((...)) arithmetic expansion
                     # Find the matching ))
@@ -715,7 +715,7 @@ class VariableExpander:
                         result.append(self.expand_variable(var_expr))
                         i = j
                         continue
-            elif text[i] == '`' and not (i > 0 and text[i - 1] == '\x00'):
+            elif text[i] == '`':
                 # Backtick command substitution
                 j = i + 1
                 while j < len(text) and text[j] != '`':

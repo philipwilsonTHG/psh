@@ -22,16 +22,13 @@ _EXTGLOB_PREFIXES = frozenset('?*+@!')
 def contains_extglob(pattern: str) -> bool:
     """Check if pattern contains extglob operators.
 
-    Respects backslash escapes and NULL markers (\\x00).
+    Respects backslash escapes.
     """
     i = 0
     while i < len(pattern):
         ch = pattern[i]
         if ch == '\\' and i + 1 < len(pattern):
             i += 2  # skip escaped char
-            continue
-        if ch == '\x00' and i + 1 < len(pattern):
-            i += 2  # skip NULL-marked char
             continue
         if ch in _EXTGLOB_PREFIXES and i + 1 < len(pattern) and pattern[i + 1] == '(':
             return True
@@ -50,9 +47,6 @@ def _find_matching_paren(pattern: str, open_pos: int) -> Optional[int]:
     while i < len(pattern):
         ch = pattern[i]
         if ch == '\\' and i + 1 < len(pattern):
-            i += 2
-            continue
-        if ch == '\x00' and i + 1 < len(pattern):
             i += 2
             continue
         if ch == '(':
@@ -74,11 +68,6 @@ def _split_pattern_list(inner: str) -> List[str]:
     while i < len(inner):
         ch = inner[i]
         if ch == '\\' and i + 1 < len(inner):
-            current.append(ch)
-            current.append(inner[i + 1])
-            i += 2
-            continue
-        if ch == '\x00' and i + 1 < len(inner):
             current.append(ch)
             current.append(inner[i + 1])
             i += 2
@@ -132,12 +121,6 @@ def _convert_pattern(pattern: str, for_pathname: bool) -> str:
 
         # Backslash escape
         if ch == '\\' and i + 1 < len(pattern):
-            result.append(re.escape(pattern[i + 1]))
-            i += 2
-            continue
-
-        # NULL marker: literal character
-        if ch == '\x00' and i + 1 < len(pattern):
             result.append(re.escape(pattern[i + 1]))
             i += 2
             continue
