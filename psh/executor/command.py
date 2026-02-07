@@ -238,11 +238,15 @@ class CommandExecutor:
 
         An argument is an assignment candidate if its Word AST contains
         only LiteralPart and ExpansionPart nodes (no process substitution
-        or other special tokens).
+        or other special tokens), AND the variable-name portion (before
+        the ``=``) consists entirely of unquoted LiteralPart text.
+        Quoting any part of the variable name (e.g. ``"FOO"=bar``)
+        disqualifies the word as an assignment per POSIX.
         """
         from ..ast_nodes import ExpansionPart, LiteralPart
         if node.words and index < len(node.words):
             word = node.words[index]
+            # First pass: reject non-word tokens (process substitutions, etc.)
             for part in word.parts:
                 if not isinstance(part, (LiteralPart, ExpansionPart)):
                     return False
@@ -251,6 +255,30 @@ class CommandExecutor:
                 if (isinstance(part, LiteralPart) and not part.quoted and
                         (part.text.startswith('<(') or part.text.startswith('>('))):
                     return False
+
+            # Second pass: verify the variable-name portion is unquoted.
+            # Walk parts accumulating text until we find '='.  Every part
+            # (or portion of a part) before the '=' must be an unquoted
+            # LiteralPart — any quoted part or ExpansionPart before '='
+            # means this is not an assignment word.
+            for part in word.parts:
+                if isinstance(part, LiteralPart):
+                    if '=' in part.text:
+                        # Found the '='.  If this part is quoted, the
+                        # variable name includes quoted text.
+                        if part.quoted:
+                            return False
+                        # '=' is in an unquoted literal — valid so far
+                        return True
+                    # Part before '=' — must be unquoted literal
+                    if part.quoted:
+                        return False
+                elif isinstance(part, ExpansionPart):
+                    # Expansion before '=' means the name isn't a plain
+                    # identifier (e.g. $FOO=bar is not an assignment)
+                    return False
+
+            # No '=' found in the Word parts at all
             return True
         # No Word AST available — assume it's a candidate
         return True

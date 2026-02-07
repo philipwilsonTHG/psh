@@ -99,6 +99,7 @@ class ExpansionManager:
         from ..ast_nodes import (
             ExpansionPart,
             LiteralPart,
+            VariableExpansion,
             Word,
         )
 
@@ -158,14 +159,59 @@ class ExpansionManager:
                         if any(c in text for c in '*?['):
                             has_unquoted_glob = True
                     # Unquoted literal: tilde on first part if leading ~
-                    # Skip tilde expansion if ~ came from escape processing (\~)
+                    # Only suppress tilde expansion if the ~ itself was
+                    # escaped (\~), not if some later char was escaped.
+                    tilde_escaped = had_escapes and part.text.startswith('\\~')
                     if (not has_expansion and not result_parts
-                            and text.startswith('~') and not had_escapes):
+                            and text.startswith('~') and not tilde_escaped):
                         text = self.expand_tilde(text)
                     result_parts.append(text)
 
             elif isinstance(part, ExpansionPart):
                 has_expansion = True
+
+                # Handle quoted "$@" splitting in composite words.
+                # e.g. pre"$@"post with params (a,b,c) → [prea, b, cpost]
+                if (part.quoted
+                        and isinstance(part.expansion, VariableExpansion)
+                        and part.expansion.name == '@'):
+                    params = list(self.state.positional_params)
+                    if not params:
+                        # "$@" contributes nothing; surrounding text
+                        # still forms a word (prefix + suffix).
+                        continue
+
+                    prefix = ''.join(result_parts)
+                    # Process remaining parts to build the suffix
+                    suffix_parts: list = []
+                    found = False
+                    for p2 in word.parts:
+                        if p2 is part:
+                            found = True
+                            continue
+                        if not found:
+                            continue
+                        if isinstance(p2, LiteralPart):
+                            t = p2.text
+                            if p2.quoted and p2.quote_char == '"':
+                                if '\\' in t:
+                                    t = self._process_dquote_escapes(t)
+                            elif not p2.quoted:
+                                if '\\' in t:
+                                    t, _ = self._process_unquoted_escapes(t)
+                            suffix_parts.append(t)
+                        elif isinstance(p2, ExpansionPart):
+                            suffix_parts.append(
+                                self._expand_expansion(p2.expansion))
+                    suffix = ''.join(suffix_parts)
+
+                    if len(params) == 1:
+                        return prefix + params[0] + suffix
+                    words = [prefix + params[0]]
+                    words.extend(params[1:-1])
+                    words.append(params[-1] + suffix)
+                    return words
+
                 expanded = self._expand_expansion(part.expansion)
                 if part.quoted:
                     # Quoted expansion: no word splitting, no globbing on result

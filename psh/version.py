@@ -2,10 +2,29 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.122.0"
+__version__ = "0.123.0"
 
 # Version history
 VERSION_HISTORY = """
+0.123.0 (2026-02-07) - Fix 5 Correctness Bugs from Code Review
+- Fixed quoted variable names treated as assignments (High): "FOO"=bar no longer
+  silently creates a variable; _is_assignment_candidate() now walks Word parts to
+  verify the variable-name portion before '=' is entirely unquoted LiteralPart
+- Fixed lone $ expanding to empty string (Medium): bare $ not followed by a valid
+  variable name now emits a literal '$' token instead of an empty-named variable
+  expansion (matches bash: echo $ end → $ end)
+- Fixed "$@" splitting missing in composite words (Medium): pre"$@"post with
+  params (a,b,c) now correctly produces 3 separate arguments [prea, b, cpost]
+  instead of collapsing into one; added $@ splitting logic to _expand_word()
+- Fixed tilde expansion suppressed by any backslash (Medium): ~/\foo now
+  correctly expands ~ because only \~ (escaped tilde) suppresses expansion,
+  not a backslash on a later character
+- Fixed FormatterVisitor losing quotes in composite words (Low): new _format_word()
+  method reconstructs words from Word.parts with per-part quoting, grouping
+  consecutive parts by quote context for correct round-trip formatting
+- Added 19 regression tests in tests/regression/test_codex_review_findings.py
+- All tests passing with zero regressions
+
 0.122.0 (2026-02-07) - Formalize Shell-vs-Leaf Signal Policy in ProcessLauncher
 - Added is_shell_process field to ProcessConfig dataclass (default False)
 - Shell processes (subshells, brace groups) keep SIGTTOU=SIG_IGN after

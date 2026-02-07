@@ -74,6 +74,36 @@ class FormatterVisitor(ASTVisitor[str]):
         """Decrease indentation level."""
         self.level = max(0, self.level - 1)
 
+    @staticmethod
+    def _format_word(word) -> str:
+        """Format a Word by reconstructing from its parts with quoting.
+
+        Groups consecutive parts that share the same quote context so
+        that ``"$HOME/bin"`` is emitted as one quoted region rather than
+        ``"$HOME""/bin"``.
+        """
+        # Group consecutive parts by their quote context
+        groups: list = []  # [(quote_char_or_None, [text, ...])]
+        for part in word.parts:
+            qc = getattr(part, 'quote_char', None) if getattr(part, 'quoted', False) else None
+            text = str(part)
+            if groups and groups[-1][0] == qc:
+                groups[-1][1].append(text)
+            else:
+                groups.append((qc, [text]))
+
+        result: list = []
+        for qc, texts in groups:
+            content = ''.join(texts)
+            if qc:
+                if qc == "$'":
+                    result.append(f"$'{content}'")
+                else:
+                    result.append(f'{qc}{content}{qc}')
+            else:
+                result.append(content)
+        return ''.join(result)
+
     # Top-level nodes
 
     def visit_TopLevel(self, node: TopLevel) -> str:
@@ -100,13 +130,13 @@ class FormatterVisitor(ASTVisitor[str]):
         for assignment in node.array_assignments:
             parts.append(self.visit(assignment))
 
-        # Command and arguments
+        # Command and arguments — reconstruct from Word parts to
+        # preserve per-part quoting in composite words.
         words = node.words if node.words else []
         for i, arg in enumerate(node.args):
             word = words[i] if i < len(words) else None
-            if word and word.is_quoted:
-                quote = word.effective_quote_char or '"'
-                parts.append(f'{quote}{arg}{quote}')
+            if word and word.parts:
+                parts.append(self._format_word(word))
             else:
                 parts.append(arg)
 
