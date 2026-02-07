@@ -1,32 +1,33 @@
 """Source file and command buffer processing."""
 import sys
 from typing import Optional
-from .base import ScriptComponent
-from ..lexer import tokenize, LexerError
-from ..parser import parse, parse_with_heredocs, ParseError
+
 from ..ast_nodes import TopLevel
+from ..lexer import LexerError, tokenize
+from ..parser import ParseError
+from .base import ScriptComponent
 
 
 class SourceProcessor(ScriptComponent):
     """Processes input from various sources (files, strings, stdin)."""
-    
+
     def execute(self, input_source, add_to_history: bool = True) -> int:
         """Execute from an input source."""
         return self.execute_from_source(input_source, add_to_history)
-    
+
     def execute_from_source(self, input_source, add_to_history: bool = True) -> int:
         """Execute commands from an input source with enhanced processing."""
         exit_code = 0
         command_buffer = ""
         command_start_line = 0
-        
+
         # For validation mode, collect all issues across the entire script
         if self.shell.validate_only:
             from ..visitor import EnhancedValidatorVisitor
             self.validation_visitor = EnhancedValidatorVisitor()
         else:
             self.validation_visitor = None
-        
+
         while True:
             line = input_source.read_line()
             if self.state.options.get('debug-exec', False):
@@ -46,21 +47,21 @@ class SourceProcessor(ScriptComponent):
                 if self.validation_visitor:
                     print(self.validation_visitor.get_summary())
                     # Return exit code based on errors
-                    error_count = sum(1 for i in self.validation_visitor.issues 
+                    error_count = sum(1 for i in self.validation_visitor.issues
                                     if i.severity.value == 'error')
                     exit_code = 1 if error_count > 0 else 0
                 break
-            
+
             # Skip empty lines when no command is being built
             if not command_buffer and not line.strip():
                 continue
-            
+
             # Skip comment lines when no command is being built
             if not command_buffer and line.strip().startswith('#'):
                 continue
-            
+
             # Note: Line continuation handling is now done in preprocessing
-            
+
             # Add current line to buffer
             if not command_buffer:
                 command_start_line = input_source.get_line_number()
@@ -68,20 +69,20 @@ class SourceProcessor(ScriptComponent):
             if command_buffer and not command_buffer.endswith('\n'):
                 command_buffer += '\n'
             command_buffer += line
-            
+
             # Try to parse and execute the command
             if command_buffer.strip():
                 # Process line continuations and history expansion before testing completeness
                 test_command = command_buffer
                 from ..input_preprocessing import process_line_continuations
                 test_command = process_line_continuations(test_command)
-                
+
                 # Apply history expansion for completeness testing (don't print)
                 if hasattr(self.shell, 'history_expander'):
                     expanded_test = self.shell.history_expander.expand_history(test_command, print_expansion=False)
                     if expanded_test is not None:
                         test_command = expanded_test
-                
+
                 # Check for unclosed heredocs and collect content if needed
                 # Use the shell's method which properly handles arithmetic expressions
                 if self.shell._contains_heredoc(test_command) and self._has_unclosed_heredoc(test_command):
@@ -96,7 +97,7 @@ class SourceProcessor(ScriptComponent):
                         expanded_test = self.shell.history_expander.expand_history(test_command, print_expansion=False)
                         if expanded_test is not None:
                             test_command = expanded_test
-                
+
                 # Check if command contains history expansion - if so, treat as complete
                 import re
                 history_pattern = r'(?:^|\s)!(?:!|[0-9]+|-[0-9]+|[a-zA-Z][a-zA-Z0-9]*|\?[^?]*\?)(?:\s|$)'
@@ -146,21 +147,21 @@ class SourceProcessor(ScriptComponent):
                             command_start_line = 0
                             exit_code = 2  # Bash uses exit code 2 for syntax errors
                             self.state.last_exit_code = 2
-                            
+
                             # In non-interactive mode, exit immediately on parse errors
                             if not input_source.is_interactive():
                                 return exit_code
-        
+
         return exit_code
-    
+
     def _is_incomplete_command(self, error) -> bool:
         """Check if a parse or lexer error indicates an incomplete command."""
         error_msg = str(error)
-        
+
         # Handle lexer errors from incomplete constructs
         lexer_incomplete_patterns = [
             "Unclosed parenthesis",
-            "Unclosed double parentheses", 
+            "Unclosed double parentheses",
             "Unclosed arithmetic expansion",
             "Unclosed brace",
             "Unclosed quote",
@@ -169,11 +170,11 @@ class SourceProcessor(ScriptComponent):
             "Unclosed \" quote at position",
             "Unclosed ' quote at position"
         ]
-        
+
         for pattern in lexer_incomplete_patterns:
             if pattern in error_msg:
                 return True
-        
+
         # Handle parser errors - updated patterns to match the new human-readable error messages
         incomplete_patterns = [
             # Control structure keywords
@@ -185,33 +186,33 @@ class SourceProcessor(ScriptComponent):
             ("Expected 'esac'", "got end of input"),
             ("Expected 'else'", "got end of input"),
             ("Expected 'elif'", "got end of input"),
-            
+
             # Function and compound commands
             ("Expected '{'", "got end of input"),
             ("Expected '}'", "got end of input"),
             ("Expected '}' to end compound command", None),
-            
+
             # Parentheses and brackets
             ("Expected ')'", "got end of input"),
             ("Expected ']]'", "got end of input"),
             ("Expected '('", "got end of input"),
             ("Expected '[['", "got end of input"),
-            
+
             # Test expressions
             ("Expected test operand", "got end of input"),
             ("Expected test operand", None),
-            
+
             # Redirections
             ("Expected delimiter after here document", "got end of input"),
             ("Expected string after here string", "got end of input"),
-            
+
             # Commands
             ("Expected command", "got end of input"),
-            
+
             # Case patterns
             ("Expected pattern in case statement", "got end of input"),
             ("Expected pattern in case statement", None),  # When no "got" part
-            
+
             # New TokenType-based patterns from ParserContext (case sensitive)
             ("Expected TokenType.DO", "got TokenType.EOF"),
             ("Expected TokenType.DONE", "got TokenType.EOF"),
@@ -226,7 +227,7 @@ class SourceProcessor(ScriptComponent):
             ("Expected TokenType.LPAREN", "got TokenType.EOF"),
             ("Expected TokenType.ELSE", "got TokenType.EOF"),
             ("Expected TokenType.ELIF", "got TokenType.EOF"),
-            
+
             # Lowercase variants (in case error messages are normalized)
             ("expected tokentype.do", "got tokentype.eof"),
             ("expected tokentype.done", "got tokentype.eof"),
@@ -241,7 +242,7 @@ class SourceProcessor(ScriptComponent):
             ("expected tokentype.lparen", "got tokentype.eof"),
             ("expected tokentype.else", "got tokentype.eof"),
             ("expected tokentype.elif", "got tokentype.eof"),
-            
+
             # Old patterns for backward compatibility (in case some weren't updated)
             ("Expected DO", "got EOF"),
             ("Expected DONE", "got EOF"),
@@ -252,35 +253,35 @@ class SourceProcessor(ScriptComponent):
             ("Expected RPAREN", "got EOF"),
             ("Expected DOUBLE_RBRACKET", None),
         ]
-        
+
         for expected, got in incomplete_patterns:
             if expected in error_msg:
                 if got is None or got in error_msg:
                     return True
-        
+
         return False
-    
-    def _execute_buffered_command(self, command_string: str, input_source, 
+
+    def _execute_buffered_command(self, command_string: str, input_source,
                                   start_line: int, add_to_history: bool) -> int:
         """Execute a buffered command with enhanced error reporting."""
         # Skip empty commands and comments
         if not command_string.strip() or command_string.strip().startswith('#'):
             return 0
-        
+
         # Update LINENO special variable with current line number
         if start_line > 0:
             self.shell.state.scope_manager.set_current_line_number(start_line)
-        
+
         # Verbose mode: echo input lines as they are read
         if self.state.options.get('verbose', False):
             # Echo the command to stderr before execution
             print(command_string, file=sys.stderr)
-        
+
         try:
             # Process line continuations first
             from ..input_preprocessing import process_line_continuations
             command_string = process_line_continuations(command_string)
-            
+
             # Perform history expansion before tokenization
             if hasattr(self.shell, 'history_expander'):
                 expanded_command = self.shell.history_expander.expand_history(command_string)
@@ -289,7 +290,7 @@ class SourceProcessor(ScriptComponent):
                     self.state.last_exit_code = 1
                     return 1
                 command_string = expanded_command
-            
+
             tokens = tokenize(command_string, shell_options=self.state.options)
 
             # Debug: Print tokens if requested
@@ -298,9 +299,9 @@ class SourceProcessor(ScriptComponent):
                 from ..utils.token_formatter import TokenFormatter
                 print(TokenFormatter.format(tokens), file=sys.stderr)
                 print("========================", file=sys.stderr)
-            
+
             # Note: Alias expansion now happens during execution phase for proper precedence
-            
+
             # Check if command contains heredocs and parse accordingly
             if self.shell._contains_heredoc(command_string):
                 # Use the new lexer with heredoc support
@@ -314,11 +315,11 @@ class SourceProcessor(ScriptComponent):
                 # Parse with source text for better error messages and shell configuration
                 parser = self.shell.create_parser(tokens, source_text=command_string)
                 ast = parser.parse()
-            
+
             # Debug: Print AST if requested
             if self.state.debug_ast:
                 self.shell._print_ast_debug(ast)
-            
+
             # Validation mode - analyze AST without executing
             if self.shell.validate_only:
                 # Use the shared validator instance
@@ -330,18 +331,18 @@ class SourceProcessor(ScriptComponent):
                     validator = EnhancedValidatorVisitor()
                     validator.visit(ast)
                     print(validator.get_summary())
-                    error_count = sum(1 for i in validator.issues 
+                    error_count = sum(1 for i in validator.issues
                                     if i.severity.value == 'error')
                     return 1 if error_count > 0 else 0
-                
+
                 # Don't execute in validation mode
                 return 0
-            
+
             # NoExec mode - parse and validate but don't execute
             if self.state.options.get('noexec', False):
                 # Successfully parsed, so syntax is valid
                 return 0
-            
+
             # Add to history if requested (for interactive or testing)
             # Don't add history expansion commands to history
             if add_to_history and command_string.strip():
@@ -349,10 +350,10 @@ class SourceProcessor(ScriptComponent):
                 history_pattern = r'(?:^|\s)!(?:!|[0-9]+|-[0-9]+|[a-zA-Z][a-zA-Z0-9]*|\?[^?]*\?)(?:\s|$)'
                 if not re.search(history_pattern, command_string):
                     self.shell.interactive_manager.history_manager.add_to_history(command_string.strip())
-            
+
             # Increment command number for successful parse
             self.state.command_number += 1
-            
+
             # Handle TopLevel AST node (functions + commands)
             if isinstance(ast, TopLevel):
                 return self.shell.execute_toplevel(ast)
@@ -368,7 +369,7 @@ class SourceProcessor(ScriptComponent):
                     if isinstance(e, (LoopBreak, LoopContinue)):
                         # Break/continue outside of loops is an error
                         stmt_name = "break" if isinstance(e, LoopBreak) else "continue"
-                        print(f"{stmt_name}: only meaningful in a `for' or `while' loop", 
+                        print(f"{stmt_name}: only meaningful in a `for' or `while' loop",
                               file=sys.stderr)
                         return 1
                     raise
@@ -384,23 +385,23 @@ class SourceProcessor(ScriptComponent):
             self.state.last_exit_code = 2  # Bash uses exit code 2 for syntax errors
             return 2
         except Exception as e:
-            # Enhanced error message with location  
+            # Enhanced error message with location
             location = f"{input_source.get_name()}:{start_line}" if start_line > 0 else "command"
             print(f"psh: {location}: unexpected error: {e}", file=sys.stderr)
             self.state.last_exit_code = 1
             return 1
-    
+
     def _has_unclosed_heredoc(self, command: str) -> bool:
         """Check if command has an unclosed heredoc."""
         import re
-        
+
         # Find all heredoc start markers (<<EOF, <<-EOF, << EOF, etc.)
         # But exclude << inside arithmetic expressions, command substitutions, etc.
         heredoc_pattern = r'<<(-?)\s*([\'"]?)(\\\s*)?(\w+)\2'
-        
+
         lines = command.split('\n')
         heredoc_delimiters = []
-        
+
         for line in lines:
             # Skip if line is inside a heredoc
             if any(d for d in heredoc_delimiters if not d['closed']):
@@ -420,7 +421,7 @@ class SourceProcessor(ScriptComponent):
                     start_pos = match.start()
                     if self._is_inside_expansion(line, start_pos):
                         continue  # Skip this match
-                    
+
                     strip_tabs = bool(match.group(1))  # '-' present
                     has_backslash = bool(match.group(3))  # Escaped delimiter
                     word = match.group(4)
@@ -430,19 +431,19 @@ class SourceProcessor(ScriptComponent):
                         'closed': False,
                         'escaped': has_backslash
                     })
-        
+
         # Check if any heredocs remain unclosed
         return any(d for d in heredoc_delimiters if not d['closed'])
-    
+
     def _collect_heredoc_content(self, command_buffer: str, input_source) -> Optional[str]:
         """Collect heredoc content from input source until all delimiters are satisfied."""
         import re
-        
+
         # Extract heredoc information from current command
         heredoc_pattern = r'<<(-?)\s*([\'"]?)(\\\s*)?(\w+)\2'
         lines = command_buffer.split('\n')
         heredoc_delimiters = []
-        
+
         # Find all heredoc start markers in the current command
         for line in lines:
             for match in re.finditer(heredoc_pattern, line):
@@ -457,29 +458,29 @@ class SourceProcessor(ScriptComponent):
                     'closed': False,
                     'escaped': has_backslash
                 })
-        
+
         # If no heredocs found, return current buffer
         if not heredoc_delimiters:
             return command_buffer
-        
+
         # Continue reading lines until all heredocs are closed
         result_buffer = command_buffer
-        
+
         while True:
             # Check if all heredocs are closed
             if all(d['closed'] for d in heredoc_delimiters):
                 break
-            
+
             # Read next line
             line = input_source.read_line()
             if line is None:  # EOF
                 return None
-            
+
             # Add line to buffer
             if not result_buffer.endswith('\n'):
                 result_buffer += '\n'
             result_buffer += line
-            
+
             # Check if this line closes any open heredocs
             for delimiter in heredoc_delimiters:
                 if not delimiter['closed']:
@@ -488,9 +489,9 @@ class SourceProcessor(ScriptComponent):
                     if check_line.rstrip() == delimiter['word']:
                         delimiter['closed'] = True
                         break
-        
+
         return result_buffer
-    
+
     def _is_inside_expansion(self, line: str, position: int) -> bool:
         """Check if the position is inside an arithmetic expression or command substitution."""
         # Check for arithmetic expressions $((..))
@@ -498,7 +499,7 @@ class SourceProcessor(ScriptComponent):
         paren_depth = 0
         i = 0
         while i < len(line):
-            if i + 2 < len(line) and line[i:i+3] == '$((': 
+            if i + 2 < len(line) and line[i:i+3] == '$((':
                 if i <= position:
                     arith_start = i
                     paren_depth = 2
@@ -516,7 +517,7 @@ class SourceProcessor(ScriptComponent):
                         return True
                     arith_start = -1
             i += 1
-        
+
         # Check for command substitution $(..)
         cmd_sub_start = -1
         paren_depth = 0
@@ -540,7 +541,7 @@ class SourceProcessor(ScriptComponent):
                         return True
                     cmd_sub_start = -1
             i += 1
-        
+
         # Check for backtick command substitution
         backtick_start = -1
         i = 0
@@ -555,24 +556,24 @@ class SourceProcessor(ScriptComponent):
                         return True
                     backtick_start = -1
             i += 1
-        
+
         return False
-    
+
     def _extract_heredoc_content(self, command_text: str) -> dict:
         """Extract heredoc content from complete command text and return a mapping."""
         import re
-        
+
         heredoc_map = {}
         heredoc_pattern = r'<<(-?)\s*([\'"]?)(\\\s*)?(\w+)\2'
         lines = command_text.split('\n')
-        
+
         # Track delimiters and their content
         current_heredocs = []  # Stack of active heredocs
         line_idx = 0
-        
+
         while line_idx < len(lines):
             line = lines[line_idx]
-            
+
             # Check if this line closes any active heredocs
             if current_heredocs:
                 for i in range(len(current_heredocs) - 1, -1, -1):  # Check in reverse order (LIFO)
@@ -598,7 +599,7 @@ class SourceProcessor(ScriptComponent):
                         }
                         current_heredocs.pop(i)
                         break
-            
+
             # Look for new heredoc markers in this line
             potential_matches = list(re.finditer(heredoc_pattern, line))
             for match in potential_matches:
@@ -606,12 +607,12 @@ class SourceProcessor(ScriptComponent):
                 start_pos = match.start()
                 if self._is_inside_expansion(line, start_pos):
                     continue  # Skip this match
-                
+
                 strip_tabs = bool(match.group(1))  # '-' present
                 quoted = bool(match.group(2))      # Delimiter is quoted
                 has_backslash = bool(match.group(3))  # Escaped delimiter
                 word = match.group(4)
-                
+
                 current_heredocs.append({
                     'word': word,
                     'delimiter': word,  # Keep original for mapping
@@ -620,27 +621,27 @@ class SourceProcessor(ScriptComponent):
                     'start_line': line_idx,
                     'escaped': has_backslash
                 })
-            
+
             line_idx += 1
-        
+
         return heredoc_map
-    
+
     def _remove_heredoc_content_from_command(self, command_text: str) -> str:
         """Remove heredoc content lines from command text, leaving only the shell commands."""
         import re
-        
+
         heredoc_pattern = r'<<(-?)\s*([\'"]?)(\\\s*)?(\w+)\2'
         lines = command_text.split('\n')
         result_lines = []
-        
+
         # Track delimiters and skip their content
         current_heredocs = []
         line_idx = 0
-        
+
         while line_idx < len(lines):
             line = lines[line_idx]
             skip_line = False
-            
+
             # Check if this line closes any active heredocs
             if current_heredocs:
                 for i in range(len(current_heredocs) - 1, -1, -1):
@@ -652,11 +653,11 @@ class SourceProcessor(ScriptComponent):
                         current_heredocs.pop(i)
                         skip_line = True
                         break
-                
+
                 # If we're inside a heredoc and this isn't a closing delimiter, skip content
                 if current_heredocs and not skip_line:
                     skip_line = True
-            
+
             # Look for new heredoc markers in this line
             if not skip_line:
                 potential_matches = list(re.finditer(heredoc_pattern, line))
@@ -665,7 +666,7 @@ class SourceProcessor(ScriptComponent):
                     start_pos = match.start()
                     if self._is_inside_expansion(line, start_pos):
                         continue  # Skip this match
-                    
+
                     strip_tabs = bool(match.group(1))
                     word = match.group(4)
                     current_heredocs.append({
@@ -674,7 +675,7 @@ class SourceProcessor(ScriptComponent):
                     })
                 # Keep this line since it contains the command with heredoc redirect
                 result_lines.append(line)
-            
+
             line_idx += 1
-        
+
         return '\n'.join(result_lines)

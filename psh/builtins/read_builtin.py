@@ -1,12 +1,12 @@
 """Read builtin command implementation."""
 import io
 import os
-import sys
 import select
+import sys
 import termios
 import tty
 from contextlib import contextmanager
-from typing import List, Optional, Tuple, Dict, TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
 from .base import Builtin
 from .registry import builtin
@@ -18,11 +18,11 @@ if TYPE_CHECKING:
 @builtin
 class ReadBuiltin(Builtin):
     """Read a line from standard input and assign to variables."""
-    
+
     @property
     def name(self) -> str:
         return "read"
-    
+
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Execute the read builtin.
         
@@ -43,12 +43,12 @@ class ReadBuiltin(Builtin):
         except ValueError as e:
             print(str(e), file=sys.stderr)
             return 2
-        
+
         # Display prompt if specified
         if options['prompt']:
             sys.stderr.write(options['prompt'])
             sys.stderr.flush()
-        
+
         try:
             # Read input based on options
             if options['timeout'] is not None:
@@ -60,29 +60,29 @@ class ReadBuiltin(Builtin):
                     return 142  # Timeout exit code
             elif options['silent'] or options['max_chars'] is not None:
                 line = self._read_special(
-                    options['fd'], options['delimiter'], 
+                    options['fd'], options['delimiter'],
                     options['max_chars'], options['silent']
                 )
             else:
                 line = self._read_normal(options['fd'], options['delimiter'])
-            
+
             # Check for EOF
             if line is None:
                 return 1
-            
+
             # Process backslash escapes unless in raw mode
             # This must be done BEFORE stripping the delimiter so that
             # backslash-delimiter line continuation works correctly
             if not options['raw_mode']:
                 line = self._process_escapes(line)
-            
+
             # Remove trailing delimiter if present (after escape processing)
             if line.endswith(options['delimiter']):
                 line = line[:-1]
-            
+
             # Get IFS value (default is space, tab, newline)
             ifs = shell.variables.get('IFS', shell.env.get('IFS', ' \t\n'))
-            
+
             # Handle assignment based on array option or number of variables
             if options['array_name']:
                 # Array assignment: always split on IFS
@@ -104,16 +104,16 @@ class ReadBuiltin(Builtin):
                 # Multiple variables: split based on IFS
                 fields = self._split_with_ifs(line, ifs)
                 self._assign_to_variables(fields, var_names, shell)
-            
+
             return 0
-            
+
         except KeyboardInterrupt:
             # Ctrl-C pressed
             return 130
         except Exception as e:
             print(f"read: {e}", file=sys.stderr)
             return 1
-    
+
     def _process_escapes(self, line: str) -> str:
         """Process backslash escape sequences.
         
@@ -128,7 +128,7 @@ class ReadBuiltin(Builtin):
         """
         result = []
         i = 0
-        
+
         while i < len(line):
             if line[i] == '\\' and i + 1 < len(line):
                 next_char = line[i + 1]
@@ -141,7 +141,7 @@ class ReadBuiltin(Builtin):
                 elif next_char == 'r':
                     result.append('\r')
                 elif next_char == '\n':
-                    # Line continuation - skip both characters  
+                    # Line continuation - skip both characters
                     # Note: This is only for backslash-newline within the line
                     # A trailing backslash at end of input is different
                     pass
@@ -152,9 +152,9 @@ class ReadBuiltin(Builtin):
             else:
                 result.append(line[i])
                 i += 1
-        
+
         return ''.join(result)
-    
+
     def _split_with_ifs(self, line: str, ifs: str) -> List[str]:
         """Split line based on IFS (Internal Field Separator).
         
@@ -167,22 +167,22 @@ class ReadBuiltin(Builtin):
         if not ifs:
             # No IFS, return entire line as one field
             return [line]
-        
+
         # Separate whitespace and non-whitespace IFS characters
         ifs_whitespace = set(c for c in ifs if c in ' \t\n')
         ifs_non_whitespace = set(c for c in ifs if c not in ' \t\n')
-        
+
         fields = []
         current_field = []
         i = 0
-        
+
         # Skip leading IFS whitespace
         while i < len(line) and line[i] in ifs_whitespace:
             i += 1
-        
+
         while i < len(line):
             char = line[i]
-            
+
             if char in ifs_non_whitespace:
                 # Non-whitespace IFS character - always a separator
                 fields.append(''.join(current_field))
@@ -200,17 +200,17 @@ class ReadBuiltin(Builtin):
                 # Regular character
                 current_field.append(char)
                 i += 1
-        
+
         # Add last field if any
         if current_field:
             fields.append(''.join(current_field))
-        
+
         # If no fields were found, return empty string
         if not fields:
             fields = ['']
-        
+
         return fields
-    
+
     def _assign_to_variables(self, fields: List[str], var_names: List[str], shell: 'Shell'):
         """Assign fields to variables.
         
@@ -235,9 +235,9 @@ class ReadBuiltin(Builtin):
             else:
                 # No more fields - set to empty
                 value = ''
-            
+
             shell.state.set_variable(var_name, value)
-    
+
     def _assign_to_array(self, fields: List[str], array_name: str, shell: 'Shell'):
         """Assign fields to an indexed array.
         
@@ -245,10 +245,10 @@ class ReadBuiltin(Builtin):
         Each field becomes an array element with sequential indices starting from 0.
         """
         from ..core.variables import IndexedArray, VarAttributes
-        
+
         # Create new indexed array
         array = IndexedArray()
-        
+
         # Handle empty input case: if only field is empty string, create empty array
         if len(fields) == 1 and fields[0] == '':
             # Empty input should create empty array (bash behavior)
@@ -257,10 +257,10 @@ class ReadBuiltin(Builtin):
             # Assign each field to sequential indices
             for i, field in enumerate(fields):
                 array.set(i, field)
-        
+
         # Set the array in shell state
         shell.state.scope_manager.set_variable(array_name, array, attributes=VarAttributes.ARRAY)
-    
+
     def _parse_options(self, args: List[str]) -> Tuple[Dict[str, any], List[str]]:
         """Parse read command options.
         
@@ -277,7 +277,7 @@ class ReadBuiltin(Builtin):
             'fd': 0,
             'array_name': None  # New option for array assignment
         }
-        
+
         i = 1
         while i < len(args):
             if args[i] == '-r':
@@ -348,28 +348,28 @@ class ReadBuiltin(Builtin):
             else:
                 break
             i += 1
-        
+
         # Variable names are ignored when using -a option
         if options['array_name']:
             var_names = []  # Array name takes precedence
         else:
             var_names = args[i:] if i < len(args) else ['REPLY']
-        
+
         return options, var_names
-    
+
     def _read_normal(self, fd: int, delimiter: str) -> Optional[str]:
         """Read normally from file descriptor until delimiter."""
         # Check if we should use sys.stdin (for StringIO/test scenarios)
         # or os.read (for real file descriptors/pipes)
         use_sys_stdin = False
-        
+
         # Check if we can actually get a file descriptor from sys.stdin
         try:
             sys.stdin.fileno()
             has_real_fileno = True
         except (AttributeError, io.UnsupportedOperation):
             has_real_fileno = False
-        
+
         if not has_real_fileno:
             use_sys_stdin = True
         else:
@@ -386,7 +386,7 @@ class ReadBuiltin(Builtin):
                     use_sys_stdin = False
                 except (OSError, AttributeError):
                     use_sys_stdin = True
-        
+
         if delimiter == '\n':
             if use_sys_stdin:
                 # Use sys.stdin for StringIO/test scenarios
@@ -403,7 +403,7 @@ class ReadBuiltin(Builtin):
                     except OSError as e:
                         # Error reading - return what we have
                         return None if not chars else ''.join(chars)
-                    
+
                     if not char:
                         return None if not chars else ''.join(chars)
                     chars.append(char)
@@ -428,21 +428,21 @@ class ReadBuiltin(Builtin):
                     except OSError:
                         # Not a valid file descriptor
                         return None if not chars else ''.join(chars)
-                    
+
                     if not char:
                         return None if not chars else ''.join(chars)
                     if char == delimiter:
                         return ''.join(chars)
                     chars.append(char)
-    
-    def _read_special(self, fd: int, delimiter: str, max_chars: Optional[int], 
+
+    def _read_special(self, fd: int, delimiter: str, max_chars: Optional[int],
                       silent: bool) -> Optional[str]:
         """Read with special modes (silent and/or character limit)."""
         chars = []
-        
+
         # Check if we're dealing with a TTY
         is_tty = os.isatty(fd)
-        
+
         # If we need raw terminal mode and have a TTY
         if is_tty and (silent or max_chars is not None):
             with self._terminal_raw_mode(fd, echo=not silent):
@@ -452,20 +452,20 @@ class ReadBuiltin(Builtin):
                         char = os.read(fd, 1).decode('utf-8', errors='replace')
                     except OSError:
                         break
-                    
+
                     if not char:
                         break
-                    
+
                     if char == delimiter:
                         break
-                    
+
                     chars.append(char)
-                    
+
                     # Echo character if not silent and in raw mode
                     if not silent and max_chars is not None:
                         sys.stdout.write(char)
                         sys.stdout.flush()
-                
+
                 # Echo newline after silent input
                 if silent:
                     sys.stdout.write('\n')
@@ -479,7 +479,7 @@ class ReadBuiltin(Builtin):
                     has_real_fileno = True
                 except (AttributeError, io.UnsupportedOperation):
                     has_real_fileno = False
-                
+
                 use_sys_stdin = not has_real_fileno
                 if has_real_fileno:
                     stdin_class_name = sys.stdin.__class__.__name__
@@ -489,7 +489,7 @@ class ReadBuiltin(Builtin):
                             use_sys_stdin = False
                         except (OSError, AttributeError):
                             use_sys_stdin = True
-                
+
                 # Read up to max_chars
                 limit = max_chars
                 while len(chars) < limit:
@@ -511,25 +511,25 @@ class ReadBuiltin(Builtin):
                 if line is None:
                     return None
                 return line
-        
+
         return ''.join(chars) if chars or delimiter != '\n' else None
-    
+
     def _read_with_timeout(self, fd: int, timeout: float, delimiter: str,
                           max_chars: Optional[int], silent: bool) -> Optional[str]:
         """Read with timeout support."""
         chars = []
         remaining_timeout = timeout
         is_tty = os.isatty(fd)
-        
+
         if is_tty and (silent or max_chars is not None):
             # Need raw mode for character-by-character reading
             with self._terminal_raw_mode(fd, echo=not silent):
                 limit = max_chars if max_chars is not None else float('inf')
-                
+
                 while len(chars) < limit:
                     import time
                     start_time = time.time()
-                    
+
                     # Use select to wait for input with timeout
                     ready, _, _ = select.select([fd], [], [], remaining_timeout)
                     if not ready:
@@ -538,26 +538,26 @@ class ReadBuiltin(Builtin):
                             sys.stdout.write('\n')
                             sys.stdout.flush()
                         return None
-                    
+
                     # Read one character
                     try:
                         char = os.read(fd, 1).decode('utf-8', errors='replace')
                     except OSError:
                         break
-                    
+
                     if not char:
                         break
-                    
+
                     if char == delimiter:
                         break
-                    
+
                     chars.append(char)
-                    
+
                     # Echo character if not silent
                     if not silent and max_chars is not None:
                         sys.stdout.write(char)
                         sys.stdout.flush()
-                    
+
                     # Update remaining timeout
                     elapsed = time.time() - start_time
                     remaining_timeout -= elapsed
@@ -566,7 +566,7 @@ class ReadBuiltin(Builtin):
                             sys.stdout.write('\n')
                             sys.stdout.flush()
                         return None
-                
+
                 # Echo newline after silent input
                 if silent:
                     sys.stdout.write('\n')
@@ -579,7 +579,7 @@ class ReadBuiltin(Builtin):
                 has_real_fileno = True
             except (AttributeError, io.UnsupportedOperation):
                 has_real_fileno = False
-            
+
             use_sys_stdin = not has_real_fileno
             if has_real_fileno:
                 stdin_class_name = sys.stdin.__class__.__name__
@@ -605,10 +605,10 @@ class ReadBuiltin(Builtin):
             else:
                 # StringIO doesn't support select, just read immediately
                 ready = [sys.stdin]
-            
+
             if not ready:
                 return None
-            
+
             # For non-TTY with char limit
             if max_chars is not None:
                 limit = max_chars
@@ -628,9 +628,9 @@ class ReadBuiltin(Builtin):
                 return ''.join(chars) if chars else None
             else:
                 return self._read_normal(fd, delimiter)
-        
+
         return ''.join(chars) if chars else None
-    
+
     @contextmanager
     def _terminal_raw_mode(self, fd: int, echo: bool = True):
         """Context manager for raw terminal mode."""
@@ -639,7 +639,7 @@ class ReadBuiltin(Builtin):
             # Not a TTY, just yield without changing settings
             yield
             return
-            
+
         old_settings = termios.tcgetattr(fd)
         try:
             tty.setraw(fd)

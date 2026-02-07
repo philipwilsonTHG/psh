@@ -4,11 +4,11 @@ This module provides multi-line command support for the interactive shell,
 allowing users to naturally type control structures across multiple lines.
 """
 
-import sys
-from typing import Optional, List
+from typing import List, Optional
+
 from .lexer import tokenize
-from .parser import parse, ParseError
 from .line_editor import LineEditor
+from .parser import ParseError, parse
 from .prompt import PromptExpander
 from .token_types import TokenType
 
@@ -25,7 +25,7 @@ class MultiLineInputHandler:
         self.heredoc_indent = False  # For <<- style
         self.prompt_expander = PromptExpander(shell)
         self.context_stack: List[str] = []  # Track nested construct contexts
-    
+
     def read_command(self) -> Optional[str]:
         """Read a complete command, possibly spanning multiple lines."""
         self.buffer = []
@@ -48,10 +48,10 @@ class MultiLineInputHandler:
                     print("\npsh: syntax error: unexpected end of file")
                     self.reset()
                 return None
-            
+
             # Add line to buffer
             self.buffer.append(line)
-            
+
             # Check if command is complete
             full_command = '\n'.join(self.buffer)
             if self._is_complete_command(full_command):
@@ -59,7 +59,7 @@ class MultiLineInputHandler:
                 # Process line continuations before returning
                 from .input_preprocessing import process_line_continuations
                 return process_line_continuations(full_command)
-    
+
     def reset(self):
         """Reset multi-line state."""
         self.buffer = []
@@ -67,7 +67,7 @@ class MultiLineInputHandler:
         self.heredoc_delimiter = None
         self.heredoc_indent = False
         self.context_stack = []
-    
+
     def _get_prompt(self) -> str:
         """Get the appropriate prompt based on current state."""
         if not self.buffer:
@@ -84,20 +84,20 @@ class MultiLineInputHandler:
                 # Fallback to standard PS2
                 ps2 = self.shell.variables.get('PS2', '> ')
                 return self.prompt_expander.expand_prompt(ps2)
-    
+
     def _is_complete_command(self, command: str) -> bool:
         """Check if command is syntactically complete."""
         if not command.strip():
             return True
-        
+
         # Check for explicit line continuation
         if self._has_line_continuation(command):
             return False
-        
+
         # Check for active heredoc
         if self._has_unclosed_heredoc(command):
             return False
-        
+
         # Check for operators at end of line that require continuation
         # But only if we're not inside [[ ]]
         stripped = command.strip()
@@ -109,8 +109,8 @@ class MultiLineInputHandler:
                 # Not inside [[ ]], so operators mean continuation
                 return False
             # Inside [[ ]], let the parser decide
-        
-        
+
+
         # Check for history expansion patterns that should be treated as complete
         # These will be expanded during execution, not during completeness testing
         import re
@@ -118,34 +118,34 @@ class MultiLineInputHandler:
         if re.search(history_pattern, command):
             # Contains history expansion - treat as complete and let execution handle it
             return True
-        
+
         # Try to tokenize and parse
         try:
             # Use interactive mode (strict=False) for multiline handling
             tokens = tokenize(command, strict=False)
             if not tokens:
                 return True
-            
+
             # Check for incomplete expansions in tokens
             for token in tokens:
                 # Check tokens that might contain unclosed expansions
-                if token.type in (TokenType.WORD, TokenType.COMMAND_SUB, TokenType.COMMAND_SUB_BACKTICK, 
+                if token.type in (TokenType.WORD, TokenType.COMMAND_SUB, TokenType.COMMAND_SUB_BACKTICK,
                                 TokenType.VARIABLE, TokenType.ARITH_EXPANSION):
                     # Check for unclosed expansions
                     if self._has_unclosed_expansion(token.value):
                         return False
-            
+
             # Try parsing
             parse(tokens)
             return True
-            
+
         except SyntaxError as e:
             # Unterminated string or other tokenization error
             if "Unclosed" in str(e) or "Unterminated" in str(e):
                 return False
             # Other tokenization errors are complete but invalid
             return True
-            
+
         except ParseError as e:
             # Check for incomplete constructs
             error_msg = str(e)
@@ -203,26 +203,26 @@ class MultiLineInputHandler:
             # Clear context stack since command is complete (though invalid)
             self.context_stack = []
             return True
-    
+
     def _has_line_continuation(self, command: str) -> bool:
         """Check if command ends with line continuation."""
         # Don't process empty strings
         if not command:
             return False
-            
+
         lines = command.splitlines(keepends=True)
         if not lines:
             return False
-        
+
         # Get the last line (including any trailing newline)
         last_line = lines[-1]
-        
+
         # If there's a newline, check the content before it
         if last_line.endswith('\n'):
             content = last_line[:-1].rstrip()
         else:
             content = last_line.rstrip()
-        
+
         if content.endswith('\\'):
             # Count preceding backslashes
             count = 0
@@ -233,13 +233,13 @@ class MultiLineInputHandler:
                     break
             # Odd number of total backslashes means the last one is not escaped
             return (count % 2) == 0
-        
+
         return False
-    
+
     def _has_unclosed_heredoc(self, command: str) -> bool:
         """Check if command has an unclosed heredoc."""
         import re
-        
+
         # First check if << only appears inside arithmetic expressions
         if '<<' in command and '((' in command:
             # Find all arithmetic expression boundaries
@@ -255,7 +255,7 @@ class MultiLineInputHandler:
                     i += 2
                 else:
                     i += 1
-            
+
             # Find all << positions
             heredoc_positions = []
             i = 0
@@ -265,7 +265,7 @@ class MultiLineInputHandler:
                     i += 2
                 else:
                     i += 1
-            
+
             # Check if all << are inside arithmetic expressions
             if heredoc_positions and arith_start and arith_end:
                 all_inside_arithmetic = True
@@ -279,18 +279,18 @@ class MultiLineInputHandler:
                     if not inside:
                         all_inside_arithmetic = False
                         break
-                
+
                 # If all << are inside arithmetic expressions, no heredoc
                 if all_inside_arithmetic:
                     return False
-        
+
         # Find all heredoc start markers (<<EOF, <<-EOF, << EOF, etc.)
         # Also handle escaped delimiters like << \EOF
         heredoc_pattern = r'<<(-?)\s*([\'"]?)(\\\s*)?(\w+)\2'
-        
+
         lines = command.split('\n')
         heredoc_delimiters = []
-        
+
         for line in lines:
             # Skip if line is inside a heredoc
             if any(d for d in heredoc_delimiters if not d['closed']):
@@ -314,14 +314,14 @@ class MultiLineInputHandler:
                         'closed': False,
                         'escaped': has_backslash
                     })
-        
+
         # Check if any heredocs remain unclosed
         return any(d for d in heredoc_delimiters if not d['closed'])
-    
+
     def _has_unclosed_expansion(self, text: str) -> bool:
         """Check if text contains unclosed expansions."""
         # Track open/close counts for each expansion type
-        
+
         # Command substitution $()
         depth = 0
         i = 0
@@ -336,11 +336,11 @@ class MultiLineInputHandler:
                 i += 1
         if depth > 0:
             return True
-        
+
         # Arithmetic expansion $(())
         i = 0
         while i < len(text):
-            if i + 2 < len(text) and text[i:i+3] == '$((': 
+            if i + 2 < len(text) and text[i:i+3] == '$((':
                 # Find the closing ))
                 j = i + 3
                 paren_count = 2
@@ -355,7 +355,7 @@ class MultiLineInputHandler:
                 i = j
             else:
                 i += 1
-        
+
         # Brace expansion {...}
         brace_depth = 0
         in_brace_expansion = False
@@ -382,7 +382,7 @@ class MultiLineInputHandler:
                 i += 1
         if brace_depth > 0:
             return True
-        
+
         # Parameter expansion ${...}
         i = 0
         while i < len(text):
@@ -401,7 +401,7 @@ class MultiLineInputHandler:
                 i = j
             else:
                 i += 1
-        
+
         # Backtick command substitution
         backtick_count = text.count('`')
         if backtick_count % 2 != 0:

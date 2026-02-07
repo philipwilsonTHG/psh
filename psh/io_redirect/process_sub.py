@@ -1,9 +1,10 @@
 """Process substitution implementation."""
+import fcntl
 import os
 import sys
-import fcntl
-from typing import List, Tuple, TYPE_CHECKING
-from ..ast_nodes import Command, ProcessSubstitution
+from typing import TYPE_CHECKING, List, Tuple
+
+from ..ast_nodes import Command
 
 if TYPE_CHECKING:
     from ..shell import Shell
@@ -11,15 +12,15 @@ if TYPE_CHECKING:
 
 class ProcessSubstitutionHandler:
     """Handles process substitution <(...) and >(...)."""
-    
+
     def __init__(self, shell: 'Shell'):
         self.shell = shell
         self.state = shell.state
-        
+
         # Track process substitution resources
         self.active_fds = []
         self.active_pids = []
-    
+
     def setup_process_substitutions(self, command: Command) -> Tuple[List[int], List[str], List[int]]:
         """
         Set up process substitutions for a command.
@@ -30,7 +31,7 @@ class ProcessSubstitutionHandler:
         fds_to_keep = []
         substituted_args = []
         child_pids = []
-        
+
         from ..ast_nodes import LiteralPart
         for i, arg in enumerate(command.args):
             # Detect process substitution via Word AST when available
@@ -56,13 +57,13 @@ class ProcessSubstitutionHandler:
             else:
                 # Not a process substitution, keep as-is
                 substituted_args.append(arg)
-        
+
         # Track for cleanup
         self.active_fds.extend(fds_to_keep)
         self.active_pids.extend(child_pids)
-        
+
         return fds_to_keep, substituted_args, child_pids
-    
+
     def _create_process_substitution(self, arg: str, arg_type: str) -> Tuple[int, str, int]:
         """
         Create a single process substitution.
@@ -79,7 +80,7 @@ class ProcessSubstitutionHandler:
             cmd_str = arg[2:-1]  # Remove >( and )
         else:
             raise ValueError(f"Invalid process substitution: {arg}")
-        
+
         # Create pipe
         if direction == 'in':
             # For <(cmd), parent reads from pipe, child writes to it
@@ -95,11 +96,11 @@ class ProcessSubstitutionHandler:
             child_fd = read_fd
             child_stdout = 1
             child_stdin = child_fd
-        
+
         # Clear close-on-exec flag for parent_fd so it survives exec
         flags = fcntl.fcntl(parent_fd, fcntl.F_GETFD)
         fcntl.fcntl(parent_fd, fcntl.F_SETFD, flags & ~fcntl.FD_CLOEXEC)
-        
+
         # Fork child for process substitution
         pid = os.fork()
         if pid == 0:  # Child
@@ -112,23 +113,23 @@ class ProcessSubstitutionHandler:
 
             # Close parent's end of pipe
             os.close(parent_fd)
-            
+
             # Set up child's stdio
             if direction == 'in':
                 os.dup2(child_stdout, 1)
             else:
                 os.dup2(child_stdin, 0)
-            
+
             # Close the pipe fd we duplicated
             os.close(child_fd)
-            
+
             # Execute the substitution command
             try:
                 # Import here to avoid circular import
                 from ..lexer import tokenize
                 from ..parser import parse
                 from ..shell import Shell
-                
+
                 # Parse and execute the command string
                 tokens = tokenize(cmd_str)
                 ast = parse(tokens)
@@ -139,17 +140,17 @@ class ProcessSubstitutionHandler:
             except Exception as e:
                 print(f"psh: process substitution error: {e}", file=sys.stderr)
                 os._exit(1)
-        
+
         else:  # Parent
             # Close child's end of pipe
             os.close(child_fd)
-            
+
             # Create path for this fd
             # On Linux/macOS, we can use /dev/fd/N
             fd_path = f"/dev/fd/{parent_fd}"
-            
+
             return parent_fd, fd_path, pid
-    
+
     def handle_redirect_process_sub(self, target: str) -> Tuple[str, int, int]:
         """
         Handle process substitution used as a redirect target.
@@ -166,15 +167,15 @@ class ProcessSubstitutionHandler:
             arg_type = 'PROCESS_SUB_OUT'
         else:
             raise ValueError(f"Invalid process substitution redirect: {target}")
-        
+
         fd, path, pid = self._create_process_substitution(target, arg_type)
-        
+
         # Track for cleanup
         self.active_fds.append(fd)
         self.active_pids.append(pid)
-        
+
         return path, fd, pid
-    
+
     def cleanup(self):
         """Clean up process substitution file descriptors and wait for children."""
         # Close file descriptors
@@ -184,7 +185,7 @@ class ProcessSubstitutionHandler:
             except OSError:
                 pass
         self.active_fds.clear()
-        
+
         # Wait for child processes
         for pid in self.active_pids:
             try:

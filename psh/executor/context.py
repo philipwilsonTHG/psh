@@ -6,8 +6,8 @@ execution state, replacing scattered instance variables with a structured
 approach.
 """
 
-from dataclasses import dataclass, field
-from typing import Optional, TYPE_CHECKING
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from ..job_control import Job
@@ -23,24 +23,24 @@ class ExecutionContext:
     previously stored as instance variables in ExecutorVisitor, providing
     a cleaner and more maintainable approach to state management.
     """
-    
+
     # Execution environment flags
     in_pipeline: bool = False
     in_subshell: bool = False
     in_forked_child: bool = False
-    
+
     # Control flow state
     loop_depth: int = 0
     current_function: Optional[str] = None
-    
+
     # Job and pipeline management
     pipeline_context: Optional['PipelineContext'] = None
     background_job: Optional['Job'] = None
-    
+
     # Additional state for specific operations
     suppress_function_lookup: bool = False
     exec_mode: bool = False
-    
+
     def fork_context(self) -> 'ExecutionContext':
         """
         Create a context for a forked child process.
@@ -60,7 +60,7 @@ class ExecutionContext:
             suppress_function_lookup=self.suppress_function_lookup,
             exec_mode=self.exec_mode
         )
-    
+
     def subshell_context(self) -> 'ExecutionContext':
         """
         Create a context for subshell execution.
@@ -79,7 +79,7 @@ class ExecutionContext:
             suppress_function_lookup=self.suppress_function_lookup,
             exec_mode=self.exec_mode
         )
-    
+
     def pipeline_context_enter(self) -> 'ExecutionContext':
         """
         Create a context for entering a pipeline.
@@ -97,7 +97,7 @@ class ExecutionContext:
             suppress_function_lookup=self.suppress_function_lookup,
             exec_mode=self.exec_mode
         )
-    
+
     def loop_context_enter(self) -> 'ExecutionContext':
         """
         Create a context for entering a loop.
@@ -115,7 +115,7 @@ class ExecutionContext:
             suppress_function_lookup=self.suppress_function_lookup,
             exec_mode=self.exec_mode
         )
-    
+
     def function_context_enter(self, function_name: str) -> 'ExecutionContext':
         """
         Create a context for entering a function.
@@ -133,7 +133,7 @@ class ExecutionContext:
             suppress_function_lookup=self.suppress_function_lookup,
             exec_mode=self.exec_mode
         )
-    
+
     def with_pipeline_context(self, pipeline_ctx: 'PipelineContext') -> 'ExecutionContext':
         """
         Create a context with a specific pipeline context.
@@ -151,7 +151,7 @@ class ExecutionContext:
             suppress_function_lookup=self.suppress_function_lookup,
             exec_mode=self.exec_mode
         )
-    
+
     def with_background_job(self, job: 'Job') -> 'ExecutionContext':
         """
         Create a context with a background job reference.
@@ -169,15 +169,15 @@ class ExecutionContext:
             suppress_function_lookup=self.suppress_function_lookup,
             exec_mode=self.exec_mode
         )
-    
+
     def in_loop(self) -> bool:
         """Check if we're currently inside a loop."""
         return self.loop_depth > 0
-    
+
     def in_function(self) -> bool:
         """Check if we're currently inside a function."""
         return self.current_function is not None
-    
+
     def should_use_print(self) -> bool:
         """
         Determine if builtins should use print() or write to file descriptors.

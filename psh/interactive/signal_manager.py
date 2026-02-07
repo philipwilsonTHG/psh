@@ -1,11 +1,11 @@
 """Signal handling manager for interactive shell."""
 import os
 import signal
-import sys
-from typing import Optional, Callable, Dict
-from .base import InteractiveComponent
+from typing import Callable, Dict
+
 from ..job_control import JobState
 from ..utils.signal_utils import SignalNotifier, get_signal_registry
+from .base import InteractiveComponent
 
 
 class SignalManager(InteractiveComponent):
@@ -27,18 +27,18 @@ class SignalManager(InteractiveComponent):
 
         # Get global signal registry for tracking
         self._signal_registry = get_signal_registry(create=True)
-        
+
     def execute(self, *args, **kwargs):
         """Set up signal handlers based on shell mode."""
         self.setup_signal_handlers()
-        
+
     def setup_signal_handlers(self):
         """Configure signal handlers based on shell mode."""
         if self.state.is_script_mode:
             self._setup_script_mode_handlers()
         else:
             self._setup_interactive_mode_handlers()
-            
+
     def _setup_script_mode_handlers(self):
         """Set up simpler signal handling for script mode."""
         # Script mode: Still check for traps, but use default for job control signals
@@ -61,7 +61,7 @@ class SignalManager(InteractiveComponent):
         self._signal_registry.register(signal.SIGTTIN, signal.SIG_IGN, "SignalManager:script")
         self._signal_registry.register(signal.SIGCHLD, signal.SIG_DFL, "SignalManager:script")
         self._signal_registry.register(signal.SIGPIPE, signal.SIG_DFL, "SignalManager:script")
-        
+
     def _setup_interactive_mode_handlers(self):
         """Set up full signal handling for interactive mode."""
         # Store original handlers for restoration and register with tracking
@@ -95,7 +95,7 @@ class SignalManager(InteractiveComponent):
         self._original_handlers[signal.SIGWINCH] = self._signal_registry.register(
             signal.SIGWINCH, self._handle_sigwinch, "SignalManager:interactive"
         )
-        
+
     def restore_default_handlers(self):
         """Restore default signal handlers."""
         # Restore all saved handlers
@@ -112,14 +112,14 @@ class SignalManager(InteractiveComponent):
             self._sigchld_notifier.close()
         if hasattr(self, '_sigwinch_notifier'):
             self._sigwinch_notifier.close()
-        
+
     def _handle_signal_with_trap_check(self, signum, frame):
         """Handle signals with trap checking."""
         # Get signal name from number
         signal_name = None
         if hasattr(self.shell, 'trap_manager'):
             signal_name = self.shell.trap_manager.signal_names.get(signum)
-        
+
         # Check if there's a user-defined trap for this signal
         if signal_name and hasattr(self.shell, 'trap_manager'):
             if signal_name in self.shell.trap_manager.state.trap_handlers:
@@ -131,7 +131,7 @@ class SignalManager(InteractiveComponent):
                     # Execute the trap
                     self.shell.trap_manager.execute_trap(signal_name)
                     return
-        
+
         # No trap set, use default behavior
         if signum == signal.SIGINT:
             self._handle_sigint(signum, frame)
@@ -139,7 +139,7 @@ class SignalManager(InteractiveComponent):
             # For other signals, use default behavior
             self._signal_registry.register(signum, signal.SIG_DFL, "SignalManager:default")
             os.kill(os.getpid(), signum)
-    
+
     def _handle_sigint(self, signum, frame):
         """Handle Ctrl-C (SIGINT) default behavior."""
         if self.state.is_script_mode:
@@ -151,7 +151,7 @@ class SignalManager(InteractiveComponent):
             print()
             # The signal will be delivered to the foreground process group
             # which is set in execute_pipeline
-        
+
     def _handle_sigchld(self, signum, frame):
         """Minimal signal handler - just notify main loop.
 

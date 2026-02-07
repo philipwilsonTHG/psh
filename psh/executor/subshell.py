@@ -7,17 +7,17 @@ process isolation and environment management.
 
 import os
 import sys
-from typing import List, TYPE_CHECKING
 from contextlib import contextmanager
-from .process_launcher import ProcessLauncher, ProcessConfig, ProcessRole
+from typing import TYPE_CHECKING, List
+
+from .process_launcher import ProcessConfig, ProcessLauncher, ProcessRole
 
 if TYPE_CHECKING:
-    from ..shell import Shell
-    from ..ast_nodes import SubshellGroup, BraceGroup, Redirect
-    from .context import ExecutionContext
     from psh.visitor.base import ASTVisitor
-    from ..job_control import Job, JobManager
-    from ..io_manager import IOManager
+
+    from ..ast_nodes import BraceGroup, Redirect, SubshellGroup
+    from ..shell import Shell
+    from .context import ExecutionContext
 
 
 class SubshellExecutor:
@@ -30,7 +30,7 @@ class SubshellExecutor:
     - Background execution of both constructs
     - Proper job control integration
     """
-    
+
     def __init__(self, shell: 'Shell'):
         """Initialize the subshell executor with a shell instance."""
         self.shell = shell
@@ -40,20 +40,20 @@ class SubshellExecutor:
         # Use centralized child signal reset (H3)
         self.launcher = ProcessLauncher(shell.state, shell.job_manager, shell.io_manager,
                                         shell.interactive_manager.signal_manager)
-    
+
     @contextmanager
     def _apply_redirections(self, redirects: List['Redirect']):
         """Context manager for applying and restoring redirections."""
         if not redirects:
             yield
             return
-            
+
         saved_fds = self.io_manager.apply_redirections(redirects)
         try:
             yield
         finally:
             self.io_manager.restore_redirections(saved_fds)
-    
+
     def execute_subshell(self, node: 'SubshellGroup', context: 'ExecutionContext',
                         visitor: 'ASTVisitor[int]') -> int:
         """
@@ -68,7 +68,7 @@ class SubshellExecutor:
             Exit status code
         """
         return self._execute_in_subshell(node.statements, node.redirects, node.background)
-    
+
     def execute_brace_group(self, node: 'BraceGroup', context: 'ExecutionContext',
                            visitor: 'ASTVisitor[int]') -> int:
         """
@@ -91,31 +91,31 @@ class SubshellExecutor:
         # Save pipeline context
         old_pipeline = context.in_pipeline
         context.in_pipeline = False
-        
+
         try:
             # Apply redirections
             with self._apply_redirections(node.redirects):
                 # Execute statements in current environment
                 exit_code = visitor.visit(node.statements)
-                
+
                 # Handle background execution
                 if node.background:
                     # For background brace groups, we need to fork
                     # Only the execution needs to be backgrounded
                     return self._execute_background_brace_group(node, visitor)
-                
+
                 return exit_code
         finally:
             context.in_pipeline = old_pipeline
-    
+
     def _execute_in_subshell(self, statements, redirects: List['Redirect'], background: bool) -> int:
         """Execute statements in an isolated subshell environment."""
         if background:
             return self._execute_background_subshell(statements, redirects)
-        
+
         # Execute in foreground subshell with proper isolation
         return self._execute_foreground_subshell(statements, redirects)
-    
+
     def _execute_foreground_subshell(self, statements, redirects: List['Redirect']) -> int:
         """Execute subshell in foreground with proper isolation."""
         # Save current terminal foreground process group
@@ -152,11 +152,11 @@ class SubshellExecutor:
         # Create execution function
         def execute_fn():
             # Import Shell here to avoid circular import
-            from ..shell import Shell
-
             # Mark that we're in a forked child BEFORE creating the Shell
             # This prevents the child from trying to set up job control/signals
             import os
+
+            from ..shell import Shell
             os.environ['PSH_IN_FORKED_CHILD'] = '1'
 
             try:
@@ -229,7 +229,7 @@ class SubshellExecutor:
             self.job_manager.remove_job(job.job_id)
 
         return exit_status
-    
+
     def _execute_background_subshell(self, statements, redirects: List['Redirect']) -> int:
         """Execute subshell in background with job control tracking."""
         # Create execution function
@@ -285,7 +285,7 @@ class SubshellExecutor:
             print(f"[{job.job_id}] {job.pgid}", file=self.shell.stderr)
 
         return 0
-    
+
     def _execute_background_brace_group(self, node: 'BraceGroup',
                                        visitor: 'ASTVisitor[int]') -> int:
         """

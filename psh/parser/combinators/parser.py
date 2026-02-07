@@ -4,24 +4,21 @@ This module integrates all the parser combinator modules into a cohesive
 parser that implements the AbstractShellParser interface.
 """
 
-from typing import List, Optional, Union, Dict, Any, Tuple
-from ...ast_nodes import TopLevel, CommandList, StatementList, ASTNode
-from ...token_types import Token
+from typing import Any, Dict, List, Optional, Tuple, Union
+
+from ...ast_nodes import ASTNode, CommandList, StatementList, TopLevel
 from ...lexer.keyword_normalizer import KeywordNormalizer
-from ..abstract_parser import (
-    AbstractShellParser, ParserCharacteristics, ParserType,
-    ParseMetrics, ParseError
-)
+from ...token_types import Token
+from ..abstract_parser import AbstractShellParser, ParseError, ParserCharacteristics, ParserType
 from ..config import ParserConfig
+from .commands import create_command_parsers
+from .control_structures import create_control_structure_parsers
+from .expansions import create_expansion_parsers
+from .heredoc_processor import create_heredoc_processor
+from .special_commands import create_special_command_parsers
 
 # Import all parser modules
-from .core import Parser, ParseResult, ForwardParser
-from .tokens import TokenParsers, create_token_parsers
-from .expansions import ExpansionParsers, create_expansion_parsers
-from .commands import CommandParsers, create_command_parsers
-from .control_structures import ControlStructureParsers, create_control_structure_parsers
-from .special_commands import SpecialCommandParsers, create_special_command_parsers
-from .heredoc_processor import HeredocProcessor, create_heredoc_processor
+from .tokens import create_token_parsers
 
 
 class ParserCombinatorShellParser(AbstractShellParser):
@@ -31,7 +28,7 @@ class ParserCombinatorShellParser(AbstractShellParser):
     It breaks down complex shell syntax into small, reusable parsing functions
     that can be combined to handle the full shell grammar.
     """
-    
+
     def __init__(self, config: Optional[ParserConfig] = None,
                  heredoc_contents: Optional[Dict[str, str]] = None):
         """Initialize the parser combinator.
@@ -41,51 +38,51 @@ class ParserCombinatorShellParser(AbstractShellParser):
             heredoc_contents: Optional map of heredoc keys to their content
         """
         super().__init__()
-        
+
         self.config = config or ParserConfig()
         self.heredoc_contents = heredoc_contents or {}
-        
+
         # Initialize all parser modules
         self._initialize_modules()
-    
+
     def _initialize_modules(self):
         """Initialize all parser modules and wire them together."""
         # Create token parsers
         self.tokens = create_token_parsers()
-        
+
         # Create expansion parsers
         self.expansions = create_expansion_parsers(self.config)
-        
+
         # Create command parsers with dependencies
         self.commands = create_command_parsers(
             config=self.config,
             token_parsers=self.tokens,
             expansion_parsers=self.expansions
         )
-        
+
         # Create control structure parsers
         self.control = create_control_structure_parsers(
             config=self.config,
             token_parsers=self.tokens,
             command_parsers=self.commands
         )
-        
+
         # Create special command parsers
         self.special = create_special_command_parsers(
             config=self.config,
             token_parsers=self.tokens,
             command_parsers=self.commands
         )
-        
+
         # Create heredoc processor
         self.heredoc_processor = create_heredoc_processor()
-        
+
         # Wire circular dependencies
         self._wire_dependencies()
-        
+
         # Build the complete parser after dependencies are wired
         self._build_complete_parser()
-    
+
     def _wire_dependencies(self):
         """Wire circular dependencies between modules.
         
@@ -97,14 +94,14 @@ class ParserCombinatorShellParser(AbstractShellParser):
         # initialization of parsers that depend on commands
         self.control.set_command_parsers(self.commands)
         self.special.set_command_parsers(self.commands)
-        
+
         # Wire forward declarations in commands module if needed
         if hasattr(self.commands, 'set_control_parsers'):
             self.commands.set_control_parsers(self.control)
-        
+
         if hasattr(self.commands, 'set_special_parsers'):
             self.commands.set_special_parsers(self.special)
-    
+
     def _build_complete_parser(self):
         """Build the complete top-level parser."""
         # First check if control structures have been initialized
@@ -121,11 +118,11 @@ class ParserCombinatorShellParser(AbstractShellParser):
                 # Then and-or lists (which include pipelines and simple commands)
                 .or_else(self.commands.and_or_list)
             )
-        
+
         # Update command parsers with the complete command parser
         if hasattr(self.commands, 'set_command_parser'):
             self.commands.set_command_parser(self.command)
-        
+
         # CRITICAL: Update the statement parser to include control structures
         # The statement parser was built before control structures were available
         # Now we need to update it to use the full command parser
@@ -135,13 +132,13 @@ class ParserCombinatorShellParser(AbstractShellParser):
             # Then the full command parser (control structures, special commands, and-or lists)
             .or_else(self.command)
         )
-        
+
         # Rebuild statement_list parser with the updated statement parser
         # The statement_list was built with the old statement parser that only had and_or_list
-        from .core import optional, many1, separated_by, sequence
+        from .core import many1, optional, sequence
         separator = self.tokens.semicolon.or_else(self.tokens.newline)
         separators = many1(separator)
-        
+
         # Rebuild with simpler logic - use simple many parser
         # Try parsing statements until we can't parse any more
         from .core import many
@@ -152,10 +149,10 @@ class ParserCombinatorShellParser(AbstractShellParser):
                 optional(separators)  # Optional trailing separators
             ).map(lambda parts: parts[1])  # Extract just the statement
         ).map(lambda stmts: CommandList(statements=stmts if stmts else []))
-        
+
         # Build top-level parser (statement list)
         self.top_level = self.commands.statement_list
-    
+
     def parse(self, tokens: List[Token]) -> Union[TopLevel, CommandList]:
         """Parse a list of tokens into an AST.
         
@@ -173,19 +170,19 @@ class ParserCombinatorShellParser(AbstractShellParser):
 
         # Reset metrics
         self.reset_metrics()
-        
+
         # Skip leading whitespace/newlines
         start_pos = 0
         while start_pos < len(tokens) and tokens[start_pos].type.name in ['WHITESPACE', 'NEWLINE']:
             start_pos += 1
-        
+
         # Empty input
         if start_pos >= len(tokens):
             return TopLevel(items=[])
-        
+
         # Parse the tokens
         result = self.top_level.parse(tokens, start_pos)
-        
+
         if not result.success:
             # Try to provide a helpful error message
             error_msg = result.error or "Failed to parse input"
@@ -193,15 +190,15 @@ class ParserCombinatorShellParser(AbstractShellParser):
                 error_token = tokens[result.position]
                 error_msg = f"{error_msg} at position {result.position}: {error_token.type.name} '{error_token.value}'"
             raise ParseError(error_msg, position=result.position)
-        
+
         # Get the parsed AST
         ast = result.value
-        
+
         # Ensure we consumed all tokens (allowing trailing whitespace/newlines and EOF)
         pos = result.position
         while pos < len(tokens) and tokens[pos].type.name in ['WHITESPACE', 'NEWLINE', 'EOF']:
             pos += 1
-        
+
         if pos < len(tokens):
             # We didn't consume all tokens
             remaining_token = tokens[pos]
@@ -210,11 +207,11 @@ class ParserCombinatorShellParser(AbstractShellParser):
                 position=pos,
                 token=remaining_token
             )
-        
+
         # Populate heredoc content if needed
         if self.heredoc_contents:
             self.heredoc_processor.populate_heredocs(ast, self.heredoc_contents)
-        
+
         # Wrap in TopLevel if needed
         if isinstance(ast, CommandList):
             # Convert CommandList to TopLevel by putting statements as items
@@ -227,8 +224,8 @@ class ParserCombinatorShellParser(AbstractShellParser):
         else:
             # Single statement - wrap it
             return TopLevel(items=[ast])
-    
-    def parse_with_heredocs(self, tokens: List[Token], 
+
+    def parse_with_heredocs(self, tokens: List[Token],
                            heredoc_contents: Dict[str, str]) -> Union[TopLevel, CommandList]:
         """Parse tokens with heredoc content support.
         
@@ -245,10 +242,10 @@ class ParserCombinatorShellParser(AbstractShellParser):
         """
         # Store heredoc contents
         self.heredoc_contents = heredoc_contents
-        
+
         # Parse normally (which will populate heredocs)
         return self.parse(tokens)
-    
+
     def parse_partial(self, tokens: List[Token]) -> Tuple[Optional[ASTNode], int]:
         """Parse as much as possible from the token stream.
         
@@ -265,37 +262,37 @@ class ParserCombinatorShellParser(AbstractShellParser):
         start_pos = 0
         while start_pos < len(tokens) and tokens[start_pos].type.name in ['WHITESPACE', 'NEWLINE']:
             start_pos += 1
-        
+
         # Empty input
         if start_pos >= len(tokens):
             return None, start_pos
-        
+
         # Try to parse
         result = self.top_level.parse(tokens, start_pos)
-        
+
         if result.success:
             # Populate heredocs if needed
             if self.heredoc_contents:
                 self.heredoc_processor.populate_heredocs(result.value, self.heredoc_contents)
             return result.value, result.position
-        
+
         # Try to parse a single statement
         stmt_result = self.commands.statement.parse(tokens, start_pos)
         if stmt_result.success:
             if self.heredoc_contents:
                 self.heredoc_processor.populate_heredocs(stmt_result.value, self.heredoc_contents)
             return stmt_result.value, stmt_result.position
-        
+
         # Try to parse a single command
         cmd_result = self.command.parse(tokens, start_pos)
         if cmd_result.success:
             if self.heredoc_contents:
                 self.heredoc_processor.populate_heredocs(cmd_result.value, self.heredoc_contents)
             return cmd_result.value, cmd_result.position
-        
+
         # Nothing could be parsed
         return None, start_pos
-    
+
     def can_parse(self, tokens: List[Token]) -> bool:
         """Check if the tokens can be parsed without actually parsing.
         
@@ -310,26 +307,26 @@ class ParserCombinatorShellParser(AbstractShellParser):
             start_pos = 0
             while start_pos < len(tokens) and tokens[start_pos].type.name in ['WHITESPACE', 'NEWLINE']:
                 start_pos += 1
-            
+
             # Empty input is valid
             if start_pos >= len(tokens):
                 return True
-            
+
             # Try to parse
             result = self.top_level.parse(tokens, start_pos)
-            
+
             if not result.success:
                 return False
-            
+
             # Check if we consumed all tokens (allowing trailing whitespace)
             pos = result.position
             while pos < len(tokens) and tokens[pos].type.name in ['WHITESPACE', 'NEWLINE']:
                 pos += 1
-            
+
             return pos == len(tokens)
         except Exception:
             return False
-    
+
     def get_name(self) -> str:
         """Return the parser implementation name.
         
@@ -337,7 +334,7 @@ class ParserCombinatorShellParser(AbstractShellParser):
             A unique identifier for this parser implementation
         """
         return "parser_combinator"
-    
+
     def get_description(self) -> str:
         """Return a human-readable description of the parser.
         
@@ -352,7 +349,7 @@ class ParserCombinatorShellParser(AbstractShellParser):
             "for tokens, expansions, commands, control structures, and "
             "special syntax."
         )
-    
+
     def get_characteristics(self) -> ParserCharacteristics:
         """Return the characteristics of this parser implementation.
         
@@ -373,7 +370,7 @@ class ParserCombinatorShellParser(AbstractShellParser):
             generated=False,
             functional=True
         )
-    
+
     def get_configuration_options(self) -> Dict[str, Any]:
         """Return available configuration options for this parser.
         
@@ -388,7 +385,7 @@ class ParserCombinatorShellParser(AbstractShellParser):
             'allow_bash_conditionals': 'Allow [[ ]] enhanced test syntax',
             'allow_empty_commands': 'Allow empty command lists'
         }
-    
+
     def configure(self, **options):
         """Configure the parser with implementation-specific options.
         
@@ -399,11 +396,11 @@ class ParserCombinatorShellParser(AbstractShellParser):
         for key, value in options.items():
             if hasattr(self.config, key):
                 setattr(self.config, key, value)
-        
+
         # Reinitialize modules with new config
         self._initialize_modules()
         self._build_complete_parser()
-    
+
     def explain_parse(self, tokens: List[Token]) -> str:
         """Provide an educational explanation of how parsing works.
         

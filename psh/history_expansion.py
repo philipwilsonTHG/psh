@@ -4,18 +4,17 @@ This module implements bash-compatible history expansion, processing history
 references like !!, !n, !-n, and !string before commands are tokenized.
 """
 
-import re
 import sys
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 
 class HistoryExpander:
     """Handles history expansion for the shell."""
-    
+
     def __init__(self, shell):
         self.shell = shell
         self.state = shell.state
-        
+
     def expand_history(self, command: str, print_expansion: bool = True) -> str:
         """Expand history references in a command string.
         
@@ -33,19 +32,19 @@ class HistoryExpander:
         # Skip expansion if history expansion is disabled
         if not self.state.options.get('histexpand', True):
             return command
-            
+
         # Get history from the shell
         history = self.state.history
-            
+
         # Track if we made any expansions
         expanded = False
         result = []
         i = 0
-        
+
         # Process the command character by character to handle quotes properly
         while i < len(command):
             char = command[i]
-            
+
             # Handle single quotes - no expansion inside
             if char == "'":
                 # Find the closing quote
@@ -56,7 +55,7 @@ class HistoryExpander:
                 result.append(command[i:j+1] if j < len(command) else command[i:])
                 i = j + 1
                 continue
-            
+
             # Handle double quotes - no history expansion inside
             elif char == '"':
                 # Find the closing quote, handling escapes
@@ -69,7 +68,7 @@ class HistoryExpander:
                 result.append(command[i:j+1] if j < len(command) else command[i:])
                 i = j + 1
                 continue
-            
+
             # Handle history expansion
             elif char == '!' and i + 1 < len(command) and command[i+1] != '=':
                 # Skip if we're inside [...] bracket expression (for glob patterns like [!abc])
@@ -141,7 +140,7 @@ class HistoryExpander:
                             else:
                                 print(f"psh: !!: event not found", file=sys.stderr)
                                 return None
-                        
+
                         # Check for numeric (!n or !-n)
                         j = i + 1
                         if j < len(command) and (command[j] == '-' or command[j].isdigit()):
@@ -150,7 +149,7 @@ class HistoryExpander:
                                 j += 1
                             while j < len(command) and command[j].isdigit():
                                 j += 1
-                            
+
                             n = int(command[i+1:j])
                             if n > 0:
                                 # !n - absolute position (1-based)
@@ -172,7 +171,7 @@ class HistoryExpander:
                                 else:
                                     print(f"psh: !{n}: event not found", file=sys.stderr)
                                     return None
-                        
+
                         # Check for !?string?
                         if i + 1 < len(command) and command[i+1] == '?':
                             j = i + 2
@@ -191,7 +190,7 @@ class HistoryExpander:
                                     print(f"psh: !?{search_str}?: event not found", file=sys.stderr)
                                     return None
                                 continue
-                        
+
                         # Check for !string
                         j = i + 1
                         while j < len(command) and not command[j].isspace() and command[j] not in '!?;|&(){}[]<>':
@@ -209,36 +208,36 @@ class HistoryExpander:
                                 print(f"psh: !{search_prefix}: event not found", file=sys.stderr)
                                 return None
                             continue
-                        
+
                         # If ! is not followed by any recognized pattern, treat it as a regular character
                         # This handles cases like [[ ! ... ]] where ! is followed by space
                         result.append(char)
                         i += 1
                         continue
-                
+
                 # If we broke from the while loop (we're inside ${...}), skip regular char processing
                 continue
-            
+
             # Regular character
             result.append(char)
             i += 1
-        
+
         final_result = ''.join(result)
-        
+
         # If we made expansions, print the expanded command (only when print_expansion is True)
         if expanded and print_expansion and sys.stdin.isatty():
             print(final_result)
-            
+
         return final_result
-    
+
     def is_history_expansion_char(self, char: str) -> bool:
         """Check if a character might start a history expansion."""
         return char == '!'
-    
+
     def get_history_list(self) -> List[str]:
         """Get the current history list."""
         return self.state.history.copy()
-    
+
     def get_history_item(self, index: int) -> Optional[str]:
         """Get a specific history item by index (1-based)."""
         if 1 <= index <= len(self.state.history):

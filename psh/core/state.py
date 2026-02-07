@@ -1,49 +1,51 @@
 """Shell state management."""
 import os
 import sys
-from typing import List, Dict, Optional, Any
+from typing import Dict, Optional
+
+from ..version import __version__
 from .scope_enhanced import EnhancedScopeManager
 from .variables import VarAttributes
-from ..version import __version__
+
 
 class ShellState:
     """Container for shell state that can be shared across components."""
-    
-    def __init__(self, args=None, script_name=None, debug_ast=False, 
+
+    def __init__(self, args=None, script_name=None, debug_ast=False,
                  debug_tokens=False, debug_scopes=False, debug_expansion=False, debug_expansion_detail=False,
                  debug_exec=False, debug_exec_fork=False, norc=False, rcfile=None):
         # Environment and variables
         self.env = os.environ.copy()
-        
+
         # Initialize enhanced scope manager for variable scoping with attributes
         self.scope_manager = EnhancedScopeManager()
-        
+
         # For backward compatibility, keep self.variables as a property
         # that delegates to scope_manager
-        
+
         # Default prompt variables (set in global scope)
         self.scope_manager.set_variable('PS1', 'psh$ ')
         self.scope_manager.set_variable('PS2', '> ')
-        
+
         # Shell version variable for compatibility
         self.scope_manager.set_variable('PSH_VERSION', __version__)
-        
+
         # Import environment variables into scope manager with EXPORT attribute
         # This ensures they're properly tracked as exported variables
         for name, value in self.env.items():
             self.scope_manager.set_variable(name, value, attributes=VarAttributes.EXPORT, local=False)
-        
+
         # Ensure PWD is set to current working directory if not already in environment
         if 'PWD' not in self.env:
             current_dir = os.getcwd()
             self.env['PWD'] = current_dir
             self.scope_manager.set_variable('PWD', current_dir, attributes=VarAttributes.EXPORT, local=False)
-        
+
         # Positional parameters and script info
         self.positional_params = args if args else []
         self.script_name = script_name or "psh"
         self.is_script_mode = script_name is not None and script_name != "psh"
-        
+
         # Centralized shell options dictionary
         self.options = {
             # Debug options (existing)
@@ -90,34 +92,34 @@ class ShellState:
             'enhanced-error-recovery': True, # -o enhanced-error-recovery: use enhanced error recovery
             'parser-mode': 'balanced', # -o parser-mode: performance mode (performance/balanced/development)
         }
-        
+
         # Enable debug mode on scope manager if debug-scopes is set
         if self.options['debug-scopes']:
             self.scope_manager.enable_debug(True)
-        
+
         # RC file options
         self.norc = norc
         self.rcfile = rcfile
-        
+
         # Execution state
         self.last_exit_code = 0
         self.last_bg_pid = None
         self.foreground_pgid = None
         self.command_number = 0
-        
+
         # History settings
         self.history = []
         self.history_file = os.path.expanduser("~/.psh_history")
         self.max_history_size = 1000
         self.history_index = -1
         self.current_line = ""
-        
+
         # Editor configuration
         self.edit_mode = 'emacs'
-        
+
         # Function call stack
         self.function_stack = []
-        
+
         # Process state
         self._in_forked_child = False
 
@@ -128,47 +130,47 @@ class ShellState:
 
         # Special mode for specific eval tests that need output capture
         self._eval_test_mode = False
-        
+
         # I/O streams (for backward compatibility)
         # Store initial values
         self._stdout = sys.stdout
         self._stderr = sys.stderr
         self._stdin = sys.stdin
-        
+
         # PS4 prompt for xtrace
         self.scope_manager.set_variable('PS4', '+ ')
-        
+
         # Initialize getopts variables
         self.scope_manager.set_variable('OPTIND', '1')
         self.scope_manager.set_variable('OPTERR', '1')
-        
+
         # PSH-specific variables
         self.scope_manager.set_variable('PSH_AST_FORMAT', 'tree')  # Default AST format
-        
+
         # Trap handlers: signal -> command string
         # Maps signal names (e.g., 'INT', 'TERM', 'EXIT') to trap command strings
         self.trap_handlers = {}
-        
+
         # Original signal handlers for restoration
         # Used when traps are removed to restore original behavior
         self._original_signal_handlers = {}
 
         # Detect terminal capabilities after initialization
         self._detect_terminal_capabilities()
-    
+
     @property
     def eval_test_mode(self) -> bool:
         """Whether we're in special eval test mode for output capture."""
         return self._eval_test_mode
-    
+
     def enable_eval_test_mode(self):
         """Enable special eval test mode for output capture."""
         self._eval_test_mode = True
-    
+
     def disable_eval_test_mode(self):
         """Disable special eval test mode."""
         self._eval_test_mode = False
-    
+
     @property
     def stdout(self):
         """Always return current sys.stdout for test compatibility."""
@@ -177,62 +179,62 @@ class ShellState:
             return self._custom_stdout
         # Otherwise return current sys.stdout (which pytest might have replaced)
         return sys.stdout
-    
+
     @stdout.setter
     def stdout(self, value):
         """Allow setting a custom stdout."""
         self._custom_stdout = value
-    
+
     @property
     def stderr(self):
         """Always return current sys.stderr for test compatibility."""
         if hasattr(self, '_custom_stderr'):
             return self._custom_stderr
         return sys.stderr
-    
-    @stderr.setter  
+
+    @stderr.setter
     def stderr(self, value):
         """Allow setting a custom stderr."""
         self._custom_stderr = value
-    
+
     @property
     def stdin(self):
         """Always return current sys.stdin for test compatibility."""
         if hasattr(self, '_custom_stdin'):
             return self._custom_stdin
         return sys.stdin
-    
+
     @stdin.setter
     def stdin(self, value):
         """Allow setting a custom stdin."""
         self._custom_stdin = value
-    
+
     # Backward-compatible properties for debug options
     @property
     def debug_ast(self):
         """Backward compatibility for debug_ast attribute."""
         return self.options.get('debug-ast', False)
-    
+
     @debug_ast.setter
     def debug_ast(self, value):
         """Backward compatibility for debug_ast attribute."""
         self.options['debug-ast'] = value
-    
+
     @property
     def debug_tokens(self):
         """Backward compatibility for debug_tokens attribute."""
         return self.options.get('debug-tokens', False)
-    
+
     @debug_tokens.setter
     def debug_tokens(self, value):
         """Backward compatibility for debug_tokens attribute."""
         self.options['debug-tokens'] = value
-    
+
     @property
     def debug_scopes(self):
         """Backward compatibility for debug_scopes attribute."""
         return self.options.get('debug-scopes', False)
-    
+
     @debug_scopes.setter
     def debug_scopes(self, value):
         """Backward compatibility for debug_scopes attribute."""
@@ -240,12 +242,12 @@ class ShellState:
         # Also update scope manager when this is set
         if hasattr(self, 'scope_manager'):
             self.scope_manager.enable_debug(value)
-    
+
     @property
     def variables(self) -> Dict[str, str]:
         """Backward compatibility: return all visible variables as dict."""
         return self.scope_manager.get_all_variables()
-    
+
     def get_variable(self, name: str, default: str = '') -> str:
         """Get variable value, checking shell variables first, then environment."""
         # Check scope manager first (includes locals and globals)
@@ -254,7 +256,7 @@ class ShellState:
             return result
         # Fall back to environment
         return self.env.get(name, default)
-    
+
     def set_variable(self, name: str, value: str):
         """Set a shell variable."""
         # If allexport is enabled, set with export attribute
@@ -269,7 +271,7 @@ class ShellState:
             # Use scope manager (will set in global scope if not in function,
             # or global scope if in function per bash behavior)
             self.scope_manager.set_variable(name, value, local=False)
-    
+
     def export_variable(self, name: str, value: str):
         """Export a variable to the environment."""
         # Set variable with EXPORT attribute in global scope
@@ -279,17 +281,17 @@ class ShellState:
         os.environ[name] = value
         # Sync all exports to environment
         self.scope_manager.sync_exports_to_environment(self.env)
-    
+
     def get_positional_param(self, index: int) -> str:
         """Get positional parameter by index (1-based)."""
         if 1 <= index <= len(self.positional_params):
             return self.positional_params[index - 1]
         return ''
-    
+
     def set_positional_params(self, params):
         """Set positional parameters ($1, $2, etc.)."""
         self.positional_params = params.copy() if params else []
-    
+
     def get_special_variable(self, name: str) -> str:
         """Get special variable value ($?, $$, $!, etc.)."""
         if name == '?':

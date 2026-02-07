@@ -2,7 +2,8 @@
 
 import os
 import sys
-from typing import List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Optional
+
 from .base import Builtin
 from .registry import builtin
 
@@ -12,24 +13,24 @@ if TYPE_CHECKING:
 
 class DirectoryStack:
     """Manages the directory stack for pushd/popd/dirs commands."""
-    
+
     def __init__(self):
         self.stack = []  # Stack of directories, index 0 is current
-    
+
     def initialize(self, current_dir: str):
         """Initialize stack with current directory."""
         self.stack = [current_dir]
-    
+
     def push(self, directory: str) -> str:
         """Push directory onto stack and return new current directory."""
         self.stack.insert(0, directory)
         return directory
-    
+
     def pop(self, index: Optional[int] = None) -> Optional[str]:
         """Pop directory from stack. Returns new current directory or None if empty."""
         if len(self.stack) <= 1:
             return None  # Can't pop the last directory
-        
+
         if index is None:
             # Pop current directory (index 0)
             self.stack.pop(0)
@@ -40,45 +41,45 @@ class DirectoryStack:
                 self.stack.pop(index)
                 return self.stack[0] if self.stack else None
             return None
-    
+
     def rotate(self, offset: int) -> Optional[str]:
         """Rotate stack by offset. Positive rotates left, negative rotates right."""
         if len(self.stack) <= 1:
             return None
-        
+
         # Normalize offset to stack size
         offset = offset % len(self.stack)
         if offset == 0:
             return self.stack[0]  # No change
-        
+
         # Rotate the stack
         self.stack = self.stack[offset:] + self.stack[:offset]
         return self.stack[0]
-    
+
     def swap_top_two(self) -> Optional[str]:
         """Swap top two directories on stack."""
         if len(self.stack) < 2:
             return None
-        
+
         self.stack[0], self.stack[1] = self.stack[1], self.stack[0]
         return self.stack[0]
-    
+
     def clear(self):
         """Clear stack except current directory."""
         if self.stack:
             current = self.stack[0]
             self.stack = [current]
-    
+
     def get_directory(self, index: int) -> Optional[str]:
         """Get directory at specific index."""
         if 0 <= index < len(self.stack):
             return self.stack[index]
         return None
-    
+
     def size(self) -> int:
         """Get stack size."""
         return len(self.stack)
-    
+
     def update_current(self, directory: str):
         """Update current directory (index 0) without changing stack structure."""
         if self.stack:
@@ -90,19 +91,19 @@ class DirectoryStack:
 @builtin
 class PushdBuiltin(Builtin):
     """Push directory onto stack and change to it."""
-    
+
     @property
     def name(self) -> str:
         return "pushd"
-    
+
     @property
     def synopsis(self) -> str:
         return "pushd [dir | +N | -N]"
-    
+
     @property
     def description(self) -> str:
         return "Add directories to stack and change directory"
-    
+
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Execute pushd command."""
         # Initialize directory stack if not present
@@ -111,16 +112,16 @@ class PushdBuiltin(Builtin):
             # Use PWD if available to preserve logical path, otherwise use physical path
             current_dir = shell.env.get('PWD', os.getcwd())
             shell.state.directory_stack.initialize(current_dir)
-        
+
         stack = shell.state.directory_stack
-        
+
         if len(args) == 1:
             # No arguments - swap top two directories
             new_dir = stack.swap_top_two()
             if new_dir is None:
                 self.error("directory stack empty", shell)
                 return 1
-            
+
             try:
                 os.chdir(new_dir)
                 self._update_pwd_vars(new_dir, shell)
@@ -129,9 +130,9 @@ class PushdBuiltin(Builtin):
             except (FileNotFoundError, NotADirectoryError, PermissionError) as e:
                 self.error(str(e), shell)
                 return 1
-        
+
         arg = args[1]
-        
+
         # Handle rotation arguments (+N, -N)
         if arg.startswith('+') or arg.startswith('-'):
             try:
@@ -140,7 +141,7 @@ class PushdBuiltin(Builtin):
                 if new_dir is None:
                     self.error("directory stack empty", shell)
                     return 1
-                
+
                 try:
                     os.chdir(new_dir)
                     self._update_pwd_vars(new_dir, shell)
@@ -152,21 +153,21 @@ class PushdBuiltin(Builtin):
             except ValueError:
                 self.error(f"invalid rotation argument: {arg}", shell)
                 return 1
-        
+
         # Regular directory argument
         directory = arg
-        
+
         # Expand tilde
         if directory.startswith('~'):
             if hasattr(shell.expansion_manager, 'expand_tilde'):
                 directory = shell.expansion_manager.expand_tilde(directory)
             else:
                 directory = os.path.expanduser(directory)
-        
+
         # Convert to absolute path
         if not os.path.isabs(directory):
             directory = os.path.abspath(directory)
-        
+
         try:
             # Get current directory from PWD to preserve logical path
             current_dir = shell.env.get('PWD', os.getcwd())
@@ -201,32 +202,32 @@ class PushdBuiltin(Builtin):
         except Exception as e:
             self.error(str(e), shell)
             return 1
-    
+
     def _update_pwd_vars(self, directory: str, shell: 'Shell'):
         """Update PWD and OLDPWD environment variables."""
         old_pwd = shell.env.get('PWD', os.getcwd())
         shell.env['OLDPWD'] = old_pwd
         shell.env['PWD'] = directory
-        
+
         # Also update shell state variables
         try:
             shell.state.set_variable('OLDPWD', old_pwd)
             shell.state.set_variable('PWD', directory)
         except (AttributeError, TypeError):
             pass
-    
+
     def _print_stack(self, stack: DirectoryStack, shell: 'Shell'):
         """Print current directory stack."""
         output = ' '.join(self._format_directory(d) for d in stack.stack)
         print(output, file=shell.stdout if hasattr(shell, 'stdout') else sys.stdout)
-    
+
     def _format_directory(self, directory: str) -> str:
         """Format directory for display (with ~ expansion if in home)."""
         home = os.path.expanduser('~')
         if directory.startswith(home):
             return '~' + directory[len(home):]
         return directory
-    
+
     @property
     def help(self) -> str:
         return """pushd: pushd [dir | +N | -N]
@@ -249,19 +250,19 @@ class PushdBuiltin(Builtin):
 @builtin
 class PopdBuiltin(Builtin):
     """Pop directory from stack and change to it."""
-    
+
     @property
     def name(self) -> str:
         return "popd"
-    
+
     @property
     def synopsis(self) -> str:
         return "popd [+N | -N]"
-    
+
     @property
     def description(self) -> str:
         return "Remove directories from stack and change directory"
-    
+
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Execute popd command."""
         # Initialize directory stack if not present
@@ -270,20 +271,20 @@ class PopdBuiltin(Builtin):
             # Use PWD if available to preserve logical path, otherwise use physical path
             current_dir = shell.env.get('PWD', os.getcwd())
             shell.state.directory_stack.initialize(current_dir)
-        
+
         stack = shell.state.directory_stack
-        
+
         if stack.size() <= 1:
             self.error("directory stack empty", shell)
             return 1
-        
+
         if len(args) == 1:
             # No arguments - pop current directory
             new_dir = stack.pop()
             if new_dir is None:
                 self.error("directory stack empty", shell)
                 return 1
-            
+
             try:
                 os.chdir(new_dir)
                 self._update_pwd_vars(new_dir, shell)
@@ -292,13 +293,13 @@ class PopdBuiltin(Builtin):
             except (FileNotFoundError, NotADirectoryError, PermissionError) as e:
                 self.error(str(e), shell)
                 return 1
-        
+
         # Handle index arguments (+N, -N)
         arg = args[1]
         if not (arg.startswith('+') or arg.startswith('-')):
             self.error(f"invalid argument: {arg}", shell)
             return 1
-        
+
         try:
             index = int(arg)
             if arg.startswith('-'):
@@ -307,18 +308,18 @@ class PopdBuiltin(Builtin):
             else:
                 # +N means Nth from left
                 index = index
-            
+
             if index < 0 or index >= stack.size():
                 self.error(f"directory stack index out of range: {arg}", shell)
                 return 1
-            
+
             if index == 0:
                 # Popping current directory - change to new top
                 new_dir = stack.pop(0)
                 if new_dir is None:
                     self.error("directory stack empty", shell)
                     return 1
-                
+
                 try:
                     os.chdir(new_dir)
                     self._update_pwd_vars(new_dir, shell)
@@ -328,39 +329,39 @@ class PopdBuiltin(Builtin):
             else:
                 # Popping non-current directory - don't change directories
                 stack.pop(index)
-            
+
             self._print_stack(stack, shell)
             return 0
-            
+
         except ValueError:
             self.error(f"invalid index argument: {arg}", shell)
             return 1
-    
+
     def _update_pwd_vars(self, directory: str, shell: 'Shell'):
         """Update PWD and OLDPWD environment variables."""
         old_pwd = shell.env.get('PWD', os.getcwd())
         shell.env['OLDPWD'] = old_pwd
         shell.env['PWD'] = directory
-        
+
         # Also update shell state variables
         try:
             shell.state.set_variable('OLDPWD', old_pwd)
             shell.state.set_variable('PWD', directory)
         except (AttributeError, TypeError):
             pass
-    
+
     def _print_stack(self, stack: DirectoryStack, shell: 'Shell'):
         """Print current directory stack."""
         output = ' '.join(self._format_directory(d) for d in stack.stack)
         print(output, file=shell.stdout if hasattr(shell, 'stdout') else sys.stdout)
-    
+
     def _format_directory(self, directory: str) -> str:
         """Format directory for display (with ~ expansion if in home)."""
         home = os.path.expanduser('~')
         if directory.startswith(home):
             return '~' + directory[len(home):]
         return directory
-    
+
     @property
     def help(self) -> str:
         return """popd: popd [+N | -N]
@@ -381,19 +382,19 @@ class PopdBuiltin(Builtin):
 @builtin
 class DirsBuiltin(Builtin):
     """Display directory stack."""
-    
+
     @property
     def name(self) -> str:
         return "dirs"
-    
+
     @property
     def synopsis(self) -> str:
         return "dirs [-clv] [+N | -N]"
-    
+
     @property
     def description(self) -> str:
         return "Display directory stack"
-    
+
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Execute dirs command."""
         # Initialize directory stack if not present
@@ -402,15 +403,15 @@ class DirsBuiltin(Builtin):
             # Use PWD if available to preserve logical path, otherwise use physical path
             current_dir = shell.env.get('PWD', os.getcwd())
             shell.state.directory_stack.initialize(current_dir)
-        
+
         stack = shell.state.directory_stack
-        
+
         # Parse options
         clear_stack = False
         vertical_format = False
         no_tilde = False
         show_index = None
-        
+
         i = 1
         while i < len(args):
             arg = args[i]
@@ -433,7 +434,7 @@ class DirsBuiltin(Builtin):
                     if arg.startswith('-'):
                         # -N means Nth from right
                         show_index = stack.size() + show_index
-                    
+
                     if show_index < 0 or show_index >= stack.size():
                         self.error(f"directory stack index out of range: {arg}", shell)
                         return 1
@@ -444,23 +445,23 @@ class DirsBuiltin(Builtin):
                 self.error(f"invalid argument: {arg}", shell)
                 return 1
             i += 1
-        
+
         # Handle clear operation
         if clear_stack:
             stack.clear()
             return 0
-        
+
         # Handle index display
         if show_index is not None:
             directory = stack.get_directory(show_index)
             if directory is None:
                 self.error(f"directory stack index out of range: {show_index}", shell)
                 return 1
-            
+
             formatted = self._format_directory(directory, no_tilde)
             print(formatted, file=shell.stdout if hasattr(shell, 'stdout') else sys.stdout)
             return 0
-        
+
         # Display stack
         if vertical_format:
             for i, directory in enumerate(stack.stack):
@@ -471,14 +472,14 @@ class DirsBuiltin(Builtin):
             directories = [self._format_directory(d, no_tilde) for d in stack.stack]
             output = ' '.join(directories)
             print(output, file=shell.stdout if hasattr(shell, 'stdout') else sys.stdout)
-        
+
         return 0
-    
+
     def _format_directory(self, directory: str, no_tilde: bool = False) -> str:
         """Format directory for display."""
         if no_tilde:
             return directory
-        
+
         # Apply tilde expansion
         home = os.path.expanduser('~')
         if directory == home:
@@ -486,7 +487,7 @@ class DirsBuiltin(Builtin):
         elif directory.startswith(home + os.sep):
             return '~' + directory[len(home):]
         return directory
-    
+
     @property
     def help(self) -> str:
         return """dirs: dirs [-clv] [+N | -N]

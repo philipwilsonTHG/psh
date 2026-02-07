@@ -1,13 +1,12 @@
 """Enhanced parser integration for working with enhanced lexer output."""
 
-from typing import List, Optional, Union, Any, Dict
+from typing import Any, Dict, List, Optional, Union
 
-from .base import EnhancedContextBaseParser, EnhancedParserConfig, create_enhanced_parser
-from ...factory import EnhancedParserFactory, create_development_parser, create_production_parser
-from .commands import EnhancedSimpleCommandParser, EnhancedTestParser
-from ....token_types import Token
-from ....token_types import Token
 from ....lexer.parser_contract import LexerParserContract
+from ....token_types import Token
+from ...factory import EnhancedParserFactory, create_development_parser, create_production_parser
+from .base import EnhancedContextBaseParser, EnhancedParserConfig, create_enhanced_parser
+from .commands import EnhancedSimpleCommandParser, EnhancedTestParser
 
 
 def parse_with_enhanced_lexer(
@@ -19,7 +18,7 @@ def parse_with_enhanced_lexer(
     """Parse using enhanced lexer-parser pipeline."""
     # Import here to avoid circular imports
     from ....lexer.enhanced_integration import enhanced_tokenize
-    
+
     # Get tokens using enhanced lexer
     if use_enhanced_features:
         lexer_result = enhanced_tokenize(input_string, enable_enhancements=True)
@@ -27,10 +26,10 @@ def parse_with_enhanced_lexer(
         # Fallback to base lexer
         from ....lexer import tokenize
         lexer_result = tokenize(input_string)
-    
+
     # Create enhanced parser
     parser = create_enhanced_parser(lexer_result, parser_config)
-    
+
     # Parse
     return parser.parse()
 
@@ -70,7 +69,7 @@ def parse_simple_command_enhanced(
         enable_context_validation=True,
         enable_semantic_validation=True
     )
-    
+
     parser = create_enhanced_parser(tokens_or_contract, config)
     if hasattr(parser, 'parse_simple_command_enhanced'):
         return parser.parse_simple_command_enhanced()
@@ -87,7 +86,7 @@ def parse_test_expression_enhanced(
         use_enhanced_tokens=True,
         enable_context_validation=True
     )
-    
+
     parser = create_enhanced_parser(tokens_or_contract, config)
     if hasattr(parser, 'parse_test_expression_enhanced'):
         return parser.parse_test_expression_enhanced()
@@ -106,34 +105,34 @@ def analyze_command_semantics(
         tokens_or_contract = enhanced_tokenize(input_command, enable_enhancements=True)
     else:
         tokens_or_contract = input_command
-    
+
     config = EnhancedParserConfig(
         use_enhanced_tokens=True,
         enable_semantic_analysis=True,
         enable_context_validation=True
     )
-    
+
     parser = create_enhanced_parser(tokens_or_contract, config)
-    
+
     # Get semantic analysis results
     if hasattr(parser, 'get_lexer_diagnostics'):
         diagnostics = parser.get_lexer_diagnostics()
     else:
         diagnostics = {}
-    
+
     # Add parser-level analysis
     if hasattr(parser, 'semantic_analyzer') and parser.semantic_analyzer:
         enhanced_tokens = [t for t in parser.ctx.tokens if isinstance(t, Token)]
         variable_issues = parser.semantic_analyzer.analyze_variable_usage(enhanced_tokens)
         diagnostics['variable_issues'] = variable_issues
-    
+
     return diagnostics
 
 
 # Export the main components
 __all__ = [
     'EnhancedContextBaseParser',
-    'EnhancedParserConfig', 
+    'EnhancedParserConfig',
     'EnhancedParserFactory',
     'EnhancedSimpleCommandParser',
     'EnhancedTestParser',

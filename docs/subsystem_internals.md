@@ -15,6 +15,7 @@ Input → Lexer → Tokens → Parser → AST → Expansion → Evaluation/Execu
 3. [Expansion](#3-expansion)
 4. [Evaluation (Executor/Visitor)](#4-evaluation)
 5. [End-to-End Flow](#5-end-to-end-flow)
+6. [Pytest and Subshell File Descriptor Conflict](#6-pytest-and-subshell-file-descriptor-conflict)
 
 ---
 
@@ -685,3 +686,87 @@ Pipeline
 8. Returns `wc`'s exit code (0)
 
 Output: `2`
+
+---
+
+## 6. Pytest and Subshell File Descriptor Conflict
+
+This section documents the fundamental incompatibility between pytest's output capture and PSH's subshell file descriptor management. It is recorded here for future reference — the issue is well-understood and the current mitigation (running subshell tests with `-s`) is the correct approach.
+
+### 6.1 The Problem
+
+About 50 tests (43 subshell tests plus a handful of function/variable/control-flow tests that exercise subshells internally) must be run with pytest's `-s` flag (disable output capture). Without `-s`, these tests see empty output files or missing pipe data. The test runner (`run_tests.py`) handles this automatically by splitting the suite into phases.
+
+### 6.2 Root Cause
+
+Pytest's default output capture replaces file descriptors 1 (stdout) and 2 (stderr) at the OS level using `os.dup2()`. When PSH forks a child process for a subshell, the child inherits the parent's file descriptor table — including pytest's redirected FDs 1 and 2.
+
+```
+Pytest starts
+  └─ os.dup2(capture_fd, 1)     # FD 1 now points to pytest's capture buffer
+  └─ os.dup2(capture_fd, 2)     # FD 2 now points to pytest's capture buffer
+
+PSH test runs: (echo hello) > file.txt
+  └─ Parent calls os.fork()
+  └─ Child inherits FD 1 → pytest capture buffer
+  └─ Child calls os.dup2(file_fd, 1)   # Redirects "stdout" to file
+  └─ Child execs echo, which writes to FD 1
+  └─ Output arrives in file.txt ← This part works
+
+But for cases where the child is a shell process (not exec'd):
+  └─ Child creates a new Shell instance
+  └─ Python's sys.stdout still references pytest's capture wrapper
+  └─ Builtins writing via sys.stdout go to pytest, not to FD 1
+  └─ Test reads file.txt → empty or partial
+```
+
+The conflict is specifically between Python-level `sys.stdout` (which pytest wraps) and OS-level FD 1 (which `dup2()` redirects). External commands that `exec()` are unaffected because `exec` replaces the Python runtime entirely. Shell processes (subshells) that run Python builtins hit the mismatch.
+
+### 6.3 Why `-s` Is the Correct Mitigation
+
+With `-s`, pytest does not install its capture machinery. FDs 1 and 2 remain connected to the terminal (or pipe). When PSH forks and redirects, the child's FDs and Python file objects are consistent — there is no capture wrapper to conflict with.
+
+This is not a workaround but the correct test configuration for tests that exercise Unix process semantics. The same constraint applies to any test framework testing code that forks and manipulates file descriptors.
+
+### 6.4 Alternatives Considered
+
+| Approach | Outcome |
+|----------|---------|
+| Use `sys.__stdout__` in builtins | Fails: pytest captures at the FD level, not just the Python wrapper |
+| `capfd.disabled()` context manager | Incomplete: doesn't restore FDs before fork, and scope is awkward |
+| Restore real FDs in the child after fork | Fragile: requires knowing what the "real" FDs were, and pytest's saved FDs change between versions |
+| Write builtins to FD 1 via `os.write()` | Partially works (and PSH does this in forked children via `_in_forked_child`), but doesn't help with Python-level `print()` calls in the child Shell |
+| Separate test process (subprocess) | Works but slow and loses pytest fixture/assertion integration |
+
+### 6.5 What Would a Full Fix Look Like
+
+A complete fix would require one of:
+
+1. **All shell-process output routed through `os.write()`**: Every builtin and internal print in a forked child would need to bypass Python's `sys.stdout` entirely. PSH partially does this (the `_in_forked_child` flag switches some builtins to `os.write()`), but it would need to be comprehensive — covering every `print()`, every `sys.stdout.write()`, and every library call that touches Python streams. This is a large surface area with diminishing returns.
+
+2. **ProcessLauncher restores "real" FDs before executing shell processes**: After forking, the child could close FDs 1/2 and reopen `/dev/tty` (or use saved copies of the original FDs). This is what the `shell` fixture's FD save/restore does in the parent, but doing it reliably in the child — across different pytest versions and capture modes — is fragile.
+
+3. **Run subshell tests out-of-process**: Use `subprocess.run(['python', '-m', 'pytest', ...])` to run subshell tests in a clean process without inherited capture. This works but defeats the purpose of integrated test runs.
+
+None of these are worth the complexity. The phased test runner is simple, reliable, and well-documented.
+
+### 6.6 Current Architecture
+
+```
+run_tests.py
+  ├─ Phase 1: All tests except subshells (normal capture)
+  ├─ Phase 2: tests/integration/subshells/ (with -s)
+  └─ Phase 3: Individual tests that exercise subshells (with -s)
+              - test_function_advanced.py::test_function_with_subshell
+              - test_variable_assignment.py::test_assignment_with_subshell
+              - test_c_style_for_loops.py::TestCStyleForIORedirection (3 tests)
+```
+
+The `isolated_shell_with_temp_dir` fixture provides a clean working directory and Shell instance. It does not (and cannot) fix the FD capture conflict — that is handled entirely by the `-s` flag.
+
+### 6.7 Relationship to SIGTTOU Policy
+
+The pytest `-s` issue and the SIGTTOU signal issue are independent problems that both affect subshell tests, which is why they were grouped under architecture-comments.md opportunity #6. They are now separated:
+
+- **SIGTTOU policy**: Resolved in v0.122.0. `ProcessConfig.is_shell_process` centralizes the shell-vs-leaf signal disposition in `ProcessLauncher`.
+- **Pytest FD capture**: Permanent test infrastructure constraint. Mitigated by the phased test runner. Not a PSH bug.

@@ -1,16 +1,16 @@
 """Token recognizer system for modular lexing."""
 
 from .base import TokenRecognizer
-from .operator import OperatorRecognizer
+from .comment import CommentRecognizer
 from .keyword import KeywordRecognizer
 from .literal import LiteralRecognizer
-from .whitespace import WhitespaceRecognizer
-from .comment import CommentRecognizer
+from .operator import OperatorRecognizer
 from .registry import RecognizerRegistry, setup_default_recognizers
+from .whitespace import WhitespaceRecognizer
 
 __all__ = [
     'TokenRecognizer',
-    'OperatorRecognizer', 
+    'OperatorRecognizer',
     'KeywordRecognizer',
     'LiteralRecognizer',
     'WhitespaceRecognizer',

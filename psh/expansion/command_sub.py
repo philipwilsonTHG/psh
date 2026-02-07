@@ -2,9 +2,7 @@
 import errno
 import os
 import sys
-import tempfile
 from typing import TYPE_CHECKING
-from ..core.state import ShellState
 
 if TYPE_CHECKING:
     from ..shell import Shell
@@ -12,11 +10,11 @@ if TYPE_CHECKING:
 
 class CommandSubstitution:
     """Handles command substitution $(...) and `...`."""
-    
+
     def __init__(self, shell: 'Shell'):
         self.shell = shell
         self.state = shell.state
-    
+
     def execute(self, cmd_sub: str) -> str:
         """Execute command substitution and return output"""
         # Remove $(...) or `...`
@@ -26,34 +24,34 @@ class CommandSubstitution:
             command = cmd_sub[1:-1]
         else:
             return ''
-        
+
         # Import Shell here to avoid circular import
         from ..shell import Shell
-        
+
         # Create a pipe for capturing output
         read_fd, write_fd = os.pipe()
-        
+
         # Block SIGCHLD to prevent job control interference
         import signal
         old_handler = signal.signal(signal.SIGCHLD, signal.SIG_DFL)
-        
+
         pid = os.fork()
         if pid == 0:
             # Child process
             try:
                 # Close read end
                 os.close(read_fd)
-                
+
                 # Redirect stdout to write end of pipe
                 os.dup2(write_fd, 1)
                 os.close(write_fd)
-                
+
                 # Protect stdin in interactive sessions to prevent terminal corruption
                 # But preserve stdin for pipelines and scripts where it's needed
                 # Use same interactive detection logic as shell initialization
                 is_interactive = getattr(self.shell, '_force_interactive', sys.stdin.isatty())
                 should_protect_stdin = (
-                    not self.state.is_script_mode and 
+                    not self.state.is_script_mode and
                     is_interactive and
                     not os.environ.get('PYTEST_CURRENT_TEST')  # Don't interfere with tests
                 )
@@ -62,7 +60,7 @@ class CommandSubstitution:
                     null_fd = os.open('/dev/null', os.O_RDONLY)
                     os.dup2(null_fd, 0)
                     os.close(null_fd)
-                
+
                 # Create a temporary shell to execute the command
                 temp_shell = Shell(
                     debug_ast=self.state.debug_ast,
@@ -71,14 +69,14 @@ class CommandSubstitution:
                     norc=True
                 )
                 temp_shell.state._in_forked_child = True
-                
+
                 # Execute the command
                 try:
                     exit_code = temp_shell.run_command(command, add_to_history=False)
                 except SystemExit as e:
                     # Command substitution runs in a subshell, so exit should not affect parent
                     exit_code = e.code if e.code is not None else 0
-                
+
                 os._exit(exit_code)
             except Exception as e:
                 # Exit with error

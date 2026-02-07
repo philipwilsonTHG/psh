@@ -1,6 +1,5 @@
 """File test utilities for shell operations."""
 import os
-import stat
 
 
 def to_int(value: str) -> int:
@@ -36,7 +35,7 @@ def files_same(file1: str, file2: str) -> bool:
     try:
         stat1 = os.stat(file1)
         stat2 = os.stat(file2)
-        return (stat1.st_dev == stat2.st_dev and 
+        return (stat1.st_dev == stat2.st_dev and
                 stat1.st_ino == stat2.st_ino)
     except FileNotFoundError:
         return False

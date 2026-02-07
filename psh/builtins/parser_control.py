@@ -1,7 +1,7 @@
 """Parser configuration control commands."""
 
-import sys
 from typing import List
+
 from .base import Builtin
 from .registry import builtin
 
@@ -9,9 +9,9 @@ from .registry import builtin
 @builtin
 class ParserConfigBuiltin(Builtin):
     """Control parser configuration settings."""
-    
+
     name = "parser-config"
-    
+
     def execute(self, args: List[str], shell) -> int:
         """Execute the parser-config builtin.
         
@@ -43,9 +43,9 @@ class ParserConfigBuiltin(Builtin):
         if len(args) == 1:
             # No arguments - show current configuration
             return self._show_config(shell)
-        
+
         command = args[1].lower()
-        
+
         if command == "show":
             return self._show_config(shell)
         elif command == "mode":
@@ -70,28 +70,28 @@ class ParserConfigBuiltin(Builtin):
         else:
             self.error(f"unknown command: {command}", shell)
             return 1
-    
+
     def _show_config(self, shell) -> int:
         """Show current parser configuration."""
         print("Parser Configuration:")
-        
+
         # Show parsing mode
         posix_mode = shell.state.options.get('posix', False)
         collect_errors = shell.state.options.get('collect_errors', False)
         debug_parser = shell.state.options.get('debug-parser', False)
-        
+
         if posix_mode:
             mode = "strict POSIX"
         elif collect_errors:
             mode = "permissive"
         else:
             mode = "bash compatible"
-        
+
         print(f"  Mode:            {mode}")
         print(f"  POSIX strict:    {'on' if posix_mode else 'off'}")
         print(f"  Collect errors:  {'on' if collect_errors else 'off'}")
         print(f"  Debug parser:    {'on' if debug_parser else 'off'}")
-        
+
         # Show feature status (based on shell options)
         print("\nFeatures:")
         print(f"  Arithmetic:      {'on' if not shell.state.options.get('no_arithmetic', False) else 'off'}")
@@ -100,13 +100,13 @@ class ParserConfigBuiltin(Builtin):
         print(f"  Aliases:         {'on' if not shell.state.options.get('no_aliases', False) else 'off'}")
         print(f"  Brace expansion: {'on' if shell.state.options.get('braceexpand', True) else 'off'}")
         print(f"  History expand:  {'on' if shell.state.options.get('histexpand', True) else 'off'}")
-        
+
         return 0
-    
+
     def _set_mode(self, mode: str, shell) -> int:
         """Set parsing mode."""
         mode = mode.lower()
-        
+
         if mode in ('posix', 'strict'):
             shell.state.options['posix'] = True
             shell.state.options['collect_errors'] = False
@@ -114,7 +114,7 @@ class ParserConfigBuiltin(Builtin):
             shell.state.options['braceexpand'] = False
             shell.state.options['histexpand'] = False
             print("Parser mode set to strict POSIX")
-            
+
         elif mode in ('bash', 'compatible'):
             shell.state.options['posix'] = False
             shell.state.options['collect_errors'] = False
@@ -122,7 +122,7 @@ class ParserConfigBuiltin(Builtin):
             shell.state.options['braceexpand'] = True
             shell.state.options['histexpand'] = True
             print("Parser mode set to Bash compatible")
-            
+
         elif mode == 'permissive':
             shell.state.options['posix'] = False
             shell.state.options['collect_errors'] = True
@@ -130,7 +130,7 @@ class ParserConfigBuiltin(Builtin):
             shell.state.options['braceexpand'] = True
             shell.state.options['histexpand'] = True
             print("Parser mode set to permissive")
-            
+
         elif mode == 'educational':
             shell.state.options['posix'] = False
             shell.state.options['collect_errors'] = True
@@ -139,22 +139,22 @@ class ParserConfigBuiltin(Builtin):
             shell.state.options['braceexpand'] = True
             shell.state.options['histexpand'] = True
             print("Parser mode set to educational (with debugging)")
-            
+
         else:
             self.error(f"unknown mode: {mode}", shell)
             self.error("Valid modes: posix, bash, permissive, educational", shell)
             return 1
-        
+
         return 0
-    
+
     def _enable_feature(self, feature: str, shell) -> int:
         """Enable a parser feature."""
         feature = feature.lower().replace('-', '_')
-        
+
         # Map feature names to shell options
         feature_map = {
             'arithmetic': 'no_arithmetic',
-            'arrays': 'no_arrays', 
+            'arrays': 'no_arrays',
             'functions': 'no_functions',
             'aliases': 'no_aliases',
             'brace_expand': 'braceexpand',
@@ -164,10 +164,10 @@ class ParserConfigBuiltin(Builtin):
             'process_subst': 'process_substitution',
             'process_substitution': 'process_substitution'
         }
-        
+
         if feature in feature_map:
             option_name = feature_map[feature]
-            
+
             # Handle positive options (enable by setting True)
             if option_name in ('braceexpand', 'histexpand', 'process_substitution'):
                 shell.state.options[option_name] = True
@@ -180,18 +180,18 @@ class ParserConfigBuiltin(Builtin):
             self.error(f"unknown feature: {feature}", shell)
             self.error("Valid features: arithmetic, arrays, functions, aliases, brace-expand, history-expand", shell)
             return 1
-        
+
         return 0
-    
+
     def _disable_feature(self, feature: str, shell) -> int:
         """Disable a parser feature."""
         feature = feature.lower().replace('-', '_')
-        
+
         # Map feature names to shell options
         feature_map = {
             'arithmetic': 'no_arithmetic',
             'arrays': 'no_arrays',
-            'functions': 'no_functions', 
+            'functions': 'no_functions',
             'aliases': 'no_aliases',
             'brace_expand': 'braceexpand',
             'brace_expansion': 'braceexpand',
@@ -200,10 +200,10 @@ class ParserConfigBuiltin(Builtin):
             'process_subst': 'process_substitution',
             'process_substitution': 'process_substitution'
         }
-        
+
         if feature in feature_map:
             option_name = feature_map[feature]
-            
+
             # Handle positive options (disable by setting False)
             if option_name in ('braceexpand', 'histexpand', 'process_substitution'):
                 shell.state.options[option_name] = False
@@ -216,16 +216,16 @@ class ParserConfigBuiltin(Builtin):
             self.error(f"unknown feature: {feature}", shell)
             self.error("Valid features: arithmetic, arrays, functions, aliases, brace-expand, history-expand", shell)
             return 1
-        
+
         return 0
 
 
 @builtin
 class ParserModeBuiltin(Builtin):
     """Quick parser mode switching command."""
-    
+
     name = "parser-mode"
-    
+
     def execute(self, args: List[str], shell) -> int:
         """Execute the parser-mode builtin.
         
@@ -247,7 +247,7 @@ class ParserModeBuiltin(Builtin):
             posix_mode = shell.state.options.get('posix', False)
             collect_errors = shell.state.options.get('collect_errors', False)
             debug_parser = shell.state.options.get('debug-parser', False)
-            
+
             if posix_mode:
                 mode = "posix"
             elif debug_parser:
@@ -256,12 +256,12 @@ class ParserModeBuiltin(Builtin):
                 mode = "permissive"
             else:
                 mode = "bash"
-            
+
             print(f"Parser mode: {mode}")
             return 0
-        
+
         mode = args[1].lower()
-        
+
         # Delegate to parser-config builtin
         config_builtin = ParserConfigBuiltin()
         return config_builtin._set_mode(mode, shell)

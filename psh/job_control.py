@@ -2,10 +2,9 @@
 
 import os
 import sys
-import signal
 import termios
-from typing import Dict, List, Optional, Tuple
 from enum import Enum
+from typing import Dict, List, Optional
 
 
 class JobState(Enum):
@@ -22,11 +21,11 @@ class Process:
         self.status = None  # Will be set by waitpid
         self.stopped = False
         self.completed = False
-    
+
     def update_status(self, status: int):
         """Update process status from waitpid result."""
         self.status = status
-        
+
         if os.WIFSTOPPED(status):
             self.stopped = True
             self.completed = False
@@ -50,30 +49,30 @@ class Job:
         self.foreground = True
         self.notified = False
         self.tmodes = None  # Terminal modes when suspended
-    
+
     def add_process(self, pid: int, command: str):
         """Add a process to this job."""
         self.processes.append(Process(pid, command))
-    
+
     def update_process_status(self, pid: int, status: int):
         """Update status of a specific process."""
         for proc in self.processes:
             if proc.pid == pid:
                 proc.update_status(status)
                 break
-    
+
     def all_processes_stopped(self) -> bool:
         """Check if all processes in job are stopped."""
         return all(p.stopped for p in self.processes)
-    
+
     def all_processes_completed(self) -> bool:
         """Check if all processes in job are completed."""
         return all(p.completed for p in self.processes)
-    
+
     def any_process_running(self) -> bool:
         """Check if any process is still running."""
         return any(not p.stopped and not p.completed for p in self.processes)
-    
+
     def update_state(self):
         """Update job state based on process states."""
         if self.all_processes_completed():
@@ -82,7 +81,7 @@ class Job:
             self.state = JobState.STOPPED
         else:
             self.state = JobState.RUNNING
-    
+
     def format_status(self, is_current: bool, is_previous: bool) -> str:
         """Format job status for display."""
         marker = '+' if is_current else '-' if is_previous else ' '
@@ -91,7 +90,7 @@ class Job:
             JobState.STOPPED: "Stopped",
             JobState.DONE: "Done"
         }[self.state]
-        
+
         # Match bash format: [N]+  State                 command &
         suffix = " &" if self.state == JobState.RUNNING and not self.foreground else ""
         return f"[{self.job_id}]{marker}  {state_str:<24}{self.command}{suffix}"
@@ -107,42 +106,42 @@ class JobManager:
         self.shell_pgid = os.getpgrp()
         self.shell_tmodes = None
         self.shell_state = None  # Will be set by shell
-        
+
         # Save shell's terminal modes
         try:
             self.shell_tmodes = termios.tcgetattr(0)
         except:
             pass
-    
+
     def set_shell_state(self, state):
         """Set reference to shell state for option checking."""
         self.shell_state = state
-    
+
     def create_job(self, pgid: int, command: str) -> Job:
         """Create a new job."""
         job = Job(self.next_job_id, pgid, command)
         self.jobs[self.next_job_id] = job
         self.next_job_id += 1
         return job
-    
+
     def remove_job(self, job_id: int):
         """Remove a job from tracking."""
         if job_id in self.jobs:
             job = self.jobs[job_id]
-            
+
             # Update current/previous references
             if job == self.current_job:
                 self.current_job = self.previous_job
                 self.previous_job = None
             elif job == self.previous_job:
                 self.previous_job = None
-            
+
             del self.jobs[job_id]
-    
+
     def get_job(self, job_id: int) -> Optional[Job]:
         """Get job by ID."""
         return self.jobs.get(job_id)
-    
+
     def get_job_by_pid(self, pid: int) -> Optional[Job]:
         """Find job containing the given PID."""
         for job in self.jobs.values():
@@ -150,14 +149,14 @@ class JobManager:
                 if proc.pid == pid:
                     return job
         return None
-    
+
     def get_job_by_pgid(self, pgid: int) -> Optional[Job]:
         """Find job by process group ID."""
         for job in self.jobs.values():
             if job.pgid == pgid:
                 return job
         return None
-    
+
     def set_foreground_job(self, job: Optional[Job]):
         """Set the current foreground job."""
         # Save current job's terminal modes if it exists
@@ -167,9 +166,9 @@ class JobManager:
             except:
                 pass
             self.previous_job = self.current_job
-        
+
         self.current_job = job
-        
+
         # Restore job's terminal modes if it has them
         if job and job.tmodes:
             try:
@@ -182,12 +181,12 @@ class JobManager:
                 termios.tcsetattr(0, termios.TCSADRAIN, self.shell_tmodes)
             except:
                 pass
-    
+
     def count_active_jobs(self) -> int:
         """Count jobs that are running or stopped."""
-        return sum(1 for job in self.jobs.values() 
+        return sum(1 for job in self.jobs.values()
                   if job.state != JobState.DONE)
-    
+
     def notify_completed_jobs(self):
         """Print notifications for completed background jobs."""
         completed = []
@@ -216,7 +215,7 @@ class JobManager:
             shell_state.last_bg_pid = last_pid if last_pid is not None else job.pgid
 
         return job
-    
+
     def notify_stopped_jobs(self):
         """Print notifications for newly stopped jobs."""
         for job_id, job in list(self.jobs.items()):
@@ -225,7 +224,7 @@ class JobManager:
                 marker = '+' if job == self.current_job else '-' if job == self.previous_job else ' '
                 print(f"[{job.job_id}]{marker}  Stopped                 {job.command}")
                 job.notified = True
-    
+
     def list_jobs(self) -> List[str]:
         """Get formatted list of all jobs."""
         lines = []
@@ -235,12 +234,12 @@ class JobManager:
             is_previous = (job == self.previous_job)
             lines.append(job.format_status(is_current, is_previous))
         return lines
-    
+
     def parse_job_spec(self, spec: str) -> Optional[Job]:
         """Parse job specification like %1, %+, %-, %string."""
         if not spec:
             return self.current_job
-        
+
         if not spec.startswith('%'):
             # Try to parse as PID
             try:
@@ -248,9 +247,9 @@ class JobManager:
                 return self.get_job_by_pid(pid)
             except ValueError:
                 return None
-        
+
         spec = spec[1:]  # Remove %
-        
+
         if spec == '+' or spec == '' or spec == '%':
             return self.current_job
         elif spec == '-':

@@ -1,6 +1,7 @@
 """Shell options builtin (shopt)."""
 
-from typing import List, TYPE_CHECKING
+from typing import TYPE_CHECKING, List
+
 from .base import Builtin
 from .registry import builtin
 

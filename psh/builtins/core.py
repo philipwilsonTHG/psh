@@ -1,8 +1,8 @@
 """Core shell builtins (exit, :, true, false, exec)."""
 
 import sys
-import os
-from typing import List, TYPE_CHECKING
+from typing import TYPE_CHECKING, List
+
 from .base import Builtin
 from .registry import builtin
 
@@ -13,19 +13,19 @@ if TYPE_CHECKING:
 @builtin
 class ExitBuiltin(Builtin):
     """Exit the shell."""
-    
+
     @property
     def name(self) -> str:
         return "exit"
-    
+
     @property
     def synopsis(self) -> str:
         return "exit [n]"
-    
+
     @property
     def description(self) -> str:
         return "Exit the shell"
-    
+
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Exit the shell with optional exit code."""
         exit_code = 0
@@ -38,20 +38,20 @@ class ExitBuiltin(Builtin):
             except ValueError:
                 self.error(f"{args[1]}: numeric argument required", shell)
                 exit_code = 2
-        
+
         # Set the exit code in shell state for EXIT trap
         shell.state.last_exit_code = exit_code
-        
+
         # Execute EXIT trap if set
         if hasattr(shell, 'trap_manager'):
             shell.trap_manager.execute_exit_trap()
-        
+
         # Save history before exiting
         if hasattr(shell, '_save_history'):
             shell._save_history()
-        
+
         sys.exit(exit_code)
-    
+
     @property
     def help(self) -> str:
         return """exit: exit [n]
@@ -67,23 +67,23 @@ class ExitBuiltin(Builtin):
 @builtin
 class ColonBuiltin(Builtin):
     """Null command - does nothing and returns success."""
-    
+
     @property
     def name(self) -> str:
         return ":"
-    
+
     @property
     def synopsis(self) -> str:
         return ": [arguments]"
-    
+
     @property
     def description(self) -> str:
         return "Null command that returns success"
-    
+
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Do nothing and return success."""
         return 0
-    
+
     @property
     def help(self) -> str:
         return """: : [arguments]
@@ -100,23 +100,23 @@ class ColonBuiltin(Builtin):
 @builtin
 class TrueBuiltin(Builtin):
     """Always return success."""
-    
+
     @property
     def name(self) -> str:
         return "true"
-    
+
     @property
     def synopsis(self) -> str:
         return "true"
-    
+
     @property
     def description(self) -> str:
         return "Always return success"
-    
+
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Always return success (0)."""
         return 0
-    
+
     @property
     def help(self) -> str:
         return """true: true
@@ -131,23 +131,23 @@ class TrueBuiltin(Builtin):
 @builtin
 class FalseBuiltin(Builtin):
     """Always return failure."""
-    
+
     @property
     def name(self) -> str:
         return "false"
-    
+
     @property
     def synopsis(self) -> str:
         return "false"
-    
+
     @property
     def description(self) -> str:
         return "Always return failure"
-    
+
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Always return failure (1)."""
         return 1
-    
+
     @property
     def help(self) -> str:
         return """false: false
@@ -162,35 +162,35 @@ class FalseBuiltin(Builtin):
 @builtin
 class ExecBuiltin(Builtin):
     """Execute commands and manipulate file descriptors."""
-    
+
     @property
     def name(self) -> str:
         return "exec"
-    
+
     @property
     def synopsis(self) -> str:
         return "exec [command [argument ...]]"
-    
+
     @property
     def description(self) -> str:
         return "Execute commands and manipulate file descriptors"
-    
+
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Execute command or apply redirections."""
         # Remove 'exec' from args
         args = args[1:] if args and args[0] == 'exec' else args
-        
+
         if not args:
             # exec without arguments - just succeed
             # Note: redirections would be handled by the executor/io_manager
             return 0
-        
+
         # For now, implement basic functionality
         # Full exec implementation would need to handle:
         # 1. Permanent redirections when no command given
         # 2. Process replacement when command given
         # 3. File descriptor manipulation
-        
+
         # Basic implementation: execute the command normally
         try:
             import os
@@ -201,7 +201,7 @@ class ExecBuiltin(Builtin):
         except OSError as e:
             self.error(f"{args[0]}: {e}", shell)
             return 126
-    
+
     @property
     def help(self) -> str:
         return """exec: exec [command [argument ...]]

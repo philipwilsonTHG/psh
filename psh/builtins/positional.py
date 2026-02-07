@@ -1,7 +1,7 @@
 """Positional parameter builtins (shift, getopts)."""
 
-import sys
-from typing import List, TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, List
+
 from .base import Builtin
 from .registry import builtin
 
@@ -12,16 +12,16 @@ if TYPE_CHECKING:
 @builtin
 class ShiftBuiltin(Builtin):
     """Shift positional parameters."""
-    
+
     @property
     def name(self) -> str:
         return "shift"
-    
+
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Shift positional parameters to the left by n positions."""
         # Default shift count is 1
         n = 1
-        
+
         # Parse optional argument
         if len(args) > 1:
             try:
@@ -29,31 +29,31 @@ class ShiftBuiltin(Builtin):
             except ValueError:
                 self.error("numeric argument required", shell)
                 return 1
-        
+
         # Validate shift count
         if n < 0:
             self.error("shift count must be non-negative", shell)
             return 1
-        
+
         # Check if we have enough parameters to shift
         param_count = len(shell.positional_params)
         if n > param_count:
             # POSIX: return failure if n > $#
             return 1
-        
+
         # Perform the shift
         shell.positional_params = shell.positional_params[n:]
-        
+
         return 0
-    
+
     @property
     def synopsis(self) -> str:
         return "shift [n]"
-    
+
     @property
     def description(self) -> str:
         return "Shift positional parameters"
-    
+
     @property
     def help(self) -> str:
         return """shift: shift [n]
@@ -69,38 +69,38 @@ class ShiftBuiltin(Builtin):
 @builtin
 class GetoptsBuiltin(Builtin):
     """Parse option arguments."""
-    
+
     @property
     def name(self) -> str:
         return "getopts"
-    
+
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Parse positional parameters as options."""
         # Validate arguments
         if len(args) < 3:
             self.error("usage: getopts optstring name [arg ...]", shell)
             return 2
-        
+
         optstring = args[1]
         varname = args[2]
-        
+
         # Determine if we're in silent error reporting mode
         silent_mode = optstring.startswith(':')
         if silent_mode:
             optstring = optstring[1:]
-        
+
         # Get OPTIND (1-based index of next argument to process)
         try:
             optind = int(shell.state.get_variable('OPTIND', '1'))
         except (ValueError, TypeError):
             optind = 1
-        
+
         # Get OPTERR (controls error message printing)
         try:
             opterr = int(shell.state.get_variable('OPTERR', '1'))
         except (ValueError, TypeError):
             opterr = 1
-        
+
         # Determine which arguments to parse
         if len(args) > 3:
             # Parse provided arguments
@@ -110,36 +110,36 @@ class GetoptsBuiltin(Builtin):
             # Parse positional parameters
             argv = shell.positional_params
             argv_start = 0
-        
+
         # Check if we've processed all arguments
         arg_index = optind - 1  # Convert to 0-based
         if arg_index >= len(argv):
             # No more arguments to process
             shell.state.set_variable(varname, '?')
             return 1
-        
+
         # Get current argument
         current_arg = argv[arg_index]
-        
+
         # Check if it's an option
         if not current_arg.startswith('-') or current_arg == '-':
             # Not an option, we're done
             shell.state.set_variable(varname, '?')
             return 1
-        
+
         # Handle -- (end of options)
         if current_arg == '--':
             shell.state.set_variable('OPTIND', str(arg_index + 2))
             shell.state.set_variable(varname, '?')
             return 1
-        
+
         # Get the option character(s) after the dash
         opt_chars = current_arg[1:]
-        
+
         # Handle option character position within clustered options
         # OPTIND can have a subindex for clustered options (not implemented here for simplicity)
         # For now, we'll process one option at a time
-        
+
         if len(opt_chars) > 1:
             # Clustered options like -abc
             # Process the first character and adjust for next call
@@ -152,22 +152,22 @@ class GetoptsBuiltin(Builtin):
             opt_char = opt_chars[0]
             # Move to next argument for next call
             shell.state.set_variable('OPTIND', str(arg_index + 2))
-        
+
         # Check if this option is in optstring
         opt_pos = optstring.find(opt_char)
-        
+
         if opt_pos == -1:
             # Invalid option
             if not silent_mode and opterr:
                 print(f"getopts: illegal option -- {opt_char}", file=shell.stderr)
-            
+
             shell.state.set_variable(varname, '?')
             shell.state.set_variable('OPTARG', opt_char)
             return 0
-        
+
         # Check if option requires an argument
         requires_arg = opt_pos + 1 < len(optstring) and optstring[opt_pos + 1] == ':'
-        
+
         if requires_arg:
             # Option requires an argument
             if len(opt_chars) > 1:
@@ -189,24 +189,24 @@ class GetoptsBuiltin(Builtin):
                     shell.state.set_variable(varname, '?')
                     shell.state.scope_manager.unset_variable('OPTARG')
                 return 0
-            
+
             shell.state.set_variable('OPTARG', arg_value)
         else:
             # Option doesn't require an argument
             shell.state.scope_manager.unset_variable('OPTARG')
-        
+
         # Set the variable to the option character
         shell.state.set_variable(varname, opt_char)
         return 0
-    
+
     @property
     def synopsis(self) -> str:
         return "getopts optstring name [arg ...]"
-    
+
     @property
     def description(self) -> str:
         return "Parse option arguments"
-    
+
     @property
     def help(self) -> str:
         return """getopts: getopts optstring name [arg ...]

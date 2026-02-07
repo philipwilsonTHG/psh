@@ -1,9 +1,10 @@
 """Token formatting utilities for debugging."""
 from ..token_types import Token
 
+
 class TokenFormatter:
     """Formats token lists for debug output."""
-    
+
     @staticmethod
     def format(tokens):
         """Format token list for debugging output."""

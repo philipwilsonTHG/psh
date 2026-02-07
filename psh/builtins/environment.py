@@ -2,10 +2,11 @@
 
 import os
 import sys
-from typing import List, TYPE_CHECKING
+from typing import TYPE_CHECKING, List
+
+from ..core.exceptions import ReadonlyVariableError
 from .base import Builtin
 from .registry import builtin
-from ..core.exceptions import ReadonlyVariableError
 
 if TYPE_CHECKING:
     from ..shell import Shell
@@ -14,18 +15,18 @@ if TYPE_CHECKING:
 @builtin
 class EnvBuiltin(Builtin):
     """Display or modify environment variables."""
-    
+
     @property
     def name(self) -> str:
         return "env"
-    
+
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Display environment variables or run command with modified environment."""
         if len(args) == 1:
             # No arguments, print all environment variables
             # First sync exports from scope manager to environment
             shell.state.scope_manager.sync_exports_to_environment(shell.env)
-            
+
             # Check if we're in a forked child (e.g., in a pipeline)
             if hasattr(shell.state, '_in_forked_child') and shell.state._in_forked_child:
                 # In a pipeline, we're in a forked child process
@@ -38,14 +39,14 @@ class EnvBuiltin(Builtin):
             else:
                 # Not in a forked child, use shell.env (which has been synced)
                 for key, value in sorted(shell.env.items()):
-                    print(f"{key}={value}", 
+                    print(f"{key}={value}",
                           file=shell.stdout if hasattr(shell, 'stdout') else sys.stdout)
             return 0
         else:
             # TODO: Run command with modified environment
             self.error("running commands not yet implemented", shell)
             return 1
-    
+
     @property
     def help(self) -> str:
         return """env: env [name=value ...] [command [args ...]]
@@ -58,11 +59,11 @@ class EnvBuiltin(Builtin):
 @builtin
 class ExportBuiltin(Builtin):
     """Export variables to environment."""
-    
+
     @property
     def name(self) -> str:
         return "export"
-    
+
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Export variables to environment."""
         if len(args) == 1:
@@ -75,7 +76,7 @@ class ExportBuiltin(Builtin):
                     os.write(1, output_line.encode('utf-8', errors='replace'))
                 else:
                     # In parent process, use shell.stdout to respect redirections
-                    print(f'declare -x {key}="{value}"', 
+                    print(f'declare -x {key}="{value}"',
                           file=shell.stdout if hasattr(shell, 'stdout') else sys.stdout)
         else:
             for arg in args[1:]:
@@ -89,7 +90,7 @@ class ExportBuiltin(Builtin):
                     if value is not None:
                         shell.state.export_variable(arg, value)
         return 0
-    
+
     @property
     def help(self) -> str:
         return """export: export [name[=value] ...]
@@ -103,23 +104,23 @@ class ExportBuiltin(Builtin):
 @builtin
 class SetBuiltin(Builtin):
     """Set shell options and positional parameters."""
-    
+
     @property
     def name(self) -> str:
         return "set"
-    
+
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Set shell options and positional parameters."""
         if len(args) == 1:
             # No arguments, display all variables
             for var, value in sorted(shell.state.variables.items()):
-                print(f"{var}={value}", 
+                print(f"{var}={value}",
                       file=shell.stdout if hasattr(shell, 'stdout') else sys.stdout)
             # Also show set options
-            print(f"edit_mode={shell.edit_mode}", 
+            print(f"edit_mode={shell.edit_mode}",
                   file=shell.stdout if hasattr(shell, 'stdout') else sys.stdout)
             return 0
-        
+
         # Map short options to long names
         short_to_long = {
             'a': 'allexport',
@@ -134,12 +135,12 @@ class SetBuiltin(Builtin):
             'v': 'verbose',
             'x': 'xtrace',
         }
-        
+
         # Process arguments
         i = 1
         while i < len(args):
             arg = args[i]
-            
+
             # Handle short options like -eux
             if arg.startswith('-') and not arg.startswith('-o') and len(arg) > 1 and not arg == '--':
                 for opt_char in arg[1:]:
@@ -150,7 +151,7 @@ class SetBuiltin(Builtin):
                         return 1
                 i += 1
                 continue
-            
+
             # Handle +eux to unset options
             elif arg.startswith('+') and not arg.startswith('+o') and len(arg) > 1:
                 for opt_char in arg[1:]:
@@ -161,18 +162,18 @@ class SetBuiltin(Builtin):
                         return 1
                 i += 1
                 continue
-            
+
             # Handle -o option with argument
             elif arg == '-o' and i + 1 < len(args):
                 option = args[i + 1].lower().replace('_', '-')  # Allow debug_ast or debug-ast
-                
+
                 # Editor modes
                 if option in ('vi', 'emacs'):
                     shell.edit_mode = option
                     # Set the corresponding option
                     shell.state.options['vi'] = (option == 'vi')
                     shell.state.options['emacs'] = (option == 'emacs')
-                    print(f"Edit mode set to {option}", 
+                    print(f"Edit mode set to {option}",
                           file=shell.stdout if hasattr(shell, 'stdout') else sys.stdout)
                     return 0
                 # Debug options and new shell options
@@ -185,16 +186,16 @@ class SetBuiltin(Builtin):
                 else:
                     self.error(f"invalid option: {option}", shell)
                     valid_opts = ['vi', 'emacs'] + list(sorted(shell.state.options.keys()))
-                    print(f"Valid options: {', '.join(valid_opts)}", 
+                    print(f"Valid options: {', '.join(valid_opts)}",
                           file=shell.stderr if hasattr(shell, 'stderr') else sys.stderr)
                     return 1
-            
+
             # Handle -o without argument (show options)
             elif arg == '-o' and i + 1 == len(args):
                 # Show current options with bash-compatible formatting
                 self._show_all_options(shell)
                 return 0
-            
+
             # Handle +o without argument (show as set commands)
             elif arg == '+o' and i + 1 == len(args):
                 # Show current options as set commands
@@ -204,14 +205,14 @@ class SetBuiltin(Builtin):
                 for opt_name, opt_value in sorted(shell.state.options.items()):
                     print(f"set {'-o' if opt_value else '+o'} {opt_name}", file=stdout)
                 return 0
-            
+
             # Handle +o with argument
             elif arg == '+o' and i + 1 < len(args):
                 # Unset option
                 option = args[i + 1].lower().replace('_', '-')
                 if option == 'vi':
                     shell.edit_mode = 'emacs'
-                    print("Edit mode set to emacs", 
+                    print("Edit mode set to emacs",
                           file=shell.stdout if hasattr(shell, 'stdout') else sys.stdout)
                 elif option in shell.state.options:
                     shell.state.options[option] = False
@@ -219,7 +220,7 @@ class SetBuiltin(Builtin):
                     if option == 'debug-scopes':
                         shell.state.scope_manager.enable_debug(False)
                 return 0
-            
+
             # Otherwise, treat as positional parameters
             else:
                 # Handle -- to separate options from arguments
@@ -228,9 +229,9 @@ class SetBuiltin(Builtin):
                 else:
                     shell.positional_params = args[i:]
                 return 0
-            
+
         return 0
-    
+
     @property
     def help(self) -> str:
         return """set: set [-abCefhmnuvx] [+abCefhmnuvx] [-o option] [arg ...]
@@ -284,7 +285,7 @@ class SetBuiltin(Builtin):
       +o <option>       Disable the specified option
     
     With arguments, set positional parameters ($1, $2, etc.)."""
-    
+
     def _show_all_options(self, shell: 'Shell'):
         """Show all shell options with bash-compatible formatting."""
         # Define standard POSIX/bash options to show (exclude PSH debug options for conformance)
@@ -295,7 +296,7 @@ class SetBuiltin(Builtin):
             'notify', 'nounset', 'onecmd', 'physical', 'pipefail', 'posix',
             'privileged', 'verbose', 'vi', 'xtrace'
         }
-        
+
         # If PSH_SHOW_ALL_OPTIONS environment variable is set, show all options including debug
         show_all = shell.state.env.get('PSH_SHOW_ALL_OPTIONS', '').lower() in ('1', 'true', 'yes')
         if show_all:
@@ -304,18 +305,18 @@ class SetBuiltin(Builtin):
         else:
             # Show only standard bash-compatible options for conformance
             options_to_show = [opt for opt in standard_options if opt in shell.state.options]
-        
+
         # Check if we're in a child process (forked for pipeline/background)
         if hasattr(shell.state, '_in_forked_child') and shell.state._in_forked_child:
             # In child process, write directly to fd 1
             output_lines = []
-            
+
             # Show options based on mode (standard vs all)
             for opt_name in sorted(options_to_show):
                 opt_value = shell.state.options[opt_name]
                 status = 'on' if opt_value else 'off'
                 output_lines.append(f"{opt_name:<15}\t{status}\n")
-            
+
             # Add edit mode info using standard option names
             if hasattr(shell, 'edit_mode'):
                 if shell.edit_mode == 'emacs':
@@ -324,20 +325,20 @@ class SetBuiltin(Builtin):
                 else:  # vi mode
                     output_lines.append(f"{'emacs':<15}\toff\n")
                     output_lines.append(f"{'vi':<15}\ton\n")
-            
+
             # Write all lines to fd 1
             for line in output_lines:
                 os.write(1, line.encode('utf-8', errors='replace'))
         else:
             # In parent process, use shell.stdout to respect redirections
             stdout = shell.stdout if hasattr(shell, 'stdout') else sys.stdout
-            
+
             # Show options based on mode (standard vs all)
             for opt_name in sorted(options_to_show):
                 opt_value = shell.state.options[opt_name]
                 status = 'on' if opt_value else 'off'
                 print(f"{opt_name:<15}\t{status}", file=stdout)
-            
+
             # Add edit mode info using standard option names
             if hasattr(shell, 'edit_mode'):
                 if shell.edit_mode == 'emacs':
@@ -351,17 +352,17 @@ class SetBuiltin(Builtin):
 @builtin
 class UnsetBuiltin(Builtin):
     """Unset variables and functions."""
-    
+
     @property
     def name(self) -> str:
         return "unset"
-    
+
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Unset variables and functions."""
         if len(args) < 2:
             self.error("not enough arguments", shell)
             return 1
-        
+
         # Check for -f flag
         if '-f' in args:
             # Remove functions
@@ -382,24 +383,24 @@ class UnsetBuiltin(Builtin):
                     bracket_pos = var.find('[')
                     array_name = var[:bracket_pos]
                     index_expr = var[bracket_pos+1:-1]
-                    
+
                     # Get the array variable
-                    from ..core.variables import IndexedArray, AssociativeArray
+                    from ..core.variables import AssociativeArray, IndexedArray
                     var_obj = shell.state.scope_manager.get_variable_object(array_name)
-                    
+
                     if var_obj and isinstance(var_obj.value, IndexedArray):
                         # Evaluate the index
                         try:
                             # Expand variables in index
                             expanded_index = shell.expansion_manager.expand_string_variables(index_expr)
-                            
+
                             # Check if it's arithmetic
                             if any(op in expanded_index for op in ['+', '-', '*', '/', '%', '(', ')']):
                                 from ..arithmetic import evaluate_arithmetic
                                 index = evaluate_arithmetic(expanded_index, shell)
                             else:
                                 index = int(expanded_index)
-                            
+
                             # Unset the element
                             var_obj.value.unset(index)
                         except Exception as e:
@@ -427,7 +428,7 @@ class UnsetBuiltin(Builtin):
                         self.error(f"{var}: readonly variable", shell)
                         exit_code = 1
             return exit_code
-    
+
     @property
     def help(self) -> str:
         return """unset: unset [-f] name [name ...]

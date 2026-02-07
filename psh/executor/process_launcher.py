@@ -6,17 +6,16 @@ external commands, and subshells.
 """
 
 import os
-import sys
 import signal
-from typing import Optional, Callable, Tuple, TYPE_CHECKING
+import sys
 from dataclasses import dataclass
 from enum import Enum
+from typing import TYPE_CHECKING, Callable, Optional, Tuple
 
 if TYPE_CHECKING:
     from ..core.state import ShellState
-    from ..job_control import JobManager, Job
     from ..io_redirect.manager import IOManager
-    from ..ast_nodes import Redirect
+    from ..job_control import Job, JobManager
 
 
 class ProcessRole(Enum):

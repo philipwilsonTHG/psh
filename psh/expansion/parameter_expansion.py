@@ -1,6 +1,6 @@
 """Advanced parameter expansion operations."""
 import re
-from typing import List, Optional, Tuple, TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Optional, Tuple
 
 if TYPE_CHECKING:
     from ..shell import Shell
@@ -18,7 +18,7 @@ class ParameterExpansion:
     def _extglob(self) -> bool:
         """Whether extglob is currently enabled."""
         return self.state.options.get('extglob', False)
-    
+
     def parse_expansion(self, expr: str) -> Tuple[str, str, str]:
         """
         Parse a parameter expansion expression.
@@ -33,7 +33,7 @@ class ParameterExpansion:
             content = expr[2:-1]
         else:
             raise ValueError(f"Invalid parameter expansion: {expr}")
-        
+
         # Check for length operation ${#var}
         if content.startswith('#'):
             # Special case: ${#} alone means number of positional params
@@ -45,18 +45,18 @@ class ParameterExpansion:
                 # Return empty operator so it's handled by the default value logic
                 return '', content, ''
             return '#', content[1:], ''
-        
+
         # Check for variable name matching ${!prefix*} or ${!prefix@}
         # Handle escaped ! character
         if content.startswith('\\!'):
             content = content[1:]  # Remove the backslash
-        
+
         if content.startswith('!'):
             if content.endswith('*'):
                 return '!*', content[1:-1], ''
             elif content.endswith('@'):
                 return '!@', content[1:-1], ''
-        
+
         # Check for pattern removal and substitution first (before case modification)
         # This is important because substitution patterns can contain commas
         for i, char in enumerate(content):
@@ -76,7 +76,7 @@ class ParameterExpansion:
                 # ${var/pattern/string} or ${var//pattern/string} or ${var/#pattern/string} or ${var/%pattern/string}
                 var_name = content[:i]
                 rest = content[i + 1:]
-                
+
                 # Check for special prefixes
                 if rest.startswith('#'):
                     # ${var/#pattern/string}
@@ -93,7 +93,7 @@ class ParameterExpansion:
                 else:
                     # ${var/pattern/string}
                     operator = '/'
-                
+
                 # Find the separator between pattern and replacement
                 # Need to handle escaped slashes
                 pattern_parts = []
@@ -110,7 +110,7 @@ class ParameterExpansion:
                     else:
                         pattern_parts.append(rest[j])
                         j += 1
-                
+
                 # No replacement found, treat as pattern only
                 return operator, var_name, ''.join(pattern_parts) + '/'
             elif char == ':' and i > 0:
@@ -122,7 +122,7 @@ class ParameterExpansion:
                 var_name = content[:i]
                 rest = content[i + 1:]
                 return ':', var_name, rest
-        
+
         # Check for case modification ${var^pattern}, ${var^^pattern}, etc
         # This is checked after substitution to avoid conflicts with commas in patterns
         for i, char in enumerate(content):
@@ -137,10 +137,10 @@ class ParameterExpansion:
                     var_name = content[:i]
                     pattern = content[i + 1:] if i + 1 < len(content) else '?'
                     return char, var_name, pattern
-        
+
         # No operator found, might be ${var:-default} which is handled elsewhere
         return '', content, ''
-    
+
     def _process_replacement_escapes(self, replacement: str) -> str:
         """Process escape sequences in replacement string."""
         result = []
@@ -160,12 +160,12 @@ class ParameterExpansion:
                 result.append(replacement[i])
                 i += 1
         return ''.join(result)
-    
+
     # Length operations
     def get_length(self, value: str) -> str:
         """Get the length of a string."""
         return str(len(value))
-    
+
     # Pattern removal
     def remove_shortest_prefix(self, value: str, pattern: str) -> str:
         """Remove shortest matching prefix."""
@@ -176,7 +176,7 @@ class ParameterExpansion:
         if match:
             return value[match.end():]
         return value
-    
+
     def remove_longest_prefix(self, value: str, pattern: str) -> str:
         """Remove longest matching prefix."""
         regex = self.pattern_matcher.shell_pattern_to_regex(pattern, anchored=True, from_start=True, extglob_enabled=self._extglob)
@@ -187,44 +187,44 @@ class ParameterExpansion:
             # The regex will naturally find the longest match due to greedy quantifiers
             return value[match.end():]
         return value
-    
+
     def remove_shortest_suffix(self, value: str, pattern: str) -> str:
         """Remove shortest matching suffix."""
         regex = self.pattern_matcher.shell_pattern_to_regex(pattern, anchored=True, from_start=False, extglob_enabled=self._extglob)
         # Convert to end-anchored regex
         regex = regex.rstrip('$') + '$'
-        
+
         # Find shortest match from end
         for i in range(len(value), -1, -1):
             if re.match(regex, value[i:]):
                 return value[:i]
         return value
-    
+
     def remove_longest_suffix(self, value: str, pattern: str) -> str:
         """Remove longest matching suffix."""
         regex = self.pattern_matcher.shell_pattern_to_regex(pattern, anchored=True, from_start=False, extglob_enabled=self._extglob)
         # Convert to end-anchored regex
         regex = regex.rstrip('$') + '$'
-        
+
         # Find longest match from end
         for i in range(len(value) + 1):
             if re.match(regex, value[i:]):
                 return value[:i]
         return value
-    
+
     # Pattern substitution
     def substitute_first(self, value: str, pattern: str, replacement: str) -> str:
         """Replace first match."""
         regex = self.pattern_matcher.shell_pattern_to_regex(pattern, anchored=False, extglob_enabled=self._extglob)
         replacement = self._process_replacement_escapes(replacement)
         return re.sub(regex, replacement, value, count=1)
-    
+
     def substitute_all(self, value: str, pattern: str, replacement: str) -> str:
         """Replace all matches."""
         regex = self.pattern_matcher.shell_pattern_to_regex(pattern, anchored=False, extglob_enabled=self._extglob)
         replacement = self._process_replacement_escapes(replacement)
         return re.sub(regex, replacement, value)
-    
+
     def substitute_prefix(self, value: str, pattern: str, replacement: str) -> str:
         """Replace prefix match."""
         regex = self.pattern_matcher.shell_pattern_to_regex(pattern, anchored=True, from_start=True, extglob_enabled=self._extglob)
@@ -234,20 +234,20 @@ class ParameterExpansion:
             replacement = self._process_replacement_escapes(replacement)
             return replacement + value[match.end():]
         return value
-    
+
     def substitute_suffix(self, value: str, pattern: str, replacement: str) -> str:
         """Replace suffix match."""
         regex = self.pattern_matcher.shell_pattern_to_regex(pattern, anchored=True, from_start=False, extglob_enabled=self._extglob)
         # Convert to end-anchored regex
         regex = regex.rstrip('$') + '$'
-        
+
         # Find match at end
         match = re.search(regex, value)
         if match:
             replacement = self._process_replacement_escapes(replacement)
             return value[:match.start()] + replacement
         return value
-    
+
     # Substring extraction
     def extract_substring(self, value: str, offset: int, length: Optional[int] = None) -> str:
         """Extract substring with offset and optional length."""
@@ -257,11 +257,11 @@ class ParameterExpansion:
             offset = len(value) + offset
             if offset < 0:
                 offset = 0
-        
+
         # Handle out of bounds
         if offset >= len(value):
             return ''
-        
+
         if length is None:
             # No length specified, return from offset to end
             return value[offset:]
@@ -276,62 +276,62 @@ class ParameterExpansion:
             else:
                 # Normal positive length
                 return value[offset:offset + length]
-    
+
     # Variable name matching
     def match_variable_names(self, prefix: str, quoted: bool = False) -> List[str]:
         """Find all variable names starting with prefix."""
         # Get all variables from both shell variables and environment
         all_vars = set(self.state.variables.keys()) | set(self.state.env.keys())
-        
+
         # Filter by prefix
         matching = sorted([var for var in all_vars if var.startswith(prefix)])
-        
+
         if quoted:
             # Return as quoted strings
             return [f'"{var}"' for var in matching]
         else:
             # Return as space-separated list
             return matching
-    
+
     # Case modification
     def uppercase_first(self, value: str, pattern: str = '?') -> str:
         """Convert first matching char to uppercase."""
         regex = self.pattern_matcher.shell_pattern_to_regex(pattern, anchored=False, extglob_enabled=self._extglob)
-        
+
         # Find first match
         match = re.search(regex, value)
         if match:
             start, end = match.span()
             return value[:start] + value[start:end].upper() + value[end:]
         return value
-    
+
     def uppercase_all(self, value: str, pattern: str = '?') -> str:
         """Convert all matching chars to uppercase."""
         regex = self.pattern_matcher.shell_pattern_to_regex(pattern, anchored=False, extglob_enabled=self._extglob)
-        
+
         def upper_repl(match):
             return match.group(0).upper()
-        
+
         return re.sub(regex, upper_repl, value)
-    
+
     def lowercase_first(self, value: str, pattern: str = '?') -> str:
         """Convert first matching char to lowercase."""
         regex = self.pattern_matcher.shell_pattern_to_regex(pattern, anchored=False, extglob_enabled=self._extglob)
-        
+
         # Find first match
         match = re.search(regex, value)
         if match:
             start, end = match.span()
             return value[:start] + value[start:end].lower() + value[end:]
         return value
-    
+
     def lowercase_all(self, value: str, pattern: str = '?') -> str:
         """Convert all matching chars to lowercase."""
         regex = self.pattern_matcher.shell_pattern_to_regex(pattern, anchored=False, extglob_enabled=self._extglob)
-        
+
         def lower_repl(match):
             return match.group(0).lower()
-        
+
         return re.sub(regex, lower_repl, value)
 
 
@@ -357,10 +357,10 @@ class PatternMatcher:
                                         from_start=from_start)
         regex_parts = []
         i = 0
-        
+
         while i < len(pattern):
             char = pattern[i]
-            
+
             if char == '*':
                 # Match any characters
                 regex_parts.append('.*')
@@ -397,16 +397,16 @@ class PatternMatcher:
             else:
                 # Regular character
                 regex_parts.append(re.escape(char))
-            
+
             i += 1
-        
+
         regex = ''.join(regex_parts)
-        
+
         if anchored:
             if from_start:
                 regex = '^' + regex
             else:
                 # For suffix matching, we'll add $ later
                 pass
-        
+
         return regex

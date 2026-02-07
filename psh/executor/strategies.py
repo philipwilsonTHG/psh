@@ -7,28 +7,27 @@ providing different strategies for builtins, functions, and external commands.
 
 import os
 import sys
-import signal
 from abc import ABC, abstractmethod
-from typing import List, Optional, TYPE_CHECKING
-from .process_launcher import ProcessLauncher, ProcessConfig, ProcessRole
+from typing import TYPE_CHECKING, List, Optional
+
+from .process_launcher import ProcessConfig, ProcessLauncher, ProcessRole
 
 if TYPE_CHECKING:
+    from ..ast_nodes import Redirect
     from ..shell import Shell
-    from ..ast_nodes import SimpleCommand, Redirect
     from .context import ExecutionContext
-    from ..job_control import Job
 
 
 class ExecutionStrategy(ABC):
     """Abstract base class for command execution strategies."""
-    
+
     @abstractmethod
     def can_execute(self, cmd_name: str, shell: 'Shell') -> bool:
         """Check if this strategy can execute the given command."""
         pass
-    
+
     @abstractmethod
-    def execute(self, cmd_name: str, args: List[str], 
+    def execute(self, cmd_name: str, args: List[str],
                 shell: 'Shell', context: 'ExecutionContext',
                 redirects: Optional[List['Redirect']] = None,
                 background: bool = False) -> int:
@@ -38,20 +37,20 @@ class ExecutionStrategy(ABC):
 
 # POSIX special builtins that take precedence over functions
 POSIX_SPECIAL_BUILTINS = {
-    ':', 'break', 'continue', 'eval', 'exec', 'exit', 'export', 
+    ':', 'break', 'continue', 'eval', 'exec', 'exit', 'export',
     'readonly', 'return', 'set', 'shift', 'trap', 'unset'
 }
 
 
 class SpecialBuiltinExecutionStrategy(ExecutionStrategy):
     """Strategy for executing POSIX special builtin commands that take precedence over functions."""
-    
+
     def can_execute(self, cmd_name: str, shell: 'Shell') -> bool:
         """Check if command is a POSIX special builtin."""
-        return (cmd_name in POSIX_SPECIAL_BUILTINS and 
+        return (cmd_name in POSIX_SPECIAL_BUILTINS and
                 shell.builtin_registry.has(cmd_name))
-    
-    def execute(self, cmd_name: str, args: List[str], 
+
+    def execute(self, cmd_name: str, args: List[str],
                 shell: 'Shell', context: 'ExecutionContext',
                 redirects: Optional[List['Redirect']] = None,
                 background: bool = False) -> int:
@@ -59,11 +58,11 @@ class SpecialBuiltinExecutionStrategy(ExecutionStrategy):
         if background:
             # Special builtins can run in background with subshell
             return self._execute_in_background(cmd_name, args, shell, context, redirects)
-        
+
         builtin = shell.builtin_registry.get(cmd_name)
         if not builtin:
             return 127  # Command not found
-        
+
         try:
             # Use the builtin's execute method
             # Builtins expect the command name as the first argument
@@ -80,8 +79,8 @@ class SpecialBuiltinExecutionStrategy(ExecutionStrategy):
             # Handle other exceptions
             print(f"psh: {cmd_name}: {e}", file=shell.stderr)
             return 1
-    
-    def _execute_in_background(self, cmd_name: str, args: List[str], 
+
+    def _execute_in_background(self, cmd_name: str, args: List[str],
                               shell: 'Shell', context: 'ExecutionContext',
                               redirects: Optional[List['Redirect']]) -> int:
         """Execute special builtin in background (subshell)."""
@@ -93,13 +92,13 @@ class SpecialBuiltinExecutionStrategy(ExecutionStrategy):
 
 class BuiltinExecutionStrategy(ExecutionStrategy):
     """Strategy for executing regular builtin commands."""
-    
+
     def can_execute(self, cmd_name: str, shell: 'Shell') -> bool:
         """Check if command is a regular builtin (not a special builtin)."""
-        return (shell.builtin_registry.has(cmd_name) and 
+        return (shell.builtin_registry.has(cmd_name) and
                 cmd_name not in POSIX_SPECIAL_BUILTINS)
-    
-    def execute(self, cmd_name: str, args: List[str], 
+
+    def execute(self, cmd_name: str, args: List[str],
                 shell: 'Shell', context: 'ExecutionContext',
                 redirects: Optional[List['Redirect']] = None,
                 background: bool = False) -> int:
@@ -107,18 +106,18 @@ class BuiltinExecutionStrategy(ExecutionStrategy):
         if background:
             # Run builtin in background by forking a subshell (bash compatibility)
             return self._execute_builtin_in_background(cmd_name, args, shell, context, redirects)
-        
+
         builtin = shell.builtin_registry.get(cmd_name)
         if not builtin:
             return 127  # Command not found
-        
+
         # DEBUG: Log builtin execution
         if shell.state.options.get('debug-exec'):
-            print(f"DEBUG BuiltinStrategy: executing builtin '{cmd_name}' with args {args}", 
+            print(f"DEBUG BuiltinStrategy: executing builtin '{cmd_name}' with args {args}",
                   file=sys.stderr)
             print(f"DEBUG BuiltinStrategy: in_pipeline={context.in_pipeline}, "
                   f"in_forked_child={context.in_forked_child}", file=sys.stderr)
-        
+
         try:
             # Use the builtin's execute method
             # The builtin will check context.in_forked_child to determine output method
@@ -135,7 +134,7 @@ class BuiltinExecutionStrategy(ExecutionStrategy):
                 raise
             print(f"psh: {cmd_name}: {e}", file=sys.stderr)
             return 1
-    
+
     def _execute_builtin_in_background(self, cmd_name: str, args: List[str],
                                      shell: 'Shell', context: 'ExecutionContext',
                                      redirects: Optional[List['Redirect']] = None) -> int:
@@ -181,29 +180,29 @@ class BuiltinExecutionStrategy(ExecutionStrategy):
 
 class FunctionExecutionStrategy(ExecutionStrategy):
     """Strategy for executing shell functions."""
-    
+
     def can_execute(self, cmd_name: str, shell: 'Shell') -> bool:
         """Check if command is a defined function."""
         return shell.function_manager.get_function(cmd_name) is not None
-    
-    def execute(self, cmd_name: str, args: List[str], 
+
+    def execute(self, cmd_name: str, args: List[str],
                 shell: 'Shell', context: 'ExecutionContext',
                 redirects: Optional[List['Redirect']] = None,
                 background: bool = False) -> int:
         """Execute a shell function."""
         if background:
             # Functions can't run in background (in current implementation)
-            print(f"psh: {cmd_name}: functions cannot be run in background", 
+            print(f"psh: {cmd_name}: functions cannot be run in background",
                   file=sys.stderr)
             return 1
-        
+
         # Import here to avoid circular imports
         from .function import FunctionOperationExecutor
-        
+
         # Create a function executor to handle the call
         # Pass the current context to preserve loop depth and other state
         function_executor = FunctionOperationExecutor(shell)
-        
+
         # We need a visitor for function execution, but we need to preserve the context
         # The issue is that we need the visitor that called this strategy
         # For now, create a new visitor but use the passed context
@@ -211,7 +210,7 @@ class FunctionExecutionStrategy(ExecutionStrategy):
         visitor = ExecutorVisitor(shell)
         # Override the context to preserve loop depth
         visitor.context = context
-        
+
         return function_executor.execute_function_call(
             cmd_name, args, context, visitor, redirects
         )
@@ -219,7 +218,7 @@ class FunctionExecutionStrategy(ExecutionStrategy):
 
 class AliasExecutionStrategy(ExecutionStrategy):
     """Strategy for executing shell aliases."""
-    
+
     def can_execute(self, cmd_name: str, shell: 'Shell') -> bool:
         """Check if command is an alias."""
         # Check for bypass mechanisms first
@@ -227,8 +226,8 @@ class AliasExecutionStrategy(ExecutionStrategy):
             return False  # Backslash escapes bypass aliases
         result = shell.alias_manager.has_alias(cmd_name)
         return result
-    
-    def execute(self, cmd_name: str, args: List[str], 
+
+    def execute(self, cmd_name: str, args: List[str],
                 shell: 'Shell', context: 'ExecutionContext',
                 redirects: Optional[List['Redirect']] = None,
                 background: bool = False) -> int:
@@ -236,15 +235,15 @@ class AliasExecutionStrategy(ExecutionStrategy):
         alias_definition = shell.alias_manager.get_alias(cmd_name)
         if not alias_definition:
             return 127  # Should not happen if can_execute returned True
-        
+
         # Prevent infinite recursion
         if cmd_name in shell.alias_manager.expanding:
             # Already expanding this alias, treat as external command
             return self._execute_as_external(cmd_name, args, shell, context, redirects, background)
-        
+
         # Mark this alias as being expanded
         shell.alias_manager.expanding.add(cmd_name)
-        
+
         try:
             # Create new command string by expanding the alias
             # If alias has trailing space, next word can also be expanded
@@ -253,29 +252,29 @@ class AliasExecutionStrategy(ExecutionStrategy):
                 expanded_command = alias_definition + ' '.join(args)
             else:
                 expanded_command = alias_definition + (' ' + ' '.join(args) if args else '')
-            
+
             # Re-tokenize and parse the expanded command
             from ..lexer import tokenize
             from ..parser import Parser
-            
+
             tokens = tokenize(expanded_command)
             parser = Parser(tokens, source_text=expanded_command)
             ast = parser.parse()
-            
+
             # Execute the expanded command through the visitor
             # Import here to avoid circular imports
             from .core import ExecutorVisitor
             visitor = ExecutorVisitor(shell)
             # Preserve the current context
             visitor.context = context
-            
+
             return visitor.visit(ast)
-        
+
         finally:
             # Remove from expanding set
             shell.alias_manager.expanding.discard(cmd_name)
-    
-    def _execute_as_external(self, cmd_name: str, args: List[str], 
+
+    def _execute_as_external(self, cmd_name: str, args: List[str],
                             shell: 'Shell', context: 'ExecutionContext',
                             redirects: Optional[List['Redirect']] = None,
                             background: bool = False) -> int:
@@ -286,18 +285,18 @@ class AliasExecutionStrategy(ExecutionStrategy):
 
 class ExternalExecutionStrategy(ExecutionStrategy):
     """Strategy for executing external commands."""
-    
+
     def can_execute(self, cmd_name: str, shell: 'Shell') -> bool:
         """External commands are the fallback - always return True."""
         return True
-    
-    def execute(self, cmd_name: str, args: List[str], 
+
+    def execute(self, cmd_name: str, args: List[str],
                 shell: 'Shell', context: 'ExecutionContext',
                 redirects: Optional[List['Redirect']] = None,
                 background: bool = False) -> int:
         """Execute an external command."""
         full_args = [cmd_name] + args
-        
+
         if context.in_pipeline:
             # In pipeline, use exec to replace current process
             try:
@@ -307,25 +306,25 @@ class ExternalExecutionStrategy(ExecutionStrategy):
                     from ..ast_nodes import SimpleCommand
                     temp_command = SimpleCommand(args=full_args, redirects=redirects)
                     shell.io_manager.setup_child_redirections(temp_command)
-                
+
                 # Ensure we're in the correct process group before exec
                 # This is important for commands that might fork after exec
                 current_pgid = os.getpgrp()
                 current_pid = os.getpid()
-                
+
                 if shell.state.options.get('debug-exec'):
-                    print(f"DEBUG ExternalStrategy: Before exec - PID={current_pid}, PGID={current_pgid}", 
+                    print(f"DEBUG ExternalStrategy: Before exec - PID={current_pid}, PGID={current_pgid}",
                           file=sys.stderr)
-                
+
                 # Always explicitly set the process group to ensure it's inherited
                 # This helps when execvpe creates a new process
                 os.setpgid(0, current_pgid)
-                
+
                 os.execvpe(full_args[0], full_args, shell.env)
             except OSError as e:
                 print(f"psh: {full_args[0]}: {e}", file=sys.stderr)
                 os._exit(127)
-        
+
         # Save current terminal foreground process group
         # Skip terminal control when running under pytest to avoid SIGTTOU issues
         original_pgid = None

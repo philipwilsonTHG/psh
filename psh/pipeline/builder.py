@@ -1,12 +1,12 @@
 """Factory for building reusable shell processing pipelines."""
 
 from dataclasses import dataclass
-from typing import Optional, List, Tuple
+from typing import List, Optional, Tuple
 
 from ..lexer import tokenize
-from ..token_types import Token
-from ..parser import parse, ParserConfig
+from ..parser import ParserConfig, parse
 from ..parser.validation.validation_pipeline import ValidationPipeline, ValidationReport
+from ..token_types import Token
 
 
 @dataclass

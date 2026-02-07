@@ -4,17 +4,13 @@ This module provides a registry for parser implementations and a strategy
 pattern for selecting and switching between parsers at runtime.
 """
 
-from typing import Dict, Type, Optional, List, Any
 import time
 import tracemalloc
 from contextlib import contextmanager
+from typing import Any, Dict, List, Optional, Type
 
-from .abstract_parser import (
-    AbstractShellParser, ParseError, ParseMetrics,
-    ParserCharacteristics
-)
-from ..ast_nodes import TopLevel, CommandList
 from ..token_types import Token
+from .abstract_parser import AbstractShellParser
 
 
 class ParserRegistry:
@@ -23,12 +19,12 @@ class ParserRegistry:
     This class maintains a central registry of all available parser
     implementations, allowing for dynamic discovery and selection.
     """
-    
+
     _parsers: Dict[str, Type[AbstractShellParser]] = {}
     _aliases: Dict[str, str] = {}  # Alias -> canonical name mapping
-    
+
     @classmethod
-    def register(cls, name: str, parser_class: Type[AbstractShellParser], 
+    def register(cls, name: str, parser_class: Type[AbstractShellParser],
                  aliases: Optional[List[str]] = None):
         """Register a parser implementation.
         
@@ -39,14 +35,14 @@ class ParserRegistry:
         """
         if not issubclass(parser_class, AbstractShellParser):
             raise TypeError(f"{parser_class} must inherit from AbstractShellParser")
-        
+
         cls._parsers[name] = parser_class
-        
+
         # Register aliases
         if aliases:
             for alias in aliases:
                 cls._aliases[alias] = name
-    
+
     @classmethod
     def unregister(cls, name: str):
         """Remove a parser from the registry.
@@ -57,15 +53,15 @@ class ParserRegistry:
         # Remove the parser
         if name in cls._parsers:
             del cls._parsers[name]
-        
+
         # Remove any aliases pointing to this parser
         aliases_to_remove = [
-            alias for alias, canonical in cls._aliases.items() 
+            alias for alias, canonical in cls._aliases.items()
             if canonical == name
         ]
         for alias in aliases_to_remove:
             del cls._aliases[alias]
-    
+
     @classmethod
     def get(cls, name: str) -> Optional[Type[AbstractShellParser]]:
         """Get a parser implementation by name.
@@ -79,7 +75,7 @@ class ParserRegistry:
         # Check if it's an alias
         canonical_name = cls._aliases.get(name, name)
         return cls._parsers.get(canonical_name)
-    
+
     @classmethod
     def create(cls, name: str, **config) -> AbstractShellParser:
         """Create a parser instance with configuration.
@@ -97,13 +93,13 @@ class ParserRegistry:
         parser_class = cls.get(name)
         if not parser_class:
             raise ValueError(f"Unknown parser: {name}")
-        
+
         parser = parser_class()
         if config:
             parser.configure(**config)
-        
+
         return parser
-    
+
     @classmethod
     def list_parsers(cls) -> List[str]:
         """List all registered parser names.
@@ -112,7 +108,7 @@ class ParserRegistry:
             List of canonical parser names
         """
         return list(cls._parsers.keys())
-    
+
     @classmethod
     def list_all_names(cls) -> List[str]:
         """List all parser names including aliases.
@@ -121,7 +117,7 @@ class ParserRegistry:
             List of all names (canonical and aliases)
         """
         return list(cls._parsers.keys()) + list(cls._aliases.keys())
-    
+
     @classmethod
     def get_canonical_name(cls, name: str) -> Optional[str]:
         """Get the canonical name for a parser (resolves aliases).
@@ -138,7 +134,7 @@ class ParserRegistry:
         if canonical_name in cls._parsers:
             return canonical_name
         return None
-    
+
     @classmethod
     def get_parser_info(cls, name: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get information about parsers.
@@ -156,7 +152,7 @@ class ParserRegistry:
             parsers = {name: parser_class}
         else:
             parsers = cls._parsers
-        
+
         info = []
         for parser_name, parser_class in parsers.items():
             try:
@@ -165,7 +161,7 @@ class ParserRegistry:
                     alias for alias, canonical in cls._aliases.items()
                     if canonical == parser_name
                 ]
-                
+
                 info.append({
                     "name": parser_name,
                     "aliases": aliases,
@@ -181,9 +177,9 @@ class ParserRegistry:
                     "error": str(e),
                     "description": "Failed to load parser"
                 })
-        
+
         return info
-    
+
     @classmethod
     def clear(cls):
         """Clear all registered parsers (mainly for testing)."""
@@ -197,7 +193,7 @@ class ParserStrategy:
     This class provides a consistent interface for parsing regardless
     of which parser implementation is selected.
     """
-    
+
     def __init__(self, parser_name: str = "default", **config):
         """Initialize with a specific parser.
         
@@ -209,29 +205,29 @@ class ParserStrategy:
         self._parser: Optional[AbstractShellParser] = None
         self._config = config
         self._load_parser()
-    
+
     def _load_parser(self):
         """Load the selected parser implementation."""
         self._parser = ParserRegistry.create(self._parser_name, **self._config)
-    
+
     @property
     def current_parser(self) -> str:
         """Get the name of the current parser."""
         return self._parser_name
-    
+
     @property
     def current_parser_canonical(self) -> str:
         """Get the canonical name of the current parser (resolves aliases)."""
         canonical = ParserRegistry.get_canonical_name(self._parser_name)
         return canonical or self._parser_name
-    
+
     @property
     def parser(self) -> AbstractShellParser:
         """Get the current parser instance."""
         if not self._parser:
             self._load_parser()
         return self._parser
-    
+
     def parse(self, tokens: List[Token]) -> Any:
         """Parse tokens using the selected implementation.
         
@@ -242,7 +238,7 @@ class ParserStrategy:
             AST from the parser
         """
         return self.parser.parse(tokens)
-    
+
     def parse_with_metrics(self, tokens: List[Token]) -> tuple:
         """Parse and collect performance metrics.
         
@@ -253,27 +249,27 @@ class ParserStrategy:
             Tuple of (AST, ParseMetrics)
         """
         self.parser.reset_metrics()
-        
+
         # Start memory tracking
         tracemalloc.start()
         start_memory = tracemalloc.get_traced_memory()[0]
-        
+
         # Time the parse
         start_time = time.perf_counter()
         ast = self.parser.parse(tokens)
         end_time = time.perf_counter()
-        
+
         # Get memory usage
         end_memory = tracemalloc.get_traced_memory()[0]
         tracemalloc.stop()
-        
+
         # Update metrics
         metrics = self.parser.get_metrics()
         metrics.parse_time_ms = (end_time - start_time) * 1000
         metrics.memory_used_bytes = end_memory - start_memory
-        
+
         return ast, metrics
-    
+
     def switch_parser(self, parser_name: str, **config):
         """Switch to a different parser implementation.
         
@@ -285,7 +281,7 @@ class ParserStrategy:
         self._config = config
         self._parser = None  # Force reload on next use
         self._load_parser()
-    
+
     def configure(self, **config):
         """Update parser configuration.
         
@@ -295,7 +291,7 @@ class ParserStrategy:
         self._config.update(config)
         if self._parser:
             self._parser.configure(**config)
-    
+
     def explain_parse(self, tokens: List[Token]) -> str:
         """Get educational explanation of parsing process.
         
@@ -306,8 +302,8 @@ class ParserStrategy:
             Explanation string
         """
         return self.parser.explain_parse(tokens)
-    
-    def compare_parsers(self, tokens: List[Token], 
+
+    def compare_parsers(self, tokens: List[Token],
                        parser_names: Optional[List[str]] = None) -> Dict[str, Any]:
         """Compare multiple parser implementations.
         
@@ -320,21 +316,21 @@ class ParserStrategy:
         """
         if parser_names is None:
             parser_names = ParserRegistry.list_parsers()
-        
+
         results = {}
-        
+
         for parser_name in parser_names:
             try:
                 # Create temporary parser
                 parser = ParserRegistry.create(parser_name)
-                
+
                 # Parse with metrics
                 parser.reset_metrics()
                 start_time = time.perf_counter()
-                
+
                 tracemalloc.start()
                 start_memory = tracemalloc.get_traced_memory()[0]
-                
+
                 try:
                     ast = parser.parse(tokens.copy())
                     success = True
@@ -343,17 +339,17 @@ class ParserStrategy:
                     ast = None
                     success = False
                     error = str(e)
-                
+
                 end_memory = tracemalloc.get_traced_memory()[0]
                 tracemalloc.stop()
-                
+
                 end_time = time.perf_counter()
-                
+
                 # Collect results
                 metrics = parser.get_metrics()
                 metrics.parse_time_ms = (end_time - start_time) * 1000
                 metrics.memory_used_bytes = end_memory - start_memory
-                
+
                 results[parser_name] = {
                     "success": success,
                     "error": error,
@@ -361,13 +357,13 @@ class ParserStrategy:
                     "metrics": metrics.to_dict(),
                     "characteristics": parser.get_characteristics().to_dict()
                 }
-                
+
             except Exception as e:
                 results[parser_name] = {
                     "success": False,
                     "error": f"Failed to create parser: {e}"
                 }
-        
+
         return results
 
 

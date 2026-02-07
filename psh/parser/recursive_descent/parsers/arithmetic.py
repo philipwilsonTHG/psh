@@ -5,59 +5,60 @@ This module handles parsing of arithmetic expressions and commands.
 """
 
 from typing import Optional
-from ....token_types import Token, TokenType
-from ....ast_nodes import ArithmeticEvaluation, ExecutionContext, Redirect
+
+from ....ast_nodes import ArithmeticEvaluation, ExecutionContext
 from ....token_stream import TokenStream
+from ....token_types import TokenType
 
 
 class ArithmeticParser:
     """Parser for arithmetic expressions and commands."""
-    
+
     def __init__(self, main_parser):
         """Initialize with reference to main parser."""
         self.parser = main_parser
-    
+
     def parse_arithmetic_command(self) -> ArithmeticEvaluation:
         """Parse arithmetic command: ((expression))"""
         result = self._parse_arithmetic_neutral()
         result.execution_context = ExecutionContext.STATEMENT
         return result
-    
+
     def parse_arithmetic_compound_command(self) -> ArithmeticEvaluation:
         """Parse arithmetic command as a compound command for use in pipelines."""
         result = self._parse_arithmetic_neutral()
         result.execution_context = ExecutionContext.PIPELINE
         return result
-    
+
     def _parse_arithmetic_neutral(self) -> ArithmeticEvaluation:
         """Parse arithmetic command without setting execution context."""
         with self.parser.context:
             self.parser.context.in_arithmetic = True
-            
+
             self.parser.expect(TokenType.DOUBLE_LPAREN)
-            
+
             expr = self.parser._parse_arithmetic_expression_until_double_rparen()
-            
+
             # Handle both old (two RPAREN) and new (DOUBLE_RPAREN) tokenization
             if self.parser.match(TokenType.DOUBLE_RPAREN):
                 self.parser.advance()
             else:
                 self.parser.expect(TokenType.RPAREN)
                 self.parser.expect(TokenType.RPAREN)
-            
+
             redirects = self.parser.redirections.parse_redirects()
-            
+
             return ArithmeticEvaluation(
                 expression=expr,
                 redirects=redirects,
                 background=False
             )
-    
+
     def _parse_arithmetic_expression_until_double_rparen(self) -> str:
         """Parse arithmetic expression until )) is found."""
         # Create TokenStream from current position
         stream = TokenStream(self.parser.tokens, self.parser.current)
-        
+
         # Define stop condition for double RPAREN
         def stop_at_double_rparen(token, paren_depth):
             # Check for DOUBLE_RPAREN token (new tokenization)
@@ -71,23 +72,23 @@ class ArithmeticParser:
                     # Found ))
                     return True
             return False
-        
+
         # Collect arithmetic expression (no redirect transformation needed here)
         tokens, expr_string = stream.collect_arithmetic_expression(
             stop_condition=stop_at_double_rparen,
             transform_redirects=False
         )
-        
+
         # Update parser position
         self.parser.current = stream.pos
-        
+
         return expr_string
-    
+
     def parse_arithmetic_section(self, terminator: str) -> Optional[str]:
         """Parse arithmetic expression section until terminator character."""
         # Create TokenStream from current position
         stream = TokenStream(self.parser.tokens, self.parser.current)
-        
+
         # Define stop condition for semicolon terminator
         def stop_at_semicolon(token, paren_depth):
             if paren_depth == 0 and terminator == ';':
@@ -100,23 +101,23 @@ class ArithmeticParser:
             if token.type == TokenType.RPAREN and paren_depth == 0:
                 return True
             return False
-        
+
         # Collect arithmetic expression
         tokens, expr_string = stream.collect_arithmetic_expression(
             stop_condition=stop_at_semicolon,
             transform_redirects=True
         )
-        
+
         # Update parser position
         self.parser.current = stream.pos
-        
+
         return expr_string if expr_string else ""
-    
+
     def parse_arithmetic_section_until_double_rparen(self) -> Optional[str]:
         """Parse arithmetic expression until we find )) at depth 0."""
         # Create TokenStream from current position
         stream = TokenStream(self.parser.tokens, self.parser.current)
-        
+
         # Define stop condition for double RPAREN
         def stop_at_double_rparen(token, paren_depth):
             # Check for DOUBLE_RPAREN token (new tokenization)
@@ -130,13 +131,13 @@ class ArithmeticParser:
                     # Found ))
                     return True
             return False
-        
+
         # Collect arithmetic expression
         tokens, expr_string = stream.collect_arithmetic_expression(
             stop_condition=stop_at_double_rparen,
             transform_redirects=True
         )
-        
+
         # Consume the )) tokens if we stopped because of them
         if stream.pos < len(stream.tokens):
             current_token = stream.tokens[stream.pos]
@@ -146,8 +147,8 @@ class ArithmeticParser:
                   stream.pos + 1 < len(stream.tokens) and
                   stream.tokens[stream.pos + 1].type == TokenType.RPAREN):
                 stream.advance(2)  # Consume both ) tokens
-        
+
         # Update parser position
         self.parser.current = stream.pos
-        
+
         return expr_string if expr_string else None

@@ -1,7 +1,8 @@
 """Alias management builtins (alias, unalias)."""
 
 import sys
-from typing import List, TYPE_CHECKING
+from typing import TYPE_CHECKING, List
+
 from .base import Builtin
 from .registry import builtin
 
@@ -12,11 +13,11 @@ if TYPE_CHECKING:
 @builtin
 class AliasBuiltin(Builtin):
     """Define or display aliases."""
-    
+
     @property
     def name(self) -> str:
         return "alias"
-    
+
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Define or display aliases."""
         if len(args) == 1:
@@ -27,30 +28,30 @@ class AliasBuiltin(Builtin):
                 print(f"alias {name}='{escaped_value}'",
                       file=shell.stdout if hasattr(shell, 'stdout') else sys.stdout)
             return 0
-        
+
         exit_code = 0
-        
+
         # Process each argument
         i = 1
         while i < len(args):
             arg = args[i]
-            
+
             if '=' in arg:
                 # This looks like an assignment
                 equals_pos = arg.index('=')
                 name = arg[:equals_pos]
                 value_start = arg[equals_pos + 1:]
-                
+
                 # Check if value starts with a quote
                 if value_start and value_start[0] in ("'", '"'):
                     quote_char = value_start[0]
                     # Need to find the closing quote, which might be in later args
                     value_parts = [value_start[1:]]  # Remove opening quote
-                    
+
                     # Look for closing quote
                     found_close = False
                     j = i
-                    
+
                     # Check if closing quote is in the same arg
                     if value_start[1:].endswith(quote_char):
                         value = value_start[1:-1]
@@ -66,7 +67,7 @@ class AliasBuiltin(Builtin):
                             else:
                                 value_parts.append(args[j])
                             j += 1
-                        
+
                         if found_close:
                             value = ' '.join(value_parts)
                             i = j  # Skip the args we consumed
@@ -76,7 +77,7 @@ class AliasBuiltin(Builtin):
                 else:
                     # No quotes, just use the value as is
                     value = value_start
-                
+
                 try:
                     shell.alias_manager.define_alias(name, value)
                 except ValueError as e:
@@ -93,11 +94,11 @@ class AliasBuiltin(Builtin):
                 else:
                     self.error(f"{arg}: not found", shell)
                     exit_code = 1
-            
+
             i += 1
-        
+
         return exit_code
-    
+
     @property
     def help(self) -> str:
         return """alias: alias [name[=value] ...]
@@ -111,30 +112,30 @@ class AliasBuiltin(Builtin):
 @builtin
 class UnaliasBuiltin(Builtin):
     """Remove aliases."""
-    
+
     @property
     def name(self) -> str:
         return "unalias"
-    
+
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Remove aliases."""
         if len(args) == 1:
             self.error("usage: unalias [-a] name [name ...]", shell)
             return 1
-        
+
         if args[1] == '-a':
             # Remove all aliases
             shell.alias_manager.clear_aliases()
             return 0
-        
+
         exit_code = 0
         for name in args[1:]:
             if not shell.alias_manager.undefine_alias(name):
                 self.error(f"{name}: not found", shell)
                 exit_code = 1
-        
+
         return exit_code
-    
+
     @property
     def help(self) -> str:
         return """unalias: unalias [-a] name [name ...]

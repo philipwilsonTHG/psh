@@ -1,10 +1,11 @@
 """Whitespace token recognizer."""
 
 from typing import Optional, Tuple
-from .base import TokenRecognizer
-from ..state_context import LexerContext
+
 from ...token_types import Token
+from ..state_context import LexerContext
 from ..unicode_support import is_whitespace
+from .base import TokenRecognizer
 
 
 class WhitespaceRecognizer(TokenRecognizer):

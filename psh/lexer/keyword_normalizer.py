@@ -1,9 +1,10 @@
 """Keyword normalization pass for lexer output."""
 
 from typing import List, Optional
-from .constants import KEYWORDS
-from ..token_types import Token, TokenType
+
 from ..token_enhanced import SemanticType
+from ..token_types import Token, TokenType
+from .constants import KEYWORDS
 from .keyword_defs import KEYWORD_TYPE_MAP
 
 

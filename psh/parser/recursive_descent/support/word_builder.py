@@ -4,13 +4,20 @@ This module provides utilities for building Word nodes that properly
 represent expansions within command arguments.
 """
 
-from typing import List, Optional, Tuple
-from ....token_types import Token, TokenType
+from typing import List, Optional
+
 from ....ast_nodes import (
-    Word, WordPart, LiteralPart, ExpansionPart,
-    VariableExpansion, CommandSubstitution, ParameterExpansion,
-    ArithmeticExpansion, Expansion
+    ArithmeticExpansion,
+    CommandSubstitution,
+    Expansion,
+    ExpansionPart,
+    LiteralPart,
+    ParameterExpansion,
+    VariableExpansion,
+    Word,
+    WordPart,
 )
+from ....token_types import Token, TokenType
 
 # Token types that represent standalone expansion tokens
 EXPANSION_TYPES = frozenset({

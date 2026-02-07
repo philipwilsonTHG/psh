@@ -1,8 +1,8 @@
 """Directory navigation builtins (cd)."""
 
 import os
-import sys
-from typing import List, TYPE_CHECKING
+from typing import TYPE_CHECKING, List
+
 from .base import Builtin
 from .registry import builtin
 
@@ -13,11 +13,11 @@ if TYPE_CHECKING:
 @builtin
 class CdBuiltin(Builtin):
     """Change directory."""
-    
+
     @property
     def name(self) -> str:
         return "cd"
-    
+
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Change the current working directory."""
         # Store current directory as the old directory (use logical path if available)
@@ -28,10 +28,10 @@ class CdBuiltin(Builtin):
         except (AttributeError, TypeError):
             # Handle case where shell.state is a mock or doesn't exist
             current_dir = os.getcwd()
-        
+
         if len(args) > 1:
             path = args[1]
-            
+
             # Handle cd - (change to previous directory)
             if path == '-':
                 oldpwd = shell.env.get('OLDPWD')
@@ -47,15 +47,15 @@ class CdBuiltin(Builtin):
             # No argument - go to home directory
             path = shell.env.get('HOME', '/')
             print_new_dir = False
-        
+
         # Expand tilde if shell supports it
         if hasattr(shell, '_expand_tilde'):
             path = shell._expand_tilde(path)
-        
+
         # For relative paths, check CDPATH for directory search
         actual_path = path
         found_in_cdpath = False
-        
+
         if not os.path.isabs(path):
             # If it's not a relative path starting with . or .., search CDPATH
             if not (path.startswith('./') or path.startswith('../') or path == '.' or path == '..'):
@@ -67,13 +67,13 @@ class CdBuiltin(Builtin):
                         if search_dir == '':
                             # Empty string in CDPATH means current directory
                             search_dir = '.'
-                        
+
                         candidate_path = os.path.join(search_dir, path)
                         if os.path.isdir(candidate_path):
                             actual_path = candidate_path
                             found_in_cdpath = True
                             break
-        
+
         try:
             # Compute the logical new directory path
             if os.path.isabs(actual_path):
@@ -87,14 +87,14 @@ class CdBuiltin(Builtin):
                 except (AttributeError, TypeError):
                     logical_current = os.getcwd()
                 logical_new_dir = os.path.normpath(os.path.join(logical_current, actual_path))
-            
+
             # Change to the actual directory
             os.chdir(actual_path)
-            
+
             # If found via CDPATH, print the full path (bash behavior)
             if found_in_cdpath:
                 print(logical_new_dir)
-            
+
             # Update PWD and OLDPWD environment variables and shell variables
             shell.env['OLDPWD'] = current_dir
             shell.env['PWD'] = logical_new_dir
@@ -105,11 +105,11 @@ class CdBuiltin(Builtin):
             except (AttributeError, TypeError):
                 # Handle case where shell.state is a mock
                 pass
-            
+
             # Print new directory for cd - command
             if print_new_dir:
                 print(logical_new_dir)
-            
+
             return 0
         except FileNotFoundError:
             self.error(f"{path}: No such file or directory", shell)
@@ -123,7 +123,7 @@ class CdBuiltin(Builtin):
         except Exception as e:
             self.error(str(e), shell)
             return 1
-    
+
     @property
     def help(self) -> str:
         return """cd: cd [dir]
@@ -149,11 +149,11 @@ class CdBuiltin(Builtin):
     
     Exit Status:
     Returns 0 if the directory is changed; non-zero otherwise."""
-    
+
     @property
     def synopsis(self) -> str:
         return "cd [dir]"
-    
+
     @property
     def description(self) -> str:
         return "Change directory"

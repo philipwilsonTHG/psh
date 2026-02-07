@@ -1,7 +1,7 @@
 """Disown builtin command for job control."""
 
-import sys
-from typing import List, TYPE_CHECKING
+from typing import TYPE_CHECKING, List
+
 from .base import Builtin
 from .registry import builtin
 
@@ -12,19 +12,19 @@ if TYPE_CHECKING:
 @builtin
 class DisownBuiltin(Builtin):
     """Remove jobs from active job table."""
-    
+
     @property
     def name(self) -> str:
         return "disown"
-    
+
     @property
     def synopsis(self) -> str:
         return "disown [-h] [-ar] [jobspec ... | pid ...]"
-    
+
     @property
     def description(self) -> str:
         return "Remove jobs from active job table"
-    
+
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Execute disown command."""
         # Parse options
@@ -32,7 +32,7 @@ class DisownBuiltin(Builtin):
         disown_all = False
         running_only = False
         job_specs = []
-        
+
         i = 1
         while i < len(args):
             arg = args[i]
@@ -57,14 +57,14 @@ class DisownBuiltin(Builtin):
                 # Job specification or PID
                 job_specs.append(arg)
             i += 1
-        
+
         # Get job manager
         job_manager = shell.job_manager
-        
+
         if disown_all:
             # Disown all jobs
             return self._disown_all_jobs(job_manager, running_only, mark_no_hup, shell)
-        
+
         if not job_specs:
             # No job specs - disown current job
             current_job = job_manager.current_job
@@ -72,19 +72,19 @@ class DisownBuiltin(Builtin):
                 self.error("no current job", shell)
                 return 1
             return self._disown_job(current_job, mark_no_hup, job_manager, shell)
-        
+
         # Disown specific jobs
         exit_status = 0
         for spec in job_specs:
             if self._disown_job_spec(spec, mark_no_hup, job_manager, shell) != 0:
                 exit_status = 1
-        
+
         return exit_status
-    
+
     def _disown_all_jobs(self, job_manager, running_only: bool, mark_no_hup: bool, shell: 'Shell') -> int:
         """Disown all jobs (or all running jobs if running_only is True)."""
         jobs_to_disown = []
-        
+
         for job in job_manager.jobs.values():
             if running_only:
                 # Only disown running jobs
@@ -93,20 +93,20 @@ class DisownBuiltin(Builtin):
             else:
                 # Disown all jobs
                 jobs_to_disown.append(job)
-        
+
         if not jobs_to_disown:
             if running_only:
                 self.error("no running jobs", shell)
             else:
                 self.error("no jobs", shell)
             return 1
-        
+
         # Disown each job
         for job in jobs_to_disown:
             self._disown_job(job, mark_no_hup, job_manager, shell)
-        
+
         return 0
-    
+
     def _disown_job_spec(self, spec: str, mark_no_hup: bool, job_manager, shell: 'Shell') -> int:
         """Disown a job by job specification or PID."""
         if spec.startswith('%'):
@@ -128,7 +128,7 @@ class DisownBuiltin(Builtin):
             except ValueError:
                 self.error(f"{spec}: not a valid job specification or process id", shell)
                 return 1
-    
+
     def _disown_job(self, job, mark_no_hup: bool, job_manager, shell: 'Shell') -> int:
         """Disown a specific job."""
         if mark_no_hup:
@@ -139,9 +139,9 @@ class DisownBuiltin(Builtin):
         else:
             # Remove job from job table completely
             job_manager.remove_job(job.job_id)
-        
+
         return 0
-    
+
     @property
     def help(self) -> str:
         return """disown: disown [-h] [-ar] [jobspec ... | pid ...]

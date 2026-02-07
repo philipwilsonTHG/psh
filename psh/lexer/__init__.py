@@ -9,26 +9,32 @@ as the single lexer implementation.
 """
 
 from typing import List
+
 from ..token_types import Token
+from .constants import DOUBLE_QUOTE_ESCAPES, KEYWORDS, OPERATORS_BY_LENGTH, SPECIAL_VARIABLES, WORD_TERMINATORS
+from .helpers import LexerHelpers
+from .keyword_normalizer import KeywordNormalizer
 
 # Core lexer components
 from .modular_lexer import ModularLexer
 from .position import (
-    Position, LexerState, LexerConfig, LexerError, RecoverableLexerError,
-    LexerErrorHandler, PositionTracker
+    LexerConfig,
+    LexerError,
+    LexerErrorHandler,
+    LexerState,
+    Position,
+    PositionTracker,
+    RecoverableLexerError,
 )
-from .constants import (
-    KEYWORDS, OPERATORS_BY_LENGTH, SPECIAL_VARIABLES,
-    DOUBLE_QUOTE_ESCAPES, WORD_TERMINATORS
-)
-from .unicode_support import (
-    is_identifier_start, is_identifier_char, is_whitespace,
-    normalize_identifier, validate_identifier
-)
-from .token_parts import TokenPart, RichToken
-from .helpers import LexerHelpers
 from .state_context import LexerContext
-from .keyword_normalizer import KeywordNormalizer
+from .token_parts import RichToken, TokenPart
+from .unicode_support import (
+    is_identifier_char,
+    is_identifier_start,
+    is_whitespace,
+    normalize_identifier,
+    validate_identifier,
+)
 
 __version__ = "0.91.1"  # Phase 3 Day 2: Clean imports and dependencies
 
@@ -60,7 +66,7 @@ def tokenize(input_string: str, strict: bool = True, shell_options: dict = None)
     # Apply shell options to lexer config
     if shell_options and shell_options.get('extglob', False):
         config.enable_extglob = True
-    
+
     try:
         # Expand braces first
         expander = BraceExpander()
@@ -73,7 +79,7 @@ def tokenize(input_string: str, strict: bool = True, shell_options: dict = None)
         # Run modular lexer on expanded string
         lexer = ModularLexer(expanded_string, config=config)
         tokens = lexer.tokenize()
-    
+
     # Normalize keywords before running additional transformations
     normalizer = KeywordNormalizer()
     tokens = normalizer.normalize(tokens)
@@ -81,7 +87,7 @@ def tokenize(input_string: str, strict: bool = True, shell_options: dict = None)
     # Apply token transformations
     transformer = TokenTransformer()
     tokens = transformer.transform(tokens)
-    
+
     return tokens
 
 
@@ -111,11 +117,11 @@ def tokenize_with_heredocs(input_string: str, strict: bool = True, shell_options
     # Apply shell options to lexer config
     if shell_options and shell_options.get('extglob', False):
         config.enable_extglob = True
-    
+
     # Use heredoc lexer
     lexer = HeredocLexer(input_string, config=config)
     tokens, heredoc_map = lexer.tokenize_with_heredocs()
-    
+
     # Normalize keywords before transformations
     normalizer = KeywordNormalizer()
     tokens = normalizer.normalize(tokens)
@@ -124,7 +130,7 @@ def tokenize_with_heredocs(input_string: str, strict: bool = True, shell_options
     from ..token_transformer import TokenTransformer
     transformer = TokenTransformer()
     tokens = transformer.transform(tokens)
-    
+
     return tokens, heredoc_map
 
 

@@ -1,7 +1,8 @@
 """Shell state related builtins (history, version, local)."""
 
 import sys
-from typing import List, TYPE_CHECKING
+from typing import TYPE_CHECKING, List
+
 from .base import Builtin
 from .registry import builtin
 
@@ -12,11 +13,11 @@ if TYPE_CHECKING:
 @builtin
 class HistoryBuiltin(Builtin):
     """Display command history."""
-    
+
     @property
     def name(self) -> str:
         return "history"
-    
+
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Display command history."""
         if len(args) > 1:
@@ -24,7 +25,7 @@ class HistoryBuiltin(Builtin):
             if args[1] == '-c':
                 shell.history.clear()
                 return 0
-            
+
             try:
                 count = int(args[1])
                 if count < 0:
@@ -36,20 +37,20 @@ class HistoryBuiltin(Builtin):
         else:
             # Default to showing last 10 commands (bash behavior)
             count = 10
-        
+
         # Calculate the starting index
         history = shell.history
         start = max(0, len(history) - count)
         history_slice = history[start:]
-        
+
         # Print with line numbers
         start_num = len(history) - len(history_slice) + 1
         for i, cmd in enumerate(history_slice):
-            print(f"{start_num + i:5d}  {cmd}", 
+            print(f"{start_num + i:5d}  {cmd}",
                   file=shell.stdout if hasattr(shell, 'stdout') else sys.stdout)
-        
+
         return 0
-    
+
     @property
     def help(self) -> str:
         return """history: history [n] | history -c
@@ -66,26 +67,26 @@ class HistoryBuiltin(Builtin):
 @builtin
 class VersionBuiltin(Builtin):
     """Display version information."""
-    
+
     @property
     def name(self) -> str:
         return "version"
-    
+
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Display version information."""
         from ..version import __version__, get_version_info
-        
+
         if len(args) > 1 and args[1] == '--short':
             # Just print version number
-            print(__version__, 
+            print(__version__,
                   file=shell.stdout if hasattr(shell, 'stdout') else sys.stdout)
         else:
             # Full version info
-            print(get_version_info(), 
+            print(get_version_info(),
                   file=shell.stdout if hasattr(shell, 'stdout') else sys.stdout)
-        
+
         return 0
-    
+
     @property
     def help(self) -> str:
         return """version: version [--short]
@@ -97,27 +98,27 @@ class VersionBuiltin(Builtin):
 @builtin
 class LocalBuiltin(Builtin):
     """Create local variables within functions."""
-    
+
     @property
     def name(self) -> str:
         return "local"
-    
+
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Create local variables in function scope."""
         # Check if we're in a function
         if not shell.state.scope_manager.is_in_function():
             self.error("can only be used in a function", shell)
             return 1
-        
+
         # Parse options and arguments
         options, positional = self._parse_options(args[1:], shell)
         if options is None:
             return 1  # Error already printed
-        
+
         # If no arguments, just return success (bash behavior)
         if not positional:
             return 0
-        
+
         # Build attributes from options
         from ..core.variables import VarAttributes
         attributes = VarAttributes.NONE
@@ -135,17 +136,17 @@ class LocalBuiltin(Builtin):
             attributes |= VarAttributes.ARRAY
         if options['assoc_array']:
             attributes |= VarAttributes.ASSOC_ARRAY
-        
+
         # Process each argument
         for arg in positional:
             if '=' in arg:
                 # Variable with assignment: local var=value
                 var_name, var_value = arg.split('=', 1)
-                
+
                 # Check if this is an array assignment: var=(value1 value2 ...)
                 if var_value.startswith('(') and var_value.endswith(')'):
                     # Parse array initialization
-                    from ..core.variables import IndexedArray, AssociativeArray
+                    from ..core.variables import AssociativeArray, IndexedArray
                     if attributes & VarAttributes.ASSOC_ARRAY:
                         # Create associative array
                         array = AssociativeArray()
@@ -167,10 +168,10 @@ class LocalBuiltin(Builtin):
                         from ..expansion.variable import VariableExpander
                         expander = VariableExpander(shell)
                         var_value = expander.expand_string_variables(var_value)
-                    
+
                     # Apply attribute transformations
                     var_value = self._apply_attributes(var_value, attributes, shell)
-                    
+
                     # Create local variable with value and attributes
                     shell.state.scope_manager.create_local(var_name, var_value, attributes)
             else:
@@ -186,21 +187,21 @@ class LocalBuiltin(Builtin):
                 else:
                     # Creates unset local variable (shadows global but has no value)
                     shell.state.scope_manager.create_local(arg, "", attributes)
-        
+
         return 0
-    
+
     def _parse_array_init(self, value: str, shell: 'Shell') -> List[str]:
         """Parse array initialization: (val1 "val2" val3)"""
         # Remove parentheses
         content = value[1:-1].strip()
         if not content:
             return []
-        
+
         # Use the shell's expansion manager to properly parse quoted strings
         # This handles quotes, variable expansion, and proper word splitting
         from ..expansion.variable import VariableExpander
         expander = VariableExpander(shell)
-        
+
         # Split on whitespace while respecting quotes
         # For now, do simple splitting - a full implementation would use the tokenizer
         import shlex
@@ -219,7 +220,7 @@ class LocalBuiltin(Builtin):
         except ValueError:
             # Fallback to simple splitting if shlex fails
             return content.split()
-    
+
     def _parse_options(self, args: List[str], shell: 'Shell') -> tuple:
         """Parse local options and return (options_dict, positional_args)."""
         options = {
@@ -232,7 +233,7 @@ class LocalBuiltin(Builtin):
             'export': False,         # -x
         }
         positional = []
-        
+
         i = 0
         while i < len(args):
             arg = args[i]
@@ -262,16 +263,16 @@ class LocalBuiltin(Builtin):
             else:
                 positional.append(arg)
             i += 1
-        
+
         return options, positional
-    
+
     def _parse_assoc_array_init(self, value: str, shell: 'Shell') -> List[tuple]:
         """Parse associative array initialization: ([key]=val [key2]=val2)"""
         # Remove parentheses
         content = value[1:-1].strip()
         if not content:
             return []
-        
+
         # Simple parsing for now
         result = []
         parts = content.split()
@@ -284,11 +285,11 @@ class LocalBuiltin(Builtin):
                     val = val[1:-1]
                 result.append((key, val))
         return result
-    
+
     def _apply_attributes(self, value: str, attributes, shell: 'Shell') -> str:
         """Apply attribute transformations to value."""
         from ..core.variables import VarAttributes
-        
+
         if attributes & VarAttributes.UPPERCASE:
             return value.upper()
         elif attributes & VarAttributes.LOWERCASE:
@@ -307,7 +308,7 @@ class LocalBuiltin(Builtin):
                 except:
                     return "0"
         return value
-    
+
     @property
     def help(self) -> str:
         return """local: local [-aAilrux] [name[=value] ...]

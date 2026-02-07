@@ -1,9 +1,8 @@
 """Command builtin for bypassing aliases and functions."""
 
 import os
-import sys
-import signal
-from typing import List, TYPE_CHECKING
+from typing import TYPE_CHECKING, List
+
 from .base import Builtin
 from .registry import builtin
 
@@ -14,18 +13,18 @@ if TYPE_CHECKING:
 @builtin
 class CommandBuiltin(Builtin):
     """Execute a simple command or display information about commands."""
-    
+
     @property
     def name(self) -> str:
         return "command"
-    
+
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Execute command with options or bypass functions/aliases."""
         # Default options
         use_default_path = False
         show_description = False
         verbose_description = False
-        
+
         # Parse options
         i = 1
         while i < len(args):
@@ -47,19 +46,19 @@ class CommandBuiltin(Builtin):
                 return 2
             else:
                 break
-        
+
         # Check if we have a command to process
         if i >= len(args):
             self.error("usage: command [-pVv] command [arg ...]", shell)
             return 2
-        
+
         command_name = args[i]
         command_args = args[i:]
-        
+
         # Handle description modes (-v and -V)
         if show_description or verbose_description:
             return self._show_command_info(command_name, verbose_description, shell)
-        
+
         # Execute the command, bypassing aliases and functions
         if use_default_path:
             # Use a secure default PATH
@@ -78,7 +77,7 @@ class CommandBuiltin(Builtin):
             else:
                 # Execute external command
                 return self._execute_external_command(command_name, command_args, shell)
-    
+
     def _show_command_info(self, command_name: str, verbose: bool, shell: 'Shell') -> int:
         """Display information about a command."""
         # Check if it's a builtin
@@ -88,7 +87,7 @@ class CommandBuiltin(Builtin):
             else:
                 print(command_name, file=shell.stdout)
             return 0
-        
+
         # Check if it's in PATH
         path_dirs = shell.env.get('PATH', '').split(':')
         for dir_path in path_dirs:
@@ -101,39 +100,39 @@ class CommandBuiltin(Builtin):
                 else:
                     print(full_path, file=shell.stdout)
                 return 0
-        
+
         # Command not found
         if verbose:
             print(f"bash: type: {command_name}: not found", file=shell.stderr)
         return 1
-    
+
     def _execute_external_command(self, command_name: str, args: List[str], shell: 'Shell') -> int:
         """Execute an external command using PSH's external execution strategy."""
-        # Use PSH's existing external execution strategy which handles 
+        # Use PSH's existing external execution strategy which handles
         # process management, job control, and signal handling correctly
-        from ..executor.strategies import ExternalExecutionStrategy
         from ..executor.context import ExecutionContext
-        
+        from ..executor.strategies import ExternalExecutionStrategy
+
         # Create execution context
         context = ExecutionContext()
-        
+
         # Create and use external strategy
         external_strategy = ExternalExecutionStrategy()
-        
+
         # Execute using PSH's proven external command execution
         return external_strategy.execute(
-            command_name, args[1:], shell, context, 
+            command_name, args[1:], shell, context,
             redirects=None, background=False
         )
-    
+
     @property
     def synopsis(self) -> str:
         return "command [-pVv] command [arg ...]"
-    
+
     @property
     def description(self) -> str:
         return "Execute a simple command or display information about commands"
-    
+
     @property
     def help(self) -> str:
         return """command: command [-pVv] command [arg ...]

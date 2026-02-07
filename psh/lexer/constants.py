@@ -1,6 +1,7 @@
 """Constants and character sets for the lexer."""
 
 import string
+
 from ..token_types import TokenType
 
 # Constants for character sets

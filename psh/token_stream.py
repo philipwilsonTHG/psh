@@ -1,6 +1,7 @@
 """Enhanced token stream with utility methods for parser."""
 
-from typing import List, Optional, Tuple, Set, Callable
+from typing import List, Optional, Set, Tuple
+
 from .token_types import Token, TokenType
 
 
@@ -10,7 +11,7 @@ class TokenStream:
     This class provides utilities for collecting balanced token sequences,
     handling quotes and nesting, and looking ahead for composite tokens.
     """
-    
+
     def __init__(self, tokens: List[Token], pos: int = 0):
         """Initialize token stream.
         
@@ -20,7 +21,7 @@ class TokenStream:
         """
         self.tokens = tokens
         self.pos = pos
-    
+
     def peek(self, offset: int = 0) -> Optional[Token]:
         """Look at token at current position + offset without consuming.
         
@@ -34,7 +35,7 @@ class TokenStream:
         if 0 <= idx < len(self.tokens):
             return self.tokens[idx]
         return None
-    
+
     def advance(self, count: int = 1) -> Optional[Token]:
         """Consume and return token(s).
         
@@ -50,16 +51,16 @@ class TokenStream:
                 result = self.tokens[self.pos]
                 self.pos += 1
         return result
-    
+
     def at_end(self) -> bool:
         """Check if at end of token stream."""
         return self.pos >= len(self.tokens) or (
-            self.pos < len(self.tokens) and 
+            self.pos < len(self.tokens) and
             self.tokens[self.pos].type == TokenType.EOF
         )
-    
-    def collect_until_balanced(self, 
-                               open_type: TokenType, 
+
+    def collect_until_balanced(self,
+                               open_type: TokenType,
                                close_type: TokenType,
                                respect_quotes: bool = True,
                                include_delimiters: bool = False) -> List[Token]:
@@ -82,12 +83,12 @@ class TokenStream:
         tokens = []
         depth = 1  # Assume we've already seen one open delimiter
         in_quotes = False
-        
+
         while not self.at_end() and depth > 0:
             token = self.peek()
             if not token:
                 break
-            
+
             # Handle quote tracking if requested
             # In shell, STRING tokens are already the content inside quotes,
             # so if we see a STRING token, its content should be treated as quoted
@@ -95,7 +96,7 @@ class TokenStream:
                 in_quotes = True
             else:
                 in_quotes = False
-            
+
             # Track depth only if not in quotes
             if not (respect_quotes and in_quotes):
                 if token.type == open_type:
@@ -108,12 +109,12 @@ class TokenStream:
                         else:
                             self.advance()  # consume but don't include
                         break
-            
+
             tokens.append(self.advance())
-        
+
         return tokens
-    
-    def collect_until(self, 
+
+    def collect_until(self,
                       stop_types: Set[TokenType],
                       respect_quotes: bool = True,
                       include_stop: bool = False) -> List[Token]:
@@ -128,25 +129,25 @@ class TokenStream:
             List of collected tokens
         """
         tokens = []
-        
+
         while not self.at_end():
             token = self.peek()
             if not token:
                 break
-            
+
             # Check if current token is quoted content
             in_quotes = respect_quotes and token.type == TokenType.STRING
-            
+
             # Check for stop token only if not in quotes
             if not in_quotes and token.type in stop_types:
                 if include_stop:
                     tokens.append(self.advance())
                 break
-            
+
             tokens.append(self.advance())
-        
+
         return tokens
-    
+
     def peek_composite_sequence(self) -> Optional[List[Token]]:
         """Look ahead for adjacent tokens forming a composite argument.
         
@@ -156,7 +157,7 @@ class TokenStream:
         """
         if self.at_end():
             return None
-        
+
         # Word-like tokens that can form composites
         WORD_LIKE = {
             TokenType.WORD, TokenType.STRING, TokenType.VARIABLE,
@@ -165,11 +166,11 @@ class TokenStream:
             TokenType.PROCESS_SUB_IN, TokenType.PROCESS_SUB_OUT,
             TokenType.LBRACKET, TokenType.RBRACKET
         }
-        
+
         first_token = self.peek()
         if not first_token or first_token.type not in WORD_LIKE:
             return None
-        
+
         composite = [first_token]
 
         # Look ahead for adjacent tokens
@@ -189,23 +190,23 @@ class TokenStream:
 
             composite.append(next_token)
             offset += 1
-        
+
         # Only return if we found a composite (more than one token)
         return composite if len(composite) > 1 else None
-    
+
     def save_position(self) -> int:
         """Save current position for later restoration."""
         return self.pos
-    
+
     def restore_position(self, pos: int) -> None:
         """Restore to a previously saved position."""
         self.pos = pos
-    
+
     def remaining_tokens(self) -> List[Token]:
         """Get all remaining tokens from current position."""
         return self.tokens[self.pos:] if self.pos < len(self.tokens) else []
-    
-    def collect_arithmetic_expression(self, 
+
+    def collect_arithmetic_expression(self,
                                     stop_condition=None,
                                     transform_redirects: bool = True) -> Tuple[List[Token], str]:
         """Collect tokens for arithmetic expression with special handling.
@@ -225,16 +226,16 @@ class TokenStream:
         tokens = []
         expr_parts = []
         paren_depth = 0
-        
+
         while not self.at_end():
             token = self.peek()
             if not token:
                 break
-            
+
             # Check stop condition if provided
             if stop_condition and stop_condition(token, paren_depth):
                 break
-            
+
             # Track parentheses depth
             if token.type == TokenType.LPAREN:
                 paren_depth += 1
@@ -243,11 +244,11 @@ class TokenStream:
                 # Some stop conditions check for RPAREN at depth 0
                 if stop_condition and stop_condition(token, paren_depth):
                     break
-            
+
             # Collect token
             tokens.append(token)
             self.advance()
-            
+
             # Build expression string with transformations
             if transform_redirects:
                 if token.type == TokenType.REDIRECT_IN:
@@ -258,7 +259,7 @@ class TokenStream:
                     expr_parts.append(token.value)
             else:
                 expr_parts.append(token.value)
-            
+
             # Add space between tokens if needed
             # Always add space after operators for readability
             if not self.at_end():
@@ -269,10 +270,10 @@ class TokenStream:
                     if token.type == TokenType.WORD and next_token.type == TokenType.WORD:
                         expr_parts.append(' ')
                     # Add space after redirect operators, unless next token starts with =
-                    elif (transform_redirects and 
+                    elif (transform_redirects and
                           token.type in (TokenType.REDIRECT_IN, TokenType.REDIRECT_OUT) and
                           not (next_token.value and next_token.value.startswith('='))):
                         expr_parts.append(' ')
-        
+
         expr_string = ''.join(expr_parts).strip()
         return tokens, expr_string

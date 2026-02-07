@@ -1,6 +1,7 @@
 """Shell option handlers."""
 
 from typing import TYPE_CHECKING
+
 from .exceptions import UnboundVariableError
 
 if TYPE_CHECKING:
@@ -9,9 +10,9 @@ if TYPE_CHECKING:
 
 class OptionHandler:
     """Handle shell option behaviors."""
-    
+
     @staticmethod
-    def should_exit_on_error(state: 'ShellState', in_conditional: bool = False, 
+    def should_exit_on_error(state: 'ShellState', in_conditional: bool = False,
                            in_pipeline: bool = False, is_negated: bool = False) -> bool:
         """
         Check if shell should exit on command failure.
@@ -27,26 +28,26 @@ class OptionHandler:
         """
         if not state.options.get('errexit', False):
             return False
-        
+
         # Don't exit in conditional contexts
         if in_conditional:
             return False
-        
+
         # Don't exit for negated commands
         if is_negated:
             return False
-            
+
         # Don't exit for non-final pipeline commands (unless pipefail is set)
         if in_pipeline and not state.options.get('pipefail', False):
             return False
-            
+
         # Don't exit if in a function and a return statement was used
         # (This is handled by the LoopReturn exception mechanism)
-        
+
         return True
-    
+
     @staticmethod
-    def check_unset_variable(state: 'ShellState', var_name: str, 
+    def check_unset_variable(state: 'ShellState', var_name: str,
                            in_expansion: bool = False) -> None:
         """
         Check if accessing unset variable should cause error.
@@ -61,33 +62,33 @@ class OptionHandler:
         """
         if not state.options.get('nounset', False):
             return
-            
+
         # Special handling for parameter expansions that provide defaults
         if in_expansion:
             return
-            
+
         # Special handling for $@ and $* when no positional params
         if var_name in ['@', '*'] and not state.positional_params:
             # Bash allows these even with nounset
             return
-            
+
         # Special variables that always have a value
         if var_name in ['?', '$', '#', '0']:
             return
-            
+
         # Positional parameters
         if var_name.isdigit():
             index = int(var_name)
             if index > len(state.positional_params):
                 raise UnboundVariableError(f"${var_name}: unbound variable")
             return
-            
+
         # Check if variable exists in shell variables or environment
         # We need to check explicitly because get_variable returns a default
-        if (state.scope_manager.get_variable(var_name) is None and 
+        if (state.scope_manager.get_variable(var_name) is None and
             var_name not in state.env):
             raise UnboundVariableError(f"{var_name}: unbound variable")
-    
+
     @staticmethod
     def print_xtrace(state: 'ShellState', command_parts: list) -> None:
         """
@@ -99,12 +100,12 @@ class OptionHandler:
         """
         if not state.options.get('xtrace', False):
             return
-            
+
         ps4 = state.get_variable('PS4', '+ ')
         trace_line = ps4 + ' '.join(str(part) for part in command_parts)
         print(trace_line, file=state.stderr)
         state.stderr.flush()  # Ensure trace appears before command output
-    
+
     @staticmethod
     def get_pipeline_exit_code(state: 'ShellState', exit_codes: list) -> int:
         """
@@ -119,7 +120,7 @@ class OptionHandler:
         """
         if not exit_codes:
             return 0
-            
+
         if state.options.get('pipefail', False):
             # Return rightmost non-zero exit status, or 0 if all succeeded
             for code in reversed(exit_codes):

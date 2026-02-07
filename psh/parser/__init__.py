@@ -8,18 +8,19 @@ context-aware parsing, semantic analysis, and enhanced error recovery.
 
 from typing import Optional
 
-# Import from final locations
-from .recursive_descent.parser import Parser
-from .recursive_descent.helpers import ParseError, ErrorContext, TokenGroups
+from .config import ErrorHandlingMode, ParserConfig, ParsingMode
 from .recursive_descent.base import BaseParser
 from .recursive_descent.base_context import ContextBaseParser
-from .recursive_descent.context import ParserContext, ParserProfiler, HeredocInfo
-from .recursive_descent.support.context_factory import ParserContextFactory, ContextConfiguration
-from .recursive_descent.support.context_snapshots import ContextSnapshot, BacktrackingParser, SpeculativeParser
-from .recursive_descent.support.factory import ParserFactory, ConfigurationValidator
+from .recursive_descent.context import HeredocInfo, ParserContext, ParserProfiler
+from .recursive_descent.helpers import ErrorContext, ParseError, TokenGroups
+
+# Import from final locations
+from .recursive_descent.parser import Parser
+from .recursive_descent.support.context_factory import ContextConfiguration, ParserContextFactory
+from .recursive_descent.support.context_snapshots import BacktrackingParser, ContextSnapshot, SpeculativeParser
+from .recursive_descent.support.factory import ConfigurationValidator, ParserFactory
 from .recursive_descent.support.integration_manager import create_fully_enhanced_parser as create_parser
 from .recursive_descent.support.utils import parse_with_heredocs as utils_parse_with_heredocs
-from .config import ParserConfig, ParsingMode, ErrorHandlingMode
 
 # Public API
 __all__ = [
@@ -51,7 +52,7 @@ def parse(tokens, config=None):
     """
     if config is None:
         config = ParserConfig()
-    
+
     return Parser(tokens, config=config).parse()
 
 

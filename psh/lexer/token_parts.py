@@ -25,7 +25,7 @@ class RichToken(Token):
     """Enhanced token with metadata about its parts."""
     parts: List[TokenPart] = field(default_factory=list)
     is_composite: bool = False
-    
+
     @classmethod
     def from_token(cls, token: Token, parts: Optional[List[TokenPart]] = None) -> 'RichToken':
         """Create RichToken from regular Token."""

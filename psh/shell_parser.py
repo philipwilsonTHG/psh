@@ -1,10 +1,9 @@
 """Parser integration for shell (enhanced features now standard)."""
 
-from typing import Any, Optional, Dict
 from dataclasses import dataclass
+from typing import Any, Dict
 
-from .parser import parse_with_lexer_integration, ParserConfig
-from .parser.base_context import ContextBaseParser
+from .parser import ParserConfig, parse_with_lexer_integration
 
 
 @dataclass
@@ -19,12 +18,12 @@ class ShellParserOptions:
 
 class ShellParser:
     """Shell parser integration (enhanced features now standard)."""
-    
+
     def __init__(self, shell):
         self.shell = shell
         self.parser_config = self._create_parser_config()
         self.options = self._get_parser_options()
-    
+
     def parse_command(self, command_string: str) -> Any:
         """Parse command using enhanced lexer-parser pipeline (now standard)."""
         try:
@@ -38,17 +37,17 @@ class ShellParser:
             if hasattr(self.shell, 'debug') and self.shell.debug:
                 print(f"Enhanced parsing failed: {e}")
             raise
-    
+
     def _create_parser_config(self) -> ParserConfig:
         """Create parser configuration from shell settings."""
         # Get shell options if available
         shell_options = {}
         if hasattr(self.shell, 'state') and hasattr(self.shell.state, 'options'):
             shell_options = self.shell.state.options
-        
+
         # Determine performance mode
         performance_mode = shell_options.get('parser-mode', 'balanced')
-        
+
         if performance_mode == 'development':
             return ParserConfig(
                 use_enhanced_tokens=True,
@@ -76,7 +75,7 @@ class ShellParser:
                 strict_contract_validation=False,
                 full_enhancement=False
             )
-    
+
     def _get_parser_options(self) -> ShellParserOptions:
         """Get parser options from shell configuration."""
         if hasattr(self.shell, 'state') and hasattr(self.shell.state, 'options'):
@@ -90,7 +89,7 @@ class ShellParser:
             )
         else:
             return ShellParserOptions()
-    
+
     def get_parser_status(self) -> Dict[str, Any]:
         """Get status of parser integration."""
         return {
@@ -103,20 +102,20 @@ class ShellParser:
                 'full_enhancement': self.parser_config.full_enhancement
             }
         }
-    
+
     def update_configuration(self, **options):
         """Update parser configuration."""
         # Update shell options
         if hasattr(self.shell, 'state') and hasattr(self.shell.state, 'options'):
             for key, value in options.items():
-                if key in ['validate-context', 'validate-semantics', 
+                if key in ['validate-context', 'validate-semantics',
                           'analyze-semantics', 'enhanced-error-recovery', 'parser-mode']:
                     self.shell.state.options[key] = value
-        
+
         # Recreate parser config
         self.parser_config = self._create_parser_config()
         self.options = self._get_parser_options()
-    
+
     def analyze_command_semantics(self, command_string: str) -> Dict[str, Any]:
         """Analyze command semantics without executing."""
         try:
@@ -124,7 +123,7 @@ class ShellParser:
             return analyze_command_semantics(command_string)
         except Exception as e:
             return {"error": f"Semantic analysis failed: {e}"}
-    
+
     def validate_command_syntax(self, command_string: str) -> Dict[str, Any]:
         """Validate command syntax using enhanced lexer-parser."""
         try:
@@ -136,16 +135,16 @@ class ShellParser:
                 enable_semantic_analysis=True,
                 strict_contract_validation=True
             )
-            
+
             # Try to parse
             ast = parse_with_lexer_integration(command_string, parser_config=validation_config)
-            
+
             return {
                 "valid": True,
                 "message": "Command syntax is valid",
                 "ast_type": type(ast).__name__
             }
-            
+
         except Exception as e:
             return {
                 "valid": False,
@@ -158,7 +157,7 @@ def install_parser_integration(shell):
     """Install parser integration into shell (enhanced features now standard)."""
     # Create parser manager
     shell.parser = ShellParser(shell)
-    
+
     # Add shell options if not present
     if hasattr(shell, 'state') and hasattr(shell.state, 'options'):
         default_options = {
@@ -168,31 +167,31 @@ def install_parser_integration(shell):
             'enhanced-error-recovery': True,
             'parser-mode': 'balanced'
         }
-        
+
         for option, default_value in default_options.items():
             if option not in shell.state.options:
                 shell.state.options[option] = default_value
-    
+
     # Install parse method
     def parse_command(command_string: str):
         return shell.parser.parse_command(command_string)
-    
+
     # Install the method
     shell.parse_command = parse_command
-    
+
     return shell.parser
 
 
 def create_shell(*args, **kwargs):
     """Create shell with parser integration (enhanced features now standard)."""
     from .shell import Shell
-    
+
     # Create shell
     shell = Shell(*args, **kwargs)
-    
+
     # Install parser integration
     install_parser_integration(shell)
-    
+
     return shell
 
 
@@ -226,14 +225,14 @@ def enable_enhanced_features(shell, profile: str = "balanced"):
             'parser-mode': 'development'
         }
     }
-    
+
     if profile not in profiles:
         raise ValueError(f"Unknown profile: {profile}. Available: {list(profiles.keys())}")
-    
+
     # Install parser integration if not present
     if not hasattr(shell, 'parser'):
         install_parser_integration(shell)
-    
+
     # Apply profile options
     shell.parser.update_configuration(**profiles[profile])
 
@@ -241,7 +240,7 @@ def enable_enhanced_features(shell, profile: str = "balanced"):
 # Export main components
 __all__ = [
     'ShellParser',
-    'ShellParserOptions', 
+    'ShellParserOptions',
     'install_parser_integration',
     'create_shell',
     'enable_enhanced_features'

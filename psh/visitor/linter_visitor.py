@@ -5,16 +5,12 @@ This visitor identifies potential issues and style problems in shell scripts,
 providing warnings and suggestions for improvement.
 """
 
-from typing import List, Dict, Any, Set, Optional
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
+from typing import List, Optional, Set
 
+from ..ast_nodes import ASTNode, FunctionDef, IfConditional, Pipeline, SimpleCommand, TopLevel
 from .base import ASTVisitor
-from ..ast_nodes import (
-    ASTNode, TopLevel, SimpleCommand, FunctionDef, ForLoop,
-    WhileLoop, CStyleForLoop, IfConditional, CaseConditional,
-    Pipeline, AndOrList, StatementList
-)
 
 
 class LintLevel(Enum):
@@ -33,7 +29,7 @@ class LintIssue:
     line: int = 0
     column: int = 0
     suggestion: Optional[str] = None
-    
+
     def format(self) -> str:
         """Format the issue for display."""
         location = f"line {self.line}" if self.line > 0 else "script"
@@ -54,7 +50,7 @@ class LinterConfig:
     check_error_handling: bool = True
     check_style: bool = True
     check_security: bool = True
-    
+
     # Style preferences
     function_naming_pattern: str = r'^[a-z_][a-z0-9_]*$'
     max_line_length: int = 120
@@ -73,33 +69,33 @@ class LinterVisitor(ASTVisitor[None]):
     - Style issues
     - Security concerns
     """
-    
+
     def __init__(self, config: Optional[LinterConfig] = None):
         """Initialize linter with optional configuration."""
         super().__init__()
         self.config = config or LinterConfig()
         self.issues: List[LintIssue] = []
-        
+
         # Variable tracking
         self.defined_vars: Set[str] = set()
         self.used_vars: Set[str] = set()
         self.exported_vars: Set[str] = set()
-        
+
         # Function tracking
         self.defined_functions: Set[str] = set()
         self.used_functions: Set[str] = set()
-        
+
         # Common shell builtins and commands
         self.builtins = {
             'echo', 'cd', 'pwd', 'export', 'unset', 'set', 'exit', 'return',
-            'break', 'continue', 'eval', 'exec', 'source', '.', 'alias', 
+            'break', 'continue', 'eval', 'exec', 'source', '.', 'alias',
             'unalias', 'test', '[', 'true', 'false', ':', 'declare', 'typeset',
             'local', 'readonly', 'shift', 'getopts', 'trap', 'wait', 'jobs',
             'fg', 'bg', 'kill', 'suspend', 'logout', 'times', 'umask', 'ulimit',
             'hash', 'type', 'command', 'builtin', 'enable', 'help', 'let',
             'read', 'printf', 'history', 'fc'
         }
-        
+
         # Common external commands (not exhaustive)
         self.common_commands = {
             'ls', 'cp', 'mv', 'rm', 'mkdir', 'rmdir', 'touch', 'cat', 'grep',
@@ -109,41 +105,41 @@ class LinterVisitor(ASTVisitor[None]):
             'make', 'gcc', 'python', 'python3', 'perl', 'ruby', 'node',
             'npm', 'pip', 'apt', 'yum', 'brew', 'systemctl', 'service'
         }
-        
+
         # Commands that should be used with caution
         self.dangerous_commands = {
             'rm': "Consider using 'rm -i' for interactive confirmation",
             'eval': "Eval can execute arbitrary code, ensure input is trusted",
             'exec': "Exec replaces the current shell, use with caution"
         }
-        
+
         # Track context
         self._in_function = False
         self._in_subshell = False
         self._has_error_handling = False
-    
-    def add_issue(self, level: LintLevel, message: str, 
+
+    def add_issue(self, level: LintLevel, message: str,
                   suggestion: Optional[str] = None, line: int = 0):
         """Add a lint issue."""
         self.issues.append(LintIssue(level, message, line, suggestion=suggestion))
-    
+
     def get_issues(self) -> List[LintIssue]:
         """Get all lint issues found."""
         return self.issues
-    
+
     def get_summary(self) -> str:
         """Get a formatted summary of all issues."""
         if not self.issues:
             return "No issues found!"
-        
+
         # Group by severity
         by_level = {}
         for issue in self.issues:
             by_level.setdefault(issue.level, []).append(issue)
-        
+
         lines = ["Linting Summary:"]
         lines.append("=" * 50)
-        
+
         # Count by level
         counts = []
         for level in LintLevel:
@@ -151,7 +147,7 @@ class LinterVisitor(ASTVisitor[None]):
                 counts.append(f"{len(by_level[level])} {level.value}s")
         lines.append(f"Found {len(self.issues)} issues: " + ", ".join(counts))
         lines.append("")
-        
+
         # Display issues by level
         for level in [LintLevel.ERROR, LintLevel.WARNING, LintLevel.INFO, LintLevel.STYLE]:
             if level in by_level:
@@ -159,17 +155,17 @@ class LinterVisitor(ASTVisitor[None]):
                 lines.append("-" * 30)
                 for issue in by_level[level]:
                     lines.append(issue.format())
-        
+
         return "\n".join(lines)
-    
+
     # Visitor methods
-    
+
     def visit_TopLevel(self, node: TopLevel) -> None:
         """Visit top-level script."""
         # Visit all items
         for item in node.items:
             self.visit(item)
-        
+
         # Check for unused variables
         if self.config.check_unused_vars:
             unused = self.defined_vars - self.used_vars - self.exported_vars
@@ -181,7 +177,7 @@ class LinterVisitor(ASTVisitor[None]):
                     f"Variable '{var}' is defined but never used",
                     suggestion="Remove unused variable or export it if needed externally"
                 )
-        
+
         # Check for undefined functions
         undefined_funcs = self.used_functions - self.defined_functions
         for func in sorted(undefined_funcs):
@@ -191,7 +187,7 @@ class LinterVisitor(ASTVisitor[None]):
                     f"Function '{func}' is called but not defined",
                     suggestion="Define the function or check for typos"
                 )
-        
+
         # Check for missing error handling
         if self.config.check_error_handling and not self._has_error_handling:
             self.add_issue(
@@ -199,17 +195,17 @@ class LinterVisitor(ASTVisitor[None]):
                 "Script has no explicit error handling",
                 suggestion="Consider adding 'set -e' or checking exit codes"
             )
-    
+
     def visit_SimpleCommand(self, node: SimpleCommand) -> None:
         """Visit simple command."""
         if not node.args:
             return
-        
+
         cmd = node.args[0]
-        
+
         # Track function calls
         self.used_functions.add(cmd)
-        
+
         # Check for dangerous commands
         if self.config.check_security and cmd in self.dangerous_commands:
             self.add_issue(
@@ -217,13 +213,13 @@ class LinterVisitor(ASTVisitor[None]):
                 f"Use of potentially dangerous command '{cmd}'",
                 suggestion=self.dangerous_commands[cmd]
             )
-        
+
         # Check for variable assignments
         for arg in node.args:
             if '=' in arg and self._is_assignment(arg):
                 var_name = arg.split('=', 1)[0]
                 self.defined_vars.add(var_name)
-        
+
         # Check specific commands
         if cmd == 'set':
             self._check_set_command(node.args[1:])
@@ -233,10 +229,10 @@ class LinterVisitor(ASTVisitor[None]):
             self._check_test_command(node.args[1:])
         elif cmd in ['rm', 'mv', 'cp'] and len(node.args) > 1:
             self._check_file_command(cmd, node.args[1:])
-        
+
         # Check for command existence (basic check)
         if self.config.check_command_existence:
-            if (cmd not in self.builtins and 
+            if (cmd not in self.builtins and
                 cmd not in self.common_commands and
                 cmd not in self.defined_functions and
                 not cmd.startswith('./') and
@@ -247,16 +243,16 @@ class LinterVisitor(ASTVisitor[None]):
                     f"Command '{cmd}' might not be available",
                     suggestion="Ensure the command exists or use 'command -v' to check"
                 )
-        
+
         # Visit args for variable usage
         for arg in node.args[1:]:
             if '$' in arg:
                 self._check_variable_usage(arg)
-    
+
     def visit_FunctionDef(self, node: FunctionDef) -> None:
         """Visit function definition."""
         self.defined_functions.add(node.name)
-        
+
         # Check function naming
         if self.config.check_style:
             import re
@@ -266,34 +262,34 @@ class LinterVisitor(ASTVisitor[None]):
                     f"Function name '{node.name}' doesn't match naming convention",
                     suggestion="Use lowercase with underscores (e.g., my_function)"
                 )
-        
+
         # Visit body in function context
         old_in_function = self._in_function
         self._in_function = True
         self.visit(node.body)
         self._in_function = old_in_function
-    
+
     def visit_IfConditional(self, node: IfConditional) -> None:
         """Visit if statement."""
         # Check condition
         self.visit(node.condition)
         self.visit(node.then_part)
-        
+
         # Check elif parts
         for elif_cond, elif_then in node.elif_parts:
             self.visit(elif_cond)
             self.visit(elif_then)
-        
+
         # Check else
         if node.else_part:
             self.visit(node.else_part)
-    
+
     def visit_Pipeline(self, node: Pipeline) -> None:
         """Visit pipeline."""
         # Check for useless use of cat
         if len(node.commands) >= 2:
             first_cmd = node.commands[0]
-            if (isinstance(first_cmd, SimpleCommand) and 
+            if (isinstance(first_cmd, SimpleCommand) and
                 first_cmd.args and first_cmd.args[0] == 'cat' and
                 len(first_cmd.args) == 2):
                 second_cmd = node.commands[1]
@@ -305,13 +301,13 @@ class LinterVisitor(ASTVisitor[None]):
                             "Useless use of cat",
                             suggestion=f"Use '{next_cmd} {first_cmd.args[1]}' directly"
                         )
-        
+
         # Visit all commands
         for cmd in node.commands:
             self.visit(cmd)
-    
+
     # Helper methods
-    
+
     def _is_assignment(self, arg: str) -> bool:
         """Check if argument is a variable assignment."""
         if '=' not in arg:
@@ -322,7 +318,7 @@ class LinterVisitor(ASTVisitor[None]):
             return False
         # Rest must be alphanumeric or underscore
         return all(c.isalnum() or c == '_' for c in var_part[1:])
-    
+
     def _check_variable_usage(self, text: str) -> None:
         """Check for variable usage in text."""
         import re
@@ -332,18 +328,18 @@ class LinterVisitor(ASTVisitor[None]):
             var_name = match.group(1) or match.group(2)
             if var_name:
                 self.used_vars.add(var_name)
-                
+
                 # Check if variable is defined
-                if (self.config.check_undefined_vars and 
+                if (self.config.check_undefined_vars and
                     var_name not in self.defined_vars and
-                    var_name not in ['PATH', 'HOME', 'USER', 'SHELL', 'PWD', 
+                    var_name not in ['PATH', 'HOME', 'USER', 'SHELL', 'PWD',
                                      'OLDPWD', 'IFS', 'PS1', 'PS2', 'PS3', 'PS4']):
                     self.add_issue(
                         LintLevel.WARNING,
                         f"Variable '{var_name}' may be undefined",
                         suggestion="Define the variable or use ${var:-default}"
                     )
-    
+
     def _check_set_command(self, args: List[str]) -> None:
         """Check set command for error handling."""
         for arg in args:
@@ -352,7 +348,7 @@ class LinterVisitor(ASTVisitor[None]):
             elif arg == '-u' or arg == '-o' and 'nounset' in args:
                 # Good practice
                 pass
-    
+
     def _check_export_command(self, args: List[str]) -> None:
         """Check export command."""
         for arg in args:
@@ -362,26 +358,26 @@ class LinterVisitor(ASTVisitor[None]):
                 self.exported_vars.add(var_name)
             else:
                 self.exported_vars.add(arg)
-    
+
     def _check_test_command(self, args: List[str]) -> None:
         """Check test/[ command usage."""
         if not args:
             return
-        
+
         # Check for missing quotes on variables
         if self.config.check_quote_usage:
             for i, arg in enumerate(args):
                 if arg.startswith('$') and ' ' not in arg:
                     # Check if it's in a context where it should be quoted
                     if i > 0 and args[i-1] in ['-f', '-d', '-e', '-s', '-r', '-w', '-x',
-                                                '=', '!=', '-eq', '-ne', '-lt', '-le', 
+                                                '=', '!=', '-eq', '-ne', '-lt', '-le',
                                                 '-gt', '-ge']:
                         self.add_issue(
                             LintLevel.WARNING,
                             f"Unquoted variable '{arg}' in test command",
                             suggestion=f'Use "{arg}" to prevent word splitting'
                         )
-        
+
         # Suggest [[ over [
         if self.config.prefer_double_brackets and args and args[-1] == ']':
             self.add_issue(
@@ -389,7 +385,7 @@ class LinterVisitor(ASTVisitor[None]):
                 "Consider using [[ ]] instead of [ ]",
                 suggestion="[[ ]] is safer and more feature-rich"
             )
-    
+
     def _check_file_command(self, cmd: str, args: List[str]) -> None:
         """Check file manipulation commands."""
         if cmd == 'rm' and '-f' not in args and '-i' not in args:
@@ -398,7 +394,7 @@ class LinterVisitor(ASTVisitor[None]):
                 f"'{cmd}' without -i flag",
                 suggestion="Consider using 'rm -i' for safety"
             )
-        
+
         # Check for unquoted variables that might contain spaces
         if self.config.check_quote_usage:
             for arg in args:
@@ -408,14 +404,14 @@ class LinterVisitor(ASTVisitor[None]):
                         f"Unquoted variable '{arg}' in {cmd} command",
                         suggestion=f'Use "{arg}" to handle filenames with spaces'
                     )
-    
+
     def generic_visit(self, node: ASTNode) -> None:
         """Visit all child nodes by default."""
         # Visit all attributes that are AST nodes or lists of AST nodes
         for attr_name in dir(node):
             if attr_name.startswith('_'):
                 continue
-            
+
             attr = getattr(node, attr_name, None)
             if isinstance(attr, ASTNode):
                 self.visit(attr)

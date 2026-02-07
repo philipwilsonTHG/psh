@@ -4,15 +4,14 @@ This module provides utilities for safe signal handling using the self-pipe tric
 The self-pipe pattern moves complex work out of signal handler context to avoid
 reentrancy issues and ensure async-signal-safety.
 """
-import os
-import fcntl
-import signal
 import contextlib
-import sys
+import fcntl
+import os
+import signal
 import traceback
-from typing import List, Set, Dict, Optional, Tuple, Any
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 
 class SignalNotifier:

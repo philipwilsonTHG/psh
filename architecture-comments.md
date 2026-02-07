@@ -1,6 +1,6 @@
 # Architecture and Codebase Comments
 
-*Updated 2026-02-07 after v0.121.0 — `\x00` null byte markers removed.*
+*Updated 2026-02-07 after v0.122.0 — shell-vs-leaf SIGTTOU policy formalized.*
 
 ## Strengths
 
@@ -35,6 +35,6 @@
 
 5. ~~**Formalize the `args`/`arg_types` deprecation path.**~~ **Done in v0.120.0.** `arg_types` and `quote_types` fields removed from `SimpleCommand`. `words: List[Word]` is now required (not optional). All consumers migrated to Word helper properties. The `_word_to_arg_type()` bridge method deleted.
 
-6. **Process substitution and subshell fd management.** The SIGTTOU policy is now formalized: `ProcessConfig.is_shell_process` controls whether SIGTTOU is restored to SIG_IGN after `reset_child_signals()` (for subshells/brace groups that call `tcsetpgrp()`). `process_sub.py` applies the same policy manually since it uses raw `os.fork()`. The pytest `-s` requirement for subshell tests remains (a test infrastructure issue, not a signal issue).
+6. **Process substitution and subshell fd management.** The SIGTTOU policy is now formalized (v0.122.0): `ProcessConfig.is_shell_process` controls whether SIGTTOU is restored to SIG_IGN after `reset_child_signals()` (for subshells/brace groups that call `tcsetpgrp()`). `process_sub.py` applies the same policy manually since it uses raw `os.fork()`. The pytest `-s` requirement for subshell tests remains as a permanent test infrastructure constraint — it stems from a fundamental incompatibility between pytest's FD-level output capture and PSH's forked shell processes that use Python-level `sys.stdout`. See `docs/subsystem_internals.md` §6 for detailed analysis.
 
 7. ~~**Fix parser AST for `/#`, `/%`, and substring operators.**~~ **Done in v0.119.0.** `_parse_parameter_expansion()` now uses earliest-position matching with the full operator set. Workarounds and string fallback removed.

@@ -5,7 +5,8 @@ without coupling to the lexer's internal state. These functions are easier to
 test, reuse, and reason about.
 """
 
-from typing import Tuple, Optional, Set, Dict, List
+from typing import Dict, Optional, Set, Tuple
+
 from .constants import DOUBLE_QUOTE_ESCAPES
 
 
@@ -31,7 +32,7 @@ def read_until_char(
     """
     content = ""
     pos = start_pos
-    
+
     while pos < len(input_text) and input_text[pos] != target:
         if escape and input_text[pos] == '\\' and pos + 1 < len(input_text):
             # Handle escape sequence
@@ -48,7 +49,7 @@ def read_until_char(
         else:
             content += input_text[pos]
             pos += 1
-    
+
     return content, pos
 
 
@@ -78,16 +79,16 @@ def find_closing_delimiter(
     pos = start_pos
     in_single_quote = False
     in_double_quote = False
-    
+
     while pos < len(input_text) and depth > 0:
         char = input_text[pos]
-        
+
         # Handle escape sequences if enabled
         if track_escapes and char == '\\' and pos + 1 < len(input_text):
             # Skip the escaped character
             pos += 2
             continue
-        
+
         # Handle quotes if tracking is enabled
         if track_quotes:
             if char == "'" and not in_double_quote:
@@ -98,27 +99,27 @@ def find_closing_delimiter(
                 in_double_quote = not in_double_quote
                 pos += 1
                 continue
-        
+
         # Track delimiter depth when not in quotes
         if not (in_single_quote or in_double_quote):
             # Check for opening delimiter
-            if (pos + len(open_delim) <= len(input_text) and 
+            if (pos + len(open_delim) <= len(input_text) and
                 input_text[pos:pos+len(open_delim)] == open_delim):
                 depth += 1
                 pos += len(open_delim)
                 continue
-            
+
             # Check for closing delimiter
-            if (pos + len(close_delim) <= len(input_text) and 
+            if (pos + len(close_delim) <= len(input_text) and
                 input_text[pos:pos+len(close_delim)] == close_delim):
                 depth -= 1
                 if depth == 0:
                     return pos + len(close_delim), True
                 pos += len(close_delim)
                 continue
-        
+
         pos += 1
-    
+
     return pos, False
 
 
@@ -161,7 +162,7 @@ def find_balanced_double_parentheses(
     # but track individual ( and ) for internal balance
     depth = 0
     pos = start_pos
-    
+
     while pos < len(input_text):
         # Check for )) first
         if pos + 1 < len(input_text) and input_text[pos:pos+2] == '))':
@@ -173,14 +174,14 @@ def find_balanced_double_parentheses(
                 depth -= 1
                 pos += 1  # Only advance by 1 to check the second ) again
                 continue
-        
+
         if input_text[pos] == '(':
             depth += 1
         elif input_text[pos] == ')':
             depth -= 1
-        
+
         pos += 1
-    
+
     return pos, False
 
 
@@ -202,12 +203,12 @@ def handle_escape_sequence(
     """
     if pos >= len(input_text) or input_text[pos] != '\\':
         return '\\', pos + 1
-    
+
     if pos + 1 >= len(input_text):
         return '\\', pos + 1
-    
+
     next_char = input_text[pos + 1]
-    
+
     if quote_context == "$'":
         # ANSI-C quoting - handle extended escape sequences
         return handle_ansi_c_escape(input_text, pos)
@@ -253,9 +254,9 @@ def handle_ansi_c_escape(input_text: str, pos: int) -> Tuple[str, int]:
     """
     if pos + 1 >= len(input_text):
         return '\\', pos + 1
-    
+
     next_char = input_text[pos + 1]
-    
+
     # Simple single-character escapes
     simple_escapes = {
         'n': '\n', 't': '\t', 'r': '\r', 'b': '\b',
@@ -263,10 +264,10 @@ def handle_ansi_c_escape(input_text: str, pos: int) -> Tuple[str, int]:
         "'": "'", '"': '"', '?': '?',
         'e': '\x1b', 'E': '\x1b'  # ANSI escape
     }
-    
+
     if next_char in simple_escapes:
         return simple_escapes[next_char], pos + 2
-    
+
     # Hex escape: \xHH
     if next_char == 'x':
         hex_str = ""
@@ -278,7 +279,7 @@ def handle_ansi_c_escape(input_text: str, pos: int) -> Tuple[str, int]:
                 new_pos += 1
             else:
                 break
-        
+
         if hex_str:
             try:
                 return chr(int(hex_str, 16)), new_pos
@@ -286,7 +287,7 @@ def handle_ansi_c_escape(input_text: str, pos: int) -> Tuple[str, int]:
                 return '\\x' + hex_str, new_pos
         else:
             return '\\x', pos + 2
-    
+
     # Octal escape: \0NNN (bash style with leading 0)
     if next_char == '0':
         octal_str = ""
@@ -298,7 +299,7 @@ def handle_ansi_c_escape(input_text: str, pos: int) -> Tuple[str, int]:
                 new_pos += 1
             else:
                 break
-        
+
         if octal_str:
             try:
                 return chr(int(octal_str, 8)), new_pos
@@ -307,7 +308,7 @@ def handle_ansi_c_escape(input_text: str, pos: int) -> Tuple[str, int]:
         else:
             # Just \0 means null character
             return '\0', pos + 2
-    
+
     # Unicode escape: \uHHHH
     if next_char == 'u':
         hex_str = ""
@@ -319,7 +320,7 @@ def handle_ansi_c_escape(input_text: str, pos: int) -> Tuple[str, int]:
                 new_pos += 1
             else:
                 break
-        
+
         if len(hex_str) == 4:
             try:
                 return chr(int(hex_str, 16)), new_pos
@@ -327,7 +328,7 @@ def handle_ansi_c_escape(input_text: str, pos: int) -> Tuple[str, int]:
                 return '\\u' + hex_str, new_pos
         else:
             return '\\u' + hex_str, new_pos
-    
+
     # Unicode escape: \UHHHHHHHH (8 digits)
     if next_char == 'U':
         hex_str = ""
@@ -339,7 +340,7 @@ def handle_ansi_c_escape(input_text: str, pos: int) -> Tuple[str, int]:
                 new_pos += 1
             else:
                 break
-        
+
         if len(hex_str) == 8:
             try:
                 return chr(int(hex_str, 16)), new_pos
@@ -347,7 +348,7 @@ def handle_ansi_c_escape(input_text: str, pos: int) -> Tuple[str, int]:
                 return '\\U' + hex_str, new_pos
         else:
             return '\\U' + hex_str, new_pos
-    
+
     # For other characters, keep the backslash
     return '\\' + next_char, pos + 2
 
@@ -371,22 +372,22 @@ def find_word_boundary(
         Position of the first terminator or end of string
     """
     pos = start_pos
-    
+
     while pos < len(input_text):
         char = input_text[pos]
-        
+
         # Handle escape sequences
         if handle_escapes and char == '\\' and pos + 1 < len(input_text):
             # Skip escaped character
             pos += 2
             continue
-        
+
         # Check for terminators
         if char in terminators:
             break
-        
+
         pos += 1
-    
+
     return pos
 
 
@@ -408,26 +409,26 @@ def extract_variable_name(
     Returns:
         Tuple of (variable_name, new_position)
     """
-    from .unicode_support import is_identifier_start, is_identifier_char
-    
+    from .unicode_support import is_identifier_char, is_identifier_start
+
     if start_pos >= len(input_text):
         return "", start_pos
-    
+
     char = input_text[start_pos]
-    
+
     # Special single-character variables
     if char in special_vars:
         return char, start_pos + 1
-    
+
     # Regular variable names
     var_name = ""
     pos = start_pos
-    
+
     # First character must be letter or underscore (not digit)
     if pos < len(input_text) and is_identifier_start(char, posix_mode):
         var_name += char
         pos += 1
-        
+
         # Subsequent characters can be letters, numbers, marks, or underscore
         while pos < len(input_text):
             char = input_text[pos]
@@ -436,7 +437,7 @@ def extract_variable_name(
                 pos += 1
             else:
                 break
-    
+
     # Don't return anything for invalid start (like digits)
     return var_name, pos
 
@@ -457,11 +458,11 @@ def is_comment_start(
     """
     if pos >= len(input_text) or input_text[pos] != '#':
         return False
-    
+
     # Comments start at beginning of input or after whitespace/operators
     if pos == 0:
         return True
-    
+
     prev_char = input_text[pos - 1]
     return prev_char in ' \t\n;|&<>(){}[]'
 
@@ -483,7 +484,7 @@ def scan_whitespace(
         Position after whitespace
     """
     pos = start_pos
-    
+
     while pos < len(input_text):
         char = input_text[pos]
         if unicode_aware:
@@ -496,7 +497,7 @@ def scan_whitespace(
             if char not in ' \t\n\r\f\v':
                 break
         pos += 1
-    
+
     return pos
 
 
@@ -520,14 +521,14 @@ def extract_quoted_content(
     """
     content = ""
     pos = start_pos
-    
+
     while pos < len(input_text):
         char = input_text[pos]
-        
+
         # Check for closing quote
         if char == quote_char:
             return content, pos + 1, True
-        
+
         # Handle escape sequences if allowed
         if allow_escapes and char == '\\' and pos + 1 < len(input_text):
             escaped_str, new_pos = handle_escape_sequence(
@@ -538,7 +539,7 @@ def extract_quoted_content(
         else:
             content += char
             pos += 1
-    
+
     # Reached end without finding closing quote
     return content, pos, False
 
@@ -566,7 +567,7 @@ def find_operator_match(
             if candidate in operators_by_length[length]:
                 token_type = operators_by_length[length][candidate]
                 return candidate, token_type, pos + length
-    
+
     return None
 
 
@@ -587,20 +588,20 @@ def validate_brace_expansion(
     content = ""
     pos = start_pos
     brace_depth = 1
-    
+
     while pos < len(input_text) and brace_depth > 0:
         char = input_text[pos]
-        
+
         if char == '{':
             brace_depth += 1
         elif char == '}':
             brace_depth -= 1
             if brace_depth == 0:
                 return content, pos + 1, True
-        
+
         content += char
         pos += 1
-    
+
     return content, pos, False
 
 
@@ -620,19 +621,19 @@ def is_inside_expansion(
     """
     if position >= len(input_text):
         return False
-    
+
     # Simple approach: scan from beginning and track expansion boundaries
     i = 0
     while i <= position and i < len(input_text):
         # Check for arithmetic expansion $((
-        if i + 2 < len(input_text) and input_text[i:i+3] == '$((': 
+        if i + 2 < len(input_text) and input_text[i:i+3] == '$((':
             # Find the closing ))
             end_pos, found = find_balanced_double_parentheses(input_text, i + 3)
             if found and i <= position < end_pos:
                 return True
             i = end_pos if found else i + 3
             continue
-        
+
         # Check for command substitution $(
         if i + 1 < len(input_text) and input_text[i:i+2] == '$(':
             # Find the closing )
@@ -641,7 +642,7 @@ def is_inside_expansion(
                 return True
             i = end_pos if found else i + 2
             continue
-        
+
         # Check for backtick command substitution
         if input_text[i] == '`':
             # Find the closing backtick
@@ -655,7 +656,7 @@ def is_inside_expansion(
             else:
                 i += 1
             continue
-        
+
         i += 1
-    
+
     return False

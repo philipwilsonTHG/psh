@@ -1,15 +1,15 @@
 """Unified quote parsing with configurable rules and expansion support."""
 
-from typing import List, Dict, Callable, Optional, Tuple
-from .token_parts import TokenPart
-from .position import Position
-from .constants import DOUBLE_QUOTE_ESCAPES
+from typing import Dict, List, Optional, Tuple
+
 from . import pure_helpers
+from .position import Position
+from .token_parts import TokenPart
 
 
 class QuoteRules:
     """Defines parsing rules for different quote types."""
-    
+
     def __init__(
         self,
         quote_char: str,
@@ -86,7 +86,7 @@ QUOTE_RULES = {
 
 class UnifiedQuoteParser:
     """Handles all quote parsing with unified logic."""
-    
+
     def __init__(self, expansion_parser: Optional['ExpansionParser'] = None):
         """
         Initialize the unified quote parser.
@@ -95,7 +95,7 @@ class UnifiedQuoteParser:
             expansion_parser: Parser for handling expansions within quotes
         """
         self.expansion_parser = expansion_parser
-    
+
     def parse_quoted_string(
         self,
         input_text: str,
@@ -121,10 +121,10 @@ class UnifiedQuoteParser:
         pos = start_pos
         current_value = ""
         part_start = start_pos
-        
+
         while pos < len(input_text):
             char = input_text[pos]
-            
+
             # Check for closing quote
             if char == rules.quote_char:
                 # Save final part if any
@@ -133,7 +133,7 @@ class UnifiedQuoteParser:
                         current_value, part_start, pos, rules.quote_char
                     ))
                 return parts, pos + 1, True
-            
+
             # Handle newlines if not allowed
             if char == '\n' and not rules.allows_newlines:
                 # Unclosed quote error - save what we have
@@ -142,7 +142,7 @@ class UnifiedQuoteParser:
                         current_value, part_start, pos, rules.quote_char
                     ))
                 return parts, pos, False
-            
+
             # Handle expansions if allowed
             if rules.allow_expansions and char == '$' and self.expansion_parser:
                 # Save current part
@@ -151,7 +151,7 @@ class UnifiedQuoteParser:
                         current_value, part_start, pos, rules.quote_char
                     ))
                     current_value = ""
-                
+
                 # Parse expansion
                 expansion_part, new_pos = self.expansion_parser.parse_expansion(
                     input_text, pos, rules.quote_char
@@ -160,7 +160,7 @@ class UnifiedQuoteParser:
                 pos = new_pos
                 part_start = pos
                 continue
-            
+
             # Handle backtick command substitution in double quotes
             if rules.allow_expansions and char == '`' and rules.quote_char == '"':
                 # Save current part
@@ -169,7 +169,7 @@ class UnifiedQuoteParser:
                         current_value, part_start, pos, rules.quote_char
                     ))
                     current_value = ""
-                
+
                 # Parse backtick substitution
                 backtick_part, new_pos = self._parse_backtick_substitution(
                     input_text, pos, rules.quote_char
@@ -178,7 +178,7 @@ class UnifiedQuoteParser:
                 pos = new_pos
                 part_start = pos
                 continue
-            
+
             # Handle escape sequences (only if allowed by the quote rules)
             if char == '\\' and pos + 1 < len(input_text) and rules.escape_sequences:
                 # Use the quote_type parameter if provided (for ANSI-C quotes)
@@ -189,19 +189,19 @@ class UnifiedQuoteParser:
                 current_value += escaped_str
                 pos = new_pos
                 continue
-            
+
             # Regular character
             current_value += char
             pos += 1
-        
+
         # Unclosed quote - add what we have
         if current_value:
             parts.append(self._create_literal_part(
                 current_value, part_start, pos, rules.quote_char
             ))
-        
+
         return parts, pos, False
-    
+
     def parse_simple_quoted_string(
         self,
         input_text: str,
@@ -230,17 +230,17 @@ class UnifiedQuoteParser:
             )
             content = ''.join(part.value for part in parts)
             return content, pos, found
-        
+
         # Use pure function for simple case
         return pure_helpers.extract_quoted_content(
             input_text, start_pos, quote_char, allow_escapes=False
         )
-    
+
     def _create_literal_part(
-        self, 
-        value: str, 
-        start_pos: int, 
-        end_pos: int, 
+        self,
+        value: str,
+        start_pos: int,
+        end_pos: int,
         quote_type: str
     ) -> TokenPart:
         """Create a literal token part."""
@@ -252,7 +252,7 @@ class UnifiedQuoteParser:
             start_pos=Position(start_pos, 0, 0),  # Line/col will be filled by tracker
             end_pos=Position(end_pos, 0, 0)
         )
-    
+
     def _parse_backtick_substitution(
         self,
         input_text: str,
@@ -263,7 +263,7 @@ class UnifiedQuoteParser:
         # Find closing backtick
         pos = start_pos + 1  # Skip opening backtick
         content = ""
-        
+
         while pos < len(input_text) and input_text[pos] != '`':
             if input_text[pos] == '\\' and pos + 1 < len(input_text):
                 next_char = input_text[pos + 1]
@@ -275,14 +275,14 @@ class UnifiedQuoteParser:
             else:
                 content += input_text[pos]
             pos += 1
-        
+
         # Include closing backtick
         if pos < len(input_text) and input_text[pos] == '`':
             pos += 1
             full_value = '`' + content + '`'
         else:
             full_value = '`' + content  # Unclosed
-        
+
         return TokenPart(
             value=full_value,
             quote_type=quote_context,
@@ -295,7 +295,7 @@ class UnifiedQuoteParser:
 
 class QuoteParsingContext:
     """Context for quote parsing operations."""
-    
+
     def __init__(
         self,
         input_text: str,
@@ -314,7 +314,7 @@ class QuoteParsingContext:
         self.position_tracker = position_tracker
         self.config = config
         self.parser = UnifiedQuoteParser()
-    
+
     def parse_quote_at_position(
         self,
         pos: int,
@@ -334,7 +334,7 @@ class QuoteParsingContext:
         if not rules:
             # Unknown quote type - treat as literal
             return [self.parser._create_literal_part(quote_char, pos, pos + 1, None)], pos + 1, True
-        
+
         # Check if quote type is enabled in configuration
         if self.config:
             if quote_char == '"' and not self.config.enable_double_quotes:
@@ -343,7 +343,7 @@ class QuoteParsingContext:
                 return [self.parser._create_literal_part(quote_char, pos, pos + 1, None)], pos + 1, True
             elif quote_char == '`' and not self.config.enable_backtick_quotes:
                 return [self.parser._create_literal_part(quote_char, pos, pos + 1, None)], pos + 1, True
-        
+
         # Parse the quoted string
         return self.parser.parse_quoted_string(
             self.input_text,
@@ -351,12 +351,12 @@ class QuoteParsingContext:
             rules,
             self.position_tracker
         )
-    
+
     def is_quote_character(self, char: str) -> bool:
         """Check if character is a supported quote character."""
         if not self.config:
             return char in QUOTE_RULES
-        
+
         # Check configuration
         if char == '"':
             return self.config.enable_double_quotes
@@ -364,9 +364,9 @@ class QuoteParsingContext:
             return self.config.enable_single_quotes
         elif char == '`':
             return self.config.enable_backtick_quotes
-        
+
         return False
-    
+
     def get_quote_rules(self, quote_char: str) -> Optional[QuoteRules]:
         """Get quote rules for a character."""
         return QUOTE_RULES.get(quote_char)

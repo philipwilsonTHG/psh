@@ -1,8 +1,7 @@
 """Glob (pathname) expansion implementation."""
 import glob
 import os
-from typing import List, TYPE_CHECKING
-from ..core.state import ShellState
+from typing import TYPE_CHECKING, List
 
 if TYPE_CHECKING:
     from ..shell import Shell

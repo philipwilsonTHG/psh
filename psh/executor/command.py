@@ -8,28 +8,23 @@ This module handles the execution of simple commands, including:
 - Redirection handling
 """
 
-import os
 import sys
-import signal
-from typing import List, Tuple, Optional, TYPE_CHECKING
 from contextlib import contextmanager
+from typing import TYPE_CHECKING, List, Tuple
 
+from ..core.assignment_utils import extract_assignments, is_exported, is_valid_assignment
 from .strategies import (
-    ExecutionStrategy,
-    SpecialBuiltinExecutionStrategy,
-    BuiltinExecutionStrategy,
-    FunctionExecutionStrategy,
     AliasExecutionStrategy,
-    ExternalExecutionStrategy
+    BuiltinExecutionStrategy,
+    ExecutionStrategy,
+    ExternalExecutionStrategy,
+    FunctionExecutionStrategy,
+    SpecialBuiltinExecutionStrategy,
 )
-from ..core.assignment_utils import is_valid_assignment, extract_assignments, is_exported
 
 if TYPE_CHECKING:
+    from ..ast_nodes import SimpleCommand
     from ..shell import Shell
-    from ..ast_nodes import SimpleCommand, Redirect
-    from ..expansion.manager import ExpansionManager
-    from ..io_redirect.manager import IOManager
-    from ..job_control import JobManager
     from .context import ExecutionContext
 
 
@@ -41,7 +36,7 @@ class CommandExecutor:
     including variable assignments, expansions, and delegating to appropriate
     execution strategies.
     """
-    
+
     def __init__(self, shell: 'Shell'):
         """Initialize the command executor with a shell instance."""
         self.shell = shell
@@ -51,7 +46,7 @@ class CommandExecutor:
         self.job_manager = shell.job_manager
         self.builtin_registry = shell.builtin_registry
         self.function_manager = shell.function_manager
-        
+
         # Initialize execution strategies
         # Order matters: special builtins > functions > builtins > aliases > external (POSIX compliance)
         self.strategies = [
@@ -61,7 +56,7 @@ class CommandExecutor:
             AliasExecutionStrategy(),
             ExternalExecutionStrategy()
         ]
-    
+
     def execute(self, node: 'SimpleCommand', context: 'ExecutionContext') -> int:
         """
         Execute a simple command and return exit status.
@@ -78,7 +73,7 @@ class CommandExecutor:
             if node.array_assignments:
                 for assignment in node.array_assignments:
                     self._handle_array_assignment(assignment)
-            
+
             # Phase 1: Extract raw assignments (before expansion)
             raw_assignments = self._extract_assignments_raw(node)
 
@@ -87,24 +82,24 @@ class CommandExecutor:
             for var, value, value_word in raw_assignments:
                 expanded_value = self._expand_assignment_value_from_word(value, value_word)
                 assignments.append((var, expanded_value))
-            
+
             # Check if we have only assignments (no command)
             tokens_consumed = len(raw_assignments)
 
             if assignments and tokens_consumed == len(node.args):
                 # Pure assignment (no command)
                 return self._handle_pure_assignments(node, assignments)
-            
+
             # Apply assignments for this command
             saved_vars = self._apply_command_assignments(assignments)
-            
+
             try:
                 # Phase 2: Expand remaining arguments with assignments in effect
                 # command_start_index needs to account for tokens consumed by assignments
                 command_start_index = tokens_consumed
                 if command_start_index >= len(node.args):
                     return 0
-                
+
                 # Create a sub-node for command arguments only
                 from ..ast_nodes import SimpleCommand
                 words_slice = None
@@ -116,8 +111,8 @@ class CommandExecutor:
                     background=node.background,
                     words=words_slice,
                 )
-                
-                
+
+
                 # Check for bypass mechanisms before expansion
                 bypass_aliases = False
                 bypass_functions = False
@@ -146,66 +141,66 @@ class CommandExecutor:
                         background=command_node.background,
                         words=modified_words,
                     )
-                
+
                 # Now expand command arguments with assignments in place
                 expanded_args = self._expand_arguments(command_node)
-                
+
                 if not expanded_args:
                     return 0
-                
+
                 cmd_name = expanded_args[0]
                 cmd_args = expanded_args[1:]
-                
+
                 # Check for empty command after expansion
                 if not cmd_name:
                     return 0
-                
-                
+
+
                 # Handle xtrace option
                 if self.state.options.get('xtrace'):
                     self._print_xtrace(cmd_name, cmd_args)
-                
+
                 # Special handling for exec builtin (needs access to redirections)
                 if cmd_name == 'exec':
                     return self._handle_exec_builtin(node, expanded_args, assignments)
-                
+
                 # Execute the command using appropriate strategy
                 return self._execute_with_strategy(
                     cmd_name, cmd_args, node, context, bypass_aliases, bypass_functions
                 )
-                
+
             finally:
                 # Restore variables (unless exported)
                 self._restore_command_assignments(saved_vars)
-                
+
         except Exception as e:
             # Import these here to avoid circular imports
-            from ..core.exceptions import LoopBreak, LoopContinue, ReadonlyVariableError, ExpansionError
             from ..builtins.function_support import FunctionReturn
-            
+            from ..core.exceptions import ExpansionError, LoopBreak, LoopContinue, ReadonlyVariableError
+
             # Re-raise control flow exceptions
             if isinstance(e, (FunctionReturn, LoopBreak, LoopContinue, SystemExit)):
                 raise
-            
+
             # Handle other exceptions
             if isinstance(e, ReadonlyVariableError):
                 print(f"psh: {e.name}: readonly variable", file=self.state.stderr)
                 return 1
-            
+
             if isinstance(e, ExpansionError):
                 # Error message already printed by the expansion code
                 # In script mode, we should exit the shell
                 if self.shell.is_script_mode:
                     sys.exit(1)
                 return 1
-            
+
             print(f"psh: {e}", file=sys.stderr)
             return 1
-    
+
     def _expand_arguments(self, node: 'SimpleCommand') -> List[str]:
         """Expand all arguments in a command."""
         return self.expansion_manager.expand_arguments(node)
-    
+
     def _extract_assignments_raw(self, node: 'SimpleCommand') -> list:
         """Extract assignments from raw arguments before expansion.
 
@@ -245,7 +240,7 @@ class CommandExecutor:
         only LiteralPart and ExpansionPart nodes (no process substitution
         or other special tokens).
         """
-        from ..ast_nodes import LiteralPart, ExpansionPart
+        from ..ast_nodes import ExpansionPart, LiteralPart
         if node.words and index < len(node.words):
             word = node.words[index]
             for part in word.parts:
@@ -267,8 +262,8 @@ class CommandExecutor:
     def _is_valid_assignment(self, arg: str) -> bool:
         """Check if argument is a valid variable assignment."""
         return is_valid_assignment(arg)
-    
-    def _handle_pure_assignments(self, node: 'SimpleCommand', 
+
+    def _handle_pure_assignments(self, node: 'SimpleCommand',
                                 assignments: List[Tuple[str, str]]) -> int:
         """Handle pure variable assignments (no command)."""
         # Apply redirections first
@@ -280,22 +275,21 @@ class CommandExecutor:
                     trace_line = ps4 + f"{var}={value}\n"
                     self.state.stderr.write(trace_line)
                     self.state.stderr.flush()
-            
+
             # Save the current exit code before expansions
             saved_exit_code = self.state.last_exit_code
-            
+
             for var, value in assignments:
                 # Values are already expanded in execute()
                 try:
                     self.state.set_variable(var, value)
                 except:
-                    from ..core.exceptions import ReadonlyVariableError
                     print(f"psh: {var}: readonly variable", file=self.state.stderr)
                     return 1
-            
+
             # Return current exit code (from any command substitutions)
             return self.state.last_exit_code
-    
+
     def _apply_command_assignments(self, assignments: List[Tuple[str, str]]) -> dict:
         """Apply variable assignments for command execution.
 
@@ -323,7 +317,7 @@ class CommandExecutor:
                 raise ReadonlyVariableError(var)
 
         return saved_vars
-    
+
     def _restore_command_assignments(self, saved_vars: dict):
         """Restore variables after command execution.
 
@@ -347,11 +341,11 @@ class CommandExecutor:
                     del self.shell.env[var]
             else:
                 self.shell.env[var] = old_env_value
-    
+
     def _is_exported(self, var_name: str) -> bool:
         """Check if a variable is exported."""
         return is_exported(var_name)
-    
+
     def _expand_assignment_value_from_word(self, value: str, word=None) -> str:
         """Expand a value used in variable assignment.
 
@@ -374,7 +368,7 @@ class CommandExecutor:
         allows (single-quoted text stays literal, double-quoted text
         expands variables, unquoted text expands everything).
         """
-        from ..ast_nodes import LiteralPart, ExpansionPart
+        from ..ast_nodes import ExpansionPart, LiteralPart
 
         result_parts = []
         # Find the '=' in the parts and only expand the value portion
@@ -431,15 +425,15 @@ class CommandExecutor:
         trace_line = ps4 + ' '.join([cmd_name] + args) + '\n'
         self.state.stderr.write(trace_line)
         self.state.stderr.flush()
-    
+
     def _execute_with_strategy(self, cmd_name: str, args: List[str],
-                              node: 'SimpleCommand', context: 'ExecutionContext', 
+                              node: 'SimpleCommand', context: 'ExecutionContext',
                               bypass_aliases: bool = False, bypass_functions: bool = False) -> int:
         """Execute command using the appropriate strategy."""
         original_cmd_name = cmd_name
-        
+
         # Note: The 'command' builtin handles its own bypass logic internally
-        
+
         # Create strategy list based on bypass requirements
         strategies_to_exclude = []
         if bypass_aliases:
@@ -447,15 +441,15 @@ class CommandExecutor:
         if bypass_functions:
             strategies_to_exclude.append(FunctionExecutionStrategy)
             # Note: bypass_functions should NOT exclude special builtins
-        
+
         if strategies_to_exclude:
             strategies_to_use = [
-                strategy for strategy in self.strategies 
+                strategy for strategy in self.strategies
                 if not any(isinstance(strategy, exc_type) for exc_type in strategies_to_exclude)
             ]
         else:
             strategies_to_use = self.strategies
-        
+
         # Find the right strategy
         for strategy in strategies_to_use:
             if strategy.can_execute(cmd_name, self.shell):
@@ -471,21 +465,21 @@ class CommandExecutor:
                             cmd_name, args, self.shell, context,
                             node.redirects, node.background
                         )
-        
+
         # Should never reach here as ExternalExecutionStrategy handles everything
         return 127
-    
+
     def _execute_builtin_with_redirections(self, cmd_name: str, args: List[str],
                                           node: 'SimpleCommand', context: 'ExecutionContext',
                                           strategy: ExecutionStrategy) -> int:
         """Execute builtin with special redirection handling."""
         # DEBUG: Log builtin redirection setup
         if self.state.options.get('debug-exec'):
-            print(f"DEBUG CommandExecutor: Setting up builtin redirections for '{cmd_name}'", 
+            print(f"DEBUG CommandExecutor: Setting up builtin redirections for '{cmd_name}'",
                   file=sys.stderr)
-            print(f"DEBUG CommandExecutor: Redirections: {[r.type for r in node.redirects]}", 
+            print(f"DEBUG CommandExecutor: Redirections: {[r.type for r in node.redirects]}",
                   file=sys.stderr)
-        
+
         # Builtins need special redirection handling
         stdin_backup, stdout_backup, stderr_backup, stdin_fd_backup = \
             self.io_manager.setup_builtin_redirections(node)
@@ -494,7 +488,7 @@ class CommandExecutor:
             self.shell.stdout = sys.stdout
             self.shell.stderr = sys.stderr
             self.shell.stdin = sys.stdin
-            
+
             # Execute builtin
             return strategy.execute(
                 cmd_name, args, self.shell, context,
@@ -513,36 +507,36 @@ class CommandExecutor:
                 self.shell.stderr = sys.stderr
             if not isinstance(self.shell.stdin, io.StringIO):
                 self.shell.stdin = sys.stdin
-    
+
     @contextmanager
     def _apply_redirections(self, redirects):
         """Context manager for applying and restoring redirections."""
         if not redirects:
             yield
             return
-            
+
         saved_fds = self.io_manager.apply_redirections(redirects)
         try:
             yield
         finally:
             self.io_manager.restore_redirections(saved_fds)
-    
+
     def _handle_array_assignment(self, assignment):
         """Handle array initialization or element assignment."""
-        from ..ast_nodes import ArrayInitialization, ArrayElementAssignment
+        from ..ast_nodes import ArrayElementAssignment, ArrayInitialization
         from .array import ArrayOperationExecutor
-        
+
         # Create array executor for this operation
         array_executor = ArrayOperationExecutor(self.shell)
-        
+
         if isinstance(assignment, ArrayInitialization):
             return array_executor.execute_array_initialization(assignment)
         elif isinstance(assignment, ArrayElementAssignment):
             return array_executor.execute_array_element_assignment(assignment)
         else:
             return 0
-    
-    def _handle_exec_builtin(self, node: 'SimpleCommand', command_args: List[str], 
+
+    def _handle_exec_builtin(self, node: 'SimpleCommand', command_args: List[str],
                             assignments: List[tuple]) -> int:
         """Handle exec builtin with access to redirections."""
         # Get the exec builtin for command execution
@@ -550,10 +544,10 @@ class CommandExecutor:
         if not exec_builtin:
             print("psh: exec: builtin not found", file=sys.stderr)
             return 127
-        
+
         # Remove 'exec' from command args
         args = command_args[1:] if command_args and command_args[0] == 'exec' else command_args
-        
+
         if not args:
             # exec without command - apply redirections permanently
             # and make variable assignments permanent
@@ -565,7 +559,7 @@ class CommandExecutor:
                     self.shell.env[var] = value
                     import os
                     os.environ[var] = value
-            
+
             if node.redirects:
                 try:
                     self.io_manager.apply_permanent_redirections(node.redirects)

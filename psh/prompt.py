@@ -4,21 +4,21 @@ This module handles the expansion of special escape sequences in shell prompts,
 similar to bash's prompt expansion feature.
 """
 
+import datetime
 import os
 import pwd
 import socket
-import datetime
-from typing import Dict, Optional
+from typing import Optional
 
 
 class PromptExpander:
     """Handles expansion of prompt escape sequences."""
-    
+
     def __init__(self, shell):
         self.shell = shell
         self._hostname = None
         self._username = None
-    
+
     def expand_prompt(self, prompt: str) -> str:
         """Expand prompt escape sequences in the given string.
         
@@ -57,7 +57,7 @@ class PromptExpander:
         """
         if not prompt:
             return prompt
-        
+
         result = []
         i = 0
         while i < len(prompt):
@@ -80,9 +80,9 @@ class PromptExpander:
             else:
                 result.append(prompt[i])
                 i += 1
-        
+
         return ''.join(result)
-    
+
     def _expand_escape(self, char: str) -> Optional[str]:
         """Expand a single escape character."""
         expansions = {
@@ -110,30 +110,30 @@ class PromptExpander:
             '[': '\001',  # Start non-printing sequence (readline)
             ']': '\002',  # End non-printing sequence (readline)
         }
-        
+
         return expansions.get(char)
-    
+
     def _get_date(self) -> str:
         """Get date in 'Weekday Month Date' format."""
         now = datetime.datetime.now()
         return now.strftime('%a %b %d')
-    
+
     def _get_time_24(self) -> str:
         """Get time in 24-hour HH:MM:SS format."""
         return datetime.datetime.now().strftime('%H:%M:%S')
-    
+
     def _get_time_12(self) -> str:
         """Get time in 12-hour HH:MM:SS format."""
         return datetime.datetime.now().strftime('%I:%M:%S')
-    
+
     def _get_time_ampm(self) -> str:
         """Get time in 12-hour am/pm format."""
         return datetime.datetime.now().strftime('%I:%M %p')
-    
+
     def _get_time_24_short(self) -> str:
         """Get time in 24-hour HH:MM format."""
         return datetime.datetime.now().strftime('%H:%M')
-    
+
     def _get_hostname(self, short: bool = True) -> str:
         """Get hostname (cached)."""
         if self._hostname is None:
@@ -141,11 +141,11 @@ class PromptExpander:
                 self._hostname = socket.gethostname()
             except:
                 self._hostname = 'localhost'
-        
+
         if short:
             return self._hostname.split('.')[0]
         return self._hostname
-    
+
     def _get_username(self) -> str:
         """Get username (cached)."""
         if self._username is None:
@@ -154,7 +154,7 @@ class PromptExpander:
             except:
                 self._username = os.environ.get('USER', 'unknown')
         return self._username
-    
+
     def _get_version_short(self) -> str:
         """Get short version string."""
         from .version import __version__
@@ -163,12 +163,12 @@ class PromptExpander:
         if len(parts) >= 2:
             return f"{parts[0]}.{parts[1]}"
         return __version__
-    
+
     def _get_version_long(self) -> str:
         """Get long version string."""
         from .version import __version__
         return __version__
-    
+
     def _get_cwd(self) -> str:
         """Get current working directory with ~ substitution."""
         cwd = os.getcwd()
@@ -176,18 +176,18 @@ class PromptExpander:
         if cwd.startswith(home):
             cwd = '~' + cwd[len(home):]
         return cwd
-    
+
     def _get_cwd_basename(self) -> str:
         """Get basename of current working directory."""
         cwd = self._get_cwd()
         if cwd == '~':
             return cwd
         return os.path.basename(cwd) or '/'
-    
+
     def _get_history_number(self) -> str:
         """Get the current history number."""
         return str(len(self.shell.history) + 1)
-    
+
     def _get_command_number(self) -> str:
         """Get the current command number."""
         return str(self.shell.command_number + 1)

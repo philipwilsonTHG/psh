@@ -1,7 +1,8 @@
 """Context snapshots for parser backtracking."""
 
 from dataclasses import dataclass
-from typing import List, Dict, Optional, Any
+from typing import List
+
 from ..context import ParserContext
 
 
@@ -12,20 +13,20 @@ class ContextSnapshot:
     This class captures the essential state of a ParserContext that needs
     to be restored during backtracking operations.
     """
-    
+
     # Core parsing position
     current: int
-    
+
     # Context stacks
     scope_stack: List[str]
     parse_stack: List[str]
-    
+
     # Depth counters
     nesting_depth: int
     loop_depth: int
     function_depth: int
     conditional_depth: int
-    
+
     # Special parsing state
     in_case_pattern: bool
     in_arithmetic: bool
@@ -33,14 +34,14 @@ class ContextSnapshot:
     in_function_body: bool
     in_command_substitution: bool
     in_process_substitution: bool
-    
+
     # Error state
     errors_count: int
     error_recovery_mode: bool
-    
+
     # Heredoc state (keys only, since content shouldn't change during backtracking)
     open_heredocs: List[str]
-    
+
     @classmethod
     def capture(cls, ctx: ParserContext) -> 'ContextSnapshot':
         """Capture current state of context."""
@@ -62,13 +63,13 @@ class ContextSnapshot:
             error_recovery_mode=ctx.error_recovery_mode,
             open_heredocs=ctx.get_open_heredocs()
         )
-    
+
     def restore(self, ctx: ParserContext):
         """Restore context to snapshot state."""
         # Record backtracking for profiling
         if ctx.profiler:
             ctx.profiler.record_backtrack()
-        
+
         ctx.current = self.current
         ctx.scope_stack = self.scope_stack.copy()
         ctx.parse_stack = self.parse_stack.copy()
@@ -83,42 +84,42 @@ class ContextSnapshot:
         ctx.in_command_substitution = self.in_command_substitution
         ctx.in_process_substitution = self.in_process_substitution
         ctx.error_recovery_mode = self.error_recovery_mode
-        
+
         # Truncate errors to snapshot point
         ctx.errors = ctx.errors[:self.errors_count]
-        
+
         # Note: We don't restore heredoc state since it represents
         # actual content that was parsed, not parsing position
 
 
 class BacktrackingParser:
     """Mixin class that provides backtracking support via context snapshots."""
-    
+
     def __init__(self, ctx: ParserContext):
         self.ctx = ctx
         self._snapshots: List[ContextSnapshot] = []
-    
+
     def save_snapshot(self) -> int:
         """Save current context state and return snapshot ID."""
         snapshot = ContextSnapshot.capture(self.ctx)
         self._snapshots.append(snapshot)
         return len(self._snapshots) - 1
-    
+
     def restore_snapshot(self, snapshot_id: int):
         """Restore context to saved snapshot."""
         if 0 <= snapshot_id < len(self._snapshots):
             snapshot = self._snapshots[snapshot_id]
             snapshot.restore(self.ctx)
-            
+
             # Remove snapshots newer than the one we're restoring to
             self._snapshots = self._snapshots[:snapshot_id + 1]
-    
+
     def discard_snapshot(self, snapshot_id: int):
         """Discard a saved snapshot."""
         if 0 <= snapshot_id < len(self._snapshots):
             # Remove this snapshot and all newer ones
             self._snapshots = self._snapshots[:snapshot_id]
-    
+
     def try_parse(self, parse_func, *args, **kwargs):
         """Try parsing with automatic backtracking on failure.
         
@@ -139,7 +140,7 @@ class BacktrackingParser:
             # Failure - restore to snapshot
             self.restore_snapshot(snapshot_id)
             return None
-    
+
     def try_alternatives(self, *parse_funcs):
         """Try multiple parsing alternatives, returning first successful result.
         
@@ -167,12 +168,12 @@ class BacktrackingParser:
                     continue
             else:
                 continue
-            
+
             if result is not None:
                 return result
-        
+
         return None
-    
+
     def lookahead(self, parse_func, *args, **kwargs) -> bool:
         """Check if parsing would succeed without advancing position.
         
@@ -189,16 +190,16 @@ class BacktrackingParser:
 
 class SpeculativeParser(BacktrackingParser):
     """Parser that supports speculative parsing with multiple strategies."""
-    
+
     def __init__(self, ctx: ParserContext):
         super().__init__(ctx)
         self._speculation_depth = 0
-    
+
     def enter_speculation(self) -> int:
         """Enter speculative parsing mode."""
         self._speculation_depth += 1
         return self.save_snapshot()
-    
+
     def exit_speculation(self, snapshot_id: int, commit: bool = True):
         """Exit speculative parsing mode.
         
@@ -207,19 +208,19 @@ class SpeculativeParser(BacktrackingParser):
             commit: If True, keep changes. If False, restore to snapshot.
         """
         self._speculation_depth = max(0, self._speculation_depth - 1)
-        
+
         if commit:
             self.discard_snapshot(snapshot_id)
         else:
             self.restore_snapshot(snapshot_id)
-    
+
     def speculate(self, parse_func, *args, **kwargs):
         """Speculative parsing with explicit commit/rollback control.
         
         Returns a context manager that handles speculation.
         """
         return SpeculationContext(self, parse_func, *args, **kwargs)
-    
+
     def in_speculation(self) -> bool:
         """Check if currently in speculation mode."""
         return self._speculation_depth > 0
@@ -227,7 +228,7 @@ class SpeculativeParser(BacktrackingParser):
 
 class SpeculationContext:
     """Context manager for speculative parsing."""
-    
+
     def __init__(self, parser: SpeculativeParser, parse_func, *args, **kwargs):
         self.parser = parser
         self.parse_func = parse_func
@@ -236,19 +237,19 @@ class SpeculationContext:
         self.snapshot_id = None
         self.result = None
         self.exception = None
-    
+
     def __enter__(self):
         self.snapshot_id = self.parser.enter_speculation()
         return self
-    
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         # Determine if we should commit based on whether an exception occurred
         commit = exc_type is None
         self.parser.exit_speculation(self.snapshot_id, commit)
-        
+
         # Don't suppress exceptions
         return False
-    
+
     def execute(self):
         """Execute the speculative parse function."""
         try:
@@ -257,13 +258,13 @@ class SpeculationContext:
         except Exception as e:
             self.exception = e
             raise
-    
+
     def commit(self):
         """Explicitly commit the speculation."""
         if self.snapshot_id is not None:
             self.parser.discard_snapshot(self.snapshot_id)
             self.snapshot_id = None
-    
+
     def rollback(self):
         """Explicitly rollback the speculation."""
         if self.snapshot_id is not None:
@@ -280,7 +281,7 @@ def with_backtracking(ctx: ParserContext):
             def __init__(self, *args, **kwargs):
                 parser_class.__init__(self, *args, **kwargs)
                 BacktrackingParser.__init__(self, ctx)
-        
+
         return BacktrackingParserClass
     return decorator
 

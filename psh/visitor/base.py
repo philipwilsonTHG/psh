@@ -5,8 +5,9 @@ This module defines the abstract base classes for implementing the visitor patte
 on PSH AST nodes. It provides both read-only visitors and transforming visitors.
 """
 
-from abc import ABC, abstractmethod
-from typing import Any, TypeVar, Generic, Optional
+from abc import ABC
+from typing import Generic, TypeVar
+
 from ..ast_nodes import ASTNode
 
 T = TypeVar('T')
@@ -20,11 +21,11 @@ class ASTVisitor(ABC, Generic[T]):
     want to handle. The visit() method automatically dispatches to the correct
     visit_* method based on the node's class name.
     """
-    
+
     def __init__(self):
         # Cache for method lookups to improve performance
         self._method_cache = {}
-    
+
     def visit(self, node: ASTNode) -> T:
         """
         Dispatch to the appropriate visit_* method based on node type.
@@ -40,9 +41,9 @@ class ASTVisitor(ABC, Generic[T]):
         if node_class not in self._method_cache:
             method_name = f'visit_{node_class.__name__}'
             self._method_cache[node_class] = getattr(self, method_name, self.generic_visit)
-        
+
         return self._method_cache[node_class](node)
-    
+
     def generic_visit(self, node: ASTNode) -> T:
         """
         Called if no explicit visitor method exists for a node.
@@ -69,7 +70,7 @@ class ASTTransformer(ASTVisitor[ASTNode]):
     or replaced nodes. This is useful for optimization passes, desugaring,
     or other AST transformations.
     """
-    
+
     def generic_visit(self, node: ASTNode) -> ASTNode:
         """
         Default transformation that returns the node unchanged.
@@ -83,7 +84,7 @@ class ASTTransformer(ASTVisitor[ASTNode]):
             The original node (no transformation)
         """
         return node
-    
+
     def transform_children(self, node: ASTNode) -> None:
         """
         Helper method to recursively transform child nodes.
@@ -95,23 +96,22 @@ class ASTTransformer(ASTVisitor[ASTNode]):
             node: The parent node whose children should be transformed
         """
         import dataclasses
-        from typing import get_type_hints, get_origin, get_args
-        
+
         if not dataclasses.is_dataclass(node):
             return
-        
+
         # Get all fields of the dataclass
         for field in dataclasses.fields(node):
             value = getattr(node, field.name)
-            
+
             if value is None:
                 continue
-            
+
             # Handle single AST nodes
             if isinstance(value, ASTNode):
                 new_value = self.visit(value)
                 setattr(node, field.name, new_value)
-            
+
             # Handle lists of AST nodes
             elif isinstance(value, list):
                 new_list = []
@@ -121,7 +121,7 @@ class ASTTransformer(ASTVisitor[ASTNode]):
                     else:
                         new_list.append(item)
                 setattr(node, field.name, new_list)
-            
+
             # Handle tuples (like elif_parts in IfConditional)
             elif isinstance(value, tuple) and value:
                 new_items = []
@@ -140,7 +140,7 @@ class CompositeVisitor(ASTVisitor[None]):
     This is useful for combining multiple analysis passes or for collecting
     different types of information in a single traversal.
     """
-    
+
     def __init__(self, visitors: list[ASTVisitor]):
         """
         Initialize with a list of visitors to run.
@@ -149,7 +149,7 @@ class CompositeVisitor(ASTVisitor[None]):
             visitors: List of visitors to execute in order
         """
         self.visitors = visitors
-    
+
     def visit(self, node: ASTNode) -> None:
         """
         Run all visitors on the given node.
@@ -159,7 +159,7 @@ class CompositeVisitor(ASTVisitor[None]):
         """
         for visitor in self.visitors:
             visitor.visit(node)
-    
+
     def generic_visit(self, node: ASTNode) -> None:
         """
         No-op for composite visitor.

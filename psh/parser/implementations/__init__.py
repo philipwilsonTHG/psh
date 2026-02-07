@@ -5,10 +5,9 @@ the AbstractShellParser interface, allowing for educational comparison
 of different parsing approaches.
 """
 
-from .recursive_descent_adapter import RecursiveDescentAdapter
-
 # Import the new modular parser combinator implementation
 from ..combinators.parser import ParserCombinatorShellParser
+from .recursive_descent_adapter import RecursiveDescentAdapter
 
 __all__ = [
     'RecursiveDescentAdapter',

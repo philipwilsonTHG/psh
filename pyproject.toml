@@ -53,3 +53,23 @@ psh = ["*.md"]
 
 [tool.setuptools.dynamic]
 version = {attr = "psh.version.__version__"}
+
+[tool.ruff]
+target-version = "py38"
+line-length = 120
+
+[tool.ruff.lint]
+select = [
+    "F401",   # unused imports
+    "F811",   # redefined while unused
+    "F841",   # unused variables
+    "I",      # import sorting
+    "W",      # pycodestyle warnings (whitespace, trailing, etc.)
+]
+
+[tool.ruff.lint.per-file-ignores]
+# __init__.py files use side-effect imports for registration
+"__init__.py" = ["F401"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["psh"]

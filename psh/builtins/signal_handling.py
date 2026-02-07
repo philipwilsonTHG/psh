@@ -1,6 +1,7 @@
 """Signal handling builtins (trap)."""
 
-from typing import List, TYPE_CHECKING
+from typing import TYPE_CHECKING, List
+
 from .base import Builtin
 from .registry import builtin
 
@@ -11,19 +12,19 @@ if TYPE_CHECKING:
 @builtin
 class TrapBuiltin(Builtin):
     """Set signal handlers and exit traps."""
-    
+
     @property
     def name(self) -> str:
         return "trap"
-    
+
     @property
     def synopsis(self) -> str:
         return "trap [action] [condition...]"
-    
+
     @property
     def description(self) -> str:
         return "Set signal handlers and exit traps"
-    
+
     @property
     def help_text(self) -> str:
         return """trap: Set signal handlers and exit traps
@@ -65,14 +66,14 @@ EXAMPLES
 EXIT STATUS
     Returns 0 unless an invalid signal is specified.
 """
-    
+
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Execute the trap builtin."""
         if not hasattr(shell, 'trap_manager'):
             # Initialize trap manager if not already done
             from ..core.trap_manager import TrapManager
             shell.trap_manager = TrapManager(shell)
-        
+
         # Parse options
         if len(args) == 1:
             # No arguments - show all traps (same as trap -p)
@@ -80,7 +81,7 @@ EXIT STATUS
             if output:
                 print(output, file=shell.state.stdout)
             return 0
-        
+
         # Check for options
         if args[1] == '-l':
             # List signals
@@ -88,7 +89,7 @@ EXIT STATUS
             for signal_info in signals:
                 print(signal_info, file=shell.state.stdout)
             return 0
-        
+
         if args[1] == '-p':
             # Show traps
             if len(args) == 2:
@@ -100,13 +101,13 @@ EXIT STATUS
             if output:
                 print(output, file=shell.state.stdout)
             return 0
-        
+
         # Parse action and signals
         if len(args) < 3:
             print("trap: usage: trap [action] [condition...]", file=shell.state.stderr)
             return 2
-        
+
         action = args[1]
         signals = args[2:]
-        
+
         return shell.trap_manager.set_trap(action, signals)

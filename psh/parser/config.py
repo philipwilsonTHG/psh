@@ -5,8 +5,8 @@ modes, compliance levels, and feature sets.
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, Set, Optional, Any
 from enum import Enum
+from typing import Any, Dict, Set
 
 
 class ParsingMode(Enum):
@@ -31,17 +31,17 @@ class ParserConfig:
     This class centralizes all parser configuration options to provide
     flexible parsing behavior for different use cases.
     """
-    
+
     # === Core Parsing Mode ===
     parsing_mode: ParsingMode = ParsingMode.BASH_COMPAT
-    
+
     # === Error Handling ===
     error_handling: ErrorHandlingMode = ErrorHandlingMode.STRICT
     max_errors: int = 10
     collect_errors: bool = False
     enable_error_recovery: bool = False
     show_error_suggestions: bool = True
-    
+
     # === Language Features ===
     enable_aliases: bool = True
     enable_functions: bool = True
@@ -54,57 +54,57 @@ class ParserConfig:
     enable_parameter_expansion: bool = True
     enable_command_substitution: bool = True
     enable_history_expansion: bool = True
-    
+
     # === POSIX Compliance ===
     strict_posix_keywords: bool = False      # Enforce POSIX keyword usage
     strict_posix_redirection: bool = False   # Enforce POSIX redirection rules
     strict_posix_quoting: bool = False       # Enforce POSIX quoting rules
     require_posix_functions: bool = False    # Require POSIX function syntax
-    
+
     # === Bash Compatibility ===
     allow_bash_arrays: bool = True           # Allow Bash-style arrays
     allow_bash_functions: bool = True        # Allow Bash function syntax
     allow_bash_conditionals: bool = True     # Allow [[ ]] conditionals
     allow_bash_arithmetic: bool = True       # Allow (( )) arithmetic
     allow_empty_commands: bool = True        # Allow empty command lists
-    
+
     # === Parsing Behavior ===
     case_sensitive_keywords: bool = True     # Keywords must be exact case
     require_semicolons: bool = False         # Require semicolons in statements
     allow_unquoted_variables: bool = True    # Allow $var without quotes
     auto_quote_filenames: bool = False       # Auto-quote filenames with spaces
-    
+
     # === Advanced Features ===
     enable_here_strings: bool = True         # <<< here strings
     enable_coprocesses: bool = False         # |& coprocess syntax
     enable_named_pipes: bool = True          # Process substitution pipes
     enable_extended_globbing: bool = True    # Extended glob patterns
-    
+
     # === Development and Debugging ===
     trace_parsing: bool = False              # Trace parsing rules
-    profile_parsing: bool = False            # Profile parser performance  
+    profile_parsing: bool = False            # Profile parser performance
     show_token_stream: bool = False          # Debug token stream
     validate_ast: bool = False               # Validate AST after parsing
-    
+
     # === Educational Mode ===
     explain_parsing_steps: bool = False      # Explain each parsing step
     show_grammar_rules: bool = False         # Show grammar rules being applied
     interactive_parsing: bool = False        # Interactive parsing mode
-    
+
     # === Validation Options ===
     enable_validation: bool = False          # Enable AST validation
     enable_semantic_analysis: bool = True    # Enable semantic analysis
     enable_validation_rules: bool = True     # Enable validation rules
-    
+
     # === Compatibility Options ===
     bash_version_target: str = "5.1"         # Target Bash version for compatibility
     posix_version_target: str = "2017"       # Target POSIX version
-    
+
     # === Custom Extensions ===
     custom_keywords: Set[str] = field(default_factory=set)
     disabled_builtins: Set[str] = field(default_factory=set)
     custom_operators: Dict[str, str] = field(default_factory=dict)
-    
+
     @classmethod
     def strict_posix(cls) -> 'ParserConfig':
         """Create strict POSIX configuration.
@@ -114,38 +114,38 @@ class ParserConfig:
         return cls(
             parsing_mode=ParsingMode.STRICT_POSIX,
             error_handling=ErrorHandlingMode.STRICT,
-            
+
             # Disable non-POSIX features
             enable_associative_arrays=False,
             enable_process_substitution=False,
             enable_brace_expansion=False,
             enable_history_expansion=False,
-            
+
             # Strict POSIX compliance
             strict_posix_keywords=True,
             strict_posix_redirection=True,
             strict_posix_quoting=True,
             require_posix_functions=True,
-            
+
             # Disable Bash extensions
             allow_bash_arrays=False,
             allow_bash_functions=False,
             allow_bash_conditionals=False,
             allow_bash_arithmetic=False,
             allow_empty_commands=False,
-            
+
             # Strict parsing behavior
             require_semicolons=True,
             case_sensitive_keywords=True,
-            
+
             # Disable advanced features
             enable_here_strings=False,
             enable_coprocesses=False,
             enable_extended_globbing=False,
-            
+
             posix_version_target="2017"
         )
-    
+
     @classmethod
     def bash_compatible(cls) -> 'ParserConfig':
         """Create Bash-compatible configuration.
@@ -157,7 +157,7 @@ class ParserConfig:
             error_handling=ErrorHandlingMode.COLLECT,
             max_errors=20,
             enable_error_recovery=True,
-            
+
             # Enable all features
             enable_aliases=True,
             enable_functions=True,
@@ -167,25 +167,25 @@ class ParserConfig:
             enable_process_substitution=True,
             enable_brace_expansion=True,
             enable_history_expansion=True,
-            
+
             # Allow Bash extensions
             allow_bash_arrays=True,
             allow_bash_functions=True,
             allow_bash_conditionals=True,
             allow_bash_arithmetic=True,
             allow_empty_commands=True,
-            
+
             # Permissive parsing
             require_semicolons=False,
             allow_unquoted_variables=True,
-            
+
             # Enable advanced features
             enable_here_strings=True,
             enable_extended_globbing=True,
-            
+
             bash_version_target="5.1"
         )
-    
+
     @classmethod
     def permissive(cls) -> 'ParserConfig':
         """Create permissive configuration for error tolerance.
@@ -199,7 +199,7 @@ class ParserConfig:
             collect_errors=True,
             enable_error_recovery=True,
             show_error_suggestions=True,
-            
+
             # Enable everything
             enable_aliases=True,
             enable_functions=True,
@@ -209,25 +209,25 @@ class ParserConfig:
             enable_process_substitution=True,
             enable_brace_expansion=True,
             enable_history_expansion=True,
-            
+
             # Very permissive
             allow_bash_arrays=True,
             allow_bash_functions=True,
             allow_bash_conditionals=True,
             allow_bash_arithmetic=True,
             allow_empty_commands=True,
-            
+
             # Relaxed parsing
             require_semicolons=False,
             allow_unquoted_variables=True,
             auto_quote_filenames=True,
-            
+
             # All advanced features
             enable_here_strings=True,
             enable_coprocesses=True,
             enable_extended_globbing=True
         )
-    
+
     @classmethod
     def educational(cls) -> 'ParserConfig':
         """Create educational configuration with extra help.
@@ -242,7 +242,7 @@ class ParserConfig:
             collect_errors=True,
             enable_error_recovery=True,
             show_error_suggestions=True,
-            
+
             # Standard features enabled
             enable_aliases=True,
             enable_functions=True,
@@ -250,28 +250,28 @@ class ParserConfig:
             enable_arrays=True,
             enable_process_substitution=True,
             enable_brace_expansion=True,
-            
+
             # Bash compatibility for learning
             allow_bash_arrays=True,
             allow_bash_functions=True,
             allow_bash_conditionals=True,
             allow_bash_arithmetic=True,
-            
+
             # Educational features
             explain_parsing_steps=True,
             show_grammar_rules=True,
             trace_parsing=True,
             validate_ast=True,
-            
+
             # Enable validation for educational purposes
             enable_validation=True,
             enable_semantic_analysis=True,
             enable_validation_rules=True,
-            
+
             # Help with common mistakes
             auto_quote_filenames=True
         )
-    
+
     @classmethod
     def development(cls) -> 'ParserConfig':
         """Create configuration for parser development.
@@ -283,7 +283,7 @@ class ParserConfig:
             error_handling=ErrorHandlingMode.COLLECT,
             collect_errors=True,
             enable_error_recovery=True,
-            
+
             # All features for testing
             enable_aliases=True,
             enable_functions=True,
@@ -291,22 +291,22 @@ class ParserConfig:
             enable_arrays=True,
             enable_associative_arrays=True,
             enable_process_substitution=True,
-            
+
             # Debug features
             trace_parsing=True,
             profile_parsing=True,
             show_token_stream=True,
             validate_ast=True,
-            
+
             # Enable validation for development
             enable_validation=True,
             enable_semantic_analysis=True,
             enable_validation_rules=True,
-            
+
             # Interactive development
             interactive_parsing=True
         )
-    
+
     def clone(self, **overrides) -> 'ParserConfig':
         """Create a copy of this config with optional overrides."""
         # Get all current field values
@@ -318,22 +318,22 @@ class ParserConfig:
                 values[field_info.name] = current_value.copy()
             else:
                 values[field_info.name] = current_value
-        
+
         # Apply overrides
         values.update(overrides)
-        
+
         return ParserConfig(**values)
-    
+
     def is_feature_enabled(self, feature: str) -> bool:
         """Check if a feature is enabled."""
         attr_name = f"enable_{feature}"
         return getattr(self, attr_name, False)
-    
+
     def should_allow(self, capability: str) -> bool:
         """Check if a capability should be allowed."""
         attr_name = f"allow_{capability}"
         return getattr(self, attr_name, False)
-    
+
     def get_compatibility_info(self) -> Dict[str, Any]:
         """Get compatibility information."""
         return {

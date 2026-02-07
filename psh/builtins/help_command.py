@@ -1,8 +1,8 @@
 """Help builtin command."""
 
 import fnmatch
-import sys
-from typing import List, Optional, Set, TYPE_CHECKING
+from typing import TYPE_CHECKING, List
+
 from .base import Builtin
 from .registry import builtin
 
@@ -13,19 +13,19 @@ if TYPE_CHECKING:
 @builtin
 class HelpBuiltin(Builtin):
     """Display information about builtin commands."""
-    
+
     @property
     def name(self) -> str:
         return "help"
-    
+
     @property
     def synopsis(self) -> str:
         return "help [-dms] [pattern ...]"
-    
+
     @property
     def description(self) -> str:
         return "Display information about builtin commands"
-    
+
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Execute the help builtin."""
         # Parse options
@@ -33,7 +33,7 @@ class HelpBuiltin(Builtin):
         show_synopsis_only = False
         show_manpage = False
         patterns = []
-        
+
         i = 1
         while i < len(args):
             arg = args[i]
@@ -58,11 +58,11 @@ class HelpBuiltin(Builtin):
                 # Pattern argument
                 patterns.append(arg)
             i += 1
-        
+
         # Get all builtin instances (no duplicates from aliases)
         registry = shell.builtin_registry
         all_builtins = registry.instances()
-        
+
         # Filter builtins by patterns if provided
         if patterns:
             matched_builtins = []
@@ -71,18 +71,18 @@ class HelpBuiltin(Builtin):
                     if fnmatch.fnmatch(builtin_obj.name, pattern):
                         matched_builtins.append(builtin_obj)
                         break
-            
+
             if not matched_builtins:
                 self.error(f"no help topics match `{', '.join(patterns)}'", shell)
                 return 1
-            
+
             builtins_to_show = matched_builtins
         else:
             builtins_to_show = all_builtins
-        
+
         # Sort builtins by name
         builtins_to_show.sort(key=lambda b: b.name)
-        
+
         # Display help based on mode
         if patterns and not show_descriptions and not show_synopsis_only:
             # Show detailed help for specific patterns
@@ -99,9 +99,9 @@ class HelpBuiltin(Builtin):
         else:
             # Show default listing
             self._show_default_listing(builtins_to_show, shell)
-        
+
         return 0
-    
+
     def _show_usage(self, shell: 'Shell') -> None:
         """Show usage information."""
         print(f"Usage: {self.synopsis}", file=shell.stderr)
@@ -109,11 +109,11 @@ class HelpBuiltin(Builtin):
         print("  -d    output short description for each topic", file=shell.stderr)
         print("  -m    display usage in pseudo-manpage format", file=shell.stderr)
         print("  -s    output only a short usage synopsis for each topic", file=shell.stderr)
-    
+
     def _show_default_listing(self, builtins: List[Builtin], shell: 'Shell') -> None:
         """Show default help listing similar to bash."""
         output = shell.stdout
-        
+
         # Get version from shell state or fallback to hardcoded version
         version = getattr(shell.state, 'version', None) or shell.state.get_variable('PSH_VERSION', '0.54.0')
         print("PSH Shell, version " + str(version), file=output)
@@ -131,23 +131,23 @@ class HelpBuiltin(Builtin):
         print("  debug-parser             Show parser tracing", file=output)
         print("Use 'debug OPTION on/off' or 'debug-ast' for dedicated debug control.", file=output)
         print(file=output)
-        
+
         # Calculate column layout
         max_width = 79  # Terminal width
         max_name_len = max(len(b.synopsis) for b in builtins) if builtins else 0
         col_width = min(max_name_len + 2, max_width // 2)
-        
+
         # Group builtins into columns
         for i in range(0, len(builtins), 2):
             line = ""
-            
+
             # First column
             builtin1 = builtins[i]
             synopsis1 = builtin1.synopsis
             if len(synopsis1) > col_width - 2:
                 synopsis1 = synopsis1[:col_width - 5] + "..."
             line += f" {synopsis1:<{col_width-1}}"
-            
+
             # Second column if available
             if i + 1 < len(builtins):
                 builtin2 = builtins[i + 1]
@@ -155,27 +155,27 @@ class HelpBuiltin(Builtin):
                 if len(synopsis2) > col_width - 2:
                     synopsis2 = synopsis2[:col_width - 5] + "..."
                 line += f" {synopsis2}"
-            
+
             print(line, file=output)
-    
+
     def _show_descriptions(self, builtins: List[Builtin], shell: 'Shell') -> None:
         """Show brief descriptions (-d mode)."""
         output = shell.stdout
-        
+
         for builtin_obj in builtins:
             print(f"{builtin_obj.name} - {builtin_obj.description}", file=output)
-    
+
     def _show_synopsis(self, builtins: List[Builtin], shell: 'Shell') -> None:
         """Show synopsis only (-s mode)."""
         output = shell.stdout
-        
+
         for builtin_obj in builtins:
             print(f"{builtin_obj.name}: {builtin_obj.synopsis}", file=output)
-    
+
     def _show_detailed_help(self, builtin_obj: Builtin, shell: 'Shell', manpage_format: bool = False) -> None:
         """Show detailed help for a specific builtin."""
         output = shell.stdout
-        
+
         if manpage_format:
             # Manpage format
             print("NAME", file=output)
@@ -185,7 +185,7 @@ class HelpBuiltin(Builtin):
             print(f"    {builtin_obj.synopsis}", file=output)
             print(file=output)
             print("DESCRIPTION", file=output)
-            
+
             # Parse help text for description
             help_text = builtin_obj.help
             lines = help_text.split('\n')
@@ -197,7 +197,7 @@ class HelpBuiltin(Builtin):
         else:
             # Standard format
             print(builtin_obj.help, file=output)
-    
+
     @property
     def help(self) -> str:
         return """help: help [-dms] [pattern ...]

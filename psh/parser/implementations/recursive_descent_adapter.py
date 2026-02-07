@@ -5,18 +5,16 @@ to the AbstractShellParser interface, allowing it to be used alongside
 experimental parser implementations.
 """
 
-from typing import List, Optional, Union, Tuple, Dict, Any
 import time
+from typing import Any, Dict, List, Optional, Tuple, Union
 
-from ..abstract_parser import (
-    AbstractShellParser, ParserCharacteristics, ParserType,
-    ParseError as AbstractParseError
-)
-from ..recursive_descent.parser import Parser
+from ...ast_nodes import ASTNode, CommandList, TopLevel
+from ...token_types import Token
+from ..abstract_parser import AbstractShellParser, ParserCharacteristics, ParserType
+from ..abstract_parser import ParseError as AbstractParseError
 from ..config import ParserConfig
 from ..recursive_descent.helpers import ParseError
-from ...ast_nodes import TopLevel, CommandList, ASTNode
-from ...token_types import Token
+from ..recursive_descent.parser import Parser
 
 
 class RecursiveDescentAdapter(AbstractShellParser):
@@ -26,13 +24,13 @@ class RecursiveDescentAdapter(AbstractShellParser):
     AbstractShellParser interface, allowing it to be used in the
     experimental parser framework.
     """
-    
+
     def __init__(self):
         """Initialize the adapter."""
         super().__init__()
         self.config = ParserConfig()
         self._last_parser_instance = None
-    
+
     def parse(self, tokens: List[Token]) -> Union[TopLevel, CommandList]:
         """Parse tokens using the existing recursive descent parser.
         
@@ -48,29 +46,29 @@ class RecursiveDescentAdapter(AbstractShellParser):
         # Reset metrics
         self.reset_metrics()
         start_time = time.perf_counter()
-        
+
         try:
             # Create parser instance
             parser = Parser(tokens, config=self.config)
             self._last_parser_instance = parser
-            
+
             # Track token consumption
             initial_position = parser.context.current_position if hasattr(parser.context, 'current_position') else 0
-            
+
             # Parse
             ast = parser.parse()
-            
+
             # Update metrics
             final_position = parser.context.current_position if hasattr(parser.context, 'current_position') else len(tokens)
             self.metrics.tokens_consumed = final_position - initial_position
             self.metrics.parse_time_ms = (time.perf_counter() - start_time) * 1000
-            
+
             # Get additional metrics from context if available
             if hasattr(parser.context, 'rules_evaluated'):
                 self.metrics.rules_evaluated = parser.context.rules_evaluated
-            
+
             return ast
-            
+
         except ParseError as e:
             # Convert to abstract parse error
             position = None
@@ -81,7 +79,7 @@ class RecursiveDescentAdapter(AbstractShellParser):
                 if hasattr(e.error_context, 'token'):
                     token = e.error_context.token
             raise AbstractParseError(str(e), position=position, token=token) from e
-    
+
     def parse_partial(self, tokens: List[Token]) -> Tuple[Optional[ASTNode], int]:
         """Parse as much as possible from the token stream.
         
@@ -107,12 +105,12 @@ class RecursiveDescentAdapter(AbstractShellParser):
                         return result.ast, parser.context.current_position if hasattr(parser.context, 'current_position') else 0
                 except Exception:
                     pass
-            
+
             # Return how far we got
             if self._last_parser_instance:
                 return None, self._last_parser_instance.context.current_position if hasattr(self._last_parser_instance.context, 'current_position') else 0
             return None, 0
-    
+
     def can_parse(self, tokens: List[Token]) -> bool:
         """Check if tokens can be parsed.
         
@@ -129,7 +127,7 @@ class RecursiveDescentAdapter(AbstractShellParser):
             return True
         except Exception:
             return False
-    
+
     def get_name(self) -> str:
         """Return the parser name.
         
@@ -137,7 +135,7 @@ class RecursiveDescentAdapter(AbstractShellParser):
             Parser identifier
         """
         return "recursive_descent"
-    
+
     def get_description(self) -> str:
         """Return parser description.
         
@@ -149,7 +147,7 @@ class RecursiveDescentAdapter(AbstractShellParser):
             "This is the primary PSH parser with full shell feature support, "
             "comprehensive error recovery, and educational error messages."
         )
-    
+
     def get_characteristics(self) -> ParserCharacteristics:
         """Return parser characteristics.
         
@@ -170,7 +168,7 @@ class RecursiveDescentAdapter(AbstractShellParser):
             generated=False,
             functional=False
         )
-    
+
     def get_configuration_options(self) -> Dict[str, Any]:
         """Return available configuration options.
         
@@ -189,7 +187,7 @@ class RecursiveDescentAdapter(AbstractShellParser):
             "validate_names": "Validate identifier names",
             "trace_parsing": "Enable parse tracing for debugging"
         }
-    
+
     def configure(self, **options):
         """Configure the parser.
         
@@ -200,7 +198,7 @@ class RecursiveDescentAdapter(AbstractShellParser):
         for key, value in options.items():
             if hasattr(self.config, key):
                 setattr(self.config, key, value)
-    
+
     def explain_parse(self, tokens: List[Token]) -> str:
         """Explain how recursive descent parsing works.
         
@@ -224,7 +222,7 @@ class RecursiveDescentAdapter(AbstractShellParser):
             "",
             "Parsing steps:",
         ]
-        
+
         # Show simplified parsing steps
         if tokens:
             if tokens[0].type == 'IF':
@@ -259,7 +257,7 @@ class RecursiveDescentAdapter(AbstractShellParser):
                     "     - Check for redirections",
                     "     - Return SimpleCommand AST node"
                 ])
-        
+
         explanation.extend([
             "",
             "Key advantages:",
@@ -268,9 +266,9 @@ class RecursiveDescentAdapter(AbstractShellParser):
             "- Easy to debug and extend",
             "- Natural mapping from grammar to code"
         ])
-        
+
         return "\n".join(explanation)
-    
+
     def validate_grammar(self) -> List[str]:
         """Validate parser configuration.
         
@@ -278,11 +276,11 @@ class RecursiveDescentAdapter(AbstractShellParser):
             List of warnings
         """
         warnings = []
-        
+
         if self.config.parsing_mode == "strict_posix" and self.config.enable_arrays:
             warnings.append("Arrays are enabled but not POSIX compliant")
-        
+
         if self.config.collect_errors and self.config.max_errors < 1:
             warnings.append("Error collection enabled but max_errors < 1")
-        
+
         return warnings

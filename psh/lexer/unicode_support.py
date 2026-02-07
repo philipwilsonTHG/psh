@@ -52,7 +52,7 @@ def is_identifier_char(char: str, posix_mode: bool = False) -> bool:
         # Check Unicode categories
         category = unicodedata.category(char)
         return (category.startswith('L') or    # Letters
-                category.startswith('N') or    # Numbers  
+                category.startswith('N') or    # Numbers
                 category.startswith('M'))      # Marks (combining characters)
 
 
@@ -94,10 +94,10 @@ def normalize_identifier(name: str, posix_mode: bool = False, case_sensitive: bo
     if not posix_mode:
         # Apply Unicode normalization (NFC - Canonical Composition)
         name = unicodedata.normalize('NFC', name)
-    
+
     if not case_sensitive:
         name = name.lower()
-        
+
     return name
 
 
@@ -114,14 +114,14 @@ def validate_identifier(name: str, posix_mode: bool = False) -> bool:
     """
     if not name:
         return False
-        
+
     # Check first character
     if not is_identifier_start(name[0], posix_mode):
         return False
-        
-    # Check remaining characters  
+
+    # Check remaining characters
     for char in name[1:]:
         if not is_identifier_char(char, posix_mode):
             return False
-            
+
     return True

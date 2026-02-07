@@ -1,15 +1,16 @@
 """Helper methods for lexer operations."""
 
 from typing import List, Optional, Tuple
+
 from ..token_types import TokenType
+from .constants import DOUBLE_QUOTE_ESCAPES, OPERATORS_BY_LENGTH
 from .position import Position
 from .token_parts import TokenPart
-from .constants import OPERATORS_BY_LENGTH, DOUBLE_QUOTE_ESCAPES
 
 
 class LexerHelpers:
     """Mixin class providing helper methods for the lexer."""
-    
+
     def read_until_char(self, target: str, escape: bool = False) -> str:
         """Read until a specific character is found."""
         content = ""
@@ -23,7 +24,7 @@ class LexerHelpers:
                 content += self.current_char()
                 self.advance()
         return content
-    
+
     def handle_escape_sequence(self, quote_context: Optional[str] = None) -> str:
         """
         Handle escape sequences based on context.
@@ -36,10 +37,10 @@ class LexerHelpers:
         """
         if not self.peek_char():
             return '\\'
-        
+
         self.advance()  # Skip backslash
         next_char = self.current_char()
-        
+
         if quote_context == '"':
             # In double quotes
             if next_char == '\n':
@@ -74,7 +75,7 @@ class LexerHelpers:
             # Single quotes - no escaping
             self.advance()  # Skip the escaped character
             return '\\' + next_char
-    
+
     def read_balanced_parens(self) -> Tuple[str, bool]:
         """
         Read content until balanced parentheses.
@@ -85,7 +86,7 @@ class LexerHelpers:
         """
         content = ""
         depth = 1
-        
+
         while self.current_char() and depth > 0:
             char = self.current_char()
             if char == '(':
@@ -97,17 +98,17 @@ class LexerHelpers:
                     break
             content += char
             self.advance()
-        
+
         is_closed = (depth == 0)
-        
+
         # If we hit EOF with unbalanced parentheses, we still need to error
         # for batch mode, but allow the lexer to handle it gracefully for
         # interactive mode through the end-of-input state checks.
         if not is_closed and self.config.strict_mode:
             self._error("Unclosed parenthesis")
-            
+
         return content, is_closed
-    
+
     def read_balanced_double_parens(self) -> Tuple[str, bool]:
         """
         Read content until balanced double parentheses for arithmetic.
@@ -119,11 +120,11 @@ class LexerHelpers:
         content = ""
         depth = 0  # Track individual parens, not pairs
         found_closing = False
-        
+
         while self.current_char():
             char = self.current_char()
             next_char = self.peek_char()
-            
+
             # Check for )) when depth is exactly 2 (from initial $(( )
             if char == ')' and next_char == ')' and depth == 0:
                 # This is the closing )) for the arithmetic expansion
@@ -131,37 +132,37 @@ class LexerHelpers:
                 self.advance()  # Skip second )
                 found_closing = True
                 break
-            
+
             # Track depth with individual parens
             if char == '(':
                 depth += 1
             elif char == ')':
                 depth -= 1
-                
+
             content += char
             self.advance()
-        
+
         # If we hit EOF without finding closing )), error in strict mode but
         # allow the lexer to handle it gracefully in interactive mode.
         if not found_closing and self.config.strict_mode:
             self._error("Unclosed arithmetic expansion")
-            
+
         return content, found_closing
-    
+
     def _check_for_operator(self) -> Optional[Tuple[str, TokenType]]:
         """Check if current position starts an operator."""
         # Special handling for != (should be a single word token for test command)
         if self.peek_string(2) == '!=':
             return None  # Let it be handled as a word
-        
+
         # If we're after =~, treat [ and ] as regular characters for regex patterns
         if self.after_regex_match and self.current_char() in '[]':
             return None  # Let it be handled as part of the word
-        
+
         # Check for [[ first (before single [)
         if self.peek_string(2) == '[[' and self.command_position:
             return ('[[', TokenType.DOUBLE_LBRACKET)
-        
+
         # Special handling for [ and ]
         # [ should be a word at command position or after whitespace
         # [ should be LBRACKET when immediately after a word (for array subscripts)
@@ -176,25 +177,25 @@ class LexerHelpers:
                     return None  # Let it be handled as a word
             # Otherwise, it's an array subscript
             return ('[', TokenType.LBRACKET)
-        
+
         # ] is always treated as RBRACKET when it's an operator context
         # But let the word handler deal with it when part of a word
-        
-        
+
+
         # Check operators from longest to shortest
         for length in sorted(OPERATORS_BY_LENGTH.keys(), reverse=True):
             if length > len(self.input) - self.position:
                 continue
-            
+
             op = self.peek_string(length)
             if op in OPERATORS_BY_LENGTH[length]:
                 token_type = OPERATORS_BY_LENGTH[length][op]
                 # Only return if operator is enabled in configuration
                 if self._is_operator_enabled(op, token_type):
                     return (op, token_type)
-        
+
         return None
-    
+
     def _is_operator_enabled(self, op: str, token_type: TokenType) -> bool:
         """
         Check if an operator is enabled in the current configuration.
@@ -209,40 +210,40 @@ class LexerHelpers:
         # Pipe operations
         if token_type == TokenType.PIPE:
             return self.config.enable_pipes
-            
+
         # Redirection operators
-        if token_type in (TokenType.REDIRECT_IN, TokenType.REDIRECT_OUT, 
+        if token_type in (TokenType.REDIRECT_IN, TokenType.REDIRECT_OUT,
                          TokenType.REDIRECT_APPEND, TokenType.REDIRECT_ERR,
                          TokenType.REDIRECT_ERR_APPEND):
             return self.config.enable_redirections
-            
+
         # Heredoc operators
         if token_type in (TokenType.HEREDOC, TokenType.HEREDOC_STRIP, TokenType.HERE_STRING):
             return self.config.enable_heredocs
-            
+
         # Background operator
         if token_type == TokenType.AMPERSAND:
             return self.config.enable_background
-            
+
         # Logical operators
         if token_type in (TokenType.AND_AND, TokenType.OR_OR):
             return self.config.enable_logical_operators
-            
+
         # Compound command operators
         if token_type in (TokenType.DOUBLE_LPAREN, TokenType.DOUBLE_LBRACKET, TokenType.DOUBLE_RBRACKET):
             return self.config.enable_compound_commands
-            
+
         # Process substitution
         if token_type in (TokenType.PROCESS_SUB_IN, TokenType.PROCESS_SUB_OUT):
             return self.config.enable_process_substitution
-            
+
         # Regex match operator
         if token_type == TokenType.REGEX_MATCH:
             return self.config.enable_regex_operators
-            
+
         # Default: allow other operators (basic shell operators like semicolon, parens, etc.)
         return True
-    
+
     def _build_token_value(self, parts: List[TokenPart]) -> str:
         """Build complete token value from parts."""
         full_value = ""
@@ -254,12 +255,12 @@ class LexerHelpers:
             else:
                 full_value += part.value
         return full_value
-    
+
     def _get_word_terminators(self) -> set:
         """Get the set of word terminator characters based on configuration."""
         # Start with basic ASCII terminators (always included)
         terminators = {' ', '\t', '\n'}
-        
+
         # Add quote characters that are enabled
         if self.config.enable_single_quotes:
             terminators.add("'")
@@ -267,7 +268,7 @@ class LexerHelpers:
             terminators.add('"')
         if self.config.enable_backtick_quotes:
             terminators.add('`')
-        
+
         # Add operators that are enabled
         if self.config.enable_pipes:
             terminators.add('|')
@@ -275,12 +276,12 @@ class LexerHelpers:
             terminators.update('<', '>')
         if self.config.enable_background:
             terminators.add('&')
-        
+
         # Always include basic shell operators
         terminators.update(';', '(', ')', '{', '}')
-        
+
         return terminators
-    
+
     def _is_word_terminator_char(self, char: str) -> bool:
         """
         Check if a character terminates a word, including Unicode whitespace.
@@ -293,15 +294,15 @@ class LexerHelpers:
         """
         # Import here to avoid circular imports
         from .unicode_support import is_whitespace
-        
+
         # Check Unicode whitespace first
         if is_whitespace(char, self.config.posix_mode):
             return True
-            
+
         # Check static terminators
         terminators = self._get_word_terminators()
         return char in terminators
-    
+
     def _is_word_terminator(self, char: str) -> bool:
         """Check if character terminates a word in current context."""
         # Special handling for [ and ]
@@ -319,7 +320,7 @@ class LexerHelpers:
             if self.after_regex_match:
                 return False
             return True
-        
+
         # Use Unicode-aware word terminator check
         if self.in_double_brackets > 0:
             # In double brackets, use similar logic but check terminators
@@ -330,11 +331,11 @@ class LexerHelpers:
         else:
             return self._is_word_terminator_char(char)
         return False
-    
+
     def _is_comment_start(self) -> bool:
         """Check if # at current position starts a comment."""
         return self.position == 0 or self.input[self.position - 1] in ' \t\n;'
-    
+
     def _validate_input_bounds(self) -> bool:
         """
         Validate that current position is within input bounds.
@@ -343,7 +344,7 @@ class LexerHelpers:
             True if position is valid, False if at EOF
         """
         return self.position < len(self.input)
-    
+
     def _validate_closing_character(self, expected_char: str, error_message: str) -> bool:
         """
         Validate and consume an expected closing character.
@@ -361,7 +362,7 @@ class LexerHelpers:
         else:
             self._error(error_message)
             return False
-    
+
     def _create_error_recovery_part(self, start_pos: Position, quote_context: Optional[str]) -> TokenPart:
         """
         Create an empty TokenPart for error recovery.
@@ -381,25 +382,25 @@ class LexerHelpers:
             start_pos=start_pos,
             end_pos=self.get_current_position()
         )
-    
+
     def _can_start_variable_with_char(self, char: Optional[str]) -> bool:
         """Check if the given character can start a variable name."""
         if not char:
             # At end of input, $ should be treated as literal
             return False
-        
+
         # Import here to avoid circular imports
-        from .unicode_support import is_identifier_start
         from .constants import SPECIAL_VARIABLES
-        
+        from .unicode_support import is_identifier_start
+
         # Check special variables (single character)
         if char in SPECIAL_VARIABLES:
             return True
-        
+
         # Check if it's a valid identifier start
         if is_identifier_start(char, self.config.posix_mode):
             return True
-        
+
         # For characters that can't start a variable, we still want to attempt
         # variable parsing if the character could be part of a word.
         # Only treat $ as literal if the next character is definitely a word terminator.

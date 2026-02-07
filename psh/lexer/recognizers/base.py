@@ -2,18 +2,19 @@
 
 from abc import ABC, abstractmethod
 from typing import Optional, Tuple
-from ..state_context import LexerContext
+
 from ...token_types import Token
+from ..state_context import LexerContext
 
 
 class TokenRecognizer(ABC):
     """Base class for token recognizers."""
-    
+
     @abstractmethod
     def can_recognize(
-        self, 
-        input_text: str, 
-        pos: int, 
+        self,
+        input_text: str,
+        pos: int,
         context: LexerContext
     ) -> bool:
         """
@@ -31,12 +32,12 @@ class TokenRecognizer(ABC):
             True if this recognizer might be able to recognize a token
         """
         pass
-    
+
     @abstractmethod
     def recognize(
-        self, 
-        input_text: str, 
-        pos: int, 
+        self,
+        input_text: str,
+        pos: int,
         context: LexerContext
     ) -> Optional[Tuple[Token, int]]:
         """
@@ -51,7 +52,7 @@ class TokenRecognizer(ABC):
             Tuple of (token, new_position) if recognized, None otherwise
         """
         pass
-    
+
     @property
     @abstractmethod
     def priority(self) -> int:
@@ -67,7 +68,7 @@ class TokenRecognizer(ABC):
         - 1-19: Fallback recognizers
         """
         pass
-    
+
     @property
     def name(self) -> str:
         """Human-readable name for this recognizer."""
@@ -76,10 +77,10 @@ class TokenRecognizer(ABC):
 
 class ContextualRecognizer(TokenRecognizer):
     """Base class for recognizers that need context awareness."""
-    
+
     def is_valid_in_context(
-        self, 
-        candidate: str, 
+        self,
+        candidate: str,
         context: LexerContext
     ) -> bool:
         """
@@ -97,7 +98,7 @@ class ContextualRecognizer(TokenRecognizer):
 
 class PriorityRecognizer(TokenRecognizer):
     """Base class for recognizers with configurable priority."""
-    
+
     def __init__(self, priority: int = 50):
         """
         Initialize with custom priority.
@@ -106,7 +107,7 @@ class PriorityRecognizer(TokenRecognizer):
             priority: Recognition priority (higher = checked first)
         """
         self._priority = priority
-    
+
     @property
     def priority(self) -> int:
         """Get the configured priority."""

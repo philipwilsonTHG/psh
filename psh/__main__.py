@@ -2,6 +2,7 @@
 """Main entry point for psh when run as a module."""
 
 import sys
+
 from .shell import Shell
 
 
@@ -25,7 +26,7 @@ def main():
     force_interactive = False
     # Visitor executor is now the only executor
     args = sys.argv[1:]
-    
+
     # Extract debug flags
     ast_format = None
     if "--debug-ast" in args:
@@ -71,12 +72,12 @@ def main():
         debug_exec_fork = True
         debug_exec = True  # Fork implies basic
         args.remove("--debug-exec-fork")
-    
+
     # Extract validation flag
     if "--validate" in args:
         validate_only = True
         args.remove("--validate")
-    
+
     # Extract visitor flags
     if "--format" in args:
         format_only = True
@@ -90,17 +91,17 @@ def main():
     if "--lint" in args:
         lint_only = True
         args.remove("--lint")
-    
+
     # Extract force-interactive flag
     if "--force-interactive" in args:
         force_interactive = True
         args.remove("--force-interactive")
-    
+
     # Extract RC file flags
     if "--norc" in args:
         norc = True
         args.remove("--norc")
-    
+
     # Handle --rcfile
     for i, arg in enumerate(args):
         if arg == "--rcfile":
@@ -115,23 +116,23 @@ def main():
             rcfile = arg[9:]  # Remove "--rcfile=" prefix
             args.remove(arg)
             break
-    
+
     # Update sys.argv to remove the flags
     sys.argv = [sys.argv[0]] + args
-    
-    shell = Shell(debug_ast=debug_ast, debug_tokens=debug_tokens, debug_scopes=debug_scopes, 
+
+    shell = Shell(debug_ast=debug_ast, debug_tokens=debug_tokens, debug_scopes=debug_scopes,
                   debug_expansion=debug_expansion, debug_expansion_detail=debug_expansion_detail,
                   debug_exec=debug_exec, debug_exec_fork=debug_exec_fork,
                   norc=norc, rcfile=rcfile, validate_only=validate_only,
-                  format_only=format_only, metrics_only=metrics_only, 
+                  format_only=format_only, metrics_only=metrics_only,
                   security_only=security_only, lint_only=lint_only,
                   ast_format=ast_format
                   )
-    
+
     # Set force interactive mode if requested
     if force_interactive:
         shell._force_interactive = True
-    
+
     if len(sys.argv) > 1:
         if sys.argv[1] == "-c" and len(sys.argv) > 2:
             # Execute command with -c flag (script mode)
@@ -139,12 +140,12 @@ def main():
             command = sys.argv[2]
             # Set positional parameters from remaining arguments
             shell.set_positional_params(sys.argv[3:])
-            
+
             # Handle visitor modes for -c commands
             if any([format_only, metrics_only, security_only, lint_only, validate_only]):
                 exit_code = shell._handle_visitor_mode_for_command(command)
                 sys.exit(exit_code)
-            
+
             # Use StringInput with script mode to process line-by-line like bash -c
             from .input_sources import StringInput
             input_source = StringInput(command, "-c")
@@ -209,12 +210,12 @@ def main():
             # Script file execution
             script_path = sys.argv[1]
             script_args = sys.argv[2:]
-            
+
             # Handle visitor modes for script files
             if any([format_only, metrics_only, security_only, lint_only, validate_only]):
                 exit_code = shell._handle_visitor_mode_for_script(script_path)
                 sys.exit(exit_code)
-            
+
             exit_code = shell.run_script(script_path, script_args)
             sys.exit(exit_code)
     else:

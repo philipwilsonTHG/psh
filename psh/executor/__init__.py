@@ -18,24 +18,24 @@ The package is organized into focused modules:
 - utils: Shared utilities and helpers
 """
 
-from .core import ExecutorVisitor
-from .context import ExecutionContext
-from .pipeline import PipelineContext, PipelineExecutor
-from .command import CommandExecutor
-from .control_flow import ControlFlowExecutor
 from .array import ArrayOperationExecutor
+from .command import CommandExecutor
+from .context import ExecutionContext
+from .control_flow import ControlFlowExecutor
+from .core import ExecutorVisitor
 from .function import FunctionOperationExecutor
-from .subshell import SubshellExecutor
+from .pipeline import PipelineContext, PipelineExecutor
 from .strategies import (
-    ExecutionStrategy,
     BuiltinExecutionStrategy,
+    ExecutionStrategy,
+    ExternalExecutionStrategy,
     FunctionExecutionStrategy,
-    ExternalExecutionStrategy
 )
+from .subshell import SubshellExecutor
 
 __all__ = [
     'ExecutorVisitor',
-    'ExecutionContext', 
+    'ExecutionContext',
     'PipelineContext',
     'PipelineExecutor',
     'CommandExecutor',

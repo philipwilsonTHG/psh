@@ -1,12 +1,12 @@
 """Function-related builtin commands."""
 import sys
-from typing import List, TYPE_CHECKING, Optional, Union, Any
+from typing import TYPE_CHECKING, Any, List, Optional
 
+from ..core.exceptions import ReadonlyVariableError
+from ..core.variables import AssociativeArray, IndexedArray, VarAttributes, Variable
+from ..utils.shell_formatter import ShellFormatter
 from .base import Builtin
 from .registry import builtin
-from ..utils.shell_formatter import ShellFormatter
-from ..core.variables import Variable, VarAttributes, IndexedArray, AssociativeArray
-from ..core.exceptions import ReadonlyVariableError
 
 if TYPE_CHECKING:
     from ..shell import Shell
@@ -22,23 +22,23 @@ class FunctionReturn(Exception):
 @builtin
 class DeclareBuiltin(Builtin):
     """Declare variables and functions with attributes."""
-    
+
     @property
     def name(self) -> str:
         return "declare"
-    
+
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Execute the declare builtin."""
         # Parse options
         options, positional = self._parse_options(args[1:], shell)
         if options is None:
             return 1  # Error already printed
-        
+
         # Validate exclusive options
         if options['array'] and options['assoc_array']:
             self.error("cannot use both -a and -A options", shell)
             return 1
-        
+
         # Handle different modes
         if options['functions'] or options['function_names']:
             return self._handle_functions(options, positional, shell)
@@ -55,7 +55,7 @@ class DeclareBuiltin(Builtin):
         else:
             # Pass original args for mutually exclusive attribute handling
             return self._declare_variables(options, positional, shell, args[1:])
-    
+
     def _parse_options(self, args: List[str], shell: 'Shell') -> tuple[Optional[dict], List[str]]:
         """Parse declare options and return (options_dict, positional_args)."""
         options = {
@@ -82,7 +82,7 @@ class DeclareBuiltin(Builtin):
             'last_case_attr': None,  # Track last case attribute for "last wins" behavior
         }
         positional = []
-        
+
         i = 0
         while i < len(args):
             arg = args[i]
@@ -146,14 +146,14 @@ class DeclareBuiltin(Builtin):
             else:
                 positional.append(arg)
             i += 1
-        
+
         return options, positional
-    
+
     def _handle_functions(self, options: dict, names: List[str], shell: 'Shell') -> int:
         """Handle function-related options (-f, -F)."""
         stdout = shell.stdout if hasattr(shell, 'stdout') else sys.stdout
         show_names_only = options['function_names']
-        
+
         if not names:
             # List all functions
             functions = shell.function_manager.list_functions()
@@ -180,7 +180,7 @@ class DeclareBuiltin(Builtin):
                     exit_code = 1
             return exit_code
         return 0
-    
+
     def _is_valid_identifier(self, name: str) -> bool:
         """Check if a name is a valid shell identifier."""
         if not name:
@@ -190,7 +190,7 @@ class DeclareBuiltin(Builtin):
             return False
         # Rest must be alphanumeric or underscore
         return all(c.isalnum() or c == '_' for c in name[1:])
-    
+
     def _declare_variables(self, options: dict, args: List[str], shell: 'Shell', original_args: List[str] = None) -> int:
         """Handle variable declarations."""
         # Build attributes from options
@@ -219,7 +219,7 @@ class DeclareBuiltin(Builtin):
             attributes |= VarAttributes.ASSOC_ARRAY
         if options['trace']:
             attributes |= VarAttributes.TRACE
-        
+
         # Handle attribute removal
         remove_attrs = VarAttributes.NONE
         if options['remove_export']:
@@ -238,20 +238,20 @@ class DeclareBuiltin(Builtin):
             remove_attrs |= VarAttributes.ASSOC_ARRAY
         if options['remove_trace']:
             remove_attrs |= VarAttributes.TRACE
-        
+
         # If no arguments, list all shell variables (not environment)
         if not args:
             stdout = shell.stdout if hasattr(shell, 'stdout') else sys.stdout
             # Get all variables with their attributes
             variables = self._get_all_variables_with_attributes(shell)
-            
+
             # If no special options were given, use simple format
             simple_format = not any([
                 options['array'], options['assoc_array'], options['export'],
                 options['integer'], options['lowercase'], options['uppercase'],
                 options['readonly'], options['trace'], options['print']
             ])
-            
+
             for var in sorted(variables, key=lambda v: v.name):
                 if simple_format:
                     # Simple format: NAME=value
@@ -260,18 +260,18 @@ class DeclareBuiltin(Builtin):
                     # Full format: declare -flags NAME="value"
                     self._print_declaration(var, stdout)
             return 0
-        
+
         # Process each argument
         for arg in args:
             if '=' in arg:
                 # Variable assignment
                 name, value = arg.split('=', 1)
-                
+
                 # Validate variable name
                 if not self._is_valid_identifier(name):
                     self.error(f"`{arg}': not a valid identifier", shell)
                     return 1
-                
+
                 # Handle array initialization syntax
                 if options['array'] and value.startswith('(') and value.endswith(')'):
                     # Parse indexed array initialization
@@ -280,27 +280,27 @@ class DeclareBuiltin(Builtin):
                     for i, val in enumerate(array_values):
                         array.set(i, val)
                     self._set_variable_with_attributes(shell, name, array, attributes, options['global'])
-                    
+
                 elif options['assoc_array'] and value.startswith('(') and value.endswith(')'):
-                    # Parse associative array initialization  
+                    # Parse associative array initialization
                     array = AssociativeArray()
                     assoc_values = self._parse_assoc_array_init(value)
                     for key, val in assoc_values:
                         array.set(key, val)
                     self._set_variable_with_attributes(shell, name, array, attributes, options['global'])
-                    
+
                 else:
                     # Regular variable assignment
                     # The enhanced scope manager will apply attribute transformations
                     self._set_variable_with_attributes(shell, name, value, attributes, options['global'])
-                    
+
             else:
                 # Just declaring with attributes, no assignment
                 # Validate variable name
                 if not self._is_valid_identifier(arg):
                     self.error(f"`{arg}': not a valid identifier", shell)
                     return 1
-                
+
                 if options['array']:
                     # Check for array type conflict first
                     existing = self._get_variable_with_attributes(shell, arg)
@@ -310,7 +310,7 @@ class DeclareBuiltin(Builtin):
                     # Create empty indexed array
                     self._set_variable_with_attributes(shell, arg, IndexedArray(), attributes, options['global'])
                 elif options['assoc_array']:
-                    # Check for array type conflict first  
+                    # Check for array type conflict first
                     existing = self._get_variable_with_attributes(shell, arg)
                     if existing and existing.is_indexed_array:
                         # Bash behavior: print error but continue, convert to associative array
@@ -346,11 +346,11 @@ class DeclareBuiltin(Builtin):
                     else:
                         # Create new variable with empty value
                         self._set_variable_with_attributes(shell, arg, "", attributes, options['global'])
-        
+
         return 0
-    
+
     def _print_variables(self, options: dict, names: List[str], shell: 'Shell') -> int:
-        """Print variables with attributes using declare -p format."""        
+        """Print variables with attributes using declare -p format."""
         if names:
             # Print specific variables
             exit_code = 0
@@ -369,7 +369,7 @@ class DeclareBuiltin(Builtin):
                 if self._matches_filter(var, options):
                     self._print_declaration_with_pipeline_support(var, shell)
             return 0
-    
+
     def _print_simple_declaration(self, var: Variable, file):
         """Print variable in simple format (NAME=value)."""
         if isinstance(var.value, (IndexedArray, AssociativeArray)):
@@ -378,12 +378,12 @@ class DeclareBuiltin(Builtin):
         else:
             # Simple format without quotes or escaping
             print(f"{var.name}={var.value}", file=file)
-    
+
     def _print_declaration_with_pipeline_support(self, var: Variable, shell: 'Shell'):
         """Print variable declaration with pipeline support."""
         # Build the declaration string
         declaration_str = self._format_declaration(var)
-        
+
         # Use pipeline-aware output (like echo builtin)
         import os
         if hasattr(shell.state, '_in_forked_child') and shell.state._in_forked_child:
@@ -399,7 +399,7 @@ class DeclareBuiltin(Builtin):
         """Print variable declaration in reusable format."""
         declaration_str = self._format_declaration(var)
         print(declaration_str, file=file)
-    
+
     def _format_declaration(self, var: Variable) -> str:
         """Format variable declaration string."""
         # Build flags string
@@ -407,7 +407,7 @@ class DeclareBuiltin(Builtin):
         if var.attributes & VarAttributes.ARRAY:
             flags.append('a')
         if var.attributes & VarAttributes.ASSOC_ARRAY:
-            flags.append('A')  
+            flags.append('A')
         if var.attributes & VarAttributes.READONLY:
             flags.append('r')
         if var.attributes & VarAttributes.EXPORT:
@@ -422,9 +422,9 @@ class DeclareBuiltin(Builtin):
             flags.append('n')
         if var.attributes & VarAttributes.TRACE:
             flags.append('t')
-        
+
         flag_str = f"-{''.join(flags)}" if flags else "--"
-        
+
         # Format value
         if isinstance(var.value, IndexedArray):
             # declare -a name=([0]="val" [1]="val")
@@ -436,7 +436,7 @@ class DeclareBuiltin(Builtin):
                 value_str = f"=({' '.join(elements)})"
             else:
                 value_str = "=()"
-        
+
         elif isinstance(var.value, AssociativeArray):
             # declare -A name=([key]="val" [key2]="val2")
             elements = []
@@ -446,13 +446,13 @@ class DeclareBuiltin(Builtin):
                 value_str = f"=({' '.join(elements)})"
             else:
                 value_str = "=()"
-        
+
         else:
             # Regular variable
             value_str = f'="{self._escape_value(str(var.value))}"'
-        
+
         return f"declare {flag_str} {var.name}{value_str}"
-    
+
     def _escape_value(self, value: str) -> str:
         """Escape special characters in value for shell output."""
         # Escape backslashes first, then double quotes, dollar signs, and backticks
@@ -461,14 +461,14 @@ class DeclareBuiltin(Builtin):
         value = value.replace('$', '\\$')
         value = value.replace('`', '\\`')
         return value
-    
+
     def _parse_array_init(self, value: str) -> List[str]:
         """Parse array initialization: (val1 val2 val3)"""
         # Remove parentheses
         content = value[1:-1].strip()
         if not content:
             return []
-        
+
         # Simple word splitting with quote handling
         parts = content.split()
         result = []
@@ -480,14 +480,14 @@ class DeclareBuiltin(Builtin):
             else:
                 result.append(part)
         return result
-    
+
     def _parse_assoc_array_init(self, value: str) -> List[tuple[str, str]]:
         """Parse associative array initialization: ([key]=val [key2]=val2)"""
         # Remove parentheses
         content = value[1:-1].strip()
         if not content:
             return []
-        
+
         # Simple parsing for now
         # TODO: Proper shell parsing with quotes
         result = []
@@ -501,14 +501,14 @@ class DeclareBuiltin(Builtin):
                     val = val[1:-1]
                 result.append((key, val))
         return result
-    
+
     def _apply_attributes(self, value: Any, attributes: VarAttributes, shell: 'Shell') -> Any:
         """Apply attribute transformations to value."""
         if isinstance(value, (IndexedArray, AssociativeArray)):
             return value  # Arrays aren't transformed
-            
+
         str_value = str(value)
-        
+
         if attributes & VarAttributes.UPPERCASE:
             return str_value.upper()
         elif attributes & VarAttributes.LOWERCASE:
@@ -528,11 +528,11 @@ class DeclareBuiltin(Builtin):
                 except:
                     return "0"
         return str_value
-    
+
     def _matches_filter(self, var: Variable, options: dict) -> bool:
         """Check if variable matches filter criteria."""
         from ..core.variables import VarAttributes
-        
+
         # If no specific attribute options are set, show all variables
         has_attribute_filter = any([
             options.get('readonly', False),
@@ -544,10 +544,10 @@ class DeclareBuiltin(Builtin):
             options.get('assoc_array', False),
             options.get('trace', False),
         ])
-        
+
         if not has_attribute_filter:
             return True
-        
+
         # Check specific attributes
         if options.get('readonly', False) and not (var.attributes & VarAttributes.READONLY):
             return False
@@ -565,20 +565,20 @@ class DeclareBuiltin(Builtin):
             return False
         if options.get('trace', False) and not (var.attributes & VarAttributes.TRACE):
             return False
-        
+
         return True
-    
+
     # Methods to interact with shell's enhanced variable storage
-    
+
     def _get_variable_with_attributes(self, shell: 'Shell', name: str) -> Optional[Variable]:
         """Get variable with its attributes."""
         return shell.state.scope_manager.get_variable_object(name)
-    
+
     def _get_all_variables_with_attributes(self, shell: 'Shell') -> List[Variable]:
         """Get all variables with their attributes."""
         return shell.state.scope_manager.all_variables_with_attributes()
-    
-    def _set_variable_with_attributes(self, shell: 'Shell', name: str, 
+
+    def _set_variable_with_attributes(self, shell: 'Shell', name: str,
                                      value: Any, attributes: VarAttributes, global_flag: bool = False):
         """Set variable with attributes."""
         try:
@@ -589,20 +589,20 @@ class DeclareBuiltin(Builtin):
                 local_scope = False  # Force global scope
             else:
                 local_scope = bool(shell.function_stack)  # Local if in function
-            
+
             shell.state.scope_manager.set_variable(name, value, attributes=attributes, local=local_scope)
-            
+
             # Handle export - sync to environment
             if attributes & VarAttributes.EXPORT:
                 shell.state.scope_manager.sync_exports_to_environment(shell.state.env)
         except ReadonlyVariableError:
             raise ReadonlyVariableError(f"{self.name}: {name}: readonly variable")
-    
+
     def _print_function_definition(self, name, func, stdout):
         """Print a function definition in a format that can be re-executed."""
         print(f"{name} () ", file=stdout, end='')
         print(ShellFormatter.format_function_body(func), file=stdout)
-    
+
     @property
     def help(self) -> str:
         return """declare: declare [-aAfFgilprtux] [name[=value] ...]
@@ -636,11 +636,11 @@ class DeclareBuiltin(Builtin):
 @builtin
 class TypesetBuiltin(DeclareBuiltin):
     """Typeset builtin - alias for declare (ksh compatibility)."""
-    
+
     @property
     def name(self) -> str:
         return "typeset"
-    
+
     @property
     def help(self) -> str:
         return """typeset: typeset [-aAfFgilprtux] [name[=value] ...]
@@ -677,18 +677,18 @@ class TypesetBuiltin(DeclareBuiltin):
 @builtin
 class ReadonlyBuiltin(Builtin):
     """Make variables readonly."""
-    
+
     @property
     def name(self) -> str:
         return "readonly"
-    
+
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Execute the readonly builtin."""
         # Parse options
         options, names = self._parse_readonly_options(args[1:], shell)
         if options is None:
             return 1
-        
+
         if options['functions']:
             return self._handle_readonly_functions(names, shell)
         elif options['print']:
@@ -704,7 +704,7 @@ class ReadonlyBuiltin(Builtin):
             declare_args = ['declare', '-r'] + names
             declare_builtin = DeclareBuiltin()
             return declare_builtin.execute(declare_args, shell)
-    
+
     def _parse_readonly_options(self, args: List[str], shell: 'Shell') -> tuple[Optional[dict], List[str]]:
         """Parse readonly options and return (options_dict, function_names)."""
         options = {
@@ -712,7 +712,7 @@ class ReadonlyBuiltin(Builtin):
             'print': False,      # -p
         }
         names = []
-        
+
         i = 0
         while i < len(args):
             arg = args[i]
@@ -732,21 +732,21 @@ class ReadonlyBuiltin(Builtin):
             else:
                 names.append(arg)
             i += 1
-        
+
         return options, names
-    
+
     def _handle_readonly_functions(self, names: List[str], shell: 'Shell') -> int:
         """Handle readonly -f for functions."""
         if not names:
             # List all readonly functions
             functions = shell.function_manager.list_functions()
             readonly_funcs = [(name, func) for name, func in functions if func.readonly]
-            
+
             stdout = shell.stdout if hasattr(shell, 'stdout') else sys.stdout
             for name, func in readonly_funcs:
                 print(f"readonly -f {name}", file=stdout)
             return 0
-        
+
         # Set specified functions as readonly
         exit_code = 0
         for name in names:
@@ -756,9 +756,9 @@ class ReadonlyBuiltin(Builtin):
             else:
                 self.error(f"{name}: not found", shell)
                 exit_code = 1
-        
+
         return exit_code
-    
+
     @property
     def help(self) -> str:
         return """readonly: readonly [-f] [-p] [name[=value] ...]
@@ -783,17 +783,17 @@ class ReadonlyBuiltin(Builtin):
 @builtin
 class ReturnBuiltin(Builtin):
     """Return from a function with optional exit code."""
-    
+
     @property
     def name(self) -> str:
         return "return"
-    
+
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Execute the return builtin."""
         if not shell.function_stack:
             print("return: can only `return' from a function or sourced script", file=sys.stderr)
             return 1
-        
+
         # Get return value
         if len(args) > 1:
             try:
@@ -806,7 +806,7 @@ class ReturnBuiltin(Builtin):
         else:
             # With no arguments, return the current value of $?
             exit_code = shell.state.last_exit_code
-        
+
         # We can't actually "return" from the middle of execution in Python,
         # so we'll use an exception for control flow
         raise FunctionReturn(exit_code)

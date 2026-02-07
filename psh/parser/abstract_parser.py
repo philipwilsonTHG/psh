@@ -6,11 +6,11 @@ a consistent API.
 """
 
 from abc import ABC, abstractmethod
-from typing import List, Optional, Union, Dict, Any, Tuple
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple, Union
 
-from ..ast_nodes import TopLevel, CommandList, ASTNode
+from ..ast_nodes import ASTNode, CommandList, TopLevel
 from ..token_types import Token
 
 
@@ -43,7 +43,7 @@ class ParserCharacteristics:
     hand_coded: bool = True
     generated: bool = False
     functional: bool = False
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for display."""
         return {
@@ -74,7 +74,7 @@ class ParseMetrics:
     error_recovery_attempts: int = 0
     parse_time_ms: float = 0.0
     memory_used_bytes: int = 0
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for display."""
         return {
@@ -92,7 +92,7 @@ class ParseMetrics:
 
 class ParseError(Exception):
     """Base exception for parser errors."""
-    def __init__(self, message: str, position: Optional[int] = None, 
+    def __init__(self, message: str, position: Optional[int] = None,
                  token: Optional[Token] = None):
         super().__init__(message)
         self.position = position
@@ -106,11 +106,11 @@ class AbstractShellParser(ABC):
     implementations must follow. It ensures consistency across different
     parsing strategies while allowing for experimentation.
     """
-    
+
     def __init__(self):
         """Initialize the parser."""
         self.metrics = ParseMetrics()
-    
+
     @abstractmethod
     def parse(self, tokens: List[Token]) -> Union[TopLevel, CommandList]:
         """Parse a list of tokens into an AST.
@@ -125,7 +125,7 @@ class AbstractShellParser(ABC):
             ParseError: If parsing fails
         """
         pass
-    
+
     @abstractmethod
     def parse_partial(self, tokens: List[Token]) -> Tuple[Optional[ASTNode], int]:
         """Parse as much as possible from the token stream.
@@ -141,7 +141,7 @@ class AbstractShellParser(ABC):
             Tuple of (AST node or None, position where parsing stopped)
         """
         pass
-    
+
     @abstractmethod
     def can_parse(self, tokens: List[Token]) -> bool:
         """Check if the tokens can be parsed without actually parsing.
@@ -155,7 +155,7 @@ class AbstractShellParser(ABC):
             True if the tokens appear to be parseable
         """
         pass
-    
+
     @abstractmethod
     def get_name(self) -> str:
         """Return the parser implementation name.
@@ -164,7 +164,7 @@ class AbstractShellParser(ABC):
             A unique identifier for this parser implementation
         """
         pass
-    
+
     @abstractmethod
     def get_description(self) -> str:
         """Return a human-readable description of the parser.
@@ -173,7 +173,7 @@ class AbstractShellParser(ABC):
             A description suitable for educational display
         """
         pass
-    
+
     @abstractmethod
     def get_characteristics(self) -> ParserCharacteristics:
         """Return the characteristics of this parser implementation.
@@ -182,7 +182,7 @@ class AbstractShellParser(ABC):
             ParserCharacteristics object describing the parser
         """
         pass
-    
+
     def get_metrics(self) -> ParseMetrics:
         """Return metrics from the last parse operation.
         
@@ -190,11 +190,11 @@ class AbstractShellParser(ABC):
             ParseMetrics object with performance data
         """
         return self.metrics
-    
+
     def reset_metrics(self):
         """Reset metrics for a new parse operation."""
         self.metrics = ParseMetrics()
-    
+
     def supports_incremental(self) -> bool:
         """Check if this parser supports incremental parsing.
         
@@ -202,7 +202,7 @@ class AbstractShellParser(ABC):
             True if the parser can parse incrementally
         """
         return self.get_characteristics().incremental
-    
+
     def supports_streaming(self) -> bool:
         """Check if this parser supports streaming tokens.
         
@@ -210,7 +210,7 @@ class AbstractShellParser(ABC):
             True if the parser can handle tokens as a stream
         """
         return self.get_characteristics().streaming
-    
+
     def get_configuration_options(self) -> Dict[str, Any]:
         """Return available configuration options for this parser.
         
@@ -218,7 +218,7 @@ class AbstractShellParser(ABC):
             Dictionary of option names to their descriptions
         """
         return {}
-    
+
     def configure(self, **options):
         """Configure the parser with implementation-specific options.
         
@@ -226,7 +226,7 @@ class AbstractShellParser(ABC):
             **options: Implementation-specific configuration options
         """
         pass
-    
+
     def validate_grammar(self) -> List[str]:
         """Validate the parser's grammar if applicable.
         
@@ -234,7 +234,7 @@ class AbstractShellParser(ABC):
             List of validation warnings or errors
         """
         return []
-    
+
     def get_grammar_description(self) -> Optional[str]:
         """Return a description of the grammar if applicable.
         
@@ -242,7 +242,7 @@ class AbstractShellParser(ABC):
             Grammar description in BNF/EBNF format, or None
         """
         return None
-    
+
     def explain_parse(self, tokens: List[Token]) -> str:
         """Provide an educational explanation of how parsing works.
         
@@ -260,9 +260,9 @@ class AbstractShellParser(ABC):
 
 class AbstractIncrementalParser(AbstractShellParser):
     """Extended interface for parsers that support incremental parsing."""
-    
+
     @abstractmethod
-    def parse_incremental(self, tokens: List[Token], 
+    def parse_incremental(self, tokens: List[Token],
                          previous_ast: Optional[ASTNode] = None,
                          change_position: Optional[int] = None) -> ASTNode:
         """Parse incrementally, reusing previous parse results.
@@ -276,9 +276,9 @@ class AbstractIncrementalParser(AbstractShellParser):
             Updated AST
         """
         pass
-    
+
     @abstractmethod
-    def get_reusable_nodes(self, ast: ASTNode, 
+    def get_reusable_nodes(self, ast: ASTNode,
                           change_position: int) -> List[ASTNode]:
         """Identify AST nodes that can be reused in incremental parsing.
         
@@ -294,12 +294,12 @@ class AbstractIncrementalParser(AbstractShellParser):
 
 class AbstractStreamingParser(AbstractShellParser):
     """Extended interface for parsers that support streaming."""
-    
+
     @abstractmethod
     def start_streaming(self):
         """Initialize streaming parse state."""
         pass
-    
+
     @abstractmethod
     def feed_token(self, token: Token) -> Optional[ASTNode]:
         """Feed a single token to the streaming parser.
@@ -311,7 +311,7 @@ class AbstractStreamingParser(AbstractShellParser):
             Complete AST if a full construct was parsed, None otherwise
         """
         pass
-    
+
     @abstractmethod
     def end_streaming(self) -> Optional[ASTNode]:
         """Finalize streaming and return any remaining AST.

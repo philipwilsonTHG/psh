@@ -1,12 +1,12 @@
 """Central expansion manager that orchestrates all shell expansions."""
-from typing import List, Union, TYPE_CHECKING, Optional
-from ..ast_nodes import Command, SimpleCommand, Redirect, ProcessSubstitution
-from ..core.state import ShellState
+from typing import TYPE_CHECKING, List, Optional, Union
+
+from ..ast_nodes import SimpleCommand
 from ..core.exceptions import ExpansionError
-from .variable import VariableExpander
 from .command_sub import CommandSubstitution
-from .tilde import TildeExpander
 from .glob import GlobExpander
+from .tilde import TildeExpander
+from .variable import VariableExpander
 from .word_splitter import WordSplitter
 
 if TYPE_CHECKING:
@@ -15,21 +15,21 @@ if TYPE_CHECKING:
 
 class ExpansionManager:
     """Orchestrates all shell expansions in the correct order."""
-    
+
     def __init__(self, shell: 'Shell'):
         self.shell = shell
         self.state = shell.state
-        
+
         # Initialize individual expanders
         self.variable_expander = VariableExpander(shell)
         self.command_sub = CommandSubstitution(shell)
         self.tilde_expander = TildeExpander(shell)
         self.glob_expander = GlobExpander(shell)
         self.word_splitter = WordSplitter()
-        
+
         # Initialize expansion evaluator (lazy import to avoid circular dependencies)
         self._evaluator = None
-    
+
     @property
     def evaluator(self):
         """Get expansion evaluator, creating if needed."""
@@ -37,7 +37,7 @@ class ExpansionManager:
             from .evaluator import ExpansionEvaluator
             self._evaluator = ExpansionEvaluator(self.shell)
         return self._evaluator
-    
+
     def expand_arguments(self, command: SimpleCommand) -> List[str]:
         """
         Expand all arguments in a command using Word AST nodes.
@@ -53,7 +53,7 @@ class ExpansionManager:
         8. Quote removal
         """
         return self._expand_word_ast_arguments(command)
-    
+
     def _expand_word_ast_arguments(self, command: SimpleCommand) -> List[str]:
         """Expand arguments using Word AST nodes."""
         from ..ast_nodes import Word
@@ -78,13 +78,13 @@ class ExpansionManager:
                 args.extend(expanded)
             else:
                 args.append(expanded)
-        
+
         # Debug: show post-expansion args
         if self.state.options.get('debug-expansion'):
             print(f"[EXPANSION] Word AST Result: {args}", file=self.state.stderr)
-        
+
         return args
-    
+
     def _expand_word(self, word) -> Union[str, List[str]]:
         """Expand a Word AST node using per-part quote context.
 
@@ -97,9 +97,9 @@ class ExpansionManager:
             or ``$@`` expansion).
         """
         from ..ast_nodes import (
-            Word, LiteralPart, ExpansionPart,
-            VariableExpansion, CommandSubstitution,
-            ParameterExpansion, ArithmeticExpansion,
+            ExpansionPart,
+            LiteralPart,
+            Word,
         )
 
         if not isinstance(word, Word):
@@ -212,14 +212,14 @@ class ExpansionManager:
             return globbed
 
         return result
-    
+
     def _expand_double_quoted_word(self, word) -> Union[str, List[str]]:
         """Expand a uniformly double-quoted Word (quote_type='"').
 
         Handles ``$@`` splitting and variable/command expansion but
         suppresses word splitting and globbing.
         """
-        from ..ast_nodes import LiteralPart, ExpansionPart, VariableExpansion
+        from ..ast_nodes import ExpansionPart, LiteralPart, VariableExpansion
 
         result_parts: list = []
         for part in word.parts:
@@ -352,8 +352,8 @@ class ExpansionManager:
 
     def _word_to_string(self, word) -> str:
         """Convert a Word AST node to a string without expansion."""
-        from ..ast_nodes import LiteralPart, ExpansionPart
-        
+        from ..ast_nodes import ExpansionPart, LiteralPart
+
         parts = []
         for part in word.parts:
             if isinstance(part, LiteralPart):
@@ -362,11 +362,11 @@ class ExpansionManager:
                 # In single quotes, expansions are literal
                 parts.append(self._expansion_to_literal(part.expansion))
         return ''.join(parts)
-    
+
     def _expansion_to_literal(self, expansion) -> str:
         """Convert an expansion to its literal representation."""
-        from ..ast_nodes import VariableExpansion, CommandSubstitution, ParameterExpansion, ArithmeticExpansion
-        
+        from ..ast_nodes import ArithmeticExpansion, CommandSubstitution, ParameterExpansion, VariableExpansion
+
         if isinstance(expansion, VariableExpansion):
             return f"${expansion.name}"
         elif isinstance(expansion, CommandSubstitution):
@@ -387,7 +387,7 @@ class ExpansionManager:
             return f"$(({expansion.expression}))"
         else:
             return str(expansion)
-    
+
     @staticmethod
     def _has_process_substitution(command: SimpleCommand) -> bool:
         """Check if a command has any process substitution arguments.
@@ -421,7 +421,7 @@ class ExpansionManager:
             if self.state.options.get('debug-expansion'):
                 print(f"[EXPANSION] Evaluation failed for {type(expansion).__name__}: {e}", file=self.state.stderr)
             return str(expansion)
-    
+
     def _split_words(self, text: str) -> Union[str, List[str]]:
         """Split text on IFS characters for word splitting."""
         if not text:
@@ -451,7 +451,7 @@ class ExpansionManager:
 
         ifs = self.state.get_variable('IFS', ' \t\n')
         return self.word_splitter.split(text, ifs)
-    
+
     def expand_string_variables(self, text: str, process_escapes: bool = True) -> str:
         """
         Expand variables and arithmetic in a string.
@@ -464,19 +464,19 @@ class ExpansionManager:
         return self.variable_expander.expand_string_variables(
             text, process_escapes
         )
-    
+
     def expand_variable(self, var_expr: str) -> str:
         """Expand a variable expression."""
         return self.variable_expander.expand_variable(var_expr)
-    
+
     def expand_tilde(self, path: str) -> str:
         """Expand tilde in a path."""
         return self.tilde_expander.expand(path)
-    
+
     def execute_command_substitution(self, cmd_sub: str) -> str:
         """Execute command substitution and return output."""
         return self.command_sub.execute(cmd_sub)
-    
+
     def execute_arithmetic_expansion(self, expr: str) -> int:
         """Execute arithmetic expansion and return result.
         
@@ -488,16 +488,16 @@ class ExpansionManager:
             arith_expr = expr[3:-2]
         else:
             return 0
-        
+
         # Pre-expand variables in the arithmetic expression
         # This handles $var syntax which the arithmetic parser doesn't understand
         arith_expr = self._expand_vars_in_arithmetic(arith_expr)
-        
+
         # Pre-expand command substitutions in the arithmetic expression
         arith_expr = self._expand_command_subs_in_arithmetic(arith_expr)
-        
-        from ..arithmetic import evaluate_arithmetic, ArithmeticError
-        
+
+        from ..arithmetic import ArithmeticError, evaluate_arithmetic
+
         try:
             result = evaluate_arithmetic(arith_expr, self.shell)
             return result
@@ -511,7 +511,7 @@ class ExpansionManager:
             print(f"psh: unexpected arithmetic error: {e}", file=sys.stderr)
             # Raise exception to stop command execution (like bash)
             raise ExpansionError(f"unexpected arithmetic error: {e}")
-    
+
     def _expand_command_subs_in_arithmetic(self, expr: str) -> str:
         """Expand command substitutions and nested arithmetic in arithmetic expression.
         
@@ -527,7 +527,7 @@ class ExpansionManager:
         """
         result = []
         i = 0
-        
+
         while i < len(expr):
             if expr[i] == '$' and i + 1 < len(expr) and expr[i + 1] == '(':
                 # Check if it's arithmetic expansion $((...)) or command substitution $(...)
@@ -536,7 +536,7 @@ class ExpansionManager:
                     # Find matching closing ))
                     paren_count = 2
                     j = i + 3
-                    
+
                     while j < len(expr) and paren_count > 0:
                         if expr[j] == '(':
                             paren_count += 1
@@ -548,14 +548,14 @@ class ExpansionManager:
                                 paren_count = 0
                                 break
                         j += 1
-                    
+
                     if paren_count == 0:
                         # Valid arithmetic expansion found
                         arith_expr = expr[i:j+1]  # Include $((...))
-                        
+
                         # Recursively execute the nested arithmetic expansion
                         arith_result = self.execute_arithmetic_expansion(arith_expr)
-                        
+
                         # Append the result as a string
                         result.append(str(arith_result))
                         i = j + 1
@@ -565,32 +565,32 @@ class ExpansionManager:
                     # Find matching closing parenthesis
                     paren_count = 1
                     j = i + 2
-                    
+
                     while j < len(expr) and paren_count > 0:
                         if expr[j] == '(':
                             paren_count += 1
                         elif expr[j] == ')':
                             paren_count -= 1
                         j += 1
-                    
+
                     if paren_count == 0:
                         # Valid command substitution found
-                        cmd_sub_expr = expr[i:j]  # Include $(...) 
-                        
+                        cmd_sub_expr = expr[i:j]  # Include $(...)
+
                         # Execute command substitution
                         output = self.command_sub.execute(cmd_sub_expr).strip()
-                        
+
                         # Convert empty output to 0 (bash behavior)
                         result.append(output if output else '0')
                         i = j
                         continue
-            
+
             # Not a command/arithmetic substitution, copy character as-is
             result.append(expr[i])
             i += 1
-        
+
         return ''.join(result)
-    
+
     def _expand_vars_in_arithmetic(self, expr: str) -> str:
         """Expand $var syntax in arithmetic expression.
         
@@ -606,7 +606,7 @@ class ExpansionManager:
         """
         result = []
         i = 0
-        
+
         while i < len(expr):
             if expr[i] == '$' and i + 1 < len(expr):
                 # Check if next char could start a variable name
@@ -615,14 +615,14 @@ class ExpansionManager:
                     j = i + 1
                     while j < len(expr) and (expr[j].isalnum() or expr[j] == '_'):
                         j += 1
-                    
+
                     var_name = expr[i+1:j]
                     # Check if it's a special variable (positional param, etc)
                     if var_name.isdigit() or var_name in ('?', '$', '!', '#', '@', '*'):
                         value = self.shell.state.get_special_variable(var_name)
                     else:
                         value = self.shell.state.get_variable(var_name, '0')
-                    
+
                     # Convert empty or non-numeric to 0
                     if not value:
                         value = '0'
@@ -630,7 +630,7 @@ class ExpansionManager:
                         int(value)
                     except ValueError:
                         value = '0'
-                    
+
                     result.append(value)
                     i = j
                     continue
@@ -644,11 +644,11 @@ class ExpansionManager:
                         elif expr[j] == '}':
                             brace_count -= 1
                         j += 1
-                    
+
                     if brace_count == 0:
                         var_expr = expr[i:j]  # Include ${...}
                         value = self.expand_variable(var_expr)
-                        
+
                         # Convert empty or non-numeric to 0
                         if not value:
                             value = '0'
@@ -656,13 +656,13 @@ class ExpansionManager:
                             int(value)
                         except ValueError:
                             value = '0'
-                        
+
                         result.append(value)
                         i = j
                         continue
-            
+
             # Not a variable expansion, copy character as-is
             result.append(expr[i])
             i += 1
-        
+
         return ''.join(result)

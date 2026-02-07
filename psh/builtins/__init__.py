@@ -1,34 +1,35 @@
 """Shell builtins package."""
 
-from .registry import registry, builtin
-from .base import Builtin
-
 # Import all builtin modules to trigger registration
-from . import core
-from . import io  
-from . import navigation
-from . import shell_state
-from . import environment
-from . import aliases
-from . import job_control
-from . import test_command
-from . import source_command
-from . import function_support
-from . import read_builtin
-from . import eval_command
-from . import help_command
-from . import kill_command
-from . import positional
-from . import command_builtin
-from . import signal_handling
-from . import directory_stack
-from . import disown
-from . import type_builtin
-from . import parse_tree
-from . import debug_control
-from . import parser_control
-from . import parser_experiment
-from . import shell_options
+from . import (
+    aliases,
+    command_builtin,
+    core,
+    debug_control,
+    directory_stack,
+    disown,
+    environment,
+    eval_command,
+    function_support,
+    help_command,
+    io,
+    job_control,
+    kill_command,
+    navigation,
+    parse_tree,
+    parser_control,
+    parser_experiment,
+    positional,
+    read_builtin,
+    shell_options,
+    shell_state,
+    signal_handling,
+    source_command,
+    test_command,
+    type_builtin,
+)
+from .base import Builtin
+from .registry import builtin, registry
 
 # Re-export for convenience
 __all__ = ['registry', 'builtin', 'Builtin']

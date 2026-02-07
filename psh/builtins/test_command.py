@@ -1,8 +1,7 @@
 """Test command builtin for conditionals."""
 import os
 import stat
-import sys
-from typing import List, TYPE_CHECKING
+from typing import TYPE_CHECKING, List
 
 from .base import Builtin
 from .registry import builtin
@@ -14,22 +13,22 @@ if TYPE_CHECKING:
 @builtin
 class TestBuiltin(Builtin):
     """Test command for conditionals."""
-    
+
     @property
     def name(self) -> str:
         return "test"
-    
+
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Execute the test builtin."""
         # Remove 'test' from args
         test_args = args[1:]
         return self._evaluate_test(test_args, shell)
-    
+
     def _evaluate_test(self, args: List[str], shell: 'Shell') -> int:
         """Evaluate test expression."""
         if not args:
             return 1  # False
-        
+
         # Check for leading ! (negation)
         negate = False
         if args[0] == '!':
@@ -37,45 +36,45 @@ class TestBuiltin(Builtin):
             args = args[1:]  # Remove the !
             if not args:
                 return 1  # ! with no args is false
-        
+
         # Evaluate the expression
         result = self._evaluate_expression(args, shell)
-        
+
         # Apply negation if needed
         if negate:
             result = 0 if result != 0 else 1
-        
+
         return result
-    
+
     def _evaluate_expression(self, args: List[str], shell: 'Shell') -> int:
         """Evaluate test expression without negation."""
         if not args:
             return 1  # False
-        
+
         if len(args) == 1:
             # Single argument - true if non-empty string
             return 0 if args[0] else 1
-        
+
         if len(args) == 2:
             # Unary operators
             op, arg = args
             return self._evaluate_unary(op, arg, shell)
-        
+
         if len(args) == 3:
             # Binary operators
             arg1, op, arg2 = args
             return self._evaluate_binary(arg1, op, arg2, shell)
-        
+
         if len(args) == 4:
             # Check if we have a split operator (e.g., ! = becoming != )
             # This handles cases like: test hello ! = hello
             arg1, op_part1, op_part2, arg2 = args
             combined_op = op_part1 + op_part2
-            
+
             # Check if the combined operator is valid
             if combined_op in ['!=', '==', '=~']:
                 return self._evaluate_binary(arg1, combined_op, arg2, shell)
-        
+
         # Handle logical operators -a and -o
         # These operators are binary and have lower precedence than other operators
         # We scan from left to right looking for -a or -o
@@ -92,7 +91,7 @@ class TestBuiltin(Builtin):
                     return left_result
                 # Evaluate right side
                 return self._evaluate_expression(args[i+1:], shell)
-            
+
             elif args[i] == '-o':
                 # Logical OR - at least one side must be true
                 if i == 0 or i == len(args) - 1:
@@ -105,10 +104,10 @@ class TestBuiltin(Builtin):
                     return 0
                 # Evaluate right side
                 return self._evaluate_expression(args[i+1:], shell)
-        
+
         # If we get here, it's a complex expression we don't support
         return 2
-    
+
     def _evaluate_unary(self, op: str, arg: str, shell: 'Shell') -> int:
         """Evaluate unary operators."""
         if op == '-z':
@@ -229,7 +228,7 @@ class TestBuiltin(Builtin):
         else:
             self.error(f"{op}: unary operator expected", shell)
             return 2  # Unknown operator
-    
+
     def _evaluate_binary(self, arg1: str, op: str, arg2: str, shell: 'Shell') -> int:
         """Evaluate binary operators."""
         if op == '=':
@@ -304,18 +303,18 @@ class TestBuiltin(Builtin):
 @builtin
 class BracketBuiltin(Builtin):
     """[ command (alias for test)."""
-    
+
     @property
     def name(self) -> str:
         return "["
-    
+
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Execute the [ builtin."""
         # For [ command, last argument must be ]
         if len(args) < 2 or args[-1] != ']':
             self.error("missing ']'", shell)
             return 2  # Syntax error
-        
+
         # Remove [ and ], then evaluate as test
         test_args = args[1:-1]
         test_builtin = TestBuiltin()

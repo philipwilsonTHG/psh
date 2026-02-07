@@ -19,7 +19,7 @@ class SemanticWarning:
     position: int
     severity: WarningSeverity = WarningSeverity.WARNING
     suggestion: Optional[str] = None
-    
+
     def __str__(self) -> str:
         """String representation of warning."""
         base = f"{self.severity.value}: {self.message}"
@@ -30,7 +30,7 @@ class SemanticWarning:
 
 class CommonWarnings:
     """Common semantic warnings."""
-    
+
     @staticmethod
     def unreachable_code(position: int) -> SemanticWarning:
         """Warning for unreachable code."""
@@ -40,7 +40,7 @@ class CommonWarnings:
             WarningSeverity.WARNING,
             suggestion="Remove code after 'return' or 'exit'"
         )
-    
+
     @staticmethod
     def unused_function(name: str, position: int) -> SemanticWarning:
         """Warning for unused function."""
@@ -50,7 +50,7 @@ class CommonWarnings:
             WarningSeverity.INFO,
             suggestion=f"Remove function '{name}' or call it somewhere"
         )
-    
+
     @staticmethod
     def shadowed_variable(name: str, position: int) -> SemanticWarning:
         """Warning for variable shadowing."""
@@ -60,7 +60,7 @@ class CommonWarnings:
             WarningSeverity.INFO,
             suggestion=f"Use a different name for variable '{name}'"
         )
-    
+
     @staticmethod
     def empty_function_body(name: str, position: int) -> SemanticWarning:
         """Warning for empty function body."""
@@ -70,7 +70,7 @@ class CommonWarnings:
             WarningSeverity.WARNING,
             suggestion="Add commands to the function body or remove the function"
         )
-    
+
     @staticmethod
     def readonly_assignment(name: str, position: int) -> SemanticWarning:
         """Warning for assignment to readonly variable."""
@@ -80,7 +80,7 @@ class CommonWarnings:
             WarningSeverity.ERROR,
             suggestion=f"Remove readonly attribute from '{name}' or use a different variable"
         )
-    
+
     @staticmethod
     def break_continue_outside_loop(statement: str, position: int) -> SemanticWarning:
         """Warning for break/continue outside loop."""
@@ -90,7 +90,7 @@ class CommonWarnings:
             WarningSeverity.WARNING,
             suggestion=f"Remove '{statement}' or move it inside a loop"
         )
-    
+
     @staticmethod
     def return_outside_function(position: int) -> SemanticWarning:
         """Warning for return outside function."""

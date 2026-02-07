@@ -1,12 +1,13 @@
 """Token transformer for context-aware token processing."""
 
 from typing import List
+
 from .token_types import Token, TokenType
 
 
 class TokenTransformer:
     """Transform tokens based on context."""
-    
+
     def transform(self, tokens: List[Token]) -> List[Token]:
         """Transform tokens based on context.
         
@@ -15,7 +16,7 @@ class TokenTransformer:
         """
         transformed = []
         in_case = 0
-        
+
         for i, token in enumerate(tokens):
             if token.type == TokenType.CASE:
                 in_case += 1
@@ -33,5 +34,5 @@ class TokenTransformer:
                 transformed.append(token)
             else:
                 transformed.append(token)
-        
+
         return transformed

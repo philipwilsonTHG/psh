@@ -14,7 +14,6 @@ import os
 import re
 from typing import List, Optional
 
-
 # Characters that introduce an extglob operator
 _EXTGLOB_PREFIXES = frozenset('?*+@!')
 

@@ -1,45 +1,46 @@
 """Literal token recognizer for strings, numbers, and identifiers."""
 
-from typing import Optional, Tuple, Set
-from .base import ContextualRecognizer
-from ..state_context import LexerContext
+from typing import Optional, Tuple
+
 from ...token_types import Token, TokenType
-from ..unicode_support import is_identifier_start, is_identifier_char, is_whitespace
+from ..state_context import LexerContext
+from ..unicode_support import is_identifier_char, is_identifier_start, is_whitespace
+from .base import ContextualRecognizer
 
 
 class LiteralRecognizer(ContextualRecognizer):
     """Recognizes literal tokens: strings, numbers, identifiers."""
-    
+
     def __init__(self):
         super().__init__()
         self.config = None  # Will be set by ModularLexer
-    
+
     # Characters that can terminate a word
     WORD_TERMINATORS = {
         ' ', '\t', '\n', '\r', '\f', '\v',  # Whitespace
         '|', '&', ';', '(', ')', '{', '}',       # Operators
-        '<', '>', '!', '=', '+',                 # More operators  
+        '<', '>', '!', '=', '+',                 # More operators
         '[', ']',                                # Bracket operators
         '$', '`', "'",  '"',                     # Special characters
     }
-    
+
     @property
     def priority(self) -> int:
         """Medium priority for literals."""
         return 70
-    
+
     def can_recognize(
-        self, 
-        input_text: str, 
-        pos: int, 
+        self,
+        input_text: str,
+        pos: int,
         context: LexerContext
     ) -> bool:
         """Check if current position might be a literal."""
         if pos >= len(input_text):
             return False
-        
+
         char = input_text[pos]
-        
+
         # Skip whitespace and operators (handled by other recognizers)
         # But allow disabled quotes to be part of words
         if char in self.WORD_TERMINATORS:
@@ -68,7 +69,7 @@ class LiteralRecognizer(ContextualRecognizer):
                 if pos + 1 < len(input_text) and input_text[pos + 1] == '(':
                     return True  # Start of extglob pattern
             return False
-        
+
         # Skip quotes and expansions based on configuration, but only if they can be fully handled
         # For $ and `, we need to check if they can actually form valid expansions
         if char == '$' and self.config and self.config.enable_variable_expansion:
@@ -82,10 +83,10 @@ class LiteralRecognizer(ContextualRecognizer):
             return False  # Let quote parser handle it
         if char == '"' and self.config and self.config.enable_double_quotes:
             return False  # Let quote parser handle it
-        
+
         # If we get here, it might be a literal
         return True
-    
+
     def recognize(
         self,
         input_text: str,
@@ -309,25 +310,25 @@ class LiteralRecognizer(ContextualRecognizer):
             return (True, value, pos, False)
 
         return (False, value, pos, False)
-    
+
     def _is_comment_start(self, input_text: str, pos: int, context: LexerContext) -> bool:
         """Check if # at current position starts a comment."""
         if pos == 0:
             return True
-        
+
         prev_char = input_text[pos - 1]
-        
+
         # After whitespace
         if prev_char in [' ', '\t', '\n', '\r']:
             return True
-        
+
         # After operators that can be followed by comments
         comment_preceding_ops = {'|', '&', ';', '(', '{'}
         if prev_char in comment_preceding_ops:
             return True
-        
+
         return False
-    
+
     def _is_word_terminator(self, char: str, context: LexerContext) -> bool:
         """Check if character terminates a word in current context."""
         # In arithmetic context, only semicolon and parentheses are terminators
@@ -337,11 +338,11 @@ class LiteralRecognizer(ContextualRecognizer):
                 return True
             else:
                 return False
-        
+
         # Check for Unicode whitespace (which should terminate words)
         if is_whitespace(char, posix_mode=context.posix_mode):
             return True
-        
+
         # Basic word terminators, but check configuration for quotes
         if char in self.WORD_TERMINATORS:
             # Check if quotes/operators should be treated as word characters when disabled
@@ -363,131 +364,131 @@ class LiteralRecognizer(ContextualRecognizer):
             if char in ['<', '>'] and context.bracket_depth > 0:
                 return False  # Treat as word character
             return True
-        
+
         # Context-specific terminators
         if context.bracket_depth > 0:
             # Inside [[ ]], some characters have special meaning
             if char in ['[', ']']:
                 return True
-        
+
         return False
-    
+
     def _classify_literal(self, value: str, context: LexerContext) -> TokenType:
         """Classify a literal value into appropriate token type."""
         # Check if it's a number - for now, treat as WORD since NUMBER doesn't exist
         if self._is_number(value):
             return TokenType.WORD  # Could be TokenType.NUMBER if it existed
-        
+
         # Check if it looks like a file descriptor (single digit)
         if len(value) == 1 and value.isdigit():
             # IO_NUMBER doesn't exist either, use WORD
             return TokenType.WORD
-        
+
         # Check if it's a valid identifier
         if self._is_identifier(value):
             return TokenType.WORD
-        
+
         # Default to word
         return TokenType.WORD
-    
+
     def _is_number(self, value: str) -> bool:
         """Check if value is a number literal."""
         if not value:
             return False
-        
+
         # Simple integer
         if value.isdigit():
             return True
-        
+
         # Negative integer
         if value.startswith('-') and len(value) > 1 and value[1:].isdigit():
             return True
-        
+
         # Hexadecimal (0x...)
-        if (len(value) > 2 and 
-            value.startswith('0x') and 
+        if (len(value) > 2 and
+            value.startswith('0x') and
             all(c in '0123456789abcdefABCDEF' for c in value[2:])):
             return True
-        
+
         # Octal (0...)
-        if (len(value) > 1 and 
-            value.startswith('0') and 
+        if (len(value) > 1 and
+            value.startswith('0') and
             all(c in '01234567' for c in value[1:])):
             return True
-        
+
         return False
-    
+
     def _is_identifier(self, value: str) -> bool:
         """Check if value is a valid identifier."""
         if not value:
             return False
-        
+
         # Get posix_mode from config
         posix_mode = self.config.posix_mode if self.config else False
-        
+
         # Must start with valid identifier start character
         if not is_identifier_start(value[0], posix_mode):
             return False
-        
+
         # Rest must be valid identifier characters
         return all(is_identifier_char(c, posix_mode) for c in value[1:])
-    
+
     def _contains_special_chars(self, value: str) -> bool:
         """Check if value contains shell special characters."""
         special_chars = {'*', '?', '[', ']', '{', '}', '~'}
         return any(c in special_chars for c in value)
-    
+
     def _is_variable_assignment_start(self, value: str) -> bool:
         """Check if value looks like the start of a variable assignment (NAME=... or NAME[INDEX]=...)."""
         if not value:
             return False
-        
+
         # Get posix_mode from config
         posix_mode = self.config.posix_mode if self.config else False
-        
+
         # Check for array assignment pattern: NAME[...]
         if '[' in value:
             return self._is_array_assignment_start(value, posix_mode)
-        
+
         # Variable names must start with letter or underscore
         if not is_identifier_start(value[0], posix_mode):
             return False
-        
+
         # Rest must be valid identifier characters (valid shell variable name)
         return all(is_identifier_char(c, posix_mode) for c in value)
-    
+
     def _is_array_assignment_start(self, value: str, posix_mode: bool) -> bool:
         """Check if value looks like the start of an array assignment (NAME[INDEX])."""
         bracket_pos = value.find('[')
         if bracket_pos == -1:
             return False
-        
+
         # Extract the variable name before the bracket
         var_name = value[:bracket_pos]
         if not var_name:
             return False
-        
+
         # Variable name must be valid
         if not is_identifier_start(var_name[0], posix_mode):
             return False
         if not all(is_identifier_char(c, posix_mode) for c in var_name):
             return False
-        
+
         # The rest after '[' can contain any characters (index expression)
         # We don't validate the index contents here, just that it's an array pattern
         return True
-    
+
     def _can_start_valid_expansion(self, input_text: str, pos: int) -> bool:
         """Check if $ at given position can start a valid expansion."""
         if pos >= len(input_text) or input_text[pos] != '$':
             return False
-        
+
         if pos + 1 >= len(input_text):
             # Lone $ at end cannot start a valid expansion
             return False
-        
+
         next_char = input_text[pos + 1]
-        
+
         # Check for specific expansion patterns
         if next_char == '(':
             # Command substitution $(...) or arithmetic $((...))
@@ -502,29 +503,29 @@ class LiteralRecognizer(ContextualRecognizer):
             # Simple variable $VAR - check if next character can start a variable name
             from ..constants import SPECIAL_VARIABLES
             from ..unicode_support import is_identifier_start
-            
+
             # Special single-character variables
             if next_char in SPECIAL_VARIABLES:
                 return True
-            
+
             # Regular variable names
             posix_mode = self.config.posix_mode if self.config else False
             return is_identifier_start(next_char, posix_mode)
-    
+
     def _is_potential_array_assignment_start(self, value: str, input_text: str, pos: int) -> bool:
         """Check if [ at current position starts an array assignment pattern."""
         if not value:
             return False
-        
+
         # Get posix_mode from config
         posix_mode = self.config.posix_mode if self.config else False
-        
+
         # Check if the value so far is a valid variable name
         if not is_identifier_start(value[0], posix_mode):
             return False
         if not all(is_identifier_char(c, posix_mode) for c in value):
             return False
-        
+
         # Look ahead to see if this looks like arr[...]=... pattern
         # We're at position of '[', scan forward to look for ]=
         # This needs to be quote-aware to handle arr["key"]=value correctly
@@ -534,21 +535,21 @@ class LiteralRecognizer(ContextualRecognizer):
         in_single_quote = False
         in_double_quote = False
         escaped = False
-        
+
         while i < len(remaining):
             char = remaining[i]
-            
+
             # Handle escape sequences
             if escaped:
                 escaped = False
                 i += 1
                 continue
-            
+
             if char == '\\' and not in_single_quote:
                 escaped = True
                 i += 1
                 continue
-            
+
             # Handle quotes - only switch quote state if not in other quote type
             if char == "'" and not in_double_quote:
                 in_single_quote = not in_single_quote
@@ -573,22 +574,22 @@ class LiteralRecognizer(ContextualRecognizer):
                 elif char in [' ', '\t', '\n', '\r']:
                     # Whitespace breaks the pattern (outside quotes)
                     return False
-            
+
             i += 1
-        
+
         return False
-    
+
     def _is_inside_array_assignment(self, value: str) -> bool:
         """Check if we're currently inside an array assignment pattern."""
         if not value or '[' not in value:
             return False
-        
+
         # Check if we have unmatched opening bracket and this looks like array pattern
         bracket_count = 0
         has_opening_bracket = False
         in_single_quote = False
         in_double_quote = False
-        
+
         for char in value:
             # Track quotes to ignore brackets inside them
             if char == "'" and not in_double_quote:
@@ -601,39 +602,39 @@ class LiteralRecognizer(ContextualRecognizer):
                     has_opening_bracket = True
                 elif char == ']':
                     bracket_count -= 1
-        
+
         # We're inside array assignment if we have unmatched opening brackets
         return has_opening_bracket and bracket_count > 0
-    
+
     def _looks_like_array_assignment_before_plus_equals(self, value: str, input_text: str, pos: int) -> bool:
         """Check if + at current position is part of array assignment += pattern."""
         if not value or not value.endswith(']'):
             return False
-        
+
         # Check if next character is =
         if pos + 1 >= len(input_text) or input_text[pos + 1] != '=':
             return False
-        
+
         # Check if value looks like array assignment pattern (var[...])
         if '[' not in value:
             return False
-        
+
         # Extract variable name before first [
         bracket_pos = value.find('[')
         var_name = value[:bracket_pos]
-        
+
         if not var_name:
             return False
-        
+
         # Get posix_mode from config
         posix_mode = self.config.posix_mode if self.config else False
-        
+
         # Variable name must be valid
         if not is_identifier_start(var_name[0], posix_mode):
             return False
         if not all(is_identifier_char(c, posix_mode) for c in var_name):
             return False
-        
+
         # Check brackets are balanced
         bracket_count = 0
         for char in value:
@@ -641,39 +642,39 @@ class LiteralRecognizer(ContextualRecognizer):
                 bracket_count += 1
             elif char == ']':
                 bracket_count -= 1
-        
+
         # Should have balanced brackets ending with ]
         return bracket_count == 0 and value.endswith(']')
-    
+
     def _is_in_variable_assignment_value(self, value: str) -> bool:
         """Check if we are currently reading the value part of a variable assignment."""
         if not value or '=' not in value:
             return False
-        
+
         # Simple case: var= (just found the equals)
         if value.endswith('='):
             return True
-        
-        # Array assignment case: arr[index]= or arr[index]+= 
+
+        # Array assignment case: arr[index]= or arr[index]+=
         if value.endswith('+=') or (']=' in value and value.endswith('=')):
             return True
-        
+
         # Check if we have found an = and are now reading the value
         equals_pos = value.rfind('=')  # Find last equals in case of multiple
         if equals_pos == -1:
             return False
-        
+
         # Check if what comes before = looks like a valid variable assignment start
         before_equals = value[:equals_pos]
-        
+
         # Handle += case
         if before_equals.endswith('+'):
             before_equals = before_equals[:-1]
-        
+
         # Check if it's a simple variable assignment or array assignment
-        return self._is_variable_assignment_start(before_equals) or self._is_array_assignment_start(before_equals, 
+        return self._is_variable_assignment_start(before_equals) or self._is_array_assignment_start(before_equals,
                                                                                                     self.config.posix_mode if self.config else False)
-    
+
     def _parse_ansi_c_quote_inline(self, input_text: str, pos: int) -> Tuple[Optional[str], int]:
         """
         Parse an ANSI-C quote $'...' starting at the given position.
@@ -683,23 +684,23 @@ class LiteralRecognizer(ContextualRecognizer):
         """
         if pos + 1 >= len(input_text) or input_text[pos:pos+2] != "$'":
             return None, pos
-        
+
         # Import the pure helpers for ANSI-C quote processing
         from .. import pure_helpers
-        
+
         # Start after the $'
         quote_start = pos + 2
         quote_pos = quote_start
         processed_content = ""
-        
+
         # Find the closing quote and process escape sequences
         while quote_pos < len(input_text):
             char = input_text[quote_pos]
-            
+
             if char == "'":
                 # Found closing quote - return the processed content (not the literal $'...')
                 return processed_content, quote_pos + 1
-            
+
             if char == '\\' and quote_pos + 1 < len(input_text):
                 # Handle escape sequence using existing helper
                 escaped_str, new_pos = pure_helpers.handle_escape_sequence(
@@ -710,30 +711,30 @@ class LiteralRecognizer(ContextualRecognizer):
             else:
                 processed_content += char
                 quote_pos += 1
-        
+
         # Unclosed quote - return None to indicate parsing failure
         return None, pos
-    
+
     def _is_in_string_concatenation(self, value: str) -> bool:
         """Check if we are currently reading a string that could be concatenated with quotes."""
         if not value:
             return False
-        
+
         # If the value contains only valid word characters (no special shell characters),
         # then it's likely a string that could be concatenated with quotes
         # Examples: "prefix", "hello", "path"
-        
+
         # Get posix_mode from config
         posix_mode = self.config.posix_mode if self.config else False
-        
+
         # Check if it's a valid identifier-like string (could be concatenated)
         # This includes simple words that could have quotes appended
         from ..unicode_support import is_identifier_char, is_identifier_start
-        
+
         # Must start with a valid character for word
         if not value:
             return False
-        
+
         # Allow strings that are valid identifiers or contain path-like characters
         allowed_chars = set()
         for i, char in enumerate(value):
@@ -745,7 +746,7 @@ class LiteralRecognizer(ContextualRecognizer):
                     # If we hit special characters like =, we're probably not in simple concatenation
                     if char in '=[](){}|&;<>!':
                         return False
-        
+
         return True
 
     def _collect_array_assignment(self, input_text: str, pos: int) -> Tuple[str, int]:

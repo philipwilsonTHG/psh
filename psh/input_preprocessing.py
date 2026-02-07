@@ -31,15 +31,15 @@ def process_line_continuations(text: str) -> str:
     """
     if not text:
         return text
-    
+
     result = []
     i = 0
     in_single_quote = False
     in_double_quote = False
-    
+
     while i < len(text):
         char = text[i]
-        
+
         # Track quote state - handle escaped quotes properly
         if char == "'" and not in_double_quote:
             # Check if this quote is escaped by counting preceding backslashes
@@ -67,14 +67,14 @@ def process_line_continuations(text: str) -> str:
             result.append(char)
             i += 1
             continue
-        
+
         # Don't process line continuations inside single quotes
         # (but do process them inside double quotes - bash behavior)
         if in_single_quote:
             result.append(char)
             i += 1
             continue
-        
+
         # Look for line continuation pattern: unescaped \<newline>
         if char == '\\' and i + 1 < len(text):
             # Count consecutive backslashes
@@ -83,7 +83,7 @@ def process_line_continuations(text: str) -> str:
             while j < len(text) and text[j] == '\\':
                 backslash_count += 1
                 j += 1
-            
+
             # Check what follows the backslashes
             if j < len(text):
                 if text[j] == '\n':
@@ -99,14 +99,14 @@ def process_line_continuations(text: str) -> str:
                         result.extend('\\' * (backslash_count - 1))
                         i = j + 2  # Skip past \r\n
                         continue
-            
+
             # Not a line continuation - add all backslashes and continue
             result.extend('\\' * backslash_count)
             i = j
             continue
-        
+
         # Regular character - add to result
         result.append(char)
         i += 1
-    
+
     return ''.join(result)

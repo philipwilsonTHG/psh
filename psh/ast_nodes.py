@@ -1,7 +1,7 @@
-from dataclasses import dataclass, field
-from typing import List, Optional, Tuple, Union, TYPE_CHECKING
 from abc import ABC
+from dataclasses import dataclass, field
 from enum import Enum
+from typing import TYPE_CHECKING, List, Optional, Tuple, Union
 
 if TYPE_CHECKING:
     from .token_types import Token
@@ -32,7 +32,7 @@ class ProcessSubstitution(ASTNode):
     """Represents a process substitution <(...) or >(...)."""
     direction: str  # 'in' or 'out'
     command: str    # Command to execute
-    
+
     def __str__(self):
         symbol = '<' if self.direction == 'in' else '>'
         return f"{symbol}({self.command})"
@@ -52,7 +52,7 @@ class CommandSubstitution(Expansion):
     """Represents command substitution $(...) or `...`."""
     command: str  # The command to execute
     backtick_style: bool = False  # True for `...`, False for $(...)
-    
+
     def __str__(self):
         if self.backtick_style:
             return f"`{self.command}`"
@@ -66,7 +66,7 @@ class ParameterExpansion(Expansion):
     parameter: str  # Variable name
     operator: Optional[str] = None  # :-, :=, :?, :+, #, ##, %, %%, /, // etc.
     word: Optional[str] = None  # The word part for operators like ${var:-word}
-    
+
     def __str__(self):
         if self.operator and self.word is not None:
             return f"${{{self.parameter}{self.operator}{self.word}}}"
@@ -80,7 +80,7 @@ class ParameterExpansion(Expansion):
 class VariableExpansion(Expansion):
     """Represents simple variable expansion $var."""
     name: str  # Variable name without $
-    
+
     def __str__(self):
         return f"${self.name}"
 
@@ -89,7 +89,7 @@ class VariableExpansion(Expansion):
 class ArithmeticExpansion(Expansion):
     """Represents arithmetic expansion $((...))."""
     expression: str  # The arithmetic expression
-    
+
     def __str__(self):
         return f"$(({self.expression}))"
 
@@ -138,13 +138,13 @@ class Word(ASTNode):
     """
     parts: List[WordPart] = field(default_factory=list)
     quote_type: Optional[str] = None  # None (unquoted), '"' (double), "'" (single)
-    
+
     def __str__(self):
         content = ''.join(str(part) for part in self.parts)
         if self.quote_type:
             return f"{self.quote_type}{content}{self.quote_type}"
         return content
-    
+
     @property
     def is_quoted(self) -> bool:
         """True if wholly quoted (single, double, or ANSI-C)."""
@@ -297,13 +297,13 @@ class AndOrList(Statement):
 class StatementList(ASTNode):
     """Container for statements (control structures, AndOrLists, etc)."""
     statements: List[Statement] = field(default_factory=list)
-    
+
     # Backward compatibility properties
     @property
     def and_or_lists(self):
         """Backward compatibility: extract AndOrLists from statements."""
         return [s for s in self.statements if isinstance(s, AndOrList)]
-    
+
     @property
     def pipelines(self):
         """Backward compatibility property for tests"""
@@ -422,7 +422,6 @@ class EnhancedTestStatement(Statement):
 # their execution context. They will eventually replace the dual Statement/Command
 # types above.
 
-from enum import Enum
 
 class ExecutionContext(Enum):
     """Execution context for control structures."""

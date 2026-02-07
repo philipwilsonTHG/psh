@@ -2,7 +2,7 @@
 import os
 import sys
 from typing import TYPE_CHECKING
-from ..core.state import ShellState
+
 from .parameter_expansion import ParameterExpansion
 
 if TYPE_CHECKING:
@@ -11,24 +11,24 @@ if TYPE_CHECKING:
 
 class VariableExpander:
     """Handles variable and parameter expansion."""
-    
+
     def __init__(self, shell: 'Shell'):
         self.shell = shell
         self.state = shell.state
         self.param_expansion = ParameterExpansion(shell)
-    
+
     def expand_variable(self, var_expr: str) -> str:
         """Expand a variable expression starting with $"""
-        
+
         if not var_expr.startswith('$'):
             return var_expr
-        
+
         var_expr = var_expr[1:]  # Remove $
-        
+
         # Handle ${var} syntax
         if var_expr.startswith('{') and var_expr.endswith('}'):
             var_content = var_expr[1:-1]
-            
+
             # Check for special array expansions first
             # Handle ${#arr[@]} or ${#arr[index]} - array length or element length
             if var_content.startswith('#') and '[' in var_content and var_content.endswith(']'):
@@ -36,12 +36,12 @@ class VariableExpander:
                 bracket_pos = array_part.find('[')
                 array_name = array_part[:bracket_pos]
                 index_expr = array_part[bracket_pos+1:-1]  # Remove [ and ]
-                
+
                 if index_expr == '@' or index_expr == '*':
                     # Get the array variable
-                    from ..core.variables import IndexedArray, AssociativeArray
+                    from ..core.variables import AssociativeArray, IndexedArray
                     var = self.state.scope_manager.get_variable_object(array_name)
-                    
+
                     if var and isinstance(var.value, (IndexedArray, AssociativeArray)):
                         # Return the number of elements
                         return str(var.value.length())
@@ -53,9 +53,9 @@ class VariableExpander:
                         return '0'
                 else:
                     # ${#arr[index]} - length of specific element
-                    from ..core.variables import IndexedArray, AssociativeArray
+                    from ..core.variables import AssociativeArray, IndexedArray
                     var = self.state.scope_manager.get_variable_object(array_name)
-                    
+
                     if var and isinstance(var.value, IndexedArray):
                         # Evaluate the index
                         expanded_index = self.expand_array_index(index_expr)
@@ -66,7 +66,7 @@ class VariableExpander:
                                 index = evaluate_arithmetic(expanded_index, self.shell)
                             else:
                                 index = int(expanded_index)
-                            
+
                             element = var.value.get(index)
                             return str(len(element)) if element else '0'
                         except:
@@ -88,23 +88,23 @@ class VariableExpander:
                             return '0'
                     else:
                         return '0'
-            
-            # Handle ${!arr[@]} - array indices  
+
+            # Handle ${!arr[@]} - array indices
             # Remove escaped ! if present
             if var_content.startswith('\\!'):
                 var_content = var_content[1:]  # Remove the backslash
-            
+
             if var_content.startswith('!') and '[' in var_content and var_content.endswith(']'):
                 array_part = var_content[1:]  # Remove the !
                 bracket_pos = array_part.find('[')
                 array_name = array_part[:bracket_pos]
                 index_expr = array_part[bracket_pos+1:-1]  # Remove [ and ]
-                
+
                 if index_expr == '@' or index_expr == '*':
                     # Get the array variable
-                    from ..core.variables import IndexedArray, AssociativeArray
+                    from ..core.variables import AssociativeArray, IndexedArray
                     var = self.state.scope_manager.get_variable_object(array_name)
-                    
+
                     if var and isinstance(var.value, IndexedArray):
                         # Return the indices as space-separated list
                         indices = var.value.indices()
@@ -119,28 +119,28 @@ class VariableExpander:
                     else:
                         # Not an array or no value, return empty
                         return ''
-            
+
             # Check for array slicing first: ${arr[@]:start:length}
             if ':' in var_content and '[' in var_content and ']' in var_content:
                 # This might be array slicing
                 bracket_pos = var_content.find('[')
                 close_bracket_pos = var_content.find(']')
-                
+
                 if bracket_pos < close_bracket_pos and close_bracket_pos < var_content.find(':'):
                     # Format is ${arr[@]:start:length} or ${arr[@]:start}
                     array_name = var_content[:bracket_pos]
                     index_expr = var_content[bracket_pos+1:close_bracket_pos]
                     slice_part = var_content[close_bracket_pos+1:]  # Should start with :
-                    
+
                     if slice_part.startswith(':') and (index_expr == '@' or index_expr == '*'):
                         # This is array slicing
-                        from ..core.variables import IndexedArray, AssociativeArray
+                        from ..core.variables import AssociativeArray, IndexedArray
                         var = self.state.scope_manager.get_variable_object(array_name)
-                        
+
                         if var and isinstance(var.value, IndexedArray):
                             # Parse the slice parameters
                             slice_params = slice_part[1:].split(':', 1)  # Remove leading :
-                            
+
                             try:
                                 # Expand and evaluate start
                                 start_str = self.expand_string_variables(slice_params[0])
@@ -149,18 +149,18 @@ class VariableExpander:
                                     start = evaluate_arithmetic(start_str, self.shell)
                                 else:
                                     start = int(start_str)
-                                
+
                                 # Get all elements
                                 all_indices = var.value.indices()
                                 if not all_indices:
                                     return ''
-                                
+
                                 # Convert negative start to positive
                                 if start < 0:
                                     start = len(all_indices) + start
                                     if start < 0:
                                         start = 0
-                                
+
                                 # Handle length if provided
                                 if len(slice_params) > 1:
                                     length_str = self.expand_string_variables(slice_params[1])
@@ -169,7 +169,7 @@ class VariableExpander:
                                         length = evaluate_arithmetic(length_str, self.shell)
                                     else:
                                         length = int(length_str)
-                                    
+
                                     # Extract elements
                                     result_elements = []
                                     count = 0
@@ -187,7 +187,7 @@ class VariableExpander:
                                             elem = var.value.get(idx)
                                             if elem is not None:
                                                 result_elements.append(elem)
-                                
+
                                 return ' '.join(result_elements)
                             except:
                                 return ''
@@ -210,19 +210,19 @@ class VariableExpander:
                                 return ''
                         else:
                             return ''
-            
+
             # Check for array subscript syntax: ${arr[index]}
             # But exclude case modification patterns like ${var^^[pattern]}
-            if ('[' in var_content and var_content.endswith(']') and 
+            if ('[' in var_content and var_content.endswith(']') and
                 not any(op in var_content for op in ['^^', ',,', '^', ','])):
                 bracket_pos = var_content.find('[')
                 array_name = var_content[:bracket_pos]
                 index_expr = var_content[bracket_pos+1:-1]  # Remove [ and ]
-                
+
                 # Get the array variable
-                from ..core.variables import IndexedArray, AssociativeArray
+                from ..core.variables import AssociativeArray, IndexedArray
                 var = self.state.scope_manager.get_variable_object(array_name)
-                
+
                 # Handle special array expansions
                 if index_expr == '@' or index_expr == '*':
                     # ${arr[@]} or ${arr[*]} - expand to all array elements
@@ -243,17 +243,17 @@ class VariableExpander:
                     else:
                         # Not an array or doesn't exist
                         return ''
-                
+
                 # Handle regular indexed access
                 if var and isinstance(var.value, IndexedArray):
                     # Evaluate the index expression (might contain variables or arithmetic)
                     expanded_index = self.expand_array_index(index_expr)
-                    
+
                     try:
                         # Check if it's an arithmetic expression
                         if any(op in expanded_index for op in ['+', '-', '*', '/', '%', '(', ')']):
                             # Evaluate as arithmetic
-                            from ..arithmetic import evaluate_arithmetic, ArithmeticError
+                            from ..arithmetic import ArithmeticError, evaluate_arithmetic
                             try:
                                 index = evaluate_arithmetic(expanded_index, self.shell)
                             except (ArithmeticError, Exception):
@@ -261,7 +261,7 @@ class VariableExpander:
                         else:
                             # Direct integer conversion
                             index = int(expanded_index)
-                        
+
                         result = var.value.get(index)
                         return result if result is not None else ''
                     except ValueError:
@@ -289,7 +289,7 @@ class VariableExpander:
                 else:
                     # Variable doesn't exist
                     return ''
-            
+
             # Check for advanced parameter expansion
             try:
                 operator, var_name, operand = self.param_expansion.parse_expansion('${' + var_content + '}')
@@ -299,7 +299,7 @@ class VariableExpander:
             except Exception:
                 # If parsing fails, fall back to default behavior
                 pass
-            
+
             # Handle ${var:-default} syntax
             if ':-' in var_content:
                 var_name, default = var_content.split(':-', 1)
@@ -346,18 +346,18 @@ class VariableExpander:
                 return ''
             else:
                 var_name = var_content
-                
+
                 # Check nounset for simple ${var} expansion
                 if self.state.options.get('nounset', False):
-                    from ..core.options import OptionHandler
                     from ..core.exceptions import UnboundVariableError
+                    from ..core.options import OptionHandler
                     try:
                         OptionHandler.check_unset_variable(self.state, var_name)
                     except UnboundVariableError:
                         raise UnboundVariableError(f"psh: ${{{var_name}}}: unbound variable")
         else:
             var_name = var_expr
-        
+
         # Special variables
         if var_name == '?':
             return str(self.state.last_exit_code)
@@ -389,22 +389,22 @@ class VariableExpander:
             if 0 <= index < len(self.state.positional_params):
                 return self.state.positional_params[index]
             return ''
-        
+
         # Regular variables - check shell variables first, then environment
         result = self.state.get_variable(var_name, '')
-        
+
         # Check nounset option
         if self.state.options.get('nounset', False):
-            from ..core.options import OptionHandler
             from ..core.exceptions import UnboundVariableError
+            from ..core.options import OptionHandler
             try:
                 OptionHandler.check_unset_variable(self.state, var_name)
             except UnboundVariableError:
                 # Re-raise with proper formatting for variable expansion
                 raise UnboundVariableError(f"psh: ${var_name}: unbound variable")
-        
+
         return result
-    
+
     def _get_var_or_positional(self, var_name: str) -> str:
         """Get value of a variable or positional parameter."""
         if var_name.isdigit():
@@ -417,7 +417,7 @@ class VariableExpander:
             return self.state.get_special_variable(var_name)
         else:
             return self.state.get_variable(var_name, '')
-    
+
     def expand_parameter_direct(self, operator: str, var_name: str, operand: str) -> str:
         """Expand a parameter expansion from pre-parsed components.
 
@@ -451,7 +451,7 @@ class VariableExpander:
             array_name = var_name[:bracket_pos]
             index_expr = var_name[bracket_pos+1:-1]
 
-            from ..core.variables import IndexedArray, AssociativeArray
+            from ..core.variables import AssociativeArray, IndexedArray
             var = self.state.scope_manager.get_variable_object(array_name)
 
             # Handle special indices @ and * for whole-array operations
@@ -614,7 +614,7 @@ class VariableExpander:
         """
         # First try normal variable expansion in case it has $
         expanded = self.expand_string_variables(index_expr)
-        
+
         # If no $ was found in the index, check if the whole thing is a variable name
         if expanded == index_expr:
             # Check if it's a valid variable name (letters, digits, underscore)
@@ -624,7 +624,7 @@ class VariableExpander:
                     var_value = self.state.get_variable(index_expr, '')
                     if var_value:
                         return var_value
-        
+
         return expanded
 
     def expand_string_variables(self, text: str, process_escapes: bool = True) -> str:
@@ -759,85 +759,85 @@ class VariableExpander:
                         result.append(next_char)
                         i += 2
                         continue
-            
+
             result.append(text[i])
             i += 1
-        
+
         return ''.join(result)
-    
+
     def is_array_expansion(self, var_expr: str) -> bool:
         """Check if this is an array expansion that produces multiple words."""
         if not var_expr.startswith('$'):
             return False
-        
+
         var_expr = var_expr[1:]  # Remove $
-        
+
         # Check for $@ (positional parameters expansion)
         if var_expr == '@':
             return True
-        
+
         # Check for ${arr[@]} syntax
         if var_expr.startswith('{') and var_expr.endswith('}'):
             var_content = var_expr[1:-1]
-            
+
             # Special expansions that don't produce multiple words
             if var_content.startswith('#'):
                 # ${#arr[@]} produces single word
                 return False
-            
+
             # ${!arr[@]} produces multiple words (array indices)
             # Handle escaped ! if present
             check_content = var_content
             if check_content.startswith('\\!'):
                 check_content = check_content[1:]  # Remove the backslash
-            
+
             if check_content.startswith('!') and '[' in check_content and check_content.endswith(']'):
                 bracket_pos = check_content.find('[')
                 index_expr = check_content[bracket_pos+1:-1]
                 if index_expr == '@' or index_expr == '*':
                     return True  # This is array indices expansion
                 return False  # Other ! expansions are single words
-            
-            # Check for array subscript with @ 
+
+            # Check for array subscript with @
             if '[' in var_content and var_content.endswith(']'):
                 bracket_pos = var_content.find('[')
                 index_expr = var_content[bracket_pos+1:-1]
                 return index_expr == '@'
-        
+
         return False
-    
+
     def expand_array_to_list(self, var_expr: str) -> list:
         """Expand an array variable to a list of words for ${arr[@]} syntax."""
         if not var_expr.startswith('$'):
             return [var_expr]
-        
+
         var_expr = var_expr[1:]  # Remove $
-        
+
         # Handle $@ (positional parameters)
         if var_expr == '@':
             return list(self.state.positional_params)
-        
+
         # Handle ${var} syntax
         if var_expr.startswith('{') and var_expr.endswith('}'):
             var_content = var_expr[1:-1]
-            
+
             # Check for array indices expansion: ${!arr[@]}
             # Handle escaped ! if present
             check_content = var_content
             if check_content.startswith('\\!'):
                 check_content = check_content[1:]  # Remove the backslash
-            
+
             if check_content.startswith('!') and '[' in check_content and check_content.endswith(']'):
                 array_part = check_content[1:]  # Remove the !
                 bracket_pos = array_part.find('[')
                 array_name = array_part[:bracket_pos]
                 index_expr = array_part[bracket_pos+1:-1]  # Remove [ and ]
-                
+
                 if index_expr == '@' or index_expr == '*':
                     # Get the array variable
-                    from ..core.variables import IndexedArray, AssociativeArray
+                    from ..core.variables import AssociativeArray, IndexedArray
                     var = self.state.scope_manager.get_variable_object(array_name)
-                    
+
                     if var and isinstance(var.value, IndexedArray):
                         # Return the indices as list of strings
                         indices = var.value.indices()
@@ -851,18 +851,18 @@ class VariableExpander:
                     else:
                         # Not an array or no value, return empty
                         return []
-            
+
             # Check for array subscript syntax: ${arr[index]}
             if '[' in var_content and var_content.endswith(']'):
                 bracket_pos = var_content.find('[')
                 array_name = var_content[:bracket_pos]
                 index_expr = var_content[bracket_pos+1:-1]  # Remove [ and ]
-                
+
                 if index_expr == '@':
                     # Get the array variable
-                    from ..core.variables import IndexedArray, AssociativeArray
+                    from ..core.variables import AssociativeArray, IndexedArray
                     var = self.state.scope_manager.get_variable_object(array_name)
-                    
+
                     if var and isinstance(var.value, (IndexedArray, AssociativeArray)):
                         # Return elements as list
                         return var.value.all_elements()
@@ -871,15 +871,15 @@ class VariableExpander:
                         return [str(var.value)]
                     else:
                         return []
-        
+
         # Not an array expansion, return single element
         return [self.expand_variable('$' + var_expr)]
-    
+
     def _split_pattern_replacement(self, operand: str):
         """Split pattern/replacement handling escaped slashes."""
         i = 0
         pattern_parts = []
-        
+
         while i < len(operand):
             if i + 1 < len(operand) and operand[i:i+2] == '\\/':
                 pattern_parts.append('\\/')
@@ -892,6 +892,6 @@ class VariableExpander:
             else:
                 pattern_parts.append(operand[i])
                 i += 1
-        
+
         # No separator found
         return None, None

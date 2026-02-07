@@ -2,7 +2,8 @@
 
 import os
 import sys
-from typing import List, TYPE_CHECKING
+from typing import TYPE_CHECKING, List
+
 from .base import Builtin
 from .registry import builtin
 
@@ -13,24 +14,24 @@ if TYPE_CHECKING:
 @builtin
 class TypeBuiltin(Builtin):
     """Display information about command types."""
-    
+
     @property
     def name(self) -> str:
         return "type"
-    
+
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Display information about command types."""
         if len(args) < 2:
             self.error("usage: type [-afptP] name [name ...]", shell)
             return 2
-        
+
         # Parse options
         show_all = False
         type_only = False
         path_only = False
         force_path = False
         file_only = False
-        
+
         i = 1
         while i < len(args) and args[i].startswith('-'):
             opt = args[i]
@@ -51,16 +52,16 @@ class TypeBuiltin(Builtin):
                 self.error(f"invalid option: {opt}", shell)
                 return 2
             i += 1
-        
+
         # Process remaining arguments as names to check
         if i >= len(args):
             self.error("usage: type [-afptP] name [name ...]", shell)
             return 2
-        
+
         exit_code = 0
         for name in args[i:]:
             found = False
-            
+
             # Check aliases first (unless -f is specified)
             if not file_only and not force_path and name in shell.alias_manager.aliases:
                 alias_value = shell.alias_manager.aliases[name]
@@ -70,12 +71,12 @@ class TypeBuiltin(Builtin):
                     # Path only mode doesn't show aliases
                     pass
                 else:
-                    print(f"{name} is aliased to `{alias_value}'", 
+                    print(f"{name} is aliased to `{alias_value}'",
                           file=shell.stdout if hasattr(shell, 'stdout') else sys.stdout)
                 found = True
                 if not show_all:
                     continue
-            
+
             # Check functions (unless -P or -f is specified)
             if not force_path and not file_only and name in shell.function_manager.functions:
                 if type_only:
@@ -84,13 +85,13 @@ class TypeBuiltin(Builtin):
                     # Path only mode doesn't show functions
                     pass
                 else:
-                    print(f"{name} is a function", 
+                    print(f"{name} is a function",
                           file=shell.stdout if hasattr(shell, 'stdout') else sys.stdout)
                     # TODO: Could show function definition here
                 found = True
                 if not show_all:
                     continue
-            
+
             # Check builtins (unless -P is specified)
             if not force_path and name in shell.builtin_registry.names():
                 if type_only:
@@ -99,12 +100,12 @@ class TypeBuiltin(Builtin):
                     # Path only mode doesn't show builtins
                     pass
                 else:
-                    print(f"{name} is a shell builtin", 
+                    print(f"{name} is a shell builtin",
                           file=shell.stdout if hasattr(shell, 'stdout') else sys.stdout)
                 found = True
                 if not show_all:
                     continue
-            
+
             # Check in PATH
             paths = self._find_in_path(name, shell.env.get('PATH', ''))
             if paths:
@@ -112,31 +113,31 @@ class TypeBuiltin(Builtin):
                     print("file", file=shell.stdout if hasattr(shell, 'stdout') else sys.stdout)
                 else:
                     for path in paths:
-                        print(f"{name} is {path}", 
+                        print(f"{name} is {path}",
                               file=shell.stdout if hasattr(shell, 'stdout') else sys.stdout)
                         if not show_all:
                             break
                 found = True
-            
+
             # If not found anywhere
             if not found:
                 if not type_only and not path_only:
                     self.error(f"{name}: not found", shell)
                 exit_code = 1
-        
+
         return exit_code
-    
+
     def _find_in_path(self, name: str, path_str: str) -> List[str]:
         """Find all occurrences of a command in PATH."""
         if not path_str:
             return []
-        
+
         # If name contains a slash, check it directly
         if '/' in name:
             if os.path.isfile(name) and os.access(name, os.X_OK):
                 return [os.path.abspath(name)]
             return []
-        
+
         # Search in PATH
         found_paths = []
         for dir_path in path_str.split(':'):
@@ -145,9 +146,9 @@ class TypeBuiltin(Builtin):
             full_path = os.path.join(dir_path, name)
             if os.path.isfile(full_path) and os.access(full_path, os.X_OK):
                 found_paths.append(full_path)
-        
+
         return found_paths
-    
+
     @property
     def help(self) -> str:
         return """type: type [-afptP] name [name ...]

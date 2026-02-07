@@ -6,10 +6,10 @@ from .registry import builtin
 @builtin
 class EvalBuiltin(Builtin):
     """Execute arguments as shell commands."""
-    
+
     name = "eval"
     help_text = "Execute arguments as a shell command"
-    
+
     def execute(self, args, shell):
         """Execute the eval builtin.
         
@@ -28,10 +28,10 @@ class EvalBuiltin(Builtin):
         if len(args) <= 1:
             # Empty eval returns 0
             return 0
-        
+
         # Concatenate all arguments after 'eval' with spaces
         command_string = ' '.join(args[1:])
-        
+
         # Execute using shell's run_command method
         # This ensures full processing: tokenization, parsing, execution
         # add_to_history=False prevents eval commands from polluting history

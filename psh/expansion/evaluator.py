@@ -7,10 +7,7 @@ to avoid duplicating expansion logic.
 
 from typing import TYPE_CHECKING
 
-from ..ast_nodes import (
-    Expansion, VariableExpansion, CommandSubstitution,
-    ParameterExpansion, ArithmeticExpansion
-)
+from ..ast_nodes import ArithmeticExpansion, CommandSubstitution, Expansion, ParameterExpansion, VariableExpansion
 
 if TYPE_CHECKING:
     from ..shell import Shell

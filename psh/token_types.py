@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """Token type definitions for PSH lexer and parser."""
 
-from enum import Enum, auto
 from dataclasses import dataclass, field
-from typing import Optional, List, TYPE_CHECKING
+from enum import Enum, auto
+from typing import TYPE_CHECKING, List, Optional
 
 if TYPE_CHECKING:
-    from .token_enhanced import TokenMetadata
     from .lexer.token_parts import TokenPart
+    from .token_enhanced import TokenMetadata
 
 
 class TokenType(Enum):
@@ -30,11 +30,11 @@ class TokenType(Enum):
     OR_OR = auto()
     NEWLINE = auto()
     EOF = auto()
-    
+
     # Quoted strings and variables
     STRING = auto()
     VARIABLE = auto()
-    
+
     # Expansions
     COMMAND_SUB = auto()
     COMMAND_SUB_BACKTICK = auto()
@@ -42,7 +42,7 @@ class TokenType(Enum):
     PARAM_EXPANSION = auto()       # ${var:-default} style expansions
     PROCESS_SUB_IN = auto()    # <(...)
     PROCESS_SUB_OUT = auto()   # >(...)
-    
+
     # Grouping
     LPAREN = auto()
     RPAREN = auto()
@@ -52,7 +52,7 @@ class TokenType(Enum):
     RBRACKET = auto()
     DOUBLE_LPAREN = auto()  # ((
     DOUBLE_RPAREN = auto()  # ))
-    
+
     # Keywords
     FUNCTION = auto()
     IF = auto()
@@ -72,12 +72,12 @@ class TokenType(Enum):
     CASE = auto()
     ESAC = auto()
     SELECT = auto()
-    
+
     # Case terminators
     DOUBLE_SEMICOLON = auto()  # ;;
     SEMICOLON_AMP = auto()     # ;&
     AMP_SEMICOLON = auto()     # ;;&
-    
+
     # Special operators
     EXCLAMATION = auto()       # !
     DOUBLE_LBRACKET = auto()   # [[
@@ -85,7 +85,7 @@ class TokenType(Enum):
     REGEX_MATCH = auto()       # =~
     EQUAL = auto()             # ==
     NOT_EQUAL = auto()         # !=
-    
+
     # Assignment operators
     ASSIGN = auto()            # =
     PLUS_ASSIGN = auto()       # +=
@@ -98,23 +98,23 @@ class TokenType(Enum):
     XOR_ASSIGN = auto()        # ^=
     LSHIFT_ASSIGN = auto()     # <<=
     RSHIFT_ASSIGN = auto()     # >>=
-    
+
     # Pattern matching
     GLOB_STAR = auto()         # * in patterns
     GLOB_QUESTION = auto()     # ? in patterns
     GLOB_BRACKET = auto()      # [...] in patterns
-    
+
     # Context-specific operators
     LESS_THAN_TEST = auto()    # < in test context
     GREATER_THAN_TEST = auto() # > in test context
     LESS_EQUAL_TEST = auto()   # <= in test context
     GREATER_EQUAL_TEST = auto() # >= in test context
-    
+
     # Special constructs
     HERE_DELIMITER = auto()    # Heredoc delimiter
     ASSIGNMENT_WORD = auto()   # VAR=value pattern
     ARRAY_ASSIGNMENT_WORD = auto() # arr[index]=value pattern
-    
+
     # Composite tokens
     COMPOSITE = auto()         # Merged adjacent tokens
 
@@ -132,7 +132,7 @@ class Token:
     adjacent_to_previous: bool = False  # True if no whitespace between this and previous token
     metadata: Optional['TokenMetadata'] = field(default=None)  # Rich metadata (imported from token_enhanced)
     parts: Optional[List['TokenPart']] = field(default=None)  # Token parts (imported from lexer.token_parts)
-    
+
     def __post_init__(self):
         """Initialize metadata and parts if not provided."""
         if self.metadata is None:
@@ -141,7 +141,7 @@ class Token:
             self.metadata = TokenMetadata()
         if self.parts is None:
             self.parts = []
-    
+
     @classmethod
     def from_basic_token(
         cls,
@@ -165,7 +165,7 @@ class Token:
             line=line,
             column=column
         )
-    
+
     @classmethod
     def from_token(
         cls,
@@ -195,20 +195,20 @@ class Token:
             new_token.parts = parts
 
         return new_token
-    
+
     def add_context(self, context):
         """Add a context to this token's metadata."""
         if self.metadata:
             self.metadata.add_context(context)
-    
+
     def has_context(self, context) -> bool:
         """Check if token has a specific context."""
         return self.metadata.has_context(context) if self.metadata else False
-    
+
     def is_in_test_context(self) -> bool:
         """Check if token is in test expression context."""
         return self.metadata.is_in_test_context() if self.metadata else False
-    
+
     def is_command_position(self) -> bool:
         """Check if token is in command position."""
         return self.metadata.is_command_position() if self.metadata else False

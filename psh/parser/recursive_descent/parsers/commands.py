@@ -4,43 +4,58 @@ Command parsing for PSH shell.
 This module handles parsing of commands, pipelines, and command arguments.
 """
 
-from typing import Tuple, Optional, List, Union
-from ....token_types import Token, TokenType
-from ....token_stream import TokenStream
+from typing import Optional, Tuple, Union
+
 from ....ast_nodes import (
-    SimpleCommand, Pipeline, Command, Statement, AndOrList,
-    WhileLoop, UntilLoop, ForLoop, CStyleForLoop, IfConditional, CaseConditional, 
-    SelectLoop, ArithmeticEvaluation, BreakStatement, ContinueStatement,
-    SubshellGroup, BraceGroup, ExecutionContext, ArrayAssignment
+    AndOrList,
+    ArithmeticEvaluation,
+    BraceGroup,
+    BreakStatement,
+    CaseConditional,
+    Command,
+    ContinueStatement,
+    CStyleForLoop,
+    ExecutionContext,
+    ForLoop,
+    IfConditional,
+    Pipeline,
+    SelectLoop,
+    SimpleCommand,
+    Statement,
+    SubshellGroup,
+    UntilLoop,
+    WhileLoop,
 )
-from ..helpers import TokenGroups, ParseError, ErrorContext
+from ....token_stream import TokenStream
+from ....token_types import Token, TokenType
+from ..helpers import ErrorContext, ParseError, TokenGroups
 
 
 class CommandParser:
     """Parser for command-level constructs."""
-    
+
     def __init__(self, main_parser):
         """Initialize with reference to main parser."""
         self.parser = main_parser
-    
+
     def _is_fd_duplication(self, value: str) -> bool:
         """Check if a WORD token is actually a file descriptor duplication."""
         import re
         # Patterns: >&N, <&N, N>&M, N<&M, >&-, <&-
         fd_dup_pattern = re.compile(r'^(\d*)[><]&(-|\d+)$')
         return bool(fd_dup_pattern.match(value))
-    
+
     def _check_for_unclosed_expansions(self, token: Token) -> None:
         """Check if a token contains unclosed expansions and raise appropriate errors."""
         # Check tokens that might contain expansions
-        if token.type not in [TokenType.WORD, TokenType.COMPOSITE, TokenType.COMMAND_SUB, 
+        if token.type not in [TokenType.WORD, TokenType.COMPOSITE, TokenType.COMMAND_SUB,
                               TokenType.COMMAND_SUB_BACKTICK, TokenType.ARITH_EXPANSION, TokenType.VARIABLE,
                               TokenType.PARAM_EXPANSION]:
             return
-        
+
         # Import RichToken to check if token has parts
         from ....lexer.token_parts import RichToken
-        
+
         # If it's a RichToken, check its parts for unclosed expansions
         if isinstance(token, RichToken) and token.parts:
             for part in token.parts:
@@ -56,7 +71,7 @@ class CommandParser:
                         error_msg = f"Syntax error: unclosed backtick substitution '`{part.value[1:]}'"
                     else:
                         error_msg = f"Syntax error: unclosed expansion '{part.value}'"
-                    
+
                     # Create error context with token position
                     error_context = ErrorContext(
                         token=token,
@@ -64,7 +79,7 @@ class CommandParser:
                         position=token.position
                     )
                     raise ParseError(error_context)
-        
+
         # Also check for specific token types that indicate unclosed expansions
         if token.type == TokenType.COMMAND_SUB and not token.value.endswith(')'):
             error_msg = f"Syntax error: unclosed command substitution '{token.value}'"
@@ -98,7 +113,7 @@ class CommandParser:
                 position=token.position
             )
             raise ParseError(error_context)
-    
+
     def parse_command(self) -> SimpleCommand:
         """Parse a single command with its arguments and redirections."""
         command = SimpleCommand()
@@ -151,7 +166,7 @@ class CommandParser:
             elif self.parser.match(TokenType.EXCLAMATION):
                 token = self.parser.advance()
                 command.args.append(token.value)
-                from ....ast_nodes import Word, LiteralPart
+                from ....ast_nodes import LiteralPart, Word
                 command.words.append(Word(parts=[LiteralPart(token.value)]))
                 has_parsed_regular_args = True
 
@@ -178,7 +193,7 @@ class CommandParser:
         if is_array_init:
             arg_value = self._parse_array_initialization(word_token)
             command.args.append(arg_value)
-            from ....ast_nodes import Word, LiteralPart
+            from ....ast_nodes import LiteralPart, Word
             command.words.append(Word(parts=[LiteralPart(arg_value)]))
             return True
 
@@ -263,64 +278,64 @@ class CommandParser:
             return word_token.value + '(' + ' '.join(elements) + ')'
         else:
             return word_token.value + '=(' + ' '.join(elements) + ')'
-    
+
     def parse_pipeline(self) -> Pipeline:
         """Parse a pipeline (commands connected by |)."""
         pipeline = Pipeline()
-        
+
         # Check for leading ! (negation)
         if self.parser.consume_if_match(TokenType.EXCLAMATION):
             pipeline.negated = True
-        
+
         # Parse first command (could be simple or compound)
         command = self.parse_pipeline_component()
         pipeline.commands.append(command)
-        
+
         # Parse additional piped commands
         while self.parser.match(TokenType.PIPE):
             self.parser.advance()
             command = self.parse_pipeline_component()
             pipeline.commands.append(command)
-        
+
         return pipeline
-    
-    
+
+
     def parse_pipeline_with_initial_component(self, initial_component: Command) -> Statement:
         """Parse a pipeline starting with an already-parsed component."""
         # Set the initial component to pipeline context
         initial_component.execution_context = ExecutionContext.PIPELINE
-        
+
         # Create pipeline and add initial component
         pipeline = Pipeline()
         pipeline.commands.append(initial_component)
-        
+
         # Must have at least one pipe since we were called due to seeing a pipe
         self.parser.expect(TokenType.PIPE)
-        
+
         # Parse remaining pipeline components
         while True:
             command = self.parse_pipeline_component()
             pipeline.commands.append(command)
-            
+
             if not self.parser.match(TokenType.PIPE):
                 break
             self.parser.advance()
-        
+
         # Wrap pipeline in AndOrList for consistency
         and_or_list = AndOrList()
         and_or_list.pipelines.append(pipeline)
-        
+
         # Check for && or || continuation
         while self.parser.match(TokenType.AND_AND, TokenType.OR_OR):
             operator = self.parser.advance()
             and_or_list.operators.append(operator.value)
-            
+
             self.parser.skip_newlines()
             pipeline = self.parse_pipeline()
             and_or_list.pipelines.append(pipeline)
-        
+
         return and_or_list
-    
+
     def parse_pipeline_component(self) -> Command:
         """Parse a single component of a pipeline (simple or compound command)."""
         # Try parsing as control structure first
@@ -349,7 +364,7 @@ class CommandParser:
             # This is a syntax error in bash: echo \$(echo test), echo \\\$(echo test)
             if self.parser.current > 0:
                 prev_token = self.parser.tokens[self.parser.current - 1]
-                if (prev_token.type == TokenType.WORD and 
+                if (prev_token.type == TokenType.WORD and
                     prev_token.value.endswith('\\$')):
                     # Check if it's truly an escaped dollar (odd number of backslashes before $)
                     # Count trailing backslashes before the $
@@ -359,7 +374,7 @@ class CommandParser:
                             num_backslashes += 1
                         else:
                             break
-                    
+
                     # If odd number of backslashes, the $ is escaped
                     if num_backslashes % 2 == 1:
                         # This matches bash behavior which treats \$( as a syntax error
@@ -375,24 +390,24 @@ class CommandParser:
         else:
             # Fall back to simple command
             return self.parse_command()
-    
+
     def parse_composite_argument(self) -> Tuple[str, str, Optional[str]]:
         """Parse a potentially composite argument (concatenated tokens)."""
         # If current token is already a COMPOSITE, just return it
         if self.parser.peek() and self.parser.peek().type == TokenType.COMPOSITE:
             token = self.parser.advance()
             return self._token_to_argument(token)
-        
+
         # Otherwise, check for adjacent tokens forming a composite
         # Create TokenStream to check for composite
         stream = TokenStream(self.parser.tokens, self.parser.current)
         composite = stream.peek_composite_sequence()
-        
+
         if composite:
             # Process composite tokens
             parts = []
             has_quoted_part = False
-            
+
             for token in composite:
                 # Check for unclosed expansions in composite parts
                 self._check_for_unclosed_expansions(token)
@@ -408,10 +423,10 @@ class CommandParser:
                     parts.append(token.value)
                 else:
                     parts.append(token.value)
-            
+
             # Advance parser position
             self.parser.current = stream.pos + len(composite)
-            
+
             # Create composite
             arg_type = 'COMPOSITE_QUOTED' if has_quoted_part else 'COMPOSITE'
             return ''.join(parts), arg_type, None
@@ -422,18 +437,18 @@ class CommandParser:
                 return self._token_to_argument(token)
             else:
                 raise self.parser._error("Expected word-like token")
-    
+
     def _token_to_argument(self, token: Token) -> Tuple[str, str, Optional[str]]:
         """Convert a single token to argument tuple format."""
         # Check for unclosed expansions
         self._check_for_unclosed_expansions(token)
-        
+
         # Handle composite tokens specially
         if token.type == TokenType.COMPOSITE:
             # Composite tokens already have the merged value
             arg_type = 'COMPOSITE_QUOTED' if token.quote_type == 'mixed' else 'COMPOSITE'
             return token.value, arg_type, None
-        
+
         type_map = {
             TokenType.VARIABLE: ('VARIABLE', lambda t: self._format_variable(t)),
             TokenType.STRING: ('STRING', lambda t: t.value),
@@ -448,13 +463,13 @@ class CommandParser:
             TokenType.RBRACKET: ('WORD', lambda t: t.value),
             # Note: LBRACE and RBRACE are now handled as grouping operators, not words
         }
-        
+
         arg_type, value_fn = type_map.get(token.type, ('WORD', lambda t: t.value))
         value = value_fn(token)
         quote_type = getattr(token, 'quote_type', None)
-        
+
         return value, arg_type, quote_type
-    
+
     def _format_variable(self, token: Token) -> str:
         """Format a VARIABLE token, prepending $ if needed."""
         value = token.value
@@ -468,14 +483,13 @@ class CommandParser:
 
     def parse_argument_as_word(self) -> 'Word':
         """Parse an argument as a Word AST node with expansions."""
-        from ....ast_nodes import Word
-        from ..support.word_builder import WordBuilder
         from ....token_stream import TokenStream
-        
+        from ..support.word_builder import WordBuilder
+
         # Check for composite tokens
         stream = TokenStream(self.parser.tokens, self.parser.current)
         composite = stream.peek_composite_sequence()
-        
+
         if composite:
             # Check for unclosed expansions in composite parts
             for token in composite:
@@ -493,9 +507,9 @@ class CommandParser:
                 return WordBuilder.build_word_from_token(token, quote_type)
             else:
                 raise self.parser._error("Expected word-like token")
-    
+
     # Command variant parsers for use in pipelines
-    
+
     def parse_while_command(self) -> WhileLoop:
         """Parse while loop as a command for use in pipelines."""
         result = self.parser.control_structures._parse_while_neutral()
@@ -513,58 +527,58 @@ class CommandParser:
         result = self.parser.control_structures._parse_for_neutral()
         result.execution_context = ExecutionContext.PIPELINE
         return result
-    
+
     def parse_if_command(self) -> IfConditional:
         """Parse if command for use in pipelines."""
         result = self.parser.control_structures._parse_if_neutral()
         result.execution_context = ExecutionContext.PIPELINE
         return result
-    
+
     def parse_case_command(self) -> CaseConditional:
         """Parse case command for use in pipelines."""
         result = self.parser.control_structures._parse_case_neutral()
         result.execution_context = ExecutionContext.PIPELINE
         return result
-    
+
     def parse_select_command(self) -> SelectLoop:
         """Parse select command for use in pipelines."""
         result = self.parser.control_structures._parse_select_neutral()
         result.execution_context = ExecutionContext.PIPELINE
         return result
-    
+
     def parse_arithmetic_compound_command(self) -> ArithmeticEvaluation:
         """Parse arithmetic command for use in pipelines."""
         result = self.parser.arithmetic._parse_arithmetic_neutral()
         result.execution_context = ExecutionContext.PIPELINE
         return result
-    
+
     def parse_break_statement(self) -> BreakStatement:
         """Parse break statement for use in pipelines."""
         return self.parser.control_structures.parse_break_statement()
-    
+
     def parse_continue_statement(self) -> ContinueStatement:
         """Parse continue statement for use in pipelines."""
         return self.parser.control_structures.parse_continue_statement()
-    
+
     def parse_subshell_group(self) -> SubshellGroup:
         """Parse subshell group (...) that executes in isolated environment."""
         self.parser.expect(TokenType.LPAREN)
         self.parser.skip_newlines()
-        
+
         # Parse statements inside the subshell
         statements = self.parser.statements.parse_command_list_until(TokenType.RPAREN)
-        
+
         self.parser.skip_newlines()
         self.parser.expect(TokenType.RPAREN)
-        
+
         # Parse any redirections after the subshell
         redirects = self.parser.redirections.parse_redirects()
-        
+
         # Check for background operator
         background = self.parser.match(TokenType.AMPERSAND)
         if background:
             self.parser.advance()
-        
+
         return SubshellGroup(
             statements=statements,
             redirects=redirects,
@@ -580,21 +594,21 @@ class CommandParser:
         """
         self.parser.expect(TokenType.LBRACE)
         self.parser.skip_newlines()
-        
+
         # Parse statements inside the brace group
         statements = self.parser.statements.parse_command_list_until(TokenType.RBRACE)
-        
+
         self.parser.skip_newlines()
         self.parser.expect(TokenType.RBRACE)
-        
+
         # Parse any redirections after the brace group
         redirects = self.parser.redirections.parse_redirects()
-        
+
         # Check for background operator
         background = self.parser.match(TokenType.AMPERSAND)
         if background:
             self.parser.advance()
-        
+
         return BraceGroup(
             statements=statements,
             redirects=redirects,

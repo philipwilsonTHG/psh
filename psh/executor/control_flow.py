@@ -11,26 +11,33 @@ This module handles execution of control structures including:
 - Break and continue statements
 """
 
-import os
-import sys
-import re
-import glob
 import fnmatch
-from typing import List, Optional, TYPE_CHECKING
+import glob
+import re
+import sys
 from contextlib import contextmanager
+from typing import TYPE_CHECKING, List, Optional
 
-from ..core.exceptions import LoopBreak, LoopContinue, ReadonlyVariableError
 from ..arithmetic import evaluate_arithmetic
+from ..core.exceptions import LoopBreak, LoopContinue, ReadonlyVariableError
 
 if TYPE_CHECKING:
-    from ..shell import Shell
-    from ..ast_nodes import (
-        IfConditional, WhileLoop, UntilLoop, ForLoop, CStyleForLoop,
-        CaseConditional, SelectLoop, BreakStatement, ContinueStatement,
-        Redirect
-    )
-    from .context import ExecutionContext
     from psh.visitor.base import ASTVisitor
+
+    from ..ast_nodes import (
+        BreakStatement,
+        CaseConditional,
+        ContinueStatement,
+        CStyleForLoop,
+        ForLoop,
+        IfConditional,
+        Redirect,
+        SelectLoop,
+        UntilLoop,
+        WhileLoop,
+    )
+    from ..shell import Shell
+    from .context import ExecutionContext
 
 
 class ControlFlowExecutor:
@@ -40,27 +47,27 @@ class ControlFlowExecutor:
     This class encapsulates all logic for executing control structures
     including conditionals, loops, and flow control statements.
     """
-    
+
     def __init__(self, shell: 'Shell'):
         """Initialize the control flow executor with a shell instance."""
         self.shell = shell
         self.state = shell.state
         self.expansion_manager = shell.expansion_manager
         self.io_manager = shell.io_manager
-    
+
     @contextmanager
     def _apply_redirections(self, redirects: List['Redirect']):
         """Context manager for applying and restoring redirections."""
         if not redirects:
             yield
             return
-            
+
         saved_fds = self.io_manager.apply_redirections(redirects)
         try:
             yield
         finally:
             self.io_manager.restore_redirections(saved_fds)
-    
+
     def execute_if(self, node: 'IfConditional', context: 'ExecutionContext',
                    visitor: 'ASTVisitor[int]') -> int:
         """
@@ -82,24 +89,24 @@ class ControlFlowExecutor:
             try:
                 # Evaluate main condition
                 condition_status = visitor.visit(node.condition)
-                
+
                 if condition_status == 0:
                     return visitor.visit(node.then_part)
-                
+
                 # Check elif conditions
                 for elif_condition, elif_then in node.elif_parts:
                     elif_status = visitor.visit(elif_condition)
                     if elif_status == 0:
                         return visitor.visit(elif_then)
-                
+
                 # Execute else part if present
                 if node.else_part:
                     return visitor.visit(node.else_part)
-                
+
                 return 0
             finally:
                 context.in_pipeline = old_pipeline
-    
+
     def execute_while(self, node: 'WhileLoop', context: 'ExecutionContext',
                       visitor: 'ASTVisitor[int]') -> int:
         """
@@ -115,7 +122,7 @@ class ControlFlowExecutor:
         """
         exit_status = 0
         context.loop_depth += 1
-        
+
         # Apply redirections for entire loop
         with self._apply_redirections(node.redirects):
             # Temporarily disable pipeline context for commands inside control structure
@@ -127,7 +134,7 @@ class ControlFlowExecutor:
                     condition_status = visitor.visit(node.condition)
                     if condition_status != 0:
                         break
-                    
+
                     # Execute body
                     try:
                         exit_status = visitor.visit(node.body)
@@ -139,10 +146,10 @@ class ControlFlowExecutor:
                         if lb.level > 1:
                             raise LoopBreak(lb.level - 1)
                         break
-                        
+
             finally:
                 context.in_pipeline = old_pipeline
-        
+
         context.loop_depth -= 1
         return exit_status
 
@@ -151,7 +158,7 @@ class ControlFlowExecutor:
         """Execute until loop (runs until condition succeeds)."""
         exit_status = 0
         context.loop_depth += 1
-        
+
         with self._apply_redirections(node.redirects):
             old_pipeline = context.in_pipeline
             context.in_pipeline = False
@@ -172,10 +179,10 @@ class ControlFlowExecutor:
                         break
             finally:
                 context.in_pipeline = old_pipeline
-        
+
         context.loop_depth -= 1
         return exit_status
-    
+
     def execute_for(self, node: 'ForLoop', context: 'ExecutionContext',
                     visitor: 'ASTVisitor[int]') -> int:
         """
@@ -191,10 +198,10 @@ class ControlFlowExecutor:
         """
         exit_status = 0
         context.loop_depth += 1
-        
+
         # Expand items - handle all types of expansion, respecting quote types
         expanded_items = self._expand_for_loop_items(node)
-        
+
         # Apply redirections for entire loop
         with self._apply_redirections(node.redirects):
             # Temporarily disable pipeline context for commands inside control structure
@@ -208,7 +215,7 @@ class ControlFlowExecutor:
                     except ReadonlyVariableError as e:
                         print(f"psh: {node.variable}: readonly variable", file=self.state.stderr)
                         return 1
-                    
+
                     # Execute body
                     try:
                         exit_status = visitor.visit(node.body)
@@ -220,13 +227,13 @@ class ControlFlowExecutor:
                         if lb.level > 1:
                             raise LoopBreak(lb.level - 1)
                         break
-                        
+
             finally:
                 context.in_pipeline = old_pipeline
-        
+
         context.loop_depth -= 1
         return exit_status
-    
+
     def execute_c_style_for(self, node: 'CStyleForLoop', context: 'ExecutionContext',
                             visitor: 'ASTVisitor[int]') -> int:
         """
@@ -242,7 +249,7 @@ class ControlFlowExecutor:
         """
         exit_status = 0
         context.loop_depth += 1
-        
+
         # Evaluate init expression
         if node.init_expr:
             try:
@@ -251,7 +258,7 @@ class ControlFlowExecutor:
                 print(f"psh: ((: {e}", file=sys.stderr)
                 context.loop_depth -= 1
                 return 1
-        
+
         # Apply redirections for entire loop
         with self._apply_redirections(node.redirects):
             try:
@@ -266,7 +273,7 @@ class ControlFlowExecutor:
                             print(f"psh: ((: {e}", file=sys.stderr)
                             exit_status = 1
                             break
-                    
+
                     # Execute body
                     try:
                         exit_status = visitor.visit(node.body)
@@ -277,7 +284,7 @@ class ControlFlowExecutor:
                         if lb.level > 1:
                             raise LoopBreak(lb.level - 1)
                         break
-                    
+
                     # Evaluate update expression
                     if node.update_expr:
                         try:
@@ -286,12 +293,12 @@ class ControlFlowExecutor:
                             print(f"psh: ((: {e}", file=sys.stderr)
                             exit_status = 1
                             break
-                            
+
             finally:
                 context.loop_depth -= 1
-        
+
         return exit_status
-    
+
     def execute_case(self, node: 'CaseConditional', context: 'ExecutionContext',
                      visitor: 'ASTVisitor[int]') -> int:
         """
@@ -309,7 +316,7 @@ class ControlFlowExecutor:
         expr = node.expr
         if '$' in expr:
             expr = self.expansion_manager.expand_string_variables(expr)
-        
+
         # Apply redirections
         with self._apply_redirections(node.redirects):
             # Temporarily disable pipeline context for commands inside control structure
@@ -325,14 +332,14 @@ class ControlFlowExecutor:
                         expanded_pattern = pattern_str
                         if '$' in pattern_str:
                             expanded_pattern = self.expansion_manager.expand_string_variables(pattern_str)
-                        
+
                         # Convert bash-style escape sequences for fnmatch
                         fnmatch_pattern = self._convert_case_pattern_for_fnmatch(expanded_pattern)
-                        
+
                         if self._match_case_pattern(expr, fnmatch_pattern):
                             # Execute the commands for this case
                             exit_status = visitor.visit(case_item.commands)
-                            
+
                             # Handle terminator
                             if case_item.terminator == ';;':
                                 # Normal termination
@@ -343,14 +350,14 @@ class ControlFlowExecutor:
                             elif case_item.terminator == ';;&':
                                 # Continue testing patterns
                                 continue
-                            
+
                             return exit_status
-                
+
                 # No pattern matched
                 return 0
             finally:
                 context.in_pipeline = old_pipeline
-    
+
     def execute_select(self, node: 'SelectLoop', context: 'ExecutionContext',
                        visitor: 'ASTVisitor[int]') -> int:
         """
@@ -366,30 +373,30 @@ class ControlFlowExecutor:
         """
         exit_status = 0
         context.loop_depth += 1
-        
+
         # Expand items - handle all types of expansion, respecting quote types
         expanded_items = self._expand_select_items(node)
-        
+
         # Empty list - exit immediately
         if not expanded_items:
             context.loop_depth -= 1
             return 0
-        
+
         # Apply redirections for entire loop
         with self._apply_redirections(node.redirects):
             try:
                 # Get PS3 prompt (default "#? " if not set)
                 ps3 = self.state.get_variable("PS3", "#? ")
-                
+
                 while True:
                     # Display menu to stderr
                     self._display_select_menu(expanded_items)
-                    
+
                     # Show prompt and read input
                     try:
                         sys.stderr.write(ps3)
                         sys.stderr.flush()
-                        
+
                         # Read input line
                         if hasattr(self.shell, 'stdin') and self.shell.stdin:
                             # Use shell's stdin if available (set by I/O redirection)
@@ -403,7 +410,7 @@ class ControlFlowExecutor:
                             except (OSError, ValueError):
                                 # Handle case where stdin is not available in test environment
                                 raise EOFError
-                        
+
                         if not reply:  # EOF
                             raise EOFError
                         reply = reply.rstrip('\n')
@@ -411,10 +418,10 @@ class ControlFlowExecutor:
                         # Ctrl+D or Ctrl+C exits the loop
                         sys.stderr.write("\n")
                         break
-                    
+
                     # Set REPLY variable
                     self.state.set_variable("REPLY", reply)
-                    
+
                     # Process selection
                     if reply.strip().isdigit():
                         choice = int(reply.strip())
@@ -428,7 +435,7 @@ class ControlFlowExecutor:
                     else:
                         # Non-numeric input
                         self.state.set_variable(node.variable, "")
-                    
+
                     # Execute loop body
                     try:
                         exit_status = visitor.visit(node.body)
@@ -445,9 +452,9 @@ class ControlFlowExecutor:
                 exit_status = 130
             finally:
                 context.loop_depth -= 1
-        
+
         return exit_status
-    
+
     def execute_break(self, node: 'BreakStatement', context: 'ExecutionContext') -> int:
         """
         Execute break statement.
@@ -464,7 +471,7 @@ class ControlFlowExecutor:
             # Raise exception even outside loop so StatementList stops executing
             raise LoopBreak(node.level)
         raise LoopBreak(node.level)
-    
+
     def execute_continue(self, node: 'ContinueStatement', context: 'ExecutionContext') -> int:
         """
         Execute continue statement.
@@ -481,17 +488,17 @@ class ControlFlowExecutor:
             # Raise exception even outside loop so StatementList stops executing
             raise LoopContinue(node.level)
         raise LoopContinue(node.level)
-    
+
     # Helper methods
-    
+
     def _expand_for_loop_items(self, node: 'ForLoop') -> List[str]:
         """Expand items for a for loop, handling all expansion types."""
         expanded_items = []
         quote_types = getattr(node, 'item_quote_types', [None] * len(node.items))
-        
+
         for i, item in enumerate(node.items):
             quote_type = quote_types[i] if i < len(quote_types) else None
-            
+
             # Check if this is an array expansion
             if '$' in item and self.expansion_manager.variable_expander.is_array_expansion(item):
                 # Expand array to list of items
@@ -500,17 +507,17 @@ class ControlFlowExecutor:
             else:
                 # Perform full expansion on the item
                 expanded_items.extend(self._expand_single_item(item, quote_type))
-        
+
         return expanded_items
-    
+
     def _expand_select_items(self, node: 'SelectLoop') -> List[str]:
         """Expand items for a select loop, handling all expansion types."""
         expanded_items = []
         quote_types = getattr(node, 'item_quote_types', [None] * len(node.items))
-        
+
         for i, item in enumerate(node.items):
             quote_type = quote_types[i] if i < len(quote_types) else None
-            
+
             # Check if this is an array expansion
             if '$' in item and self.expansion_manager.variable_expander.is_array_expansion(item):
                 # Expand array to list of items
@@ -519,9 +526,9 @@ class ControlFlowExecutor:
             else:
                 # Perform full expansion on the item
                 expanded_items.extend(self._expand_single_item(item, quote_type))
-        
+
         return expanded_items
-    
+
     def _expand_single_item(self, item: str, quote_type: Optional[str]) -> List[str]:
         """Expand a single item based on its type and quote context."""
         # Determine the type of the item (check arithmetic first since it starts with $()
@@ -551,7 +558,7 @@ class ControlFlowExecutor:
         elif '$' in item:
             # Variable expansion
             expanded = self.expansion_manager.expand_string_variables(item)
-            
+
             if quote_type == '"':
                 # Double-quoted: no word splitting, no glob expansion
                 return [expanded if expanded else ""]
@@ -570,7 +577,7 @@ class ControlFlowExecutor:
                 # Unquoted: try glob expansion
                 matches = glob.glob(item)
                 return sorted(matches) if matches else [item]
-    
+
     def _word_split_and_glob(self, text: str) -> List[str]:
         """Perform word splitting and glob expansion on text."""
         # Get IFS for field splitting
@@ -582,7 +589,7 @@ class ControlFlowExecutor:
         else:
             # No IFS means no field splitting
             words = [text] if text else []
-        
+
         # Handle glob expansion on each word
         result = []
         for word in words:
@@ -592,9 +599,9 @@ class ControlFlowExecutor:
                     result.extend(sorted(matches))
                 else:
                     result.append(word)
-        
+
         return result
-    
+
     def _match_case_pattern(self, string: str, pattern: str) -> bool:
         """Match a string against a case pattern with extglob support."""
         if self.state.options.get('extglob', False):
@@ -631,12 +638,12 @@ class ControlFlowExecutor:
             else:
                 result.append(pattern[i])
                 i += 1
-        
+
         # Handle cases where tokenizer stripped escape sequences
         # Pattern like [*] likely came from \[*\] (literal brackets)
         # Check for suspicious character classes that contain wildcards
         converted_pattern = ''.join(result)
-        
+
         # If pattern looks like [*] or [?] or [*...] with wildcards inside brackets,
         # it's likely meant to be literal brackets since wildcards in character
         # classes don't make sense
@@ -646,9 +653,9 @@ class ControlFlowExecutor:
             bracket_content = converted_pattern[1:-1]  # Remove outer []
             literal_pattern = '[[]' + bracket_content + '[]]'
             return literal_pattern
-        
+
         return converted_pattern
-    
+
     def _display_select_menu(self, items: List[str]) -> None:
         """Display the select menu to stderr."""
         # Calculate layout
@@ -661,10 +668,10 @@ class ControlFlowExecutor:
             # Multi-column for larger lists
             columns = 2 if num_items <= 20 else 3
             rows = (num_items + columns - 1) // columns
-            
+
             # Calculate column widths
             col_width = max(len(f"{i}) {items[i-1]}") for i in range(1, num_items + 1)) + 3
-            
+
             for row in range(rows):
                 for col in range(columns):
                     idx = row + col * rows

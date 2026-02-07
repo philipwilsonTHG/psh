@@ -1,7 +1,8 @@
 """Error collection for multi-error parsing."""
 
-from typing import List, Optional, Set
 from dataclasses import dataclass, field
+from typing import List, Optional, Set
+
 try:
     from ..helpers import ParseError
 except ImportError:
@@ -12,30 +13,30 @@ from ....token_types import TokenType
 @dataclass
 class RecoveryPoints:
     """Define synchronization points for error recovery."""
-    
+
     # Statement starting tokens
     STATEMENT_START: Set[TokenType] = field(default_factory=lambda: {
         TokenType.IF, TokenType.WHILE, TokenType.UNTIL, TokenType.FOR,
         TokenType.CASE, TokenType.FUNCTION, TokenType.WORD,
         TokenType.LBRACE, TokenType.DOUBLE_LBRACKET
     })
-    
+
     # Statement ending tokens
     STATEMENT_END: Set[TokenType] = field(default_factory=lambda: {
-        TokenType.SEMICOLON, TokenType.NEWLINE, 
+        TokenType.SEMICOLON, TokenType.NEWLINE,
         TokenType.AMPERSAND, TokenType.PIPE,
         TokenType.AND_AND, TokenType.OR_OR
     })
-    
+
     # Block ending tokens
     BLOCK_END: Set[TokenType] = field(default_factory=lambda: {
         TokenType.FI, TokenType.DONE, TokenType.ESAC,
         TokenType.RBRACE, TokenType.EOF, TokenType.RPAREN
     })
-    
+
     # All synchronization tokens
     ALL_SYNC: Set[TokenType] = field(default_factory=lambda: set())
-    
+
     def __post_init__(self):
         """Initialize ALL_SYNC with all recovery points."""
         self.ALL_SYNC = self.STATEMENT_START | self.STATEMENT_END | self.BLOCK_END
@@ -43,7 +44,7 @@ class RecoveryPoints:
 
 class ErrorCollector:
     """Collect multiple parse errors for batch reporting."""
-    
+
     def __init__(self, max_errors: int = 10, stop_on_fatal: bool = True):
         """Initialize error collector.
         
@@ -56,7 +57,7 @@ class ErrorCollector:
         self.stop_on_fatal = stop_on_fatal
         self.fatal_error: Optional[ParseError] = None
         self.recovery_points = RecoveryPoints()
-    
+
     def add_error(self, error: ParseError) -> None:
         """Add error to collection.
         
@@ -65,12 +66,12 @@ class ErrorCollector:
         """
         if len(self.errors) < self.max_errors:
             self.errors.append(error)
-        
+
         # Check if this is a fatal error
-        if (hasattr(error.error_context, 'severity') and 
+        if (hasattr(error.error_context, 'severity') and
             error.error_context.severity == 'fatal'):
             self.fatal_error = error
-    
+
     def should_continue(self) -> bool:
         """Check if parsing should continue.
         
@@ -80,13 +81,13 @@ class ErrorCollector:
         # Stop if we hit max errors
         if len(self.errors) >= self.max_errors:
             return False
-        
+
         # Stop if we have a fatal error and configured to stop
         if self.stop_on_fatal and self.fatal_error:
             return False
-        
+
         return True
-    
+
     def has_errors(self) -> bool:
         """Check if any errors have been collected.
 
@@ -94,7 +95,7 @@ class ErrorCollector:
             True if errors have been collected
         """
         return bool(self.errors)
-    
+
     def get_error_count(self) -> int:
         """Get number of collected errors.
         
@@ -102,7 +103,7 @@ class ErrorCollector:
             Number of errors collected
         """
         return len(self.errors)
-    
+
     def get_errors_by_severity(self, severity: str) -> List[ParseError]:
         """Get errors filtered by severity.
         
@@ -117,7 +118,7 @@ class ErrorCollector:
             if (hasattr(error.error_context, 'severity') and
                 error.error_context.severity == severity)
         ]
-    
+
     def format_error_summary(self) -> str:
         """Format a summary of all collected errors.
         
@@ -126,28 +127,28 @@ class ErrorCollector:
         """
         if not self.errors:
             return "No errors collected."
-        
+
         lines = []
         lines.append(f"Collected {len(self.errors)} parse error(s):")
         lines.append("")
-        
+
         for i, error in enumerate(self.errors, 1):
             lines.append(f"{i}. {error.message}")
-            
+
             # Add suggestions if available
-            if (hasattr(error.error_context, 'suggestions') and 
+            if (hasattr(error.error_context, 'suggestions') and
                 error.error_context.suggestions):
                 for suggestion in error.error_context.suggestions[:2]:  # Limit to 2
                     lines.append(f"   Suggestion: {suggestion}")
             lines.append("")
-        
+
         # Add fatal error info if present
         if self.fatal_error:
             lines.append("Fatal error encountered - parsing stopped.")
             lines.append("")
-        
+
         return "\n".join(lines)
-    
+
     def clear(self) -> None:
         """Clear all collected errors."""
         self.errors.clear()
@@ -156,7 +157,7 @@ class ErrorCollector:
 
 class ErrorRecoveryStrategy:
     """Strategies for recovering from parse errors."""
-    
+
     @staticmethod
     def skip_to_sync_token(parser, sync_tokens: Set[TokenType]) -> bool:
         """Skip tokens until reaching a synchronization point.
@@ -170,9 +171,9 @@ class ErrorRecoveryStrategy:
         """
         while not parser.at_end() and not parser.match_any(sync_tokens):
             parser.advance()
-        
+
         return not parser.at_end()
-    
+
     @staticmethod
     def skip_to_statement_end(parser) -> bool:
         """Skip to the end of current statement.
@@ -187,7 +188,7 @@ class ErrorRecoveryStrategy:
         return ErrorRecoveryStrategy.skip_to_sync_token(
             parser, recovery_points.STATEMENT_END
         )
-    
+
     @staticmethod
     def skip_to_block_end(parser) -> bool:
         """Skip to the end of current block.
@@ -202,7 +203,7 @@ class ErrorRecoveryStrategy:
         return ErrorRecoveryStrategy.skip_to_sync_token(
             parser, recovery_points.BLOCK_END
         )
-    
+
     @staticmethod
     def find_next_statement(parser) -> bool:
         """Find the start of the next statement.
@@ -221,7 +222,7 @@ class ErrorRecoveryStrategy:
 
 class MultiErrorParseResult:
     """Result of parsing with error collection."""
-    
+
     def __init__(self, ast=None, errors: List[ParseError] = None):
         """Initialize parse result.
         
@@ -237,18 +238,18 @@ class MultiErrorParseResult:
     def has_errors(self) -> bool:
         """Check if parsing had errors."""
         return bool(self.errors)
-    
+
     def get_error_count(self) -> int:
         """Get number of parse errors."""
         return len(self.errors)
-    
+
     def format_errors(self) -> str:
         """Format all errors for display."""
         if not self.errors:
             return "No errors."
-        
+
         lines = []
         for i, error in enumerate(self.errors, 1):
             lines.append(f"Error {i}: {error.message}")
-        
+
         return "\n".join(lines)
