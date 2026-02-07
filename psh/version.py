@@ -2,10 +2,25 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.118.0"
+__version__ = "0.119.0"
 
 # Version history
 VERSION_HISTORY = """
+0.119.0 (2026-02-07) - Medium-Value Improvements: Parser Fixes, Dead Code Removal, AST Migration
+- Fixed parameter expansion parsing for /#, /%, and : (substring) operators in WordBuilder:
+  uses earliest-position matching instead of naive first-occurrence search, adds /#/%/: to
+  operator list, skips operators after array subscript ] to preserve array slicing
+- Removed expand_parameter_direct() var_name.endswith('/') workaround for /#/% operators
+- Removed ExpansionEvaluator._evaluate_parameter_via_string() fallback for ambiguous AST
+- Removed dead StateHandlers mixin (597 lines): legacy state-machine code from before
+  ModularLexer rewrite, zero active callers
+- Migrated execution-path arg_types consumers to Word AST inspection:
+  - ExpansionManager: process substitution detection via Word parts
+  - ProcessSubstitutionHandler: detection via Word parts instead of arg_types indexing
+  - CommandExecutor: assignment extraction via _is_assignment_candidate() Word inspection
+- Added 9 parser unit tests for /#, /%, :, //, /, #, %, :- operator disambiguation
+- All 2932+ tests passing with zero regressions
+
 0.118.0 (2026-02-07) - Architectural Cleanup: Remove CompositeTokenProcessor, Direct Parameter Expansion
 - Removed CompositeTokenProcessor (198 lines): with Word AST and adjacent_to_previous token
   tracking, the pre-merge processor was redundant — the parser handles composites via
