@@ -296,13 +296,13 @@ ASTNode
 @dataclass
 class SimpleCommand(Command):
     args: List[str]                          # Argument values
-    arg_types: List[str]                     # Token type names (WORD, STRING, etc.)
-    quote_types: List[Optional[str]]         # Quote character used per arg
-    redirects: List[Redirect]                # I/O redirections
+    redirects: List[Redirect]               # I/O redirections
     background: bool                         # Terminated with &
     array_assignments: List[ArrayAssignment] # Assignments before command
-    words: Optional[List[Word]]              # Word AST nodes (optional)
+    words: List[Word]                        # Word AST nodes (always present)
 ```
+
+Word AST nodes carry per-part quote context (`LiteralPart.quoted`, `ExpansionPart.quote_char`) and provide semantic helper properties: `is_quoted`, `is_unquoted_literal`, `is_variable_expansion`, `has_expansion_parts`, `has_unquoted_expansion`, `effective_quote_char`.
 
 **Unified control structures** implement both `Statement` and `CompoundCommand` with an `ExecutionContext` enum (`STATEMENT` or `PIPELINE`), allowing them to appear in pipelines (e.g., `while read line; do ...; done | sort`).
 
@@ -326,7 +326,7 @@ Recovery uses **panic mode**: skip tokens until reaching a synchronization point
 - **Feature toggles**: `enable_arithmetic`, `enable_arrays`, `allow_bash_conditionals`, `enable_process_substitution`
 - **Error handling**: `collect_errors`, `enable_error_recovery`
 - **Debugging**: `trace_parsing`, `profile_parsing`
-- **AST options**: `build_word_ast_nodes` (creates detailed `Word` nodes)
+- **AST options**: Word AST nodes are always built (per-part quote context)
 
 ---
 
@@ -363,14 +363,13 @@ class ExpansionManager:
         self.word_splitter = WordSplitter()
 ```
 
-**Primary entry point**: `expand_arguments(command: SimpleCommand) -> List[str]` (`manager.py:41`) handles both legacy string-based expansion and modern Word AST-based expansion. It:
+**Primary entry point**: `expand_arguments(command: SimpleCommand) -> List[str]` (`manager.py:41`) uses Word AST-based expansion. It:
 
 1. Detects and sets up process substitutions via `IOManager`
-2. Routes each argument through the appropriate expansion chain based on `arg_types` and `quote_types`
+2. Expands each Word AST node using per-part quote context (`_expand_word()`)
 3. Handles special cases like `"$@"` and `"${arr[@]}"` producing multiple arguments
-4. Applies word splitting to unquoted results
-5. Applies pathname (glob) expansion
-6. Cleans up NULL markers used to protect escaped glob characters
+4. Applies word splitting to unquoted expansion results
+5. Applies pathname (glob) expansion to unquoted results
 
 ### 3.3 Variable Expansion
 
@@ -440,19 +439,6 @@ class ExpansionManager:
 | `"double"` | Yes | Yes | No | No |
 | `'single'` | No | No | No | No |
 | `$'ansi'` | Escape seqs | No | No | No |
-
-### 3.8 NULL Marker Pattern
-
-To prevent glob expansion of escaped characters (`\*`, `\?`, `\[`), the expansion system uses a NULL byte (`\x00`) marker:
-
-```python
-# During expansion: mark escaped glob chars
-if next_char in '*?[':
-    result.append(f'\x00{next_char}')  # Prevents glob matching
-
-# Before final output: clean markers
-clean_word = word.replace('\x00', '')
-```
 
 ---
 
@@ -674,9 +660,11 @@ The `STRING` token preserves the double-quoted content with the `$USER` variable
 
 ```
 Pipeline
-├── SimpleCommand(args=["echo", "Hello $USER"], arg_types=["WORD", "STRING"],
-│                 quote_types=[None, '"'])
-└── SimpleCommand(args=["wc", "-w"], arg_types=["WORD", "WORD"])
+├── SimpleCommand(args=["echo", "Hello $USER"],
+│                 words=[Word([LiteralPart("echo")]),
+│                        Word([LiteralPart("Hello "), ExpansionPart("$USER")], quoted=True)])
+└── SimpleCommand(args=["wc", "-w"],
+│                 words=[Word([LiteralPart("wc")]), Word([LiteralPart("-w")])])
 ```
 
 ### Step 3: Expansion (during execution of first command)
