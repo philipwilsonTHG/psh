@@ -2,10 +2,23 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.121.0"
+__version__ = "0.122.0"
 
 # Version history
 VERSION_HISTORY = """
+0.122.0 (2026-02-07) - Formalize Shell-vs-Leaf Signal Policy in ProcessLauncher
+- Added is_shell_process field to ProcessConfig dataclass (default False)
+- Shell processes (subshells, brace groups) keep SIGTTOU=SIG_IGN after
+  reset_child_signals() so they can call tcsetpgrp() without being stopped
+- Leaf processes (external commands) keep SIGTTOU=SIG_DFL (unchanged behavior)
+- Removed manual SIGTTOU override from subshell.py execute_fn closure
+- Set is_shell_process=True on all three SubshellExecutor launch sites
+  (foreground subshell, background subshell, background brace group)
+- Updated process_sub.py comment to reference centralized policy pattern
+- Updated executor CLAUDE.md signal handling documentation
+- Updated architecture-comments.md opportunity #6 (partially addressed)
+- All tests passing with zero regressions
+
 0.121.0 (2026-02-07) - Remove \\x00 Null Byte Markers
 - Removed all \\x00 null byte marker producers and consumers (vestigial after Word AST migration)
 - lexer/pure_helpers.py: Escaped dollar returns literal '$' instead of '\\x00$'

@@ -37,6 +37,8 @@ class ProcessConfig:
         sync_pipe_r: Read end of sync pipe (pipeline synchronization)
         sync_pipe_w: Write end of sync pipe (pipeline synchronization)
         io_setup: Optional callback for I/O redirection setup
+        is_shell_process: If True, keep SIGTTOU=SIG_IGN after signal reset
+            (for subshells/brace groups that may call tcsetpgrp())
     """
     role: ProcessRole
     pgid: Optional[int] = None
@@ -44,6 +46,7 @@ class ProcessConfig:
     sync_pipe_r: Optional[int] = None
     sync_pipe_w: Optional[int] = None
     io_setup: Optional[Callable] = None
+    is_shell_process: bool = False
 
 
 class ProcessLauncher:
@@ -213,8 +216,12 @@ class ProcessLauncher:
             # Reset other signals to default (H3: centralized method)
             self.signal_manager.reset_child_signals()
 
-            # For foreground jobs in final position, restore SIGTTOU to default
-            # This will be set appropriately by the caller if needed
+            # Shell processes (subshells, brace groups) act as mini-shells that
+            # may call tcsetpgrp() for job control. They must keep SIGTTOU ignored
+            # to avoid being stopped. Leaf processes (external commands) keep
+            # SIG_DFL from reset_child_signals(), which is the correct default.
+            if config.is_shell_process:
+                signal.signal(signal.SIGTTOU, signal.SIG_IGN)
 
             # 3. Set up I/O redirections if provided
             if config.io_setup:

@@ -153,14 +153,6 @@ class SubshellExecutor:
         def execute_fn():
             # Import Shell here to avoid circular import
             from ..shell import Shell
-            import signal as _signal
-
-            # The subshell acts as a mini-shell that manages pipelines and
-            # may need to call tcsetpgrp(). Like the parent shell, it must
-            # ignore SIGTTOU to avoid being stopped when it does so.
-            # (reset_child_signals() set SIGTTOU to SIG_DFL, which is correct
-            # for leaf processes like echo/grep, but not for shell processes.)
-            _signal.signal(_signal.SIGTTOU, _signal.SIG_IGN)
 
             # Mark that we're in a forked child BEFORE creating the Shell
             # This prevents the child from trying to set up job control/signals
@@ -210,7 +202,8 @@ class SubshellExecutor:
         # Configure launch
         config = ProcessConfig(
             role=ProcessRole.SINGLE,
-            foreground=True
+            foreground=True,
+            is_shell_process=True
         )
 
         pid, pgid = self.launcher.launch(execute_fn, config)
@@ -277,7 +270,8 @@ class SubshellExecutor:
         # Configure launch
         config = ProcessConfig(
             role=ProcessRole.SINGLE,
-            foreground=False
+            foreground=False,
+            is_shell_process=True
         )
 
         pid, pgid = self.launcher.launch(execute_fn, config)
@@ -319,7 +313,8 @@ class SubshellExecutor:
         # Configure launch
         config = ProcessConfig(
             role=ProcessRole.SINGLE,
-            foreground=False
+            foreground=False,
+            is_shell_process=True
         )
 
         pid, pgid = self.launcher.launch(execute_fn, config)

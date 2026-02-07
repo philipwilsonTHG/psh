@@ -104,9 +104,10 @@ class ProcessSubstitutionHandler:
         pid = os.fork()
         if pid == 0:  # Child
             import signal
-            # The process substitution child acts as a mini-shell that may
-            # manage pipelines and call tcsetpgrp(). Like any shell process,
-            # it must ignore SIGTTOU to avoid being stopped.
+            # Shell processes must ignore SIGTTOU to avoid being stopped when
+            # calling tcsetpgrp(). This is the same policy as ProcessConfig's
+            # is_shell_process=True, applied here because process substitution
+            # uses raw os.fork() rather than ProcessLauncher.
             signal.signal(signal.SIGTTOU, signal.SIG_IGN)
 
             # Close parent's end of pipe

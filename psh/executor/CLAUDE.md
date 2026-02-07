@@ -183,16 +183,23 @@ class ProcessConfig:
 
 ### Signal Handling
 
-Child processes reset signal handlers:
+Child processes reset signal handlers via `reset_child_signals()`.
+The `is_shell_process` flag on `ProcessConfig` controls SIGTTOU disposition:
+
+- **Shell processes** (`is_shell_process=True`): Keep SIGTTOU=SIG_IGN so they
+  can call `tcsetpgrp()` for job control (subshells, brace groups).
+- **Leaf processes** (`is_shell_process=False`, default): SIGTTOU=SIG_DFL,
+  appropriate for external commands that don't manage terminal control.
+
 ```python
-# In process_launcher.py
-def _child_setup_and_exec(self):
-    signal.signal(signal.SIGINT, signal.SIG_DFL)
-    signal.signal(signal.SIGQUIT, signal.SIG_DFL)
-    signal.signal(signal.SIGTSTP, signal.SIG_DFL)
-    signal.signal(signal.SIGTTIN, signal.SIG_DFL)
-    signal.signal(signal.SIGTTOU, signal.SIG_DFL)
+# In process_launcher.py _child_setup_and_exec():
+self.signal_manager.reset_child_signals()  # Sets all signals to SIG_DFL
+if config.is_shell_process:
+    signal.signal(signal.SIGTTOU, signal.SIG_IGN)  # Restore for shell processes
 ```
+
+Note: `process_sub.py` applies the same SIGTTOU policy manually since it
+uses raw `os.fork()` rather than `ProcessLauncher`.
 
 ### Process Group Management
 

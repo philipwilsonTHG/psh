@@ -243,8 +243,7 @@ class CommandExecutor:
 
         An argument is an assignment candidate if its Word AST contains
         only LiteralPart and ExpansionPart nodes (no process substitution
-        or other special tokens). Falls back to arg_types when Word AST
-        is unavailable.
+        or other special tokens).
         """
         from ..ast_nodes import LiteralPart, ExpansionPart
         if node.words and index < len(node.words):
