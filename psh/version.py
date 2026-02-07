@@ -2,10 +2,24 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.120.0"
+__version__ = "0.121.0"
 
 # Version history
 VERSION_HISTORY = """
+0.121.0 (2026-02-07) - Remove \\x00 Null Byte Markers
+- Removed all \\x00 null byte marker producers and consumers (vestigial after Word AST migration)
+- lexer/pure_helpers.py: Escaped dollar returns literal '$' instead of '\\x00$'
+- lexer/helpers.py: Same change in mixin version
+- shell.py: Simplified _process_escape_sequences() to inline backslash removal
+- expansion/variable.py: Removed \\x00 guards on $ and backtick in expand_string_variables()
+- expansion/extglob.py: Removed 4 \\x00 skip blocks and updated docstring
+- Deleted 2 tests for removed \\x00 behavior (test_null_marked, test_null_markers_become_literal)
+- Updated expansion/CLAUDE.md: removed NULL Marker Pattern section and pitfall note
+- Updated architecture-comments.md: marked \\x00 risk as resolved, opportunity #3 as done
+- Updated architecture-comments-analysis.md: moved \\x00 section to resolved
+- No \\x00 references remain in active source code
+- All 2930+ tests passing with zero regressions
+
 0.120.0 (2026-02-07) - Complete arg_types Migration to Word AST
 - Removed arg_types and quote_types fields from SimpleCommand dataclass
 - Changed words field from Optional[List[Word]] to List[Word] (always present)

@@ -1,6 +1,6 @@
 # Analysis of Architecture Comments
 
-*Original analysis written pre-v0.115.0. Updated 2026-02-07 after v0.120.0 — arg_types migration complete.*
+*Original analysis written pre-v0.115.0. Updated 2026-02-07 after v0.121.0 — `\x00` null byte markers removed.*
 
 ## What Was Accomplished (v0.114.0 – v0.119.0)
 
@@ -17,6 +17,7 @@ The architecture comments identified risks and opportunities. All opportunities 
 | Fix parser AST for /#, /%, : operators | **Done** | v0.119.0 |
 | Migrate execution-path arg_types consumers | **Done** | v0.119.0 |
 | Complete arg_types removal (all consumers + fields) | **Done** | v0.120.0 |
+| Remove `\x00` null byte markers | **Done** | v0.121.0 |
 
 | Risk | Status | Notes |
 |------|--------|-------|
@@ -28,6 +29,7 @@ The architecture comments identified risks and opportunities. All opportunities 
 | Composite processor redundancy | **Resolved** | `CompositeTokenProcessor` deleted |
 | Parser AST for /#, /%, : operators | **Resolved** | Earliest-position matching; workarounds removed |
 | arg_types in execution path | **Resolved** | All consumers migrated; fields removed from SimpleCommand in v0.120.0 |
+| `\x00` null byte markers | **Resolved** | All producers and consumers removed in v0.121.0 |
 
 ## The `\x00` Marker Pattern — Largely Eliminated
 
@@ -42,12 +44,7 @@ The original analysis documented `\x00` as an in-band signaling system with 6 in
 | Escaped glob chars | **Removed** — `_process_unquoted_escapes()` handles structurally |
 | Expansion result glob chars | **Removed** — `_expand_word()` tracks `has_unquoted_glob` per part |
 
-**Remaining `\x00` usage** (11 references in 4 files):
-- `lexer/helpers.py`, `lexer/pure_helpers.py` — escaped `$` marking for `expand_string_variables()`
-- `expansion/variable.py` — consumption of escaped `$` markers
-- `expansion/extglob.py` — literal character handling in glob patterns
-
-These are all in non-argument contexts (heredocs, here strings, extglob) and are well-contained. They could be addressed in a future phase but are low risk.
+**All `\x00` usage removed in v0.121.0.** The remaining 11 references were vestigial — the markers were never actually produced in heredoc, here string, or extglob contexts after the Word AST migration. All producers (2) and consumers (7) plus 2 related tests have been deleted.
 
 ## The Migration Strategy — What Actually Happened
 
@@ -106,8 +103,10 @@ The actual migration also required fixes not anticipated in the original plan:
 ### Completed in v0.120.0
 - ~~**Migrate remaining `arg_types` consumers and remove fields**~~ — All consumers migrated to Word helper properties. `arg_types`/`quote_types` fields removed from `SimpleCommand`. `words` changed from `Optional[List[Word]]` to `List[Word]`. `_word_to_arg_type()` bridge deleted. ~140 lines of infrastructure removed.
 
+### Completed in v0.121.0
+- ~~**Remove `\x00` null byte markers**~~ — All producers and consumers removed. The markers were vestigial after the Word AST migration — never actually produced in heredoc, here string, or extglob contexts.
+
 ### Lower priority
-- **Extend Word AST to heredocs/here strings** — Replace the remaining `\x00` markers in `expand_string_variables()` with structural context. This is well-contained and low risk as-is.
 - **Process substitution fd management** — Address the `SIGTTOU` / pytest `-s` fragility in child process file descriptor inheritance. Unrelated to expansion but the most significant remaining infrastructure concern.
 
 ## Conclusion
@@ -115,8 +114,8 @@ The actual migration also required fixes not anticipated in the original plan:
 The architecture comments from the original review were accurate and well-prioritized. All identified opportunities have been realized, and all review findings are resolved. The codebase is in substantially better shape than when the review was conducted:
 
 - All review findings resolved
-- ~1,400 lines of workaround/redundant/dead code deleted (450 in v0.117, 200 in v0.118, 600 in v0.119, 140 in v0.120)
-- `\x00` markers eliminated from the argument pipeline
+- ~1,440 lines of workaround/redundant/dead code deleted (450 in v0.117, 200 in v0.118, 600 in v0.119, 140 in v0.120, 40 in v0.121)
+- `\x00` markers fully eliminated from all source code
 - Single expansion path via Word AST
 - Parameter expansion evaluation is direct (no string round-trip)
 - CompositeTokenProcessor removed
@@ -125,4 +124,4 @@ The architecture comments from the original review were accurate and well-priori
 - `arg_types`/`quote_types` fields fully removed from `SimpleCommand` — Word AST with helper properties is the sole argument metadata representation
 - 2,960+ tests passing with zero regressions
 
-The remaining work (extending Word AST to heredocs, process substitution fd management) is incremental improvement rather than architectural remediation. The `arg_types` migration that was the most recent outstanding item is now fully complete.
+The only remaining infrastructure concern is process substitution fd management (`SIGTTOU` / pytest `-s` fragility). All expansion-related technical debt has been resolved.

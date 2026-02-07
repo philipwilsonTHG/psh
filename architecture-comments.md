@@ -1,6 +1,6 @@
 # Architecture and Codebase Comments
 
-*Updated 2026-02-07 after v0.120.0 — arg_types migration complete.*
+*Updated 2026-02-07 after v0.121.0 — `\x00` null byte markers removed.*
 
 ## Strengths
 
@@ -17,11 +17,7 @@
 
 - ~~**Two lexer architectures coexist.**~~ **Resolved in v0.119.0.** `StateHandlers` (597 lines) deleted. `ModularLexer` with recognizers is the sole tokenization engine.
 
-- **`\x00` markers remain in non-argument contexts.** While removed from the argument expansion pipeline, `\x00` is still used in:
-  - `expand_string_variables()` (heredocs, here strings, control flow) — 2 insertion points in `lexer/helpers.py` and `lexer/pure_helpers.py`, 2 consumption points in `variable.py`
-  - `extglob.py` — 5 references for literal character handling in glob patterns
-
-  These are lower risk since they're in well-contained subsystems, but the pattern should eventually be replaced with structural representations in those contexts too.
+- ~~**`\x00` markers remain in non-argument contexts.**~~ **Resolved in v0.121.0.** All `\x00` null byte markers removed — producers in `lexer/helpers.py` and `lexer/pure_helpers.py`, consumers in `variable.py` and `extglob.py`. The markers were vestigial after the Word AST migration.
 
 - ~~**Parser AST representation of some parameter expansions is lossy.**~~ **Resolved in v0.119.0.** `_parse_parameter_expansion()` now uses earliest-position matching with `/#`, `/%`, and `:` operators in the operator list. The workarounds in `expand_parameter_direct()` and the string-based fallback `_evaluate_parameter_via_string()` have been removed.
 
@@ -33,7 +29,7 @@
 
 2. ~~**Direct parameter expansion evaluation.**~~ **Done in v0.118.0.** `ExpansionEvaluator` now calls `VariableExpander.expand_parameter_direct()` with pre-parsed (operator, var_name, operand) components. The string round-trip through `parse_expansion()` is eliminated for all common operators.
 
-3. **Extend Word AST to `expand_string_variables()`.** The remaining `\x00` markers in heredocs and here strings could be eliminated by threading Word-like structural context through `expand_string_variables()`. This is lower priority since these are well-contained contexts.
+3. ~~**Extend Word AST to `expand_string_variables()`.**~~ **Done in v0.121.0.** The `\x00` markers in heredocs, here strings, and extglob were vestigial (never actually produced in those contexts) and have been removed. `expand_string_variables()` handles `\$` correctly without markers.
 
 4. ~~**Remove the composite processor.**~~ **Done in v0.118.0.** `CompositeTokenProcessor` deleted; `use_composite_processor` parameter removed from Parser.
 

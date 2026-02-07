@@ -88,13 +88,6 @@ class ExpansionEvaluator:
         # ArithmeticExpansion → execute_arithmetic_expansion("$((expr))")
 ```
 
-### 4. NULL Marker Pattern (expand_string_variables only)
-
-The `\x00` marker pattern is used **only** in `expand_string_variables()`
-(heredocs, here strings, control flow contexts) — NOT in the argument
-expansion pipeline. The Word AST path uses structural quote information
-instead of markers.
-
 ## Expansion Order (POSIX)
 
 The `expand_arguments()` method processes expansions in this order:
@@ -244,11 +237,9 @@ python -m psh --debug-expansion-detail -c 'echo "${arr[@]}"'
 
 5. **Nested Expansions**: Command substitution can contain variable expansions: `$(echo $HOME)`
 
-6. **NULL Markers**: `\x00` markers are only used in `expand_string_variables()` (heredocs, etc.), NOT in the argument expansion pipeline. The Word AST path uses structural quote info.
+6. **IFS Edge Cases**: Empty IFS means no word splitting; unset IFS uses default `" \t\n"`.
 
-7. **IFS Edge Cases**: Empty IFS means no word splitting; unset IFS uses default `" \t\n"`.
-
-8. **Assignment Word Splitting**: Words containing `VAR=value` suppress word splitting even with unquoted expansions (POSIX behavior).
+7. **Assignment Word Splitting**: Words containing `VAR=value` suppress word splitting even with unquoted expansions (POSIX behavior).
 
 ## Debug Options
 
