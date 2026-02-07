@@ -100,10 +100,21 @@ class DebugASTVisitor(ASTVisitor[str]):
             result += self._visit_children(node.array_assignments)
             self.level -= 1
         
-        # Show argument types if present
-        if node.arg_types:
+        # Show Word structure if present
+        if node.words:
             self.level += 1
-            result += f"{self._indent()}Arg Types: {node.arg_types}\n"
+            word_descs = []
+            for w in node.words:
+                if w.is_quoted:
+                    qc = w.effective_quote_char or '?'
+                    word_descs.append(f'quoted({qc})')
+                elif w.is_variable_expansion:
+                    word_descs.append('expansion')
+                elif w.has_expansion_parts:
+                    word_descs.append('composite')
+                else:
+                    word_descs.append('literal')
+            result += f"{self._indent()}Words: [{", ".join(word_descs)}]\n"
             self.level -= 1
         
         # Show redirections

@@ -70,8 +70,6 @@ class ExpansionManager:
             self.shell._process_sub_fds = fds
             self.shell._process_sub_pids = child_pids
             command.args = substituted_args
-            command.arg_types = ['WORD'] * len(substituted_args)
-            command.quote_types = [None] * len(substituted_args)
             command.words = [Word.from_string(a) for a in substituted_args]
 
         for word in command.words:

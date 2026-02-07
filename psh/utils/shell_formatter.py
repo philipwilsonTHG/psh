@@ -61,11 +61,12 @@ class ShellFormatter:
         elif isinstance(node, SimpleCommand):
             # Format simple command with arguments, preserving quotes
             parts = []
+            words = node.words if node.words else []
             for i, arg in enumerate(node.args):
+                word = words[i] if i < len(words) else None
                 # Check if we need to add quotes back
-                if hasattr(node, 'quote_types') and i < len(node.quote_types) and node.quote_types[i]:
-                    # Add back the original quotes
-                    quote_char = node.quote_types[i]
+                if word and word.effective_quote_char:
+                    quote_char = word.effective_quote_char
                     parts.append(f"{quote_char}{arg}{quote_char}")
                 else:
                     # Check if arg needs quoting (contains spaces or special chars)

@@ -208,47 +208,43 @@ class AsciiTreeRenderer:
     def _get_simple_command_fields(self, node) -> List[Tuple[str, Any]]:
         """Get fields for SimpleCommand with compact argument representation."""
         fields = []
-        
-        # Create compact argument representation
+
+        # Create compact argument representation using Word AST
         args = getattr(node, 'args', [])
-        arg_types = getattr(node, 'arg_types', [])
-        quote_types = getattr(node, 'quote_types', [])
-        
+        words = getattr(node, 'words', None) or []
+
         if args:
-            # Create compact argument strings showing arg (type, quote)
             compact_args = []
             for i, arg in enumerate(args):
-                arg_type = arg_types[i] if i < len(arg_types) else 'WORD'
-                quote_type = quote_types[i] if i < len(quote_types) else None
-                
-                if quote_type:
-                    compact_args.append(f'"{arg}" ({arg_type}, {quote_type})')
+                word = words[i] if i < len(words) else None
+                if word and word.is_quoted:
+                    qc = word.effective_quote_char or '?'
+                    compact_args.append(f'"{arg}" (quoted, {qc})')
+                elif word and word.has_expansion_parts:
+                    compact_args.append(f'{arg} (expansion)')
                 else:
-                    compact_args.append(f'{arg} ({arg_type})')
-            
-            # Add as a single "arguments" field
+                    compact_args.append(f'{arg} (literal)')
+
             fields.append(('arguments', compact_args))
-        
-        # Add other fields (but skip the original args, arg_types, quote_types)
-        skip_fields = {'args', 'arg_types', 'quote_types'}
+
+        # Add other fields (skip raw args/words and removed fields)
+        skip_fields = {'args', 'arg_types', 'quote_types', 'words'}
         for attr_name in dir(node):
-            if (not attr_name.startswith('_') and 
+            if (not attr_name.startswith('_') and
                 not callable(getattr(node, attr_name)) and
                 attr_name not in ['position', 'line', 'column'] and
                 attr_name not in skip_fields):
                 try:
                     value = getattr(node, attr_name)
                     if value is not None or self.show_empty_fields:
-                        # Skip empty lists unless show_empty_fields is True
                         if isinstance(value, list) and not value and not self.show_empty_fields:
                             continue
-                        # Skip false boolean values to reduce noise
                         if isinstance(value, bool) and value is False:
                             continue
                         fields.append((attr_name, value))
                 except:
                     continue
-        
+
         return fields
     
     def _render_node(self, node: ASTNode, prefix: str, is_last: bool) -> str:

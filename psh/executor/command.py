@@ -112,8 +112,6 @@ class CommandExecutor:
                     words_slice = node.words[command_start_index:]
                 command_node = SimpleCommand(
                     args=node.args[command_start_index:],
-                    arg_types=node.arg_types[command_start_index:] if command_start_index < len(node.arg_types) else [],
-                    quote_types=node.quote_types[command_start_index:] if command_start_index < len(node.quote_types) else [],
                     redirects=node.redirects,
                     background=node.background,
                     words=words_slice,
@@ -144,8 +142,6 @@ class CommandExecutor:
                             modified_words = [new_word] + list(command_node.words[1:])
                     command_node = SimpleCommand(
                         args=modified_args,
-                        arg_types=command_node.arg_types,
-                        quote_types=command_node.quote_types,
                         redirects=command_node.redirects,
                         background=command_node.background,
                         words=modified_words,
@@ -262,9 +258,7 @@ class CommandExecutor:
                         (part.text.startswith('<(') or part.text.startswith('>('))):
                     return False
             return True
-        # Fallback to arg_types for backward compatibility
-        if index < len(node.arg_types):
-            return node.arg_types[index] in ('WORD', 'COMPOSITE', 'COMPOSITE_QUOTED')
+        # No Word AST available — assume it's a candidate
         return True
 
     def _extract_assignments(self, args: List[str]) -> List[Tuple[str, str]]:

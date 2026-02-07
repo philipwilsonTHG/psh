@@ -123,29 +123,25 @@ class SExpressionRenderer:
     def _get_simple_command_fields(self, node) -> List[tuple]:
         """Get fields for SimpleCommand with compact argument representation."""
         fields = []
-        
-        # Create compact argument representation
+
+        # Show arguments simply
         args = getattr(node, 'args', [])
-        arg_types = getattr(node, 'arg_types', [])
-        quote_types = getattr(node, 'quote_types', [])
-        
         if args:
-            # For S-expressions, just show the arguments simply
             fields.append(('arguments', args))
-        
+
         # Add other significant fields
         redirects = getattr(node, 'redirects', [])
         if redirects:
             fields.append(('redirects', redirects))
-        
+
         background = getattr(node, 'background', False)
         if background:
             fields.append(('background', background))
-        
+
         array_assignments = getattr(node, 'array_assignments', [])
         if array_assignments:
             fields.append(('array_assignments', array_assignments))
-        
+
         return fields
     
     def _get_statement_list_fields(self, node) -> List[tuple]:

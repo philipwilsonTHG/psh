@@ -89,15 +89,12 @@ class FormatterVisitor(ASTVisitor[str]):
             parts.append(self.visit(assignment))
         
         # Command and arguments
-        for i, (arg, arg_type) in enumerate(zip(node.args, node.arg_types)):
-            if arg_type == 'STRING':
-                # Determine quote type
-                quote = node.quote_types[i] if i < len(node.quote_types) else '"'
-                if quote is None:
-                    quote = '"'
+        words = node.words if node.words else []
+        for i, arg in enumerate(node.args):
+            word = words[i] if i < len(words) else None
+            if word and word.is_quoted:
+                quote = word.effective_quote_char or '"'
                 parts.append(f'{quote}{arg}{quote}')
-            elif arg_type == 'VARIABLE':
-                parts.append(arg)  # Already includes $
             else:
                 parts.append(arg)
         
