@@ -16,7 +16,7 @@ def test_word_ast_creation(captured_shell):
     
     # Parse with Word AST enabled
     tokens = tokenize('echo hello $USER world')
-    config = ParserConfig(build_word_ast_nodes=True)
+    config = ParserConfig()
     parser = Parser(tokens, config=config)
     ast = parser.parse()
     
@@ -157,3 +157,32 @@ def test_word_ast_arithmetic_expansion(captured_shell):
     result = shell.run_command('echo "$X - $Y = $((X - Y))"')
     assert result == 0
     assert captured_shell.get_stdout() == '10 - 5 = 5\n'
+
+
+def test_word_ast_double_quoted_expansion(captured_shell):
+    """Test that double-quoted strings with variables expand correctly via Word AST."""
+    shell = captured_shell
+
+    shell.state.set_variable('GREETING', 'world')
+    result = shell.run_command('echo "hello $GREETING!"')
+    assert result == 0
+    assert captured_shell.get_stdout() == 'hello world!\n'
+
+
+def test_word_ast_composite_quoted_variable(captured_shell):
+    """Test composite with quoted variable: foo"$var"bar."""
+    shell = captured_shell
+
+    shell.state.set_variable('MID', 'X')
+    result = shell.run_command('echo foo"$MID"bar')
+    assert result == 0
+    assert captured_shell.get_stdout() == 'fooXbar\n'
+
+
+def test_word_ast_escaped_dollar_in_double_quotes(captured_shell):
+    """Test that \\$ in double quotes produces literal $."""
+    shell = captured_shell
+
+    result = shell.run_command('echo "price is \\$5"')
+    assert result == 0
+    assert captured_shell.get_stdout() == 'price is $5\n'

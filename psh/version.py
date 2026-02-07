@@ -2,10 +2,40 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.115.0"
+__version__ = "0.117.0"
 
 # Version history
 VERSION_HISTORY = """
+0.117.0 (2026-02-07) - Complete Word AST Migration, Remove Legacy String Expansion Path
+- Word AST is now the only argument expansion path (build_word_ast_nodes config removed)
+- Deleted ~450 lines of legacy string-based expansion code:
+  _expand_string_arguments(), _process_single_word(), process_escape_sequences(),
+  _contains_at_expansion(), _expand_at_in_string(), _protect_glob_chars(),
+  _mark_quoted_globs(), _brace_protect_trailing_var(), _expand_assignment_value(),
+  and verify-word-ast parallel verification code
+- Added _process_unquoted_escapes() for backslash handling in unquoted literals
+- Added process substitution, ANSI-C quote ($'), and extglob pattern handling
+- Fixed alias backslash bypass, word splitting, $$, parameter expansion operators,
+  ${#arr[@]} length, nounset propagation, and assignment word splitting
+- All 2932 tests pass with zero regressions
+
+0.116.0 (2026-02-07) - Word AST STRING Decomposition and Expansion Path Hardening
+- WordBuilder now decomposes double-quoted STRING tokens with RichToken.parts into
+  proper ExpansionPart/LiteralPart AST nodes (was single opaque LiteralPart)
+- Added _token_part_to_word_part() and _parse_token_part_expansion() for converting
+  lexer TokenPart metadata to Word AST nodes
+- Removed expand_string_variables() fallback in _expand_word() and
+  _expand_double_quoted_word() — double-quoted expansions now use structural AST
+- CommandExecutor now preserves Word AST (command.words) when creating sub-nodes
+  for assignment stripping and backslash bypass
+- Added _word_to_arg_type() to derive backward-compatible arg_types from Word AST
+- Added _expand_assignment_word() for Word-AST-aware assignment value expansion
+- Added _process_dquote_escapes() for backslash processing in double-quoted literals
+- ExpansionEvaluator now properly re-raises ExpansionError (e.g., ${var:?msg})
+- ExpansionEvaluator wraps array subscripts (arr[0]) in ${...} form
+- Parser adds EXCLAMATION tokens to words list for test command compatibility
+- build_word_ast_nodes remains False by default; 149 golden tests pass with it on
+
 0.115.0 (2026-02-06) - Architectural Improvements: Word AST, Token Adjacency, Expansion Consolidation
 - Added golden behavioral test suite (149 parametrized tests) as safety net for pipeline changes
 - Added first-class token adjacency tracking (adjacent_to_previous field on Token)

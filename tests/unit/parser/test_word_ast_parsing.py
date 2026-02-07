@@ -24,11 +24,11 @@ class TestRecursiveDescentWordAST:
         cmd = ast.statements[0].pipelines[0].commands[0]
         assert isinstance(cmd, SimpleCommand)
         assert cmd.args == ["echo", "$USER"]
-        assert cmd.words is None  # No Word nodes by default
+        assert cmd.words is not None  # Word AST is enabled by default
     
     def test_simple_literal_word(self):
         """Test Word AST for simple literal arguments."""
-        config = ParserConfig(build_word_ast_nodes=True)
+        config = ParserConfig()
         parser = RecursiveDescentAdapter()
         parser.config = config
         
@@ -50,7 +50,7 @@ class TestRecursiveDescentWordAST:
     
     def test_variable_expansion_word(self):
         """Test Word AST for variable expansion."""
-        config = ParserConfig(build_word_ast_nodes=True)
+        config = ParserConfig()
         parser = RecursiveDescentAdapter()
         parser.config = config
         
@@ -82,7 +82,7 @@ class TestRecursiveDescentWordAST:
     
     def test_command_substitution_word(self):
         """Test Word AST for command substitution."""
-        config = ParserConfig(build_word_ast_nodes=True)
+        config = ParserConfig()
         parser = RecursiveDescentAdapter()
         parser.config = config
         
@@ -112,7 +112,7 @@ class TestRecursiveDescentWordAST:
     
     def test_parameter_expansion_word(self):
         """Test Word AST for parameter expansion."""
-        config = ParserConfig(build_word_ast_nodes=True)
+        config = ParserConfig()
         parser = RecursiveDescentAdapter()
         parser.config = config
         
@@ -144,7 +144,7 @@ class TestRecursiveDescentWordAST:
     
     def test_quoted_word(self):
         """Test Word AST for quoted strings."""
-        config = ParserConfig(build_word_ast_nodes=True)
+        config = ParserConfig()
         parser = RecursiveDescentAdapter()
         parser.config = config
         
@@ -172,7 +172,7 @@ class TestRecursiveDescentWordAST:
     
     def test_composite_word(self):
         """Test Word AST for composite words with mixed content."""
-        config = ParserConfig(build_word_ast_nodes=True)
+        config = ParserConfig()
         parser = RecursiveDescentAdapter()
         parser.config = config
 
@@ -197,12 +197,11 @@ class TestRecursiveDescentWordAST:
     def test_composite_word_mixed_quotes(self):
         """Test Word AST for composite words with mixed quoted/unquoted parts.
 
-        Note: The lexer tokenizes "$var" as a single STRING token (with the
-        expansion inside), not as a separate VARIABLE token.  The per-part
-        quote context correctly tracks this as quoted.  Full expansion
-        parsing inside STRING tokens is tracked in a separate xfail test.
+        The lexer tokenizes "$var" as a RichToken STRING with TokenPart
+        metadata.  The WordBuilder decomposes it into an ExpansionPart
+        with the proper quote context.
         """
-        config = ParserConfig(build_word_ast_nodes=True)
+        config = ParserConfig()
         parser = RecursiveDescentAdapter()
         parser.config = config
 
@@ -212,15 +211,16 @@ class TestRecursiveDescentWordAST:
         cmd = ast.statements[0].pipelines[0].commands[0]
         assert cmd.words is not None
         word = cmd.words[1]
-        # 3 parts: foo (unquoted), $var (quoted STRING), bar (unquoted)
+        # 3 parts: foo (unquoted), $var (quoted expansion), bar (unquoted)
         assert len(word.parts) == 3
         # foo - unquoted literal
         assert isinstance(word.parts[0], LiteralPart)
         assert word.parts[0].text == "foo"
         assert not word.parts[0].quoted
-        # "$var" - quoted literal (STRING token, expansion not yet decomposed)
-        assert isinstance(word.parts[1], LiteralPart)
-        assert word.parts[1].text == "$var"
+        # "$var" - quoted expansion (decomposed from STRING token)
+        assert isinstance(word.parts[1], ExpansionPart)
+        assert isinstance(word.parts[1].expansion, VariableExpansion)
+        assert word.parts[1].expansion.name == "var"
         assert word.parts[1].quoted
         assert word.parts[1].quote_char == '"'
         # bar - unquoted literal
@@ -232,7 +232,7 @@ class TestRecursiveDescentWordAST:
 
     def test_composite_word_single_quote_part(self):
         """Test Word AST for composite with single-quoted part."""
-        config = ParserConfig(build_word_ast_nodes=True)
+        config = ParserConfig()
         parser = RecursiveDescentAdapter()
         parser.config = config
 
@@ -250,3 +250,51 @@ class TestRecursiveDescentWordAST:
         assert word.parts[1].text == "value"
         assert word.parts[1].quoted
         assert word.parts[1].quote_char == "'"
+
+    def test_double_quoted_string_decomposed_into_expansion(self):
+        """Test that "$HOME" is decomposed into ExpansionPart."""
+        config = ParserConfig()
+        parser = RecursiveDescentAdapter()
+        parser.config = config
+
+        tokens = tokenize('echo "$HOME"')
+        ast = parser.parse(tokens)
+
+        cmd = ast.statements[0].pipelines[0].commands[0]
+        assert cmd.words is not None
+        assert len(cmd.words) == 2
+
+        word = cmd.words[1]
+        # "$HOME" should be a Word with quote_type='"' containing an ExpansionPart
+        assert word.quote_type == '"'
+        assert len(word.parts) == 1
+        assert isinstance(word.parts[0], ExpansionPart)
+        assert isinstance(word.parts[0].expansion, VariableExpansion)
+        assert word.parts[0].expansion.name == "HOME"
+        assert word.parts[0].quoted
+        assert word.parts[0].quote_char == '"'
+
+    def test_double_quoted_string_with_text_and_expansion(self):
+        """Test that "hello $USER!" is decomposed into mixed parts."""
+        config = ParserConfig()
+        parser = RecursiveDescentAdapter()
+        parser.config = config
+
+        tokens = tokenize('echo "hello $USER!"')
+        ast = parser.parse(tokens)
+
+        cmd = ast.statements[0].pipelines[0].commands[0]
+        word = cmd.words[1]
+        assert word.quote_type == '"'
+        # Should have 3 parts: "hello " + $USER + "!"
+        assert len(word.parts) == 3
+        assert isinstance(word.parts[0], LiteralPart)
+        assert word.parts[0].text == "hello "
+        assert word.parts[0].quoted
+        assert isinstance(word.parts[1], ExpansionPart)
+        assert isinstance(word.parts[1].expansion, VariableExpansion)
+        assert word.parts[1].expansion.name == "USER"
+        assert word.parts[1].quoted
+        assert isinstance(word.parts[2], LiteralPart)
+        assert word.parts[2].text == "!"
+        assert word.parts[2].quoted

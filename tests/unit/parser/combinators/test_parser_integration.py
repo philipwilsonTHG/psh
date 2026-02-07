@@ -389,7 +389,6 @@ class TestParserIntegration:
         
         # Configuration options
         options = parser.get_configuration_options()
-        assert 'build_word_ast_nodes' in options
         assert 'enable_process_substitution' in options
         
         # Explanation

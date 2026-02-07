@@ -12,26 +12,43 @@ from ....ast_nodes import (
     ArithmeticExpansion, Expansion
 )
 
+# Token types that represent standalone expansion tokens
+EXPANSION_TYPES = frozenset({
+    TokenType.VARIABLE, TokenType.COMMAND_SUB,
+    TokenType.COMMAND_SUB_BACKTICK, TokenType.ARITH_EXPANSION,
+    TokenType.PARAM_EXPANSION,
+})
+
 
 class WordBuilder:
     """Builds Word AST nodes from tokens."""
-    
+
     @staticmethod
     def parse_expansion_token(token: Token) -> Expansion:
         """Parse an expansion token into an Expansion AST node."""
         token_type = token.type
         value = token.value
-        
+
         if token_type == TokenType.VARIABLE:
             # Simple variable like $USER or ${USER}
-            # Remove $ and braces if present
+            # Lexer already stripped the leading $, so value is just the name
+            # (e.g. 'USER', '$' for $$, '?' for $?, '{HOME}' for ${HOME})
             name = value
-            if name.startswith('$'):
-                name = name[1:]
             if name.startswith('{') and name.endswith('}'):
-                name = name[1:-1]
+                inner = name[1:-1]
+                # Check if this is a simple variable name or a parameter expansion
+                # with operators. Simple names: alphanumeric/underscores, or special
+                # single-char vars ($, ?, #, !, @, *, 0-9).
+                # Array subscripts (arr[@], arr[0]) are also simple.
+                import re
+                if re.match(r'^[A-Za-z_][A-Za-z0-9_]*(\[.+?\])?$', inner) or \
+                   re.match(r'^[0-9$?!@*#-]$', inner):
+                    name = inner
+                else:
+                    # Contains operators — delegate to parameter expansion parser
+                    return WordBuilder._parse_parameter_expansion(f"${{{inner}}}")
             return VariableExpansion(name)
-        
+
         elif token_type == TokenType.COMMAND_SUB:
             # Command substitution $(...)
             # Extract command from $(...)
@@ -41,7 +58,7 @@ class WordBuilder:
             else:
                 # Shouldn't happen with proper lexing
                 return CommandSubstitution(value, backtick_style=False)
-        
+
         elif token_type == TokenType.COMMAND_SUB_BACKTICK:
             # Backtick command substitution `...`
             # Extract command from `...`
@@ -50,7 +67,7 @@ class WordBuilder:
                 return CommandSubstitution(command, backtick_style=True)
             else:
                 return CommandSubstitution(value, backtick_style=True)
-        
+
         elif token_type == TokenType.ARITH_EXPANSION:
             # Arithmetic expansion $((...)
             # Extract expression from $((...))
@@ -59,15 +76,15 @@ class WordBuilder:
                 return ArithmeticExpansion(expression)
             else:
                 return ArithmeticExpansion(value)
-        
+
         elif token_type == TokenType.PARAM_EXPANSION:
             # Complex parameter expansion ${var:-default} etc.
             return WordBuilder._parse_parameter_expansion(value)
-        
+
         else:
             # Fallback - treat as variable
             return VariableExpansion(value)
-    
+
     @staticmethod
     def _parse_parameter_expansion(value: str) -> ParameterExpansion:
         """Parse a parameter expansion like ${var:-default}."""
@@ -76,11 +93,11 @@ class WordBuilder:
             inner = value[2:-1]
         else:
             inner = value
-        
+
         # Check for operators
         # Order matters: check longer operators first
         operators = [':-', ':=', ':?', ':+', '##', '#', '%%', '%', '//', '/']
-        
+
         for op in operators:
             if op in inner:
                 # Find the first occurrence of the operator
@@ -89,21 +106,105 @@ class WordBuilder:
                     parameter = inner[:idx]
                     word = inner[idx + len(op):]
                     return ParameterExpansion(parameter, op, word)
-        
+
         # Check for length operator ${#var}
         if inner.startswith('#'):
             return ParameterExpansion(inner[1:], '#', None)
-        
+
         # No operator, just a variable
         return ParameterExpansion(inner, None, None)
-    
+
+    @staticmethod
+    def _token_part_to_word_part(tp) -> WordPart:
+        """Convert a lexer TokenPart into a Word AST WordPart node.
+
+        Uses the TokenPart's expansion metadata to create either a
+        LiteralPart or ExpansionPart with proper quote context.
+        """
+        qt = tp.quote_type
+        is_quoted = qt is not None
+
+        if tp.is_expansion:
+            # A bare $ (empty variable name) is not a real expansion — keep literal
+            if getattr(tp, 'expansion_type', None) == 'variable' and tp.value == '':
+                return LiteralPart('$', quoted=is_quoted, quote_char=qt)
+            expansion = WordBuilder._parse_token_part_expansion(tp)
+            return ExpansionPart(expansion, quoted=is_quoted, quote_char=qt)
+        else:
+            return LiteralPart(tp.value, quoted=is_quoted, quote_char=qt)
+
+    @staticmethod
+    def _parse_token_part_expansion(tp) -> Expansion:
+        """Convert a TokenPart's expansion metadata into an Expansion AST node.
+
+        The TokenPart has ``expansion_type`` (variable, parameter, command,
+        arithmetic, backtick) and ``value`` with varying conventions:
+        - variable: value is just the var name (e.g. ``HOME``)
+        - parameter: value is the full ``${...}`` syntax
+        - command: value is the full ``$(...)`` syntax
+        - arithmetic: value is the full ``$((...))`` syntax
+        - backtick: value is the full `` `...` `` syntax
+        """
+        etype = tp.expansion_type
+
+        if etype == 'variable':
+            # TokenPart.value is the bare variable name (no $)
+            return VariableExpansion(tp.value)
+
+        elif etype == 'parameter':
+            # Value is the full ${...} syntax
+            return WordBuilder._parse_parameter_expansion(tp.value)
+
+        elif etype == 'command':
+            cmd = tp.value
+            if cmd.startswith('$(') and cmd.endswith(')'):
+                cmd = cmd[2:-1]
+            return CommandSubstitution(cmd, backtick_style=False)
+
+        elif etype == 'arithmetic':
+            expr = tp.value
+            if expr.startswith('$((') and expr.endswith('))'):
+                expr = expr[3:-2]
+            return ArithmeticExpansion(expr)
+
+        elif etype == 'backtick':
+            cmd = tp.value
+            if cmd.startswith('`') and cmd.endswith('`'):
+                cmd = cmd[1:-1]
+            return CommandSubstitution(cmd, backtick_style=True)
+
+        else:
+            # Unknown expansion type — treat as variable
+            return VariableExpansion(tp.value)
+
+    @staticmethod
+    def _has_decomposable_parts(token: Token) -> bool:
+        """Check if a token has TokenPart metadata suitable for decomposition.
+
+        Returns True when the token is a RichToken (or at least has a
+        non-empty ``parts`` list) whose parts contain expansion information
+        that the WordBuilder should decompose rather than treating the token
+        value as a single opaque literal.
+        """
+        parts = getattr(token, 'parts', None)
+        if not parts:
+            return False
+        # Only decompose if at least one part is an expansion
+        return any(getattr(p, 'is_expansion', False) for p in parts)
+
     @staticmethod
     def build_word_from_token(token: Token, quote_type: Optional[str] = None) -> Word:
         """Build a Word from a single token."""
         is_quoted = quote_type is not None
-        if token.type in (TokenType.VARIABLE, TokenType.COMMAND_SUB,
-                          TokenType.COMMAND_SUB_BACKTICK, TokenType.ARITH_EXPANSION,
-                          TokenType.PARAM_EXPANSION):
+
+        # Check if token has decomposable parts from the lexer (RichToken)
+        if WordBuilder._has_decomposable_parts(token) and quote_type == '"':
+            # Decompose double-quoted string using lexer's TokenPart data
+            word_parts = [WordBuilder._token_part_to_word_part(tp)
+                          for tp in token.parts]
+            return Word(parts=word_parts, quote_type='"')
+
+        if token.type in EXPANSION_TYPES:
             # This is an expansion token
             expansion = WordBuilder.parse_expansion_token(token)
             return Word(parts=[ExpansionPart(expansion, quoted=is_quoted, quote_char=quote_type)],
@@ -112,7 +213,7 @@ class WordBuilder:
             # This is a literal token
             return Word(parts=[LiteralPart(token.value, quoted=is_quoted, quote_char=quote_type)],
                         quote_type=quote_type)
-    
+
     @staticmethod
     def build_composite_word(tokens: List[Token], quote_type: Optional[str] = None) -> Word:
         """Build a Word from multiple tokens (for composite words).
@@ -125,22 +226,27 @@ class WordBuilder:
 
         for token in tokens:
             qt = getattr(token, 'quote_type', None)
-            is_quoted = qt is not None
-            if token.type in (TokenType.VARIABLE, TokenType.COMMAND_SUB,
-                              TokenType.COMMAND_SUB_BACKTICK, TokenType.ARITH_EXPANSION,
-                              TokenType.PARAM_EXPANSION):
+
+            # Check if this STRING token has decomposable parts
+            if WordBuilder._has_decomposable_parts(token) and qt == '"':
+                # Flatten decomposed parts into composite
+                for tp in token.parts:
+                    parts.append(WordBuilder._token_part_to_word_part(tp))
+            elif token.type in EXPANSION_TYPES:
+                is_quoted = qt is not None
                 expansion = WordBuilder.parse_expansion_token(token)
                 parts.append(ExpansionPart(expansion, quoted=is_quoted, quote_char=qt))
             else:
+                is_quoted = qt is not None
                 parts.append(LiteralPart(token.value, quoted=is_quoted, quote_char=qt))
 
         return Word(parts=parts, quote_type=None)
-    
+
     @staticmethod
-    def build_word_from_string(text: str, token_type: str = 'WORD', 
+    def build_word_from_string(text: str, token_type: str = 'WORD',
                              quote_type: Optional[str] = None) -> Word:
         """Build a Word from a string, parsing any embedded expansions.
-        
+
         This is used when we have a string that might contain expansions
         that weren't tokenized separately (e.g., in quoted strings).
         """

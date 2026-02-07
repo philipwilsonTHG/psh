@@ -53,8 +53,14 @@ class ExpansionEvaluator:
 
     def _evaluate_variable(self, expansion: VariableExpansion) -> str:
         """Evaluate simple variable expansion by delegating to VariableExpander."""
+        name = expansion.name
+        # Array subscript syntax (arr[0]) requires ${...} form
+        if '[' in name:
+            return self.expansion_manager.variable_expander.expand_variable(
+                f"${{{name}}}"
+            )
         return self.expansion_manager.variable_expander.expand_variable(
-            f"${expansion.name}"
+            f"${name}"
         )
 
     def _evaluate_command_sub(self, expansion: CommandSubstitution) -> str:
@@ -68,12 +74,19 @@ class ExpansionEvaluator:
     def _evaluate_parameter(self, expansion: ParameterExpansion) -> str:
         """Evaluate parameter expansion by delegating to VariableExpander."""
         # Reconstruct the ${...} expression string
-        expr = "${" + expansion.parameter
-        if expansion.operator:
-            expr += expansion.operator
-            if expansion.word:
-                expr += expansion.word
-        expr += "}"
+        if expansion.operator == '#' and expansion.word is None:
+            # Length operator: ${#var} — operator is prefix
+            expr = "${#" + expansion.parameter + "}"
+        elif expansion.operator == '!' and expansion.word is None:
+            # Indirect expansion: ${!var}
+            expr = "${!" + expansion.parameter + "}"
+        else:
+            expr = "${" + expansion.parameter
+            if expansion.operator:
+                expr += expansion.operator
+                if expansion.word is not None:
+                    expr += expansion.word
+            expr += "}"
         return self.expansion_manager.variable_expander.expand_variable(expr)
 
     def _evaluate_arithmetic(self, expansion: ArithmeticExpansion) -> str:

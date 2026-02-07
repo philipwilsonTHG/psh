@@ -379,7 +379,7 @@ class TestConvenienceFunctions:
     
     def test_build_simple_command_with_word_ast(self):
         """Test building simple command with Word AST nodes."""
-        config = ParserConfig(build_word_ast_nodes=True)
+        config = ParserConfig()
         parsers = CommandParsers(config=config)
         
         tokens = [

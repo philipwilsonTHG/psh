@@ -46,40 +46,10 @@ class CompositeToken(Token):
             # Preserve brackets for glob patterns
             return token.value
         elif token.type == TokenType.STRING:
-            # Mark glob chars from quoted sections as non-globbable
-            # using \x00 prefix, but skip chars inside ${...} expansions
-            return self._mark_quoted_globs(token.value)
+            return token.value
         else:
             return token.value
 
-    @staticmethod
-    def _mark_quoted_globs(value: str) -> str:
-        """Mark glob characters in quoted strings with \\x00 prefix.
-
-        Skips characters inside ${...} expansions since those are
-        part of variable syntax, not glob patterns.
-        """
-        result = []
-        i = 0
-        brace_depth = 0
-        while i < len(value):
-            ch = value[i]
-            if ch == '$' and i + 1 < len(value) and value[i + 1] == '{':
-                result.append('${')
-                brace_depth += 1
-                i += 2
-                continue
-            if ch == '}' and brace_depth > 0:
-                brace_depth -= 1
-                result.append('}')
-                i += 1
-                continue
-            if brace_depth == 0 and ch in ('*', '?', '['):
-                result.append(f'\x00{ch}')
-            else:
-                result.append(ch)
-            i += 1
-        return ''.join(result)
 
 
 class CompositeTokenProcessor:

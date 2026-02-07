@@ -240,12 +240,11 @@ class CommandParsers:
                 cmd.arg_types.append(token.type.name)
                 cmd.quote_types.append(None)
         
-        # Build Word AST nodes if enabled
-        if self.config.build_word_ast_nodes:
-            cmd.words = []
-            for token in word_tokens:
-                word = self.expansions.build_word_from_token(token)
-                cmd.words.append(word)
+        # Build Word AST nodes
+        cmd.words = []
+        for token in word_tokens:
+            word = self.expansions.build_word_from_token(token)
+            cmd.words.append(word)
         
         return cmd
     

@@ -102,17 +102,13 @@ class CommandParser:
     def parse_command(self) -> SimpleCommand:
         """Parse a single command with its arguments and redirections."""
         command = SimpleCommand()
-
-        # Check if we should build Word AST nodes
-        build_words = self.parser.config.build_word_ast_nodes
-        if build_words:
-            command.words = []
+        command.words = []
 
         # Validate command start
         self._validate_command_start()
 
         # Parse all arguments and redirections
-        self._parse_command_elements(command, build_words)
+        self._parse_command_elements(command)
 
         # Check for background execution
         if self.parser.consume_if_match(TokenType.AMPERSAND):
@@ -135,7 +131,7 @@ class CommandParser:
         if not self.parser.match_any(TokenGroups.WORD_LIKE):
             raise self.parser._error("Expected command")
 
-    def _parse_command_elements(self, command: SimpleCommand, build_words: bool) -> None:
+    def _parse_command_elements(self, command: SimpleCommand) -> None:
         """Parse arguments, redirections, and array assignments for a command."""
         has_parsed_regular_args = False
 
@@ -157,6 +153,8 @@ class CommandParser:
                 command.args.append(token.value)
                 command.arg_types.append('EXCLAMATION')
                 command.quote_types.append(None)
+                from ....ast_nodes import Word, LiteralPart
+                command.words.append(Word(parts=[LiteralPart(token.value)]))
                 has_parsed_regular_args = True
 
             else:
@@ -166,10 +164,10 @@ class CommandParser:
                     command.array_assignments.append(array_assignment)
                 else:
                     has_parsed_regular_args = self._parse_argument(
-                        command, build_words, has_parsed_regular_args
+                        command, has_parsed_regular_args
                     )
 
-    def _parse_argument(self, command: SimpleCommand, build_words: bool,
+    def _parse_argument(self, command: SimpleCommand,
                        has_parsed_regular_args: bool) -> bool:
         """Parse a single argument, handling array initialization specially.
 
@@ -184,20 +182,20 @@ class CommandParser:
             command.args.append(arg_value)
             command.arg_types.append('WORD')
             command.quote_types.append('array')
+            from ....ast_nodes import Word, LiteralPart
+            command.words.append(Word(parts=[LiteralPart(arg_value)]))
             return True
 
-        # Parse a potentially composite argument
-        if build_words:
-            word = self.parse_argument_as_word()
-            command.words.append(word)
-            command.args.append(str(word))
-            command.arg_types.append('WORD')
-            command.quote_types.append(word.quote_type)
-        else:
-            arg_value, arg_type, quote_type = self.parse_composite_argument()
-            command.args.append(arg_value)
-            command.arg_types.append(arg_type)
-            command.quote_types.append(quote_type)
+        # Parse argument as Word AST node
+        word = self.parse_argument_as_word()
+        command.words.append(word)
+        # Use inner content for args (without surrounding quotes)
+        inner = ''.join(str(part) for part in word.parts)
+        command.args.append(inner)
+        # Derive arg_type from word structure for backward compat
+        arg_type, qt = self._word_to_arg_type(word)
+        command.arg_types.append(arg_type)
+        command.quote_types.append(qt)
 
         return True
 
@@ -410,17 +408,7 @@ class CommandParser:
                 # Track if any part was quoted
                 if token.type == TokenType.STRING:
                     has_quoted_part = True
-                    # Mark glob chars from quoted sections as non-globbable
-                    # using \x00 prefix, but skip chars inside ${...} expansions
-                    marked = self._mark_quoted_globs(token.value)
-                    # For single-quoted strings, also protect $ and ` from expansion
-                    if getattr(token, 'quote_type', None) == "'":
-                        marked = marked.replace('$', '\x00$').replace('`', '\x00`')
-                    elif getattr(token, 'quote_type', None) == '"':
-                        # Brace-protect trailing $var to prevent name absorption
-                        # from adjacent tokens (e.g., "$var"bar -> ${var}bar)
-                        marked = self._brace_protect_trailing_var(marked)
-                    parts.append(marked)
+                    parts.append(token.value)
                 elif token.type == TokenType.VARIABLE:
                     parts.append(f"${token.value}")
                 elif token.type in (TokenType.LBRACKET, TokenType.RBRACKET):
@@ -487,45 +475,55 @@ class CommandParser:
             return f"${value}"
 
     @staticmethod
-    def _brace_protect_trailing_var(value: str) -> str:
-        """Convert trailing $var to ${var} to prevent name absorption in composites.
+    def _word_to_arg_type(word) -> Tuple[str, Optional[str]]:
+        """Derive legacy arg_type and quote_type from a Word AST node.
 
-        When a double-quoted STRING like "$var" is concatenated with adjacent
-        tokens, $var at the end could merge with the next token's text
-        (e.g., "$var"bar becomes $varbar). Converting to ${var} prevents this.
+        Returns (arg_type, quote_type) compatible with the string-based
+        expansion path, so that assignment extraction, the ``test`` builtin,
+        and other consumers that inspect arg_types/quote_types continue to
+        work correctly.
         """
-        import re
-        # Match $name at end of string (but not ${...}, $(...), $((, or special vars)
-        return re.sub(r'\$([A-Za-z_][A-Za-z0-9_]*)$', r'${\1}', value)
+        from ....ast_nodes import LiteralPart, ExpansionPart
 
-    @staticmethod
-    def _mark_quoted_globs(value: str) -> str:
-        """Mark glob characters in quoted strings with \\x00 prefix.
-
-        Skips characters inside ${...} expansions since those are
-        part of variable syntax, not glob patterns.
-        """
-        result = []
-        i = 0
-        brace_depth = 0
-        while i < len(value):
-            ch = value[i]
-            if ch == '$' and i + 1 < len(value) and value[i + 1] == '{':
-                result.append('${')
-                brace_depth += 1
-                i += 2
-                continue
-            if ch == '}' and brace_depth > 0:
-                brace_depth -= 1
-                result.append('}')
-                i += 1
-                continue
-            if brace_depth == 0 and ch in ('*', '?', '['):
-                result.append(f'\x00{ch}')
-            else:
-                result.append(ch)
-            i += 1
-        return ''.join(result)
+        if word.quote_type == "'":
+            return 'STRING', "'"
+        if word.quote_type == "$'":
+            return 'STRING', "$'"
+        if word.quote_type == '"':
+            return 'STRING', '"'
+        # Multi-part (composite) words
+        if len(word.parts) > 1:
+            has_quoted = any(p.quoted for p in word.parts)
+            return ('COMPOSITE_QUOTED' if has_quoted else 'COMPOSITE'), None
+        # Single-part words
+        if len(word.parts) == 1:
+            part = word.parts[0]
+            if isinstance(part, ExpansionPart):
+                from ....ast_nodes import (
+                    VariableExpansion, CommandSubstitution,
+                    ParameterExpansion, ArithmeticExpansion,
+                )
+                exp = part.expansion
+                if isinstance(exp, VariableExpansion):
+                    return 'VARIABLE', part.quote_char
+                elif isinstance(exp, CommandSubstitution):
+                    if exp.backtick_style:
+                        return 'COMMAND_SUB_BACKTICK', part.quote_char
+                    return 'COMMAND_SUB', part.quote_char
+                elif isinstance(exp, ArithmeticExpansion):
+                    return 'ARITH_EXPANSION', part.quote_char
+                elif isinstance(exp, ParameterExpansion):
+                    return 'PARAM_EXPANSION', part.quote_char
+                return 'VARIABLE', part.quote_char
+            if isinstance(part, LiteralPart) and part.quoted:
+                return 'STRING', part.quote_char
+            # Detect process substitution from literal text
+            if isinstance(part, LiteralPart) and not part.quoted:
+                if part.text.startswith('<(') and part.text.endswith(')'):
+                    return 'PROCESS_SUB_IN', None
+                if part.text.startswith('>(') and part.text.endswith(')'):
+                    return 'PROCESS_SUB_OUT', None
+        return 'WORD', None
 
     def parse_argument_as_word(self) -> 'Word':
         """Parse an argument as a Word AST node with expansions."""
@@ -538,6 +536,9 @@ class CommandParser:
         composite = stream.peek_composite_sequence()
         
         if composite:
+            # Check for unclosed expansions in composite parts
+            for token in composite:
+                self._check_for_unclosed_expansions(token)
             # Build composite word from multiple tokens.
             # Per-part quote context is handled inside build_composite_word().
             self.parser.current = stream.pos + len(composite)
@@ -546,6 +547,7 @@ class CommandParser:
             # Single token
             if self.parser.match_any(TokenGroups.WORD_LIKE):
                 token = self.parser.advance()
+                self._check_for_unclosed_expansions(token)
                 quote_type = token.quote_type if token.type == TokenType.STRING else None
                 return WordBuilder.build_word_from_token(token, quote_type)
             else:

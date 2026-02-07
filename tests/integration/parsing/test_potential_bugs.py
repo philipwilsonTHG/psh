@@ -77,10 +77,9 @@ def test_quoted_dollar_at_concatenation_splits(captured_shell):
     assert shell.get_stdout() == "[xa]\n[by]\n"
 
 
-@pytest.mark.xfail(reason="Word AST builder does not parse expansions inside STRING tokens")
 def test_word_ast_tracks_expansion_inside_quoted_string():
     tokens = tokenize('echo "$HOME"')
-    config = ParserConfig(build_word_ast_nodes=True)
+    config = ParserConfig()
     parser = Parser(tokens, config=config)
     ast = parser.parse()
 

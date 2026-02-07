@@ -81,11 +81,11 @@ class CommandExecutor:
             
             # Phase 1: Extract raw assignments (before expansion)
             raw_assignments = self._extract_assignments_raw(node)
-            
+
             # Expand only the assignment values
             assignments = []
-            for var, value in raw_assignments:
-                expanded_value = self._expand_assignment_value(value)
+            for var, value, value_word in raw_assignments:
+                expanded_value = self._expand_assignment_value_from_word(value, value_word)
                 assignments.append((var, expanded_value))
             
             # Check if we have only assignments (no command)
@@ -107,12 +107,16 @@ class CommandExecutor:
                 
                 # Create a sub-node for command arguments only
                 from ..ast_nodes import SimpleCommand
+                words_slice = None
+                if node.words is not None:
+                    words_slice = node.words[command_start_index:]
                 command_node = SimpleCommand(
                     args=node.args[command_start_index:],
                     arg_types=node.arg_types[command_start_index:] if command_start_index < len(node.arg_types) else [],
                     quote_types=node.quote_types[command_start_index:] if command_start_index < len(node.quote_types) else [],
                     redirects=node.redirects,
-                    background=node.background
+                    background=node.background,
+                    words=words_slice,
                 )
                 
                 
@@ -124,12 +128,27 @@ class CommandExecutor:
                     bypass_functions = True
                     # Remove backslash from the first argument for expansion
                     modified_args = [command_node.args[0][1:]] + command_node.args[1:]
+                    # Also strip backslash from the first Word's LiteralPart
+                    modified_words = command_node.words
+                    if command_node.words and command_node.words[0].parts:
+                        from ..ast_nodes import LiteralPart, Word
+                        first_part = command_node.words[0].parts[0]
+                        if isinstance(first_part, LiteralPart) and first_part.text.startswith('\\'):
+                            new_part = LiteralPart(
+                                first_part.text[1:], first_part.quoted, first_part.quote_char
+                            )
+                            new_word = Word(
+                                parts=[new_part] + list(command_node.words[0].parts[1:]),
+                                quote_type=command_node.words[0].quote_type,
+                            )
+                            modified_words = [new_word] + list(command_node.words[1:])
                     command_node = SimpleCommand(
                         args=modified_args,
                         arg_types=command_node.arg_types,
                         quote_types=command_node.quote_types,
                         redirects=command_node.redirects,
-                        background=command_node.background
+                        background=command_node.background,
+                        words=modified_words,
                     )
                 
                 # Now expand command arguments with assignments in place
@@ -191,19 +210,25 @@ class CommandExecutor:
         """Expand all arguments in a command."""
         return self.expansion_manager.expand_arguments(node)
     
-    def _extract_assignments_raw(self, node: 'SimpleCommand') -> List[Tuple[str, str]]:
-        """Extract assignments from raw arguments before expansion."""
+    def _extract_assignments_raw(self, node: 'SimpleCommand') -> list:
+        """Extract assignments from raw arguments before expansion.
+
+        Returns list of (var_name, raw_value, word_or_none) tuples.
+        The Word object is included when available so expansion can use
+        structural quote information.
+        """
         assignments = []
         i = 0
-        
+
         while i < len(node.args):
             arg = node.args[i]
             arg_type = node.arg_types[i] if i < len(node.arg_types) else 'WORD'
-            
+
             if arg_type in ('WORD', 'COMPOSITE', 'COMPOSITE_QUOTED'):
                 if '=' in arg and self._is_valid_assignment(arg):
                     var, value = arg.split('=', 1)
-                    assignments.append((var, value))
+                    word = node.words[i] if node.words and i < len(node.words) else None
+                    assignments.append((var, value, word))
                     i += 1
                 else:
                     # Stop at first non-assignment
@@ -211,7 +236,7 @@ class CommandExecutor:
             else:
                 # Stop if we hit a non-WORD type
                 break
-        
+
         return assignments
 
     def _extract_assignments(self, args: List[str]) -> List[Tuple[str, str]]:
@@ -306,26 +331,79 @@ class CommandExecutor:
         """Check if a variable is exported."""
         return is_exported(var_name)
     
-    def _expand_assignment_value(self, value: str) -> str:
-        """Expand a value used in variable assignment."""
-        # Handle all expansions in order, without word splitting
+    def _expand_assignment_value_from_word(self, value: str, word=None) -> str:
+        """Expand a value used in variable assignment.
 
-        # 1. Tilde expansion (only at start)
+        Uses the Word AST's structural information to correctly handle
+        quoting (e.g., single-quoted values remain literal).
+        """
+        if word is not None:
+            return self._expand_assignment_word(word)
+        # Fallback for cases without Word AST (shouldn't happen normally)
         if value.startswith('~'):
             value = self.expansion_manager.expand_tilde(value)
-
-        # 2. Variable and command substitution expansion
         if '$' in value or '`' in value:
-            # This complex expansion logic will use the expansion manager
-            # For now, use a simplified version
             value = self.expansion_manager.expand_string_variables(value)
-
-        # 3. Clean NULL markers used for glob protection in composites
-        if '\x00' in value:
-            value = value.replace('\x00', '')
-
         return value
-    
+
+    def _expand_assignment_word(self, word) -> str:
+        """Expand an assignment value using Word AST parts.
+
+        Walks the Word's parts, expanding only what the quote context
+        allows (single-quoted text stays literal, double-quoted text
+        expands variables, unquoted text expands everything).
+        """
+        from ..ast_nodes import LiteralPart, ExpansionPart
+
+        result_parts = []
+        # Find the '=' in the parts and only expand the value portion
+        found_eq = False
+        for part in word.parts:
+            if not found_eq:
+                if isinstance(part, LiteralPart) and '=' in part.text:
+                    # This part contains the '=' — take everything after it
+                    eq_pos = part.text.index('=')
+                    value_text = part.text[eq_pos + 1:]
+                    if value_text:
+                        if part.quoted and part.quote_char == "'":
+                            result_parts.append(value_text)
+                        elif part.quoted and part.quote_char == '"':
+                            result_parts.append(value_text)
+                        else:
+                            # Unquoted text after = — expand tilde if first
+                            if not result_parts and value_text.startswith('~'):
+                                value_text = self.expansion_manager.expand_tilde(value_text)
+                            result_parts.append(value_text)
+                    found_eq = True
+                    continue
+                else:
+                    # Skip parts before '=' (the variable name portion)
+                    continue
+
+            # Process value parts after '='
+            if isinstance(part, LiteralPart):
+                if part.quoted and part.quote_char == "'":
+                    # Single-quoted: completely literal
+                    result_parts.append(part.text)
+                elif part.quoted and part.quote_char == '"':
+                    # Double-quoted: literal (expansions are separate ExpansionParts)
+                    # Process backslash escapes (\$, \\, \", \`)
+                    text = part.text
+                    if '\\' in text:
+                        text = self.expansion_manager._process_dquote_escapes(text)
+                    result_parts.append(text)
+                else:
+                    # Unquoted literal
+                    text = part.text
+                    if not result_parts and text.startswith('~'):
+                        text = self.expansion_manager.expand_tilde(text)
+                    result_parts.append(text)
+            elif isinstance(part, ExpansionPart):
+                expanded = self.expansion_manager._expand_expansion(part.expansion)
+                result_parts.append(expanded)
+
+        return ''.join(result_parts)
+
     def _print_xtrace(self, cmd_name: str, args: List[str]):
         """Print command trace if xtrace is enabled."""
         ps4 = self.state.get_variable('PS4', '+ ')

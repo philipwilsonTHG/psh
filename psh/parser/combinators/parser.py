@@ -381,7 +381,6 @@ class ParserCombinatorShellParser(AbstractShellParser):
             Dictionary of option names to their descriptions
         """
         return {
-            'build_word_ast_nodes': 'Build detailed Word AST nodes with expansion info',
             'parsing_mode': 'Parsing mode (strict_posix, bash_compat, permissive)',
             'enable_process_substitution': 'Enable <(cmd) and >(cmd) syntax',
             'enable_arrays': 'Enable array syntax',
