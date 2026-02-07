@@ -1,10 +1,10 @@
 # Analysis of Architecture Comments
 
-*Original analysis written pre-v0.115.0. Updated 2026-02-07 after v0.119.0 improvements.*
+*Original analysis written pre-v0.115.0. Updated 2026-02-07 after v0.120.0 — arg_types migration complete.*
 
 ## What Was Accomplished (v0.114.0 – v0.119.0)
 
-The architecture comments identified four risks and four opportunities. All eight opportunities have been realized, and all review findings are resolved:
+The architecture comments identified risks and opportunities. All opportunities have been realized, and all review findings are resolved:
 
 | Opportunity | Status | Version |
 |------------|--------|---------|
@@ -16,6 +16,7 @@ The architecture comments identified four risks and four opportunities. All eigh
 | Lexer convergence (remove StateHandlers) | **Done** | v0.119.0 |
 | Fix parser AST for /#, /%, : operators | **Done** | v0.119.0 |
 | Migrate execution-path arg_types consumers | **Done** | v0.119.0 |
+| Complete arg_types removal (all consumers + fields) | **Done** | v0.120.0 |
 
 | Risk | Status | Notes |
 |------|--------|-------|
@@ -26,7 +27,7 @@ The architecture comments identified four risks and four opportunities. All eigh
 | ExpansionEvaluator string round-trip | **Resolved** | Direct dispatch via `expand_parameter_direct()` |
 | Composite processor redundancy | **Resolved** | `CompositeTokenProcessor` deleted |
 | Parser AST for /#, /%, : operators | **Resolved** | Earliest-position matching; workarounds removed |
-| arg_types in execution path | **Partially resolved** | Execution-path consumers migrated; formatting/debug remain |
+| arg_types in execution path | **Resolved** | All consumers migrated; fields removed from SimpleCommand in v0.120.0 |
 
 ## The `\x00` Marker Pattern — Largely Eliminated
 
@@ -85,7 +86,7 @@ The actual migration also required fixes not anticipated in the original plan:
 
 2. ~~**Dual lexer maintenance burden.**~~ **Resolved in v0.119.0.** `StateHandlers` deleted (597 lines). `ModularLexer` with recognizers is the sole lexer.
 
-3. **`args`/`arg_types` are vestigial.** These fields on `SimpleCommand` are now derived from Word AST by `_word_to_arg_type()` for backward compatibility. The execution-path consumers (process substitution detection, assignment extraction) were migrated to Word AST in v0.119.0. Remaining consumers (declare builtin, test command, formatting/debug visitors) still read `arg_types`. Until they migrate to using `command.words` directly, the mapping function is a maintenance point.
+3. ~~**`args`/`arg_types` are vestigial.**~~ **Resolved in v0.120.0.** `arg_types` and `quote_types` fields removed from `SimpleCommand`. `words: List[Word]` changed from `Optional` to required. All consumers (validators, security visitor, formatter, debug visitor, ASCII tree, shell formatter, executor command creation, expansion manager) migrated to Word helper properties. The `_word_to_arg_type()` bridge method deleted (50 lines). Word helper properties (`is_quoted`, `is_unquoted_literal`, `is_variable_expansion`, `has_expansion_parts`, `has_unquoted_expansion`, `effective_quote_char`) provide the semantic queries that consumers need.
 
 4. ~~**Composite processor redundancy.**~~ **Resolved in v0.118.0.** `CompositeTokenProcessor` deleted; `use_composite_processor` parameter removed from Parser.
 
@@ -102,8 +103,8 @@ The actual migration also required fixes not anticipated in the original plan:
 - ~~**Remove `StateHandlers`**~~ — Deleted (597 lines). `ModularLexer` with recognizers is the sole lexer.
 - ~~**Migrate execution-path `arg_types` consumers**~~ — Process substitution detection and assignment extraction now use Word AST inspection.
 
-### Medium value, low effort
-- **Migrate remaining `arg_types` consumers** — Move builtins (declare), the `test` command, and formatting/debug visitors to read from `command.words` instead of `command.arg_types`.
+### Completed in v0.120.0
+- ~~**Migrate remaining `arg_types` consumers and remove fields**~~ — All consumers migrated to Word helper properties. `arg_types`/`quote_types` fields removed from `SimpleCommand`. `words` changed from `Optional[List[Word]]` to `List[Word]`. `_word_to_arg_type()` bridge deleted. ~140 lines of infrastructure removed.
 
 ### Lower priority
 - **Extend Word AST to heredocs/here strings** — Replace the remaining `\x00` markers in `expand_string_variables()` with structural context. This is well-contained and low risk as-is.
@@ -114,14 +115,14 @@ The actual migration also required fixes not anticipated in the original plan:
 The architecture comments from the original review were accurate and well-prioritized. All identified opportunities have been realized, and all review findings are resolved. The codebase is in substantially better shape than when the review was conducted:
 
 - All review findings resolved
-- ~1,250 lines of workaround/redundant/dead code deleted (450 in v0.117, 200 in v0.118, 600 in v0.119)
+- ~1,400 lines of workaround/redundant/dead code deleted (450 in v0.117, 200 in v0.118, 600 in v0.119, 140 in v0.120)
 - `\x00` markers eliminated from the argument pipeline
-- Single expansion path instead of two
+- Single expansion path via Word AST
 - Parameter expansion evaluation is direct (no string round-trip)
 - CompositeTokenProcessor removed
 - StateHandlers removed — single lexer architecture
 - Parser AST correctly represents `/#`, `/%`, `:` operators — no workarounds
-- Execution-path `arg_types` consumers migrated to Word AST
-- 2,932+ tests passing with zero regressions
+- `arg_types`/`quote_types` fields fully removed from `SimpleCommand` — Word AST with helper properties is the sole argument metadata representation
+- 2,960+ tests passing with zero regressions
 
-The remaining work (migrating formatting/debug `arg_types` consumers, extending Word AST to heredocs, process substitution fd management) is incremental improvement rather than architectural remediation.
+The remaining work (extending Word AST to heredocs, process substitution fd management) is incremental improvement rather than architectural remediation. The `arg_types` migration that was the most recent outstanding item is now fully complete.

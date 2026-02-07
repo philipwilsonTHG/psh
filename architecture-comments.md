@@ -1,16 +1,17 @@
 # Architecture and Codebase Comments
 
-*Updated 2026-02-07 after v0.119.0 improvements.*
+*Updated 2026-02-07 after v0.120.0 — arg_types migration complete.*
 
 ## Strengths
 
 - **Clear layering** between lexer, parser, AST, expansion, and executor, with explicit orchestration in `psh/shell.py`.
 - **Visitor-based execution** gives a clean dispatch point and keeps control-flow logic isolated (`psh/executor/core.py`, `psh/visitor/base.py`, `psh/executor/control_flow.py`).
 - **Parser strategy/registry** keeps room for multiple parser implementations without leaking details (`psh/parser/parser_registry.py`).
-- **Single expansion pipeline via Word AST** — all argument expansion now flows through `_expand_word()` using structural per-part quote context. No more dual string/AST paths or `\x00` markers in argument expansion. This is the cleanest part of the architecture after the v0.114–v0.117 work.
+- **Single expansion pipeline via Word AST** — all argument expansion now flows through `_expand_word()` using structural per-part quote context. No more dual string/AST paths or `\x00` markers in argument expansion.
+- **Word AST is the sole argument metadata representation** — as of v0.120.0, `SimpleCommand.words` (type `List[Word]`) is always present and is the only source of quoting/expansion structure. The legacy `arg_types`/`quote_types` fields have been removed. Word helper properties (`is_quoted`, `is_unquoted_literal`, `is_variable_expansion`, `has_expansion_parts`, `has_unquoted_expansion`, `effective_quote_char`) provide clean semantic queries for all consumers.
 - **First-class token adjacency** — `adjacent_to_previous` on Token eliminates position arithmetic for composite detection, assignments, and operator parsing.
 - **Golden behavioral test suite** — 149 parametrized tests in `tests/behavioral/` plus cross-component regression tests in `tests/integration/parsing/test_potential_bugs.py` catch seam bugs that unit tests miss.
-- **Comprehensive test coverage** — 2,932 tests (2,882 passing + 50 subshell/phase tests), 93.1% POSIX compliance, 72.7% bash compatibility.
+- **Comprehensive test coverage** — 2,960+ tests, 93.1% POSIX compliance, 72.7% bash compatibility.
 
 ## Risks / Technical Debt
 
@@ -36,7 +37,7 @@
 
 4. ~~**Remove the composite processor.**~~ **Done in v0.118.0.** `CompositeTokenProcessor` deleted; `use_composite_processor` parameter removed from Parser.
 
-5. **Formalize the `args`/`arg_types` deprecation path.** `SimpleCommand.args` and `arg_types` are now derived from Word AST for backward compatibility. The execution-path consumers (process substitution detection, assignment extraction) were migrated to Word AST in v0.119.0. Remaining consumers (builtins, `test` command, formatting/debug visitors) should migrate over time, after which `args`/`arg_types` can be removed.
+5. ~~**Formalize the `args`/`arg_types` deprecation path.**~~ **Done in v0.120.0.** `arg_types` and `quote_types` fields removed from `SimpleCommand`. `words: List[Word]` is now required (not optional). All consumers migrated to Word helper properties. The `_word_to_arg_type()` bridge method deleted.
 
 6. **Process substitution and subshell fd management.** The `SIGTTOU` issues and pytest `-s` requirement for subshell tests point to fragility in how child processes inherit file descriptors. This isn't related to expansion but is the most significant remaining infrastructure concern.
 
