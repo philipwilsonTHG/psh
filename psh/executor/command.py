@@ -222,9 +222,11 @@ class CommandExecutor:
 
         while i < len(node.args):
             arg = node.args[i]
-            arg_type = node.arg_types[i] if i < len(node.arg_types) else 'WORD'
 
-            if arg_type in ('WORD', 'COMPOSITE', 'COMPOSITE_QUOTED'):
+            # Use Word AST to determine if this argument is an assignment
+            # candidate (i.e., a regular word, not a process substitution
+            # or other special token).
+            if self._is_assignment_candidate(node, i):
                 if '=' in arg and self._is_valid_assignment(arg):
                     var, value = arg.split('=', 1)
                     word = node.words[i] if node.words and i < len(node.words) else None
@@ -234,10 +236,36 @@ class CommandExecutor:
                     # Stop at first non-assignment
                     break
             else:
-                # Stop if we hit a non-WORD type
+                # Stop if we hit a non-word type (process sub, etc.)
                 break
 
         return assignments
+
+    @staticmethod
+    def _is_assignment_candidate(node: 'SimpleCommand', index: int) -> bool:
+        """Check if the argument at index is an assignment candidate.
+
+        An argument is an assignment candidate if its Word AST contains
+        only LiteralPart and ExpansionPart nodes (no process substitution
+        or other special tokens). Falls back to arg_types when Word AST
+        is unavailable.
+        """
+        from ..ast_nodes import LiteralPart, ExpansionPart
+        if node.words and index < len(node.words):
+            word = node.words[index]
+            for part in word.parts:
+                if not isinstance(part, (LiteralPart, ExpansionPart)):
+                    return False
+                # Process substitution is stored as unquoted LiteralPart
+                # starting with <( or >(
+                if (isinstance(part, LiteralPart) and not part.quoted and
+                        (part.text.startswith('<(') or part.text.startswith('>('))):
+                    return False
+            return True
+        # Fallback to arg_types for backward compatibility
+        if index < len(node.arg_types):
+            return node.arg_types[index] in ('WORD', 'COMPOSITE', 'COMPOSITE_QUOTED')
+        return True
 
     def _extract_assignments(self, args: List[str]) -> List[Tuple[str, str]]:
         """Extract variable assignments from beginning of arguments."""

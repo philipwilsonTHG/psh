@@ -31,10 +31,24 @@ class ProcessSubstitutionHandler:
         substituted_args = []
         child_pids = []
         
+        from ..ast_nodes import LiteralPart
         for i, arg in enumerate(command.args):
-            arg_type = command.arg_types[i] if i < len(command.arg_types) else 'WORD'
-            
-            if arg_type in ('PROCESS_SUB_IN', 'PROCESS_SUB_OUT'):
+            # Detect process substitution via Word AST when available
+            is_proc_sub = False
+            if command.words and i < len(command.words):
+                word = command.words[i]
+                if (len(word.parts) == 1 and
+                        isinstance(word.parts[0], LiteralPart) and
+                        not word.parts[0].quoted):
+                    text = word.parts[0].text
+                    if text.startswith('<('):
+                        is_proc_sub = True
+                        arg_type = 'PROCESS_SUB_IN'
+                    elif text.startswith('>('):
+                        is_proc_sub = True
+                        arg_type = 'PROCESS_SUB_OUT'
+
+            if is_proc_sub:
                 fd, path, pid = self._create_process_substitution(arg, arg_type)
                 fds_to_keep.append(fd)
                 substituted_args.append(path)

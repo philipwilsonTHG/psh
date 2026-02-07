@@ -63,11 +63,8 @@ class ExpansionManager:
         if self.state.options.get('debug-expansion'):
             print(f"[EXPANSION] Expanding Word AST command: {[str(w) for w in command.words]}", file=self.state.stderr)
 
-        # Handle process substitutions
-        has_proc_sub = any(
-            command.arg_types[i] in ('PROCESS_SUB_IN', 'PROCESS_SUB_OUT')
-            for i in range(len(command.arg_types))
-        )
+        # Handle process substitutions — detect via Word AST
+        has_proc_sub = self._has_process_substitution(command)
         if has_proc_sub:
             fds, substituted_args, child_pids = self.shell.io_manager.setup_process_substitutions(command)
             self.shell._process_sub_fds = fds
@@ -393,6 +390,26 @@ class ExpansionManager:
         else:
             return str(expansion)
     
+    @staticmethod
+    def _has_process_substitution(command: SimpleCommand) -> bool:
+        """Check if a command has any process substitution arguments.
+
+        Detects process substitution via the Word AST: process substitution
+        arguments are stored as LiteralPart nodes with text starting with
+        '<(' or '>('.
+        """
+        from ..ast_nodes import LiteralPart
+        if not command.words:
+            return False
+        for word in command.words:
+            if (len(word.parts) == 1 and
+                    isinstance(word.parts[0], LiteralPart) and
+                    not word.parts[0].quoted):
+                text = word.parts[0].text
+                if text.startswith('<(') or text.startswith('>('):
+                    return True
+        return False
+
     def _expand_expansion(self, expansion) -> str:
         """Evaluate an expansion AST node."""
         from ..core.exceptions import UnboundVariableError
