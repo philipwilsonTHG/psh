@@ -8,7 +8,7 @@ from .position import LexerConfig, LexerState, Position, PositionTracker
 from .quote_parser import QuoteParsingContext, UnifiedQuoteParser
 from .recognizers import RecognizerRegistry
 from .token_parts import RichToken, TokenPart
-from .transitions import StateManager
+from .state_context import LexerContext
 
 
 class ModularLexer:
@@ -35,8 +35,7 @@ class ModularLexer:
         self.position_tracker = PositionTracker(input_string)
 
         # State management
-        self.state_manager = StateManager()
-        self.context = self.state_manager.context
+        self.context = LexerContext()
 
         # Set posix_mode in context from config
         self.context.posix_mode = self.config.posix_mode
