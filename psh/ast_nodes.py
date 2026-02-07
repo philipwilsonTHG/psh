@@ -145,6 +145,58 @@ class Word(ASTNode):
             return f"{self.quote_type}{content}{self.quote_type}"
         return content
     
+    @property
+    def is_quoted(self) -> bool:
+        """True if wholly quoted (single, double, or ANSI-C)."""
+        if self.quote_type in ("'", '"', "$'"):
+            return True
+        # Also true if single-part word with a quoted part
+        if len(self.parts) == 1 and hasattr(self.parts[0], 'quoted') and self.parts[0].quoted:
+            return True
+        return False
+
+    @property
+    def is_unquoted_literal(self) -> bool:
+        """True if plain unquoted word with no expansions (old arg_type == 'WORD')."""
+        if self.quote_type is not None:
+            return False
+        if not self.parts:
+            return True
+        return (len(self.parts) == 1 and
+                isinstance(self.parts[0], LiteralPart) and
+                not self.parts[0].quoted)
+
+    @property
+    def is_variable_expansion(self) -> bool:
+        """True if single variable expansion $VAR (old arg_type == 'VARIABLE')."""
+        if len(self.parts) != 1:
+            return False
+        part = self.parts[0]
+        if not isinstance(part, ExpansionPart):
+            return False
+        return isinstance(part.expansion, (VariableExpansion, ParameterExpansion))
+
+    @property
+    def has_expansion_parts(self) -> bool:
+        """True if any part contains an expansion."""
+        return any(isinstance(p, ExpansionPart) for p in self.parts)
+
+    @property
+    def has_unquoted_expansion(self) -> bool:
+        """True if unquoted expansion parts exist (vulnerable to splitting/injection)."""
+        return any(isinstance(p, ExpansionPart) and not p.quoted
+                   for p in self.parts)
+
+    @property
+    def effective_quote_char(self) -> Optional[str]:
+        """The dominant quote character, or None."""
+        if self.quote_type is not None:
+            return self.quote_type
+        # Check single-part words for their quote char
+        if len(self.parts) == 1 and hasattr(self.parts[0], 'quote_char'):
+            return self.parts[0].quote_char
+        return None
+
     @classmethod
     def from_string(cls, text: str, quote_type: Optional[str] = None) -> 'Word':
         """Create a Word from a literal string."""
