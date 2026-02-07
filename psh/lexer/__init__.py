@@ -27,7 +27,6 @@ from .unicode_support import (
 )
 from .token_parts import TokenPart, RichToken
 from .helpers import LexerHelpers
-from .state_handlers import StateHandlers
 from .state_context import LexerContext
 from .keyword_normalizer import KeywordNormalizer
 
@@ -144,7 +143,7 @@ __all__ = [
     # Token classes
     'TokenPart', 'RichToken',
     # Mixin classes (for advanced usage)
-    'LexerHelpers', 'StateHandlers',
+    'LexerHelpers',
     # Context classes
     'LexerContext',
 ]
