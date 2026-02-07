@@ -253,6 +253,13 @@ class IOManager:
                         self._saved_fds_list = []
                     self._saved_fds_list.extend(saved_fds)
 
+            elif redirect.type in ('<&', '>&-', '<&-'):
+                # Delegate FD close and input dup to file_redirector
+                saved_fds = self.file_redirector.apply_redirections([redirect])
+                if not hasattr(self, '_saved_fds_list'):
+                    self._saved_fds_list = []
+                self._saved_fds_list.extend(saved_fds)
+
         return stdin_backup, stdout_backup, stderr_backup, stdin_fd_backup
 
     def restore_builtin_redirections(self, stdin_backup, stdout_backup, stderr_backup, stdin_fd_backup=None):
@@ -326,12 +333,13 @@ class IOManager:
                     target = self.shell.expansion_manager.expand_tilde(target)
 
             # Handle process substitution as redirect target
+            proc_sub_fd_to_close = None
             if target and target.startswith(('<(', '>(')) and target.endswith(')'):
                 # This is a process substitution used as a redirect target
                 # We need to set it up here in the child process
                 path, fd_to_close, pid = self.process_sub_handler.handle_redirect_process_sub(target)
                 target = path
-                # Note: We don't track these for cleanup since we're in the child that will exec
+                proc_sub_fd_to_close = fd_to_close
 
             if redirect.type == '<':
                 fd = os.open(target, os.O_RDONLY)
@@ -402,6 +410,39 @@ class IOManager:
                         os._exit(1)
 
                     os.dup2(redirect.dup_fd, redirect.fd)
+                elif redirect.fd is not None and redirect.target == '-':
+                    # Close file descriptor (>&- via _parse_dup_redirect path)
+                    try:
+                        os.close(redirect.fd)
+                    except OSError:
+                        pass
+
+            elif redirect.type == '<&':
+                # Input FD duplication (e.g., 3<&0)
+                if redirect.fd is not None and redirect.dup_fd is not None:
+                    try:
+                        import fcntl
+                        fcntl.fcntl(redirect.dup_fd, fcntl.F_GETFD)
+                    except OSError:
+                        error_msg = f"psh: {redirect.dup_fd}: bad file descriptor\n"
+                        os.write(2, error_msg.encode('utf-8'))
+                        os._exit(1)
+                    os.dup2(redirect.dup_fd, redirect.fd)
+
+            elif redirect.type in ('>&-', '<&-'):
+                # Close file descriptor (e.g., 3>&-, 3<&-)
+                if redirect.fd is not None:
+                    try:
+                        os.close(redirect.fd)
+                    except OSError:
+                        pass
+
+            # Close process substitution FD after redirect has been applied
+            if proc_sub_fd_to_close is not None:
+                try:
+                    os.close(proc_sub_fd_to_close)
+                except OSError:
+                    pass
 
     def collect_heredocs(self, node):
         """Collect here document content for all commands in a node."""

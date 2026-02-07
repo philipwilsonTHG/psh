@@ -2,10 +2,24 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.124.0"
+__version__ = "0.125.0"
 
 # Version history
 VERSION_HISTORY = """
+0.125.0 (2026-02-07) - Fix 3 FD/Redirect Bugs from Code Review
+- Fixed endswith('') bug in apply_permanent_redirections() process substitution
+  check — always returned true; corrected to endswith(')')
+- Fixed FD leak in setup_child_redirections(): process substitution redirect's
+  parent FD (with FD_CLOEXEC cleared) was never closed after redirect applied,
+  surviving exec and keeping pipe open; now closed after redirect setup
+- Implemented <& (input FD duplication), >&- and <&- (FD close) at runtime in
+  all three redirection paths: apply_redirections(), setup_child_redirections(),
+  and setup_builtin_redirections()
+- Handles both parser AST forms for close: type='>&-'/'<&-' from
+  parse_fd_dup_word() and type='>&' with target='-' from _parse_dup_redirect()
+- Added tests for FD close, input FD dup, and process substitution redirect
+- All tests passing with zero regressions
+
 0.124.0 (2026-02-07) - Unify Child Process Signal Policy
 - Created apply_child_signal_policy() in psh/executor/child_policy.py as single
   source of truth for child process signal setup after fork()

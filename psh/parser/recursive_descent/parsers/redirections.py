@@ -116,38 +116,46 @@ class RedirectionParser:
 
     def _parse_dup_redirect(self, token: Token) -> Redirect:
         """Parse file descriptor duplication redirect."""
-        # Handle both "2>&1" (single token) and ">&" "2" (two tokens)
-        if token.value == '>&':
-            # Two tokens like ">&" "2"
-            fd = 1  # Default to stdout
+        # Handle two-token forms: ">&" "2" or "<&" "0"
+        if token.value in ('>&', '<&'):
+            direction = '>' if token.value == '>&' else '<'
+            default_fd = 1 if direction == '>' else 0
 
             if not self.parser.match(TokenType.WORD):
-                raise self.parser._error("Expected file descriptor after >&")
+                raise self.parser._error(f"Expected file descriptor after {token.value}")
 
             target_token = self.parser.advance()
             dup_part = target_token.value
 
             if dup_part == '-':
-                # Close file descriptor
-                return Redirect(type='>&', target='-', fd=fd)
+                return Redirect(type=token.value, target='-', fd=default_fd)
             else:
-                # Duplicate file descriptor
                 dup_fd = int(dup_part) if dup_part.isdigit() else None
-                return Redirect(type='>&', target=dup_part, fd=fd, dup_fd=dup_fd)
-        elif '>&' in token.value:
-            # Single token like "2>&1"
-            fd_part, dup_part = token.value.split('>&', 1)
-            fd = int(fd_part) if fd_part else 1
+                return Redirect(type=direction + '&', target=dup_part, fd=default_fd, dup_fd=dup_fd)
 
-            if dup_part == '-':
-                # Close file descriptor
-                return Redirect(type='>&', target='-', fd=fd)
+        # Handle single-token forms containing >&  or <&  (e.g., "2>&1", "3<&0", "3>&-", "3<&-")
+        import re
+        match = re.match(r'^(\d*)([><])&(-|\d+)$', token.value)
+        if match:
+            source_fd_str, direction, target = match.groups()
+            default_fd = 1 if direction == '>' else 0
+            fd = int(source_fd_str) if source_fd_str else default_fd
+
+            if target == '-':
+                return Redirect(
+                    type=direction + '&-',
+                    target=None,
+                    fd=fd
+                )
             else:
-                # Duplicate file descriptor
-                dup_fd = int(dup_part) if dup_part.isdigit() else None
-                return Redirect(type='>&', target=dup_part, fd=fd, dup_fd=dup_fd)
-        else:
-            raise self.parser._error(f"Invalid redirection operator: {token.value}")
+                return Redirect(
+                    type=direction + '&',
+                    target=None,
+                    fd=fd,
+                    dup_fd=int(target)
+                )
+
+        raise self.parser._error(f"Invalid redirection operator: {token.value}")
 
     def _parse_err_redirect(self, token: Token) -> Redirect:
         """Parse stderr redirection."""

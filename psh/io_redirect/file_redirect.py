@@ -133,6 +133,26 @@ class FileRedirector:
 
                     saved_fds.append((redirect.fd, os.dup(redirect.fd)))
                     os.dup2(redirect.dup_fd, redirect.fd)
+                elif redirect.fd is not None and redirect.target == '-':
+                    # Close file descriptor (>&- via _parse_dup_redirect path)
+                    saved_fds.append((redirect.fd, os.dup(redirect.fd)))
+                    os.close(redirect.fd)
+
+            elif redirect.type == '<&':
+                # Input FD duplication (e.g., 3<&0)
+                if redirect.fd is not None and redirect.dup_fd is not None:
+                    try:
+                        fcntl.fcntl(redirect.dup_fd, fcntl.F_GETFD)
+                    except OSError:
+                        raise OSError(f"psh: {redirect.dup_fd}: bad file descriptor")
+                    saved_fds.append((redirect.fd, os.dup(redirect.fd)))
+                    os.dup2(redirect.dup_fd, redirect.fd)
+
+            elif redirect.type in ('>&-', '<&-'):
+                # Close file descriptor (e.g., 3>&-, 3<&-)
+                if redirect.fd is not None:
+                    saved_fds.append((redirect.fd, os.dup(redirect.fd)))
+                    os.close(redirect.fd)
 
         return saved_fds
 
@@ -171,7 +191,7 @@ class FileRedirector:
                     target = self.shell.expansion_manager.expand_tilde(target)
 
             # Handle process substitution as redirect target
-            if target and target.startswith(('<(', '>(')) and target.endswith(''):
+            if target and target.startswith(('<(', '>(')) and target.endswith(')'):
                 target = self._handle_process_sub_redirect(target, redirect)
 
             if redirect.type == '<':
@@ -276,6 +296,12 @@ class FileRedirector:
                         # Create new file object using the redirected fd
                         self.shell.stderr = os.fdopen(2, 'w')
                         self.state.stderr = self.shell.stderr
+                elif redirect.fd is not None and redirect.target == '-':
+                    # Close file descriptor (>&- via _parse_dup_redirect path)
+                    try:
+                        os.close(redirect.fd)
+                    except OSError:
+                        pass
 
             elif redirect.type == '<&':
                 # FD duplication for input
@@ -293,7 +319,15 @@ class FileRedirector:
                     try:
                         os.close(redirect.fd)
                     except OSError:
-                        pass  # Already closed
+                        pass
+
+            elif redirect.type in ('>&-', '<&-'):
+                # Close file descriptor (e.g., 3>&-, 3<&-)
+                if redirect.fd is not None:
+                    try:
+                        os.close(redirect.fd)
+                    except OSError:
+                        pass
 
     def _handle_process_sub_redirect(self, target: str, redirect: Redirect) -> str:
         """

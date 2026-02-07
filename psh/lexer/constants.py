@@ -46,6 +46,7 @@ OPERATORS_BY_LENGTH = {
         ';&': TokenType.SEMICOLON_AMP,
         '=~': TokenType.REGEX_MATCH,
         '>&': TokenType.REDIRECT_DUP,
+        '<&': TokenType.REDIRECT_DUP,
         '2>': TokenType.REDIRECT_ERR,
     },
     1: {
