@@ -2,10 +2,28 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.117.0"
+__version__ = "0.118.0"
 
 # Version history
 VERSION_HISTORY = """
+0.118.0 (2026-02-07) - Architectural Cleanup: Remove CompositeTokenProcessor, Direct Parameter Expansion
+- Removed CompositeTokenProcessor (198 lines): with Word AST and adjacent_to_previous token
+  tracking, the pre-merge processor was redundant — the parser handles composites via
+  parse_argument_as_word() / peek_composite_sequence() natively
+- Deleted psh/composite_processor.py, removed use_composite_processor parameter from Parser
+- Cleaned up composite token tests to use standard parser (no processor flag)
+- Extracted expand_parameter_direct() in VariableExpander: operator dispatch logic now
+  accepts pre-parsed (operator, var_name, operand) components directly
+- Extracted _apply_operator() helper to eliminate duplication between scalar and array
+  expansion paths (was duplicated across ~240 lines)
+- ExpansionEvaluator._evaluate_parameter() now calls expand_parameter_direct() directly
+  instead of reconstructing ${...} strings and re-parsing via parse_expansion()
+- Eliminates the string round-trip that caused the ${#var} prefix operator reconstruction
+  bug fixed in v0.117.0
+- Added fallback for parser AST ambiguities (e.g. ${var:0:-1} parsed as operator=':-')
+- Handles parser AST quirk where ${var/#pat/repl} stores parameter='var/', operator='#'
+- All 2932+ tests passing with zero regressions
+
 0.117.0 (2026-02-07) - Complete Word AST Migration, Remove Legacy String Expansion Path
 - Word AST is now the only argument expansion path (build_word_ast_nodes config removed)
 - Deleted ~450 lines of legacy string-based expansion code:

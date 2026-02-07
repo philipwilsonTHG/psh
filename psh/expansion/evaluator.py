@@ -72,21 +72,38 @@ class ExpansionEvaluator:
         return self.expansion_manager.command_sub.execute(cmd_sub)
 
     def _evaluate_parameter(self, expansion: ParameterExpansion) -> str:
-        """Evaluate parameter expansion by delegating to VariableExpander."""
-        # Reconstruct the ${...} expression string
-        if expansion.operator == '#' and expansion.word is None:
-            # Length operator: ${#var} — operator is prefix
-            expr = "${#" + expansion.parameter + "}"
-        elif expansion.operator == '!' and expansion.word is None:
-            # Indirect expansion: ${!var}
-            expr = "${!" + expansion.parameter + "}"
+        """Evaluate parameter expansion by calling VariableExpander directly.
+
+        Uses expand_parameter_direct() to avoid string round-trip through
+        parse_expansion() for most operators.  Falls back to expand_variable()
+        for cases where the parser AST is ambiguous (e.g. ${var:0:-1} is
+        parsed as parameter='var:0', operator=':-').
+        """
+        ve = self.expansion_manager.variable_expander
+        if expansion.operator:
+            # Detect parser AST ambiguity: if the parameter contains ':'
+            # and the operator is a default/assign/error/alternative operator,
+            # this is likely a substring expression (e.g. ${var:0:-1}).
+            # Fall back to string path which re-parses correctly.
+            if (':' in expansion.parameter and
+                    expansion.operator in (':-', ':=', ':?', ':+')):
+                return self._evaluate_parameter_via_string(expansion)
+            return ve.expand_parameter_direct(
+                expansion.operator, expansion.parameter,
+                expansion.word or ''
+            )
         else:
-            expr = "${" + expansion.parameter
-            if expansion.operator:
-                expr += expansion.operator
-                if expansion.word is not None:
-                    expr += expansion.word
-            expr += "}"
+            # Simple ${var} — no operator
+            return ve.expand_variable(f"${{{expansion.parameter}}}")
+
+    def _evaluate_parameter_via_string(self, expansion: ParameterExpansion) -> str:
+        """Fall back to string reconstruction for ambiguous AST cases."""
+        expr = "${" + expansion.parameter
+        if expansion.operator:
+            expr += expansion.operator
+            if expansion.word is not None:
+                expr += expansion.word
+        expr += "}"
         return self.expansion_manager.variable_expander.expand_variable(expr)
 
     def _evaluate_arithmetic(self, expansion: ArithmeticExpansion) -> str:

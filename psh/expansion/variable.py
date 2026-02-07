@@ -293,246 +293,9 @@ class VariableExpander:
             # Check for advanced parameter expansion
             try:
                 operator, var_name, operand = self.param_expansion.parse_expansion('${' + var_content + '}')
-                
+
                 if operator:
-                    # Handle advanced expansions
-                    # First get the variable value
-                    if var_name == '#':
-                        # Special case: ${#} is number of positional params
-                        return str(len(self.state.positional_params))
-                    elif var_name == '*':
-                        # ${#*} - number of positional parameters
-                        if operator == '#':
-                            return str(len(self.state.positional_params))
-                        value = ' '.join(self.state.positional_params)
-                    elif var_name == '@':
-                        # ${#@} - number of positional parameters
-                        if operator == '#':
-                            return str(len(self.state.positional_params))
-                        value = ' '.join(self.state.positional_params)
-                    elif var_name.isdigit():
-                        # Positional parameter
-                        index = int(var_name) - 1
-                        value = self.state.positional_params[index] if 0 <= index < len(self.state.positional_params) else ''
-                    elif '[' in var_name and var_name.endswith(']'):
-                        # Array element with parameter expansion
-                        bracket_pos = var_name.find('[')
-                        array_name = var_name[:bracket_pos]
-                        index_expr = var_name[bracket_pos+1:-1]
-                        
-                        from ..core.variables import IndexedArray, AssociativeArray
-                        var = self.state.scope_manager.get_variable_object(array_name)
-                        
-                        # Handle special indices @ and * for whole-array operations
-                        if index_expr in ('@', '*'):
-                            if var and isinstance(var.value, (IndexedArray, AssociativeArray)):
-                                elements = var.value.all_elements()
-                            elif var and var.value:
-                                # Regular variable treated as single-element array
-                                elements = [str(var.value)]
-                            else:
-                                elements = []
-                            
-                            # Apply parameter expansion to each element
-                            results = []
-                            for element in elements:
-                                # Apply the operation to this element
-                                if operator == '#' and not operand:
-                                    # Length operation
-                                    result = self.param_expansion.get_length(element)
-                                elif operator == '#' and operand:
-                                    # Remove shortest prefix
-                                    result = self.param_expansion.remove_shortest_prefix(element, operand)
-                                elif operator == '##':
-                                    # Remove longest prefix
-                                    result = self.param_expansion.remove_longest_prefix(element, operand)
-                                elif operator == '%%':
-                                    # Remove longest suffix
-                                    result = self.param_expansion.remove_longest_suffix(element, operand)
-                                elif operator == '%':
-                                    # Remove shortest suffix
-                                    result = self.param_expansion.remove_shortest_suffix(element, operand)
-                                elif operator == '//':
-                                    # Replace all
-                                    pattern, replacement = self._split_pattern_replacement(operand)
-                                    if pattern is not None:
-                                        result = self.param_expansion.substitute_all(element, pattern, replacement)
-                                    else:
-                                        result = element
-                                elif operator == '/':
-                                    # Replace first
-                                    pattern, replacement = self._split_pattern_replacement(operand)
-                                    if pattern is not None:
-                                        result = self.param_expansion.substitute_first(element, pattern, replacement)
-                                    else:
-                                        result = element
-                                elif operator == '/#':
-                                    # Replace prefix
-                                    pattern, replacement = self._split_pattern_replacement(operand)
-                                    if pattern is not None:
-                                        result = self.param_expansion.substitute_prefix(element, pattern, replacement)
-                                    else:
-                                        result = element
-                                elif operator == '/%':
-                                    # Replace suffix
-                                    pattern, replacement = self._split_pattern_replacement(operand)
-                                    if pattern is not None:
-                                        result = self.param_expansion.substitute_suffix(element, pattern, replacement)
-                                    else:
-                                        result = element
-                                elif operator == '^^':
-                                    # Uppercase all characters
-                                    if operand:
-                                        # Pattern-based uppercase
-                                        result = self.param_expansion.uppercase_all(element, operand)
-                                    else:
-                                        result = self.param_expansion.uppercase_all(element)
-                                elif operator == ',,':
-                                    # Lowercase all characters
-                                    if operand:
-                                        # Pattern-based lowercase
-                                        result = self.param_expansion.lowercase_all(element, operand)
-                                    else:
-                                        result = self.param_expansion.lowercase_all(element)
-                                elif operator == '^':
-                                    # Uppercase first character
-                                    if operand:
-                                        # Pattern-based uppercase first
-                                        result = self.param_expansion.uppercase_first(element, operand)
-                                    else:
-                                        result = self.param_expansion.uppercase_first(element)
-                                elif operator == ',':
-                                    # Lowercase first character
-                                    if operand:
-                                        # Pattern-based lowercase first
-                                        result = self.param_expansion.lowercase_first(element, operand)
-                                    else:
-                                        result = self.param_expansion.lowercase_first(element)
-                                else:
-                                    # Default: return element unchanged for unknown operators
-                                    result = element
-                                results.append(result)
-                            
-                            # Join results (@ uses space, * uses first char of IFS)
-                            if index_expr == '@':
-                                return ' '.join(results)
-                            else:  # index_expr == '*'
-                                ifs = self.state.get_variable('IFS', ' \t\n')
-                                separator = ifs[0] if ifs else ' '
-                                return separator.join(results)
-                        
-                        # Handle regular indexed/associative array access
-                        elif var and isinstance(var.value, IndexedArray):
-                            # Evaluate index
-                            expanded_index = self.expand_array_index(index_expr)
-                            try:
-                                if any(op in expanded_index for op in ['+', '-', '*', '/', '%', '(', ')']):
-                                    from ..arithmetic import evaluate_arithmetic
-                                    index = evaluate_arithmetic(expanded_index, self.shell)
-                                else:
-                                    index = int(expanded_index)
-                                value = var.value.get(index) or ''
-                            except:
-                                value = ''
-                        elif var and isinstance(var.value, AssociativeArray):
-                            expanded_key = self.expand_array_index(index_expr)
-                            value = var.value.get(expanded_key) or ''
-                        else:
-                            value = ''
-                    else:
-                        # Regular variable - use get_variable which checks scope manager
-                        value = self.state.get_variable(var_name, '')
-                    
-                    # Apply the operation
-                    if operator == '#' and not operand:
-                        # Length operation (no operand means it's ${#var})
-                        return self.param_expansion.get_length(value)
-                    elif operator == '#' and operand:
-                        # Remove shortest prefix (single # with pattern)
-                        return self.param_expansion.remove_shortest_prefix(value, operand)
-                    elif operator == '##':
-                        # Remove longest prefix
-                        return self.param_expansion.remove_longest_prefix(value, operand)
-                    elif operator == '%%':
-                        # Remove longest suffix
-                        return self.param_expansion.remove_longest_suffix(value, operand)
-                    elif operator == '%':
-                        # Remove shortest suffix
-                        return self.param_expansion.remove_shortest_suffix(value, operand)
-                    elif operator == '//':
-                        # Replace all
-                        pattern, replacement = self._split_pattern_replacement(operand)
-                        if pattern is not None:
-                            return self.param_expansion.substitute_all(value, pattern, replacement)
-                        else:
-                            # Missing replacement
-                            print(f"psh: ${{var//}}: missing replacement string", file=sys.stderr)
-                            return value
-                    elif operator == '/':
-                        # Replace first
-                        pattern, replacement = self._split_pattern_replacement(operand)
-                        if pattern is not None:
-                            return self.param_expansion.substitute_first(value, pattern, replacement)
-                        else:
-                            # Missing replacement
-                            print(f"psh: ${{var/}}: missing replacement string", file=sys.stderr)
-                            return value
-                    elif operator == '/#':
-                        # Replace prefix
-                        pattern, replacement = self._split_pattern_replacement(operand)
-                        if pattern is not None:
-                            return self.param_expansion.substitute_prefix(value, pattern, replacement)
-                        else:
-                            print(f"psh: ${{var/#}}: missing replacement string", file=sys.stderr)
-                            return value
-                    elif operator == '/%':
-                        # Replace suffix
-                        pattern, replacement = self._split_pattern_replacement(operand)
-                        if pattern is not None:
-                            return self.param_expansion.substitute_suffix(value, pattern, replacement)
-                        else:
-                            print(f"psh: ${{var/%}}: missing replacement string", file=sys.stderr)
-                            return value
-                    elif operator == ':':
-                        # Substring extraction
-                        # Parse offset:length
-                        if ':' in operand:
-                            offset_str, length_str = operand.split(':', 1)
-                            try:
-                                offset = int(offset_str)
-                                length = int(length_str)
-                                return self.param_expansion.extract_substring(value, offset, length)
-                            except ValueError:
-                                print(f"psh: ${{var:{operand}}}: invalid offset or length", file=sys.stderr)
-                                return ''
-                        else:
-                            # Just offset
-                            try:
-                                offset = int(operand)
-                                return self.param_expansion.extract_substring(value, offset)
-                            except ValueError:
-                                print(f"psh: ${{var:{operand}}}: invalid offset", file=sys.stderr)
-                                return ''
-                    elif operator == '!*':
-                        # Variable name matching
-                        names = self.param_expansion.match_variable_names(operand, quoted=False)
-                        return ' '.join(names)
-                    elif operator == '!@':
-                        # Variable name matching (quoted)
-                        names = self.param_expansion.match_variable_names(operand, quoted=True)
-                        return ' '.join(names)
-                    elif operator == '^':
-                        # Uppercase first
-                        return self.param_expansion.uppercase_first(value, operand)
-                    elif operator == '^^':
-                        # Uppercase all
-                        return self.param_expansion.uppercase_all(value, operand)
-                    elif operator == ',':
-                        # Lowercase first
-                        return self.param_expansion.lowercase_first(value, operand)
-                    elif operator == ',,':
-                        # Lowercase all
-                        return self.param_expansion.lowercase_all(value, operand)
+                    return self.expand_parameter_direct(operator, var_name, operand)
             except Exception:
                 # If parsing fails, fall back to default behavior
                 pass
@@ -655,9 +418,203 @@ class VariableExpander:
         else:
             return self.state.get_variable(var_name, '')
     
+    def expand_parameter_direct(self, operator: str, var_name: str, operand: str) -> str:
+        """Expand a parameter expansion from pre-parsed components.
+
+        Called by ExpansionEvaluator for Word AST nodes and by
+        expand_variable() for string-based expansions.
+
+        Args:
+            operator: The expansion operator ('#', '##', '%', '%%', '/', '//', etc.)
+            var_name: The variable name (may include array subscript like 'arr[0]')
+            operand: The pattern/replacement/offset operand
+        """
+        # Handle parser AST quirk: ${var/#pat/repl} is parsed as
+        # parameter='var/', operator='#' instead of operator='/#'
+        if var_name.endswith('/') and operator in ('#', '%'):
+            operator = '/' + operator
+            var_name = var_name[:-1]
+
+        # Resolve the variable value
+        if var_name in ('', '#') and operator == '#' and not operand:
+            # Special case: ${#} is number of positional params
+            # Parser AST uses parameter='', operator='#'; parse_expansion uses var_name='#'
+            return str(len(self.state.positional_params))
+        elif var_name == '*':
+            if operator == '#':
+                return str(len(self.state.positional_params))
+            value = ' '.join(self.state.positional_params)
+        elif var_name == '@':
+            if operator == '#':
+                return str(len(self.state.positional_params))
+            value = ' '.join(self.state.positional_params)
+        elif var_name.isdigit():
+            index = int(var_name) - 1
+            value = self.state.positional_params[index] if 0 <= index < len(self.state.positional_params) else ''
+        elif '[' in var_name and var_name.endswith(']'):
+            # Array element with parameter expansion
+            bracket_pos = var_name.find('[')
+            array_name = var_name[:bracket_pos]
+            index_expr = var_name[bracket_pos+1:-1]
+
+            from ..core.variables import IndexedArray, AssociativeArray
+            var = self.state.scope_manager.get_variable_object(array_name)
+
+            # Handle special indices @ and * for whole-array operations
+            if index_expr in ('@', '*'):
+                # ${#arr[@]} / ${#arr[*]} — array element count
+                if operator == '#' and not operand:
+                    if var and isinstance(var.value, (IndexedArray, AssociativeArray)):
+                        return str(var.value.length())
+                    elif var and var.value:
+                        return '1'
+                    else:
+                        return '0'
+
+                if var and isinstance(var.value, (IndexedArray, AssociativeArray)):
+                    elements = var.value.all_elements()
+                elif var and var.value:
+                    elements = [str(var.value)]
+                else:
+                    elements = []
+
+                results = []
+                for element in elements:
+                    results.append(self._apply_operator(operator, element, operand,
+                                                        var_name=var_name))
+
+                if index_expr == '@':
+                    return ' '.join(results)
+                else:
+                    ifs = self.state.get_variable('IFS', ' \t\n')
+                    separator = ifs[0] if ifs else ' '
+                    return separator.join(results)
+
+            # Handle regular indexed/associative array access
+            elif var and isinstance(var.value, IndexedArray):
+                expanded_index = self.expand_array_index(index_expr)
+                try:
+                    if any(op in expanded_index for op in ['+', '-', '*', '/', '%', '(', ')']):
+                        from ..arithmetic import evaluate_arithmetic
+                        index = evaluate_arithmetic(expanded_index, self.shell)
+                    else:
+                        index = int(expanded_index)
+                    value = var.value.get(index) or ''
+                except:
+                    value = ''
+            elif var and isinstance(var.value, AssociativeArray):
+                expanded_key = self.expand_array_index(index_expr)
+                value = var.value.get(expanded_key) or ''
+            else:
+                value = ''
+        else:
+            # Use _get_var_or_positional to handle special variables (#, ?, $, etc.)
+            value = self._get_var_or_positional(var_name)
+
+        return self._apply_operator(operator, value, operand, var_name=var_name)
+
+    def _apply_operator(self, operator: str, value: str, operand: str,
+                        var_name: str = '') -> str:
+        """Apply a parameter expansion operator to a resolved value."""
+        if operator == ':-':
+            if not value:
+                return self.expand_string_variables(operand)
+            return value
+        elif operator == ':=':
+            if not value:
+                expanded_default = self.expand_string_variables(operand)
+                if var_name and not var_name.isdigit():
+                    self.state.set_variable(var_name, expanded_default)
+                return expanded_default
+            return value
+        elif operator == ':?':
+            if not value:
+                expanded_message = self.expand_string_variables(operand) if operand else "parameter null or not set"
+                print(f"psh: {var_name}: {expanded_message}", file=sys.stderr)
+                self.state.last_exit_code = 1
+                from ..core.exceptions import ExpansionError
+                raise ExpansionError(f"{var_name}: {expanded_message}")
+            return value
+        elif operator == ':+':
+            if value:
+                return self.expand_string_variables(operand)
+            return ''
+        elif operator == '#' and not operand:
+            return self.param_expansion.get_length(value)
+        elif operator == '#' and operand:
+            return self.param_expansion.remove_shortest_prefix(value, operand)
+        elif operator == '##':
+            return self.param_expansion.remove_longest_prefix(value, operand)
+        elif operator == '%%':
+            return self.param_expansion.remove_longest_suffix(value, operand)
+        elif operator == '%':
+            return self.param_expansion.remove_shortest_suffix(value, operand)
+        elif operator == '//':
+            pattern, replacement = self._split_pattern_replacement(operand)
+            if pattern is not None:
+                return self.param_expansion.substitute_all(value, pattern, replacement)
+            else:
+                print(f"psh: ${{var//}}: missing replacement string", file=sys.stderr)
+                return value
+        elif operator == '/':
+            pattern, replacement = self._split_pattern_replacement(operand)
+            if pattern is not None:
+                return self.param_expansion.substitute_first(value, pattern, replacement)
+            else:
+                print(f"psh: ${{var/}}: missing replacement string", file=sys.stderr)
+                return value
+        elif operator == '/#':
+            pattern, replacement = self._split_pattern_replacement(operand)
+            if pattern is not None:
+                return self.param_expansion.substitute_prefix(value, pattern, replacement)
+            else:
+                print(f"psh: ${{var/#}}: missing replacement string", file=sys.stderr)
+                return value
+        elif operator == '/%':
+            pattern, replacement = self._split_pattern_replacement(operand)
+            if pattern is not None:
+                return self.param_expansion.substitute_suffix(value, pattern, replacement)
+            else:
+                print(f"psh: ${{var/%}}: missing replacement string", file=sys.stderr)
+                return value
+        elif operator == ':':
+            # Substring extraction
+            if ':' in operand:
+                offset_str, length_str = operand.split(':', 1)
+                try:
+                    offset = int(offset_str)
+                    length = int(length_str)
+                    return self.param_expansion.extract_substring(value, offset, length)
+                except ValueError:
+                    print(f"psh: ${{var:{operand}}}: invalid offset or length", file=sys.stderr)
+                    return ''
+            else:
+                try:
+                    offset = int(operand)
+                    return self.param_expansion.extract_substring(value, offset)
+                except ValueError:
+                    print(f"psh: ${{var:{operand}}}: invalid offset", file=sys.stderr)
+                    return ''
+        elif operator == '!*':
+            names = self.param_expansion.match_variable_names(operand, quoted=False)
+            return ' '.join(names)
+        elif operator == '!@':
+            names = self.param_expansion.match_variable_names(operand, quoted=True)
+            return ' '.join(names)
+        elif operator == '^':
+            return self.param_expansion.uppercase_first(value, operand)
+        elif operator == '^^':
+            return self.param_expansion.uppercase_all(value, operand)
+        elif operator == ',':
+            return self.param_expansion.lowercase_first(value, operand)
+        elif operator == ',,':
+            return self.param_expansion.lowercase_all(value, operand)
+        # Unknown operator, return value unchanged
+        return value
+
     def expand_array_index(self, index_expr: str) -> str:
         """Expand variables in array index expressions.
-        
+
         In array subscripts, bare variable names should be expanded as variables.
         For example, in ${arr[i]}, 'i' should be expanded to its value.
         """
