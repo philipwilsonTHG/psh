@@ -306,7 +306,7 @@ class VariableExpander:
                 value = self._get_var_or_positional(var_name)
                 if not value:
                     # Expand variables in the default value
-                    return self.expand_string_variables(default)
+                    return self._expand_tilde_in_operand(self.expand_string_variables(default))
                 return value
             # Handle ${var:=default} syntax (assign default if unset)
             elif ':=' in var_content:
@@ -314,7 +314,7 @@ class VariableExpander:
                 value = self._get_var_or_positional(var_name)
                 if not value:
                     # Expand the default value first
-                    expanded_default = self.expand_string_variables(default)
+                    expanded_default = self._expand_tilde_in_operand(self.expand_string_variables(default))
                     # Can't assign to positional parameters
                     if not var_name.isdigit():
                         self.state.set_variable(var_name, expanded_default)
@@ -342,7 +342,7 @@ class VariableExpander:
                 value = self._get_var_or_positional(var_name)
                 if value:
                     # Expand variables in the alternative value
-                    return self.expand_string_variables(alternative)
+                    return self._expand_tilde_in_operand(self.expand_string_variables(alternative))
                 return ''
             else:
                 var_name = var_content
@@ -507,16 +507,22 @@ class VariableExpander:
 
         return self._apply_operator(operator, value, operand, var_name=var_name)
 
+    def _expand_tilde_in_operand(self, text: str) -> str:
+        """Apply tilde expansion to parameter expansion operand values."""
+        if text.startswith('~'):
+            return self.shell.expansion_manager.tilde_expander.expand(text)
+        return text
+
     def _apply_operator(self, operator: str, value: str, operand: str,
                         var_name: str = '') -> str:
         """Apply a parameter expansion operator to a resolved value."""
         if operator == ':-':
             if not value:
-                return self.expand_string_variables(operand)
+                return self._expand_tilde_in_operand(self.expand_string_variables(operand))
             return value
         elif operator == ':=':
             if not value:
-                expanded_default = self.expand_string_variables(operand)
+                expanded_default = self._expand_tilde_in_operand(self.expand_string_variables(operand))
                 if var_name and not var_name.isdigit():
                     self.state.set_variable(var_name, expanded_default)
                 return expanded_default
@@ -531,7 +537,7 @@ class VariableExpander:
             return value
         elif operator == ':+':
             if value:
-                return self.expand_string_variables(operand)
+                return self._expand_tilde_in_operand(self.expand_string_variables(operand))
             return ''
         elif operator == '#' and not operand:
             return self.param_expansion.get_length(value)

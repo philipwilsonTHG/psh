@@ -2,10 +2,20 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.126.0"
+__version__ = "0.127.0"
 
 # Version history
 VERSION_HISTORY = """
+0.127.0 (2026-02-07) - Tilde Expansion in Parameter Expansion Defaults
+- Fixed ${x:-~} outputting literal ~ instead of expanding to home directory
+- Added _expand_tilde_in_operand() helper to VariableExpander
+- Tilde expansion now applied to operand values for :-, :=, and :+ operators
+- Applied in both _apply_operator() (Word AST path) and expand_variable() inline
+  fallback handlers (string-based path)
+- Matches bash behavior: ${x:-~} expands ~, ${x:-~/foo} expands ~/foo,
+  ${x:=~} assigns expanded value, ${x:+~} returns expanded value when set
+- All tests passing with zero regressions
+
 0.126.0 (2026-02-07) - Implement psh -i Flag and $- Special Variable
 - Added -i flag to force interactive mode (matches bash -i behavior)
 - Fixed broken --force-interactive flag: was set after Shell.__init__ completed,

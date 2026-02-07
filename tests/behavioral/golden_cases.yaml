@@ -317,9 +317,9 @@
   exit_code: 0
   psh_only: true
 
-- name: tilde_from_param_default_no_expand
+- name: tilde_from_param_default
   command: 'echo ${x:-~}'
-  stdout: "~\n"
+  stdout: null  # Output is $HOME, varies per machine
   stderr: ""
   exit_code: 0
 
