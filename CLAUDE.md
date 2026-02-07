@@ -16,7 +16,13 @@ Python Shell (psh) is an educational Unix shell implementation designed to teach
 
 ```bash
 # Run tests (RECOMMENDED - uses smart test runner)
-python run_tests.py                        # Smart mode - handles all test types correctly
+# IMPORTANT: Always redirect full test output to a file so you can inspect
+# failures without re-running the entire suite:
+python run_tests.py > tmp/test-results.txt 2>&1; tail -15 tmp/test-results.txt
+# If failures are found, grep the saved file instead of re-running:
+#   grep FAILED tmp/test-results.txt
+#   grep -A 10 "FAILURES" tmp/test-results.txt
+
 python run_tests.py --quick                # Fast tests only
 python run_tests.py --all-nocapture        # Simple mode - run all with -s
 
@@ -204,6 +210,27 @@ Input → Line Continuation → Tokenization → Parsing → AST → Expansion �
 ## Development Guidelines
 
 ### Testing
+
+**Running Tests Efficiently**
+
+When running the full test suite or any large test run, always redirect output to a file so you can inspect results without re-running:
+
+```bash
+# Good: save output, then inspect
+python run_tests.py > tmp/test-results.txt 2>&1; tail -15 tmp/test-results.txt
+grep FAILED tmp/test-results.txt          # List failures
+grep -B 5 "AssertionError" tmp/test-results.txt  # See assertion details
+
+# Bad: piping to tail loses output, forcing a second run to find failures
+python run_tests.py 2>&1 | tail -15
+# ...then having to re-run to grep for FAILED
+```
+
+The same applies to `pytest` runs — redirect to a file first, then inspect:
+
+```bash
+python -m pytest tests/unit/ > tmp/unit-results.txt 2>&1; tail -20 tmp/unit-results.txt
+```
 
 **Test Writing Guidelines**
 
