@@ -33,7 +33,8 @@ class Shell:
     def __init__(self, args=None, script_name=None, debug_ast=False, debug_tokens=False, debug_scopes=False,
                  debug_expansion=False, debug_expansion_detail=False, debug_exec=False, debug_exec_fork=False,
                  norc=False, rcfile=None, validate_only=False, format_only=False, metrics_only=False,
-                 security_only=False, lint_only=False, parent_shell=None, ast_format=None, enhanced_lexer=None):
+                 security_only=False, lint_only=False, parent_shell=None, ast_format=None, enhanced_lexer=None,
+                 force_interactive=False):
         # Initialize state
         self.state = ShellState(args, script_name, debug_ast,
                               debug_tokens, debug_scopes, debug_expansion, debug_expansion_detail,
@@ -130,8 +131,13 @@ class Shell:
         self.stderr = sys.stderr
         self.stdin = sys.stdin
 
-        # Allow force_interactive for testing purposes
-        is_interactive = getattr(self, '_force_interactive', sys.stdin.isatty())
+        # Determine interactive mode
+        is_interactive = force_interactive or sys.stdin.isatty()
+        self.state.options['interactive'] = is_interactive
+
+        # stdin_mode: True when reading from stdin (no script file argument)
+        # Will be set to False by __main__.py when a script file is given
+        self.state.options['stdin_mode'] = not self.state.is_script_mode
 
         # Load history only for interactive shells (bash doesn't load history in non-interactive mode)
         if is_interactive:

@@ -702,7 +702,7 @@ class VariableExpander:
                     # Simple variable like $var
                     j = i + 1
                     # Special single-char variables
-                    if j < len(text) and text[j] in '?$!#@*0123456789':
+                    if j < len(text) and text[j] in '?$!#@*-0123456789':
                         var_expr = text[i:j + 1]
                         result.append(self.expand_variable(var_expr))
                         i = j + 1

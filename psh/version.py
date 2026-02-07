@@ -2,10 +2,26 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.125.0"
+__version__ = "0.126.0"
 
 # Version history
 VERSION_HISTORY = """
+0.126.0 (2026-02-07) - Implement psh -i Flag and $- Special Variable
+- Added -i flag to force interactive mode (matches bash -i behavior)
+- Fixed broken --force-interactive flag: was set after Shell.__init__ completed,
+  so init-time interactive features (history loading, rc file) never triggered
+- Threaded force_interactive parameter into Shell.__init__() constructor
+- Made $- fully functional with all standard flags:
+  - B (braceexpand, default on), H (histexpand, default on)
+  - i (interactive), s (stdin mode, no script file)
+  - Plus existing: a, b, C, e, f, h, m, n, u, v, x
+- Fixed $- expansion in string contexts (heredocs, double-quoted strings):
+  added '-' to special variable character set in expand_string_variables()
+- Added interactive and stdin_mode options to ShellState options dict
+- Updated help text with -i flag description
+- Added comprehensive subprocess-based tests for -i and $-
+- All tests passing with zero regressions
+
 0.125.0 (2026-02-07) - Fix 3 FD/Redirect Bugs from Code Review
 - Fixed endswith('') bug in apply_permanent_redirections() process substitution
   check — always returned true; corrected to endswith(')')

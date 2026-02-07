@@ -82,6 +82,8 @@ class ShellState:
             'emacs': False,        # -o emacs: emacs key bindings (context-dependent)
             'vi': False,           # -o vi: vi key bindings (off for set -o display)
             'histexpand': True,    # -o histexpand: enable history expansion (default on)
+            'interactive': False,  # -i: interactive mode (set by shell init)
+            'stdin_mode': True,    # reading from stdin (no script file; set by shell init)
             # Parser configuration options (enhanced features now standard)
             'posix': False,        # -o posix: strict POSIX mode
             'collect_errors': False,  # -o collect_errors: collect multiple parse errors
@@ -315,20 +317,29 @@ class ShellState:
         return ''
 
     def get_option_string(self) -> str:
-        """Get string representation of set options for $- special variable."""
+        """Get string representation of set options for $- special variable.
+
+        Returns flags matching bash's $- format. Includes both options set via
+        'set' builtin and implicit flags like 'i' (interactive), 's' (stdin mode),
+        'B' (braceexpand), and 'H' (histexpand).
+        """
         opts = []
-        # Single-letter options in alphabetical order
+        # Single-letter options in alphabetical order (lowercase first, then uppercase)
         if self.options.get('allexport'): opts.append('a')
         if self.options.get('notify'): opts.append('b')
-        if self.options.get('noclobber'): opts.append('C')
         if self.options.get('errexit'): opts.append('e')
         if self.options.get('noglob'): opts.append('f')
         if self.options.get('hashcmds'): opts.append('h')
+        if self.options.get('interactive'): opts.append('i')
         if self.options.get('monitor'): opts.append('m')
         if self.options.get('noexec'): opts.append('n')
+        if self.options.get('stdin_mode'): opts.append('s')
         if self.options.get('nounset'): opts.append('u')
         if self.options.get('verbose'): opts.append('v')
         if self.options.get('xtrace'): opts.append('x')
+        if self.options.get('braceexpand'): opts.append('B')
+        if self.options.get('noclobber'): opts.append('C')
+        if self.options.get('histexpand'): opts.append('H')
         return ''.join(opts)
 
     def _detect_terminal_capabilities(self):

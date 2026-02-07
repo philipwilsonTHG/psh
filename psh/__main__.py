@@ -92,7 +92,10 @@ def main():
         lint_only = True
         args.remove("--lint")
 
-    # Extract force-interactive flag
+    # Extract force-interactive flag (both -i and --force-interactive)
+    if "-i" in args:
+        force_interactive = True
+        args.remove("-i")
     if "--force-interactive" in args:
         force_interactive = True
         args.remove("--force-interactive")
@@ -126,12 +129,9 @@ def main():
                   norc=norc, rcfile=rcfile, validate_only=validate_only,
                   format_only=format_only, metrics_only=metrics_only,
                   security_only=security_only, lint_only=lint_only,
-                  ast_format=ast_format
+                  ast_format=ast_format,
+                  force_interactive=force_interactive
                   )
-
-    # Set force interactive mode if requested
-    if force_interactive:
-        shell._force_interactive = True
 
     if len(sys.argv) > 1:
         if sys.argv[1] == "-c" and len(sys.argv) > 2:
@@ -164,11 +164,12 @@ def main():
             print("\nPython Shell (psh) - An educational Unix shell implementation")
             print("\nOptions:")
             print("  -c command       Execute command and exit")
+            print("  -i               Force interactive mode (load rc, set $- 'i' flag)")
             print("  -h, --help       Show this help message and exit")
             print("  -V, --version    Show version information and exit")
             print("  --norc           Do not read ~/.pshrc on startup")
             print("  --rcfile FILE    Read FILE instead of ~/.pshrc")
-            print("  --force-interactive Force interactive mode even if stdin is not a TTY")
+            print("  --force-interactive Same as -i")
             print("  --debug-ast      Print AST before execution (debugging)")
             print("  --debug-ast=FORMAT AST format: pretty, tree, compact, dot, sexp")
             print("  --debug-tokens   Print tokens before parsing (debugging)")
@@ -219,15 +220,24 @@ def main():
             exit_code = shell.run_script(script_path, script_args)
             sys.exit(exit_code)
     else:
-        # Check if stdin is a terminal or force interactive mode
-        if sys.stdin.isatty() or force_interactive:
-            # Interactive mode
+        if sys.stdin.isatty():
+            # Interactive REPL (TTY attached)
             shell.interactive_loop()
+        elif force_interactive:
+            # -i with piped stdin: interactive flag is set (rc loaded, history loaded)
+            # but read commands from pipe, don't run REPL
+            script_content = sys.stdin.read()
+            if script_content.strip():
+                from .input_sources import StringInput
+                input_source = StringInput(script_content, "<stdin>")
+                exit_code = shell.script_manager.source_processor.execute_from_source(
+                    input_source, add_to_history=False)
+                sys.exit(exit_code)
+            sys.exit(0)
         else:
             # Non-interactive mode - read all commands from stdin and execute as a script
             script_content = sys.stdin.read()
             if script_content.strip():
-                # Use StringInput with script mode to process line-by-line like a script file
                 from .input_sources import StringInput
                 input_source = StringInput(script_content, "<stdin>")
                 exit_code = shell.script_manager.source_processor.execute_from_source(
