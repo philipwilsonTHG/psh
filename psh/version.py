@@ -2,10 +2,29 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.123.0"
+__version__ = "0.124.0"
 
 # Version history
 VERSION_HISTORY = """
+0.124.0 (2026-02-07) - Unify Child Process Signal Policy
+- Created apply_child_signal_policy() in psh/executor/child_policy.py as single
+  source of truth for child process signal setup after fork()
+- Refactored ProcessLauncher._child_setup_and_exec() to call unified policy
+  instead of inline signal handling
+- Added policy call to command substitution fork (command_sub.py) — was missing
+  signal reset entirely, child inherited parent's custom signal handlers
+- Added policy call to process substitution fork (process_sub.py) — was only
+  setting SIGTTOU=SIG_IGN, missing full signal reset
+- Added policy call to file redirect process substitution fork (file_redirect.py)
+  — was missing signal reset entirely
+- Added policy call to IOManager builtin redirect process substitution fork
+  (manager.py) — was missing signal reset entirely
+- All 4 raw fork paths now use is_shell_process=True (they create temp Shell
+  instances and run commands, never exec external binaries)
+- Added unit tests for policy function and integration tests for command/process
+  substitution signal disposition
+- All tests passing with zero regressions
+
 0.123.0 (2026-02-07) - Fix 5 Correctness Bugs from Code Review
 - Fixed quoted variable names treated as assignments (High): "FOO"=bar no longer
   silently creates a variable; _is_assignment_candidate() now walks Word parts to

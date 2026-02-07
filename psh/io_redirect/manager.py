@@ -117,6 +117,13 @@ class IOManager:
                 # Fork child
                 pid = os.fork()
                 if pid == 0:  # Child
+                    from psh.executor.child_policy import apply_child_signal_policy
+                    apply_child_signal_policy(
+                        self.shell.interactive_manager.signal_manager,
+                        self.state,
+                        is_shell_process=True,
+                    )
+
                     os.close(parent_fd)
                     if direction == 'in':
                         os.dup2(child_stdout, 1)

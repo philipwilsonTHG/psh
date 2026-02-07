@@ -6,7 +6,6 @@ external commands, and subshells.
 """
 
 import os
-import signal
 import sys
 from dataclasses import dataclass
 from enum import Enum
@@ -147,9 +146,6 @@ class ProcessLauncher:
         exit_code = 127  # Default: command not found
 
         try:
-            # Mark that we're in a forked child
-            self.state._in_forked_child = True
-
             # 1. Set process group based on role
             if config.role == ProcessRole.PIPELINE_LEADER:
                 # First in pipeline: become process group leader
@@ -208,19 +204,12 @@ class ProcessLauncher:
                     print(f"DEBUG ProcessLauncher: Child {os.getpid()} is single command",
                           file=sys.stderr)
 
-            # 2. Reset signals to default
-            # Temporarily ignore SIGTTOU to avoid being stopped when setting terminal
-            signal.signal(signal.SIGTTOU, signal.SIG_IGN)
-
-            # Reset other signals to default (H3: centralized method)
-            self.signal_manager.reset_child_signals()
-
-            # Shell processes (subshells, brace groups) act as mini-shells that
-            # may call tcsetpgrp() for job control. They must keep SIGTTOU ignored
-            # to avoid being stopped. Leaf processes (external commands) keep
-            # SIG_DFL from reset_child_signals(), which is the correct default.
-            if config.is_shell_process:
-                signal.signal(signal.SIGTTOU, signal.SIG_IGN)
+            # 2. Reset signals to default (unified child policy)
+            from .child_policy import apply_child_signal_policy
+            apply_child_signal_policy(
+                self.signal_manager, self.state,
+                is_shell_process=config.is_shell_process,
+            )
 
             # 3. Set up I/O redirections if provided
             if config.io_setup:

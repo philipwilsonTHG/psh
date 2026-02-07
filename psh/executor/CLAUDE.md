@@ -27,6 +27,7 @@ Executor  Executor   Executor   Executor  Executor
 | `subshell.py` | `SubshellExecutor` - subshells and brace groups |
 | `array.py` | `ArrayOperationExecutor` - array initialization |
 | `process_launcher.py` | `ProcessLauncher` - unified process creation |
+| `child_policy.py` | `apply_child_signal_policy()` - single source of truth for child signal setup |
 | `strategies.py` | Execution strategies for different command types |
 | `context.py` | `ExecutionContext` - execution state |
 
@@ -183,23 +184,32 @@ class ProcessConfig:
 
 ### Signal Handling
 
-Child processes reset signal handlers via `reset_child_signals()`.
-The `is_shell_process` flag on `ProcessConfig` controls SIGTTOU disposition:
+All forked child processes apply the unified signal policy via
+`apply_child_signal_policy()` in `child_policy.py`. This is the single
+source of truth for child signal setup:
+
+1. Set `state._in_forked_child = True`
+2. Temporarily ignore SIGTTOU (prevents STOP during setup)
+3. Reset all signals to SIG_DFL via `signal_manager.reset_child_signals()`
+4. If `is_shell_process=True`: re-ignore SIGTTOU
+
+The `is_shell_process` flag controls SIGTTOU disposition:
 
 - **Shell processes** (`is_shell_process=True`): Keep SIGTTOU=SIG_IGN so they
-  can call `tcsetpgrp()` for job control (subshells, brace groups).
+  can call `tcsetpgrp()` for job control (subshells, brace groups, command
+  substitution children, process substitution children).
 - **Leaf processes** (`is_shell_process=False`, default): SIGTTOU=SIG_DFL,
   appropriate for external commands that don't manage terminal control.
 
-```python
-# In process_launcher.py _child_setup_and_exec():
-self.signal_manager.reset_child_signals()  # Sets all signals to SIG_DFL
-if config.is_shell_process:
-    signal.signal(signal.SIGTTOU, signal.SIG_IGN)  # Restore for shell processes
-```
+All 5 fork paths use this policy:
 
-Note: `process_sub.py` applies the same SIGTTOU policy manually since it
-uses raw `os.fork()` rather than `ProcessLauncher`.
+| Fork Path | File | is_shell_process |
+|-----------|------|-----------------|
+| ProcessLauncher | `process_launcher.py` | `config.is_shell_process` |
+| Command substitution | `expansion/command_sub.py` | `True` |
+| Process substitution | `io_redirect/process_sub.py` | `True` |
+| File redirect proc-sub | `io_redirect/file_redirect.py` | `True` |
+| IOManager builtin proc-sub | `io_redirect/manager.py` | `True` |
 
 ### Process Group Management
 

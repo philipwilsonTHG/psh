@@ -561,7 +561,7 @@ class ProcessRole(Enum):
 **`launch()` method** (lines 93-128):
 1. Flushes stdout/stderr to prevent output duplication
 2. Calls `os.fork()`
-3. **Child**: Sets process group, resets signal handlers, sets up I/O, executes, calls `os._exit()`
+3. **Child**: Sets process group, applies unified child signal policy (`child_policy.py`), sets up I/O, executes, calls `os._exit()`
 4. **Parent**: Sets child's process group from parent side (race condition mitigation), returns `(pid, pgid)`
 
 **Process group synchronization** (for pipelines):
@@ -768,5 +768,5 @@ The `isolated_shell_with_temp_dir` fixture provides a clean working directory an
 
 The pytest `-s` issue and the SIGTTOU signal issue are independent problems that both affect subshell tests, which is why they were grouped under architecture-comments.md opportunity #6. They are now separated:
 
-- **SIGTTOU policy**: Resolved in v0.122.0. `ProcessConfig.is_shell_process` centralizes the shell-vs-leaf signal disposition in `ProcessLauncher`.
+- **SIGTTOU policy**: Resolved in v0.122.0, unified in v0.124.0. `apply_child_signal_policy()` in `psh/executor/child_policy.py` is the single source of truth for all 5 fork paths (ProcessLauncher, command substitution, process substitution, file redirect proc-sub, IOManager builtin proc-sub). The `is_shell_process` flag controls whether SIGTTOU stays SIG_IGN (shell processes) or SIG_DFL (leaf processes).
 - **Pytest FD capture**: Permanent test infrastructure constraint. Mitigated by the phased test runner. Not a PSH bug.
