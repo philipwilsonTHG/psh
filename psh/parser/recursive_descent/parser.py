@@ -10,7 +10,6 @@ from typing import List, Optional, Union, Tuple, Set
 
 from ...token_types import Token, TokenType
 from ...token_stream import TokenStream
-from ...composite_processor import CompositeTokenProcessor, CompositeToken
 from ...ast_nodes import (
     Command, SimpleCommand, CompoundCommand, Pipeline, CommandList, StatementList, AndOrList, Redirect, 
     FunctionDef, TopLevel, BreakStatement, ContinueStatement, 
@@ -99,7 +98,7 @@ from ..validation import SemanticAnalyzer, ValidationPipeline, ValidationReport,
 class Parser(ContextBaseParser):
     """Main parser class that orchestrates parsing by delegating to specialized parsers."""
     
-    def __init__(self, tokens: List[Token], use_composite_processor: bool = False, 
+    def __init__(self, tokens: List[Token],
                  source_text: Optional[str] = None, collect_errors: bool = False,
                  config: Optional[ParserConfig] = None, ctx: Optional[ParserContext] = None):
         # Create or use provided context
@@ -107,12 +106,6 @@ class Parser(ContextBaseParser):
             # Use provided context directly
             super().__init__(ctx)
         else:
-            # Create context from parameters
-            # Optionally process tokens for composites
-            if use_composite_processor:
-                processor = CompositeTokenProcessor()
-                tokens = processor.process(tokens)
-            
             # Configuration (create default if not provided)
             config = config or ParserConfig()
             
