@@ -73,14 +73,17 @@ Key behaviors controlled by Word AST structure:
 
 ### 3. ExpansionEvaluator
 
-`ExpansionEvaluator` evaluates expansion AST nodes by reconstructing the
-canonical string form and delegating to `VariableExpander`:
+`ExpansionEvaluator` evaluates expansion AST nodes by delegating to
+`VariableExpander`.  For `ParameterExpansion` nodes it calls
+`expand_parameter_direct()` with the pre-parsed (operator, var_name,
+operand) components, avoiding the string round-trip through
+`parse_expansion()`:
 
 ```python
 class ExpansionEvaluator:
     def evaluate(self, expansion: Expansion) -> str:
         # VariableExpansion → expand_variable("$name")
-        # ParameterExpansion → expand_variable("${param op word}")
+        # ParameterExpansion → expand_parameter_direct(op, name, operand)
         # CommandSubstitution → command_sub.execute("$(cmd)")
         # ArithmeticExpansion → execute_arithmetic_expansion("$((expr))")
 ```
