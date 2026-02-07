@@ -1,10 +1,10 @@
-# Analysis of Architecture Comments — Post-v0.117.0
+# Analysis of Architecture Comments
 
-*Original analysis written pre-v0.115.0. Updated 2026-02-07 after architectural cleanup (v0.118.0).*
+*Original analysis written pre-v0.115.0. Updated 2026-02-07 after v0.119.0 improvements.*
 
-## What Was Accomplished (v0.114.0 – v0.117.0)
+## What Was Accomplished (v0.114.0 – v0.119.0)
 
-The architecture comments identified four risks and four opportunities. Five of the six opportunities have been realized, and all six review findings were resolved:
+The architecture comments identified four risks and four opportunities. All eight opportunities have been realized, and all review findings are resolved:
 
 | Opportunity | Status | Version |
 |------------|--------|---------|
@@ -13,16 +13,20 @@ The architecture comments identified four risks and four opportunities. Five of 
 | Golden behavioral tests | **Done** | v0.115.0 |
 | Direct parameter expansion evaluation | **Done** | v0.118.0 |
 | Remove CompositeTokenProcessor | **Done** | v0.118.0 |
-| Lexer convergence | Not started | — |
+| Lexer convergence (remove StateHandlers) | **Done** | v0.119.0 |
+| Fix parser AST for /#, /%, : operators | **Done** | v0.119.0 |
+| Migrate execution-path arg_types consumers | **Done** | v0.119.0 |
 
 | Risk | Status | Notes |
 |------|--------|-------|
-| Dual lexer architectures | **Unchanged** | ModularLexer is primary; StateHandlers remains as mixin |
+| Dual lexer architectures | **Resolved** | StateHandlers deleted (597 lines) in v0.119.0 |
 | Expansion logic fragmentation | **Resolved** | Single Word AST path; string path deleted |
 | Word AST partially implemented | **Resolved** | Word AST is now the sole path; flag removed |
 | Token adjacency implicit | **Resolved** | `adjacent_to_previous` is first-class on Token |
 | ExpansionEvaluator string round-trip | **Resolved** | Direct dispatch via `expand_parameter_direct()` |
 | Composite processor redundancy | **Resolved** | `CompositeTokenProcessor` deleted |
+| Parser AST for /#, /%, : operators | **Resolved** | Earliest-position matching; workarounds removed |
+| arg_types in execution path | **Partially resolved** | Execution-path consumers migrated; formatting/debug remain |
 
 ## The `\x00` Marker Pattern — Largely Eliminated
 
@@ -77,15 +81,15 @@ The actual migration also required fixes not anticipated in the original plan:
 
 ## Remaining Risks
 
-1. ~~**ExpansionEvaluator string round-trip.**~~ **Resolved in v0.118.0.** `_evaluate_parameter()` now calls `expand_parameter_direct()` with pre-parsed components. A string-based fallback remains only for ambiguous AST cases (e.g. `${var:0:-1}` where the parser conflates substring `:` with default-value `:-`).
+1. ~~**ExpansionEvaluator string round-trip.**~~ **Resolved in v0.118.0–v0.119.0.** `_evaluate_parameter()` now calls `expand_parameter_direct()` with pre-parsed components. The string-based fallback `_evaluate_parameter_via_string()` was removed in v0.119.0 after the parser was fixed to correctly represent `:` (substring) as a distinct operator.
 
-2. **Dual lexer maintenance burden.** The `StateHandlers` code remains. While it's now a mixin rather than a primary path, its continued existence means two bodies of tokenization code to understand and maintain.
+2. ~~**Dual lexer maintenance burden.**~~ **Resolved in v0.119.0.** `StateHandlers` deleted (597 lines). `ModularLexer` with recognizers is the sole lexer.
 
-3. **`args`/`arg_types` are vestigial.** These fields on `SimpleCommand` are now derived from Word AST by `_word_to_arg_type()` for backward compatibility. Some consumers (declare builtin, test command, assignment extraction) still read `arg_types`. Until they migrate to using `command.words` directly, the mapping function is a maintenance point.
+3. **`args`/`arg_types` are vestigial.** These fields on `SimpleCommand` are now derived from Word AST by `_word_to_arg_type()` for backward compatibility. The execution-path consumers (process substitution detection, assignment extraction) were migrated to Word AST in v0.119.0. Remaining consumers (declare builtin, test command, formatting/debug visitors) still read `arg_types`. Until they migrate to using `command.words` directly, the mapping function is a maintenance point.
 
 4. ~~**Composite processor redundancy.**~~ **Resolved in v0.118.0.** `CompositeTokenProcessor` deleted; `use_composite_processor` parameter removed from Parser.
 
-5. **Parser AST representation of `/#`, `/%`, and substring operators.** `WordBuilder._parse_parameter_expansion()` stores `${var/#pat/repl}` as `parameter='var/', operator='#'` and `${var:0:-1}` as `parameter='var:0', operator=':-'`. `expand_parameter_direct()` contains workarounds and a string-based fallback for these. Low risk but a source of unnecessary complexity.
+5. ~~**Parser AST representation of `/#`, `/%`, and substring operators.**~~ **Resolved in v0.119.0.** `_parse_parameter_expansion()` now uses earliest-position matching with the full operator set (`/#`, `/%`, `:` added). Workarounds in `expand_parameter_direct()` and the string-based fallback `_evaluate_parameter_via_string()` removed.
 
 ## Opportunities for Future Work
 
@@ -93,10 +97,13 @@ The actual migration also required fixes not anticipated in the original plan:
 - ~~**Direct parameter expansion evaluation**~~ — `ExpansionEvaluator` now calls `expand_parameter_direct()` directly. String round-trip eliminated.
 - ~~**Remove `CompositeTokenProcessor`**~~ — Deleted (198 lines). Parser handles composites natively via Word AST.
 
+### Completed in v0.119.0
+- ~~**Fix parser AST for `/#`, `/%`, and substring operators**~~ — `_parse_parameter_expansion()` rewritten with earliest-position matching. Workarounds and string fallback removed.
+- ~~**Remove `StateHandlers`**~~ — Deleted (597 lines). `ModularLexer` with recognizers is the sole lexer.
+- ~~**Migrate execution-path `arg_types` consumers**~~ — Process substitution detection and assignment extraction now use Word AST inspection.
+
 ### Medium value, low effort
-- **Fix parser AST for `/#`, `/%`, and substring operators** — Fix `WordBuilder._parse_parameter_expansion()` to correctly represent `${var/#pat/repl}` and `${var:0:-1}`, eliminating the workarounds in `expand_parameter_direct()`.
-- **Deprecate `StateHandlers`** — Audit whether any code paths still depend on the state-machine mixin and mark it for removal.
-- **Migrate `arg_types` consumers** — Move builtins and the `test` command to read from `command.words` instead of `command.arg_types`.
+- **Migrate remaining `arg_types` consumers** — Move builtins (declare), the `test` command, and formatting/debug visitors to read from `command.words` instead of `command.arg_types`.
 
 ### Lower priority
 - **Extend Word AST to heredocs/here strings** — Replace the remaining `\x00` markers in `expand_string_variables()` with structural context. This is well-contained and low risk as-is.
@@ -104,14 +111,17 @@ The actual migration also required fixes not anticipated in the original plan:
 
 ## Conclusion
 
-The architecture comments from the original review were accurate and well-prioritized. Five of the six identified opportunities have been realized, and all review findings are resolved. The codebase is in substantially better shape than when the review was conducted:
+The architecture comments from the original review were accurate and well-prioritized. All identified opportunities have been realized, and all review findings are resolved. The codebase is in substantially better shape than when the review was conducted:
 
-- 6/6 review findings resolved
-- ~650 lines of workaround/redundant code deleted (450 in v0.117, 200 in v0.118)
+- All review findings resolved
+- ~1,250 lines of workaround/redundant/dead code deleted (450 in v0.117, 200 in v0.118, 600 in v0.119)
 - `\x00` markers eliminated from the argument pipeline
 - Single expansion path instead of two
 - Parameter expansion evaluation is direct (no string round-trip)
 - CompositeTokenProcessor removed
-- 2,932 tests passing with zero regressions
+- StateHandlers removed — single lexer architecture
+- Parser AST correctly represents `/#`, `/%`, `:` operators — no workarounds
+- Execution-path `arg_types` consumers migrated to Word AST
+- 2,932+ tests passing with zero regressions
 
-The remaining work (lexer convergence, parser AST fixes for `/#`/`/%`, `arg_types` migration) is incremental improvement rather than architectural remediation.
+The remaining work (migrating formatting/debug `arg_types` consumers, extending Word AST to heredocs, process substitution fd management) is incremental improvement rather than architectural remediation.

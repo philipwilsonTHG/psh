@@ -1,6 +1,6 @@
 # Architecture and Codebase Comments
 
-*Updated 2026-02-07 after architectural cleanup (v0.118.0).*
+*Updated 2026-02-07 after v0.119.0 improvements.*
 
 ## Strengths
 
@@ -14,7 +14,7 @@
 
 ## Risks / Technical Debt
 
-- **Two lexer architectures coexist.** The `ModularLexer` with recognizers is the active tokenization engine, but `StateHandlers` (legacy state-machine mixin) remains as a utility class. The risk is maintenance confusion — fixes or features added to one architecture may not propagate to the other. The state-machine code should be on a deprecation track.
+- ~~**Two lexer architectures coexist.**~~ **Resolved in v0.119.0.** `StateHandlers` (597 lines) deleted. `ModularLexer` with recognizers is the sole tokenization engine.
 
 - **`\x00` markers remain in non-argument contexts.** While removed from the argument expansion pipeline, `\x00` is still used in:
   - `expand_string_variables()` (heredocs, here strings, control flow) — 2 insertion points in `lexer/helpers.py` and `lexer/pure_helpers.py`, 2 consumption points in `variable.py`
@@ -22,13 +22,13 @@
 
   These are lower risk since they're in well-contained subsystems, but the pattern should eventually be replaced with structural representations in those contexts too.
 
-- **Parser AST representation of some parameter expansions is lossy.** The parser's `ParameterExpansion` node doesn't perfectly represent all operators: `${var/#pat/repl}` is stored as `parameter='var/', operator='#'` instead of `operator='/#'`; `${var:0:-1}` is stored as `parameter='var:0', operator=':-'` instead of a substring operation. `expand_parameter_direct()` includes workarounds for these, and a string-based fallback for the ambiguous cases. These are parser-level issues that could be fixed at the `WordBuilder` layer.
+- ~~**Parser AST representation of some parameter expansions is lossy.**~~ **Resolved in v0.119.0.** `_parse_parameter_expansion()` now uses earliest-position matching with `/#`, `/%`, and `:` operators in the operator list. The workarounds in `expand_parameter_direct()` and the string-based fallback `_evaluate_parameter_via_string()` have been removed.
 
 - **Parser combinator is a secondary path.** The combinator parser (`psh/parser/combinators/`) was updated to always build Word AST nodes, but it receives less testing attention than the recursive descent parser. If it's intended as an educational reference only, this is fine. If it's meant for production use, it needs the same level of coverage.
 
 ## Opportunities
 
-1. **Converge on one lexer pipeline.** Deprecate and remove the `StateHandlers` state-machine code. The `ModularLexer` with recognizers is the active path and is well-tested. This would reduce the lexer surface area and eliminate divergence risk.
+1. ~~**Converge on one lexer pipeline.**~~ **Done in v0.119.0.** `StateHandlers` deleted (597 lines). `ModularLexer` with recognizers is the sole lexer.
 
 2. ~~**Direct parameter expansion evaluation.**~~ **Done in v0.118.0.** `ExpansionEvaluator` now calls `VariableExpander.expand_parameter_direct()` with pre-parsed (operator, var_name, operand) components. The string round-trip through `parse_expansion()` is eliminated for all common operators.
 
@@ -36,8 +36,8 @@
 
 4. ~~**Remove the composite processor.**~~ **Done in v0.118.0.** `CompositeTokenProcessor` deleted; `use_composite_processor` parameter removed from Parser.
 
-5. **Formalize the `args`/`arg_types` deprecation path.** `SimpleCommand.args` and `arg_types` are now derived from Word AST for backward compatibility. Over time, consumers (builtins, the `test` command, assignment extraction) should migrate to reading from `command.words` directly, after which `args`/`arg_types` can be removed.
+5. **Formalize the `args`/`arg_types` deprecation path.** `SimpleCommand.args` and `arg_types` are now derived from Word AST for backward compatibility. The execution-path consumers (process substitution detection, assignment extraction) were migrated to Word AST in v0.119.0. Remaining consumers (builtins, `test` command, formatting/debug visitors) should migrate over time, after which `args`/`arg_types` can be removed.
 
 6. **Process substitution and subshell fd management.** The `SIGTTOU` issues and pytest `-s` requirement for subshell tests point to fragility in how child processes inherit file descriptors. This isn't related to expansion but is the most significant remaining infrastructure concern.
 
-7. **Fix parser AST for `/#`, `/%`, and substring operators.** `WordBuilder._parse_parameter_expansion()` misrepresents `${var/#pat/repl}` (stores `parameter='var/'`, `operator='#'`) and `${var:0:-1}` (stores `parameter='var:0'`, `operator=':-'`). `expand_parameter_direct()` works around these, but fixing the parser would eliminate the workarounds and the string-based fallback path.
+7. ~~**Fix parser AST for `/#`, `/%`, and substring operators.**~~ **Done in v0.119.0.** `_parse_parameter_expansion()` now uses earliest-position matching with the full operator set. Workarounds and string fallback removed.
