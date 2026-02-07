@@ -153,6 +153,87 @@ class TestWordBuilder:
         assert expansion3.operator == "#"
         assert expansion3.word is None
     
+    def test_parse_prefix_substitution(self):
+        """Test ${var/#pat/repl} produces operator='/#'."""
+        token = Token(TokenType.PARAM_EXPANSION, "${path/#\\/usr/\\/opt}", 0)
+        expansion = WordBuilder.parse_expansion_token(token)
+        assert isinstance(expansion, ParameterExpansion)
+        assert expansion.parameter == "path"
+        assert expansion.operator == "/#"
+        assert expansion.word == "\\/usr/\\/opt"
+
+    def test_parse_suffix_substitution(self):
+        """Test ${var/%pat/repl} produces operator='/%'."""
+        token = Token(TokenType.PARAM_EXPANSION, "${path/%bin/sbin}", 0)
+        expansion = WordBuilder.parse_expansion_token(token)
+        assert isinstance(expansion, ParameterExpansion)
+        assert expansion.parameter == "path"
+        assert expansion.operator == "/%"
+        assert expansion.word == "bin/sbin"
+
+    def test_parse_substring_extraction(self):
+        """Test ${var:offset:length} produces operator=':'."""
+        token = Token(TokenType.PARAM_EXPANSION, "${str:0:-1}", 0)
+        expansion = WordBuilder.parse_expansion_token(token)
+        assert isinstance(expansion, ParameterExpansion)
+        assert expansion.parameter == "str"
+        assert expansion.operator == ":"
+        assert expansion.word == "0:-1"
+
+    def test_parse_substring_offset_only(self):
+        """Test ${var:offset} produces operator=':'."""
+        token = Token(TokenType.PARAM_EXPANSION, "${str:3}", 0)
+        expansion = WordBuilder.parse_expansion_token(token)
+        assert isinstance(expansion, ParameterExpansion)
+        assert expansion.parameter == "str"
+        assert expansion.operator == ":"
+        assert expansion.word == "3"
+
+    def test_parse_first_substitution(self):
+        """Test ${var/pat/repl} still works correctly."""
+        token = Token(TokenType.PARAM_EXPANSION, "${var/foo/bar}", 0)
+        expansion = WordBuilder.parse_expansion_token(token)
+        assert isinstance(expansion, ParameterExpansion)
+        assert expansion.parameter == "var"
+        assert expansion.operator == "/"
+        assert expansion.word == "foo/bar"
+
+    def test_parse_global_substitution(self):
+        """Test ${var//pat/repl} still works correctly."""
+        token = Token(TokenType.PARAM_EXPANSION, "${var//foo/bar}", 0)
+        expansion = WordBuilder.parse_expansion_token(token)
+        assert isinstance(expansion, ParameterExpansion)
+        assert expansion.parameter == "var"
+        assert expansion.operator == "//"
+        assert expansion.word == "foo/bar"
+
+    def test_parse_default_value_still_works(self):
+        """Test ${var:-default} is not affected by new : operator."""
+        token = Token(TokenType.PARAM_EXPANSION, "${x:-fallback}", 0)
+        expansion = WordBuilder.parse_expansion_token(token)
+        assert isinstance(expansion, ParameterExpansion)
+        assert expansion.parameter == "x"
+        assert expansion.operator == ":-"
+        assert expansion.word == "fallback"
+
+    def test_parse_shortest_prefix_removal(self):
+        """Test ${var#pat} is not confused with /#."""
+        token = Token(TokenType.PARAM_EXPANSION, "${file#*.}", 0)
+        expansion = WordBuilder.parse_expansion_token(token)
+        assert isinstance(expansion, ParameterExpansion)
+        assert expansion.parameter == "file"
+        assert expansion.operator == "#"
+        assert expansion.word == "*."
+
+    def test_parse_shortest_suffix_removal(self):
+        """Test ${var%pat} is not confused with /%."""
+        token = Token(TokenType.PARAM_EXPANSION, "${file%.txt}", 0)
+        expansion = WordBuilder.parse_expansion_token(token)
+        assert isinstance(expansion, ParameterExpansion)
+        assert expansion.parameter == "file"
+        assert expansion.operator == "%"
+        assert expansion.word == ".txt"
+
     def test_build_word_from_token(self):
         """Test building Word from a single token."""
         # Literal token

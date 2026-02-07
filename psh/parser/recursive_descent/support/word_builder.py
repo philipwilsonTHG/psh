@@ -87,25 +87,48 @@ class WordBuilder:
 
     @staticmethod
     def _parse_parameter_expansion(value: str) -> ParameterExpansion:
-        """Parse a parameter expansion like ${var:-default}."""
+        """Parse a parameter expansion like ${var:-default}.
+
+        Operator precedence matters:
+        - Longer operators before shorter (## before #, %% before %, // before /)
+        - /# and /% (prefix/suffix substitution) before # and %
+        - : (substring) after :-, :=, :?, :+ to avoid false matches
+        """
         # Remove ${ and }
         if value.startswith('${') and value.endswith('}'):
             inner = value[2:-1]
         else:
             inner = value
 
-        # Check for operators
-        # Order matters: check longer operators first
-        operators = [':-', ':=', ':?', ':+', '##', '#', '%%', '%', '//', '/']
+        # Check for operators.
+        # We find the operator that matches at the earliest position.
+        # When two operators match at the same position, prefer the longer one
+        # (e.g. ':-' over ':' at the same index, '//' over '/' at the same index).
+        operators = [':-', ':=', ':?', ':+', '##', '%%', '/#', '/%', '//', '#', '%', '/', ':']
 
+        best_idx = len(inner)
+        best_op = None
         for op in operators:
-            if op in inner:
-                # Find the first occurrence of the operator
-                idx = inner.find(op)
-                if idx > 0:  # Must have a variable name before operator
-                    parameter = inner[:idx]
-                    word = inner[idx + len(op):]
-                    return ParameterExpansion(parameter, op, word)
+            idx = inner.find(op)
+            if idx > 0:  # Must have a variable name before operator
+                # For ':' (substring operator), only match if the parameter
+                # part is a clean variable name (no ':' already in it).
+                # This prevents re-matching inside operands like '0:-1'.
+                if op == ':' and ':' in inner[:idx]:
+                    continue
+                # Don't match operators after array subscript closing ']'.
+                # ${arr[@]:2:3} is array slicing, handled by variable expansion,
+                # not by the parameter expansion operator system.
+                if inner[:idx].endswith(']') and '[' in inner[:idx]:
+                    continue
+                if idx < best_idx or (idx == best_idx and best_op and len(op) > len(best_op)):
+                    best_idx = idx
+                    best_op = op
+
+        if best_op is not None:
+            parameter = inner[:best_idx]
+            word = inner[best_idx + len(best_op):]
+            return ParameterExpansion(parameter, best_op, word)
 
         # Check for length operator ${#var}
         if inner.startswith('#'):

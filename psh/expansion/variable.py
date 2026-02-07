@@ -429,12 +429,6 @@ class VariableExpander:
             var_name: The variable name (may include array subscript like 'arr[0]')
             operand: The pattern/replacement/offset operand
         """
-        # Handle parser AST quirk: ${var/#pat/repl} is parsed as
-        # parameter='var/', operator='#' instead of operator='/#'
-        if var_name.endswith('/') and operator in ('#', '%'):
-            operator = '/' + operator
-            var_name = var_name[:-1]
-
         # Resolve the variable value
         if var_name in ('', '#') and operator == '#' and not operand:
             # Special case: ${#} is number of positional params
