@@ -372,17 +372,3 @@ class QuoteParsingContext:
         return QUOTE_RULES.get(quote_char)
 
 
-# Factory functions for easy access
-def create_double_quote_parser(expansion_parser: Optional['ExpansionParser'] = None) -> UnifiedQuoteParser:
-    """Create a parser configured for double quotes."""
-    return UnifiedQuoteParser(expansion_parser)
-
-
-def create_single_quote_parser() -> UnifiedQuoteParser:
-    """Create a parser configured for single quotes."""
-    return UnifiedQuoteParser()  # No expansion parser needed
-
-
-def create_backtick_parser() -> UnifiedQuoteParser:
-    """Create a parser configured for backtick substitution."""
-    return UnifiedQuoteParser()  # Backticks are handled as command substitution

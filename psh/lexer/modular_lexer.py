@@ -490,11 +490,6 @@ class ModularLexer:
         # Update position
         self.position = new_pos
 
-        # Check for unclosed backticks
-        if backtick_part.expansion_type == 'backtick_unclosed':
-            # Handle error
-            pass
-
         # Emit token
         self.emit_token(TokenType.COMMAND_SUB_BACKTICK, backtick_part.value, start_pos)
         return True

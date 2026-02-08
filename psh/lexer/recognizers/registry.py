@@ -1,10 +1,13 @@
 """Registry for token recognizers."""
 
+import logging
 from typing import Dict, List, Optional, Tuple, Type
 
 from ...token_types import Token
 from ..state_context import LexerContext
 from .base import TokenRecognizer
+
+logger = logging.getLogger(__name__)
 
 
 class RecognizerRegistry:
@@ -25,17 +28,6 @@ class RecognizerRegistry:
         self._recognizers.append(recognizer)
         self._sorted = False  # Need to re-sort by priority
 
-    def register_class(self, recognizer_class: Type[TokenRecognizer], *args, **kwargs) -> None:
-        """
-        Register a recognizer class (instantiates it).
-        
-        Args:
-            recognizer_class: The recognizer class to instantiate and register
-            *args, **kwargs: Arguments to pass to the constructor
-        """
-        recognizer = recognizer_class(*args, **kwargs)
-        self.register(recognizer)
-
     def unregister(self, recognizer: TokenRecognizer) -> bool:
         """
         Unregister a recognizer.
@@ -52,23 +44,6 @@ class RecognizerRegistry:
         except ValueError:
             return False
 
-    def unregister_by_type(self, recognizer_type: Type[TokenRecognizer]) -> int:
-        """
-        Unregister all recognizers of a specific type.
-        
-        Args:
-            recognizer_type: The type of recognizers to remove
-            
-        Returns:
-            Number of recognizers removed
-        """
-        removed = 0
-        self._recognizers = [
-            r for r in self._recognizers
-            if not isinstance(r, recognizer_type) or (removed := removed + 1, False)[1]
-        ]
-        return removed
-
     def get_recognizers(self) -> List[TokenRecognizer]:
         """
         Get all registered recognizers, sorted by priority.
@@ -81,21 +56,6 @@ class RecognizerRegistry:
             self._sorted = True
 
         return self._recognizers.copy()
-
-    def find_recognizer(self, recognizer_type: Type[TokenRecognizer]) -> Optional[TokenRecognizer]:
-        """
-        Find the first recognizer of a specific type.
-        
-        Args:
-            recognizer_type: The type of recognizer to find
-            
-        Returns:
-            The first matching recognizer, or None if not found
-        """
-        for recognizer in self._recognizers:
-            if isinstance(recognizer, recognizer_type):
-                return recognizer
-        return None
 
     def recognize(
         self,
@@ -124,43 +84,10 @@ class RecognizerRegistry:
                         token, new_pos = result
                         return token, new_pos, recognizer
             except Exception as e:
-                # Log error but continue with other recognizers
-                # In production, you might want to use proper logging
-                print(f"Error in recognizer {recognizer.name}: {e}")
+                logger.debug("Error in recognizer %s: %s", recognizer.name, e)
                 continue
 
         return None
-
-    def can_recognize(
-        self,
-        input_text: str,
-        pos: int,
-        context: LexerContext
-    ) -> List[TokenRecognizer]:
-        """
-        Find all recognizers that can potentially recognize at current position.
-        
-        Args:
-            input_text: The input string being lexed
-            pos: Current position in the input
-            context: Current lexer context/state
-            
-        Returns:
-            List of recognizers that claim they can recognize at this position
-        """
-        candidates = []
-        recognizers = self.get_recognizers()
-
-        for recognizer in recognizers:
-            try:
-                if recognizer.can_recognize(input_text, pos, context):
-                    candidates.append(recognizer)
-            except Exception as e:
-                # Log error but continue
-                print(f"Error checking recognizer {recognizer.name}: {e}")
-                continue
-
-        return candidates
 
     def get_stats(self) -> Dict[str, int]:
         """

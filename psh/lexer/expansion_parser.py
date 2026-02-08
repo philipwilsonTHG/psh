@@ -389,17 +389,3 @@ def create_expansion_parser(config: Optional['LexerConfig'] = None) -> Expansion
     return ExpansionParser(config)
 
 
-def create_variable_only_parser(config: Optional['LexerConfig'] = None) -> ExpansionParser:
-    """Create an expansion parser that only handles variables (no command sub)."""
-    # This would need a modified config that disables command substitution
-    if config:
-        # Create a copy with command substitution disabled
-        modified_config = type(config)()
-        for attr in dir(config):
-            if not attr.startswith('_'):
-                setattr(modified_config, attr, getattr(config, attr))
-        modified_config.enable_command_substitution = False
-        modified_config.enable_arithmetic_expansion = False
-        return ExpansionParser(modified_config)
-    else:
-        return ExpansionParser(config)

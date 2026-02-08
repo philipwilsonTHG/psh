@@ -342,7 +342,6 @@ Abstract base classes for the recogniser pattern:
   and `recognize()`.
 - `ContextualRecognizer` &mdash; adds `is_valid_in_context()` for
   context-dependent validation.
-- `PriorityRecognizer` &mdash; base with a settable priority.
 
 #### `registry.py` (~230 lines)
 

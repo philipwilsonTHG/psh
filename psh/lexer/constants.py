@@ -8,7 +8,6 @@ from ..token_types import TokenType
 VARIABLE_START_CHARS = set(string.ascii_letters + '_')
 VARIABLE_CHARS = set(string.ascii_letters + string.digits + '_')
 SPECIAL_VARIABLES = set('?$!#@*-') | set(string.digits)
-VARIABLE_NAME_PATTERN = None  # Will be imported from re module when needed
 
 # Escape sequences in different contexts
 # In double quotes, bash only processes: \", \\, \$, \`, and \newline

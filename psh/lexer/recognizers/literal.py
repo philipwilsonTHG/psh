@@ -105,8 +105,8 @@ class LiteralRecognizer(ContextualRecognizer):
         if not value:
             return None
 
-        # Determine token type based on content
-        token_type = self._classify_literal(value, context)
+        # Determine token type
+        token_type = TokenType.WORD
 
         token = Token(
             token_type,
@@ -373,51 +373,6 @@ class LiteralRecognizer(ContextualRecognizer):
 
         return False
 
-    def _classify_literal(self, value: str, context: LexerContext) -> TokenType:
-        """Classify a literal value into appropriate token type."""
-        # Check if it's a number - for now, treat as WORD since NUMBER doesn't exist
-        if self._is_number(value):
-            return TokenType.WORD  # Could be TokenType.NUMBER if it existed
-
-        # Check if it looks like a file descriptor (single digit)
-        if len(value) == 1 and value.isdigit():
-            # IO_NUMBER doesn't exist either, use WORD
-            return TokenType.WORD
-
-        # Check if it's a valid identifier
-        if self._is_identifier(value):
-            return TokenType.WORD
-
-        # Default to word
-        return TokenType.WORD
-
-    def _is_number(self, value: str) -> bool:
-        """Check if value is a number literal."""
-        if not value:
-            return False
-
-        # Simple integer
-        if value.isdigit():
-            return True
-
-        # Negative integer
-        if value.startswith('-') and len(value) > 1 and value[1:].isdigit():
-            return True
-
-        # Hexadecimal (0x...)
-        if (len(value) > 2 and
-            value.startswith('0x') and
-            all(c in '0123456789abcdefABCDEF' for c in value[2:])):
-            return True
-
-        # Octal (0...)
-        if (len(value) > 1 and
-            value.startswith('0') and
-            all(c in '01234567' for c in value[1:])):
-            return True
-
-        return False
-
     def _is_identifier(self, value: str) -> bool:
         """Check if value is a valid identifier."""
         if not value:
@@ -432,11 +387,6 @@ class LiteralRecognizer(ContextualRecognizer):
 
         # Rest must be valid identifier characters
         return all(is_identifier_char(c, posix_mode) for c in value[1:])
-
-    def _contains_special_chars(self, value: str) -> bool:
-        """Check if value contains shell special characters."""
-        special_chars = {'*', '?', '[', ']', '{', '}', '~'}
-        return any(c in special_chars for c in value)
 
     def _is_variable_assignment_start(self, value: str) -> bool:
         """Check if value looks like the start of a variable assignment (NAME=... or NAME[INDEX]=...)."""

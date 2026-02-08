@@ -15,21 +15,23 @@ def read_until_char(
     start_pos: int,
     target: str,
     escape: bool = False,
-    escape_chars: Set[str] = {'"', '\\', '`', '$'}
+    escape_chars: Optional[Set[str]] = None
 ) -> Tuple[str, int]:
     """
     Read characters until target is found.
-    
+
     Args:
         input_text: The input string to read from
         start_pos: Starting position in the string
         target: Character to read until
         escape: Whether to handle escape sequences
         escape_chars: Characters that can be escaped
-        
+
     Returns:
         Tuple of (content_read, new_position)
     """
+    if escape_chars is None:
+        escape_chars = {'"', '\\', '`', '$'}
     content = ""
     pos = start_pos
 

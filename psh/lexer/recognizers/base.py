@@ -94,21 +94,3 @@ class ContextualRecognizer(TokenRecognizer):
             True if the token is valid in this context
         """
         return True
-
-
-class PriorityRecognizer(TokenRecognizer):
-    """Base class for recognizers with configurable priority."""
-
-    def __init__(self, priority: int = 50):
-        """
-        Initialize with custom priority.
-        
-        Args:
-            priority: Recognition priority (higher = checked first)
-        """
-        self._priority = priority
-
-    @property
-    def priority(self) -> int:
-        """Get the configured priority."""
-        return self._priority
