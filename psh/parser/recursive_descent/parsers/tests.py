@@ -27,20 +27,13 @@ class TestParser:
 
     def parse_enhanced_test_statement(self) -> EnhancedTestStatement:
         """Parse [[ ... ]] enhanced test statement."""
-        with self.parser.context:
-            self.parser.context.in_test_expr = True
+        with self.parser.ctx:
+            self.parser.ctx.in_test_expr = True
 
             self.parser.expect(TokenType.DOUBLE_LBRACKET)
             self.parser.skip_newlines()
 
-            # Parse the test expression through delegation for integration compatibility
-            # Temporarily replace delegation to avoid infinite recursion
-            original_delegation = self.parser.parse_test_expression
-            self.parser.parse_test_expression = self.parse_test_expression
-            try:
-                expression = original_delegation()
-            finally:
-                self.parser.parse_test_expression = original_delegation
+            expression = self.parse_test_expression()
 
             self.parser.skip_newlines()
             self.parser.expect(TokenType.DOUBLE_RBRACKET)
@@ -134,12 +127,12 @@ class TestParser:
 
                 # Special handling for regex patterns
                 if operator == '=~':
-                    self.parser.context.push_context('regex_rhs')
+                    self.parser.ctx.enter_scope('regex_rhs')
 
                 right, right_quote_type = self._parse_test_operand()
 
                 if operator == '=~':
-                    self.parser.context.pop_context()
+                    self.parser.ctx.exit_scope()
 
                 return BinaryTestExpression(
                     left=left,
@@ -162,7 +155,7 @@ class TestParser:
                   - Mixed quoting (quoted + unquoted parts) is treated as unquoted
         """
         if not self.parser.match_any(TokenGroups.WORD_LIKE):
-            raise self.parser._error("Expected test operand")
+            raise self.parser.error("Expected test operand")
 
         result_parts = []
         has_quoted_part = False

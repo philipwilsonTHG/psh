@@ -32,12 +32,12 @@ class ArithmeticParser:
 
     def _parse_arithmetic_neutral(self) -> ArithmeticEvaluation:
         """Parse arithmetic command without setting execution context."""
-        with self.parser.context:
-            self.parser.context.in_arithmetic = True
+        with self.parser.ctx:
+            self.parser.ctx.in_arithmetic = True
 
             self.parser.expect(TokenType.DOUBLE_LPAREN)
 
-            expr = self.parser._parse_arithmetic_expression_until_double_rparen()
+            expr = self._parse_arithmetic_expression_until_double_rparen()
 
             # Handle both old (two RPAREN) and new (DOUBLE_RPAREN) tokenization
             if self.parser.match(TokenType.DOUBLE_RPAREN):

@@ -126,7 +126,7 @@ class CommandParser:
         self._parse_command_elements(command)
 
         # Check for background execution
-        if self.parser.consume_if_match(TokenType.AMPERSAND):
+        if self.parser.consume_if(TokenType.AMPERSAND):
             command.background = True
 
         return command
@@ -144,7 +144,7 @@ class CommandParser:
 
         # Ensure we have at least one word-like token
         if not self.parser.match_any(TokenGroups.WORD_LIKE):
-            raise self.parser._error("Expected command")
+            raise self.parser.error("Expected command")
 
     def _parse_command_elements(self, command: SimpleCommand) -> None:
         """Parse arguments, redirections, and array assignments for a command."""
@@ -219,17 +219,17 @@ class CommandParser:
 
         # Old lexer pattern: arr=(...)
         if (word_token.value.endswith('=') and
-            self.parser.peek_ahead(1) and
-            self.parser.peek_ahead(1).type == TokenType.LPAREN):
+            self.parser.peek(1) and
+            self.parser.peek(1).type == TokenType.LPAREN):
             self.parser.advance()
             return True, word_token
 
         # New lexer pattern: arr = (...)
-        if (self.parser.peek_ahead(1) and
-            self.parser.peek_ahead(1).type == TokenType.WORD and
-            self.parser.peek_ahead(1).value == '=' and
-            self.parser.peek_ahead(2) and
-            self.parser.peek_ahead(2).type == TokenType.LPAREN):
+        if (self.parser.peek(1) and
+            self.parser.peek(1).type == TokenType.WORD and
+            self.parser.peek(1).value == '=' and
+            self.parser.peek(2) and
+            self.parser.peek(2).type == TokenType.LPAREN):
             word_token = self.parser.advance()
             self.parser.advance()  # consume =
             return True, word_token
@@ -268,10 +268,10 @@ class CommandParser:
                 elements.append(''.join(original_repr_parts))
                 element_start_pos = self.parser.current
             else:
-                raise self.parser._error("Expected array element")
+                raise self.parser.error("Expected array element")
 
-        if not self.parser.consume_if_match(TokenType.RPAREN):
-            raise self.parser._error("Expected ')' to close array initialization")
+        if not self.parser.consume_if(TokenType.RPAREN):
+            raise self.parser.error("Expected ')' to close array initialization")
 
         # Build complete argument
         if word_token.value.endswith('='):
@@ -284,7 +284,7 @@ class CommandParser:
         pipeline = Pipeline()
 
         # Check for leading ! (negation)
-        if self.parser.consume_if_match(TokenType.EXCLAMATION):
+        if self.parser.consume_if(TokenType.EXCLAMATION):
             pipeline.negated = True
 
         # Parse first command (could be simple or compound)
@@ -436,7 +436,7 @@ class CommandParser:
                 token = self.parser.advance()
                 return self._token_to_argument(token)
             else:
-                raise self.parser._error("Expected word-like token")
+                raise self.parser.error("Expected word-like token")
 
     def _token_to_argument(self, token: Token) -> Tuple[str, str, Optional[str]]:
         """Convert a single token to argument tuple format."""
@@ -506,7 +506,7 @@ class CommandParser:
                 quote_type = token.quote_type if token.type == TokenType.STRING else None
                 return WordBuilder.build_word_from_token(token, quote_type)
             else:
-                raise self.parser._error("Expected word-like token")
+                raise self.parser.error("Expected word-like token")
 
     # Command variant parsers for use in pipelines
 

@@ -34,7 +34,7 @@ class RedirectionParser:
         import re
         match = re.match(r'^(\d*)([><])&(-|\d+)$', value)
         if not match:
-            raise self.parser._error(f"Invalid fd duplication syntax: {value}")
+            raise self.parser.error(f"Invalid fd duplication syntax: {value}")
 
         source_fd_str, direction, target = match.groups()
 
@@ -79,7 +79,7 @@ class RedirectionParser:
     def _parse_heredoc(self, token: Token) -> Redirect:
         """Parse here document redirect."""
         if not self.parser.match(TokenType.WORD, TokenType.STRING):
-            raise self.parser._error("Expected delimiter after here document operator")
+            raise self.parser.error("Expected delimiter after here document operator")
 
         delimiter_token = self.parser.advance()
         delimiter = delimiter_token.value
@@ -103,7 +103,7 @@ class RedirectionParser:
     def _parse_here_string(self, token: Token) -> Redirect:
         """Parse here string redirect."""
         if not self.parser.match_any(TokenGroups.WORD_LIKE):
-            raise self.parser._error("Expected string after here string operator")
+            raise self.parser.error("Expected string after here string operator")
 
         # Use composite argument parsing to handle variables and quotes properly
         content_value, content_type, quote_type = self.parser.commands.parse_composite_argument()
@@ -122,7 +122,7 @@ class RedirectionParser:
             default_fd = 1 if direction == '>' else 0
 
             if not self.parser.match(TokenType.WORD):
-                raise self.parser._error(f"Expected file descriptor after {token.value}")
+                raise self.parser.error(f"Expected file descriptor after {token.value}")
 
             target_token = self.parser.advance()
             dup_part = target_token.value
@@ -155,7 +155,7 @@ class RedirectionParser:
                     dup_fd=int(target)
                 )
 
-        raise self.parser._error(f"Invalid redirection operator: {token.value}")
+        raise self.parser.error(f"Invalid redirection operator: {token.value}")
 
     def _parse_err_redirect(self, token: Token) -> Redirect:
         """Parse stderr redirection."""
@@ -163,7 +163,7 @@ class RedirectionParser:
         if self.parser.match(TokenType.AMPERSAND):
             self.parser.advance()  # consume &
             if not self.parser.match(TokenType.WORD):
-                raise self.parser._error("Expected file descriptor after &")
+                raise self.parser.error("Expected file descriptor after &")
 
             dup_token = self.parser.advance()
             dup_fd = int(dup_token.value) if dup_token.value.isdigit() else None
@@ -178,7 +178,7 @@ class RedirectionParser:
 
         # Regular file redirection
         if not self.parser.match_any(TokenGroups.WORD_LIKE):
-            raise self.parser._error("Expected target after stderr redirect")
+            raise self.parser.error("Expected target after stderr redirect")
 
         target_token = self.parser.advance()
 
@@ -194,7 +194,7 @@ class RedirectionParser:
     def _parse_standard_redirect(self, token: Token) -> Redirect:
         """Parse standard redirection (< > >>)."""
         if not self.parser.match_any(TokenGroups.WORD_LIKE):
-            raise self.parser._error("Expected file name")
+            raise self.parser.error("Expected file name")
 
         # Use composite argument parsing to handle quoted composites like test'file'.txt
         target_value, _, _ = self.parser.commands.parse_composite_argument()

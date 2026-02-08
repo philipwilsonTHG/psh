@@ -1,10 +1,13 @@
 """Base parser class using centralized ParserContext."""
 
+import logging
 from typing import List, Optional, Set
 
 from ...token_types import Token, TokenType
 from .context import ParserContext
 from .helpers import ParseError, TokenGroups
+
+logger = logging.getLogger(__name__)
 
 
 class ContextBaseParser:
@@ -183,7 +186,7 @@ class ContextBaseParser:
         """Emit trace message if tracing is enabled."""
         if self.ctx.trace_enabled:
             indent = "  " * self.ctx.rule_stack_depth()
-            print(f"{indent}{message}")
+            logger.debug("%s%s", indent, message)
 
     def get_position_info(self, token: Optional[Token] = None) -> str:
         """Get position information for debugging."""

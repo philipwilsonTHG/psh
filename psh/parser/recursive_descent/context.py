@@ -4,12 +4,15 @@ This module provides the ParserContext class that consolidates all parser state
 into a single, manageable object, improving maintainability and performance tracking.
 """
 
+import logging
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 from ...token_types import Token, TokenType
 from ..config import ParserConfig
 from .helpers import ParseError
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -337,7 +340,7 @@ class ParserContext:
 
         if self.trace_enabled:
             indent = "  " * len(self.parse_stack)
-            print(f"{indent}→ {rule_name} @ {self.peek()}")
+            logger.debug("%s→ %s @ %s", indent, rule_name, self.peek())
 
         if self.profiler:
             self.profiler.enter_rule(rule_name)
@@ -349,7 +352,7 @@ class ParserContext:
 
         if self.trace_enabled:
             indent = "  " * len(self.parse_stack)
-            print(f"{indent}← {rule_name}")
+            logger.debug("%s← %s", indent, rule_name)
 
         if self.profiler:
             self.profiler.exit_rule(rule_name)
@@ -440,6 +443,30 @@ class ParserContext:
     def get_open_heredocs(self) -> List[str]:
         """Get list of open heredoc keys."""
         return [key for key, info in self.heredoc_trackers.items() if not info.closed]
+
+    # === Context Manager for State Preservation ===
+
+    def __enter__(self):
+        """Save current parsing state flags."""
+        saved = {
+            'in_test_expr': self.in_test_expr,
+            'in_arithmetic': self.in_arithmetic,
+            'in_case_pattern': self.in_case_pattern,
+            'in_function_body': self.in_function_body,
+            'in_command_substitution': self.in_command_substitution,
+        }
+        if not hasattr(self, '_saved_states'):
+            self._saved_states = []
+        self._saved_states.append(saved)
+        return self
+
+    def __exit__(self, _exc_type, _exc_val, _exc_tb):
+        """Restore previously saved parsing state flags."""
+        if hasattr(self, '_saved_states') and self._saved_states:
+            saved = self._saved_states.pop()
+            for key, value in saved.items():
+                setattr(self, key, value)
+        return False
 
     # === Debug and Reporting ===
 

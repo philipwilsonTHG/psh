@@ -57,7 +57,7 @@ class ControlStructureParser:
             # These don't have unified types, fall back to regular parsing
             return self._parse_control_structure()
         else:
-            raise self.parser._error(f"Unexpected control structure token: {token_type.name}")
+            raise self.parser.error(f"Unexpected control structure token: {token_type.name}")
 
     def _parse_control_structure(self) -> Statement:
         """Parse any control structure based on current token."""
@@ -84,7 +84,7 @@ class ControlStructureParser:
         elif token_type == TokenType.DOUBLE_LPAREN:
             return self.parser.arithmetic.parse_arithmetic_command()
         else:
-            raise self.parser._error(f"Unexpected control structure token: {token_type.name}")
+            raise self.parser.error(f"Unexpected control structure token: {token_type.name}")
 
     # === If Statement Parsing ===
 
@@ -296,7 +296,7 @@ class ControlStructureParser:
             condition = None
         else:
             # No semicolon, something's wrong
-            raise self.parser._error("Expected ';' after for loop initialization")
+            raise self.parser.error("Expected ';' after for loop initialization")
 
         # Parse increment
         increment = self.parser.arithmetic.parse_arithmetic_section_until_double_rparen()
@@ -376,17 +376,17 @@ class ControlStructureParser:
         patterns = []
 
         # Parse first pattern
-        with self.parser.context:
-            self.parser.context.in_case_pattern = True
-            pattern_str = self.parser._parse_case_pattern()
+        with self.parser.ctx:
+            self.parser.ctx.in_case_pattern = True
+            pattern_str = self._parse_case_pattern()
             patterns.append(CasePattern(pattern=pattern_str))
 
         # Parse additional patterns separated by |
         while self.parser.match(TokenType.PIPE):
             self.parser.advance()
-            with self.parser.context:
-                self.parser.context.in_case_pattern = True
-                pattern_str = self.parser._parse_case_pattern()
+            with self.parser.ctx:
+                self.parser.ctx.in_case_pattern = True
+                pattern_str = self._parse_case_pattern()
                 patterns.append(CasePattern(pattern=pattern_str))
 
         self.parser.expect(TokenType.RPAREN)

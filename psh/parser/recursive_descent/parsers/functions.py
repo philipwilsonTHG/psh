@@ -71,9 +71,9 @@ class FunctionParser:
             self.parser.skip_newlines()
 
             # Set function body context before parsing command list
-            with self.parser.context:
-                self.parser.context.in_function_body = True
-                statements = self.parser.parse_command_list_until(TokenType.RBRACE)
+            with self.parser.ctx:
+                self.parser.ctx.in_function_body = True
+                statements = self.parser.statements.parse_command_list_until(TokenType.RBRACE)
 
             self.parser.expect(TokenType.RBRACE)
             return statements
@@ -92,4 +92,4 @@ class FunctionParser:
             return cmd_list
         else:
             # Missing function body
-            raise self.parser._error("Expected '{' for function body")
+            raise self.parser.error("Expected '{' for function body")

@@ -11,23 +11,13 @@ from ...ast_nodes import (
     AndOrList,
     ArithmeticEvaluation,
     BreakStatement,
-    CaseConditional,
     CommandList,
     ContinueStatement,
-    CStyleForLoop,
     EnhancedTestStatement,
-    # Unified types only
     ExecutionContext,
-    ForLoop,
-    FunctionDef,
-    IfConditional,
     Pipeline,
-    Redirect,
-    SelectLoop,
-    SimpleCommand,
     Statement,
     TopLevel,
-    WhileLoop,
 )
 from ...token_types import Token, TokenType
 from .base_context import ContextBaseParser
@@ -39,58 +29,6 @@ from .parsers.statements import StatementParser
 from .parsers.tests import TestParser
 from .support.context_factory import ParserContextFactory
 from .support.error_collector import ErrorCollector, ErrorRecoveryStrategy, MultiErrorParseResult
-
-
-class ContextWrapper:
-    """Wrapper providing context manager support for ParserContext.
-
-    This provides backward compatibility for code that uses:
-        with parser.context:
-            parser.context.in_arithmetic = True
-            ...
-    """
-
-    def __init__(self, ctx: ParserContext):
-        self._ctx = ctx
-        self._saved_states = []
-
-    # Forward attribute access to ctx
-    def __getattr__(self, name):
-        return getattr(self._ctx, name)
-
-    def __setattr__(self, name, value):
-        if name.startswith('_'):
-            object.__setattr__(self, name, value)
-        else:
-            setattr(self._ctx, name, value)
-
-    def push_context(self, context: str) -> None:
-        """Push a parsing context onto the stack."""
-        self._ctx.enter_scope(context)
-
-    def pop_context(self) -> Optional[str]:
-        """Pop a parsing context from the stack."""
-        return self._ctx.exit_scope()
-
-    def __enter__(self):
-        """Save current state for context manager."""
-        saved = {
-            'in_test_expr': self._ctx.in_test_expr,
-            'in_arithmetic': self._ctx.in_arithmetic,
-            'in_case_pattern': self._ctx.in_case_pattern,
-            'in_function_body': self._ctx.in_function_body,
-            'in_command_substitution': self._ctx.in_command_substitution,
-        }
-        self._saved_states.append(saved)
-        return self
-
-    def __exit__(self, _exc_type, _exc_val, _exc_tb):
-        """Restore previous state."""
-        if self._saved_states:
-            saved = self._saved_states.pop()
-            for key, value in saved.items():
-                setattr(self._ctx, key, value)
-        return False
 
 
 from ..config import ErrorHandlingMode, ParserConfig
@@ -140,9 +78,6 @@ class Parser(ContextBaseParser):
         else:
             self.error_collector = None
 
-        # Context wrapper for backward compatibility
-        self._context_wrapper = ContextWrapper(self.ctx)
-
         # Initialize specialized parsers
         self.statements = StatementParser(self)
         self.commands = CommandParser(self)
@@ -155,28 +90,9 @@ class Parser(ContextBaseParser):
         self.utils = ParserUtils(self)
 
     @property
-    def context(self) -> ContextWrapper:
-        """Legacy context wrapper for backward compatibility."""
-        return self._context_wrapper
-
-    def _error(self, message: str, token: Optional[Token] = None) -> ParseError:
-        """Create a ParseError with context."""
-        # Delegate to the context-based error method
-        return self.error(message, token)
-
-    # === Configuration-Based Methods ===
-    # These delegate to ContextBaseParser methods
-
-    # is_feature_enabled, should_allow, require_feature, check_posix_compliance
-    # are inherited from ContextBaseParser
-
-    def should_collect_errors(self) -> bool:
-        """Check if errors should be collected rather than thrown immediately."""
-        return super().should_collect_errors()
-
-    def should_attempt_recovery(self) -> bool:
-        """Check if error recovery should be attempted."""
-        return super().should_attempt_recovery()
+    def context(self) -> ParserContext:
+        """Access to parser context (alias for self.ctx)."""
+        return self.ctx
 
     def add_error_with_recovery(self, error: ParseError) -> bool:
         """Add error and determine if parsing should continue."""
@@ -233,68 +149,6 @@ class Parser(ContextBaseParser):
     def current(self, value: int):
         """Legacy setter for current position."""
         self.ctx.current = value
-
-    # === Legacy Method Delegation ===
-
-    def consume_if_match(self, *token_types):
-        """Legacy method - consume token if it matches any of the given types."""
-        return self.consume_if(*token_types)
-
-    def match_any(self, token_set):
-        """Legacy method - check if current token is in the given set."""
-        return super().match_any(token_set)
-
-    def save_position(self) -> int:
-        """Legacy method - save current parser position."""
-        return self.ctx.current
-
-    def restore_position(self, position: int):
-        """Legacy method - restore parser to saved position."""
-        self.ctx.current = position
-
-    def peek_ahead(self, n: int = 1):
-        """Legacy method - look ahead n tokens without consuming."""
-        return self.peek(n)
-
-    def expect_with_recovery(self, token_type, recovery_hint=None):
-        """Legacy method with recovery hint."""
-        try:
-            return self.expect(token_type)
-        except Exception:
-            if recovery_hint:
-                print(f"Recovery hint: {recovery_hint}")
-            raise
-
-    def expect_one_of(self, *token_types):
-        """Legacy method - expect one of several token types."""
-        token = self.peek()
-        if token.type not in token_types:
-            expected = [str(tt).replace('TokenType.', '').lower() for tt in token_types]
-            error = self.error(f"Expected one of {expected}, got {token.type}")
-            self.add_error(error)
-        return self.advance()
-
-    def panic_mode_recovery(self, sync_tokens):
-        """Legacy method for panic mode recovery."""
-        self.synchronize(sync_tokens)
-
-    def with_error_recovery(self, sync_tokens):
-        """Legacy method for error recovery context manager."""
-        class ErrorRecoveryContext:
-            def __init__(self, parser):
-                self.parser = parser
-                self.sync_tokens = sync_tokens
-                self.old_recovery = False
-
-            def __enter__(self):
-                self.old_recovery = self.parser.ctx.error_recovery_mode
-                return self
-
-            def __exit__(self, _exc_type, _exc_val, _exc_tb):
-                self.parser.ctx.error_recovery_mode = self.old_recovery
-                return False
-
-        return ErrorRecoveryContext(self)
 
     # === AST Validation ===
 
@@ -562,108 +416,17 @@ class Parser(ContextBaseParser):
             return top_level
 
     # === Delegation Methods ===
-    # These methods delegate to specialized parsers for backward compatibility
-
-    def parse_statement(self) -> Optional[Statement]:
-        """Parse a statement."""
-        return self.statements.parse_statement()
-
-    def parse_command_list(self) -> CommandList:
-        """Parse a command list."""
-        return self.statements.parse_command_list()
-
-    def parse_and_or_list(self) -> Union[AndOrList, BreakStatement, ContinueStatement]:
-        """Parse an and/or list."""
-        return self.statements.parse_and_or_list()
-
-    def parse_pipeline(self) -> Pipeline:
-        """Parse a pipeline."""
-        return self.commands.parse_pipeline()
-
-    def parse_command(self) -> SimpleCommand:
-        """Parse a command."""
-        return self.commands.parse_command()
-
-    def parse_composite_argument(self) -> Tuple[str, str, Optional[str]]:
-        """Parse a composite argument."""
-        return self.commands.parse_composite_argument()
-
-    # ===== Additional delegation methods for backward compatibility =====
-
-    def parse_test_expression(self):
-        """Delegate to test parser."""
-        return self.tests.parse_test_expression()
-
-    def _parse_arithmetic_expression_until_double_rparen(self):
-        """Delegate to arithmetic parser."""
-        return self.arithmetic._parse_arithmetic_expression_until_double_rparen()
-
-    def _parse_case_pattern(self):
-        """Delegate to control structures parser."""
-        return self.control_structures._parse_case_pattern()
-
-    def parse_command_list_until(self, *args):
-        """Delegate to statements parser."""
-        return self.statements.parse_command_list_until(*args)
-
-    def parse_if_statement(self) -> IfConditional:
-        """Parse an if statement."""
-        return self.control_structures.parse_if_statement()
-
-    def parse_while_statement(self) -> WhileLoop:
-        """Parse a while statement."""
-        return self.control_structures.parse_while_statement()
-
-    def parse_for_statement(self) -> Union[ForLoop, CStyleForLoop]:
-        """Parse a for statement."""
-        return self.control_structures.parse_for_statement()
-
-    def parse_case_statement(self) -> CaseConditional:
-        """Parse a case statement."""
-        return self.control_structures.parse_case_statement()
-
-    def parse_select_statement(self) -> SelectLoop:
-        """Parse a select statement."""
-        return self.control_structures.parse_select_statement()
-
-    def parse_break_statement(self) -> BreakStatement:
-        """Parse a break statement."""
-        return self.control_structures.parse_break_statement()
-
-    def parse_continue_statement(self) -> ContinueStatement:
-        """Parse a continue statement."""
-        return self.control_structures.parse_continue_statement()
+    # These methods delegate to specialized parsers, adding feature checks where needed.
 
     def parse_enhanced_test_statement(self) -> EnhancedTestStatement:
         """Parse an enhanced test statement ([[ ... ]])."""
-        # Check if enhanced conditionals are allowed
         if not self.should_allow('bash_conditionals'):
             self.check_posix_compliance('[[ ]] enhanced test syntax', '[ ] test command')
-
         return self.tests.parse_enhanced_test_statement()
 
     def parse_arithmetic_command(self) -> ArithmeticEvaluation:
         """Parse an arithmetic command ((...)). """
-        # Check if arithmetic is enabled
         self.require_feature('arithmetic', 'Arithmetic evaluation is disabled')
-
-        # Check POSIX compliance for (( )) syntax
         if not self.should_allow('bash_arithmetic'):
             self.check_posix_compliance('(( )) arithmetic syntax', 'expr command')
-
         return self.arithmetic.parse_arithmetic_command()
-
-    def parse_function_def(self) -> FunctionDef:
-        """Parse a function definition."""
-        # Check if functions are enabled
-        self.require_feature('functions', 'Function definitions are disabled')
-
-        return self.functions.parse_function_def()
-
-    def parse_redirects(self) -> List[Redirect]:
-        """Parse redirections."""
-        return self.redirections.parse_redirects()
-
-    def parse_redirect(self) -> Redirect:
-        """Parse a single redirection."""
-        return self.redirections.parse_redirect()

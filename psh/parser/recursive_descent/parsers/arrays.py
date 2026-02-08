@@ -140,7 +140,7 @@ class ArrayParser:
                 close_bracket_pos = name_token.value.index(']')
 
                 if bracket_pos < equals_pos < close_bracket_pos:
-                    raise self.parser._error("Invalid array syntax")
+                    raise self.parser.error("Invalid array syntax")
 
                 name = name_token.value[:bracket_pos]
                 index_str = name_token.value[bracket_pos+1:close_bracket_pos]
@@ -172,11 +172,11 @@ class ArrayParser:
 
                 # Next token should be "=value" or "+="
                 if not self.parser.match(TokenType.WORD):
-                    raise self.parser._error("Expected '=' after array index")
+                    raise self.parser.error("Expected '=' after array index")
 
                 equals_token = self.parser.advance()
                 if not (equals_token.value.startswith('=') or equals_token.value == '+='):
-                    raise self.parser._error("Expected '=' or '+=' after array index")
+                    raise self.parser.error("Expected '=' or '+=' after array index")
 
                 is_append = equals_token.value == '+=' or equals_token.value.startswith('+=')
 
@@ -184,7 +184,7 @@ class ArrayParser:
                 if equals_token.value == '=' or equals_token.value == '+=':
                     # Value is in next token
                     if not self.parser.match_any(TokenGroups.WORD_LIKE):
-                        raise self.parser._error("Expected value after '='")
+                        raise self.parser.error("Expected value after '='")
                     value, value_type, quote_type = self.parser.commands.parse_composite_argument()
                 else:
                     # Value is part of equals token (e.g., "=value")
@@ -235,9 +235,9 @@ class ArrayParser:
                     self.parser.advance()  # consume =
                     is_append = False
                 else:
-                    raise self.parser._error("Expected '=' or '+=' in array initialization")
+                    raise self.parser.error("Expected '=' or '+=' in array initialization")
             else:
-                raise self.parser._error("Expected '=' or '+=' in array initialization")
+                raise self.parser.error("Expected '=' or '+=' in array initialization")
 
         return self._parse_array_initialization(name, is_append)
 
@@ -294,7 +294,7 @@ class ArrayParser:
                 }
 
                 if current_token.type not in valid_key_tokens:
-                    raise self.parser._error(f"Invalid token in array key: {current_token.type}")
+                    raise self.parser.error(f"Invalid token in array key: {current_token.type}")
 
                 tokens.append(current_token)
                 self.parser.advance()
@@ -309,7 +309,7 @@ class ArrayParser:
         elif self.parser.match(TokenType.WORD) and self.parser.peek().value == '[':
             self.parser.advance()
         else:
-            raise self.parser._error("Expected '[' after array name")
+            raise self.parser.error("Expected '[' after array name")
 
         # Parse index as list of tokens for late binding (associative vs indexed array evaluation)
         index_tokens = self._parse_array_key_tokens()
@@ -330,12 +330,12 @@ class ArrayParser:
                 # Create a new token for the equals part
                 equals_token = Token(TokenType.WORD, equals_part, current_token.position + bracket_pos + 1)
             else:
-                raise self.parser._error("Expected '=' or '+=' after array index")
+                raise self.parser.error("Expected '=' or '+=' after array index")
         else:
-            raise self.parser._error("Expected '=' after array index")
+            raise self.parser.error("Expected '=' after array index")
 
         if not (equals_token.value.startswith('=') or equals_token.value.startswith('+=')):
-            raise self.parser._error("Expected '=' or '+=' after array index")
+            raise self.parser.error("Expected '=' or '+=' after array index")
 
         self.parser.advance()  # consume the equals token
 
@@ -356,7 +356,7 @@ class ArrayParser:
         else:
             # Parse the value as a separate token
             if not self.parser.match_any(TokenGroups.WORD_LIKE):
-                raise self.parser._error("Expected value after '=' in array element assignment")
+                raise self.parser.error("Expected value after '=' in array element assignment")
             value, value_type, quote_type = self.parser.commands.parse_composite_argument()
 
         return ArrayElementAssignment(
