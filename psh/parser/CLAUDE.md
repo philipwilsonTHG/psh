@@ -110,9 +110,9 @@ class ParserContext:
     errors: List[ParseError]
 ```
 
-### 3. Context Wrapper for State Preservation
+### 3. Context Manager for State Preservation
 
-Use `with parser.context:` to save/restore state:
+Use `with parser.context:` to save/restore parsing state flags:
 
 ```python
 # In control_structures.py

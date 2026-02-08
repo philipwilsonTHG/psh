@@ -2,7 +2,7 @@
 
 import pytest
 from psh.lexer import tokenize
-from psh.parser.implementations.recursive_descent_adapter import RecursiveDescentAdapter
+from psh.parser import Parser
 from psh.parser.config import ParserConfig
 from psh.ast_nodes import (
     Word, LiteralPart, ExpansionPart,
@@ -16,24 +16,19 @@ class TestRecursiveDescentWordAST:
     
     def test_word_ast_disabled_by_default(self):
         """Test that Word AST nodes are not created by default."""
-        parser = RecursiveDescentAdapter()
         tokens = tokenize("echo $USER")
-        ast = parser.parse(tokens)
-        
+        ast = Parser(tokens).parse()
+
         # Get the command
         cmd = ast.statements[0].pipelines[0].commands[0]
         assert isinstance(cmd, SimpleCommand)
         assert cmd.args == ["echo", "$USER"]
         assert cmd.words is not None  # Word AST is enabled by default
-    
+
     def test_simple_literal_word(self):
         """Test Word AST for simple literal arguments."""
-        config = ParserConfig()
-        parser = RecursiveDescentAdapter()
-        parser.config = config
-        
         tokens = tokenize("echo hello world")
-        ast = parser.parse(tokens)
+        ast = Parser(tokens, config=ParserConfig()).parse()
         
         cmd = ast.statements[0].pipelines[0].commands[0]
         assert cmd.words is not None
@@ -50,12 +45,8 @@ class TestRecursiveDescentWordAST:
     
     def test_variable_expansion_word(self):
         """Test Word AST for variable expansion."""
-        config = ParserConfig()
-        parser = RecursiveDescentAdapter()
-        parser.config = config
-        
         tokens = tokenize("echo $USER $HOME")
-        ast = parser.parse(tokens)
+        ast = Parser(tokens, config=ParserConfig()).parse()
         
         cmd = ast.statements[0].pipelines[0].commands[0]
         assert cmd.words is not None
@@ -82,12 +73,8 @@ class TestRecursiveDescentWordAST:
     
     def test_command_substitution_word(self):
         """Test Word AST for command substitution."""
-        config = ParserConfig()
-        parser = RecursiveDescentAdapter()
-        parser.config = config
-        
         tokens = tokenize("echo $(date) `hostname`")
-        ast = parser.parse(tokens)
+        ast = Parser(tokens, config=ParserConfig()).parse()
         
         cmd = ast.statements[0].pipelines[0].commands[0]
         assert len(cmd.words) == 3
@@ -112,12 +99,8 @@ class TestRecursiveDescentWordAST:
     
     def test_parameter_expansion_word(self):
         """Test Word AST for parameter expansion."""
-        config = ParserConfig()
-        parser = RecursiveDescentAdapter()
-        parser.config = config
-        
         tokens = tokenize("echo ${USER:-nobody} ${#PATH}")
-        ast = parser.parse(tokens)
+        ast = Parser(tokens, config=ParserConfig()).parse()
         
         cmd = ast.statements[0].pipelines[0].commands[0]
         assert len(cmd.words) == 3
@@ -144,12 +127,8 @@ class TestRecursiveDescentWordAST:
     
     def test_quoted_word(self):
         """Test Word AST for quoted strings."""
-        config = ParserConfig()
-        parser = RecursiveDescentAdapter()
-        parser.config = config
-        
         tokens = tokenize('echo "hello world" \'single quoted\'')
-        ast = parser.parse(tokens)
+        ast = Parser(tokens, config=ParserConfig()).parse()
         
         cmd = ast.statements[0].pipelines[0].commands[0]
         assert len(cmd.words) == 3
@@ -172,12 +151,8 @@ class TestRecursiveDescentWordAST:
     
     def test_composite_word(self):
         """Test Word AST for composite words with mixed content."""
-        config = ParserConfig()
-        parser = RecursiveDescentAdapter()
-        parser.config = config
-
         tokens = tokenize("echo prefix-$USER-suffix")
-        ast = parser.parse(tokens)
+        ast = Parser(tokens, config=ParserConfig()).parse()
 
         cmd = ast.statements[0].pipelines[0].commands[0]
         word = cmd.words[1]
@@ -201,12 +176,8 @@ class TestRecursiveDescentWordAST:
         metadata.  The WordBuilder decomposes it into an ExpansionPart
         with the proper quote context.
         """
-        config = ParserConfig()
-        parser = RecursiveDescentAdapter()
-        parser.config = config
-
         tokens = tokenize('echo foo"$var"bar')
-        ast = parser.parse(tokens)
+        ast = Parser(tokens, config=ParserConfig()).parse()
 
         cmd = ast.statements[0].pipelines[0].commands[0]
         assert cmd.words is not None
@@ -232,12 +203,8 @@ class TestRecursiveDescentWordAST:
 
     def test_composite_word_single_quote_part(self):
         """Test Word AST for composite with single-quoted part."""
-        config = ParserConfig()
-        parser = RecursiveDescentAdapter()
-        parser.config = config
-
         tokens = tokenize("echo FOO='value'")
-        ast = parser.parse(tokens)
+        ast = Parser(tokens, config=ParserConfig()).parse()
 
         cmd = ast.statements[0].pipelines[0].commands[0]
         word = cmd.words[1]
@@ -253,12 +220,8 @@ class TestRecursiveDescentWordAST:
 
     def test_double_quoted_string_decomposed_into_expansion(self):
         """Test that "$HOME" is decomposed into ExpansionPart."""
-        config = ParserConfig()
-        parser = RecursiveDescentAdapter()
-        parser.config = config
-
         tokens = tokenize('echo "$HOME"')
-        ast = parser.parse(tokens)
+        ast = Parser(tokens, config=ParserConfig()).parse()
 
         cmd = ast.statements[0].pipelines[0].commands[0]
         assert cmd.words is not None
@@ -276,12 +239,8 @@ class TestRecursiveDescentWordAST:
 
     def test_double_quoted_string_with_text_and_expansion(self):
         """Test that "hello $USER!" is decomposed into mixed parts."""
-        config = ParserConfig()
-        parser = RecursiveDescentAdapter()
-        parser.config = config
-
         tokens = tokenize('echo "hello $USER!"')
-        ast = parser.parse(tokens)
+        ast = Parser(tokens, config=ParserConfig()).parse()
 
         cmd = ast.statements[0].pipelines[0].commands[0]
         word = cmd.words[1]

@@ -103,15 +103,10 @@ class Shell:
         from .history_expansion import HistoryExpander
         self.history_expander = HistoryExpander(self)
 
-        # Initialize parser strategy
-        from .parser.parser_registry import ParserStrategy
-        if parent_shell and hasattr(parent_shell, 'parser_strategy'):
-            # Inherit parser strategy from parent shell
-            current_parser = parent_shell.parser_strategy.current_parser
-            self.parser_strategy = ParserStrategy(current_parser)
-        else:
-            # Use default parser
-            self.parser_strategy = ParserStrategy("default")
+        # Active parser selection ('recursive_descent' or 'combinator')
+        self._active_parser = 'recursive_descent'
+        if parent_shell and hasattr(parent_shell, '_active_parser'):
+            self._active_parser = parent_shell._active_parser
 
         # Initialize trap manager
         from .core.trap_manager import TrapManager
@@ -173,7 +168,7 @@ class Shell:
         if name in ('state', '_state_properties', 'builtin_registry', 'builtins',
                    'alias_manager', 'function_manager', 'job_manager', 'expansion_manager',
                    'io_manager', 'executor_manager', 'script_manager', 'interactive_manager',
-                   'history_expander'):
+                   'history_expander', '_active_parser'):
             super().__setattr__(name, value)
         elif hasattr(self, '_state_properties') and name in self._state_properties:
             setattr(self.state, name, value)
@@ -480,14 +475,19 @@ class Shell:
 
                 # Note: Alias expansion now happens during execution phase for proper precedence
 
-                # Configure parser with current shell options
-                parser_config = {
-                    'trace_parsing': self.state.options.get('debug-parser', False)
-                }
-                self.parser_strategy.parser.configure(**parser_config)
-
                 # Parse using the selected parser implementation
-                ast = self.parser_strategy.parse(tokens)
+                from .parser import parse as rd_parse
+                from .parser.config import ParserConfig
+
+                parser_config = ParserConfig(
+                    trace_parsing=self.state.options.get('debug-parser', False)
+                )
+
+                if self._active_parser == 'combinator':
+                    from .parser.combinators.parser import ParserCombinatorShellParser
+                    ast = ParserCombinatorShellParser(parser_config).parse(tokens)
+                else:
+                    ast = rd_parse(tokens, config=parser_config)
 
             # Debug: Print AST if requested
             if self.debug_ast:
@@ -769,33 +769,37 @@ class Shell:
 
     def create_parser(self, tokens, source_text=None, **_parser_options):
         """Create a parser with configuration based on shell options.
-        
-        This method now uses the parser strategy to respect parser selection.
-        
+
         Args:
             tokens: List of tokens to parse
             source_text: Optional source text for error reporting
             **parser_options: Additional parser options to override
-            
+
         Returns:
             Configured Parser instance or wrapper
         """
-        # Configure parser with current shell options
-        parser_config = {
-            'trace_parsing': self.state.options.get('debug-parser', False)
-        }
-        self.parser_strategy.parser.configure(**parser_config)
+        from .parser import Parser
+        from .parser.config import ParserConfig
 
-        # Create a wrapper that implements the same interface as the old parser
-        class ParserWrapper:
-            def __init__(self, parser_strategy, tokens):
-                self.parser_strategy = parser_strategy
-                self.tokens = tokens
+        parser_config = ParserConfig(
+            trace_parsing=self.state.options.get('debug-parser', False)
+        )
 
-            def parse(self):
-                return self.parser_strategy.parse(self.tokens)
+        if self._active_parser == 'combinator':
+            from .parser.combinators.parser import ParserCombinatorShellParser
+            pc = ParserCombinatorShellParser(parser_config)
 
-        return ParserWrapper(self.parser_strategy, tokens)
+            class ParserWrapper:
+                def __init__(self, parser, tokens):
+                    self._parser = parser
+                    self.tokens = tokens
+
+                def parse(self):
+                    return self._parser.parse(self.tokens)
+
+            return ParserWrapper(pc, tokens)
+        else:
+            return Parser(tokens, config=parser_config)
 
     def _contains_heredoc(self, command_string: str) -> bool:
         """Check if command contains heredoc operators (not bit-shift in arithmetic).
@@ -861,8 +865,8 @@ class Shell:
         if not format_type:
             format_type = self.state.scope_manager.get_variable('PSH_AST_FORMAT') or 'tree'
 
-        # Include canonical parser name in debug header
-        parser_name = self.parser_strategy.current_parser_canonical
+        # Include parser name in debug header
+        parser_name = self._active_parser
         print(f"=== AST Debug Output ({parser_name}) ===", file=sys.stderr)
 
         try:

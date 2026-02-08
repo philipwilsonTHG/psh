@@ -12,9 +12,9 @@ import pytest
 from typing import Tuple, Any, Optional, List
 from dataclasses import dataclass
 from psh.lexer import tokenize
-from psh.parser.implementations.recursive_descent_adapter import RecursiveDescentAdapter
+from psh.parser import Parser, ParseError
+from psh.parser.config import ParserConfig
 from psh.parser.combinators.parser import ParserCombinatorShellParser
-from psh.parser.abstract_parser import ParseError
 from psh.ast_nodes import (
     # Core structures
     TopLevel, StatementList, CommandList, AndOrList, Pipeline,
@@ -50,17 +50,16 @@ class TestParserFeatureParity:
     
     def setup_method(self):
         """Set up test fixtures."""
-        self.rd_parser = RecursiveDescentAdapter()
         self.pc_parser = ParserCombinatorShellParser()
-    
+
     def parse_both(self, command: str) -> Tuple[Any, Any]:
         """Parse with both parsers and return ASTs."""
         tokens_rd = tokenize(command)
         tokens_pc = tokenize(command)
-        
-        rd_ast = self.rd_parser.parse(tokens_rd)
+
+        rd_ast = Parser(tokens_rd, config=ParserConfig()).parse()
         pc_ast = self.pc_parser.parse(tokens_pc)
-        
+
         return rd_ast, pc_ast
     
     def check_parity(self, test_case: ParityTestCase):
@@ -79,7 +78,7 @@ class TestParserFeatureParity:
             # Both should fail to parse
             with pytest.raises(ParseError):
                 tokens = tokenize(test_case.command)
-                self.rd_parser.parse(tokens)
+                Parser(tokens, config=ParserConfig()).parse()
             with pytest.raises(ParseError):
                 tokens = tokenize(test_case.command)
                 self.pc_parser.parse(tokens)

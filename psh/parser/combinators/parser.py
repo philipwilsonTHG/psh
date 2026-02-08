@@ -1,15 +1,15 @@
 """Main parser integration for the modular parser combinator implementation.
 
 This module integrates all the parser combinator modules into a cohesive
-parser that implements the AbstractShellParser interface.
+parser for shell commands using functional combinators.
 """
 
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from ...ast_nodes import ASTNode, CommandList, StatementList, TopLevel
 from ...lexer.keyword_normalizer import KeywordNormalizer
-from ...token_types import Token
-from ..abstract_parser import AbstractShellParser, ParseError, ParserCharacteristics, ParserType
+from ...token_types import Token, TokenType
+from ..recursive_descent.helpers import ErrorContext, ParseError
 from ..config import ParserConfig
 from .commands import create_command_parsers
 from .control_structures import create_control_structure_parsers
@@ -21,9 +21,9 @@ from .special_commands import create_special_command_parsers
 from .tokens import create_token_parsers
 
 
-class ParserCombinatorShellParser(AbstractShellParser):
+class ParserCombinatorShellParser:
     """Modular parser combinator implementation.
-    
+
     This parser demonstrates functional parsing through composable combinators.
     It breaks down complex shell syntax into small, reusable parsing functions
     that can be combined to handle the full shell grammar.
@@ -32,13 +32,11 @@ class ParserCombinatorShellParser(AbstractShellParser):
     def __init__(self, config: Optional[ParserConfig] = None,
                  heredoc_contents: Optional[Dict[str, str]] = None):
         """Initialize the parser combinator.
-        
+
         Args:
             config: Parser configuration
             heredoc_contents: Optional map of heredoc keys to their content
         """
-        super().__init__()
-
         self.config = config or ParserConfig()
         self.heredoc_contents = heredoc_contents or {}
 
@@ -168,9 +166,6 @@ class ParserCombinatorShellParser(AbstractShellParser):
         normalizer = KeywordNormalizer()
         tokens = normalizer.normalize(list(tokens))
 
-        # Reset metrics
-        self.reset_metrics()
-
         # Skip leading whitespace/newlines
         start_pos = 0
         while start_pos < len(tokens) and tokens[start_pos].type.name in ['WHITESPACE', 'NEWLINE']:
@@ -186,10 +181,13 @@ class ParserCombinatorShellParser(AbstractShellParser):
         if not result.success:
             # Try to provide a helpful error message
             error_msg = result.error or "Failed to parse input"
+            error_token = None
             if result.position < len(tokens):
                 error_token = tokens[result.position]
                 error_msg = f"{error_msg} at position {result.position}: {error_token.type.name} '{error_token.value}'"
-            raise ParseError(error_msg, position=result.position)
+            if error_token is None:
+                error_token = tokens[-1] if tokens else Token(type=TokenType.WORD, value='', position=0)
+            raise ParseError(ErrorContext(token=error_token, message=error_msg, position=result.position))
 
         # Get the parsed AST
         ast = result.value
@@ -202,11 +200,11 @@ class ParserCombinatorShellParser(AbstractShellParser):
         if pos < len(tokens):
             # We didn't consume all tokens
             remaining_token = tokens[pos]
-            raise ParseError(
-                f"Unexpected token after valid input: {remaining_token.type.name} '{remaining_token.value}'",
+            raise ParseError(ErrorContext(
+                message=f"Unexpected token after valid input: {remaining_token.type.name} '{remaining_token.value}'",
                 position=pos,
-                token=remaining_token
-            )
+                token=remaining_token,
+            ))
 
         # Populate heredoc content if needed
         if self.heredoc_contents:
@@ -326,65 +324,6 @@ class ParserCombinatorShellParser(AbstractShellParser):
             return pos == len(tokens)
         except Exception:
             return False
-
-    def get_name(self) -> str:
-        """Return the parser implementation name.
-        
-        Returns:
-            A unique identifier for this parser implementation
-        """
-        return "parser_combinator"
-
-    def get_description(self) -> str:
-        """Return a human-readable description of the parser.
-        
-        Returns:
-            A description suitable for educational display
-        """
-        return (
-            "Modular functional parser built from composable combinators. "
-            "Demonstrates how complex parsers can be built by combining "
-            "simple parsing primitives using functional composition. "
-            "Features a clean separation of concerns with dedicated modules "
-            "for tokens, expansions, commands, control structures, and "
-            "special syntax."
-        )
-
-    def get_characteristics(self) -> ParserCharacteristics:
-        """Return the characteristics of this parser implementation.
-        
-        Returns:
-            ParserCharacteristics object describing the parser
-        """
-        return ParserCharacteristics(
-            parser_type=ParserType.PARSER_COMBINATOR,
-            complexity="medium",
-            error_recovery=False,
-            backtracking=True,
-            memoization=False,
-            left_recursion=False,
-            ambiguity_handling="first",
-            incremental=False,
-            streaming=False,
-            hand_coded=True,
-            generated=False,
-            functional=True
-        )
-
-    def get_configuration_options(self) -> Dict[str, Any]:
-        """Return available configuration options for this parser.
-        
-        Returns:
-            Dictionary of option names to their descriptions
-        """
-        return {
-            'parsing_mode': 'Parsing mode (strict_posix, bash_compat, permissive)',
-            'enable_process_substitution': 'Enable <(cmd) and >(cmd) syntax',
-            'enable_arrays': 'Enable array syntax',
-            'enable_arithmetic': 'Enable arithmetic evaluation',
-            'allow_bash_conditionals': 'Allow [[ ]] enhanced test syntax',
-            'allow_empty_commands': 'Allow empty command lists'
-        }
 
     def configure(self, **options):
         """Configure the parser with implementation-specific options.

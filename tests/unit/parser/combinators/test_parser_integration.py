@@ -9,7 +9,7 @@ from psh.ast_nodes import (
     Word, LiteralPart
 )
 from psh.parser.config import ParserConfig
-from psh.parser.abstract_parser import ParseError, ParserCharacteristics, ParserType
+from psh.parser.recursive_descent.helpers import ParseError
 from psh.parser.combinators.parser import (
     ParserCombinatorShellParser,
     create_parser_combinator_shell_parser
@@ -364,39 +364,15 @@ class TestParserIntegration:
         # This will parse as valid commands, not as an incomplete if statement
         assert parser.can_parse(tokens_to_check) is True
     
-    def test_parser_characteristics(self):
-        """Test parser characteristics."""
+    def test_explain_parse(self):
+        """Test parser explain method."""
         parser = ParserCombinatorShellParser()
-        
-        chars = parser.get_characteristics()
-        assert chars.parser_type == ParserType.PARSER_COMBINATOR
-        assert chars.functional is True
-        assert chars.hand_coded is True
-        assert chars.backtracking is True
-        assert chars.complexity == "medium"
-    
-    def test_parser_metadata(self):
-        """Test parser metadata methods."""
-        parser = ParserCombinatorShellParser()
-        
-        # Name
-        assert parser.get_name() == "parser_combinator"
-        
-        # Description
-        desc = parser.get_description()
-        assert "combinator" in desc.lower()
-        assert "modular" in desc.lower()
-        
-        # Configuration options
-        options = parser.get_configuration_options()
-        assert 'enable_process_substitution' in options
-        
-        # Explanation
+
         explanation = parser.explain_parse([])
         assert "TOKEN PARSERS" in explanation
         assert "EXPANSION PARSERS" in explanation
         assert "COMMAND PARSERS" in explanation
-    
+
     def test_configuration(self):
         """Test parser configuration."""
         # Create with custom config
@@ -431,8 +407,8 @@ class TestParserIntegration:
             # If it doesn't raise an error, that's OK for now
             assert isinstance(result, TopLevel)
         except ParseError as e:
-            # If it does raise an error, verify it has position info
-            assert e.position is not None
+            # If it does raise an error, verify it has context info
+            assert e.error_context is not None
         except:
             # Other errors are also acceptable
             pass
