@@ -2,10 +2,23 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.129.0"
+__version__ = "0.130.0"
 
 # Version history
 VERSION_HISTORY = """
+0.130.0 (2026-02-08) - Remove Parser Abstraction Layers
+- Phase 1: Removed AbstractShellParser, ParserRegistry, ParserStrategy, and
+  RecursiveDescentAdapter (~930 lines). Replaced ParserStrategy in shell.py
+  with simple _active_parser string and direct parser calls. Rewrote 4 parser
+  experiment builtins (348 lines) as single parser-select builtin (47 lines).
+  Updated combinator parser to remove AbstractShellParser inheritance.
+- Phase 2: Removed ContextWrapper class from Parser; added __enter__/__exit__
+  directly to ParserContext. Removed 8 legacy forwarding methods and 22
+  sub-parser delegation methods. Fixed monkey-patching in TestParser. Replaced
+  _error() with error() across all sub-parsers. Replaced print() with
+  logging.debug() in parser context tracing.
+- Total: ~1,686 lines removed across 21 files
+
 0.129.0 (2026-02-08) - Lexer Refactoring: Dead Code, Keyword Unification, Efficiency
 - Phase 1: Removed dead code (~100 lines): _classify_literal, _is_number,
   _contains_special_chars (literal.py), PriorityRecognizer (base.py),
