@@ -2,10 +2,25 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.127.0"
+__version__ = "0.128.0"
 
 # Version history
 VERSION_HISTORY = """
+0.128.0 (2026-02-08) - Remove Dead Code from Parser Package
+- Deleted BaseParser (base.py, ~380 lines): legacy base class superseded by ContextBaseParser
+- Deleted context_snapshots.py (~300 lines): ContextSnapshot, BacktrackingParser, SpeculativeParser
+  never instantiated in production code
+- Deleted errors.py (~360 lines): ParserErrorCatalog and ErrorSuggester never used by the parser
+- Deleted AbstractIncrementalParser and AbstractStreamingParser from abstract_parser.py (~60 lines):
+  defined but never inherited or instantiated
+- Removed dead set_error_template() method from helpers.py ErrorContext
+- Fixed broken imports in combinators/expansions.py (ParseError from deleted errors.py)
+- Removed associated test file (test_parser_error_improvements.py) and dead test classes
+  (TestContextSnapshot, TestBacktrackingParser, TestSpeculativeParser) from test_parser_context.py
+- Updated parser_guide.md and parser CLAUDE.md to remove stale references
+- Net reduction: ~1,580 lines of dead code
+- All tests passing with zero regressions
+
 0.127.0 (2026-02-07) - Tilde Expansion in Parameter Expansion Defaults
 - Fixed ${x:-~} outputting literal ~ instead of expanding to home directory
 - Added _expand_tilde_in_operand() helper to VariableExpander
