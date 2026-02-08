@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING, List, Optional
 
 if TYPE_CHECKING:
     from .lexer.token_parts import TokenPart
-    from .token_enhanced import TokenMetadata
 
 
 class TokenType(Enum):
@@ -121,7 +120,7 @@ class TokenType(Enum):
 
 @dataclass
 class Token:
-    """Unified token class with metadata and context information (formerly EnhancedToken)."""
+    """Unified token class for the shell lexer and parser."""
     type: TokenType
     value: str
     position: int
@@ -130,15 +129,11 @@ class Token:
     line: Optional[int] = None  # Line number (1-based)
     column: Optional[int] = None  # Column number (1-based)
     adjacent_to_previous: bool = False  # True if no whitespace between this and previous token
-    metadata: Optional['TokenMetadata'] = field(default=None)  # Rich metadata (imported from token_enhanced)
+    is_keyword: bool = False  # True when keyword normalizer marks this as a keyword
     parts: Optional[List['TokenPart']] = field(default=None)  # Token parts (imported from lexer.token_parts)
 
     def __post_init__(self):
-        """Initialize metadata and parts if not provided."""
-        if self.metadata is None:
-            # Import here to avoid circular imports
-            from .token_enhanced import TokenMetadata
-            self.metadata = TokenMetadata()
+        """Initialize parts if not provided."""
         if self.parts is None:
             self.parts = []
 
@@ -166,53 +161,6 @@ class Token:
             column=column
         )
 
-    @classmethod
-    def from_token(
-        cls,
-        token: 'Token',
-        metadata: Optional['TokenMetadata'] = None,
-        parts: Optional[List['TokenPart']] = None
-    ) -> 'Token':
-        """Create Token from another Token (for compatibility)."""
-        if isinstance(token, cls):
-            return token  # Already a unified token
-
-        # Create new token with metadata
-        new_token = cls(
-            type=token.type,
-            value=token.value,
-            position=token.position,
-            end_position=token.end_position,
-            quote_type=token.quote_type,
-            adjacent_to_previous=getattr(token, 'adjacent_to_previous', False),
-            line=token.line,
-            column=token.column
-        )
-
-        if metadata:
-            new_token.metadata = metadata
-        if parts:
-            new_token.parts = parts
-
-        return new_token
-
-    def add_context(self, context):
-        """Add a context to this token's metadata."""
-        if self.metadata:
-            self.metadata.add_context(context)
-
-    def has_context(self, context) -> bool:
-        """Check if token has a specific context."""
-        return self.metadata.has_context(context) if self.metadata else False
-
-    def is_in_test_context(self) -> bool:
-        """Check if token is in test expression context."""
-        return self.metadata.is_in_test_context() if self.metadata else False
-
-    def is_command_position(self) -> bool:
-        """Check if token is in command position."""
-        return self.metadata.is_command_position() if self.metadata else False
-
     @property
     def normalized_value(self) -> str:
         """Return a canonical representation suitable for comparisons."""
@@ -228,13 +176,8 @@ class Token:
             if canonical:
                 return canonical
 
-        # If metadata marked this as a keyword, normalize to lowercase
-        if self.metadata is not None:
-            try:
-                from .token_enhanced import SemanticType  # Late import avoids cycles
-            except ImportError:
-                SemanticType = None  # type: ignore
-            if SemanticType is not None and self.metadata.semantic_type == SemanticType.KEYWORD:
-                return value.lower()
+        # If marked as a keyword, normalize to lowercase
+        if self.is_keyword:
+            return value.lower()
 
         return value

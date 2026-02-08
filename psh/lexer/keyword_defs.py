@@ -2,7 +2,6 @@
 
 from typing import Iterable, Optional
 
-from ..token_enhanced import SemanticType
 from ..token_types import TokenType
 
 # Mapping between keyword strings and their canonical token types
@@ -48,15 +47,9 @@ def matches_keyword_type(token, expected_type: TokenType) -> bool:
         return False
 
     token_value = (token.value or '').lower()
-    if token.metadata is not None:
-        if token.metadata.semantic_type == SemanticType.KEYWORD and token_value == keyword:
-            return True
-        if token.metadata.semantic_type is None and token_value == keyword:
-            token.metadata.semantic_type = SemanticType.KEYWORD
-            return True
-    else:
-        if token_value == keyword:
-            return True
+    if token_value == keyword:
+        token.is_keyword = True
+        return True
 
     return False
 

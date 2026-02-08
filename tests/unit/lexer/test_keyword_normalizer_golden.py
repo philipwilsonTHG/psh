@@ -21,8 +21,7 @@ def _tokens_to_lines(tokens):
         if value is None:
             value = ""
         value = value.replace("\n", "\\n")
-        semantic = getattr(token.metadata, "semantic_type", None) if token.metadata else None
-        lines.append(f"{token.type.name}:{value}:{semantic}")
+        lines.append(f"{token.type.name}:{value}:{token.is_keyword}")
     return lines
 
 

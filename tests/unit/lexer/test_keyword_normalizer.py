@@ -1,6 +1,5 @@
 from psh.lexer.keyword_normalizer import KeywordNormalizer
 from psh.token_types import Token, TokenType
-from psh.token_enhanced import SemanticType
 
 
 def make_word(value: str, token_type: TokenType = TokenType.WORD) -> Token:
@@ -67,4 +66,4 @@ def test_normalizer_converts_return_keyword():
     normalizer.normalize(tokens)
 
     assert tokens[0].type == TokenType.RETURN
-    assert tokens[0].metadata.semantic_type == SemanticType.KEYWORD
+    assert tokens[0].is_keyword is True

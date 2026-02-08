@@ -15,22 +15,18 @@ from psh.token_types import Token, TokenType
 class TestUnifiedTokenSystem:
     """Test that the unified token system works correctly."""
     
-    def test_token_creation_with_metadata(self):
-        """Test that tokens include metadata by default."""
+    def test_token_creation(self):
+        """Test that tokens are created correctly."""
         tokens = tokenize("echo hello")
-        
+
         # Should have tokens
         assert len(tokens) > 0
         first_token = tokens[0]
-        
-        # Should be Token class (not EnhancedToken)
+
+        # Should be Token class
         assert isinstance(first_token, Token)
         assert type(first_token).__name__ == "Token"
-        
-        # Should have metadata
-        assert hasattr(first_token, 'metadata')
-        assert first_token.metadata is not None
-        
+
         # Should have position information
         assert hasattr(first_token, 'position')
         assert hasattr(first_token, 'end_position')
@@ -273,24 +269,6 @@ class TestEdgeCases:
 class TestDeprecationCleanup:
     """Test that deprecated functionality is properly cleaned up."""
     
-    def test_no_enhanced_token_import(self):
-        """Test that EnhancedToken is not directly accessible."""
-        # EnhancedToken should still exist for backward compatibility but with warnings
-        from psh.token_enhanced import EnhancedToken
-        
-        import warnings
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            token = EnhancedToken(
-                type=TokenType.WORD,
-                value="test",
-                position=0,
-                end_position=4
-            )
-            # Should issue deprecation warning
-            assert len(w) > 0
-            assert issubclass(w[0].category, DeprecationWarning)
-            
     def test_unified_token_class(self):
         """Test that Token class has unified functionality."""
         token = Token(
@@ -299,11 +277,11 @@ class TestDeprecationCleanup:
             position=0,
             end_position=4
         )
-        
-        # Should have enhanced functionality built-in
-        assert hasattr(token, 'metadata')
+
+        # Should have parts and is_keyword flag
         assert hasattr(token, 'parts')
-        assert token.metadata is not None
+        assert hasattr(token, 'is_keyword')
+        assert token.is_keyword is False
         
     def test_no_feature_flags(self):
         """Test that feature flags are no longer accessible."""

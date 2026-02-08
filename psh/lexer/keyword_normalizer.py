@@ -2,7 +2,6 @@
 
 from typing import List, Optional
 
-from ..token_enhanced import SemanticType
 from ..token_types import Token, TokenType
 from .constants import KEYWORDS
 from .keyword_defs import KEYWORD_TYPE_MAP
@@ -86,8 +85,7 @@ class KeywordNormalizer:
 
             if converted_type:
                 token.type = converted_type
-                if token.metadata:
-                    token.metadata.semantic_type = SemanticType.KEYWORD
+                token.is_keyword = True
             elif token.type == TokenType.IN:
                 # Already tagged as IN by lexer, clear pending state
                 pending_in = None
