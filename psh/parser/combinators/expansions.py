@@ -151,8 +151,7 @@ class ExpansionParsers:
             cmd = token.value[2:-1] if token.value.startswith('$(') and token.value.endswith(')') else token.value
 
             if not self._validate_command_substitution(cmd):
-                from ..errors import ParseError
-                raise ParseError(f"Invalid command substitution: {token.value}")
+                raise ValueError(f"Invalid command substitution: {token.value}")
 
             expansion = CommandSubstitution(cmd, backtick_style=False)
             return Word(parts=[ExpansionPart(expansion, quoted=is_quoted, quote_char=qt)])
@@ -162,8 +161,7 @@ class ExpansionParsers:
             cmd = token.value[1:-1] if token.value.startswith('`') and token.value.endswith('`') else token.value
 
             if not self._validate_command_substitution(cmd):
-                from ..errors import ParseError
-                raise ParseError(f"Invalid command substitution: {token.value}")
+                raise ValueError(f"Invalid command substitution: {token.value}")
 
             expansion = CommandSubstitution(cmd, backtick_style=True)
             return Word(parts=[ExpansionPart(expansion, quoted=is_quoted, quote_char=qt)])

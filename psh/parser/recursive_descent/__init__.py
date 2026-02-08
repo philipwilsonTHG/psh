@@ -4,7 +4,7 @@ This package contains the hand-written recursive descent parser,
 organized into modular components for better maintainability.
 """
 
-from .base import BaseParser
+from .base_context import BaseParser
 from .base_context import ContextBaseParser
 from .context import HeredocInfo, ParserContext, ParserProfiler
 from .helpers import ErrorContext, ParseError, TokenGroups

@@ -142,18 +142,6 @@ class ErrorContext:
         """Add context tokens around the error position."""
         self.context_tokens = tokens
 
-    def set_error_template(self, template) -> None:
-        """Set error information from an ErrorTemplate."""
-        # Import here to avoid circular imports
-        from ..errors import ErrorTemplate
-        if isinstance(template, ErrorTemplate):
-            self.error_code = template.code
-            if not self.message:
-                self.message = template.message
-            self.severity = template.severity.value
-            if template.suggestion:
-                self.add_suggestion(template.suggestion)
-
     def _token_description(self, token: Token) -> str:
         """Get human-readable token description."""
         if token.type == TokenType.EOF:

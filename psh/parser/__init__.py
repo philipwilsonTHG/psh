@@ -9,15 +9,13 @@ context-aware parsing, semantic analysis, and enhanced error recovery.
 from typing import Optional
 
 from .config import ErrorHandlingMode, ParserConfig, ParsingMode
-from .recursive_descent.base import BaseParser
-from .recursive_descent.base_context import ContextBaseParser
+from .recursive_descent.base_context import BaseParser, ContextBaseParser
 from .recursive_descent.context import HeredocInfo, ParserContext, ParserProfiler
 from .recursive_descent.helpers import ErrorContext, ParseError, TokenGroups
 
 # Import from final locations
 from .recursive_descent.parser import Parser
 from .recursive_descent.support.context_factory import ContextConfiguration, ParserContextFactory
-from .recursive_descent.support.context_snapshots import BacktrackingParser, ContextSnapshot, SpeculativeParser
 from .recursive_descent.support.factory import ConfigurationValidator, ParserFactory
 from .recursive_descent.support.utils import parse_with_heredocs as utils_parse_with_heredocs
 
@@ -26,7 +24,7 @@ __all__ = [
     # Main API
     'parse', 'parse_with_heredocs', 'Parser', 'ParseError', 'ErrorContext', 'TokenGroups', 'BaseParser',
     'ContextBaseParser', 'ParserContext', 'ParserContextFactory', 'ContextConfiguration',
-    'ContextSnapshot', 'BacktrackingParser', 'SpeculativeParser', 'ParserProfiler', 'HeredocInfo',
+    'ParserProfiler', 'HeredocInfo',
     'ParserConfig', 'ParsingMode', 'ErrorHandlingMode', 'ParserFactory', 'ConfigurationValidator',
     # Parsing modes
     'parse_strict_posix', 'parse_bash_compatible', 'parse_permissive'

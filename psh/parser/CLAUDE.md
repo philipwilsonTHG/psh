@@ -202,19 +202,6 @@ elif self.parser.match(TokenType.MY_KEYWORD):
 
 4. Add visitor method in executor
 
-### Modifying Error Messages
-
-Edit `errors.py` for error templates:
-
-```python
-class ParserErrorCatalog:
-    MISSING_SEMICOLON_BEFORE_THEN = ErrorTemplate(
-        code="P001",
-        message="Missing ';' before 'then'",
-        suggestion="Add ';' after the condition"
-    )
-```
-
 ## Key Implementation Details
 
 ### Keyword vs Word Distinction
@@ -307,9 +294,6 @@ Word(parts=[
 - Decomposes double-quoted STRING tokens with RichToken parts into expansion nodes
 - Detects parameter expansion operators in VARIABLE tokens (e.g. `${x:6}`)
 - Handles composite words by building multi-part Words with per-part quote context
-
-The `_word_to_arg_type()` method derives backward-compatible `arg_types` from
-Word structure for consumers that still inspect `command.arg_types`.
 
 ## Configuration
 
