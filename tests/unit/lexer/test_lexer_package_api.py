@@ -192,14 +192,12 @@ class TestPackageInternals:
         from psh.lexer.constants import KEYWORDS as internal_keywords
         from psh.lexer.unicode_support import is_identifier_start as internal_is_id
         from psh.lexer.token_parts import TokenPart as internal_token_part
-        from psh.lexer.helpers import LexerHelpers
         from psh.lexer.modular_lexer import ModularLexer as internal_lexer
 
         # Verify they're the same as public API or at least work
         assert internal_keywords == KEYWORDS
         assert internal_is_id('a') == is_identifier_start('a')
         assert internal_token_part is not None
-        assert LexerHelpers is not None
         assert internal_lexer is not None
     
     def test_modular_lexer_interface(self):

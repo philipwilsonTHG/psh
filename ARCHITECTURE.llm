@@ -64,11 +64,9 @@ psh/
 │   ├── quote_validator.py
 │   ├── heredoc_collector.py
 │   ├── token_stream_validator.py
-│   ├── pure_helpers.py / enhanced_helpers.py
-│   ├── token_parts.py / position.py / unicode_support.py
+│   ├── pure_helpers.py / token_parts.py / position.py / unicode_support.py
 │   └── recognizers/         # Token recognizer registry (operators, keywords, literals, etc.)
 ├── token_types.py           # Unified Token & TokenType definitions
-├── token_enhanced.py        # Token metadata helpers
 ├── parser/                  # Parser packages and registries
 │   ├── __init__.py          # Exports unified recursive-descent API
 │   ├── config.py            # ParserConfig & enums
@@ -187,7 +185,7 @@ Input → Preprocessing → Tokenization → Token Normalization → Parsing →
    - Expands `{a,b}` and ranges before lexing; failures fall back to raw input
 
 2. **Modular Lexer (`lexer/modular_lexer.py`)**
-   - Combines `LexerHelpers`, `StateHandlers`, `state_context.py`, and recognizer registry to emit unified `Token` instances
+   - Uses `state_context.py` and recognizer registry to emit unified `Token` instances
    - Uses `unicode_support.py` for identifier classification and POSIX fallback modes via `LexerConfig`
    - `recognizers/` includes operator, keyword, literal, whitespace, comment, and process-substitution recognizers
 
@@ -276,7 +274,6 @@ Input → Preprocessing → Tokenization → Token Normalization → Parsing →
 - `scripting/script_validator.py` / `source_processor.py` provide linting and pre-processing for scripts
 - `interactive/base.py` coordinates REPL, prompt, history, and signal managers; `repl_loop.py` drives interactive shells
 - `input_sources.py`, `multiline_handler.py`, `line_editor.py` support multi-line editing and input abstraction
-- `token_enhanced.py` adds metadata attachment to tokens (context, source mapping)
 - `utils/token_formatter.py` and friends provide debugging/trace formatting
 
 ## Data Flow Examples

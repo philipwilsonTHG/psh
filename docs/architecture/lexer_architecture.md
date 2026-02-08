@@ -11,7 +11,7 @@ The PSH lexer is a modular tokenization system designed to handle the complex sy
 3. **Context Awareness**: Rich metadata and state tracking throughout tokenization
 4. **Error Recovery**: Graceful handling of malformed input with detailed error context
 5. **Performance**: Efficient token recognition with priority-based dispatch
-6. **Clarity**: Clean separation of concerns with mixin-based architecture
+6. **Clarity**: Clean separation of concerns with modular architecture
 
 ## Architecture Diagram
 
@@ -89,19 +89,20 @@ The PSH lexer is a modular tokenization system designed to handle the complex sy
 
 #### ModularLexer (`modular_lexer.py`)
 The main orchestrator that coordinates all tokenization activities:
-- Manages input position and state through mixins
+- Manages input position and state
 - Integrates quote/expansion parsing with token recognition
 - Emits tokens with comprehensive metadata
 - Handles error recovery and reporting
 
 ```python
-class ModularLexer(LexerHelpers, StateHandlers):
+class ModularLexer:
     """Main lexer combining modular recognition with unified parsing"""
-    def __init__(self, recognizer_registry, config=None):
-        self.registry = recognizer_registry
+    def __init__(self, input_string: str, config=None):
         self.config = config or LexerConfig()
-        self.position_tracker = PositionTracker()
-        self.state_manager = StateManager()
+        self.position_tracker = PositionTracker(input_string)
+        self.registry = RecognizerRegistry()
+        self.expansion_parser = ExpansionParser(self.config)
+        self.quote_parser = UnifiedQuoteParser(self.expansion_parser)
 ```
 
 #### LexerContext (`state_context.py`)
@@ -125,23 +126,7 @@ class LexerContext:
     in_regex_context: bool = False
 ```
 
-### 2. Mixin Architecture
-
-#### LexerHelpers (`helpers.py`)
-Provides utility methods for common lexer operations:
-- Escape sequence processing (`process_escape_sequence`)
-- Balanced delimiter matching (`read_until_balanced`)
-- Operator recognition (`is_operator_start`, `read_operator`)
-- Unicode-aware character classification
-
-#### StateHandlers (`state_handlers.py`)
-Manages state-specific parsing logic:
-- Variable and expansion parsing (`parse_variable`, `parse_expansion`)
-- Quote handling with context (`handle_quote`)
-- Special construct recognition (`handle_special_tokens`)
-- State transition logic
-
-### 3. Token Recognition System
+### 2. Token Recognition System
 
 #### Recognizer Framework (`recognizers/`)
 Implements a pluggable, priority-based token recognition system:
@@ -173,7 +158,7 @@ Manages recognizer registration and dispatch:
 - Efficient lookup mechanisms
 - Error recovery strategies
 
-### 4. Quote and Expansion Parsing
+### 3. Quote and Expansion Parsing
 
 #### UnifiedQuoteParser (`quote_parser.py`)
 Handles all quote types with configurable rules:
@@ -206,7 +191,7 @@ Parses shell expansions within appropriate contexts:
 - Arithmetic expansion: `$((...))`
 - Process substitution: `<(...)`, `>(...)`
 
-### 5. Supporting Infrastructure
+### 4. Supporting Infrastructure
 
 #### Position Tracking (`position.py`)
 Maintains accurate position information:
@@ -307,8 +292,6 @@ Quote parsing uses configurable rules for different quote types, allowing easy e
 ### 3. Context Object Pattern
 `LexerContext` consolidates state to avoid parameter explosion and enable clean APIs.
 
-### 4. Mixin Pattern
-`LexerHelpers` and `StateHandlers` provide reusable functionality without deep inheritance hierarchies.
 
 ## Configuration System
 

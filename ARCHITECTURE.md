@@ -14,7 +14,7 @@ Python Shell (psh) is designed with a clean, component-based architecture that s
   - **Parser Combinator**: Functional parser with 100% feature parity in `psh/parser/combinators/`
   - **Parser Selection**: Switch between implementations with `--parser=combinator` flag
   - **Educational Value**: Compare imperative vs. functional parsing approaches
-- **Unified Lexer Architecture**: State machine lexer with mixin architecture
+- **Unified Lexer Architecture**: State machine lexer with modular architecture
   - **Single Token System**: Unified Token class with built-in metadata and context information
   - **Enhanced Features Standard**: Context tracking, semantic analysis, and error recovery built-in
   - **Modular Recognition**: Priority-based token recognizer system
@@ -122,30 +122,24 @@ The lexer converts character streams into meaningful tokens using a state machin
 The lexer uses a unified, modular architecture with enhanced features as standard throughout PSH:
 
 #### Core Package Structure
-- **`psh/lexer/core.py`** - Main StateMachineLexer class
-- **`psh/lexer/helpers.py`** - LexerHelpers mixin with utility methods
-- **`psh/lexer/state_handlers.py`** - StateHandlers mixin with state machine logic
+- **`psh/lexer/modular_lexer.py`** - Main ModularLexer class
 - **`psh/lexer/constants.py`** - All lexer constants and character sets
 - **`psh/lexer/unicode_support.py`** - Unicode character classification
 - **`psh/lexer/token_parts.py`** - TokenPart and RichToken classes
 - **`psh/lexer/position.py`** - Position tracking, error handling, and lexer configuration
 - **`psh/lexer/__init__.py`** - Clean public API
 
-#### Phase 1: State Management Layer
+#### State Management
 - **`psh/lexer/state_context.py`** - Unified LexerContext for all state
-- **`psh/lexer/transitions.py`** - State transition management with history tracking
-- **`psh/lexer/enhanced_state_machine.py`** - Enhanced lexer with unified state
 
-#### Phase 2: Pure Function Helpers
+#### Helper Functions
 - **`psh/lexer/pure_helpers.py`** - 15+ stateless helper functions
-- **`psh/lexer/enhanced_helpers.py`** - Wrapper maintaining existing API
 
-#### Phase 3: Unified Parsing
+#### Quote and Expansion Parsing
 - **`psh/lexer/quote_parser.py`** - Unified quote parsing with configurable rules
 - **`psh/lexer/expansion_parser.py`** - All expansion types ($VAR, ${VAR}, $(...), $((...)))
-- **`psh/lexer/unified_lexer.py`** - Integrates unified parsers
 
-#### Phase 4: Token Recognition
+#### Token Recognition
 - **`psh/lexer/recognizers/`** - Modular token recognition system
   - `base.py` - TokenRecognizer abstract interface
   - `operator.py` - Shell operators with context awareness
@@ -154,7 +148,6 @@ The lexer uses a unified, modular architecture with enhanced features as standar
   - `whitespace.py` - Whitespace handling
   - `comment.py` - Comment recognition
   - `registry.py` - Priority-based recognizer dispatch
-- **`psh/lexer/modular_lexer.py`** - ModularLexer integrating all systems
 
 The architecture combines all components while maintaining backward compatibility:
 ```python

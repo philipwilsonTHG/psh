@@ -12,7 +12,6 @@ from typing import List
 
 from ..token_types import Token
 from .constants import DOUBLE_QUOTE_ESCAPES, KEYWORDS, OPERATORS_BY_LENGTH, SPECIAL_VARIABLES, WORD_TERMINATORS
-from .helpers import LexerHelpers
 from .keyword_normalizer import KeywordNormalizer
 
 # Core lexer components
@@ -148,8 +147,6 @@ __all__ = [
     'normalize_identifier', 'validate_identifier',
     # Token classes
     'TokenPart', 'RichToken',
-    # Mixin classes (for advanced usage)
-    'LexerHelpers',
     # Context classes
     'LexerContext',
 ]

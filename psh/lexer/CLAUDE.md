@@ -35,7 +35,6 @@ Input String → BraceExpander → ModularLexer → KeywordNormalizer → TokenT
 | `whitespace.py` | Spaces, tabs |
 | `comment.py` | `# comments` |
 | `process_sub.py` | Process substitution `<()` and `>()` |
-| `arithmetic.py` | Arithmetic expressions `$(())` |
 | `registry.py` | Recognizer registration and priority |
 
 ### Support Modules
