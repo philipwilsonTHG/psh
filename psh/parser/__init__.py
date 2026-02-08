@@ -19,7 +19,6 @@ from .recursive_descent.parser import Parser
 from .recursive_descent.support.context_factory import ContextConfiguration, ParserContextFactory
 from .recursive_descent.support.context_snapshots import BacktrackingParser, ContextSnapshot, SpeculativeParser
 from .recursive_descent.support.factory import ConfigurationValidator, ParserFactory
-from .recursive_descent.support.integration_manager import create_fully_enhanced_parser as create_parser
 from .recursive_descent.support.utils import parse_with_heredocs as utils_parse_with_heredocs
 
 # Public API
@@ -29,8 +28,6 @@ __all__ = [
     'ContextBaseParser', 'ParserContext', 'ParserContextFactory', 'ContextConfiguration',
     'ContextSnapshot', 'BacktrackingParser', 'SpeculativeParser', 'ParserProfiler', 'HeredocInfo',
     'ParserConfig', 'ParsingMode', 'ErrorHandlingMode', 'ParserFactory', 'ConfigurationValidator',
-    # Standard parser components
-    'create_parser',
     # Parsing modes
     'parse_strict_posix', 'parse_bash_compatible', 'parse_permissive'
 ]
