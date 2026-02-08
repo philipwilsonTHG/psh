@@ -202,9 +202,6 @@ class OperatorRecognizer(ContextualRecognizer):
         context: LexerContext
     ) -> Optional[Tuple[Token, int]]:
         """Recognize operators with context awareness."""
-        if not self.can_recognize(input_text, pos, context):
-            return None
-
         # Special handling for newlines
         if input_text[pos] == '\n':
             token = Token(

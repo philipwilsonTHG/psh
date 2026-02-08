@@ -39,9 +39,6 @@ class ProcessSubstitutionRecognizer(TokenRecognizer):
         context: LexerContext
     ) -> Optional[Tuple[Token, int]]:
         """Recognize process substitution tokens."""
-        if not self.can_recognize(input_text, pos, context):
-            return None
-
         start_pos = pos
 
         # Determine type

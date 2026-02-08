@@ -6,6 +6,7 @@ This module provides enhanced position tracking with line/column information
 and comprehensive error handling with recovery capabilities.
 """
 
+import bisect
 from dataclasses import dataclass
 from enum import Enum, auto
 from typing import List, Optional, Tuple
@@ -376,18 +377,10 @@ class PositionTracker:
 
     def get_position_at_offset(self, offset: int) -> Position:
         """Get position information for a specific offset."""
-        if offset < 0 or offset > len(self.input_text):
-            offset = max(0, min(offset, len(self.input_text)))
+        offset = max(0, min(offset, len(self.input_text)))
 
-        # Find which line this offset is on
-        line = 1
-        for line_start in self.line_starts:
-            if offset >= line_start:
-                line = self.line_starts.index(line_start) + 1
-            else:
-                break
-
-        # Calculate column within that line
+        # Use binary search to find the line
+        line = bisect.bisect_right(self.line_starts, offset)
         line_start = self.line_starts[line - 1]
         column = offset - line_start + 1
 

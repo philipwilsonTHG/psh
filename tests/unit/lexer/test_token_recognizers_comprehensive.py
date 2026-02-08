@@ -318,10 +318,8 @@ class TestCommentRecognizer:
     
     def test_hash_in_word_not_comment(self, recognizer, context):
         """Test that # inside words is not treated as comment."""
-        # This test verifies the recognizer behavior, actual context 
-        # handling is done by the lexer
-        result = recognizer.recognize('file#name', 0, context)
-        assert result is None  # Should not recognize as comment
+        # can_recognize returns False when # is not at comment position
+        assert not recognizer.can_recognize('file#name', 0, context)
 
 
 class TestRecognizerRegistry:

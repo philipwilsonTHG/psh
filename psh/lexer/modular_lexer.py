@@ -9,6 +9,7 @@ from .quote_parser import QuoteParsingContext, UnifiedQuoteParser
 from .recognizers import RecognizerRegistry
 from .token_parts import RichToken, TokenPart
 from .state_context import LexerContext
+from .unicode_support import is_whitespace
 
 
 class ModularLexer:
@@ -305,7 +306,6 @@ class ModularLexer:
             if not char or char == '\n':  # Stop at newlines
                 break
 
-            from .unicode_support import is_whitespace
             if not is_whitespace(char, self.config.posix_mode):
                 break
 
@@ -608,7 +608,6 @@ class ModularLexer:
             char = self.current_char()
 
             # Stop at whitespace
-            from .unicode_support import is_whitespace
             if is_whitespace(char, self.config.posix_mode):
                 break
 

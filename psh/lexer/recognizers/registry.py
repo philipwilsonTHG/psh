@@ -74,9 +74,11 @@ class RecognizerRegistry:
         Returns:
             Tuple of (token, new_position, recognizer) if recognized, None otherwise
         """
-        recognizers = self.get_recognizers()
+        if not self._sorted:
+            self._recognizers.sort(key=lambda r: r.priority, reverse=True)
+            self._sorted = True
 
-        for recognizer in recognizers:
+        for recognizer in self._recognizers:
             try:
                 if recognizer.can_recognize(input_text, pos, context):
                     result = recognizer.recognize(input_text, pos, context)
