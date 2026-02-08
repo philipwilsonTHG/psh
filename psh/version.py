@@ -2,10 +2,27 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.128.0"
+__version__ = "0.129.0"
 
 # Version history
 VERSION_HISTORY = """
+0.129.0 (2026-02-08) - Lexer Refactoring: Dead Code, Keyword Unification, Efficiency
+- Phase 1: Removed dead code (~100 lines): _classify_literal, _is_number,
+  _contains_special_chars (literal.py), PriorityRecognizer (base.py),
+  create_*_parser factories (expansion_parser.py, quote_parser.py), unused
+  registry methods, VARIABLE_NAME_PATTERN (constants.py), dead if/pass block
+  (modular_lexer.py). Fixed mutable default in pure_helpers.py.
+  Replaced print() with logging in registry.py.
+- Phase 2: Removed KeywordRecognizer (~200 lines), unifying all keyword
+  handling in KeywordNormalizer. Eliminated redundant two-pass keyword system.
+  Removed recent_control_keyword from LexerContext. Updated command-position
+  tracking to check WORD values for keyword-like strings.
+- Phase 3: Removed redundant can_recognize() calls from all recognize()
+  methods. Eliminated list copy in registry.recognize(). Replaced O(n) linear
+  scan in PositionTracker with O(log n) bisect. Moved inline imports to
+  module level.
+- Total: ~320 lines removed across 16 files
+
 0.128.0 (2026-02-08) - Remove Dead Code from Parser Package
 - Deleted BaseParser (base.py, ~380 lines): legacy base class superseded by ContextBaseParser
 - Deleted context_snapshots.py (~300 lines): ContextSnapshot, BacktrackingParser, SpeculativeParser
