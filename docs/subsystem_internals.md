@@ -90,14 +90,13 @@ The `RecognizerRegistry` (`psh/lexer/recognizers/registry.py:9`) maintains a pri
 |----------|-----------|---------|
 | 160 | `ProcessSubstitutionRecognizer` | `<(...)` and `>(...)` |
 | 150 | `OperatorRecognizer` | Shell operators (`\|`, `&&`, `>>`, `;`, etc.) |
-| 90 | `KeywordRecognizer` | Reserved words (`if`, `while`, `for`, etc.) |
 | 70 | `LiteralRecognizer` | Words, identifiers, assignments |
 | 60 | `CommentRecognizer` | `# comments` |
 | 30 | `WhitespaceRecognizer` | Spaces, tabs (skipped) |
 
 **Operator recognition** uses greedy longest-match: 3-character operators are tried before 2-character, before 1-character. This ensures `>>=` is matched before `>>` before `>`.
 
-**Keyword recognition** is context-sensitive: `if` is only recognized as a keyword at command position. In `echo if`, the `if` is tokenized as `WORD`. The `KeywordRecognizer` (`psh/lexer/recognizers/keyword.py:105`) validates context before accepting a keyword.
+**Keyword recognition** is handled by `KeywordNormalizer` in a post-tokenization pass. During tokenization, keywords are emitted as `WORD` tokens. The normalizer then converts words at command position to their keyword token types (e.g., `WORD("if")` becomes `IF("if")`). This single-pass approach avoids duplicated keyword logic.
 
 ### 1.5 LexerContext (State Machine)
 

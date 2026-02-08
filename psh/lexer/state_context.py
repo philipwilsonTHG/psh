@@ -22,9 +22,6 @@ class LexerContext:
     quote_stack: List[str] = field(default_factory=list)
     heredoc_delimiters: List[str] = field(default_factory=list)
 
-    # Track recent control structure keywords for context-sensitive parsing
-    recent_control_keyword: Optional[str] = None
-
     # Additional context for nested structures
     brace_depth: int = 0  # For ${...} tracking
     arithmetic_depth: int = 0  # For $((...)) tracking
@@ -46,7 +43,6 @@ class LexerContext:
             after_regex_match=self.after_regex_match,
             quote_stack=self.quote_stack.copy(),
             heredoc_delimiters=self.heredoc_delimiters.copy(),
-            recent_control_keyword=self.recent_control_keyword,
             brace_depth=self.brace_depth,
             arithmetic_depth=self.arithmetic_depth,
             token_start_offset=self.token_start_offset,

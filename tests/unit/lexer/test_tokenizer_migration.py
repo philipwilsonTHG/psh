@@ -228,7 +228,10 @@ class TestAdvancedTokenization:
     
     def test_keywords(self):
         """Test shell keyword tokenization."""
-        # PSH lexer recognizes keywords during tokenization
+        # Keywords are recognized by KeywordNormalizer at command position.
+        # Most keywords are recognized when they appear alone (command position
+        # defaults to True). 'in' is context-sensitive: only recognized after
+        # for/case/select.
         keyword_map = {
             "if": TokenType.IF,
             "then": TokenType.THEN,
@@ -238,13 +241,22 @@ class TestAdvancedTokenization:
             "do": TokenType.DO,
             "done": TokenType.DONE,
             "for": TokenType.FOR,
-            "in": TokenType.IN,
         }
-        
+
         for kw, expected_type in keyword_map.items():
             tokens = list(tokenize(kw))
             assert tokens[0].type == expected_type
             assert tokens[0].value == kw
+
+        # 'in' is only a keyword after for/case/select
+        tokens = list(tokenize("in"))
+        assert tokens[0].type == TokenType.WORD
+
+        # Verify 'in' IS recognized as keyword in proper context
+        tokens = list(tokenize("for x in a; do echo; done"))
+        in_tokens = [t for t in tokens if t.value == 'in']
+        assert len(in_tokens) == 1
+        assert in_tokens[0].type == TokenType.IN
     
     def test_special_parameters(self):
         """Test special parameter variables."""

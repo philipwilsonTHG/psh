@@ -30,7 +30,6 @@ Input String → BraceExpander → ModularLexer → KeywordNormalizer → TokenT
 | File | Recognizes |
 |------|-----------|
 | `operator.py` | Shell operators (`|`, `&&`, `>>`, etc.) |
-| `keyword.py` | Reserved words (`if`, `while`, `for`, etc.) |
 | `literal.py` | Words, identifiers, assignments (~850 lines) |
 | `whitespace.py` | Spaces, tabs |
 | `comment.py` | `# comments` |
@@ -61,7 +60,6 @@ class RecognizerRegistry:
 
 # Priorities (higher = tried first):
 # - Operators: 150 (greedy matching for multi-char operators)
-# - Keywords: 80 (only at command position)
 # - Literals: 70 (fallback for words)
 ```
 
@@ -121,17 +119,13 @@ OPERATORS_BY_LENGTH = {
 
 ### Adding a New Keyword
 
-1. Add to `KEYWORDS` in `constants.py`:
-```python
-KEYWORDS = {
-    'if': TokenType.IF,
-    'mynewkeyword': TokenType.MY_NEW_KEYWORD,  # Add here
-}
-```
-
-2. Add `TokenType` in `psh/token_types.py`
-
-3. The `KeywordRecognizer` will automatically recognize it at command position
+1. Add to `KEYWORDS` in `constants.py`.
+2. Add a `TokenType` member in `psh/token_types.py`.
+3. Add the mapping to `KEYWORD_TYPE_MAP` in `keyword_defs.py`.
+4. `KeywordNormalizer` (the post-tokenization pass) will automatically
+   recognize it at command position.
+5. If the keyword has special context rules (like `in`), add logic to
+   `KeywordNormalizer`.
 
 ### Adding a New Recognizer
 

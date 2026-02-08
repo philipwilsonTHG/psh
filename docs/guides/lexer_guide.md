@@ -225,7 +225,6 @@ has a numeric priority; higher priorities are tried first.  The default set:
 |------------|----------|------------|
 | `ProcessSubstitutionRecognizer` | 160 | `<(...)` and `>(...)` |
 | `OperatorRecognizer` | 150 | All shell operators, context-aware |
-| `KeywordRecognizer` | 90 | Reserved words at command position |
 | `LiteralRecognizer` | 70 | Words, identifiers, numbers, globs, assignments |
 | `CommentRecognizer` | 60 | `# ...` to end of line |
 | `WhitespaceRecognizer` | 30 | Spaces and tabs (returns `None` to skip) |
@@ -241,7 +240,6 @@ shared across the lexer and its recognisers.  It tracks:
 - Nesting depths for `()`, `[]`, `{}`, `[[]]`, and `$(())`.
 - A quote stack (for nested quoting inside expansions).
 - Command-position flag (whether the next word could be a keyword).
-- Recent control keywords (`for`, `case`, `select`) for `in`-keyword context.
 - Array-assignment state.
 - POSIX mode flag.
 
@@ -361,13 +359,6 @@ the standard six recognisers.
 - `))` only valid inside arithmetic.
 - `=~`, `==`, `!=` only valid inside `[[ ]]`.
 - Operator enable/disable checks against `LexerConfig`.
-
-#### `keyword.py` (~175 lines)
-
-`KeywordRecognizer` (priority 90).  Reads a word and checks it against
-`KEYWORDS`.  Context rules: most keywords require command position; `in` is
-only valid after `for`/`case`/`select`; closing keywords like `fi`, `done`,
-and `esac` are always accepted.
 
 #### `literal.py` (~930 lines)
 
@@ -533,7 +524,7 @@ and are candidates for removal:
 2. Add a `TokenType` member in `psh/token_types.py`.
 3. Add the mapping to `KEYWORD_TYPE_MAP` in `keyword_defs.py`.
 4. If the keyword has special context rules (like `in`), add logic to
-   `KeywordRecognizer` and `KeywordNormalizer`.
+   `KeywordNormalizer`.
 5. Add tests.
 
 ### 5.3 Adding a new recogniser
@@ -649,7 +640,6 @@ __init__.py
 │       ├── registry.py
 │       │   └── base.py
 │       ├── operator.py ─── constants.py
-│       ├── keyword.py ──── keyword_defs.py, constants.py
 │       ├── literal.py ──── constants.py, unicode_support.py
 │       ├── whitespace.py ─ unicode_support.py
 │       ├── comment.py

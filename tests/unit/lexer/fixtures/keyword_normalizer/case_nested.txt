@@ -1,6 +1,6 @@
-CASE:case:False
+CASE:case:True
 VARIABLE:opt:False
-IN:in:False
+IN:in:True
 NEWLINE:\n:False
 WORD:start:False
 PIPE:|:False
@@ -16,5 +16,5 @@ WORD:echo:False
 WORD:default:False
 DOUBLE_SEMICOLON:;;:False
 NEWLINE:\n:False
-ESAC:esac:False
+ESAC:esac:True
 EOF::False

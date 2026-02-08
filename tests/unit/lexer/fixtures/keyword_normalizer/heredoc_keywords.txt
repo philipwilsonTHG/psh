@@ -2,12 +2,12 @@ WORD:cat:False
 HEREDOC:<<:False
 WORD:EOF:False
 NEWLINE:\n:False
-IF:if:False
+WORD:if:False
 WORD:should:False
 WORD:not:False
 WORD:change:False
 NEWLINE:\n:False
-FI:fi:False
+WORD:fi:False
 NEWLINE:\n:False
 WORD:EOF:False
 EOF::False

@@ -135,7 +135,6 @@ def get_default_registry() -> RecognizerRegistry:
 def setup_default_recognizers() -> RecognizerRegistry:
     """Set up the default registry with standard recognizers."""
     from .comment import CommentRecognizer
-    from .keyword import KeywordRecognizer
     from .literal import LiteralRecognizer
     from .operator import OperatorRecognizer
     from .process_sub import ProcessSubstitutionRecognizer
@@ -147,7 +146,6 @@ def setup_default_recognizers() -> RecognizerRegistry:
     # Register recognizers in order (priority determines actual order)
     registry.register(ProcessSubstitutionRecognizer())  # Priority 160
     registry.register(OperatorRecognizer())
-    registry.register(KeywordRecognizer())
     registry.register(LiteralRecognizer())
     registry.register(WhitespaceRecognizer())
     registry.register(CommentRecognizer())

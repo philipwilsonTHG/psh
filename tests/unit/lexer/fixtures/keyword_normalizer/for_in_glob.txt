@@ -1,11 +1,11 @@
-FOR:for:False
+FOR:for:True
 WORD:file:False
-IN:in:False
+IN:in:True
 WORD:*.txt:False
 SEMICOLON:;:False
-DO:do:False
+DO:do:True
 WORD:echo:False
 STRING:$file:False
 SEMICOLON:;:False
-DONE:done:False
+DONE:done:True
 EOF::False

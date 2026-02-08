@@ -8,7 +8,7 @@ token recognition ordering, and integration with the main tokenization system.
 import pytest
 from psh.lexer import ModularLexer, tokenize, LexerContext
 from psh.lexer.recognizers import (
-    RecognizerRegistry, OperatorRecognizer, KeywordRecognizer,
+    RecognizerRegistry, OperatorRecognizer,
     setup_default_recognizers
 )
 from psh.token_types import TokenType
@@ -98,10 +98,7 @@ class TestRecognizerRegistry:
         
         # Check recognizer types
         recognizer_types = [type(r).__name__ for r in recognizers]
-        expected_types = ['OperatorRecognizer', 'KeywordRecognizer']
-        
-        for expected_type in expected_types:
-            assert expected_type in recognizer_types
+        assert 'OperatorRecognizer' in recognizer_types
     
     def test_priority_ordering(self):
         """Test that recognizers are ordered by priority."""
@@ -115,7 +112,7 @@ class TestRecognizerRegistry:
     def test_registry_recognition(self):
         """Test registry recognition with context."""
         registry = setup_default_recognizers()
-        
+
         # Test operator recognition
         context = LexerContext()
         result = registry.recognize('&&', 0, context)
@@ -123,13 +120,13 @@ class TestRecognizerRegistry:
         token, new_pos, recognizer = result
         assert token.type == TokenType.AND_AND
         assert new_pos == 2
-        
-        # Test keyword recognition (needs command position)
-        cmd_context = LexerContext(command_position=True)
-        result = registry.recognize('if', 0, cmd_context)
+
+        # 'if' is recognized as WORD by LiteralRecognizer; KeywordNormalizer
+        # handles keyword conversion in the full tokenize() pipeline.
+        result = registry.recognize('if', 0, context)
         assert result is not None
         token, new_pos, recognizer = result
-        assert token.type == TokenType.IF
+        assert token.type == TokenType.WORD
         assert new_pos == 2
 
 
@@ -171,24 +168,18 @@ class TestLexerContext:
     """Test lexer context handling."""
     
     def test_command_position_context(self):
-        """Test command position affects keyword recognition."""
-        registry = setup_default_recognizers()
-        
-        # In command position, 'if' should be recognized as keyword
-        cmd_context = LexerContext(command_position=True)
-        result = registry.recognize('if', 0, cmd_context)
-        assert result is not None
-        token, new_pos, recognizer = result
-        assert token.type == TokenType.IF
-        
-        # In non-command position, 'if' should be word or not recognized by keyword recognizer
-        arg_context = LexerContext(command_position=False)
-        result = registry.recognize('if', 0, arg_context)
-        # Should either be None (not recognized by keyword recognizer) or WORD (by literal recognizer)
-        if result is not None:
-            token, new_pos, recognizer = result
-            # If recognized, should be as WORD, not IF
-            assert token.type != TokenType.IF
+        """Test command position affects keyword recognition via full pipeline."""
+        # Keywords are now handled entirely by KeywordNormalizer (post-tokenization),
+        # not by a recognizer. The registry always produces WORD tokens for keywords.
+        # Verify keyword recognition works through the full tokenize() pipeline.
+        tokens = list(tokenize('if true; then echo yes; fi'))
+        token_types = [t.type for t in tokens]
+        assert TokenType.IF in token_types
+
+        # In argument position, 'if' should remain WORD
+        tokens = list(tokenize('echo if'))
+        non_eof = [t for t in tokens if t.type != TokenType.EOF]
+        assert non_eof[1].type == TokenType.WORD
     
     def test_bracket_depth_context(self):
         """Test bracket depth affects special operator recognition."""
@@ -272,47 +263,29 @@ class TestOperatorRecognition:
 
 
 class TestKeywordRecognition:
-    """Test keyword recognition patterns."""
-    
-    @pytest.fixture
-    def recognizer(self):
-        return KeywordRecognizer()
-    
-    def test_keyword_command_position_requirement(self, recognizer):
-        """Test keywords only recognized in command position."""
-        # Should recognize in command position
-        cmd_context = LexerContext(command_position=True)
-        result = recognizer.recognize('if', 0, cmd_context)
-        assert result is not None
-        token, new_pos = result
-        assert token.type == TokenType.IF
-        
-        # Should not recognize in argument position  
-        arg_context = LexerContext(command_position=False)
-        result = recognizer.recognize('if', 0, arg_context)
-        assert result is None
-    
-    def test_control_flow_keywords(self, recognizer):
+    """Test keyword recognition via KeywordNormalizer (post-tokenization pass)."""
+
+    def test_keyword_at_command_position(self):
+        """Test keywords recognized at command position via full pipeline."""
+        tokens = list(tokenize('if true; then echo yes; fi'))
+        token_types = [t.type for t in tokens]
+        assert TokenType.IF in token_types
+        assert TokenType.THEN in token_types
+        assert TokenType.FI in token_types
+
+    def test_keyword_not_at_argument_position(self):
+        """Test keywords NOT recognized at argument position."""
+        tokens = list(tokenize('echo if'))
+        non_eof = [t for t in tokens if t.type != TokenType.EOF]
+        # 'if' in argument position should be WORD
+        assert non_eof[1].type == TokenType.WORD
+        assert non_eof[1].value == 'if'
+
+    def test_control_flow_keywords(self):
         """Test recognition of control flow keywords."""
-        context = LexerContext(command_position=True)
-        
-        keywords = [
-            ('if', TokenType.IF),
-            ('then', TokenType.THEN),
-            ('else', TokenType.ELSE),
-            ('fi', TokenType.FI),
-            ('for', TokenType.FOR),
-            ('do', TokenType.DO),
-            ('done', TokenType.DONE),
-            ('while', TokenType.WHILE),
-            ('case', TokenType.CASE),
-            ('esac', TokenType.ESAC),
-        ]
-        
-        for keyword, expected_type in keywords:
-            result = recognizer.recognize(keyword, 0, context)
-            assert result is not None, f"Failed to recognize keyword '{keyword}'"
-            token, new_pos = result
-            assert token.type == expected_type
-            assert token.value == keyword
-            assert new_pos == len(keyword)
+        tokens = list(tokenize('for i in a; do echo $i; done'))
+        token_types = [t.type for t in tokens]
+        assert TokenType.FOR in token_types
+        assert TokenType.IN in token_types
+        assert TokenType.DO in token_types
+        assert TokenType.DONE in token_types

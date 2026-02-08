@@ -62,7 +62,6 @@ class ModularLexer:
     def _setup_recognizers(self) -> None:
         """Set up the token recognizers based on configuration."""
         from .recognizers.comment import CommentRecognizer
-        from .recognizers.keyword import KeywordRecognizer
         from .recognizers.literal import LiteralRecognizer
         from .recognizers.operator import OperatorRecognizer
         from .recognizers.process_sub import ProcessSubstitutionRecognizer
@@ -76,9 +75,6 @@ class ModularLexer:
         operator_recognizer = OperatorRecognizer()
         operator_recognizer.config = self.config  # Pass config to recognizer
         self.registry.register(operator_recognizer)
-
-        # Add other recognizers
-        self.registry.register(KeywordRecognizer())
 
         # Create a custom literal recognizer that respects config
         literal_recognizer = LiteralRecognizer()
@@ -200,7 +196,7 @@ class ModularLexer:
             self.tokens.append(token)
 
         # Update command position context
-        self._update_command_position_context(token_type)
+        self._update_command_position_context(token_type, value)
 
     def _build_token_value(self, parts: List[TokenPart]) -> str:
         """Build complete token value from parts."""
@@ -222,33 +218,15 @@ class ModularLexer:
                 full_value += part.value
         return full_value
 
-    def _update_context_for_token(self, token_type: TokenType) -> None:
-        """Update lexer context based on recognized token."""
-        # Update bracket depth for [[ and ]]
-        if token_type == TokenType.DOUBLE_LBRACKET:
-            self.context.enter_double_brackets()
-        elif token_type == TokenType.DOUBLE_RBRACKET:
-            self.context.exit_double_brackets()
-        elif token_type == TokenType.DOUBLE_LPAREN:
-            self.context.enter_arithmetic()
-        elif token_type == TokenType.DOUBLE_RPAREN:
-            self.context.exit_arithmetic()
+    # Words whose values are keywords that set command position.
+    # These are checked during tokenization before KeywordNormalizer runs.
+    _COMMAND_POSITION_KEYWORDS = {
+        'if', 'while', 'until', 'for', 'case',
+        'then', 'do', 'else', 'elif',
+    }
 
-        # Track control keywords for context-sensitive parsing
-        elif token_type == TokenType.FOR:
-            self.context.recent_control_keyword = 'for'
-        elif token_type == TokenType.UNTIL:
-            self.context.recent_control_keyword = 'until'
-        elif token_type == TokenType.CASE:
-            self.context.recent_control_keyword = 'case'
-        elif token_type == TokenType.SELECT:
-            self.context.recent_control_keyword = 'select'
-        elif token_type in {TokenType.SEMICOLON, TokenType.DO, TokenType.THEN}:
-            # Clear recent control keyword when we move to the body
-            self.context.recent_control_keyword = None
-
-    def _update_command_position_context(self, token_type: TokenType) -> None:
-        """Update command position tracking based on token type."""
+    def _update_command_position_context(self, token_type: TokenType, token_value: str = '') -> None:
+        """Update command position tracking based on token type and value."""
         command_starting_tokens = {
             TokenType.SEMICOLON, TokenType.AND_AND, TokenType.OR_OR,
             TokenType.PIPE, TokenType.LPAREN, TokenType.NEWLINE,
@@ -275,6 +253,13 @@ class ModularLexer:
             self.context.exit_arithmetic()
 
         if token_type in command_starting_tokens:
+            self.context.set_command_position()
+        elif (token_type == TokenType.WORD and
+              token_value in self._COMMAND_POSITION_KEYWORDS):
+            # Keywords are emitted as WORD during tokenization (before
+            # KeywordNormalizer runs). Treat keyword-valued words as
+            # command-position setters so that operators like [[ are
+            # recognized correctly.
             self.context.set_command_position()
         elif token_type not in neutral_tokens:
             self.context.reset_command_position()
@@ -603,11 +588,8 @@ class ModularLexer:
             # Add token
             self.tokens.append(token)
 
-            # Update context immediately for bracket tracking
-            self._update_context_for_token(token.type)
-
             # Update command position context
-            self._update_command_position_context(token.type)
+            self._update_command_position_context(token.type, token.value)
 
             return True
 

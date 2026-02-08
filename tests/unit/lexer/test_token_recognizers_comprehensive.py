@@ -8,7 +8,7 @@ priority-based recognition, context-sensitive tokenization, and registry managem
 import pytest
 from psh.lexer.recognizers import (
     TokenRecognizer, RecognizerRegistry,
-    OperatorRecognizer, KeywordRecognizer, LiteralRecognizer,
+    OperatorRecognizer, LiteralRecognizer,
     WhitespaceRecognizer, CommentRecognizer,
     setup_default_recognizers
 )
@@ -161,90 +161,6 @@ class TestOperatorRecognizer:
         assert token.type == TokenType.PIPE
         assert token.value == '|'
         assert new_pos == 12
-
-
-class TestKeywordRecognizer:
-    """Test keyword recognition functionality."""
-    
-    @pytest.fixture
-    def recognizer(self):
-        return KeywordRecognizer()
-    
-    def test_basic_keyword_recognition(self, recognizer):
-        """Test recognition of shell keywords."""
-        context = LexerContext(command_position=True)
-        
-        keywords = [
-            ('if', TokenType.IF),
-            ('then', TokenType.THEN),
-            ('else', TokenType.ELSE),
-            ('elif', TokenType.ELIF),
-            ('fi', TokenType.FI),
-            ('for', TokenType.FOR),
-            ('do', TokenType.DO),
-            ('done', TokenType.DONE),
-            ('while', TokenType.WHILE),
-            ('case', TokenType.CASE),
-            ('esac', TokenType.ESAC),
-            ('function', TokenType.FUNCTION),
-        ]
-        
-        for text, expected_type in keywords:
-            result = recognizer.recognize(text, 0, context)
-            assert result is not None
-            token, new_pos = result
-            assert token.type == expected_type
-            assert token.value == text
-            assert new_pos == len(text)
-    
-    def test_keyword_command_position_requirement(self, recognizer):
-        """Test that keywords are only recognized at command positions."""
-        cmd_context = LexerContext(command_position=True)
-        arg_context = LexerContext(command_position=False)
-        
-        # Should recognize in command position
-        result = recognizer.recognize('if', 0, cmd_context)
-        assert result is not None
-        token, new_pos = result
-        assert token.type == TokenType.IF
-        
-        # Should not recognize in argument position
-        result = recognizer.recognize('if', 0, arg_context)
-        assert result is None
-    
-    def test_keyword_word_boundary_detection(self, recognizer):
-        """Test that keywords require proper word boundaries."""
-        context = LexerContext(command_position=True)
-        
-        # Valid keyword (word boundary)
-        result = recognizer.recognize('if ', 0, context)
-        assert result is not None
-        token, new_pos = result
-        assert token.type == TokenType.IF
-        
-        # Invalid - part of larger word
-        result = recognizer.recognize('ifconfig', 0, context)
-        assert result is None
-        
-        # Valid at end of string
-        result = recognizer.recognize('if', 0, context)
-        assert result is not None
-        token, new_pos = result
-        assert token.type == TokenType.IF
-    
-    def test_keyword_case_sensitivity(self, recognizer):
-        """Test that keywords are case-sensitive."""
-        context = LexerContext(command_position=True)
-        
-        # Lowercase should work
-        result = recognizer.recognize('if', 0, context)
-        assert result is not None
-        token, new_pos = result
-        assert token.type == TokenType.IF
-        
-        # Uppercase should not
-        result = recognizer.recognize('IF', 0, context)
-        assert result is None
 
 
 class TestLiteralRecognizer:
@@ -436,12 +352,12 @@ class TestRecognizerRegistry:
     
     def test_priority_ordering(self, registry):
         """Test that recognizers are ordered by priority."""
-        low_priority = KeywordRecognizer()  # Priority 90
+        low_priority = LiteralRecognizer()  # Priority 70
         high_priority = OperatorRecognizer()  # Priority 150
-        
+
         registry.register(low_priority)
         registry.register(high_priority)
-        
+
         # Should be ordered by priority (high to low)
         ordered = registry.get_recognizers()
         assert ordered[0] == high_priority
@@ -450,24 +366,21 @@ class TestRecognizerRegistry:
     def test_clear_registry(self, registry):
         """Test clearing all recognizers."""
         registry.register(OperatorRecognizer())
-        registry.register(KeywordRecognizer())
-        
+        registry.register(LiteralRecognizer())
+
         assert len(registry) == 2
-        
+
         registry.clear()
         assert len(registry) == 0
     
     def test_registry_statistics(self, registry):
         """Test registry statistics tracking."""
         operator_rec = OperatorRecognizer()
-        keyword_rec = KeywordRecognizer()
-        
+        literal_rec = LiteralRecognizer()
+
         registry.register(operator_rec)
-        registry.register(keyword_rec)
-        
-        # Test recognition counting
-        context = LexerContext()
-        
+        registry.register(literal_rec)
+
         # Test that registry has stats
         stats = registry.get_stats()
         assert 'total_recognizers' in stats
@@ -476,49 +389,33 @@ class TestRecognizerRegistry:
     def test_default_recognizers(self):
         """Test that default registry comes with standard recognizers."""
         registry = setup_default_recognizers()
-        
+
         recognizers = registry.get_recognizers()
-        
+
         # Should have all standard recognizers
         recognizer_types = [type(r).__name__ for r in recognizers]
         expected_types = [
             'ProcessSubstitutionRecognizer',
             'OperatorRecognizer',
-            'KeywordRecognizer', 
             'LiteralRecognizer',
             'WhitespaceRecognizer',
             'CommentRecognizer'
         ]
-        
+
         for expected_type in expected_types:
             assert expected_type in recognizer_types
     
     def test_registry_context_handling(self, registry):
         """Test registry properly handles context in recognition."""
         registry.register(OperatorRecognizer())
-        registry.register(KeywordRecognizer())
-        
+        registry.register(LiteralRecognizer())
+
         context = LexerContext()
-        
-        # Test recognition with context
+
+        # Test recognition with context - 'if' is a WORD via LiteralRecognizer
         result = registry.recognize('if', 0, context)
-        # May or may not recognize depending on context
         assert result is None or len(result) == 3
-        
-        # Test context-sensitive recognition
-        cmd_context = LexerContext(command_position=True)
-        
-        # Should recognize 'if' as keyword in command position
-        result = registry.recognize('if', 0, cmd_context)
-        if result is not None:
-            token, new_pos, recognizer = result
-            assert token.type == TokenType.IF
-        
-        # Test non-command position
-        arg_context = LexerContext(command_position=False)
-        
-        # Should not recognize 'if' as keyword in argument position
-        result = registry.recognize('if', 0, arg_context)
+
         if result is not None:
             token, new_pos, recognizer = result
             assert token.type == TokenType.WORD
@@ -556,22 +453,20 @@ class TestModularLexerIntegration:
     
     def test_conditional_tokenization(self, registry):
         """Test tokenization of conditional statements."""
-        lexer = ModularLexer('if test; then echo yes; fi')
-        tokens = list(lexer.tokenize())
-        
-        # Should recognize keywords
+        # Use tokenize() which includes KeywordNormalizer
+        tokens = list(tokenize('if test; then echo yes; fi'))
+
         token_types = [t.type for t in tokens]
         assert TokenType.IF in token_types
         assert TokenType.THEN in token_types
         assert TokenType.FI in token_types
         assert TokenType.SEMICOLON in token_types
-    
+
     def test_complex_command_tokenization(self, registry):
         """Test tokenization of complex shell constructs."""
-        lexer = ModularLexer('for file in *.txt; do echo $file; done')
-        tokens = list(lexer.tokenize())
-        
-        # Should recognize loop keywords and various tokens
+        # Use tokenize() which includes KeywordNormalizer
+        tokens = list(tokenize('for file in *.txt; do echo $file; done'))
+
         token_types = [t.type for t in tokens]
         assert TokenType.FOR in token_types
         assert TokenType.IN in token_types

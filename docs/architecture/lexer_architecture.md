@@ -279,8 +279,7 @@ The `RecognizerRegistry` implements dynamic registration with priority-based dis
 ```python
 registry = RecognizerRegistry()
 registry.register(ProcessSubstitutionRecognizer())  # Priority: 160
-registry.register(OperatorRecognizer())            # Priority: 100
-registry.register(KeywordRecognizer())             # Priority: 80
+registry.register(OperatorRecognizer())            # Priority: 150
 registry.register(LiteralRecognizer())             # Priority: 70
 registry.register(CommentRecognizer())             # Priority: 60
 registry.register(WhitespaceRecognizer())          # Priority: 30
