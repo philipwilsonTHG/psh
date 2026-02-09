@@ -2,10 +2,24 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.131.0"
+__version__ = "0.132.0"
 
 # Version history
 VERSION_HISTORY = """
+0.132.0 (2026-02-09) - Parser Quality: Factory Functions, Dead Code Removal
+- Converted ParserContextFactory (9 static methods), ParserFactory (4 static
+  methods), and ConfigurationValidator (2 static methods) from static-method-only
+  classes to plain module-level functions. Added thin compatibility shim classes
+  so existing call sites keep working unchanged.
+- Deleted unused ContextConfiguration class (3 static methods, zero callers).
+- Deleted BaseParser adapter class (~30 lines, never instantiated outside its
+  own module).
+- Deleted unused parse_with_rule and parse_scoped methods (~15 lines, never called).
+- Replaced ErrorContext.severity string field with ErrorSeverity enum (INFO,
+  WARNING, ERROR, FATAL). Added FATAL to validation Severity enum.
+- Removed unreachable except ImportError block in _enhance_error_context.
+- Net reduction: ~70 lines across 7 files. All tests passing.
+
 0.131.0 (2026-02-09) - Parser Quality Improvements
 - Pruned ParserConfig from 45 fields to 12 actually-read fields. Removed
   33 unused fields and 5 factory methods (~500 lines). Kept strict_posix()
