@@ -4,7 +4,13 @@ import pytest
 from unittest.mock import Mock
 
 from psh.parser.recursive_descent.context import ParserContext, ParserProfiler, HeredocInfo
-from psh.parser.recursive_descent.support.context_factory import ParserContextFactory
+from psh.parser.recursive_descent.support.context_factory import (
+    create_context,
+    create_strict_posix_context,
+    create_permissive_context,
+    create_repl_context,
+    create_sub_parser_context,
+)
 from psh.parser.config import ParserConfig, ParsingMode, ErrorHandlingMode
 from psh.parser.recursive_descent.helpers import ParseError
 from psh.token_types import Token, TokenType
@@ -355,73 +361,73 @@ class TestParserProfiler:
 
 
 class TestParserContextFactory:
-    """Test ParserContextFactory functionality."""
-    
+    """Test parser context factory functions."""
+
     def test_create_basic(self):
         """Test basic context creation."""
         tokens = [Token(TokenType.WORD, "test", 0)]
-        
-        ctx = ParserContextFactory.create(tokens)
-        
+
+        ctx = create_context(tokens)
+
         assert ctx.tokens == tokens
         assert isinstance(ctx.config, ParserConfig)
         assert ctx.source_text is None
-    
+
     def test_create_with_config(self):
         """Test context creation with custom config."""
         tokens = [Token(TokenType.WORD, "test", 0)]
         config = ParserConfig(parsing_mode=ParsingMode.STRICT_POSIX)
-        
-        ctx = ParserContextFactory.create(tokens, config)
-        
+
+        ctx = create_context(tokens, config)
+
         assert ctx.config.parsing_mode == ParsingMode.STRICT_POSIX
-    
+
     def test_create_strict_posix(self):
         """Test strict POSIX context creation."""
         tokens = [Token(TokenType.WORD, "test", 0)]
-        
-        ctx = ParserContextFactory.create_strict_posix(tokens)
-        
+
+        ctx = create_strict_posix_context(tokens)
+
         assert ctx.config.parsing_mode == ParsingMode.STRICT_POSIX
-    
+
     def test_create_default(self):
         """Test default context creation (bash-compatible by default)."""
         tokens = [Token(TokenType.WORD, "test", 0)]
 
-        ctx = ParserContextFactory.create(tokens)
+        ctx = create_context(tokens)
 
         assert ctx.config.parsing_mode == ParsingMode.BASH_COMPAT
-    
+
     def test_create_permissive(self):
         """Test permissive context creation."""
         tokens = [Token(TokenType.WORD, "test", 0)]
-        
-        ctx = ParserContextFactory.create_permissive(tokens)
-        
+
+        ctx = create_permissive_context(tokens)
+
         assert ctx.config.parsing_mode == ParsingMode.PERMISSIVE
         assert ctx.config.collect_errors
         assert ctx.config.enable_error_recovery
-    
+
     def test_create_for_repl(self):
         """Test REPL context creation."""
-        ctx = ParserContextFactory.create_for_repl()
-        
+        ctx = create_repl_context()
+
         assert ctx.config.parsing_mode == ParsingMode.BASH_COMPAT
         assert ctx.config.error_handling == ErrorHandlingMode.COLLECT
         assert ctx.config.collect_errors
-    
+
     def test_create_sub_parser_context(self):
         """Test sub-parser context creation."""
         parent_tokens = [Token(TokenType.WORD, "parent", 0)]
         parent_ctx = ParserContext(tokens=parent_tokens)
         parent_ctx.function_depth = 1
         parent_ctx.nesting_depth = 2
-        
+
         sub_tokens = [Token(TokenType.WORD, "sub", 0)]
-        sub_ctx = ParserContextFactory.create_sub_parser_context(
+        sub_ctx = create_sub_parser_context(
             parent_ctx, sub_tokens, inherit_state=True
         )
-        
+
         assert sub_ctx.tokens == sub_tokens
         assert sub_ctx.config == parent_ctx.config
         assert sub_ctx.function_depth == 1  # inherited

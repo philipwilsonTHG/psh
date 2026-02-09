@@ -84,14 +84,14 @@ class TestParserWithErrorCollection:
         tokens = tokenize("echo hello")
         parser = Parser(tokens, collect_errors=True)
 
-        assert parser.error_collector is not None
+        assert parser.ctx.config.collect_errors
 
     def test_parser_without_error_collection(self):
         """Test parser without error collection."""
         tokens = tokenize("echo hello")
         parser = Parser(tokens, collect_errors=False)
 
-        assert parser.error_collector is None
+        assert not parser.ctx.config.collect_errors
 
     def test_parse_with_error_collection_success(self):
         """Test successful parsing with error collection."""
@@ -116,35 +116,33 @@ class TestParserWithErrorCollection:
         assert result.get_error_count() >= 1
         # AST might be partial or None depending on where error occurs
 
-    def test_parse_with_error_collection_enables_collector(self):
-        """Test that parse_with_error_collection enables collector if not present."""
+    def test_parse_with_error_collection_enables_collection(self):
+        """Test that parse_with_error_collection enables collection if not present."""
         tokens = tokenize("echo hello")
-        parser = Parser(tokens, collect_errors=False)  # Start without collector
+        parser = Parser(tokens, collect_errors=False)  # Start without collection
 
-        assert parser.error_collector is None
+        assert not parser.ctx.config.collect_errors
 
         result = parser.parse_with_error_collection()
 
-        # Should have enabled collector
-        assert parser.error_collector is not None
         assert result.success == True
 
-    def test_error_collector_max_errors(self):
-        """Test error collector exposes max_errors from config."""
+    def test_max_errors_from_config(self):
+        """Test max_errors is accessible from config."""
         tokens = tokenize("echo hello")
         parser = Parser(tokens, collect_errors=True)
 
-        assert parser.error_collector.max_errors == 10
+        assert parser.ctx.config.max_errors == 10
 
     def test_context_errors_used_directly(self):
-        """Test that errors are stored in ctx.errors, not a separate collector."""
+        """Test that errors are stored in ctx.errors."""
         tokens = tokenize("echo hello")
         parser = Parser(tokens, collect_errors=True)
 
         result = parser.parse_with_error_collection()
 
         # ctx.errors should be the source of truth
-        assert parser.error_collector.errors is parser.ctx.errors
+        assert isinstance(parser.ctx.errors, list)
 
 
 class TestErrorCollectionIntegration:

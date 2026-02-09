@@ -4,8 +4,15 @@ import pytest
 from psh.lexer import tokenize
 from psh.parser import (
     Parser, ParserConfig, ParsingMode, ErrorHandlingMode,
-    ParserFactory, ConfigurationValidator, parse_strict_posix,
-    parse_permissive
+    parse_strict_posix, parse_permissive,
+)
+from psh.parser.recursive_descent.support.factory import (
+    create_strict_posix_parser,
+    create_permissive_parser,
+    create_custom_parser,
+    create_shell_parser,
+    validate_config,
+    suggest_config,
 )
 from psh.parser.recursive_descent.helpers import ParseError
 
@@ -79,29 +86,29 @@ class TestParserConfig:
 
 
 class TestParserFactory:
-    """Test the ParserFactory class."""
+    """Test parser factory functions."""
 
     def test_create_strict_posix_parser(self):
         """Test creating strict POSIX parser."""
         tokens = tokenize("echo hello")
-        parser = ParserFactory.create_strict_posix_parser(tokens)
+        parser = create_strict_posix_parser(tokens)
 
         assert parser.config.parsing_mode == ParsingMode.STRICT_POSIX
 
     def test_create_permissive_parser(self):
         """Test creating permissive parser."""
         tokens = tokenize("echo hello")
-        parser = ParserFactory.create_permissive_parser(tokens)
+        parser = create_permissive_parser(tokens)
 
         assert parser.config.parsing_mode == ParsingMode.PERMISSIVE
         assert parser.config.error_handling == ErrorHandlingMode.RECOVER
-        assert parser.error_collector is not None
+        assert parser.ctx.config.collect_errors
 
     def test_create_custom_parser(self):
         """Test creating custom parser."""
         tokens = tokenize("echo hello")
 
-        parser = ParserFactory.create_custom_parser(
+        parser = create_custom_parser(
             tokens,
             base_config=ParserConfig(),
             enable_arithmetic=False,
@@ -118,36 +125,36 @@ class TestParserFactory:
 
         # Test POSIX mode
         shell_options = {'posix': True}
-        parser = ParserFactory.create_shell_parser(tokens, shell_options=shell_options)
+        parser = create_shell_parser(tokens, shell_options=shell_options)
         assert parser.config.parsing_mode == ParsingMode.STRICT_POSIX
 
         # Test debug mode
         shell_options = {'debug_parser': True}
-        parser = ParserFactory.create_shell_parser(tokens, shell_options=shell_options)
+        parser = create_shell_parser(tokens, shell_options=shell_options)
         assert parser.config.trace_parsing == True
         assert parser.config.profile_parsing == True
 
 
 class TestConfigurationValidator:
-    """Test the ConfigurationValidator class."""
+    """Test configuration validation functions."""
 
     def test_validate_config_no_warnings(self):
         """Test validating a good configuration."""
         config = ParserConfig()
-        warnings = ConfigurationValidator.validate_config(config)
+        warnings = validate_config(config)
 
         # Default config should have no warnings
         assert len(warnings) == 0
 
     def test_suggest_config_for_use_case(self):
         """Test configuration suggestions."""
-        assert ConfigurationValidator.suggest_config_for_use_case('posix').parsing_mode == ParsingMode.STRICT_POSIX
-        assert ConfigurationValidator.suggest_config_for_use_case('educational').trace_parsing == True
-        assert ConfigurationValidator.suggest_config_for_use_case('development').trace_parsing == True
-        assert ConfigurationValidator.suggest_config_for_use_case('permissive').parsing_mode == ParsingMode.PERMISSIVE
+        assert suggest_config('posix').parsing_mode == ParsingMode.STRICT_POSIX
+        assert suggest_config('educational').trace_parsing == True
+        assert suggest_config('development').trace_parsing == True
+        assert suggest_config('permissive').parsing_mode == ParsingMode.PERMISSIVE
 
         # Test default case
-        default_config = ConfigurationValidator.suggest_config_for_use_case('unknown')
+        default_config = suggest_config('unknown')
         assert default_config.parsing_mode == ParsingMode.BASH_COMPAT
 
 
@@ -192,13 +199,13 @@ class TestParserWithConfiguration:
         """Test error collection based on configuration."""
         # Test strict mode (no collection)
         tokens = tokenize("echo hello")
-        strict_parser = ParserFactory.create_strict_posix_parser(tokens)
-        assert strict_parser.error_collector is None
+        strict_parser = create_strict_posix_parser(tokens)
+        assert not strict_parser.ctx.config.collect_errors
 
         # Test permissive mode (with collection)
-        permissive_parser = ParserFactory.create_permissive_parser(tokens)
-        assert permissive_parser.error_collector is not None
-        assert permissive_parser.error_collector.max_errors == 50
+        permissive_parser = create_permissive_parser(tokens)
+        assert permissive_parser.ctx.config.collect_errors
+        assert permissive_parser.ctx.config.max_errors == 50
 
 
 class TestConvenienceFunctions:

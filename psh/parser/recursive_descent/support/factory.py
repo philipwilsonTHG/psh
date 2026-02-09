@@ -147,22 +147,3 @@ def suggest_config(use_case: str) -> ParserConfig:
             show_error_suggestions=True)
     else:
         return ParserConfig()  # Default bash-compatible
-
-
-# --- Compatibility shims ---
-# Delegate to module-level functions so existing callers keep working.
-
-class ParserFactory:
-    """Compatibility shim — prefer the module-level functions directly."""
-
-    create_strict_posix_parser = staticmethod(create_strict_posix_parser)
-    create_permissive_parser = staticmethod(create_permissive_parser)
-    create_custom_parser = staticmethod(create_custom_parser)
-    create_shell_parser = staticmethod(create_shell_parser)
-
-
-class ConfigurationValidator:
-    """Compatibility shim — prefer the module-level functions directly."""
-
-    validate_config = staticmethod(validate_config)
-    suggest_config_for_use_case = staticmethod(suggest_config)

@@ -15,17 +15,30 @@ from .recursive_descent.helpers import ErrorContext, ParseError, TokenGroups
 
 # Import from final locations
 from .recursive_descent.parser import Parser
-from .recursive_descent.support.context_factory import ParserContextFactory
-from .recursive_descent.support.factory import ConfigurationValidator, ParserFactory
+from .recursive_descent.support.context_factory import (
+    create_context,
+    create_permissive_context,
+    create_strict_posix_context,
+)
+from .recursive_descent.support.factory import (
+    create_strict_posix_parser,
+    create_permissive_parser,
+    validate_config,
+    suggest_config,
+)
 from .recursive_descent.support.utils import parse_with_heredocs as utils_parse_with_heredocs
 
 # Public API
 __all__ = [
     # Main API
     'parse', 'parse_with_heredocs', 'Parser', 'ParseError', 'ErrorContext', 'TokenGroups',
-    'ContextBaseParser', 'ParserContext', 'ParserContextFactory',
+    'ContextBaseParser', 'ParserContext',
     'ParserProfiler', 'HeredocInfo',
-    'ParserConfig', 'ParsingMode', 'ErrorHandlingMode', 'ParserFactory', 'ConfigurationValidator',
+    'ParserConfig', 'ParsingMode', 'ErrorHandlingMode',
+    # Factory functions
+    'create_context', 'create_strict_posix_context', 'create_permissive_context',
+    'create_strict_posix_parser', 'create_permissive_parser',
+    'validate_config', 'suggest_config',
     # Parsing modes
     'parse_strict_posix', 'parse_permissive'
 ]
@@ -66,7 +79,7 @@ def parse_strict_posix(tokens, source_text=None):
     Returns:
         Parsed AST in strict POSIX mode
     """
-    return ParserFactory.create_strict_posix_parser(tokens, source_text).parse()
+    return create_strict_posix_parser(tokens, source_text).parse()
 
 
 def parse_permissive(tokens, source_text=None):
@@ -79,4 +92,4 @@ def parse_permissive(tokens, source_text=None):
     Returns:
         Parsed AST (may be partial if errors occurred)
     """
-    return ParserFactory.create_permissive_parser(tokens, source_text).parse()
+    return create_permissive_parser(tokens, source_text).parse()

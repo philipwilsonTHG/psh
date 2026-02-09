@@ -114,14 +114,6 @@ class Parser(ContextBaseParser):
         self.source_text = self.ctx.source_text
         self.source_lines = self.ctx.source_lines
 
-        # Error collector compatibility: expose ctx.errors through a
-        # lightweight wrapper so tests checking `parser.error_collector`
-        # still work (it's non-None when collect_errors is True).
-        if self.ctx.config.collect_errors:
-            self.error_collector = _ErrorCollectorView(self.ctx)
-        else:
-            self.error_collector = None
-
         # Initialize specialized parsers
         self.statements = StatementParser(self)
         self.commands = CommandParser(self)
@@ -278,10 +270,6 @@ class Parser(ContextBaseParser):
         # Ensure error collection is enabled in context
         old_collect_errors = self.ctx.config.collect_errors
         self.ctx.config.collect_errors = True
-
-        # Ensure we have an error_collector view
-        if not self.error_collector:
-            self.error_collector = _ErrorCollectorView(self.ctx)
 
         try:
             ast = self.parse()
@@ -469,30 +457,3 @@ def _skip_to_sync_token(parser, sync_tokens: Set[TokenType]) -> bool:
     return not parser.at_end()
 
 
-class _ErrorCollectorView:
-    """Lightweight view over ctx.errors for backward compatibility.
-
-    Tests and code that check ``parser.error_collector is not None`` or
-    access ``parser.error_collector.errors`` / ``max_errors`` continue
-    to work without change.
-    """
-
-    def __init__(self, ctx: ParserContext):
-        self._ctx = ctx
-
-    @property
-    def errors(self) -> List[ParseError]:
-        return self._ctx.errors
-
-    @property
-    def max_errors(self) -> int:
-        return self._ctx.config.max_errors
-
-    def add_error(self, error: ParseError) -> None:
-        self._ctx.add_error(error)
-
-    def should_continue(self) -> bool:
-        return self._ctx.can_continue_parsing()
-
-    def has_errors(self) -> bool:
-        return bool(self._ctx.errors)

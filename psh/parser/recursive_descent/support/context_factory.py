@@ -175,19 +175,3 @@ def create_performance_test_context(tokens: List[Token],
     )
 
     return create_context(tokens, config, source_text)
-
-
-# --- Compatibility shim ---
-# Delegates to module-level functions so existing callers keep working.
-
-class ParserContextFactory:
-    """Compatibility shim — prefer the module-level functions directly."""
-
-    create = staticmethod(create_context)
-    create_strict_posix = staticmethod(create_strict_posix_context)
-    create_permissive = staticmethod(create_permissive_context)
-    create_for_repl = staticmethod(create_repl_context)
-    create_shell_parser = staticmethod(create_shell_parser_context)
-    create_sub_parser_context = staticmethod(create_sub_parser_context)
-    create_validation_context = staticmethod(create_validation_context)
-    create_performance_test_context = staticmethod(create_performance_test_context)
