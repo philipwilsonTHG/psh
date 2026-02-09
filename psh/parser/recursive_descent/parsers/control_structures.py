@@ -266,9 +266,9 @@ class ControlStructureParser:
                not self.parser.at_end()):
 
             if self.parser.match_any(TokenGroups.WORD_LIKE):
-                value, _, quote_type = self.parser.commands.parse_composite_argument()
-                items.append(value)
-                quote_types.append(quote_type)
+                word = self.parser.commands.parse_argument_as_word()
+                items.append(''.join(str(p) for p in word.parts))
+                quote_types.append(word.effective_quote_char)
             else:
                 break
 
@@ -365,8 +365,8 @@ class ControlStructureParser:
                not self.parser.match_any(TokenGroups.STATEMENT_SEPARATORS) and
                not self.parser.at_end()):
             if self.parser.match_any(TokenGroups.WORD_LIKE):
-                value, _, _ = self.parser.commands.parse_composite_argument()
-                parts.append(value)
+                word = self.parser.commands.parse_argument_as_word()
+                parts.append(''.join(str(p) for p in word.parts))
             else:
                 break
         return ' '.join(parts)
@@ -419,8 +419,8 @@ class ControlStructureParser:
                     parts.append(token.value)
                     self.parser.advance()
                 else:
-                    value, _, _ = self.parser.commands.parse_composite_argument()
-                    parts.append(value)
+                    word = self.parser.commands.parse_argument_as_word()
+                    parts.append(''.join(str(p) for p in word.parts))
             else:
                 break
 

@@ -233,7 +233,7 @@ class CommandParser:
 
         while not self.parser.match(TokenType.RPAREN) and not self.parser.at_end():
             if self.parser.match_any(TokenGroups.WORD_LIKE):
-                self.parse_composite_argument()  # consume element
+                self.parse_argument_as_word()  # consume element
 
                 # Reconstruct original representation
                 element_end_pos = self.parser.current
@@ -372,89 +372,6 @@ class CommandParser:
             # Fall back to simple command
             return self.parse_command()
 
-    def parse_composite_argument(self) -> Tuple[str, str, Optional[str]]:
-        """Parse a potentially composite argument (concatenated tokens)."""
-        # If current token is already a COMPOSITE, just return it
-        if self.parser.peek() and self.parser.peek().type == TokenType.COMPOSITE:
-            token = self.parser.advance()
-            return self._token_to_argument(token)
-
-        # Otherwise, check for adjacent tokens forming a composite
-        # Create TokenStream to check for composite
-        stream = TokenStream(self.parser.tokens, self.parser.current)
-        composite = stream.peek_composite_sequence()
-
-        if composite:
-            # Process composite tokens
-            parts = []
-            has_quoted_part = False
-
-            for token in composite:
-                # Check for unclosed expansions in composite parts
-                self._check_for_unclosed_expansions(token)
-
-                # Track if any part was quoted
-                if token.type == TokenType.STRING:
-                    has_quoted_part = True
-                    parts.append(token.value)
-                elif token.type == TokenType.VARIABLE:
-                    parts.append(f"${token.value}")
-                elif token.type in (TokenType.LBRACKET, TokenType.RBRACKET):
-                    # Include brackets as-is for glob patterns
-                    parts.append(token.value)
-                else:
-                    parts.append(token.value)
-
-            # Advance parser position
-            self.parser.current = stream.pos + len(composite)
-
-            # Create composite
-            arg_type = 'COMPOSITE_QUOTED' if has_quoted_part else 'COMPOSITE'
-            return ''.join(parts), arg_type, None
-        else:
-            # Single token case - preserve original type info
-            if self.parser.match_any(TokenGroups.WORD_LIKE):
-                token = self.parser.advance()
-                return self._token_to_argument(token)
-            else:
-                raise self.parser.error("Expected word-like token")
-
-    def _token_to_argument(self, token: Token) -> Tuple[str, str, Optional[str]]:
-        """Convert a single token to argument tuple format."""
-        # Check for unclosed expansions
-        self._check_for_unclosed_expansions(token)
-
-        # Handle composite tokens specially
-        if token.type == TokenType.COMPOSITE:
-            # Composite tokens already have the merged value
-            arg_type = 'COMPOSITE_QUOTED' if token.quote_type == 'mixed' else 'COMPOSITE'
-            return token.value, arg_type, None
-
-        type_map = {
-            TokenType.VARIABLE: ('VARIABLE', lambda t: self._format_variable(t)),
-            TokenType.STRING: ('STRING', lambda t: t.value),
-            TokenType.COMMAND_SUB: ('COMMAND_SUB', lambda t: t.value),
-            TokenType.COMMAND_SUB_BACKTICK: ('COMMAND_SUB_BACKTICK', lambda t: t.value),
-            TokenType.ARITH_EXPANSION: ('ARITH_EXPANSION', lambda t: t.value),
-            TokenType.PARAM_EXPANSION: ('PARAM_EXPANSION', lambda t: t.value),
-            TokenType.PROCESS_SUB_IN: ('PROCESS_SUB_IN', lambda t: t.value),
-            TokenType.PROCESS_SUB_OUT: ('PROCESS_SUB_OUT', lambda t: t.value),
-            TokenType.WORD: ('WORD', lambda t: t.value),
-            TokenType.LBRACKET: ('WORD', lambda t: t.value),
-            TokenType.RBRACKET: ('WORD', lambda t: t.value),
-            # Note: LBRACE and RBRACE are now handled as grouping operators, not words
-        }
-
-        arg_type, value_fn = type_map.get(token.type, ('WORD', lambda t: t.value))
-        value = value_fn(token)
-        quote_type = getattr(token, 'quote_type', None)
-
-        return value, arg_type, quote_type
-
-    def _format_variable(self, token: Token) -> str:
-        """Format a VARIABLE token, prepending $ if needed."""
-        return f"${token.value}"
-
     def parse_argument_as_word(self) -> 'Word':
         """Parse an argument as a Word AST node with expansions.
 
@@ -462,7 +379,6 @@ class CommandParser:
         conversion. See WordBuilder for details on RichToken decomposition,
         composite word building, and parameter expansion parsing.
         """
-        from ....token_stream import TokenStream
         from ..support.word_builder import WordBuilder
 
         # Check for composite tokens

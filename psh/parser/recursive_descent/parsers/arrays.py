@@ -6,7 +6,7 @@ This module handles parsing of array assignments and initializations.
 
 from typing import List
 
-from ....ast_nodes import ArrayAssignment, ArrayElementAssignment, ArrayInitialization
+from ....ast_nodes import ArrayAssignment, ArrayElementAssignment, ArrayInitialization, Word
 from ....token_types import Token, TokenType
 from ..helpers import TokenGroups
 
@@ -17,6 +17,22 @@ class ArrayParser:
     def __init__(self, main_parser):
         """Initialize with reference to main parser."""
         self.parser = main_parser
+
+    @staticmethod
+    def _word_to_element_type(word: Word) -> str:
+        """Derive a legacy element-type string from a Word AST node.
+
+        The executor uses element_types to decide split/no-split:
+        - 'STRING', 'COMPOSITE_QUOTED' -> split_words=False
+        - 'COMPOSITE', 'WORD' -> split_words=True
+        """
+        if word.is_quoted:
+            return 'STRING'
+        if any(getattr(p, 'quoted', False) for p in word.parts):
+            return 'COMPOSITE_QUOTED'
+        if len(word.parts) > 1:
+            return 'COMPOSITE'
+        return 'WORD'
 
     def is_array_assignment(self) -> bool:
         """Check if current position starts an array assignment."""
@@ -150,7 +166,10 @@ class ArrayParser:
                 value_type = 'WORD'
                 quote_type = None
                 if not value and self.parser.match_any(TokenGroups.WORD_LIKE):
-                    value, value_type, quote_type = self.parser.commands.parse_composite_argument()
+                    word = self.parser.commands.parse_argument_as_word()
+                    value = ''.join(str(p) for p in word.parts)
+                    value_type = self._word_to_element_type(word)
+                    quote_type = word.effective_quote_char
 
                 # Create tokens for the index
                 index_tokens = [Token(TokenType.WORD, index_str, 0)]
@@ -185,7 +204,10 @@ class ArrayParser:
                     # Value is in next token
                     if not self.parser.match_any(TokenGroups.WORD_LIKE):
                         raise self.parser.error("Expected value after '='")
-                    value, value_type, quote_type = self.parser.commands.parse_composite_argument()
+                    word = self.parser.commands.parse_argument_as_word()
+                    value = ''.join(str(p) for p in word.parts)
+                    value_type = self._word_to_element_type(word)
+                    quote_type = word.effective_quote_char
                 else:
                     # Value is part of equals token (e.g., "=value")
                     value = equals_token.value[2:] if is_append else equals_token.value[1:]
@@ -357,7 +379,10 @@ class ArrayParser:
             # Parse the value as a separate token
             if not self.parser.match_any(TokenGroups.WORD_LIKE):
                 raise self.parser.error("Expected value after '=' in array element assignment")
-            value, value_type, quote_type = self.parser.commands.parse_composite_argument()
+            word = self.parser.commands.parse_argument_as_word()
+            value = ''.join(str(p) for p in word.parts)
+            value_type = self._word_to_element_type(word)
+            quote_type = word.effective_quote_char
 
         return ArrayElementAssignment(
             name=name,
@@ -379,10 +404,10 @@ class ArrayParser:
         # Parse array elements
         while not self.parser.match(TokenType.RPAREN) and not self.parser.at_end():
             if self.parser.match_any(TokenGroups.WORD_LIKE):
-                value, arg_type, quote_type = self.parser.commands.parse_composite_argument()
-                elements.append(value)
-                element_types.append(arg_type)
-                element_quote_types.append(quote_type)
+                word = self.parser.commands.parse_argument_as_word()
+                elements.append(''.join(str(p) for p in word.parts))
+                element_types.append(self._word_to_element_type(word))
+                element_quote_types.append(word.effective_quote_char)
             else:
                 break
 

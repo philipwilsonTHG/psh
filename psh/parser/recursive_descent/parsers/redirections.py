@@ -105,8 +105,10 @@ class RedirectionParser:
         if not self.parser.match_any(TokenGroups.WORD_LIKE):
             raise self.parser.error("Expected string after here string operator")
 
-        # Use composite argument parsing to handle variables and quotes properly
-        content_value, content_type, quote_type = self.parser.commands.parse_composite_argument()
+        # Use Word AST parsing to handle variables and quotes properly
+        word = self.parser.commands.parse_argument_as_word()
+        content_value = ''.join(str(p) for p in word.parts)
+        quote_type = word.effective_quote_char
 
         return Redirect(
             type=token.value,
@@ -195,8 +197,9 @@ class RedirectionParser:
         if not self.parser.match_any(TokenGroups.WORD_LIKE):
             raise self.parser.error("Expected file name")
 
-        # Use composite argument parsing to handle quoted composites like test'file'.txt
-        target_value, _, _ = self.parser.commands.parse_composite_argument()
+        # Use Word AST parsing to handle quoted composites like test'file'.txt
+        word = self.parser.commands.parse_argument_as_word()
+        target_value = ''.join(str(p) for p in word.parts)
 
         return Redirect(
             type=token.value,

@@ -350,12 +350,14 @@ None of these affect correctness or significantly impact readability.
 These are ordered by impact. All are optional -- the parser works
 correctly and is well-tested.
 
-1. **Consolidate argument parsing paths.** Migrate the remaining
-   `parse_composite_argument()` callers (for-loop iterables, case
+1. **Consolidate argument parsing paths.** ✓ *Done (v0.135.0).* Migrated
+   all `parse_composite_argument()` callers (for-loop iterables, case
    expressions, here strings, array elements, redirect targets) to use
-   `parse_argument_as_word()` and the Word AST. This would eliminate
-   the `(value, arg_type, quote_type)` tuple interface and unify all
-   argument parsing into a single path.
+   `parse_argument_as_word()` and the Word AST. Deleted
+   `parse_composite_argument()`, `_token_to_argument()`, and
+   `_format_variable()` from `CommandParser`. Added
+   `_word_to_element_type()` static helper to `ArrayParser` for
+   deriving legacy element-type strings from Word nodes.
 
 2. **Extract error construction helper.** ✓ *Done (v0.134.0).* Replaced
    the 6 repetitive `ErrorContext + raise ParseError` blocks in
