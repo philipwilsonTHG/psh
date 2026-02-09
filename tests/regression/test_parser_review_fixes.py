@@ -454,3 +454,18 @@ class TestCreateConfiguredParserNoMutation:
         assert child.config.collect_errors is True
         # Parent config must be unchanged
         assert parent.config.collect_errors is False
+
+
+# ===========================================================================
+# Codex Review Finding 6: can_parse() EOF false negatives
+# ===========================================================================
+
+class TestCanParseEof:
+    """Tests that can_parse() handles trailing EOF tokens."""
+
+    def test_can_parse_with_eof(self):
+        """can_parse() should return True for valid input with trailing EOF."""
+        from psh.parser.combinators.parser import ParserCombinatorShellParser
+        tokens = tokenize('echo hello')
+        parser = ParserCombinatorShellParser()
+        assert parser.can_parse(tokens) is True

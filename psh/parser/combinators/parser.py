@@ -22,11 +22,20 @@ from .tokens import create_token_parsers
 
 
 class ParserCombinatorShellParser:
-    """Modular parser combinator implementation.
+    """Experimental parser combinator implementation.
+
+    **Status: Experimental / Educational -- not the production parser.**
 
     This parser demonstrates functional parsing through composable combinators.
     It breaks down complex shell syntax into small, reusable parsing functions
     that can be combined to handle the full shell grammar.
+
+    The production parser is the recursive descent parser in
+    ``recursive_descent/``.  This combinator parser exists as an educational
+    counterpoint and proof of concept.  It may lag behind on edge-case fixes
+    and new features.  There is no plan to converge the two implementations.
+
+    Use ``parser-select combinator`` inside psh to activate it interactively.
     """
 
     def __init__(self, config: Optional[ParserConfig] = None,
@@ -304,7 +313,7 @@ class ParserCombinatorShellParser:
 
             # Check if we consumed all tokens (allowing trailing whitespace)
             pos = result.position
-            while pos < len(tokens) and tokens[pos].type.name in ['WHITESPACE', 'NEWLINE']:
+            while pos < len(tokens) and tokens[pos].type.name in ['WHITESPACE', 'NEWLINE', 'EOF']:
                 pos += 1
 
             return pos == len(tokens)
