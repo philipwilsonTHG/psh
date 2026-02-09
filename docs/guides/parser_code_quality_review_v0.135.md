@@ -302,21 +302,31 @@ pattern should be a module-level constant or the method should use
    (`commands.py:59–100`): Five branches construct error messages from
    `expansion_type` strings.  A dictionary mapping `expansion_type` to
    a format template would reduce this to a lookup.
+   *(Addressed in v0.136.0 — replaced with `_UNCLOSED_EXPANSION_MSGS`
+   dictionary lookup.)*
 
 2. **`is_array_assignment` speculative parsing** (`arrays.py:37–126`):
    90 lines of save-position / advance / peek / restore logic.  The
    method tries 6 different tokenisation patterns for the same syntax.
    This is correct but hard to follow.
+   *(Addressed in v0.137.0 — extracted 5 focused helper methods using
+   peek-based lookahead; only unbounded bracket scan retains
+   advance+restore.)*
 
 3. **Combinator `control_structures.py` token collection duplication**:
    Token-collection-until-keyword logic is repeated for while, until,
    for, select, and case — each with minor variations.  The file has a
    `_collect_tokens_until_keyword()` helper but not all parsers use it.
+   *(Addressed in v0.136.0 — split into package with 3 mixin modules
+   and shared `format_token_value()` utility.)*
 
 4. **`parse_partial()` duplicates `parse()`** in
    `combinators/parser.py`:  The two methods share most of their logic
    (token filtering, newline skipping, error handling) but are written
    as separate implementations.
+   *(Addressed in v0.137.0 — extracted `_prepare_tokens()` and
+   `_apply_heredocs()` helpers; `parse_partial()` fallback cascade
+   replaced with a loop.)*
 
 ### Notable Quality
 
@@ -423,3 +433,16 @@ correctly and is well-tested.
    Deleted `ParserFactory`, `ConfigurationValidator`,
    `ParserContextFactory`, and `_ErrorCollectorView`. All callers
    migrated to module-level functions and `ctx` attributes.
+
+6. **Extract helpers from `is_array_assignment()`.** *(Done in v0.137.0)*
+   Broke 90-line monolithic method into 5 focused helpers using
+   peek-based lookahead.  Only `_scan_bracket_assignment()` retains
+   advance+restore (unbounded lookahead depth).  Main method is now a
+   readable dispatcher documenting all 6 tokenisation patterns.
+
+7. **Deduplicate combinator `parse()`/`parse_partial()`/`can_parse()`.**
+   *(Done in v0.137.0)*
+   Extracted `_prepare_tokens()` (normalize + skip whitespace) and
+   `_apply_heredocs()` helpers.  Turned `parse_partial()` fallback
+   cascade into a clean loop.  Fixed `can_parse()` to normalise
+   keywords consistently with the other two methods.

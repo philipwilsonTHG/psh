@@ -2,10 +2,25 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.136.0"
+__version__ = "0.137.0"
 
 # Version history
 VERSION_HISTORY = """
+0.137.0 (2026-02-09) - Parser Code Quality: Address Remaining Code Smells #2 and #4
+- Refactored is_array_assignment() from 90-line monolithic method into 5 focused
+  helper methods using peek-based lookahead instead of advance-then-restore:
+  _is_element_assignment_single_token (pure string inspection),
+  _peek_is_assignment_operator (peek at offset), _is_initialization_pattern
+  (peek 0..2), _is_element_with_bracket_token (peek 1), _scan_bracket_assignment
+  (advance+restore for unbounded bracket depth). Main method is now a readable
+  dispatcher documenting all 6 tokenisation patterns.
+- Deduplicated parse(), parse_partial(), and can_parse() in combinator parser.py
+  by extracting _prepare_tokens() (KeywordNormalizer + skip whitespace) and
+  _apply_heredocs() helpers. Turned parse_partial() fallback cascade into a
+  clean for-loop. Fixed can_parse() to normalise keywords consistently.
+- Updated parser_code_quality_review_v0.135.md: all 4 code smells now addressed.
+- No behavioral changes; all tests passing.
+
 0.136.0 (2026-02-09) - Parser Code Quality: 5 Improvements from v0.135.0 Review
 - Compiled regex patterns at module level in commands.py, redirections.py,
   and word_builder.py (3 files, 5 patterns).
