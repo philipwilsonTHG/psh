@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional
 
 from ...token_types import Token, TokenType
 from ..config import ParserConfig
-from .helpers import ParseError
+from .helpers import ErrorContext, ErrorSeverity, ParseError
 
 logger = logging.getLogger(__name__)
 
@@ -242,8 +242,6 @@ class ParserContext:
 
     def _create_error_context(self, message: str, token: Token):
         """Create error context with source information."""
-        from .helpers import ErrorContext
-
         source_line = None
         if self.source_lines and token.line and 0 < token.line <= len(self.source_lines):
             source_line = self.source_lines[token.line - 1]
@@ -399,7 +397,6 @@ class ParserContext:
             self.errors.append(error)
 
         # Check if this is a fatal error
-        from .helpers import ErrorSeverity
         if (hasattr(error.error_context, 'severity') and
             error.error_context.severity == ErrorSeverity.FATAL):
             self.fatal_error = error

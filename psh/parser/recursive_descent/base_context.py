@@ -4,6 +4,7 @@ import logging
 from typing import Optional, Set
 
 from ...token_types import Token, TokenType
+from ..config import ParsingMode
 from .context import ParserContext
 from .helpers import ParseError, TokenGroups
 
@@ -127,7 +128,6 @@ class ContextBaseParser:
 
     def check_posix_compliance(self, feature: str, alternative: str = None) -> None:
         """Check POSIX compliance for a feature."""
-        from ..config import ParsingMode
         if self.ctx.config.parsing_mode == ParsingMode.STRICT_POSIX:
             message = f"{feature} is not POSIX compliant"
             if alternative:

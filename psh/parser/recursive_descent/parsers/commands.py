@@ -29,9 +29,11 @@ from ....ast_nodes import (
     WhileLoop,
     Word,
 )
+from ....lexer.token_parts import RichToken
 from ....token_stream import TokenStream
 from ....token_types import Token, TokenType
 from ..helpers import ErrorContext, ParseError, TokenGroups
+from ..support.word_builder import WordBuilder
 
 # Pre-compiled regex for fd duplication detection (e.g. ">&2", "2>&1")
 _FD_DUP_RE = re.compile(r'^(\d*)[><]&(-|\d+)$')
@@ -65,9 +67,6 @@ class CommandParser:
                               TokenType.COMMAND_SUB_BACKTICK, TokenType.ARITH_EXPANSION, TokenType.VARIABLE,
                               TokenType.PARAM_EXPANSION]:
             return
-
-        # Import RichToken to check if token has parts
-        from ....lexer.token_parts import RichToken
 
         # If it's a RichToken, check its parts for unclosed expansions
         if isinstance(token, RichToken) and token.parts:
@@ -381,8 +380,6 @@ class CommandParser:
         conversion. See WordBuilder for details on RichToken decomposition,
         composite word building, and parameter expansion parsing.
         """
-        from ..support.word_builder import WordBuilder
-
         # Check for composite tokens
         stream = TokenStream(self.parser.tokens, self.parser.current)
         composite = stream.peek_composite_sequence()
