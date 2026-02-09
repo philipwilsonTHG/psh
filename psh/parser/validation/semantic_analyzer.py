@@ -3,7 +3,21 @@
 from dataclasses import dataclass
 from typing import List, Tuple
 
-from ...ast_nodes import *
+from ...ast_nodes import (
+    ASTNode,
+    AndOrList,
+    BreakStatement,
+    CommandList,
+    ContinueStatement,
+    ForLoop,
+    FunctionDef,
+    IfConditional,
+    Pipeline,
+    SimpleCommand,
+    StatementList,
+    TopLevel,
+    WhileLoop,
+)
 from ...visitor import ASTVisitor
 from .symbol_table import SymbolTable
 from .warnings import CommonWarnings, SemanticWarning, WarningSeverity
@@ -186,10 +200,7 @@ class SemanticAnalyzer(ASTVisitor[None]):
                 position = getattr(node, 'position', 0)
                 self.symbol_table.add_variable(node.variable, position=position)
 
-            # Visit values
-            if hasattr(node, 'values') and node.values:
-                for value in node.values:
-                    self.visit(value)
+            # ForLoop.items is List[str], not visitable
 
             # Visit body
             if node.body:
@@ -263,11 +274,8 @@ class SemanticAnalyzer(ASTVisitor[None]):
 
     def visit_AndOrList(self, node: AndOrList) -> None:
         """Visit AndOrList node."""
-        # Visit the pipeline within AndOrList
-        if hasattr(node, 'pipeline'):
-            self.visit(node.pipeline)
-        # AndOrList may have other attributes to visit
-        self.generic_visit(node)
+        for pipeline in node.pipelines:
+            self.visit(pipeline)
 
     def visit_Pipeline(self, node: Pipeline) -> None:
         """Visit pipeline."""

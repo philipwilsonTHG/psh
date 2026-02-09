@@ -4,7 +4,20 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-from ...ast_nodes import *
+from ...ast_nodes import (
+    ASTNode,
+    ArithmeticEvaluation,
+    BreakStatement,
+    CaseConditional,
+    ContinueStatement,
+    ForLoop,
+    FunctionDef,
+    IfConditional,
+    Redirect,
+    SimpleCommand,
+    TestExpression,
+    WhileLoop,
+)
 
 
 class Severity(Enum):

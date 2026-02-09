@@ -366,3 +366,39 @@ class TestValidationFalsePositives:
         )
         issues = rule.validate(node, ctx)
         assert not issues, f"Unexpected issues: {issues}"
+
+
+# ===========================================================================
+# Codex Review Finding 7: Stale AST field refs in validation traversal
+# ===========================================================================
+
+class TestValidationTraversal:
+    """Tests that validation traversal uses correct AST field names."""
+
+    def test_validation_traversal_for_loop(self):
+        """Validation of for loop should not raise AttributeError."""
+        from psh.parser.validation.validation_pipeline import ValidationPipeline
+        ast = parse('for x in a b c; do echo $x; done')
+        pipeline = ValidationPipeline()
+        # Should not raise AttributeError for 'values' (field is 'items')
+        report = pipeline.validate(ast)
+        assert not report.has_errors()
+
+    def test_validation_traversal_case(self):
+        """Validation of case statement should not raise AttributeError."""
+        from psh.parser.validation.validation_pipeline import ValidationPipeline
+        ast = parse('case x in a) echo a;; esac')
+        pipeline = ValidationPipeline()
+        # Should not raise AttributeError for 'word'/'cases' (fields are 'expr'/'items')
+        report = pipeline.validate(ast)
+        assert not report.has_errors()
+
+    def test_validation_traversal_and_or_list(self):
+        """Validation of and-or list should not raise AttributeError."""
+        from psh.parser.validation.semantic_analyzer import SemanticAnalyzer
+        ast = parse('true && false || echo done')
+        analyzer = SemanticAnalyzer()
+        # Should not raise AttributeError for 'pipeline' (field is 'pipelines')
+        errors, warnings = analyzer.analyze(ast)
+        # No semantic errors expected for this valid construct
+        assert not errors

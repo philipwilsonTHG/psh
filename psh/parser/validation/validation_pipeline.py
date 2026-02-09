@@ -2,7 +2,23 @@
 
 from typing import Any, Dict, List
 
-from ...ast_nodes import *
+from ...ast_nodes import (
+    ASTNode,
+    ArithmeticEvaluation,
+    BreakStatement,
+    CaseConditional,
+    CommandList,
+    ContinueStatement,
+    ForLoop,
+    FunctionDef,
+    IfConditional,
+    Pipeline,
+    Redirect,
+    SimpleCommand,
+    TestExpression,
+    TopLevel,
+    WhileLoop,
+)
 from ...visitor import ASTVisitor
 from .validation_rules import (
     CorrectBreakContinueRule,
@@ -112,10 +128,7 @@ class ValidationPipeline(ASTVisitor[None]):
         self.context.loop_depth += 1
         self._validate_node(node)
 
-        # Visit values and body
-        if hasattr(node, 'values') and node.values:
-            for value in node.values:
-                self.visit(value)
+        # Visit body (ForLoop.items is List[str], not visitable)
         if node.body:
             self.visit(node.body)
 
@@ -127,12 +140,9 @@ class ValidationPipeline(ASTVisitor[None]):
         self.context.case_depth += 1
         self._validate_node(node)
 
-        # Visit word and cases
-        if hasattr(node, 'word') and node.word:
-            self.visit(node.word)
-        if hasattr(node, 'cases') and node.cases:
-            for case in node.cases:
-                self.visit(case)
+        # Visit case items
+        for item in node.items:
+            self.visit(item)
 
         self.context.case_depth -= 1
 
