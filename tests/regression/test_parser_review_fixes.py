@@ -175,11 +175,23 @@ class TestLeadingRedirects:
         assert result.returncode == 0
         assert outfile.read_text().strip() == 'hi'
 
-    def test_redirect_only_command(self):
+    def test_redirect_only_command_parses(self):
         """>file with no command should parse without error."""
         # POSIX allows redirect-only commands like >file
         ast = parse('>/dev/null')
         assert ast is not None
+
+    def test_redirect_only_command_creates_file(self, tmp_path):
+        """>file with no command should create/truncate the file."""
+        outfile = tmp_path / 'empty.txt'
+        result = subprocess.run(
+            [sys.executable, '-m', 'psh', '-c',
+             f'>{outfile}'],
+            capture_output=True, text=True, timeout=5
+        )
+        assert result.returncode == 0
+        assert outfile.exists()
+        assert outfile.read_text() == ''
 
     def test_stderr_redirect_before_cmd(self):
         """2>err cmd syntax should parse without error."""

@@ -98,6 +98,11 @@ class CommandExecutor:
                 # command_start_index needs to account for tokens consumed by assignments
                 command_start_index = tokens_consumed
                 if command_start_index >= len(node.args):
+                    # No command to execute, but apply any redirections
+                    # (e.g., ">file" should create/truncate the file)
+                    if node.redirects:
+                        with self._apply_redirections(node.redirects):
+                            pass
                     return 0
 
                 # Create a sub-node for command arguments only
