@@ -342,11 +342,17 @@ class ControlStructureParser:
 
         items = []
         while not self.parser.match(TokenType.ESAC) and not self.parser.at_end():
-            if self.parser.match_any(TokenGroups.WORD_LIKE | TokenGroups.CASE_PATTERN_KEYWORDS):
+            if self.parser.match_any(TokenGroups.WORD_LIKE | TokenGroups.CASE_PATTERN_KEYWORDS) or \
+               self.parser.match(TokenType.LPAREN):
                 item = self.parse_case_item()
                 items.append(item)
             else:
+                saved_pos = self.parser.current
                 self.parser.skip_newlines()
+                if self.parser.current == saved_pos:
+                    raise self.parser.error(
+                        f"Unexpected token in case statement: '{self.parser.peek().value}'"
+                    )
 
         self.parser.expect(TokenType.ESAC)
         redirects = self.parser.redirections.parse_redirects()
@@ -374,6 +380,9 @@ class ControlStructureParser:
     def parse_case_item(self) -> CaseItem:
         """Parse a single case item."""
         patterns = []
+
+        # Consume optional leading LPAREN (bash allows (pattern) syntax)
+        self.parser.consume_if(TokenType.LPAREN)
 
         # Parse first pattern
         with self.parser.ctx:
