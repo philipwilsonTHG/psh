@@ -26,7 +26,7 @@ class TildeExpander:
             if not home:
                 try:
                     home = pwd.getpwuid(os.getuid()).pw_dir
-                except:
+                except (KeyError, OSError):
                     home = '/'
 
             if path == '~':

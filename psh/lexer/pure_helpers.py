@@ -148,15 +148,19 @@ def find_balanced_parentheses(
 
 def find_balanced_double_parentheses(
     input_text: str,
-    start_pos: int
+    start_pos: int,
+    track_quotes: bool = False
 ) -> Tuple[int, bool]:
     """
     Find balanced double parentheses for arithmetic expressions.
-    
+
     Args:
         input_text: The input string
         start_pos: Starting position (after opening $(()
-        
+        track_quotes: Whether to ignore parens inside quotes.
+            Default False to preserve existing lexer behaviour;
+            expansion callers pass True.
+
     Returns:
         Tuple of (position_after_close_parens, found_closing)
     """
@@ -164,8 +168,33 @@ def find_balanced_double_parentheses(
     # but track individual ( and ) for internal balance
     depth = 0
     pos = start_pos
+    in_single_quote = False
+    in_double_quote = False
 
     while pos < len(input_text):
+        char = input_text[pos]
+
+        # Handle backslash escapes
+        if char == '\\' and pos + 1 < len(input_text):
+            pos += 2
+            continue
+
+        # Handle quotes if tracking is enabled
+        if track_quotes:
+            if char == "'" and not in_double_quote:
+                in_single_quote = not in_single_quote
+                pos += 1
+                continue
+            elif char == '"' and not in_single_quote:
+                in_double_quote = not in_double_quote
+                pos += 1
+                continue
+
+        # Skip parentheses inside quotes
+        if in_single_quote or in_double_quote:
+            pos += 1
+            continue
+
         # Check for )) first
         if pos + 1 < len(input_text) and input_text[pos:pos+2] == '))':
             if depth == 0:
@@ -177,9 +206,9 @@ def find_balanced_double_parentheses(
                 pos += 1  # Only advance by 1 to check the second ) again
                 continue
 
-        if input_text[pos] == '(':
+        if char == '(':
             depth += 1
-        elif input_text[pos] == ')':
+        elif char == ')':
             depth -= 1
 
         pos += 1

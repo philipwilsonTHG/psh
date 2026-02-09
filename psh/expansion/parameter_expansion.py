@@ -115,8 +115,8 @@ class ParameterExpansion:
                 return operator, var_name, ''.join(pattern_parts) + '/'
             elif char == ':' and i > 0:
                 # Check if it's ${var:-default} or ${var:+alt} (handled elsewhere) vs ${var:offset}
-                if i + 1 < len(content) and content[i + 1] in '-+':
-                    # This is ${var:-default} or ${var:+alt}, skip to avoid conflict
+                if i + 1 < len(content) and content[i + 1] in '-+=?':
+                    # This is ${var:-default}, ${var:+alt}, ${var:=default}, or ${var:?msg}, skip to avoid conflict
                     continue
                 # ${var:offset} or ${var:offset:length}
                 var_name = content[:i]

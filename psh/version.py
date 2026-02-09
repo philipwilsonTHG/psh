@@ -2,10 +2,67 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.141.0"
+__version__ = "0.145.0"
 
 # Version history
 VERSION_HISTORY = """
+0.145.0 (2026-02-09) - Quote-Aware Scanners, Multiple $@ Support
+- Replaced 5 quote-unaware parenthesis/brace scanners in expansion with
+  quote-aware helpers from psh/lexer/pure_helpers.py:
+  - expand_string_variables() $((..)) scanner → find_balanced_double_parentheses(track_quotes=True)
+  - expand_string_variables() $(..) scanner → find_balanced_parentheses(track_quotes=True)
+  - expand_string_variables() ${..} scanner → find_closing_delimiter(track_quotes=True)
+  - _expand_command_subs_in_arithmetic() $((..)) scanner → find_balanced_double_parentheses(track_quotes=True)
+  - _expand_command_subs_in_arithmetic() $(..) scanner → find_balanced_parentheses(track_quotes=True)
+- Added track_quotes parameter to find_balanced_double_parentheses() in pure_helpers.py
+  (default False to preserve lexer behaviour; expansion callers pass True)
+- Fixed multiple "$@" in one quoted word: _expand_at_with_affixes() now continues
+  processing remaining parts after the first $@, correctly handling patterns like
+  "a$@b$@c" with params (1 2) → [a1, 2b1, 2c]
+- Added 6 regression tests for multi-$@, quote-aware command substitution, and
+  braces in quoted defaults
+
+0.144.0 (2026-02-09) - Deduplicate $@ Splitting Logic
+- Extracted shared _expand_at_with_affixes() helper from the ~95% duplicate
+  "$@" splitting logic in _expand_word() and _expand_double_quoted_word()
+- Both call sites now delegate to the shared helper in 3 lines each
+- The helper distributes positional params across prefix/suffix text:
+  e.g. pre"$@"post with params (a,b,c) → [prea, b, cpost]
+- Added in_double_quote parameter to control escape processing: double-quoted
+  path only applies dquote escapes; composite path also handles unquoted escapes
+- Retained assignment-word field-splitting heuristic in _expand_word() after
+  investigation showed builtins (declare, export, local) receive VAR=value
+  arguments through expand_arguments(), requiring the heuristic to suppress
+  word splitting. Updated comment to document this rationale.
+- All tests passing with zero regressions
+
+0.143.0 (2026-02-09) - Decompose expand_variable() into Helper Methods
+- Extracted 5 helper methods from the 380-line expand_variable() method:
+  _expand_array_length(): handles ${#arr[@]}, ${#arr[*]}, ${#arr[index]}
+  _expand_array_indices(): handles ${!arr[@]}, ${!arr[*]}
+  _expand_array_slice(): handles ${arr[@]:start:length}
+  _expand_array_subscript(): handles ${arr[index]}, ${arr[@]}, ${arr[*]}
+  _expand_special_variable(): handles $?, $$, $!, $#, $@, $*, $0-$9
+- expand_variable() is now an ~80-line dispatcher that checks preconditions
+  and delegates to the appropriate helper
+- Pure structural refactoring — no behavioral changes
+- All tests passing with zero regressions
+
+0.142.0 (2026-02-09) - Expansion Subsystem Cleanup: Dead Code, Bare Exceptions, Small Fixes
+- Deleted dead code: _split_words() from ExpansionManager, GlobExpander.should_expand(),
+  and process_escapes parameter from expand_string_variables() (variable.py, manager.py,
+  and 5 callers in executor/array.py)
+- Replaced 6 bare except: handlers with specific exception types:
+  5x (ValueError, TypeError) in variable.py, 1x (KeyError, OSError) in tilde.py
+- Fixed operator-detection heuristic in expand_parameter_direct() and expand_variable():
+  replaced any(op in ...) conditional with unconditional evaluate_arithmetic(),
+  matching the v0.141.0 fix already applied to indexed array access
+- Fixed parse_expansion() colon-operator skip bug: ${var:=default} and ${var:?msg}
+  were incorrectly parsed as substring extraction in the string-based expansion
+  path. Changed '-+' to '-+=?' in the skip condition
+- Fixed stale comment in command_sub.py: "Block SIGCHLD" → "Reset SIGCHLD to default"
+- Added 4 regression tests for ${var:=default} and ${var:?msg} parsing
+
 0.141.0 (2026-02-09) - Fix Array Index Arithmetic Evaluation
 - Fixed array indices not evaluating bare variable names in arithmetic context.
   In bash, array indices are always evaluated as arithmetic expressions, so

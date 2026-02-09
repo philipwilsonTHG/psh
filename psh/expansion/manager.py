@@ -177,40 +177,10 @@ class ExpansionManager:
                         and part.expansion.name == '@'):
                     params = list(self.state.positional_params)
                     if not params:
-                        # "$@" contributes nothing; surrounding text
-                        # still forms a word (prefix + suffix).
                         continue
-
-                    prefix = ''.join(result_parts)
-                    # Process remaining parts to build the suffix
-                    suffix_parts: list = []
-                    found = False
-                    for p2 in word.parts:
-                        if p2 is part:
-                            found = True
-                            continue
-                        if not found:
-                            continue
-                        if isinstance(p2, LiteralPart):
-                            t = p2.text
-                            if p2.quoted and p2.quote_char == '"':
-                                if '\\' in t:
-                                    t = self._process_dquote_escapes(t)
-                            elif not p2.quoted:
-                                if '\\' in t:
-                                    t, _ = self._process_unquoted_escapes(t)
-                            suffix_parts.append(t)
-                        elif isinstance(p2, ExpansionPart):
-                            suffix_parts.append(
-                                self._expand_expansion(p2.expansion))
-                    suffix = ''.join(suffix_parts)
-
-                    if len(params) == 1:
-                        return prefix + params[0] + suffix
-                    words = [prefix + params[0]]
-                    words.extend(params[1:-1])
-                    words.append(params[-1] + suffix)
-                    return words
+                    result = self._expand_at_with_affixes(
+                        word, part, result_parts, in_double_quote=False)
+                    return result
 
                 expanded = self._expand_expansion(part.expansion)
                 if part.quoted:
@@ -227,7 +197,10 @@ class ExpansionManager:
         result = ''.join(result_parts)
 
         # Word splitting: only if there are unquoted expansion results
-        # but NOT for assignment words (VAR=value) per POSIX
+        # but NOT for assignment words (VAR=value) per POSIX.
+        # While the executor strips true command-prefix assignments before
+        # calling expand_arguments(), builtins like declare/export/local
+        # receive their VAR=value arguments through this path.
         is_assignment = (len(word.parts) >= 1 and
                          isinstance(word.parts[0], LiteralPart) and
                          '=' in word.parts[0].text and
@@ -283,35 +256,101 @@ class ExpansionManager:
                 if isinstance(exp, VariableExpansion) and exp.name == '@':
                     params = list(self.state.positional_params)
                     if not params:
-                        continue  # "$@" with no params produces nothing
-                    # If there's surrounding text, distribute prefix/suffix
-                    prefix = ''.join(result_parts)
-                    result_parts.clear()
-                    # Collect suffix parts
-                    suffix_parts = []
-                    found = False
-                    for p2 in word.parts:
-                        if p2 is part:
-                            found = True
-                            continue
-                        if found:
-                            if isinstance(p2, LiteralPart):
-                                suffix_parts.append(p2.text)
-                            elif isinstance(p2, ExpansionPart):
-                                suffix_parts.append(self._expand_expansion(p2.expansion))
-                    suffix = ''.join(suffix_parts)
-
-                    if len(params) == 1:
-                        return prefix + params[0] + suffix
-                    words = [prefix + params[0]]
-                    words.extend(params[1:-1])
-                    words.append(params[-1] + suffix)
-                    return words
+                        continue
+                    result = self._expand_at_with_affixes(
+                        word, part, result_parts, in_double_quote=True)
+                    return result
 
                 expanded = self._expand_expansion(exp)
                 result_parts.append(expanded)
 
         return ''.join(result_parts)
+
+    def _expand_at_with_affixes(self, word, at_part, result_parts_before,
+                                in_double_quote: bool):
+        """Distribute positional params across prefix/suffix text.
+
+        Used by both ``_expand_word()`` (composite words) and
+        ``_expand_double_quoted_word()`` to handle ``"$@"`` splitting
+        with surrounding literal text.  Supports multiple ``$@``
+        occurrences in a single word.
+
+        Algorithm: walk parts left to right, accumulating text.  On each
+        ``$@``, splice params into the result — the last param becomes
+        the seed for continued accumulation.
+
+        Example with params ``(1 2)``::
+
+            "a$@b$@c"  →  a1  2b1  2c
+
+        Args:
+            word: The Word AST node being expanded.
+            at_part: The first ExpansionPart for ``$@`` in word.parts.
+            result_parts_before: Parts accumulated before the first ``$@``.
+            in_double_quote: True when called from the double-quoted path
+                (all suffix literals are treated as double-quoted).
+
+        Returns:
+            A single string or a list of strings.
+        """
+        from ..ast_nodes import ExpansionPart, LiteralPart, VariableExpansion
+
+        params = list(self.state.positional_params)
+
+        # current_seed: text accumulated so far that becomes the prefix
+        # of the next word.  We start with everything before the first $@.
+        current_seed = ''.join(result_parts_before)
+        result_words: list = []
+        found_first_at = False
+
+        for p in word.parts:
+            if not found_first_at:
+                if p is at_part:
+                    found_first_at = True
+                    # Splice params: emit seed+first, middles, keep last as new seed
+                    if not params:
+                        continue
+                    if len(params) == 1:
+                        current_seed += params[0]
+                    else:
+                        result_words.append(current_seed + params[0])
+                        result_words.extend(params[1:-1])
+                        current_seed = params[-1]
+                # Parts before the first $@ are already in result_parts_before
+                continue
+
+            # Process parts after the first $@
+            if (isinstance(p, ExpansionPart)
+                    and isinstance(p.expansion, VariableExpansion)
+                    and p.expansion.name == '@'
+                    and (in_double_quote or p.quoted)):
+                # Another $@ occurrence
+                if not params:
+                    continue
+                if len(params) == 1:
+                    current_seed += params[0]
+                else:
+                    result_words.append(current_seed + params[0])
+                    result_words.extend(params[1:-1])
+                    current_seed = params[-1]
+            elif isinstance(p, LiteralPart):
+                t = p.text
+                if in_double_quote or (p.quoted and p.quote_char == '"'):
+                    if '\\' in t:
+                        t = self._process_dquote_escapes(t)
+                elif not p.quoted:
+                    if '\\' in t:
+                        t, _ = self._process_unquoted_escapes(t)
+                current_seed += t
+            elif isinstance(p, ExpansionPart):
+                current_seed += self._expand_expansion(p.expansion)
+
+        # Finalize: the current seed becomes the last word
+        result_words.append(current_seed)
+
+        if len(result_words) == 1:
+            return result_words[0]
+        return result_words
 
     @staticmethod
     def _process_dquote_escapes(text: str) -> str:
@@ -468,25 +507,6 @@ class ExpansionManager:
                 print(f"[EXPANSION] Evaluation failed for {type(expansion).__name__}: {e}", file=self.state.stderr)
             return str(expansion)
 
-    def _split_words(self, text: str) -> Union[str, List[str]]:
-        """Split text on IFS characters for word splitting."""
-        if not text:
-            return text
-
-        ifs = self.state.get_variable('IFS', ' \t\n')
-        if ifs == '':
-            return text
-
-        words = self.word_splitter.split(text, ifs)
-
-        # Return list only if we actually split into multiple words
-        if len(words) > 1:
-            return words
-        elif len(words) == 1:
-            return words[0]
-        else:
-            return ''  # Empty after splitting
-
     def _split_with_ifs(self, text: Optional[str], quote_type: Optional[str]) -> List[str]:
         """Split text using the current IFS, preserving quoting rules."""
         if text is None:
@@ -498,18 +518,12 @@ class ExpansionManager:
         ifs = self.state.get_variable('IFS', ' \t\n')
         return self.word_splitter.split(text, ifs)
 
-    def expand_string_variables(self, text: str, process_escapes: bool = True) -> str:
+    def expand_string_variables(self, text: str) -> str:
         """
         Expand variables and arithmetic in a string.
         Used for here strings and double-quoted strings.
-
-        Args:
-            text: The text to expand
-            process_escapes: Whether to process escape sequences (default True)
         """
-        return self.variable_expander.expand_string_variables(
-            text, process_escapes
-        )
+        return self.variable_expander.expand_string_variables(text)
 
     def expand_variable(self, var_expr: str) -> str:
         """Expand a variable expression."""
@@ -560,78 +574,43 @@ class ExpansionManager:
 
     def _expand_command_subs_in_arithmetic(self, expr: str) -> str:
         """Expand command substitutions and nested arithmetic in arithmetic expression.
-        
-        This method finds all $(...) and $((...)) patterns in the arithmetic expression
-        and replaces them with their evaluated output/result before arithmetic
-        evaluation.
-        
-        Args:
-            expr: The arithmetic expression potentially containing $(...) or $((...)
-            
-        Returns:
-            The expression with all command substitutions and nested arithmetic expanded
+
+        Finds all ``$(...)`` and ``$((...))`` patterns in the arithmetic
+        expression and replaces them with their evaluated output/result
+        before arithmetic evaluation.  Uses quote-aware scanners so that
+        parentheses inside quotes are not treated as delimiters.
         """
+        from ..lexer.pure_helpers import (
+            find_balanced_double_parentheses,
+            find_balanced_parentheses,
+        )
+
         result = []
         i = 0
 
         while i < len(expr):
             if expr[i] == '$' and i + 1 < len(expr) and expr[i + 1] == '(':
-                # Check if it's arithmetic expansion $((...)) or command substitution $(...)
                 if i + 2 < len(expr) and expr[i + 2] == '(':
-                    # This is nested arithmetic expansion $((
-                    # Find matching closing ))
-                    paren_count = 2
-                    j = i + 3
-
-                    while j < len(expr) and paren_count > 0:
-                        if expr[j] == '(':
-                            paren_count += 1
-                        elif expr[j] == ')':
-                            paren_count -= 1
-                            if paren_count == 1 and j + 1 < len(expr) and expr[j + 1] == ')':
-                                # Found closing ))
-                                j += 1
-                                paren_count = 0
-                                break
-                        j += 1
-
-                    if paren_count == 0:
-                        # Valid arithmetic expansion found
-                        arith_expr = expr[i:j+1]  # Include $((...))
-
-                        # Recursively execute the nested arithmetic expansion
+                    # Nested arithmetic expansion $((
+                    end_pos, found = find_balanced_double_parentheses(
+                        expr, i + 3, track_quotes=True)
+                    if found:
+                        arith_expr = expr[i:end_pos]
                         arith_result = self.execute_arithmetic_expansion(arith_expr)
-
-                        # Append the result as a string
                         result.append(str(arith_result))
-                        i = j + 1
+                        i = end_pos
                         continue
                 else:
-                    # This is command substitution $(
-                    # Find matching closing parenthesis
-                    paren_count = 1
-                    j = i + 2
-
-                    while j < len(expr) and paren_count > 0:
-                        if expr[j] == '(':
-                            paren_count += 1
-                        elif expr[j] == ')':
-                            paren_count -= 1
-                        j += 1
-
-                    if paren_count == 0:
-                        # Valid command substitution found
-                        cmd_sub_expr = expr[i:j]  # Include $(...)
-
-                        # Execute command substitution
+                    # Command substitution $(
+                    end_pos, found = find_balanced_parentheses(
+                        expr, i + 2, track_quotes=True)
+                    if found:
+                        cmd_sub_expr = expr[i:end_pos]
                         output = self.command_sub.execute(cmd_sub_expr).strip()
-
-                        # Convert empty output to 0 (bash behavior)
                         result.append(output if output else '0')
-                        i = j
+                        i = end_pos
                         continue
 
-            # Not a command/arithmetic substitution, copy character as-is
             result.append(expr[i])
             i += 1
 

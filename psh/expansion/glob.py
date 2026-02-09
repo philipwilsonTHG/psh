@@ -61,27 +61,3 @@ class GlobExpander:
                 matches = [os.path.join(dirname, m) for m in matches]
             return sorted(matches)
         return []
-
-    def should_expand(self, arg: str, arg_type: str) -> bool:
-        """
-        Check if an argument should undergo glob expansion.
-
-        Args:
-            arg: The argument to check
-            arg_type: The type of the argument (WORD, STRING, etc.)
-
-        Returns:
-            True if the argument should be expanded, False otherwise
-        """
-        # Don't expand quoted strings
-        if arg_type == 'STRING':
-            return False
-
-        # Check for extglob patterns
-        if self.state.options.get('extglob', False):
-            from .extglob import contains_extglob
-            if contains_extglob(arg):
-                return True
-
-        # Check if contains glob characters
-        return any(c in arg for c in ['*', '?', '['])

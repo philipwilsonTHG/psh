@@ -130,7 +130,7 @@ class ArrayOperationExecutor:
             index_str = node.index
 
         # Expand any remaining variables in the index (e.g., ${var})
-        expanded_index = self.expansion_manager.expand_string_variables(index_str, process_escapes=False)
+        expanded_index = self.expansion_manager.expand_string_variables(index_str)
 
         # Get the variable to check if it's an associative array
         var_obj = self.state.scope_manager.get_variable_object(node.name)
@@ -176,7 +176,7 @@ class ArrayOperationExecutor:
             # else: use the numeric index computed above
 
         # Expand value
-        expanded_value = self.expansion_manager.expand_string_variables(node.value, process_escapes=False)
+        expanded_value = self.expansion_manager.expand_string_variables(node.value)
 
         # Remove quotes from value if present (from parsed array assignment patterns)
         if len(expanded_value) >= 2:
@@ -226,7 +226,7 @@ class ArrayOperationExecutor:
             Next available index after adding elements
         """
         # Expand variables first (don't process escape sequences in array context)
-        expanded = self.expansion_manager.expand_string_variables(element, process_escapes=False)
+        expanded = self.expansion_manager.expand_string_variables(element)
 
         if split_words:
             # Split on whitespace for WORD and command substitution elements
@@ -269,8 +269,8 @@ class ArrayOperationExecutor:
             value = match.group(2)
 
             # Expand any variables in the index
-            expanded_index = self.expansion_manager.expand_string_variables(index_str, process_escapes=False)
-            expanded_value = self.expansion_manager.expand_string_variables(value, process_escapes=False)
+            expanded_index = self.expansion_manager.expand_string_variables(index_str)
+            expanded_value = self.expansion_manager.expand_string_variables(value)
 
             return expanded_index, expanded_value
 

@@ -31,7 +31,7 @@ class CommandSubstitution:
         # Create a pipe for capturing output
         read_fd, write_fd = os.pipe()
 
-        # Block SIGCHLD to prevent job control interference
+        # Reset SIGCHLD to default to prevent job control interference
         import signal
         old_handler = signal.signal(signal.SIGCHLD, signal.SIG_DFL)
 
