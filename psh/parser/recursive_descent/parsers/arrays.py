@@ -35,95 +35,120 @@ class ArrayParser:
         return 'WORD'
 
     def is_array_assignment(self) -> bool:
-        """Check if current position starts an array assignment."""
+        """Check if current position starts an array assignment.
+
+        Detects 6 tokenisation patterns for array syntax:
+        - Single token: arr[0]=value or arr[0]+=value
+        - Two tokens: arr[0] + =value
+        - Initialization: arr=( or arr+=(
+        - Separate tokens: arr + = + ( or arr + += + (
+        - Bracket token: arr + LBRACKET
+        - Word bracket: arr + WORD('[') + bracket scan
+        """
         if not self.parser.match(TokenType.WORD):
             return False
 
-        saved_pos = self.parser.current
-        word_token = self.parser.peek()
+        token = self.parser.peek()
 
-        # Check for array element assignment first: name[index]=value
-        # ModularLexer might tokenize this as "name[index]" "=value" or "name[index]=value"
-        if '[' in word_token.value and ']' in word_token.value:
-            # This might be array element assignment
-            self.parser.advance()  # consume word
-            if self.parser.match(TokenType.WORD) and (self.parser.peek().value.startswith('=') or self.parser.peek().value == '+='):
-                # Pattern: "arr[0]" "=value" or "arr[0]" "+=" "value"
-                self.parser.current = saved_pos
+        # Check for array element assignment: name[index]=value
+        if '[' in token.value and ']' in token.value:
+            if self._is_element_assignment_single_token(token.value):
                 return True
-            self.parser.current = saved_pos
-            # Also check if it's all in one token: "arr[0]=value" or "arr[0]+=value"
-            if '=' in word_token.value:
-                equals_pos = word_token.value.index('+=') if '+=' in word_token.value else word_token.value.index('=')
-                if word_token.value.index('[') < equals_pos:
-                    return True
+            # Two-token pattern: "arr[0]" + "=value"
+            if self._peek_is_assignment_operator(1):
+                return True
 
         # Check for array initialization: name=( or name+=(
-        if ('=' in word_token.value or '+=' in word_token.value) and (word_token.value.endswith('=') or word_token.value.endswith('+=')):
-            # Word contains equals at the end (e.g., "arr=" or "arr+=")
-            self.parser.advance()
-            if self.parser.match(TokenType.LPAREN):
-                self.parser.current = saved_pos
-                return True
-        else:
-            # Check for separate = token (ModularLexer behavior)
-            self.parser.advance()  # consume word
-            if self.parser.match(TokenType.WORD) and self.parser.peek().value == '=':
-                self.parser.advance()  # consume =
-                if self.parser.match(TokenType.LPAREN):
-                    self.parser.current = saved_pos
-                    return True
-            # Also check for += as two tokens
-            elif self.parser.match(TokenType.WORD) and self.parser.peek().value == '+=':
-                self.parser.advance()  # consume +=
-                if self.parser.match(TokenType.LPAREN):
-                    self.parser.current = saved_pos
-                    return True
-            # Reset position to check for array element assignment
-            self.parser.current = saved_pos
-
-        # Check for array element assignment: name[
-        # First verify the word looks like a valid variable name
-        if not self._is_valid_variable_name(word_token.value):
-            self.parser.current = saved_pos
-            return False
-
-        self.parser.advance()  # consume word
-        if self.parser.match(TokenType.LBRACKET):
-            self.parser.current = saved_pos
+        if self._is_initialization_pattern():
             return True
-        # Also check for WORD token containing just "[" (from ModularLexer)
-        elif self.parser.match(TokenType.WORD) and self.parser.peek().value == '[':
-            # Look ahead to verify this is really an array assignment
-            # by checking for ] followed by = or +=
-            self.parser.advance()  # skip [
 
-            # Skip tokens until we find ] or give up
-            bracket_count = 1
-            found_assignment = False
-            while bracket_count > 0 and not self.parser.at_end():
-                token = self.parser.peek()
-                if token.type == TokenType.WORD:
-                    if '[' in token.value:
-                        bracket_count += token.value.count('[')
-                    if ']' in token.value:
-                        bracket_count -= token.value.count(']')
-                        if bracket_count == 0:
-                            # Check if followed by = or +=
-                            self.parser.advance()
-                            if not self.parser.at_end():
-                                next_token = self.parser.peek()
-                                if (next_token.type == TokenType.WORD and
+        # Check for array element assignment with separate bracket: name[…]=…
+        if self._is_valid_variable_name(token.value):
+            return self._is_element_with_bracket_token()
+
+        return False
+
+    def _is_element_assignment_single_token(self, value: str) -> bool:
+        """Check if a single WORD token is arr[i]=value or arr[i]+=value.
+
+        Pure string inspection — no parser state changes.
+        """
+        if '=' not in value:
+            return False
+        equals_pos = value.index('+=') if '+=' in value else value.index('=')
+        return value.index('[') < equals_pos
+
+    def _peek_is_assignment_operator(self, offset: int) -> bool:
+        """Check if token at offset is '=…' or '+='."""
+        t = self.parser.peek(offset)
+        return (t.type == TokenType.WORD and
+                (t.value.startswith('=') or t.value == '+='))
+
+    def _is_initialization_pattern(self) -> bool:
+        """Check if current position is arr=(…) or arr+=(…) using peek only."""
+        token = self.parser.peek()
+
+        # Single token ending with = or +=, followed by LPAREN
+        if (token.value.endswith('=') or token.value.endswith('+=')) and '=' in token.value:
+            return self.parser.peek(1).type == TokenType.LPAREN
+
+        # Separate tokens: name + = + ( or name + += + (
+        next_token = self.parser.peek(1)
+        if next_token.type == TokenType.WORD and next_token.value in ('=', '+='):
+            return self.parser.peek(2).type == TokenType.LPAREN
+
+        return False
+
+    def _is_element_with_bracket_token(self) -> bool:
+        """Check if current position is name[…]=… with separate bracket tokens.
+
+        Uses peek for LBRACKET detection. Falls back to advance-based
+        bracket scanning for WORD '[' (unbounded lookahead depth).
+        """
+        next_token = self.parser.peek(1)
+
+        # LBRACKET token immediately after name
+        if next_token.type == TokenType.LBRACKET:
+            return True
+
+        # WORD token containing just "[" — need bracket-counting scan
+        if next_token.type == TokenType.WORD and next_token.value == '[':
+            return self._scan_bracket_assignment()
+
+        return False
+
+    def _scan_bracket_assignment(self) -> bool:
+        """Scan ahead through bracket tokens to verify name[…]=… pattern.
+
+        This is the only lookahead path that requires advance+restore,
+        because the scan depth inside brackets is unbounded.
+        """
+        saved_pos = self.parser.current
+        self.parser.advance()  # skip name
+        self.parser.advance()  # skip [
+
+        bracket_count = 1
+        found_assignment = False
+        while bracket_count > 0 and not self.parser.at_end():
+            token = self.parser.peek()
+            if token.type == TokenType.WORD:
+                if '[' in token.value:
+                    bracket_count += token.value.count('[')
+                if ']' in token.value:
+                    bracket_count -= token.value.count(']')
+                    if bracket_count == 0:
+                        # Check if followed by = or +=
+                        self.parser.advance()
+                        if not self.parser.at_end():
+                            next_token = self.parser.peek()
+                            if (next_token.type == TokenType.WORD and
                                     (next_token.value.startswith('=') or next_token.value == '+=')):
-                                    found_assignment = True
-                            break
-                self.parser.advance()
-
-            self.parser.current = saved_pos
-            return found_assignment
+                                found_assignment = True
+                        break
+            self.parser.advance()
 
         self.parser.current = saved_pos
-        return False
+        return found_assignment
 
     def _is_valid_variable_name(self, name: str) -> bool:
         """Check if a string is a valid shell variable name."""
