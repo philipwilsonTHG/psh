@@ -34,6 +34,16 @@ python -m pytest tests/conformance/
 
 Use these for targeted debugging and development loops.
 
+### 4) XPASS audit for stale xfail markers
+
+```bash
+python -m pytest tests/ -m xfail -q -rxX
+```
+
+What it does:
+- Runs only tests currently marked `xfail`.
+- Surfaces stale markers clearly via `XPASS` output (`-rxX`).
+
 ## CI Expectations
 
 - CI runs `python run_tests.py --quick` as the primary gate.

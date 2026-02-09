@@ -1,8 +1,10 @@
 """Environment and variable management builtins (env, export, set, unset)."""
 
+import io
 import os
+import shlex
 import sys
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, Dict, List, Tuple
 
 from ..core.exceptions import ReadonlyVariableError
 from .base import Builtin
@@ -22,30 +24,103 @@ class EnvBuiltin(Builtin):
 
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Display environment variables or run command with modified environment."""
-        if len(args) == 1:
-            # No arguments, print all environment variables
-            # First sync exports from scope manager to environment
-            shell.state.scope_manager.sync_exports_to_environment(shell.env)
+        # Keep shell.env in sync with exported scope variables first.
+        shell.state.scope_manager.sync_exports_to_environment(shell.env)
 
-            # Check if we're in a forked child (e.g., in a pipeline)
-            if hasattr(shell.state, '_in_forked_child') and shell.state._in_forked_child:
-                # In a pipeline, we're in a forked child process
-                # The shell.env should have been inherited from parent
-                # Use shell.env which contains the exported variables
-                for key, value in sorted(shell.env.items()):
-                    # In child process, write directly to fd 1
-                    output_line = f'{key}={value}\n'
-                    os.write(1, output_line.encode('utf-8', errors='replace'))
-            else:
-                # Not in a forked child, use shell.env (which has been synced)
-                for key, value in sorted(shell.env.items()):
-                    print(f"{key}={value}",
-                          file=shell.stdout if hasattr(shell, 'stdout') else sys.stdout)
+        if len(args) == 1:
+            self._print_environment(shell.env, shell)
             return 0
-        else:
-            # TODO: Run command with modified environment
-            self.error("running commands not yet implemented", shell)
-            return 1
+
+        # Parse leading NAME=VALUE assignments.
+        assignments: Dict[str, str] = {}
+        idx = 1
+        while idx < len(args) and self._is_env_assignment(args[idx]):
+            key, value = args[idx].split('=', 1)
+            assignments[key] = value
+            idx += 1
+
+        # No command: print environment with temporary overrides.
+        if idx >= len(args):
+            env_map = shell.env.copy()
+            env_map.update(assignments)
+            self._print_environment(env_map, shell)
+            return 0
+
+        # Command mode: run in isolated child shell so command-side effects
+        # (e.g., export/unset/cd builtins) do not leak into parent shell state.
+        command_args = args[idx:]
+        command_text = " ".join(shlex.quote(arg) for arg in command_args)
+
+        from ..core.variables import VarAttributes
+        from ..shell import Shell
+
+        child_shell = Shell(parent_shell=shell)
+        child_shell.state.options.update(shell.state.options)
+        child_shell.stdout = shell.stdout if hasattr(shell, 'stdout') else sys.stdout
+        child_shell.stderr = shell.stderr if hasattr(shell, 'stderr') else sys.stderr
+        child_shell.stdin = shell.stdin if hasattr(shell, 'stdin') else sys.stdin
+
+        # Apply env overrides to child's exported environment only.
+        for key, value in assignments.items():
+            child_shell.state.scope_manager.set_variable(
+                key, value, attributes=VarAttributes.EXPORT, local=False
+            )
+            child_shell.env[key] = value
+
+        child_shell.state.scope_manager.sync_exports_to_environment(child_shell.env)
+        fd_backups = self._bind_process_fds_to_streams(child_shell)
+        try:
+            return child_shell.run_command(command_text, add_to_history=False)
+        finally:
+            self._restore_process_fds(fd_backups)
+
+    def _is_env_assignment(self, arg: str) -> bool:
+        """Check whether an argument is an env assignment token."""
+        if '=' not in arg:
+            return False
+        name, _ = arg.split('=', 1)
+        return bool(name)
+
+    def _print_environment(self, env_map: Dict[str, str], shell: 'Shell') -> None:
+        """Print environment mapping in a way that works in forked children."""
+        if hasattr(shell.state, '_in_forked_child') and shell.state._in_forked_child:
+            for key, value in sorted(env_map.items()):
+                os.write(1, f"{key}={value}\n".encode('utf-8', errors='replace'))
+            return
+
+        out = shell.stdout if hasattr(shell, 'stdout') else sys.stdout
+        for key, value in sorted(env_map.items()):
+            print(f"{key}={value}", file=out)
+
+    def _bind_process_fds_to_streams(self, shell: 'Shell') -> List[Tuple[int, int]]:
+        """Align process fds with shell streams so nested external commands obey redirections."""
+        backups: List[Tuple[int, int]] = []
+        stream_to_fd = (
+            (shell.stdin if hasattr(shell, 'stdin') else sys.stdin, 0),
+            (shell.stdout if hasattr(shell, 'stdout') else sys.stdout, 1),
+            (shell.stderr if hasattr(shell, 'stderr') else sys.stderr, 2),
+        )
+
+        for stream, target_fd in stream_to_fd:
+            try:
+                stream_fd = stream.fileno()
+            except (AttributeError, io.UnsupportedOperation, ValueError):
+                continue
+
+            if stream_fd == target_fd:
+                continue
+
+            backup_fd = os.dup(target_fd)
+            os.dup2(stream_fd, target_fd)
+            backups.append((target_fd, backup_fd))
+
+        return backups
+
+    def _restore_process_fds(self, backups: List[Tuple[int, int]]) -> None:
+        """Restore fds previously redirected by _bind_process_fds_to_streams."""
+        for target_fd, backup_fd in reversed(backups):
+            os.dup2(backup_fd, target_fd)
+            os.close(backup_fd)
 
     @property
     def help(self) -> str:
@@ -53,7 +128,8 @@ class EnvBuiltin(Builtin):
     
     Display environment variables or run a command with modified environment.
     With no arguments, print all environment variables.
-    Setting variables and running commands is not yet implemented."""
+    With name=value pairs and no command, print the modified environment.
+    With a command, run it with temporary environment overrides."""
 
 
 @builtin

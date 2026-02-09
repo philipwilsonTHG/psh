@@ -427,7 +427,6 @@ class TestQuoteInteractionWithExpansions:
         # Tilde should not expand inside quotes
         assert '~' in result['stdout']
     
-    @pytest.mark.xfail(reason="Complex composite token parsing with mixed quoted/unquoted sections not fully supported")
     def test_mixed_quoted_expansions(self):
         """Test mixing quoted and unquoted expansions."""
         result = QuotingTestHelper.run_psh_command([

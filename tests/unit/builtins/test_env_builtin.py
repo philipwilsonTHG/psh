@@ -131,6 +131,69 @@ class TestEnvBuiltin:
         # Clean up
         os.unlink('/tmp/multi_test.txt')
 
+    def test_env_command_override_visible_to_executed_command(self, shell, temp_dir):
+        """env NAME=value command should expose NAME only to that command."""
+        output_path = Path(temp_dir) / "env_command_scope.txt"
+        check_path = Path(temp_dir) / "env_after_scope.txt"
+
+        result = shell.run_command(
+            f'env CMD_SCOPE=visible /bin/sh -c \'echo "$CMD_SCOPE" > "{output_path}"\''
+        )
+        assert result == 0
+
+        assert output_path.read_text().strip() == "visible"
+
+        # Ensure override did not persist into parent shell.
+        result = shell.run_command(f'echo "${{CMD_SCOPE:-unset}}" > "{check_path}"')
+        assert result == 0
+        assert check_path.read_text().strip() == "unset"
+
+    def test_env_assignments_without_command_print_modified_environment(self, shell, temp_dir):
+        """env NAME=value (no command) should print modified env without persisting."""
+        output_path = Path(temp_dir) / "env_print_override.txt"
+        check_path = Path(temp_dir) / "env_print_after.txt"
+
+        result = shell.run_command(f'env ONLY_FOR_PRINT=1 > "{output_path}"')
+        assert result == 0
+        output = output_path.read_text()
+        assert 'ONLY_FOR_PRINT=1' in output
+
+        # No-command override should not mutate shell variables.
+        result = shell.run_command(f'echo "${{ONLY_FOR_PRINT:-missing}}" > "{check_path}"')
+        assert result == 0
+        assert check_path.read_text().strip() == "missing"
+
+    def test_env_command_respects_outer_redirection_for_external_commands(self, shell, temp_dir):
+        """env NAME=value command should honor redirection when command is external."""
+        output_path = Path(temp_dir) / "env_external_redirection.txt"
+
+        result = shell.run_command(f'env REDIR_SCOPE=ok /usr/bin/env > "{output_path}"')
+        assert result == 0
+        output = output_path.read_text()
+        assert "REDIR_SCOPE=ok" in output
+
+    def test_env_command_does_not_leak_builtin_side_effects(self, shell, temp_dir):
+        """Builtins executed via env should not mutate parent shell state."""
+        check_path = Path(temp_dir) / "env_builtin_leak_check.txt"
+
+        result = shell.run_command('env TEMP_ENV=1 export INNER_ONLY=42')
+        assert result == 0
+
+        result = shell.run_command(f'echo "${{INNER_ONLY:-missing}}" > "{check_path}"')
+        assert result == 0
+        assert check_path.read_text().strip() == "missing"
+
+    def test_env_command_not_found_preserves_parent_state(self, shell, temp_dir):
+        """Command-not-found in env mode should not persist assignment overrides."""
+        check_path = Path(temp_dir) / "env_not_found_check.txt"
+
+        result = shell.run_command('env NO_LEAK=value definitely_not_a_real_command_12345')
+        assert result == 127
+
+        result = shell.run_command(f'echo "${{NO_LEAK:-unset}}" > "{check_path}"')
+        assert result == 0
+        assert check_path.read_text().strip() == "unset"
+
 
 @pytest.fixture
 def clean_env():
