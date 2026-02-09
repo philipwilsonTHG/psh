@@ -1,5 +1,8 @@
 # Test Migration Priority List
 
+> [!IMPORTANT]
+> Historical migration analysis. For current contributor and CI test commands, use `docs/testing_source_of_truth.md`.
+
 Based on the test analysis, here's the prioritized migration plan:
 
 ## Immediate Priority (Core Components)
@@ -7,7 +10,7 @@ Based on the test analysis, here's the prioritized migration plan:
 ### 1. Expansion Tests (High Priority)
 - **Why**: Core functionality used everywhere
 - **Current**: 64 test files reference expansion
-- **Target**: Create comprehensive unit tests in `tests_new/unit/expansion/`
+- **Target**: Create comprehensive unit tests in `tests/unit/expansion/`
 - **Components**:
   - Variable expansion (`$var`, `${var}`)
   - Command substitution (`$(cmd)`, backticks)
@@ -20,7 +23,7 @@ Based on the test analysis, here's the prioritized migration plan:
 ### 2. Builtin Tests (High Priority)
 - **Why**: 56 test files reference builtins
 - **Current**: Mixed with other tests
-- **Target**: Create focused tests in `tests_new/unit/builtins/`
+- **Target**: Create focused tests in `tests/unit/builtins/`
 - **Key builtins to test**:
   - cd, pwd, echo, printf
   - export, unset, readonly
@@ -33,7 +36,7 @@ Based on the test analysis, here's the prioritized migration plan:
 ### 3. Control Flow Integration Tests (Medium Priority)
 - **Why**: 110 test files reference control flow
 - **Current**: Mixed unit/integration tests
-- **Target**: `tests_new/integration/control_flow/`
+- **Target**: `tests/integration/control_flow/`
 - **Structures**:
   - if/then/else/elif/fi
   - while/do/done
@@ -46,17 +49,17 @@ Based on the test analysis, here's the prioritized migration plan:
 
 ### 4. Pipeline Integration Tests
 - **Why**: 48 test files reference pipelines
-- **Target**: `tests_new/integration/pipeline/`
+- **Target**: `tests/integration/pipeline/`
 - **Focus**: Complex pipeline scenarios
 
 ### 5. IO Redirection Integration Tests
 - **Why**: 53 test files reference redirections
-- **Target**: `tests_new/integration/redirection/`
+- **Target**: `tests/integration/redirection/`
 - **Focus**: Complex redirection combinations
 
 ### 6. Process Management Tests
 - **Why**: 65 test files reference process handling
-- **Target**: `tests_new/system/process/`
+- **Target**: `tests/system/process/`
 - **Focus**: Subprocess creation, signals, exit codes
 
 ## Already Migrated/Created
@@ -84,7 +87,7 @@ Based on analysis:
 
 ## Next Steps
 
-1. Create `tests_new/unit/expansion/` directory structure
+1. Create `tests/unit/expansion/` directory structure
 2. Migrate variable expansion tests first (most fundamental)
 3. Add comprehensive test cases for all expansion types
 4. Move to builtins after expansion is complete

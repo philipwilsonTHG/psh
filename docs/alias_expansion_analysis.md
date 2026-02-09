@@ -1,6 +1,6 @@
 # Alias Expansion Analysis
 
-This document analyzes the xfail tests in `tests_new/integration/aliases/test_alias_expansion.py` and identifies fixes needed for proper alias expansion in PSH.
+This document analyzes the xfail tests in `tests/integration/aliases/test_alias_expansion.py` and identifies fixes needed for proper alias expansion in PSH.
 
 ## Summary
 

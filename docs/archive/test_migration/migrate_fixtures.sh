@@ -1,5 +1,7 @@
 #!/bin/bash
 # Auto-generated fixture migration script
+# Historical migration artifact (paths may reference retired `tests_new` layout).
+# Current contributor/CI test commands are documented in docs/testing_source_of_truth.md.
 
 
 # Files needing isolated_shell with isolated_temp_dir

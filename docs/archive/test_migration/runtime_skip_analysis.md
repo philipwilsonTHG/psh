@@ -1,5 +1,8 @@
 # Runtime Skip Analysis for PSH Test Suite
 
+> [!IMPORTANT]
+> Historical migration analysis. For current contributor and CI test commands, use `docs/testing_source_of_truth.md`.
+
 ## Summary
 Total skipped tests: **116** (out of 2056 total tests)
 
@@ -8,7 +11,7 @@ Total skipped tests: **116** (out of 2056 total tests)
 ### 1. Interactive Tests (84 tests - 72.4%)
 - **Location**: Various files in `integration/interactive/` and `system/interactive/`
 - **Skip Reason**: "Interactive tests skipped (use --run-interactive to run)"
-- **Controlled by**: `tests_new/conftest.py:353`
+- **Controlled by**: `tests/conftest.py:353`
 - **Files affected**:
   - `test_completion.py` - Tab completion tests
   - `test_history.py` - History navigation tests
@@ -71,7 +74,7 @@ Total skipped tests: **116** (out of 2056 total tests)
 
 ### 1. Run Interactive Tests Separately
 ```bash
-python -m pytest tests_new/ --run-interactive
+python -m pytest tests/ --run-interactive
 ```
 
 ### 2. Install Optional Dependencies

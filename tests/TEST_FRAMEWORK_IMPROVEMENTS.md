@@ -1,5 +1,8 @@
 # Test Framework Improvements Summary
 
+> [!IMPORTANT]
+> Historical migration notes. Current canonical test commands are in `docs/testing_source_of_truth.md`.
+
 ## Problem Solved
 
 The PSH test framework had isolation issues when running tests in parallel with `pytest -n auto`. Tests that passed individually would fail when run as part of the full suite due to:
@@ -73,13 +76,13 @@ New options for debugging and control:
 
 ```bash
 # Run with extra isolation (slower but more reliable)
-pytest tests_new -n auto --strict-isolation
+pytest tests -n auto --strict-isolation
 
 # Skip serial tests for faster parallel runs
-pytest tests_new -m 'not serial' -n auto
+pytest tests -m 'not serial' -n auto
 
 # Run only serial tests separately
-pytest tests_new -m serial
+pytest tests -m serial
 ```
 
 ## Results
@@ -129,24 +132,24 @@ pytest tests_new -m serial
 ### For Test Runners
 
 1. **Normal parallel execution**:
-   ```bash
-   pytest tests_new -n auto
-   ```
+```bash
+pytest tests -n auto
+```
 
 2. **Debugging isolation issues**:
-   ```bash
-   pytest tests_new -n auto --strict-isolation -v
-   ```
+```bash
+pytest tests -n auto --strict-isolation -v
+```
 
 3. **Maximum speed (skip problematic tests)**:
-   ```bash
-   pytest tests_new -m 'not serial' -n auto
-   ```
+```bash
+pytest tests -m 'not serial' -n auto
+```
 
 4. **Run serial tests separately**:
-   ```bash
-   pytest tests_new -m serial
-   ```
+```bash
+pytest tests -m serial
+```
 
 ## Future Improvements
 

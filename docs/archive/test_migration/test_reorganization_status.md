@@ -1,5 +1,8 @@
 # Test Reorganization Status
 
+> [!IMPORTANT]
+> Historical migration analysis. For current contributor and CI test commands, use `docs/testing_source_of_truth.md`.
+
 ## Summary
 
 I've created the foundational infrastructure for reorganizing PSH's test suite from 1800+ ad-hoc tests into a well-structured, maintainable framework. The new framework supports parallel execution with the existing tests during migration.
@@ -7,13 +10,13 @@ I've created the foundational infrastructure for reorganizing PSH's test suite f
 ## What's Been Created
 
 ### 1. Test Reorganization Plan
-- **Location**: `docs/test_reorganization_plan.md`
+- **Location**: `docs/archive/test_migration/test_reorganization_plan.md`
 - **Content**: Comprehensive 12-week plan covering all aspects of test migration
 - **Phases**: Infrastructure → Analysis → Core Components → Interactive → Conformance → Performance → QA
 
 ### 2. New Test Directory Structure
 ```
-tests_new/
+tests/
 ├── unit/                    # Isolated component tests
 │   ├── lexer/              
 │   ├── parser/             
@@ -46,60 +49,59 @@ tests_new/
 
 ### 3. Test Framework Classes
 
-#### Base Framework (`tests_new/framework/base.py`)
+#### Base Framework (`tests/framework/base.py`)
 - `PSHTestCase`: Base class with common utilities
 - `CommandResult`: Structured test result handling
 - Helper methods for file/directory creation, assertions, environment management
 
-#### Interactive Framework (`tests_new/framework/interactive.py`)
+#### Interactive Framework (`tests/framework/interactive.py`)
 - `InteractivePSHTest`: Base class using pexpect for terminal testing
 - Methods for sending keys, control characters, testing line editing
 - `InteractiveTestHelpers`: Common patterns for history, completion, etc.
 
-#### Conformance Framework (`tests_new/framework/conformance.py`)
+#### Conformance Framework (`tests/framework/conformance.py`)
 - `ConformanceTest`: Compare PSH and bash behavior
 - `ComparisonResult`: Track differences and document expected variations
 - Support for POSIX compliance testing
 
 ### 4. Example Test Files
 
-- **Unit Test**: `tests_new/unit/lexer/test_basic_tokenization.py`
+- **Unit Test**: `tests/unit/lexer/test_basic_tokenization.py`
   - Shows pure unit testing of lexer functionality
   - Tests need updating to match current PSH behavior
 
-- **Interactive Test**: `tests_new/system/interactive/test_line_editing.py`
+- **Interactive Test**: `tests/system/interactive/test_line_editing.py`
   - Demonstrates pexpect-based terminal interaction testing
   - Tests cursor movement, history, multiline editing, signals
 
-- **Conformance Test**: `tests_new/conformance/bash/test_basic_commands.py`
+- **Conformance Test**: `tests/conformance/bash/test_basic_commands.py`
   - Shows bash compatibility testing approach
   - Tests for identical behavior and documented differences
 
-- **Performance Test**: `tests_new/performance/benchmarks/test_parsing_performance.py`
+- **Performance Test**: `tests/performance/benchmarks/test_parsing_performance.py`
   - Benchmarks parsing speed and memory usage
   - Sets performance baselines and checks for regressions
 
 ### 5. Supporting Tools
 
-#### Test Analysis Script (`tools/analyze_tests.py`)
+#### Test Analysis Script (`pytest --collect-only tests/`)
 - Analyzes test files to understand coverage and organization
 - Identifies components being tested
 - Detects gaps and duplications
-- Generates JSON reports for tracking
+- Produces a test inventory from current repository paths
 
-#### Test Migration Runner (`tools/run_test_migration.py`)
-- Runs both old and new test suites
-- Compares results and tracks migration progress
-- Generates migration status reports
-- Shows which components have been migrated
+#### Smart Test Runner (`run_tests.py`)
+- Runs the canonical multi-phase test flow
+- Handles subshell and FD-sensitive tests with the correct pytest flags
+- Supports quick mode for CI (`--quick`)
+- Serves as the source-of-truth entry point for automated and local runs
 
 ### 6. CI/CD Integration
 
-- **Updated pytest.ini**: Configured to run both test suites
+- **Updated pytest.ini**: Configured for the current `tests/` suite
 - **GitHub Actions Workflow**: `.github/workflows/test_migration.yml`
-  - Runs legacy and new tests in parallel
-  - Tracks conformance test results
-  - Generates test migration progress reports
+  - Runs `python run_tests.py --quick` as the primary gate
+  - Runs a POSIX conformance smoke check
 
 ## Current Status - Outstanding Success!
 
@@ -172,23 +174,23 @@ tests_new/
 - ✅ **Performance benchmarks** (1 file, 9 tests) - parsing performance
 
 #### **Conformance Testing Framework - COMPLETE**
-- ✅ **Comprehensive conformance framework** (`tests_new/conformance/framework.py`)
+- ✅ **Comprehensive conformance framework** (`tests/conformance/framework.py`)
   - ConformanceTestFramework for PSH/bash comparison
   - ConformanceTest base class with assert methods
   - Result categorization (identical, documented differences, extensions, bugs)
-- ✅ **POSIX compliance tests** (`tests_new/conformance/posix/test_posix_compliance.py`)
+- ✅ **POSIX compliance tests** (`tests/conformance/posix/test_posix_compliance.py`)
   - 12 test classes covering all POSIX shell features
   - 130+ tests for parameter expansion, command substitution, arithmetic, etc.
   - Current results: **93.1% POSIX compliance**
-- ✅ **Bash compatibility tests** (`tests_new/conformance/bash/`)
+- ✅ **Bash compatibility tests** (`tests/conformance/bash/`)
   - 16 test classes for bash-specific features
   - 110+ tests for arrays, conditionals, extended features
   - Current results: **72.7% bash compatibility**
-- ✅ **Conformance test runner** (`tests_new/conformance/run_conformance_tests.py`)
+- ✅ **Conformance test runner** (`tests/conformance/run_conformance_tests.py`)
   - Automated test execution with detailed reporting
   - JSON output for tracking compliance over time
   - Command-line interface for POSIX-only, bash-only, or combined testing
-- ✅ **Differences catalog** (`tests_new/conformance/differences/`)
+- ✅ **Differences catalog** (`tests/conformance/differences/`)
   - Documentation of expected PSH vs bash differences
   - Categorization of PSH extensions and limitations
 
@@ -336,8 +338,8 @@ Based on the original plan phases, the remaining migration work includes:
    - Memory cleanup in long-running operations
 
 2. **Advanced Performance Testing** (Phase 6 from plan):
-   - Memory usage benchmarks (`tests_new/performance/memory/`)
-   - Stress testing (`tests_new/performance/stress/`)
+   - Memory usage benchmarks (`tests/performance/memory/`)
+   - Stress testing (`tests/performance/stress/`)
    - Large input handling
 
 3. **Comprehensive Error Path Testing**:

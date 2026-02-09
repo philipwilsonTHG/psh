@@ -1,5 +1,8 @@
 # PSH Test Framework Recommendations Summary
 
+> [!IMPORTANT]
+> Historical migration analysis. For current contributor and CI test commands, use `docs/testing_source_of_truth.md`.
+
 ## Key Findings
 
 ### 1. Extensive Test Misclassification
@@ -84,7 +87,7 @@ Create purpose-specific fixtures:
 ### 2. Test Reorganization (2 weeks)
 Reorganize tests by I/O requirements:
 ```
-tests_new/
+tests/
 ├── unit/          # Mocked I/O tests
 ├── integration/   # Real I/O tests
 ├── system/        # Subprocess tests
@@ -94,9 +97,9 @@ tests_new/
 ### 3. Parallel Execution Strategy
 Run different test types with appropriate parallelization:
 ```bash
-pytest tests_new/unit -n auto          # Full parallelization
-pytest tests_new/integration -n 4      # Limited parallelization
-pytest tests_new/system                # Serial execution
+pytest tests/unit -n auto          # Full parallelization
+pytest tests/integration -n 4      # Limited parallelization
+pytest tests/system                # Serial execution
 ```
 
 ## Long-term Solutions

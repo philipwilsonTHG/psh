@@ -1,5 +1,8 @@
 # PTY Testing Guide for PSH
 
+> [!IMPORTANT]
+> Historical migration analysis. For current contributor and CI test commands, use `docs/testing_source_of_truth.md`.
+
 This document explains the challenges and solutions for testing PSH's interactive features in pseudo-terminal (PTY) environments.
 
 ## Overview
@@ -42,7 +45,7 @@ A pseudo-terminal (PTY) is a pair of virtual character devices that provide a bi
 ### 1. Mock-Based Unit Tests
 For core line editor functionality, we use mock-based unit tests that don't require a PTY:
 ```python
-# tests_new/unit/test_line_editor_unit.py
+# tests/unit/test_line_editor_unit.py
 # Tests LineEditor methods directly without terminal emulation
 ```
 
@@ -76,7 +79,7 @@ We created `test_interactive_features.py` that verifies functionality without re
 ### The PTY Test Framework
 
 ```python
-# tests_new/framework/pty_test_framework.py
+# tests/framework/pty_test_framework.py
 class PTYTestFramework:
     """Enhanced framework for PTY-based interactive testing."""
     
@@ -133,7 +136,7 @@ expect "test"
 Run tests in a containerized environment with a real TTY:
 ```bash
 docker run -it --rm -v $PWD:/psh python:3.11 \
-  bash -c "cd /psh && python -m pytest tests_new/system/interactive/"
+  bash -c "cd /psh && python -m pytest tests/system/interactive/"
 ```
 
 ### 4. tmux/screen Automation

@@ -1,5 +1,8 @@
 # Test Framework Improvements Summary
 
+> [!IMPORTANT]
+> Historical migration analysis. For current contributor and CI test commands, use `docs/testing_source_of_truth.md`.
+
 ## Overview
 
 Successfully reduced skipped tests from 42 to 22 (47.6% reduction) and improved test framework reliability.
@@ -41,12 +44,12 @@ Successfully reduced skipped tests from 42 to 22 (47.6% reduction) and improved 
 ## Remaining Skipped Tests (22)
 
 ### Interactive Tests (11)
-- **Location**: `tests_new/system/interactive/`
+- **Location**: `tests/system/interactive/`
 - **Issue**: Require PTY and raw terminal mode
 - **Solution**: Need separate interactive test framework outside pytest
 
 ### Heredoc Tests (7)
-- **Location**: `tests_new/integration/redirection/test_heredoc.py`
+- **Location**: `tests/integration/redirection/test_heredoc.py`
 - **Issue**: Architectural limitation in PSH's input handling
 - **Solution**: Requires core architecture changes
 

@@ -1,5 +1,8 @@
 # PSH Test Framework Analysis and Recommendations
 
+> [!IMPORTANT]
+> Historical migration analysis. For current contributor and CI test commands, use `docs/testing_source_of_truth.md`.
+
 ## Executive Summary
 
 The PSH test suite has chronic issues with output capture and test isolation, particularly when running tests in parallel. This analysis examines the current state, identifies root causes, and provides actionable recommendations for improvement.
@@ -10,7 +13,7 @@ The PSH test suite has chronic issues with output capture and test isolation, pa
 
 PSH uses two test suites:
 - **Legacy suite** (`tests/`): ~1900 tests with known isolation problems
-- **New suite** (`tests_new/`): ~1000 tests with improved but still problematic isolation
+- **New suite** (`tests/`): ~1000 tests with improved but still problematic isolation
 
 ### Output Capture Approaches
 
@@ -179,7 +182,7 @@ def conformance_test_env():
 #### B. Test Reorganization
 1. Create clear directory structure:
    ```
-   tests_new/
+   tests/
    ├── unit/          # Pure unit tests with mocked I/O
    ├── integration/   # Component integration with real I/O  
    ├── system/        # Full system tests via subprocess
@@ -192,13 +195,13 @@ def conformance_test_env():
 1. Run test categories separately:
    ```bash
    # Fast unit tests in parallel
-   pytest tests_new/unit -n auto
+   pytest tests/unit -n auto
    
    # Integration tests with process isolation
-   pytest tests_new/integration -n 4 --dist loadgroup
+   pytest tests/integration -n 4 --dist loadgroup
    
    # System tests serially
-   pytest tests_new/system
+   pytest tests/system
    ```
 
 ### 3. Long-term Solutions

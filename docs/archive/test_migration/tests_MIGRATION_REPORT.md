@@ -1,5 +1,8 @@
 # Test Migration Report
 
+> [!IMPORTANT]
+> Historical migration artifact retained for reference. Current contributor/CI test commands are in `docs/testing_source_of_truth.md`.
+
 ## Summary
 
 Total test files needing attention: 76

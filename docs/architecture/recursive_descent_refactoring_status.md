@@ -92,7 +92,7 @@ This document tracks the progress of refactoring the recursive descent parser fr
   - test_parser_visualization.py
   - test_error_collection.py
   - test_parser_error_improvements.py
-  - tests_new/unit/parser/test_parser_context.py
+  - tests/unit/parser/test_parser_context.py
   - sub_parser_base.py
   - commands.py (fixed word_builder import)
   

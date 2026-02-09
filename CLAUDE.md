@@ -315,7 +315,7 @@ def test_posix_compliance():
 ```
 
 **For conformance tests**:
-- Add to `tests_new/conformance/posix/` or `tests_new/conformance/bash/`
+- Add to `tests/conformance/posix/` or `tests/conformance/bash/`
 - Inherit from `ConformanceTest` base class
 - Use `assert_identical_behavior()` for exact PSH/bash matching
 - Use `assert_documented_difference()` for known differences

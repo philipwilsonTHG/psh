@@ -1,5 +1,8 @@
 # Test Framework Immediate Actions - Completion Report
 
+> [!IMPORTANT]
+> Historical migration analysis. For current contributor and CI test commands, use `docs/testing_source_of_truth.md`.
+
 ## Summary
 
 All three immediate actions from the test framework recommendations have been successfully completed:
@@ -93,11 +96,11 @@ With immediate actions complete, the medium-term improvements can begin:
 - `scripts/analyze_test_classification.py` - Tool to find misclassified tests
 - `scripts/fix_test_misclassification.py` - Automated fixer (partial implementation)
 - `docs/test_pattern_guide.md` - Comprehensive pattern guide
-- `docs/test_framework_immediate_actions_complete.md` - This report
-- `tests_new/unit/builtins/test_echo_standardized.py` - Example of patterns
+- `docs/archive/test_migration/test_framework_immediate_actions_complete.md` - This report
+- `tests/unit/builtins/test_echo_standardized.py` - Example of patterns
 
 **Modified:**
-- `tests_new/conformance/bash/test_bash_compatibility.py` - Fixed 8 misclassified tests
+- `tests/conformance/bash/test_bash_compatibility.py` - Fixed 8 misclassified tests
 - `CLAUDE.md` - Added test writing guidelines
 
 ## Conclusion

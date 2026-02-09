@@ -1,5 +1,8 @@
 # Test Migration Progress Report
 
+> [!IMPORTANT]
+> Historical migration analysis. For current contributor and CI test commands, use `docs/testing_source_of_truth.md`.
+
 ## Current Status
 
 ### Migration Statistics
@@ -81,7 +84,7 @@
 
 #### ✅ **Test Framework Fixes (Major Success)**
 - **Fixed 899 errors** down to 0 errors through proper fixture design
-- **Created dedicated conftest.py** for tests_new with clean fixtures:
+- **Created dedicated conftest.py** for tests with clean fixtures:
   - `shell` - Basic shell instance  
   - `clean_shell` - Minimal environment shell
   - `temp_dir` - Temporary directory management

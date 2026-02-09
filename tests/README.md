@@ -1,6 +1,9 @@
-# PSH Test Suite (New)
+# PSH Test Suite
 
-This is the reorganized test suite for PSH. It runs in parallel with the existing tests during the migration period.
+> [!IMPORTANT]
+> Current canonical test commands for contributors and CI are in `docs/testing_source_of_truth.md`.
+
+This directory contains the active PSH test suite.
 
 ## Directory Structure
 
@@ -47,18 +50,17 @@ Performance and stress tests:
 ## Running Tests
 
 ```bash
-# Run all new tests
-pytest tests_new/
+# Canonical quick suite
+python run_tests.py --quick
 
-# Run specific category
-pytest tests_new/unit/
-pytest tests_new/conformance/
+# Full suite via smart runner
+python run_tests.py
 
-# Run with coverage
-pytest --cov=psh tests_new/
-
-# Run in parallel
-pytest -n auto tests_new/
+# Focused manual runs
+python -m pytest tests/unit/
+python -m pytest tests/integration/
+python -m pytest tests/conformance/
+python -m pytest tests/integration/subshells/ -s
 ```
 
 ## Writing Tests

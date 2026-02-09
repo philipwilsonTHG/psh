@@ -242,6 +242,9 @@ PSH uniquely includes two complete parser implementations:
 
 ## Testing & Quality
 
+Canonical testing commands for contributors and CI are maintained in
+`docs/testing_source_of_truth.md`.
+
 ### Running Tests (Recommended)
 
 Use the provided test runner for correct handling of all tests:

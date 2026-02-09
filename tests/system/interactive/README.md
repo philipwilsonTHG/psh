@@ -31,7 +31,7 @@ If a test fails:
 
 1. Run the specific test with verbose output:
    ```bash
-   python -m pytest tests_new/system/interactive/test_name.py::TestClass::test_method -xvs
+   python -m pytest tests/system/interactive/test_name.py::TestClass::test_method -xvs
    ```
 
 2. Check the debug output added to test_echo_simple for clues

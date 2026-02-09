@@ -21,7 +21,7 @@ Purpose: Optimized reference for LLMs working with the PSH codebase
 2. If context handling or configuration changes are required, adjust `ParserContext` in `psh/parser/recursive_descent/context.py`
 3. Use `ParserConfig` (`psh/parser/config.py`) for feature flags; add presets via `ParserFactory` in `psh/parser/recursive_descent/support/factory.py`
 4. Update validation or semantic rules in `psh/parser/validation/`
-5. Add tests under `tests/test_parser_*.py` or `tests_new/unit/parser/`
+5. Add tests under `tests/test_parser_*.py` or `tests/unit/parser/`
 
 **Extend expansion behavior**
 1. Implement the feature in `psh/expansion/` (e.g., extend `parameter_expansion.py` or add a helper in `base.py`)
@@ -335,9 +335,9 @@ registry.register('mybuiltin', MyBuiltin)
 ## Testing Conventions
 
 - Pytest entry: `pytest` (configured via `pytest.ini`)
-- Traditional tests live in `tests/`; incremental refactors under `tests_new/unit/`
+- Tests live in `tests/`; place focused parser/unit work under `tests/unit/`
 - Lexer tests: `tests/test_lexer_*.py` (add new focused cases alongside existing files); keyword normalization goldens live in `tests/unit/lexer/test_keyword_normalizer_golden.py`
-- Parser tests: `tests/test_parser_*.py`, combinator parity suites in `tests_new/unit/parser/`
+- Parser tests: `tests/test_parser_*.py`, combinator parity suites in `tests/unit/parser/`
 - Parser parity: `tests/test_parser_feature_parity.py` has keyword-heavy scenarios to keep recursive descent and combinator implementations aligned
 - Expansion tests: `tests/test_expansion_*.py`
 - Executor/integration: `tests/test_executor_*.py`, `tests/test_shell_*.py`, plus golden scripts in `conformance_tests/`

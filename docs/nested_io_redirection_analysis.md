@@ -1,6 +1,6 @@
 # Nested I/O Redirection Analysis
 
-This document analyzes the xfail tests in `tests_new/integration/control_flow/test_nested_structures_io_conservative.py` and identifies fixes needed for I/O redirection in nested control structures.
+This document analyzes the xfail tests in `tests/integration/control_flow/test_nested_structures_io_conservative.py` and identifies fixes needed for I/O redirection in nested control structures.
 
 ## Summary
 

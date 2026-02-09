@@ -1,5 +1,8 @@
 # PSH Test Reorganization Plan
 
+> [!IMPORTANT]
+> Historical migration analysis. For current contributor and CI test commands, use `docs/testing_source_of_truth.md`.
+
 ## Executive Summary
 
 This document outlines a comprehensive plan to reorganize and improve the PSH test suite, moving from 1800+ ad-hoc tests to a well-structured, maintainable, and comprehensive testing framework. The plan includes parallel execution of old and new test suites during the transition period.
@@ -33,7 +36,7 @@ This document outlines a comprehensive plan to reorganize and improve the PSH te
 
 ### Directory Structure
 ```
-tests_new/
+tests/
 ├── unit/                    # Pure unit tests (isolated components)
 │   ├── lexer/              # Tokenization tests
 │   ├── parser/             # AST generation tests
@@ -106,7 +109,7 @@ tests_new/
 
 #### 1.1 Create Test Framework Foundation
 ```python
-# tests_new/framework/base.py
+# tests/framework/base.py
 class PSHTestCase:
     """Base class for all PSH tests with common utilities"""
     
@@ -122,7 +125,7 @@ class PSHTestCase:
 
 #### 1.2 Interactive Test Framework
 ```python
-# tests_new/framework/interactive.py
+# tests/framework/interactive.py
 import pexpect
 
 class InteractivePSHTest:
@@ -175,11 +178,11 @@ def analyze_test_file(filepath):
   run: pytest tests/
   
 - name: Run New Tests  
-  run: pytest tests_new/
+  run: pytest tests/
 
 - name: Coverage Report
   run: |
-    coverage run -m pytest tests_new/
+    coverage run -m pytest tests/
     coverage report
 ```
 
@@ -187,7 +190,7 @@ def analyze_test_file(filepath):
 
 #### 3.1 Lexer Tests
 ```python
-# tests_new/unit/lexer/test_tokenization.py
+# tests/unit/lexer/test_tokenization.py
 class TestBasicTokenization(PSHTestCase):
     """Test basic token recognition"""
     
@@ -206,7 +209,7 @@ class TestBasicTokenization(PSHTestCase):
 
 #### 3.2 Parser Tests
 ```python
-# tests_new/unit/parser/test_ast_generation.py
+# tests/unit/parser/test_ast_generation.py
 class TestASTGeneration(PSHTestCase):
     """Test AST generation from tokens"""
     
@@ -232,7 +235,7 @@ class TestASTGeneration(PSHTestCase):
 
 #### 4.1 Terminal Interaction Tests
 ```python
-# tests_new/system/interactive/test_line_editing.py
+# tests/system/interactive/test_line_editing.py
 class TestLineEditing(InteractivePSHTest):
     """Test interactive line editing features"""
     
@@ -255,7 +258,7 @@ class TestLineEditing(InteractivePSHTest):
 
 #### 4.2 Signal Handling Tests
 ```python
-# tests_new/system/signals/test_signal_handling.py
+# tests/system/signals/test_signal_handling.py
 class TestSignalHandling(InteractivePSHTest):
     """Test signal handling in various contexts"""
     
@@ -278,7 +281,7 @@ class TestSignalHandling(InteractivePSHTest):
 
 #### 4.3 Multiline Input Tests
 ```python
-# tests_new/system/interactive/test_multiline.py
+# tests/system/interactive/test_multiline.py
 class TestMultilineInput(InteractivePSHTest):
     """Test multiline command input"""
     
@@ -301,7 +304,7 @@ class TestMultilineInput(InteractivePSHTest):
 
 #### 5.1 Conformance Test Framework
 ```python
-# tests_new/conformance/framework.py
+# tests/conformance/framework.py
 class ConformanceTest(PSHTestCase):
     """Base class for conformance tests"""
     
@@ -325,7 +328,7 @@ class ConformanceTest(PSHTestCase):
 
 #### 5.2 POSIX Compliance Tests
 ```python
-# tests_new/conformance/posix/test_posix_features.py
+# tests/conformance/posix/test_posix_features.py
 class TestPOSIXCompliance(ConformanceTest):
     """Test POSIX-mandated features"""
     
@@ -340,7 +343,7 @@ class TestPOSIXCompliance(ConformanceTest):
 
 #### 6.1 Benchmark Framework
 ```python
-# tests_new/performance/framework.py
+# tests/performance/framework.py
 class BenchmarkTest(PSHTestCase):
     """Base class for performance tests"""
     
@@ -356,7 +359,7 @@ class BenchmarkTest(PSHTestCase):
 
 #### 6.2 Performance Test Suite
 ```python
-# tests_new/performance/benchmarks/test_parsing_speed.py
+# tests/performance/benchmarks/test_parsing_speed.py
 class TestParsingPerformance(BenchmarkTest):
     """Test parsing performance"""
     

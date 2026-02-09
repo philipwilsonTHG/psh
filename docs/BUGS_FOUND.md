@@ -40,7 +40,7 @@ This document lists bugs discovered during the test migration effort.
 - `eval "echo \$HOME"` expands to `/Users/username` (correct)
 - `eval 'echo \$HOME'` prints literal `$HOME` (single quotes)
 
-**Test**: Fixed in `tests_new/unit/builtins/test_misc_builtins.py::test_eval_quoted_special_chars`
+**Test**: Fixed in `tests/unit/builtins/test_misc_builtins.py::test_eval_quoted_special_chars`
 
 ### 5. Output Capture Issues
 
@@ -88,7 +88,7 @@ unset x; echo ${x:?undefined}
 - Scripts using parameter expansion now work correctly
 - Error handling fixed
 
-**Location**: `tests_new/conformance/posix/test_posix_compliance.py::TestPOSIXParameterExpansion`
+**Location**: `tests/conformance/posix/test_posix_compliance.py::TestPOSIXParameterExpansion`
 
 ### 7. Quote Removal and Escaping Issues [FIXED]
 
@@ -119,14 +119,14 @@ echo \$(echo test)
   1. The previous token is a WORD ending with an escaped dollar sign (odd number of backslashes before `$`)
   2. The current token is LPAREN
 - When this pattern is detected, parser raises a syntax error matching bash behavior
-- Added comprehensive test coverage in `tests_new/unit/parser/test_backslash_cmd_sub.py`
+- Added comprehensive test coverage in `tests/unit/parser/test_backslash_cmd_sub.py`
 
 **Impact**:
 - PSH now correctly rejects `\$(echo test)` as a syntax error
 - Bash conformance improved
 - Normal command substitution still works correctly
 
-**Location**: `tests_new/unit/parser/test_backslash_cmd_sub.py`
+**Location**: `tests/unit/parser/test_backslash_cmd_sub.py`
 
 ### 8. Special Parameter Process ID Differences [LOW]
 
@@ -145,7 +145,7 @@ echo $$
 
 **Resolution**: This is expected behavior - both shells correctly return their own PID. Test framework should handle this as a documented difference.
 
-**Location**: `tests_new/conformance/posix/test_posix_compliance.py::TestPOSIXShellParameters`
+**Location**: `tests/conformance/posix/test_posix_compliance.py::TestPOSIXShellParameters`
 
 ### 9. Bash Array Declaration Detection [TEST ISSUE]
 
@@ -164,7 +164,7 @@ declare -a array
 
 **Resolution**: Update test expectations - this shows PSH has better bash compatibility than initially expected.
 
-**Location**: `tests_new/conformance/bash/test_bash_compatibility.py::TestDocumentedDifferences`
+**Location**: `tests/conformance/bash/test_bash_compatibility.py::TestDocumentedDifferences`
 
 ## Previously Fixed During Investigation
 
@@ -318,7 +318,7 @@ Uses `fcntl.fcntl(fd, fcntl.F_GETFD)` to check if file descriptor exists before 
 - POSIX/bash compliance restored
 - Exit code correctly set to 1 on invalid fd
 
-**Location**: `tests_new/integration/redirection/test_advanced_redirection.py::test_invalid_file_descriptor`
+**Location**: `tests/integration/redirection/test_advanced_redirection.py::test_invalid_file_descriptor`
 
 ### 15. Errexit Mode Doesn't Stop Execution on Redirection Failures [FIXED]
 
@@ -351,7 +351,7 @@ echo "test" > /nonexistent/file; echo "should not reach"
 - POSIX/bash compliance restored
 - Prevents unintended continuation after errors
 
-**Location**: `tests_new/integration/redirection/test_advanced_redirection.py::test_redirection_with_errexit`
+**Location**: `tests/integration/redirection/test_advanced_redirection.py::test_redirection_with_errexit`
 
 ### 16. Return Builtin Without Arguments [FIXED]
 
@@ -383,7 +383,7 @@ echo "exit code: $?"
 - Full bash compatibility for return builtin
 - No regression in existing functionality
 
-**Location**: `tests_new/unit/builtins/test_function_builtins.py::TestReturnBuiltin::test_return_no_args`
+**Location**: `tests/unit/builtins/test_function_builtins.py::TestReturnBuiltin::test_return_no_args`
 
 ### 17. Test Builtin Missing Logical Operators [FIXED]
 
@@ -418,7 +418,7 @@ test -z "hello" -o -n "world"
 - Full POSIX compatibility for test builtin
 - No regression in existing test functionality
 
-**Location**: `tests_new/unit/builtins/test_test_builtin.py::TestLogicalOperators`
+**Location**: `tests/unit/builtins/test_test_builtin.py::TestLogicalOperators`
 
 ### 18. Function Precedence Over Builtins [FIXED]
 
@@ -452,7 +452,7 @@ command echo test
 - Full bash compatibility for function precedence
 - No regression in existing functionality
 
-**Location**: `tests_new/unit/builtins/test_command_builtin.py::test_command_bypass_function`
+**Location**: `tests/unit/builtins/test_command_builtin.py::test_command_bypass_function`
 
 **PSH Strengths Confirmed**:
 - Excellent core shell functionality
@@ -500,7 +500,7 @@ echo `unclosed
 - Improved error detection helps users catch typos
 - Better POSIX/bash compatibility for error handling
 
-**Location**: `tests_new/integration/parsing/test_error_recovery.py` - 3 tests now pass
+**Location**: `tests/integration/parsing/test_error_recovery.py` - 3 tests now pass
 
 ## Feature Additions During Bug Fixing
 
@@ -579,7 +579,7 @@ esac
 
 **Location**: 
 - Code: `psh/lexer/recognizers/literal.py` - enhanced tokenization logic
-- Tests: `tests_new/unit/lexer/test_ansi_c_quoting.py` - 4 additional tests now pass
+- Tests: `tests/unit/lexer/test_ansi_c_quoting.py` - 4 additional tests now pass
 
 ### 22. Multi-line Command History Display Issue [FIXED]
 
@@ -637,4 +637,4 @@ function greet() {
 
 **Location**: 
 - Code: `psh/line_editor.py` - added conversion in `_history_up()` and `_history_down()`
-- Tests: `tests_new/unit/test_line_editor_multiline.py` and `tests_new/integration/test_multiline_history.py`
+- Tests: `tests/unit/test_line_editor_multiline.py` and `tests/integration/test_multiline_history.py`

@@ -81,7 +81,7 @@
 **Interactive Tests (11 tests)**:
 - 10 line editing tests in `test_line_editing.py` - Require PTY/raw terminal mode
 - 1 basic interactive test in `test_basic_interactive.py`
-- **Note**: Created comprehensive PTY_TESTING_GUIDE.md documenting testing limitations and alternatives
+- **Note**: Created comprehensive `docs/archive/test_migration/PTY_TESTING_GUIDE.md` documenting testing limitations and alternatives
 
 **Heredoc Tests (7 tests)**:
 - All in `test_heredoc.py` - Need architectural updates for proper input handling
