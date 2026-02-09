@@ -2,10 +2,26 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.132.0"
+__version__ = "0.133.0"
 
 # Version history
 VERSION_HISTORY = """
+0.133.0 (2026-02-09) - Parser Docs: Sub-Parser Contract, WordBuilder Cross-refs
+- Added "Sub-Parser Contract" section to parser CLAUDE.md documenting the implicit
+  convention all 8 sub-parsers follow: initialization, state access via
+  ContextBaseParser methods, token position property, context manager usage (with
+  table of which sub-parsers set which flags), consume_if preference, error creation.
+- Expanded WordBuilder documentation in parser CLAUDE.md with entry point
+  (CommandParser.parse_argument_as_word), three key operations (build_word_from_token,
+  build_composite_word, parse_expansion_token), and relationship to TokenStream.
+- Added WordBuilder cross-reference docstring to parse_argument_as_word() in
+  commands.py.
+- Updated context_factory.py description in support infrastructure table to reflect
+  v0.132.0 factory function conversion.
+- Marked recommendations 5 and 6 complete in parser code quality review — all 10
+  recommendations from the original review are now done.
+- Documentation-only changes; no behavioral code modifications.
+
 0.132.0 (2026-02-09) - Parser Quality: Factory Functions, Dead Code Removal
 - Converted ParserContextFactory (9 static methods), ParserFactory (4 static
   methods), and ConfigurationValidator (2 static methods) from static-method-only
