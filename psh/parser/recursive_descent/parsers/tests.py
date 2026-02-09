@@ -180,11 +180,15 @@ class TestParser:
             result_parts.append(token.value)
 
         # Look ahead to see if we should concatenate more tokens
-        # Only concatenate if they're immediately adjacent (no operators)
+        # Only concatenate if they're immediately adjacent (no whitespace)
         while (self.parser.current < len(self.parser.tokens) and
                self.parser.match_any(TokenGroups.WORD_LIKE)):
 
             next_token = self.parser.peek()
+
+            # Only concatenate truly adjacent tokens (no whitespace between them)
+            if not getattr(next_token, 'adjacent_to_previous', False):
+                break
 
             # Stop if next token is a binary test operator
             if (next_token.type == TokenType.WORD and
