@@ -452,10 +452,16 @@ class ControlStructureParser:
 
         variable = self.parser.expect(TokenType.WORD).value
         self.parser.skip_newlines()
-        self.parser.expect(TokenType.IN)
-        self.parser.skip_newlines()
 
-        items, quote_types = self._parse_for_iterable()
+        if self.parser.match(TokenType.IN):
+            self.parser.advance()
+            self.parser.skip_newlines()
+            items, quote_types = self._parse_for_iterable()
+        else:
+            # No explicit list - default to positional parameters ("$@")
+            items = ['$@']
+            quote_types = ['"']
+
         self.parser.skip_separators()
         self.parser.expect(TokenType.DO)
         self.parser.skip_newlines()
