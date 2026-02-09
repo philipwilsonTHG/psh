@@ -2,10 +2,16 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.138.0"
+__version__ = "0.139.0"
 
 # Version history
 VERSION_HISTORY = """
+0.139.0 (2026-02-09) - Fix Redirect-Only Command Execution
+- Fixed redirect-only commands (e.g., >file) not creating/truncating the target
+  file. CommandExecutor.execute() returned early when no command args remained,
+  skipping redirect application entirely. Now applies redirections before
+  returning, matching POSIX/bash behavior.
+
 0.138.0 (2026-02-09) - Fix 7 Parser Issues from Implementation Review
 - Fixed non-terminating loop in case parsing when encountering LPAREN token
   (bash's optional (pattern) syntax). Added no-progress guard to prevent
