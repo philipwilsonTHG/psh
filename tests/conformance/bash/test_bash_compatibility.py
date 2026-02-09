@@ -412,6 +412,16 @@ class TestBashMiscellaneous(ConformanceTest):
         result = self.check_behavior('export VAR=value; env | grep VAR')
         # Should appear in environment
 
+    def test_env_option_compatibility(self):
+        """Test env option compatibility for ignore/unset behavior."""
+        result = self.check_behavior('env -i FOO=bar /usr/bin/env | /usr/bin/grep "^FOO=bar$"')
+        assert 'FOO=bar' in result.psh_result.stdout
+        assert 'FOO=bar' in result.bash_result.stdout
+
+        result = self.check_behavior('env -u HOME /usr/bin/env | /usr/bin/grep "^HOME=" || echo nohome')
+        assert 'nohome' in result.psh_result.stdout
+        assert 'nohome' in result.bash_result.stdout
+
     def test_readonly_functionality(self):
         """Test readonly functionality."""
         # Test that readonly variables can be created and accessed

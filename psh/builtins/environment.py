@@ -4,7 +4,7 @@ import io
 import os
 import shlex
 import sys
-from typing import TYPE_CHECKING, Dict, List, Tuple
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
 from ..core.exceptions import ReadonlyVariableError
 from .base import Builtin
@@ -31,24 +31,23 @@ class EnvBuiltin(Builtin):
             self._print_environment(shell.env, shell)
             return 0
 
-        # Parse leading NAME=VALUE assignments.
-        assignments: Dict[str, str] = {}
-        idx = 1
-        while idx < len(args) and self._is_env_assignment(args[idx]):
-            key, value = args[idx].split('=', 1)
-            assignments[key] = value
-            idx += 1
+        parsed = self._parse_invocation(args[1:], shell)
+        if parsed is None:
+            return 1
+        clear_env, unset_names, assignments, command_args = parsed
+
+        env_map = {} if clear_env else shell.env.copy()
+        for name in unset_names:
+            env_map.pop(name, None)
+        env_map.update(assignments)
 
         # No command: print environment with temporary overrides.
-        if idx >= len(args):
-            env_map = shell.env.copy()
-            env_map.update(assignments)
+        if not command_args:
             self._print_environment(env_map, shell)
             return 0
 
         # Command mode: run in isolated child shell so command-side effects
         # (e.g., export/unset/cd builtins) do not leak into parent shell state.
-        command_args = args[idx:]
         command_text = " ".join(shlex.quote(arg) for arg in command_args)
 
         from ..core.variables import VarAttributes
@@ -60,6 +59,10 @@ class EnvBuiltin(Builtin):
         child_shell.stderr = shell.stderr if hasattr(shell, 'stderr') else sys.stderr
         child_shell.stdin = shell.stdin if hasattr(shell, 'stdin') else sys.stdin
 
+        self._configure_child_export_attributes(child_shell, clear_env, unset_names)
+        child_shell.env.clear()
+        child_shell.env.update(env_map)
+
         # Apply env overrides to child's exported environment only.
         for key, value in assignments.items():
             child_shell.state.scope_manager.set_variable(
@@ -67,12 +70,69 @@ class EnvBuiltin(Builtin):
             )
             child_shell.env[key] = value
 
-        child_shell.state.scope_manager.sync_exports_to_environment(child_shell.env)
         fd_backups = self._bind_process_fds_to_streams(child_shell)
         try:
             return child_shell.run_command(command_text, add_to_history=False)
         finally:
             self._restore_process_fds(fd_backups)
+
+    def _parse_invocation(
+        self, argv: List[str], shell: 'Shell'
+    ) -> Optional[Tuple[bool, List[str], Dict[str, str], List[str]]]:
+        """Parse env options, assignments, and command arguments."""
+        clear_env = False
+        unset_names: List[str] = []
+        assignments: Dict[str, str] = {}
+        idx = 0
+
+        # Parse leading options.
+        while idx < len(argv):
+            arg = argv[idx]
+            if arg == '--':
+                idx += 1
+                break
+            if arg in ('-', '-i'):
+                clear_env = True
+                idx += 1
+                continue
+            if arg == '-u':
+                if idx + 1 >= len(argv):
+                    self.error("option requires an argument -- 'u'", shell)
+                    return None
+                unset_names.append(argv[idx + 1])
+                idx += 2
+                continue
+            if arg.startswith('-u') and len(arg) > 2:
+                unset_names.append(arg[2:])
+                idx += 1
+                continue
+            if arg.startswith('-'):
+                self.error(f"invalid option: {arg}", shell)
+                return None
+            break
+
+        # Parse leading NAME=VALUE assignments after options.
+        while idx < len(argv) and self._is_env_assignment(argv[idx]):
+            key, value = argv[idx].split('=', 1)
+            assignments[key] = value
+            idx += 1
+
+        return clear_env, unset_names, assignments, argv[idx:]
+
+    def _configure_child_export_attributes(
+        self, shell: 'Shell', clear_env: bool, unset_names: List[str]
+    ) -> None:
+        """Prevent child export sync from reintroducing env entries removed by env options."""
+        from ..core.variables import VarAttributes
+
+        scope_manager = shell.state.scope_manager
+        if clear_env:
+            for var in scope_manager.all_variables_with_attributes():
+                if var.is_exported:
+                    scope_manager.remove_attribute(var.name, VarAttributes.EXPORT)
+
+        for name in unset_names:
+            scope_manager.remove_attribute(name, VarAttributes.EXPORT)
 
     def _is_env_assignment(self, arg: str) -> bool:
         """Check whether an argument is an env assignment token."""
@@ -124,10 +184,12 @@ class EnvBuiltin(Builtin):
 
     @property
     def help(self) -> str:
-        return """env: env [name=value ...] [command [args ...]]
+        return """env: env [OPTION]... [-] [name=value ...] [command [args ...]]
     
     Display environment variables or run a command with modified environment.
     With no arguments, print all environment variables.
+    With -i (or -), start with an empty environment.
+    With -u NAME, remove NAME from the environment for this invocation.
     With name=value pairs and no command, print the modified environment.
     With a command, run it with temporary environment overrides."""
 

@@ -194,6 +194,76 @@ class TestEnvBuiltin:
         assert result == 0
         assert check_path.read_text().strip() == "unset"
 
+    def test_env_ignore_environment_without_command(self, shell, temp_dir):
+        """env -i should print an empty environment when no command is provided."""
+        output_path = Path(temp_dir) / "env_ignore_print.txt"
+
+        result = shell.run_command(f'env -i > "{output_path}"')
+        assert result == 0
+        assert output_path.read_text().strip() == ""
+
+    def test_env_ignore_environment_with_assignment_and_command(self, shell, temp_dir):
+        """env -i NAME=value command should pass only explicit variables."""
+        output_path = Path(temp_dir) / "env_ignore_command.txt"
+
+        result = shell.run_command(f'env -i ONLY_VAR=1 /usr/bin/env > "{output_path}"')
+        assert result == 0
+
+        lines = [line.strip() for line in output_path.read_text().splitlines() if line.strip()]
+        assert "ONLY_VAR=1" in lines
+        assert not any(line.startswith("HOME=") for line in lines)
+        assert not any(line.startswith("PATH=") for line in lines)
+
+    def test_env_unset_option_for_command_scope(self, shell, temp_dir):
+        """env -u NAME command should hide NAME only for that command."""
+        output_path = Path(temp_dir) / "env_unset_command.txt"
+        check_path = Path(temp_dir) / "env_unset_parent_check.txt"
+
+        result = shell.run_command('export TEMP_UNSET_VAR=present')
+        assert result == 0
+
+        result = shell.run_command(f'env -u TEMP_UNSET_VAR /usr/bin/env > "{output_path}"')
+        assert result == 0
+        output = output_path.read_text()
+        assert "TEMP_UNSET_VAR=present" not in output
+
+        result = shell.run_command(f'echo "${{TEMP_UNSET_VAR:-missing}}" > "{check_path}"')
+        assert result == 0
+        assert check_path.read_text().strip() == "present"
+
+    def test_env_unset_option_without_command_prints_modified_environment(self, shell, temp_dir):
+        """env -u NAME should omit NAME from printed environment only."""
+        output_path = Path(temp_dir) / "env_unset_print.txt"
+        check_path = Path(temp_dir) / "env_unset_print_parent_check.txt"
+
+        result = shell.run_command('export TEMP_UNSET_PRINT=show')
+        assert result == 0
+
+        result = shell.run_command(f'env -u TEMP_UNSET_PRINT > "{output_path}"')
+        assert result == 0
+        output = output_path.read_text()
+        assert "TEMP_UNSET_PRINT=show" not in output
+
+        result = shell.run_command(f'echo "${{TEMP_UNSET_PRINT:-missing}}" > "{check_path}"')
+        assert result == 0
+        assert check_path.read_text().strip() == "show"
+
+    def test_env_unset_missing_argument_errors(self, shell, temp_dir):
+        """env -u without a variable name should fail with an error."""
+        error_path = Path(temp_dir) / "env_unset_error.txt"
+
+        result = shell.run_command(f'env -u 2> "{error_path}"')
+        assert result == 1
+        assert "requires an argument" in error_path.read_text()
+
+    def test_env_unknown_option_errors(self, shell, temp_dir):
+        """Unknown env options should return an error."""
+        error_path = Path(temp_dir) / "env_option_error.txt"
+
+        result = shell.run_command(f'env -z 2> "{error_path}"')
+        assert result == 1
+        assert "invalid option" in error_path.read_text()
+
 
 @pytest.fixture
 def clean_env():

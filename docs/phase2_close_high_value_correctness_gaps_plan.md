@@ -116,13 +116,22 @@ Reduce real shell-semantics risk (not just test noise) while keeping code educat
   - Added no-command override behavior: `env NAME=value` prints modified environment without mutating parent state.
   - Isolated command execution in a child shell so builtin side effects do not leak.
   - Added fd-alignment for nested external commands so outer redirections (e.g. `env X=1 /usr/bin/env > out`) are honored.
+  - Added follow-up option compatibility support:
+    - `-i` / `-` (ignore inherited environment),
+    - `-u NAME` and `-uNAME` (unset selected variables),
+    - `--` option terminator.
+  - Hardened child-shell export handling so `-i`/`-u` are preserved even when nested builtins run environment sync.
   - Added regression coverage in `tests/unit/builtins/test_env_builtin.py` for:
     - command-scoped overrides,
     - no-command override printing,
     - non-leaking builtin side effects,
     - command-not-found non-leakage,
-    - external-command redirection behavior.
-  - Verification: `python -m pytest -q tests/unit/builtins/test_env_builtin.py` -> `12 passed`.
+    - external-command redirection behavior,
+    - `-i` and `-u` behavior and option error paths.
+  - Added bash-compatibility coverage in `tests/conformance/bash/test_bash_compatibility.py` for `env -i` and `env -u`.
+  - Verification:
+    - `python -m pytest -q tests/unit/builtins/test_env_builtin.py` -> `18 passed`
+    - `python -m pytest -q tests/conformance/bash/test_bash_compatibility.py::TestBashMiscellaneous::test_env_option_compatibility` -> `1 passed`
 
 - Workstream B3:
   - Replaced naive whitespace split parser in `psh/builtins/function_support.py` for associative array initialization.
