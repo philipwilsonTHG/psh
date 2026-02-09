@@ -264,36 +264,31 @@ class ParserContext:
 
     def _enhance_error_context(self, error_context, token):
         """Enhance error context with smart suggestions and context tokens."""
-        try:
-            # Add context tokens (3 before and after current position)
-            context_tokens = []
+        # Add context tokens (3 before and after current position)
+        context_tokens = []
 
-            # Preceding tokens
-            for i in range(max(0, self.current - 3), self.current):
-                if i < len(self.tokens):
-                    context_tokens.append(self.tokens[i].value or str(self.tokens[i].type))
-
-            # Following tokens
-            for i in range(self.current + 1, min(len(self.tokens), self.current + 4)):
+        # Preceding tokens
+        for i in range(max(0, self.current - 3), self.current):
+            if i < len(self.tokens):
                 context_tokens.append(self.tokens[i].value or str(self.tokens[i].type))
 
-            error_context.context_tokens = context_tokens
+        # Following tokens
+        for i in range(self.current + 1, min(len(self.tokens), self.current + 4)):
+            context_tokens.append(self.tokens[i].value or str(self.tokens[i].type))
 
-            # Add contextual suggestions based on message
-            if "Expected TokenType.THEN" in error_context.message:
-                error_context.suggestions.append("Add ';' before 'then' keyword")
-            elif "Expected TokenType.DO" in error_context.message:
-                error_context.suggestions.append("Add ';' before 'do' keyword")
-            elif "Expected TokenType.RPAREN" in error_context.message:
-                error_context.suggestions.append("Add ')' to close parentheses")
-            elif "Expected TokenType.RBRACE" in error_context.message:
-                error_context.suggestions.append("Add '}' to close brace group")
-            elif "Expected TokenType.FI" in error_context.message:
-                error_context.suggestions.append("Add 'fi' to close if statement")
+        error_context.context_tokens = context_tokens
 
-        except ImportError:
-            # If errors module is not available, just add basic context
-            pass
+        # Add contextual suggestions based on message
+        if "Expected TokenType.THEN" in error_context.message:
+            error_context.suggestions.append("Add ';' before 'then' keyword")
+        elif "Expected TokenType.DO" in error_context.message:
+            error_context.suggestions.append("Add ';' before 'do' keyword")
+        elif "Expected TokenType.RPAREN" in error_context.message:
+            error_context.suggestions.append("Add ')' to close parentheses")
+        elif "Expected TokenType.RBRACE" in error_context.message:
+            error_context.suggestions.append("Add '}' to close brace group")
+        elif "Expected TokenType.FI" in error_context.message:
+            error_context.suggestions.append("Add 'fi' to close if statement")
 
     # === Context Management ===
 
@@ -404,8 +399,9 @@ class ParserContext:
             self.errors.append(error)
 
         # Check if this is a fatal error
+        from .helpers import ErrorSeverity
         if (hasattr(error.error_context, 'severity') and
-            error.error_context.severity == 'fatal'):
+            error.error_context.severity == ErrorSeverity.FATAL):
             self.fatal_error = error
 
     def can_continue_parsing(self) -> bool:

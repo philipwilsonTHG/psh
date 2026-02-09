@@ -9,7 +9,7 @@ context-aware parsing, semantic analysis, and enhanced error recovery.
 from typing import Optional
 
 from .config import ErrorHandlingMode, ParserConfig, ParsingMode
-from .recursive_descent.base_context import BaseParser, ContextBaseParser
+from .recursive_descent.base_context import ContextBaseParser
 from .recursive_descent.context import HeredocInfo, ParserContext, ParserProfiler
 from .recursive_descent.helpers import ErrorContext, ParseError, TokenGroups
 
@@ -22,7 +22,7 @@ from .recursive_descent.support.utils import parse_with_heredocs as utils_parse_
 # Public API
 __all__ = [
     # Main API
-    'parse', 'parse_with_heredocs', 'Parser', 'ParseError', 'ErrorContext', 'TokenGroups', 'BaseParser',
+    'parse', 'parse_with_heredocs', 'Parser', 'ParseError', 'ErrorContext', 'TokenGroups',
     'ContextBaseParser', 'ParserContext', 'ParserContextFactory',
     'ParserProfiler', 'HeredocInfo',
     'ParserConfig', 'ParsingMode', 'ErrorHandlingMode', 'ParserFactory', 'ConfigurationValidator',

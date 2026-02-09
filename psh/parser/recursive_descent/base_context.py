@@ -1,7 +1,7 @@
 """Base parser class using centralized ParserContext."""
 
 import logging
-from typing import List, Optional, Set
+from typing import Optional, Set
 
 from ...token_types import Token, TokenType
 from .context import ParserContext
@@ -198,24 +198,6 @@ class ContextBaseParser:
         else:
             return f"position {token.position}"
 
-    # === Rule Management with Context ===
-
-    def parse_with_rule(self, rule_name: str, parse_func, *args, **kwargs):
-        """Execute parsing function with rule tracking."""
-        self.enter_rule(rule_name)
-        try:
-            return parse_func(*args, **kwargs)
-        finally:
-            self.exit_rule(rule_name)
-
-    def parse_scoped(self, scope: str, parse_func, *args, **kwargs):
-        """Execute parsing function with scope tracking."""
-        self.enter_scope(scope)
-        try:
-            return parse_func(*args, **kwargs)
-        finally:
-            self.exit_scope()
-
     # === Compatibility Methods ===
 
     def _token_type_to_string(self, token_type: TokenType) -> str:
@@ -232,34 +214,3 @@ class ContextBaseParser:
         """Generate profiling report if enabled."""
         return self.ctx.generate_profiling_report()
 
-
-# Compatibility adapter for existing code
-class BaseParser(ContextBaseParser):
-    """Compatibility adapter for existing BaseParser users.
-    
-    This adapter allows existing code to work with the new context-based
-    architecture while providing a migration path.
-    """
-
-    def __init__(self, tokens: List[Token]):
-        # Create a default context for backward compatibility
-        from .support.context_factory import create_context
-        ctx = create_context(tokens)
-        super().__init__(ctx)
-
-        # Expose tokens and current for backward compatibility
-        self.tokens = self.ctx.tokens
-
-    @property
-    def current(self) -> int:
-        """Backward compatibility property."""
-        return self.ctx.current
-
-    @current.setter
-    def current(self, value: int):
-        """Backward compatibility property setter."""
-        self.ctx.current = value
-
-    def peek_ahead(self, n: int = 1) -> Optional[Token]:
-        """Backward compatibility method."""
-        return self.peek(n) if not self.at_end() else None

@@ -1,9 +1,18 @@
 """Helper classes for the parser module."""
 
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import List, Optional, Set
 
 from ...token_types import Token, TokenType
+
+
+class ErrorSeverity(Enum):
+    """Severity levels for parse errors."""
+    INFO = "info"
+    WARNING = "warning"
+    ERROR = "error"
+    FATAL = "fatal"
 
 
 class TokenGroups:
@@ -82,7 +91,7 @@ class ErrorContext:
     # Enhanced error information
     suggestions: List[str] = field(default_factory=list)
     error_code: str = ""
-    severity: str = "error"  # "info", "warning", "error", "fatal"
+    severity: ErrorSeverity = ErrorSeverity.ERROR
     related_errors: List['ErrorContext'] = field(default_factory=list)
     context_tokens: List[str] = field(default_factory=list)  # Surrounding tokens for context
 

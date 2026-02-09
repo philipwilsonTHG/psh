@@ -201,7 +201,7 @@ class TestErrorCollectionIntegration:
 
     def test_fatal_error_stops_parsing(self):
         """Test that fatal errors stop error collection."""
-        from psh.parser.recursive_descent.helpers import ErrorContext
+        from psh.parser.recursive_descent.helpers import ErrorContext, ErrorSeverity
         from psh.token_types import Token
 
         tokens = tokenize("echo hello")
@@ -209,7 +209,7 @@ class TestErrorCollectionIntegration:
 
         # Simulate a fatal error
         token = Token(TokenType.WORD, "test", 0)
-        context = ErrorContext(token=token, message="Fatal error", position=0, severity="fatal")
+        context = ErrorContext(token=token, message="Fatal error", position=0, severity=ErrorSeverity.FATAL)
         error = ParseError(context)
 
         parser.ctx.add_error(error)
