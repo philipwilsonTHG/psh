@@ -352,8 +352,8 @@ class TestParserIntegration:
         ]
         assert parser.can_parse(valid_tokens) is True
         
-        # These tokens are actually valid (just commands, not an if statement)
-        # since keywords aren't recognized from WORD tokens
+        # Incomplete if statement: keywords are normalized, so this is
+        # correctly detected as an incomplete if (missing fi)
         tokens_to_check = [
             make_token(TokenType.WORD, "if"),
             make_token(TokenType.WORD, "true"),
@@ -361,8 +361,7 @@ class TestParserIntegration:
             make_token(TokenType.WORD, "then"),
             make_token(TokenType.WORD, "echo")
         ]
-        # This will parse as valid commands, not as an incomplete if statement
-        assert parser.can_parse(tokens_to_check) is True
+        assert parser.can_parse(tokens_to_check) is False
     
     def test_explain_parse(self):
         """Test parser explain method."""

@@ -151,25 +151,38 @@ class ParserCombinatorShellParser:
         # Build top-level parser (statement list)
         self.top_level = self.commands.statement_list
 
-    def parse(self, tokens: List[Token]) -> Union[TopLevel, CommandList]:
-        """Parse a list of tokens into an AST.
-        
-        Args:
-            tokens: List of tokens from the lexer
-            
+    def _prepare_tokens(self, tokens: List[Token]) -> Tuple[List[Token], int]:
+        """Normalize keywords and skip leading whitespace.
+
         Returns:
-            The root AST node (either TopLevel or CommandList)
-            
-        Raises:
-            ParseError: If parsing fails
+            (normalized_tokens, start_pos).  start_pos == len(tokens)
+            when input is empty/whitespace-only.
         """
         normalizer = KeywordNormalizer()
         tokens = normalizer.normalize(list(tokens))
-
-        # Skip leading whitespace/newlines
         start_pos = 0
         while start_pos < len(tokens) and tokens[start_pos].type.name in ['WHITESPACE', 'NEWLINE']:
             start_pos += 1
+        return tokens, start_pos
+
+    def _apply_heredocs(self, ast):
+        """Populate heredoc content in AST if available."""
+        if self.heredoc_contents:
+            self.heredoc_processor.populate_heredocs(ast, self.heredoc_contents)
+
+    def parse(self, tokens: List[Token]) -> Union[TopLevel, CommandList]:
+        """Parse a list of tokens into an AST.
+
+        Args:
+            tokens: List of tokens from the lexer
+
+        Returns:
+            The root AST node (either TopLevel or CommandList)
+
+        Raises:
+            ParseError: If parsing fails
+        """
+        tokens, start_pos = self._prepare_tokens(tokens)
 
         # Empty input
         if start_pos >= len(tokens):
@@ -206,9 +219,7 @@ class ParserCombinatorShellParser:
                 token=remaining_token,
             ))
 
-        # Populate heredoc content if needed
-        if self.heredoc_contents:
-            self.heredoc_processor.populate_heredocs(ast, self.heredoc_contents)
+        self._apply_heredocs(ast)
 
         # Wrap in TopLevel if needed
         if isinstance(ast, CommandList):
@@ -246,65 +257,40 @@ class ParserCombinatorShellParser:
 
     def parse_partial(self, tokens: List[Token]) -> Tuple[Optional[ASTNode], int]:
         """Parse as much as possible from the token stream.
-        
+
         Args:
             tokens: List of tokens from the lexer
-            
+
         Returns:
             Tuple of (AST node or None, position where parsing stopped)
         """
-        normalizer = KeywordNormalizer()
-        tokens = normalizer.normalize(list(tokens))
-
-        # Skip leading whitespace/newlines
-        start_pos = 0
-        while start_pos < len(tokens) and tokens[start_pos].type.name in ['WHITESPACE', 'NEWLINE']:
-            start_pos += 1
+        tokens, start_pos = self._prepare_tokens(tokens)
 
         # Empty input
         if start_pos >= len(tokens):
             return None, start_pos
 
-        # Try to parse
-        result = self.top_level.parse(tokens, start_pos)
-
-        if result.success:
-            # Populate heredocs if needed
-            if self.heredoc_contents:
-                self.heredoc_processor.populate_heredocs(result.value, self.heredoc_contents)
-            return result.value, result.position
-
-        # Try to parse a single statement
-        stmt_result = self.commands.statement.parse(tokens, start_pos)
-        if stmt_result.success:
-            if self.heredoc_contents:
-                self.heredoc_processor.populate_heredocs(stmt_result.value, self.heredoc_contents)
-            return stmt_result.value, stmt_result.position
-
-        # Try to parse a single command
-        cmd_result = self.command.parse(tokens, start_pos)
-        if cmd_result.success:
-            if self.heredoc_contents:
-                self.heredoc_processor.populate_heredocs(cmd_result.value, self.heredoc_contents)
-            return cmd_result.value, cmd_result.position
+        # Try parsers from broadest to narrowest
+        for parser in [self.top_level, self.commands.statement, self.command]:
+            result = parser.parse(tokens, start_pos)
+            if result.success:
+                self._apply_heredocs(result.value)
+                return result.value, result.position
 
         # Nothing could be parsed
         return None, start_pos
 
     def can_parse(self, tokens: List[Token]) -> bool:
         """Check if the tokens can be parsed without actually parsing.
-        
+
         Args:
             tokens: List of tokens to check
-            
+
         Returns:
             True if the tokens appear to be parseable
         """
         try:
-            # Skip leading whitespace/newlines
-            start_pos = 0
-            while start_pos < len(tokens) and tokens[start_pos].type.name in ['WHITESPACE', 'NEWLINE']:
-                start_pos += 1
+            tokens, start_pos = self._prepare_tokens(tokens)
 
             # Empty input is valid
             if start_pos >= len(tokens):
