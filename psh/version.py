@@ -2,10 +2,46 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.145.0"
+__version__ = "0.148.0"
 
 # Version history
 VERSION_HISTORY = """
+0.148.0 (2026-02-09) - Fix Medium Visitor Bugs from Review
+- Fixed linter generic_visit duplication (Medium): dir(node) returned methods
+  and properties, causing duplicate child traversal.  Replaced with
+  dataclasses.fields(node) to iterate only declared dataclass fields.
+- Fixed formatter C-style for loop $ injection (Medium): f-string used
+  ${init}, ${cond}, ${update} which injected spurious $ into output.
+  Changed to {init}, {cond}, {update} since ((...)) context doesn't use $.
+- Verified formatter array subscript expansion is not a bug: ${arr[0]} round-
+  trips correctly through parse → format via ParameterExpansion.__str__().
+- Fixed enhanced validator _has_parameter_default under-reporting (Medium):
+  the method checked for :- or := anywhere in the text string, which could
+  match substrings outside ${...} expansions.  Now only matches operators
+  inside ${...} delimiters with proper brace nesting.
+
+0.147.0 (2026-02-09) - Fix Pipeline Test-Mode Fallback
+- Fixed pipeline test-mode fallback creating anonymous objects with type() that
+  lacked required API (Medium).  Now constructs a real Pipeline AST node and
+  passes the real ExecutionContext instead of an empty anonymous object.
+- Added context parameter to _execute_mixed_pipeline_in_test_mode() so the
+  fallback path can use the caller's execution context.
+
+0.146.0 (2026-02-09) - Fix Critical/High Executor Bugs from Review
+- Fixed background brace-group double execution (Critical): { echo hi; } & was
+  executing the body unconditionally in the parent, then forking for a second
+  execution.  Now checks node.background before any execution, matching the
+  subshell pattern.
+- Fixed loop_depth leak on multi-level break/continue (High): context.loop_depth
+  decrement in execute_while(), execute_until(), and execute_for() was outside
+  the try/finally block, so a re-raised LoopBreak(level-1) or LoopContinue(level-1)
+  would skip the decrement.  Wrapped each loop method in an outer try/finally.
+- Fixed special-builtin prefix assignment persistence (High): POSIX requires that
+  variable assignments before special builtins (export, readonly, eval, exec, etc.)
+  persist after the command completes.  _execute_with_strategy() now returns
+  (exit_code, is_special) and _restore_command_assignments() is skipped for
+  special builtins.
+
 0.145.0 (2026-02-09) - Quote-Aware Scanners, Multiple $@ Support
 - Replaced 5 quote-unaware parenthesis/brace scanners in expansion with
   quote-aware helpers from psh/lexer/pure_helpers.py:

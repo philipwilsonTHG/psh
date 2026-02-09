@@ -244,7 +244,7 @@ class FormatterVisitor(ASTVisitor[str]):
         cond = node.condition_expr or ''
         update = node.update_expr or ''
 
-        lines.append(f"{self._indent()}for ((${init}; ${cond}; ${update}))")
+        lines.append(f"{self._indent()}for (({init}; {cond}; {update}))")
         lines.append(self._indent() + 'do')
 
         self._increase_indent()

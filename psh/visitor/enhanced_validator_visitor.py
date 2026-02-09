@@ -598,8 +598,31 @@ class EnhancedValidatorVisitor(ValidatorVisitor):
         return text if text else None
 
     def _has_parameter_default(self, text: str) -> bool:
-        """Check if a parameter expansion has a default value."""
-        return any(op in text for op in [':-', ':='])
+        """Check if a parameter expansion has a default value.
+
+        Only matches :- or := inside ${...} delimiters so that these
+        operator strings appearing in plain text don't cause false positives.
+        """
+        i = 0
+        while i < len(text):
+            start = text.find('${', i)
+            if start == -1:
+                break
+            # Find matching closing brace, respecting nesting
+            depth = 1
+            j = start + 2
+            while j < len(text) and depth > 0:
+                if text[j] == '{':
+                    depth += 1
+                elif text[j] == '}':
+                    depth -= 1
+                j += 1
+            if depth == 0:
+                content = text[start + 2:j - 1]
+                if ':-' in content or ':=' in content:
+                    return True
+            i = j
+        return False
 
     def _has_default_at_position(self, text: str, pos: int) -> bool:
         """Check if variable at position has a default value."""

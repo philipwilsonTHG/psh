@@ -92,6 +92,7 @@ class CommandExecutor:
 
             # Apply assignments for this command
             saved_vars = self._apply_command_assignments(assignments)
+            is_special = False
 
             try:
                 # Phase 2: Expand remaining arguments with assignments in effect
@@ -170,13 +171,15 @@ class CommandExecutor:
                     return self._handle_exec_builtin(node, expanded_args, assignments)
 
                 # Execute the command using appropriate strategy
-                return self._execute_with_strategy(
+                exit_code, is_special = self._execute_with_strategy(
                     cmd_name, cmd_args, node, context, bypass_aliases, bypass_functions
                 )
+                return exit_code
 
             finally:
-                # Restore variables (unless exported)
-                self._restore_command_assignments(saved_vars)
+                # POSIX: assignments before special builtins persist
+                if not is_special:
+                    self._restore_command_assignments(saved_vars)
 
         except Exception as e:
             # Import these here to avoid circular imports
@@ -458,8 +461,15 @@ class CommandExecutor:
 
     def _execute_with_strategy(self, cmd_name: str, args: List[str],
                               node: 'SimpleCommand', context: 'ExecutionContext',
-                              bypass_aliases: bool = False, bypass_functions: bool = False) -> int:
-        """Execute command using the appropriate strategy."""
+                              bypass_aliases: bool = False,
+                              bypass_functions: bool = False) -> Tuple[int, bool]:
+        """Execute command using the appropriate strategy.
+
+        Returns:
+            A tuple of (exit_code, is_special_builtin).  The second element
+            is True when the command was resolved to a SpecialBuiltinExecutionStrategy,
+            which signals the caller that POSIX prefix-assignment persistence applies.
+        """
         # Note: The 'command' builtin handles its own bypass logic internally
 
         # Create strategy list based on bypass requirements
@@ -481,21 +491,24 @@ class CommandExecutor:
         # Find the right strategy
         for strategy in strategies_to_use:
             if strategy.can_execute(cmd_name, self.shell):
+                is_special = isinstance(strategy, SpecialBuiltinExecutionStrategy)
                 # Check if this is a builtin that needs special redirection handling
                 if isinstance(strategy, (SpecialBuiltinExecutionStrategy, BuiltinExecutionStrategy)) and not context.in_pipeline:
-                    return self._execute_builtin_with_redirections(
+                    exit_code = self._execute_builtin_with_redirections(
                         cmd_name, args, node, context, strategy
                     )
+                    return exit_code, is_special
                 else:
                     # Apply normal redirections for other commands or builtins in pipelines
                     with self._apply_redirections(node.redirects):
-                        return strategy.execute(
+                        exit_code = strategy.execute(
                             cmd_name, args, self.shell, context,
                             node.redirects, node.background
                         )
+                        return exit_code, is_special
 
         # Should never reach here as ExternalExecutionStrategy handles everything
-        return 127
+        return 127, False
 
     def _execute_builtin_with_redirections(self, cmd_name: str, args: List[str],
                                           node: 'SimpleCommand', context: 'ExecutionContext',

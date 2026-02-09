@@ -353,10 +353,10 @@ class PipelineExecutor:
                 self._is_builtin_command(second_cmd_name)):
                 return self._execute_builtin_to_builtin_pipeline(first_cmd, second_cmd, visitor)
             else:
-                return self._execute_mixed_pipeline_in_test_mode(first_cmd, second_cmd, visitor)
+                return self._execute_mixed_pipeline_in_test_mode(first_cmd, second_cmd, context, visitor)
 
         # Fallback to mixed mode
-        return self._execute_mixed_pipeline_in_test_mode(first_cmd, second_cmd, visitor)
+        return self._execute_mixed_pipeline_in_test_mode(first_cmd, second_cmd, context, visitor)
 
     def _execute_builtin_to_builtin_pipeline(self, first_cmd, second_cmd, visitor):
         """Execute builtin-to-builtin pipeline using StringIO."""
@@ -402,7 +402,7 @@ class PipelineExecutor:
             self.shell.stdout = original_stdout
             self.shell.stdin = original_stdin
 
-    def _execute_mixed_pipeline_in_test_mode(self, first_cmd, second_cmd, visitor):
+    def _execute_mixed_pipeline_in_test_mode(self, first_cmd, second_cmd, context, visitor):
         """Execute pipeline with potential external commands using subprocess."""
         import subprocess
 
@@ -457,11 +457,14 @@ class PipelineExecutor:
                 # If command not found, try executing as builtins
                 return self._execute_builtin_to_builtin_pipeline(first_cmd, second_cmd, visitor)
             except Exception:
-                # Fallback to original forking method
+                # Fallback to original forking method with a real Pipeline node
+                from ..ast_nodes import Pipeline
+                fallback_node = Pipeline(
+                    commands=[first_cmd, second_cmd],
+                    negated=False,
+                )
                 return self._execute_pipeline_with_forking(
-                    type('Pipeline', (), {'commands': [first_cmd, second_cmd], 'negated': False})(),
-                    type('ExecutionContext', (), {})(),
-                    visitor
+                    fallback_node, context, visitor
                 )
 
         # Fallback for non-SimpleCommand cases

@@ -407,12 +407,11 @@ class LinterVisitor(ASTVisitor[None]):
 
     def generic_visit(self, node: ASTNode) -> None:
         """Visit all child nodes by default."""
-        # Visit all attributes that are AST nodes or lists of AST nodes
-        for attr_name in dir(node):
-            if attr_name.startswith('_'):
-                continue
-
-            attr = getattr(node, attr_name, None)
+        import dataclasses
+        if not dataclasses.is_dataclass(node):
+            return
+        for f in dataclasses.fields(node):
+            attr = getattr(node, f.name, None)
             if isinstance(attr, ASTNode):
                 self.visit(attr)
             elif isinstance(attr, list):

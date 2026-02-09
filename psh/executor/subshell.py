@@ -93,18 +93,14 @@ class SubshellExecutor:
         context.in_pipeline = False
 
         try:
-            # Apply redirections
+            if node.background:
+                # Background brace groups need to fork; do NOT execute
+                # in the parent first (that would cause double execution).
+                return self._execute_background_brace_group(node, visitor)
+
+            # Foreground: apply redirections and execute in current environment
             with self._apply_redirections(node.redirects):
-                # Execute statements in current environment
-                exit_code = visitor.visit(node.statements)
-
-                # Handle background execution
-                if node.background:
-                    # For background brace groups, we need to fork
-                    # Only the execution needs to be backgrounded
-                    return self._execute_background_brace_group(node, visitor)
-
-                return exit_code
+                return visitor.visit(node.statements)
         finally:
             context.in_pipeline = old_pipeline
 

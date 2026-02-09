@@ -122,35 +122,35 @@ class ControlFlowExecutor:
         """
         exit_status = 0
         context.loop_depth += 1
+        try:
+            # Apply redirections for entire loop
+            with self._apply_redirections(node.redirects):
+                # Temporarily disable pipeline context for commands inside control structure
+                old_pipeline = context.in_pipeline
+                context.in_pipeline = False
+                try:
+                    while True:
+                        # Evaluate condition
+                        condition_status = visitor.visit(node.condition)
+                        if condition_status != 0:
+                            break
 
-        # Apply redirections for entire loop
-        with self._apply_redirections(node.redirects):
-            # Temporarily disable pipeline context for commands inside control structure
-            old_pipeline = context.in_pipeline
-            context.in_pipeline = False
-            try:
-                while True:
-                    # Evaluate condition
-                    condition_status = visitor.visit(node.condition)
-                    if condition_status != 0:
-                        break
+                        # Execute body
+                        try:
+                            exit_status = visitor.visit(node.body)
+                        except LoopContinue as lc:
+                            if lc.level > 1:
+                                raise LoopContinue(lc.level - 1)
+                            continue
+                        except LoopBreak as lb:
+                            if lb.level > 1:
+                                raise LoopBreak(lb.level - 1)
+                            break
 
-                    # Execute body
-                    try:
-                        exit_status = visitor.visit(node.body)
-                    except LoopContinue as lc:
-                        if lc.level > 1:
-                            raise LoopContinue(lc.level - 1)
-                        continue
-                    except LoopBreak as lb:
-                        if lb.level > 1:
-                            raise LoopBreak(lb.level - 1)
-                        break
-
-            finally:
-                context.in_pipeline = old_pipeline
-
-        context.loop_depth -= 1
+                finally:
+                    context.in_pipeline = old_pipeline
+        finally:
+            context.loop_depth -= 1
         return exit_status
 
     def execute_until(self, node: 'UntilLoop', context: 'ExecutionContext',
@@ -158,29 +158,29 @@ class ControlFlowExecutor:
         """Execute until loop (runs until condition succeeds)."""
         exit_status = 0
         context.loop_depth += 1
-
-        with self._apply_redirections(node.redirects):
-            old_pipeline = context.in_pipeline
-            context.in_pipeline = False
-            try:
-                while True:
-                    condition_status = visitor.visit(node.condition)
-                    if condition_status == 0:
-                        break
-                    try:
-                        exit_status = visitor.visit(node.body)
-                    except LoopContinue as lc:
-                        if lc.level > 1:
-                            raise LoopContinue(lc.level - 1)
-                        continue
-                    except LoopBreak as lb:
-                        if lb.level > 1:
-                            raise LoopBreak(lb.level - 1)
-                        break
-            finally:
-                context.in_pipeline = old_pipeline
-
-        context.loop_depth -= 1
+        try:
+            with self._apply_redirections(node.redirects):
+                old_pipeline = context.in_pipeline
+                context.in_pipeline = False
+                try:
+                    while True:
+                        condition_status = visitor.visit(node.condition)
+                        if condition_status == 0:
+                            break
+                        try:
+                            exit_status = visitor.visit(node.body)
+                        except LoopContinue as lc:
+                            if lc.level > 1:
+                                raise LoopContinue(lc.level - 1)
+                            continue
+                        except LoopBreak as lb:
+                            if lb.level > 1:
+                                raise LoopBreak(lb.level - 1)
+                            break
+                finally:
+                    context.in_pipeline = old_pipeline
+        finally:
+            context.loop_depth -= 1
         return exit_status
 
     def execute_for(self, node: 'ForLoop', context: 'ExecutionContext',
@@ -198,40 +198,40 @@ class ControlFlowExecutor:
         """
         exit_status = 0
         context.loop_depth += 1
+        try:
+            # Expand items - handle all types of expansion, respecting quote types
+            expanded_items = self._expand_for_loop_items(node)
 
-        # Expand items - handle all types of expansion, respecting quote types
-        expanded_items = self._expand_for_loop_items(node)
+            # Apply redirections for entire loop
+            with self._apply_redirections(node.redirects):
+                # Temporarily disable pipeline context for commands inside control structure
+                old_pipeline = context.in_pipeline
+                context.in_pipeline = False
+                try:
+                    for item in expanded_items:
+                        # Set loop variable
+                        try:
+                            self.state.set_variable(node.variable, item)
+                        except ReadonlyVariableError:
+                            print(f"psh: {node.variable}: readonly variable", file=self.state.stderr)
+                            return 1
 
-        # Apply redirections for entire loop
-        with self._apply_redirections(node.redirects):
-            # Temporarily disable pipeline context for commands inside control structure
-            old_pipeline = context.in_pipeline
-            context.in_pipeline = False
-            try:
-                for item in expanded_items:
-                    # Set loop variable
-                    try:
-                        self.state.set_variable(node.variable, item)
-                    except ReadonlyVariableError:
-                        print(f"psh: {node.variable}: readonly variable", file=self.state.stderr)
-                        return 1
+                        # Execute body
+                        try:
+                            exit_status = visitor.visit(node.body)
+                        except LoopContinue as lc:
+                            if lc.level > 1:
+                                raise LoopContinue(lc.level - 1)
+                            continue
+                        except LoopBreak as lb:
+                            if lb.level > 1:
+                                raise LoopBreak(lb.level - 1)
+                            break
 
-                    # Execute body
-                    try:
-                        exit_status = visitor.visit(node.body)
-                    except LoopContinue as lc:
-                        if lc.level > 1:
-                            raise LoopContinue(lc.level - 1)
-                        continue
-                    except LoopBreak as lb:
-                        if lb.level > 1:
-                            raise LoopBreak(lb.level - 1)
-                        break
-
-            finally:
-                context.in_pipeline = old_pipeline
-
-        context.loop_depth -= 1
+                finally:
+                    context.in_pipeline = old_pipeline
+        finally:
+            context.loop_depth -= 1
         return exit_status
 
     def execute_c_style_for(self, node: 'CStyleForLoop', context: 'ExecutionContext',
