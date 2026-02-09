@@ -24,6 +24,7 @@ from ..ast_nodes import (
     WhileLoop,
 )
 from .base import ASTVisitor
+from .constants import DANGEROUS_COMMANDS, SENSITIVE_COMMANDS
 
 
 class SecurityIssue:
@@ -59,22 +60,10 @@ class SecurityVisitor(ASTVisitor[None]):
         self.function_stack = []
 
         # Dangerous commands that should be flagged
-        self.dangerous_commands = {
-            'eval': 'Dynamic code execution - high risk of injection',
-            'source': 'Loading external scripts - verify source is trusted',
-            '.': 'Loading external scripts - verify source is trusted',
-            'exec': 'Process replacement - ensure arguments are validated',
-        }
+        self.dangerous_commands = DANGEROUS_COMMANDS
 
         # Commands that need careful handling
-        self.sensitive_commands = {
-            'chmod': 'File permission changes',
-            'chown': 'File ownership changes',
-            'rm': 'File deletion',
-            'dd': 'Low-level disk operations',
-            'mkfs': 'Filesystem creation',
-            'fdisk': 'Disk partitioning',
-        }
+        self.sensitive_commands = SENSITIVE_COMMANDS
 
     def visit_SimpleCommand(self, node: SimpleCommand) -> None:
         """Analyze simple commands for security issues."""

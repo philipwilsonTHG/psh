@@ -2,10 +2,44 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.148.0"
+__version__ = "0.150.0"
 
 # Version history
 VERSION_HISTORY = """
+0.150.0 (2026-02-09) - Executor/Visitor Cleanup and Correctness
+- Deduplicated _expand_for_loop_items() and _expand_select_items() into single
+  _expand_loop_items() method in control_flow.py (identical implementations)
+- Deduplicated _apply_redirections() context manager: added empty-redirects guard
+  to IOManager.with_redirections() and deleted 4 identical copies from core.py,
+  command.py, control_flow.py, and subshell.py. Removed unused contextmanager
+  imports from 4 files.
+- Created psh/visitor/constants.py with shared DANGEROUS_COMMANDS, SENSITIVE_COMMANDS,
+  SHELL_BUILTINS, COMMON_COMMANDS, and COMMON_TYPOS dictionaries. Updated
+  enhanced_validator_visitor.py, linter_visitor.py, and security_visitor.py to
+  import from the shared module instead of defining inline duplicates.
+- Replaced regex-based IFS splitting in _word_split_and_glob() with POSIX-compliant
+  WordSplitter from psh/expansion/word_splitter.py, which correctly handles
+  whitespace vs non-whitespace IFS characters, backslash escapes, and empty fields.
+- Fixed FunctionExecutionStrategy and AliasExecutionStrategy creating fresh
+  ExecutorVisitor instances (losing accumulated visitor state). Threaded the
+  caller's visitor from ExecutorVisitor through CommandExecutor to strategies
+  via a visitor parameter on execute(). Falls back to creating a new visitor
+  when not provided (backward compatibility).
+
+0.149.0 (2026-02-09) - Dead Code Removal and Bare Exception Cleanup
+- Deleted 10 dead methods (~255 lines) from ExecutorVisitor in core.py:
+  _expand_arguments(), _extract_assignments(), _is_valid_assignment(),
+  _is_exported(), _evaluate_arithmetic(), _expand_assignment_value(),
+  _handle_exec_builtin(), _exec_with_command(), _exec_without_command(),
+  _find_command_in_path() — all superseded by CommandExecutor and other
+  specialized executors
+- Removed 4 dead imports from core.py: os, signal, List/Tuple from typing,
+  assignment_utils functions
+- Replaced 7 bare except: clauses with specific exception types across 4 files:
+  command.py (2x Exception), strategies.py (1x OSError),
+  process_launcher.py (1x Exception, 1x OSError),
+  subshell.py (2x Exception)
+
 0.148.0 (2026-02-09) - Fix Medium Visitor Bugs from Review
 - Fixed linter generic_visit duplication (Medium): dir(node) returned methods
   and properties, causing duplicate child traversal.  Replaced with

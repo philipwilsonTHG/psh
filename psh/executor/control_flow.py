@@ -15,7 +15,6 @@ import fnmatch
 import glob
 import re
 import sys
-from contextlib import contextmanager
 from typing import TYPE_CHECKING, List, Optional
 
 from ..arithmetic import evaluate_arithmetic
@@ -31,7 +30,6 @@ if TYPE_CHECKING:
         CStyleForLoop,
         ForLoop,
         IfConditional,
-        Redirect,
         SelectLoop,
         UntilLoop,
         WhileLoop,
@@ -55,19 +53,6 @@ class ControlFlowExecutor:
         self.expansion_manager = shell.expansion_manager
         self.io_manager = shell.io_manager
 
-    @contextmanager
-    def _apply_redirections(self, redirects: List['Redirect']):
-        """Context manager for applying and restoring redirections."""
-        if not redirects:
-            yield
-            return
-
-        saved_fds = self.io_manager.apply_redirections(redirects)
-        try:
-            yield
-        finally:
-            self.io_manager.restore_redirections(saved_fds)
-
     def execute_if(self, node: 'IfConditional', context: 'ExecutionContext',
                    visitor: 'ASTVisitor[int]') -> int:
         """
@@ -82,7 +67,7 @@ class ControlFlowExecutor:
             Exit status code
         """
         # Apply redirections to entire if statement
-        with self._apply_redirections(node.redirects):
+        with self.io_manager.with_redirections(node.redirects):
             # Temporarily disable pipeline context for commands inside control structure
             old_pipeline = context.in_pipeline
             context.in_pipeline = False
@@ -124,7 +109,7 @@ class ControlFlowExecutor:
         context.loop_depth += 1
         try:
             # Apply redirections for entire loop
-            with self._apply_redirections(node.redirects):
+            with self.io_manager.with_redirections(node.redirects):
                 # Temporarily disable pipeline context for commands inside control structure
                 old_pipeline = context.in_pipeline
                 context.in_pipeline = False
@@ -159,7 +144,7 @@ class ControlFlowExecutor:
         exit_status = 0
         context.loop_depth += 1
         try:
-            with self._apply_redirections(node.redirects):
+            with self.io_manager.with_redirections(node.redirects):
                 old_pipeline = context.in_pipeline
                 context.in_pipeline = False
                 try:
@@ -200,10 +185,10 @@ class ControlFlowExecutor:
         context.loop_depth += 1
         try:
             # Expand items - handle all types of expansion, respecting quote types
-            expanded_items = self._expand_for_loop_items(node)
+            expanded_items = self._expand_loop_items(node)
 
             # Apply redirections for entire loop
-            with self._apply_redirections(node.redirects):
+            with self.io_manager.with_redirections(node.redirects):
                 # Temporarily disable pipeline context for commands inside control structure
                 old_pipeline = context.in_pipeline
                 context.in_pipeline = False
@@ -260,7 +245,7 @@ class ControlFlowExecutor:
                 return 1
 
         # Apply redirections for entire loop
-        with self._apply_redirections(node.redirects):
+        with self.io_manager.with_redirections(node.redirects):
             try:
                 while True:
                     # Evaluate condition
@@ -318,7 +303,7 @@ class ControlFlowExecutor:
             expr = self.expansion_manager.expand_string_variables(expr)
 
         # Apply redirections
-        with self._apply_redirections(node.redirects):
+        with self.io_manager.with_redirections(node.redirects):
             # Temporarily disable pipeline context for commands inside control structure
             old_pipeline = context.in_pipeline
             context.in_pipeline = False
@@ -385,7 +370,7 @@ class ControlFlowExecutor:
         context.loop_depth += 1
 
         # Expand items - handle all types of expansion, respecting quote types
-        expanded_items = self._expand_select_items(node)
+        expanded_items = self._expand_loop_items(node)
 
         # Empty list - exit immediately
         if not expanded_items:
@@ -393,7 +378,7 @@ class ControlFlowExecutor:
             return 0
 
         # Apply redirections for entire loop
-        with self._apply_redirections(node.redirects):
+        with self.io_manager.with_redirections(node.redirects):
             try:
                 # Get PS3 prompt (default "#? " if not set)
                 ps3 = self.state.get_variable("PS3", "#? ")
@@ -501,27 +486,8 @@ class ControlFlowExecutor:
 
     # Helper methods
 
-    def _expand_for_loop_items(self, node: 'ForLoop') -> List[str]:
-        """Expand items for a for loop, handling all expansion types."""
-        expanded_items = []
-        quote_types = getattr(node, 'item_quote_types', [None] * len(node.items))
-
-        for i, item in enumerate(node.items):
-            quote_type = quote_types[i] if i < len(quote_types) else None
-
-            # Check if this is an array expansion
-            if '$' in item and self.expansion_manager.variable_expander.is_array_expansion(item):
-                # Expand array to list of items
-                array_items = self.expansion_manager.variable_expander.expand_array_to_list(item)
-                expanded_items.extend(array_items)
-            else:
-                # Perform full expansion on the item
-                expanded_items.extend(self._expand_single_item(item, quote_type))
-
-        return expanded_items
-
-    def _expand_select_items(self, node: 'SelectLoop') -> List[str]:
-        """Expand items for a select loop, handling all expansion types."""
+    def _expand_loop_items(self, node) -> List[str]:
+        """Expand items for a for or select loop, handling all expansion types."""
         expanded_items = []
         quote_types = getattr(node, 'item_quote_types', [None] * len(node.items))
 
@@ -590,26 +556,19 @@ class ControlFlowExecutor:
 
     def _word_split_and_glob(self, text: str) -> List[str]:
         """Perform word splitting and glob expansion on text."""
-        # Get IFS for field splitting
+        from ..expansion.word_splitter import WordSplitter
         ifs = self.state.get_variable('IFS', ' \t\n')
-        if ifs:
-            # Create regex pattern from IFS characters
-            ifs_pattern = '[' + re.escape(ifs) + ']+'
-            words = re.split(ifs_pattern, text.strip()) if text.strip() else []
-        else:
-            # No IFS means no field splitting
-            words = [text] if text else []
+        words = WordSplitter().split(text, ifs)
 
-        # Handle glob expansion on each word
+        # Glob expansion on each word
         result = []
         for word in words:
-            if word:  # Skip empty words
+            if word:
                 matches = glob.glob(word)
                 if matches:
                     result.extend(sorted(matches))
                 else:
                     result.append(word)
-
         return result
 
     def _match_case_pattern(self, string: str, pattern: str) -> bool:

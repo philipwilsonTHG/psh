@@ -5,11 +5,7 @@ This visitor provides a clean architecture for command execution while
 maintaining compatibility with the existing execution engine.
 """
 
-import os
-import signal
 import sys
-from contextlib import contextmanager
-from typing import List, Tuple
 
 from psh.visitor.base import ASTVisitor
 
@@ -44,7 +40,6 @@ from ..ast_nodes import (
     WhileLoop,
 )
 from ..builtins.function_support import FunctionReturn
-from ..core.assignment_utils import extract_assignments, is_exported, is_valid_assignment
 from ..core.exceptions import LoopBreak, LoopContinue
 from .array import ArrayOperationExecutor
 from .command import CommandExecutor
@@ -85,6 +80,7 @@ class ExecutorVisitor(ASTVisitor[int]):
 
         # Command executor - handles simple command execution
         self.command_executor = CommandExecutor(shell)
+        self.command_executor._visitor = self
 
         # Pipeline executor - handles pipeline execution
         self.pipeline_executor = PipelineExecutor(shell)
@@ -100,19 +96,6 @@ class ExecutorVisitor(ASTVisitor[int]):
 
         # Subshell executor - handles subshells and brace groups
         self.subshell_executor = SubshellExecutor(shell)
-
-    @contextmanager
-    def _apply_redirections(self, redirects):
-        """Context manager for applying and restoring redirections."""
-        if not redirects:
-            yield
-            return
-
-        saved_fds = self.io_manager.apply_redirections(redirects)
-        try:
-            yield
-        finally:
-            self.io_manager.restore_redirections(saved_fds)
 
     # Top-level execution
 
@@ -268,104 +251,6 @@ class ExecutorVisitor(ASTVisitor[int]):
         # Delegate to FunctionOperationExecutor
         return self.function_executor.execute_function_def(node)
 
-    # Helper methods
-
-    def _expand_arguments(self, node: SimpleCommand) -> List[str]:
-        """Expand all arguments in a command."""
-        # Use expansion manager's expand_arguments method
-        return self.expansion_manager.expand_arguments(node)
-
-    def _extract_assignments(self, args: List[str]) -> List[Tuple[str, str]]:
-        """Extract variable assignments from beginning of arguments."""
-        return extract_assignments(args)
-
-    def _is_valid_assignment(self, arg: str) -> bool:
-        """Check if argument is a valid variable assignment."""
-        return is_valid_assignment(arg)
-
-    def _is_exported(self, var_name: str) -> bool:
-        """Check if a variable is exported."""
-        return is_exported(var_name)
-
-
-    def _evaluate_arithmetic(self, expr: str) -> int:
-        """Evaluate arithmetic expression."""
-        # Use the shell's arithmetic evaluator
-        from ..arithmetic import evaluate_arithmetic
-        return evaluate_arithmetic(expr, self.shell)
-
-    def _expand_assignment_value(self, value: str) -> str:
-        """Expand a value used in variable assignment."""
-        # Handle all expansions in order, without word splitting
-
-        # 1. Tilde expansion (only at start)
-        if value.startswith('~'):
-            value = self.expansion_manager.expand_tilde(value)
-
-        # 2. Variable expansion (including ${var} forms)
-        if '$' in value:
-            # We need to handle command substitution separately from variable expansion
-            # to preserve the exact semantics
-            result = []
-            i = 0
-            while i < len(value):
-                if i < len(value) - 1 and value[i:i+2] == '$(':
-                    # Find matching )
-                    paren_count = 1
-                    j = i + 2
-                    while j < len(value) and paren_count > 0:
-                        if value[j] == '(':
-                            paren_count += 1
-                        elif value[j] == ')':
-                            paren_count -= 1
-                        j += 1
-                    if paren_count == 0:
-                        # Found complete command substitution
-                        cmd_sub = value[i:j]
-                        output = self.expansion_manager.execute_command_substitution(cmd_sub)
-                        result.append(output)
-                        i = j
-                        continue
-                elif value[i] == '`':
-                    # Find matching backtick
-                    j = i + 1
-                    while j < len(value) and value[j] != '`':
-                        j += 1
-                    if j < len(value):
-                        # Found complete backtick command substitution
-                        cmd_sub = value[i:j+1]
-                        output = self.expansion_manager.execute_command_substitution(cmd_sub)
-                        result.append(output)
-                        i = j + 1
-                        continue
-                elif i < len(value) - 2 and value[i:i+3] == '$((':
-                    # Arithmetic expansion
-                    # Find matching ))
-                    paren_count = 2
-                    j = i + 3
-                    while j < len(value) and paren_count > 0:
-                        if value[j] == '(':
-                            paren_count += 1
-                        elif value[j] == ')':
-                            paren_count -= 1
-                        j += 1
-                    if paren_count == 0:
-                        # Found complete arithmetic expression
-                        arith_expr = value[i:j]
-                        result.append(str(self.expansion_manager.execute_arithmetic_expansion(arith_expr)))
-                        i = j
-                        continue
-
-                result.append(value[i])
-                i += 1
-
-            value = ''.join(result)
-
-            # Now expand remaining variables
-            value = self.expansion_manager.expand_string_variables(value)
-
-        return value
-
     # Additional node type implementations
 
     def visit_ArithmeticEvaluation(self, node: ArithmeticEvaluation) -> int:
@@ -374,7 +259,7 @@ class ExecutorVisitor(ASTVisitor[int]):
 
         try:
             # Apply redirections if any
-            with self._apply_redirections(node.redirects):
+            with self.io_manager.with_redirections(node.redirects):
                 result = evaluate_arithmetic(node.expression, self.shell)
                 # Bash behavior: exit 0 if expression is true (non-zero)
                 # exit 1 if expression is false (zero)
@@ -410,120 +295,6 @@ class ExecutorVisitor(ASTVisitor[int]):
         """Execute array element assignment: arr[i]=value"""
         # Delegate to ArrayOperationExecutor
         return self.array_executor.execute_array_element_assignment(node)
-
-    # Exec builtin implementation
-
-    def _handle_exec_builtin(self, node: SimpleCommand, command_args: List[str], assignments: List[tuple]) -> int:
-        """Handle exec builtin with access to redirections."""
-        exec_args = command_args[1:]  # Remove 'exec' itself
-
-        # Handle xtrace option
-        if self.state.options.get('xtrace'):
-            ps4 = self.state.get_variable('PS4', '+ ')
-            trace_line = ps4 + ' '.join(command_args) + '\n'
-            self.state.stderr.write(trace_line)
-            self.state.stderr.flush()
-
-        # Apply environment variable assignments permanently for exec
-        for var, value in assignments:
-            expanded_value = self._expand_assignment_value(value)
-            self.state.set_variable(var, expanded_value)
-            # Also set in environment for exec
-            os.environ[var] = expanded_value
-
-        try:
-            if exec_args:
-                # Mode 1: exec with command - replace the shell process
-                return self._exec_with_command(node, exec_args)
-            else:
-                # Mode 2: exec without command - apply redirections permanently
-                return self._exec_without_command(node)
-
-        except OSError as e:
-            if e.errno == 2:  # No such file or directory
-                print(f"exec: {exec_args[0]}: command not found", file=sys.stderr)
-                return 127
-            elif e.errno == 13:  # Permission denied
-                print(f"exec: {exec_args[0]}: Permission denied", file=sys.stderr)
-                return 126
-            else:
-                print(f"exec: {exec_args[0]}: {e}", file=sys.stderr)
-                return 126
-        except Exception as e:
-            print(f"exec: {e}", file=sys.stderr)
-            return 1
-
-    def _exec_with_command(self, node: SimpleCommand, args: List[str]) -> int:
-        """Handle exec with command - replace the shell process."""
-        cmd_name = args[0]
-        cmd_args = args
-
-        # Apply redirections before exec
-        if node.redirects:
-            try:
-                # Apply redirections permanently (don't restore them)
-                self.io_manager.apply_permanent_redirections(node.redirects)
-            except Exception as e:
-                print(f"exec: {e}", file=sys.stderr)
-                return 1
-
-        # exec bypasses builtins and functions - look for external command in PATH
-        command_path = self._find_command_in_path(cmd_name)
-        if not command_path:
-            print(f"exec: {cmd_name}: command not found", file=sys.stderr)
-            return 127
-
-        # Check if command is executable
-        if not os.access(command_path, os.X_OK):
-            print(f"exec: {cmd_name}: Permission denied", file=sys.stderr)
-            return 126
-
-        # Reset signal handlers to default
-        signal.signal(signal.SIGINT, signal.SIG_DFL)
-        signal.signal(signal.SIGQUIT, signal.SIG_DFL)
-        signal.signal(signal.SIGTSTP, signal.SIG_DFL)
-        signal.signal(signal.SIGCHLD, signal.SIG_DFL)
-
-        # Replace the current process with the command
-        try:
-            os.execv(command_path, cmd_args)
-        except OSError as e:
-            # This should not return, but if it does, there was an error
-            print(f"exec: {cmd_name}: {e}", file=sys.stderr)
-            return 126
-
-    def _exec_without_command(self, node: SimpleCommand) -> int:
-        """Handle exec without command - apply redirections permanently."""
-        if not node.redirects:
-            # No redirections, just return success
-            return 0
-
-        try:
-            # Apply redirections permanently (don't restore them)
-            self.io_manager.apply_permanent_redirections(node.redirects)
-            return 0
-        except Exception as e:
-            print(f"exec: {e}", file=sys.stderr)
-            return 1
-
-    def _find_command_in_path(self, cmd_name: str) -> str:
-        """Find command in PATH, return full path or None."""
-        # If command contains '/', it's a path
-        if '/' in cmd_name:
-            if os.path.isfile(cmd_name):
-                return cmd_name
-            return None
-
-        # Search in PATH
-        path_env = os.environ.get('PATH', '')
-        for path_dir in path_env.split(':'):
-            if not path_dir:
-                continue
-            full_path = os.path.join(path_dir, cmd_name)
-            if os.path.isfile(full_path):
-                return full_path
-
-        return None
 
     # Fallback for unimplemented nodes
 

@@ -9,7 +9,6 @@ This module handles the execution of simple commands, including:
 """
 
 import sys
-from contextlib import contextmanager
 from typing import TYPE_CHECKING, List, Tuple
 
 from ..core.assignment_utils import extract_assignments, is_exported, is_valid_assignment
@@ -102,7 +101,7 @@ class CommandExecutor:
                     # No command to execute, but apply any redirections
                     # (e.g., ">file" should create/truncate the file)
                     if node.redirects:
-                        with self._apply_redirections(node.redirects):
+                        with self.io_manager.with_redirections(node.redirects):
                             pass
                     return 0
 
@@ -303,7 +302,7 @@ class CommandExecutor:
                                 assignments: List[Tuple[str, str]]) -> int:
         """Handle pure variable assignments (no command)."""
         # Apply redirections first
-        with self._apply_redirections(node.redirects):
+        with self.io_manager.with_redirections(node.redirects):
             # Handle xtrace for assignments
             if self.state.options.get('xtrace'):
                 ps4 = self.state.get_variable('PS4', '+ ')
@@ -316,7 +315,7 @@ class CommandExecutor:
                 # Values are already expanded in execute()
                 try:
                     self.state.set_variable(var, value)
-                except:
+                except Exception:
                     print(f"psh: {var}: readonly variable", file=self.state.stderr)
                     return 1
 
@@ -345,7 +344,7 @@ class CommandExecutor:
                 self.state.set_variable(var, value)
                 # Also set in shell.env for external commands
                 self.shell.env[var] = value
-            except:
+            except Exception:
                 from ..core.exceptions import ReadonlyVariableError
                 raise ReadonlyVariableError(var)
 
@@ -500,10 +499,11 @@ class CommandExecutor:
                     return exit_code, is_special
                 else:
                     # Apply normal redirections for other commands or builtins in pipelines
-                    with self._apply_redirections(node.redirects):
+                    with self.io_manager.with_redirections(node.redirects):
                         exit_code = strategy.execute(
                             cmd_name, args, self.shell, context,
-                            node.redirects, node.background
+                            node.redirects, node.background,
+                            visitor=getattr(self, '_visitor', None),
                         )
                         return exit_code, is_special
 
@@ -533,7 +533,8 @@ class CommandExecutor:
             # Execute builtin
             return strategy.execute(
                 cmd_name, args, self.shell, context,
-                node.redirects, node.background
+                node.redirects, node.background,
+                visitor=getattr(self, '_visitor', None),
             )
         finally:
             self.io_manager.restore_builtin_redirections(
@@ -548,19 +549,6 @@ class CommandExecutor:
                 self.shell.stderr = sys.stderr
             if not isinstance(self.shell.stdin, io.StringIO):
                 self.shell.stdin = sys.stdin
-
-    @contextmanager
-    def _apply_redirections(self, redirects):
-        """Context manager for applying and restoring redirections."""
-        if not redirects:
-            yield
-            return
-
-        saved_fds = self.io_manager.apply_redirections(redirects)
-        try:
-            yield
-        finally:
-            self.io_manager.restore_redirections(saved_fds)
 
     def _handle_array_assignment(self, assignment):
         """Handle array initialization or element assignment."""

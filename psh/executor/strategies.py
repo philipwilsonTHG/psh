@@ -30,7 +30,8 @@ class ExecutionStrategy(ABC):
     def execute(self, cmd_name: str, args: List[str],
                 shell: 'Shell', context: 'ExecutionContext',
                 redirects: Optional[List['Redirect']] = None,
-                background: bool = False) -> int:
+                background: bool = False,
+                visitor=None) -> int:
         """Execute the command and return exit status."""
         pass
 
@@ -53,7 +54,8 @@ class SpecialBuiltinExecutionStrategy(ExecutionStrategy):
     def execute(self, cmd_name: str, args: List[str],
                 shell: 'Shell', context: 'ExecutionContext',
                 redirects: Optional[List['Redirect']] = None,
-                background: bool = False) -> int:
+                background: bool = False,
+                visitor=None) -> int:
         """Execute a special builtin command."""
         if background:
             # Special builtins can run in background with subshell
@@ -101,7 +103,8 @@ class BuiltinExecutionStrategy(ExecutionStrategy):
     def execute(self, cmd_name: str, args: List[str],
                 shell: 'Shell', context: 'ExecutionContext',
                 redirects: Optional[List['Redirect']] = None,
-                background: bool = False) -> int:
+                background: bool = False,
+                visitor=None) -> int:
         """Execute a builtin command."""
         if background:
             # Run builtin in background by forking a subshell (bash compatibility)
@@ -188,7 +191,8 @@ class FunctionExecutionStrategy(ExecutionStrategy):
     def execute(self, cmd_name: str, args: List[str],
                 shell: 'Shell', context: 'ExecutionContext',
                 redirects: Optional[List['Redirect']] = None,
-                background: bool = False) -> int:
+                background: bool = False,
+                visitor=None) -> int:
         """Execute a shell function."""
         if background:
             # Functions can't run in background (in current implementation)
@@ -200,16 +204,14 @@ class FunctionExecutionStrategy(ExecutionStrategy):
         from .function import FunctionOperationExecutor
 
         # Create a function executor to handle the call
-        # Pass the current context to preserve loop depth and other state
         function_executor = FunctionOperationExecutor(shell)
 
-        # We need a visitor for function execution, but we need to preserve the context
-        # The issue is that we need the visitor that called this strategy
-        # For now, create a new visitor but use the passed context
-        from .core import ExecutorVisitor
-        visitor = ExecutorVisitor(shell)
-        # Override the context to preserve loop depth
-        visitor.context = context
+        # Reuse the caller's visitor to preserve accumulated state;
+        # fall back to creating a new one if not provided.
+        if visitor is None:
+            from .core import ExecutorVisitor
+            visitor = ExecutorVisitor(shell)
+            visitor.context = context
 
         return function_executor.execute_function_call(
             cmd_name, args, context, visitor, redirects
@@ -230,7 +232,8 @@ class AliasExecutionStrategy(ExecutionStrategy):
     def execute(self, cmd_name: str, args: List[str],
                 shell: 'Shell', context: 'ExecutionContext',
                 redirects: Optional[List['Redirect']] = None,
-                background: bool = False) -> int:
+                background: bool = False,
+                visitor=None) -> int:
         """Execute an alias by expanding and re-executing."""
         alias_definition = shell.alias_manager.get_alias(cmd_name)
         if not alias_definition:
@@ -261,12 +264,12 @@ class AliasExecutionStrategy(ExecutionStrategy):
             parser = Parser(tokens, source_text=expanded_command)
             ast = parser.parse()
 
-            # Execute the expanded command through the visitor
-            # Import here to avoid circular imports
-            from .core import ExecutorVisitor
-            visitor = ExecutorVisitor(shell)
-            # Preserve the current context
-            visitor.context = context
+            # Reuse the caller's visitor to preserve accumulated state;
+            # fall back to creating a new one if not provided.
+            if visitor is None:
+                from .core import ExecutorVisitor
+                visitor = ExecutorVisitor(shell)
+                visitor.context = context
 
             return visitor.visit(ast)
 
@@ -293,7 +296,8 @@ class ExternalExecutionStrategy(ExecutionStrategy):
     def execute(self, cmd_name: str, args: List[str],
                 shell: 'Shell', context: 'ExecutionContext',
                 redirects: Optional[List['Redirect']] = None,
-                background: bool = False) -> int:
+                background: bool = False,
+                visitor=None) -> int:
         """Execute an external command."""
         full_args = [cmd_name] + args
 
@@ -332,7 +336,7 @@ class ExternalExecutionStrategy(ExecutionStrategy):
         if not background and not is_pytest:
             try:
                 original_pgid = os.tcgetpgrp(0)
-            except:
+            except OSError:
                 pass
 
         # Create process launcher with centralized child signal reset (H3)

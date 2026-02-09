@@ -7,7 +7,6 @@ process isolation and environment management.
 
 import os
 import sys
-from contextlib import contextmanager
 from typing import TYPE_CHECKING, List
 
 from .process_launcher import ProcessConfig, ProcessLauncher, ProcessRole
@@ -40,19 +39,6 @@ class SubshellExecutor:
         # Use centralized child signal reset (H3)
         self.launcher = ProcessLauncher(shell.state, shell.job_manager, shell.io_manager,
                                         shell.interactive_manager.signal_manager)
-
-    @contextmanager
-    def _apply_redirections(self, redirects: List['Redirect']):
-        """Context manager for applying and restoring redirections."""
-        if not redirects:
-            yield
-            return
-
-        saved_fds = self.io_manager.apply_redirections(redirects)
-        try:
-            yield
-        finally:
-            self.io_manager.restore_redirections(saved_fds)
 
     def execute_subshell(self, node: 'SubshellGroup', context: 'ExecutionContext',
                         visitor: 'ASTVisitor[int]') -> int:
@@ -99,7 +85,7 @@ class SubshellExecutor:
                 return self._execute_background_brace_group(node, visitor)
 
             # Foreground: apply redirections and execute in current environment
-            with self._apply_redirections(node.redirects):
+            with self.io_manager.with_redirections(node.redirects):
                 return visitor.visit(node.statements)
         finally:
             context.in_pipeline = old_pipeline
@@ -189,7 +175,7 @@ class SubshellExecutor:
             try:
                 subshell.stdout.flush()
                 subshell.stderr.flush()
-            except:
+            except Exception:
                 pass
 
             return exit_code
@@ -257,7 +243,7 @@ class SubshellExecutor:
                 try:
                     subshell.stdout.flush()
                     subshell.stderr.flush()
-                except:
+                except Exception:
                     pass
 
             return exit_code

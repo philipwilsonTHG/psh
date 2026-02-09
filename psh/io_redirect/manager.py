@@ -34,6 +34,9 @@ class IOManager:
     @contextmanager
     def with_redirections(self, redirects: List[Redirect]):
         """Context manager for applying redirections temporarily."""
+        if not redirects:
+            yield
+            return
         saved_fds = self.apply_redirections(redirects)
         try:
             yield

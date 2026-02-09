@@ -18,6 +18,7 @@ from ..ast_nodes import (
     SimpleCommand,
     TopLevel,
 )
+from .constants import COMMON_TYPOS, DANGEROUS_COMMANDS, SHELL_BUILTINS
 from .validator_visitor import ValidatorVisitor
 
 
@@ -159,81 +160,13 @@ class EnhancedValidatorVisitor(ValidatorVisitor):
         self.var_tracker = VariableTracker()
 
         # Builtin commands for existence checking
-        self.builtin_commands = {
-            # Core builtins
-            'cd', 'pwd', 'echo', 'printf', 'read', 'exit', 'return',
-            'export', 'unset', 'set', 'shift', 'getopts',
-
-            # Variable/function builtins
-            'declare', 'typeset', 'local', 'readonly', 'eval', 'source', '.',
-
-            # Control flow
-            'break', 'continue', 'true', 'false', ':', 'exec',
-
-            # Test commands
-            'test', '[', '[[', ']]',
-
-            # Job control
-            'jobs', 'fg', 'bg', 'wait', 'kill', 'disown', 'suspend',
-
-            # History
-            'history', 'fc',
-
-            # Aliases and completion
-            'alias', 'unalias', 'complete', 'compgen', 'compopt',
-
-            # Other builtins
-            'command', 'builtin', 'enable', 'help', 'type', 'hash',
-            'trap', 'umask', 'ulimit', 'times', 'dirs', 'pushd', 'popd',
-            'shopt', 'caller', 'bind'
-        }
+        self.builtin_commands = SHELL_BUILTINS
 
         # Common command typos
-        self.common_typos = {
-            # grep typos
-            'gerp': 'grep', 'grpe': 'grep', 'rgep': 'grep',
-
-            # Basic commands
-            'sl': 'ls', 'l': 'ls', 'll': 'ls -l',
-            'mr': 'rm', 'r': 'rm',
-            'vm': 'mv', 'v': 'mv',
-            'pc': 'cp', 'c': 'cp',
-            'dc': 'cd',
-
-            # echo/cat
-            'ech': 'echo', 'ehco': 'echo', 'eho': 'echo',
-            'cta': 'cat', 'ca': 'cat',
-
-            # Programming languages
-            'pyton': 'python', 'pythn': 'python', 'phyton': 'python',
-            'pyhton': 'python', 'pytho': 'python',
-            'noed': 'node', 'ndoe': 'node',
-            'jaav': 'java', 'jva': 'java',
-
-            # Package managers
-            'atp': 'apt', 'apt-gte': 'apt-get',
-            'ymu': 'yum', 'ym': 'yum',
-            'nmp': 'npm', 'npn': 'npm',
-            'ppi': 'pip', 'ipp': 'pip',
-
-            # Git
-            'gti': 'git', 'gi': 'git', 'got': 'git',
-
-            # Make
-            'maek': 'make', 'mkae': 'make',
-
-            # Others
-            'ifconfig': 'ip',  # Modern alternative
-            'service': 'systemctl',  # Modern alternative
-        }
+        self.common_typos = COMMON_TYPOS
 
         # Dangerous commands for security checks
-        self.dangerous_commands = {
-            'eval': "Avoid 'eval' - it can execute arbitrary code from user input",
-            'source': "Be careful with 'source' - ensure the file path is trusted",
-            '.': "Be careful with '.' (source) - ensure the file path is trusted",
-            'exec': "Be careful with 'exec' - it replaces the current shell process",
-        }
+        self.dangerous_commands = DANGEROUS_COMMANDS
 
         # Track whether we're in certain contexts
         self._in_arithmetic_context = False

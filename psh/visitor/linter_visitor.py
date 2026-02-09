@@ -11,6 +11,7 @@ from typing import List, Optional, Set
 
 from ..ast_nodes import ASTNode, FunctionDef, IfConditional, Pipeline, SimpleCommand, TopLevel
 from .base import ASTVisitor
+from .constants import COMMON_COMMANDS, SHELL_BUILTINS
 
 
 class LintLevel(Enum):
@@ -86,31 +87,16 @@ class LinterVisitor(ASTVisitor[None]):
         self.used_functions: Set[str] = set()
 
         # Common shell builtins and commands
-        self.builtins = {
-            'echo', 'cd', 'pwd', 'export', 'unset', 'set', 'exit', 'return',
-            'break', 'continue', 'eval', 'exec', 'source', '.', 'alias',
-            'unalias', 'test', '[', 'true', 'false', ':', 'declare', 'typeset',
-            'local', 'readonly', 'shift', 'getopts', 'trap', 'wait', 'jobs',
-            'fg', 'bg', 'kill', 'suspend', 'logout', 'times', 'umask', 'ulimit',
-            'hash', 'type', 'command', 'builtin', 'enable', 'help', 'let',
-            'read', 'printf', 'history', 'fc'
-        }
+        self.builtins = SHELL_BUILTINS
 
         # Common external commands (not exhaustive)
-        self.common_commands = {
-            'ls', 'cp', 'mv', 'rm', 'mkdir', 'rmdir', 'touch', 'cat', 'grep',
-            'sed', 'awk', 'find', 'xargs', 'sort', 'uniq', 'head', 'tail',
-            'wc', 'cut', 'tr', 'diff', 'patch', 'tar', 'gzip', 'gunzip',
-            'zip', 'unzip', 'curl', 'wget', 'ssh', 'scp', 'rsync', 'git',
-            'make', 'gcc', 'python', 'python3', 'perl', 'ruby', 'node',
-            'npm', 'pip', 'apt', 'yum', 'brew', 'systemctl', 'service'
-        }
+        self.common_commands = COMMON_COMMANDS
 
         # Commands that should be used with caution
         self.dangerous_commands = {
             'rm': "Consider using 'rm -i' for interactive confirmation",
             'eval': "Eval can execute arbitrary code, ensure input is trusted",
-            'exec': "Exec replaces the current shell, use with caution"
+            'exec': "Exec replaces the current shell, use with caution",
         }
 
         # Track context
