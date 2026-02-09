@@ -243,8 +243,8 @@ class BaseParser(ContextBaseParser):
 
     def __init__(self, tokens: List[Token]):
         # Create a default context for backward compatibility
-        from .support.context_factory import ParserContextFactory
-        ctx = ParserContextFactory.create(tokens)
+        from .support.context_factory import create_context
+        ctx = create_context(tokens)
         super().__init__(ctx)
 
         # Expose tokens and current for backward compatibility

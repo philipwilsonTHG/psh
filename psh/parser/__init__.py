@@ -15,7 +15,7 @@ from .recursive_descent.helpers import ErrorContext, ParseError, TokenGroups
 
 # Import from final locations
 from .recursive_descent.parser import Parser
-from .recursive_descent.support.context_factory import ContextConfiguration, ParserContextFactory
+from .recursive_descent.support.context_factory import ParserContextFactory
 from .recursive_descent.support.factory import ConfigurationValidator, ParserFactory
 from .recursive_descent.support.utils import parse_with_heredocs as utils_parse_with_heredocs
 
@@ -23,7 +23,7 @@ from .recursive_descent.support.utils import parse_with_heredocs as utils_parse_
 __all__ = [
     # Main API
     'parse', 'parse_with_heredocs', 'Parser', 'ParseError', 'ErrorContext', 'TokenGroups', 'BaseParser',
-    'ContextBaseParser', 'ParserContext', 'ParserContextFactory', 'ContextConfiguration',
+    'ContextBaseParser', 'ParserContext', 'ParserContextFactory',
     'ParserProfiler', 'HeredocInfo',
     'ParserConfig', 'ParsingMode', 'ErrorHandlingMode', 'ParserFactory', 'ConfigurationValidator',
     # Parsing modes

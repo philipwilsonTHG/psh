@@ -1,4 +1,4 @@
-"""Factory for creating parser contexts."""
+"""Factory functions for creating parser contexts."""
 
 from typing import Any, Dict, List, Optional
 
@@ -8,222 +8,186 @@ from ...config import ErrorHandlingMode, ParserConfig, ParsingMode
 from ..context import ParserContext
 
 
+def create_context(tokens: List[Token],
+                   config: Optional[ParserConfig] = None,
+                   source_text: Optional[str] = None,
+                   **kwargs) -> ParserContext:
+    """Create parser context with configuration.
+
+    Args:
+        tokens: List of tokens to parse
+        config: Parser configuration (creates default if not provided)
+        source_text: Source text for better error messages
+        **kwargs: Additional context options
+
+    Returns:
+        Configured ParserContext instance
+    """
+    config = config or ParserConfig()
+
+    normalizer = KeywordNormalizer()
+    normalized_tokens = normalizer.normalize(list(tokens))
+
+    ctx = ParserContext(
+        tokens=normalized_tokens,
+        config=config,
+        source_text=source_text,
+        trace_enabled=config.trace_parsing,
+        **kwargs
+    )
+
+    return ctx
+
+
+def create_strict_posix_context(tokens: List[Token],
+                                source_text: Optional[str] = None) -> ParserContext:
+    """Create context for strict POSIX parsing."""
+    config = ParserConfig.strict_posix()
+    return create_context(tokens, config, source_text)
+
+
+def create_permissive_context(tokens: List[Token],
+                              source_text: Optional[str] = None) -> ParserContext:
+    """Create context for permissive parsing with error recovery."""
+    config = ParserConfig.permissive()
+    return create_context(tokens, config, source_text)
+
+
+def create_repl_context(initial_tokens: List[Token] = None) -> ParserContext:
+    """Create context optimized for REPL use.
+
+    REPL contexts are configured for:
+    - Error collection instead of throwing
+    - Error recovery for continued interaction
+    """
+    config = ParserConfig(
+        parsing_mode=ParsingMode.BASH_COMPAT,
+        error_handling=ErrorHandlingMode.COLLECT,
+        collect_errors=True,
+        enable_error_recovery=True,
+        max_errors=20,
+        show_error_suggestions=True
+    )
+
+    tokens = initial_tokens or []
+    return create_context(tokens, config)
+
+
+def create_shell_parser_context(tokens: List[Token],
+                                source_text: Optional[str] = None,
+                                shell_options: Optional[Dict[str, Any]] = None) -> ParserContext:
+    """Create context based on shell options.
+
+    Args:
+        tokens: List of tokens to parse
+        source_text: Source text for error messages
+        shell_options: Dictionary of shell options (from shell state)
+
+    Returns:
+        ParserContext configured based on shell options
+    """
+    shell_options = shell_options or {}
+
+    # Determine parsing mode based on shell options
+    if shell_options.get('posix', False):
+        base_config = ParserConfig.strict_posix()
+    elif shell_options.get('collect_errors', False):
+        base_config = ParserConfig.permissive()
+    else:
+        base_config = ParserConfig()
+
+    # Override with specific shell options
+    config_overrides = {}
+
+    # Error handling options
+    if 'collect_errors' in shell_options:
+        config_overrides['collect_errors'] = shell_options['collect_errors']
+
+    if 'debug-parser' in shell_options:
+        config_overrides['trace_parsing'] = shell_options['debug-parser']
+
+    # Apply overrides
+    if config_overrides:
+        final_config = base_config.clone(**config_overrides)
+    else:
+        final_config = base_config
+
+    return create_context(tokens, final_config, source_text)
+
+
+def create_sub_parser_context(parent_ctx: ParserContext,
+                              sub_tokens: List[Token],
+                              inherit_state: bool = True) -> ParserContext:
+    """Create context for sub-parser (e.g., command substitution).
+
+    Args:
+        parent_ctx: Parent parser context
+        sub_tokens: Tokens for sub-parser
+        inherit_state: Whether to inherit parent state
+
+    Returns:
+        ParserContext for sub-parser
+    """
+    # Create base context with same configuration
+    sub_ctx = create_context(
+        tokens=sub_tokens,
+        config=parent_ctx.config,
+        source_text=parent_ctx.source_text
+    )
+
+    if inherit_state:
+        # Inherit some state from parent
+        sub_ctx.nesting_depth = parent_ctx.nesting_depth + 1
+        sub_ctx.function_depth = parent_ctx.function_depth
+        sub_ctx.loop_depth = parent_ctx.loop_depth
+        sub_ctx.in_function_body = parent_ctx.in_function_body
+
+        # Mark as command substitution
+        sub_ctx.in_command_substitution = True
+
+    return sub_ctx
+
+
+def create_validation_context(tokens: List[Token],
+                              source_text: Optional[str] = None) -> ParserContext:
+    """Create context optimized for validation without execution."""
+    config = ParserConfig(
+        parsing_mode=ParsingMode.PERMISSIVE,
+        error_handling=ErrorHandlingMode.COLLECT,
+        collect_errors=True,
+        enable_error_recovery=True,
+        max_errors=100,
+        validate_ast=True
+    )
+
+    return create_context(tokens, config, source_text)
+
+
+def create_performance_test_context(tokens: List[Token],
+                                    source_text: Optional[str] = None) -> ParserContext:
+    """Create context for performance testing."""
+    config = ParserConfig(
+        parsing_mode=ParsingMode.BASH_COMPAT,
+        error_handling=ErrorHandlingMode.STRICT,
+        profile_parsing=True,
+        trace_parsing=False,
+        show_error_suggestions=False,
+    )
+
+    return create_context(tokens, config, source_text)
+
+
+# --- Compatibility shim ---
+# Delegates to module-level functions so existing callers keep working.
+
 class ParserContextFactory:
-    """Factory for creating parser contexts with various configurations."""
+    """Compatibility shim — prefer the module-level functions directly."""
 
-    @staticmethod
-    def create(tokens: List[Token],
-               config: Optional[ParserConfig] = None,
-               source_text: Optional[str] = None,
-               **kwargs) -> ParserContext:
-        """Create parser context with configuration.
-
-        Args:
-            tokens: List of tokens to parse
-            config: Parser configuration (creates default if not provided)
-            source_text: Source text for better error messages
-            **kwargs: Additional context options
-
-        Returns:
-            Configured ParserContext instance
-        """
-        config = config or ParserConfig()
-
-        normalizer = KeywordNormalizer()
-        normalized_tokens = normalizer.normalize(list(tokens))
-
-        ctx = ParserContext(
-            tokens=normalized_tokens,
-            config=config,
-            source_text=source_text,
-            trace_enabled=config.trace_parsing,
-            **kwargs
-        )
-
-        return ctx
-
-    @staticmethod
-    def create_strict_posix(tokens: List[Token],
-                           source_text: Optional[str] = None) -> ParserContext:
-        """Create context for strict POSIX parsing."""
-        config = ParserConfig.strict_posix()
-        return ParserContextFactory.create(tokens, config, source_text)
-
-    @staticmethod
-    def create_permissive(tokens: List[Token],
-                         source_text: Optional[str] = None) -> ParserContext:
-        """Create context for permissive parsing with error recovery."""
-        config = ParserConfig.permissive()
-        return ParserContextFactory.create(tokens, config, source_text)
-
-    @staticmethod
-    def create_for_repl(initial_tokens: List[Token] = None) -> ParserContext:
-        """Create context optimized for REPL use.
-
-        REPL contexts are configured for:
-        - Error collection instead of throwing
-        - Error recovery for continued interaction
-        """
-        config = ParserConfig(
-            parsing_mode=ParsingMode.BASH_COMPAT,
-            error_handling=ErrorHandlingMode.COLLECT,
-            collect_errors=True,
-            enable_error_recovery=True,
-            max_errors=20,
-            show_error_suggestions=True
-        )
-
-        tokens = initial_tokens or []
-        return ParserContextFactory.create(tokens, config)
-
-    @staticmethod
-    def create_shell_parser(tokens: List[Token],
-                           source_text: Optional[str] = None,
-                           shell_options: Optional[Dict[str, Any]] = None) -> ParserContext:
-        """Create context based on shell options.
-
-        Args:
-            tokens: List of tokens to parse
-            source_text: Source text for error messages
-            shell_options: Dictionary of shell options (from shell state)
-
-        Returns:
-            ParserContext configured based on shell options
-        """
-        shell_options = shell_options or {}
-
-        # Determine parsing mode based on shell options
-        if shell_options.get('posix', False):
-            base_config = ParserConfig.strict_posix()
-        elif shell_options.get('collect_errors', False):
-            base_config = ParserConfig.permissive()
-        else:
-            base_config = ParserConfig()
-
-        # Override with specific shell options
-        config_overrides = {}
-
-        # Error handling options
-        if 'collect_errors' in shell_options:
-            config_overrides['collect_errors'] = shell_options['collect_errors']
-
-        if 'debug-parser' in shell_options:
-            config_overrides['trace_parsing'] = shell_options['debug-parser']
-
-        # Apply overrides
-        if config_overrides:
-            final_config = base_config.clone(**config_overrides)
-        else:
-            final_config = base_config
-
-        return ParserContextFactory.create(tokens, final_config, source_text)
-
-    @staticmethod
-    def create_sub_parser_context(parent_ctx: ParserContext,
-                                 sub_tokens: List[Token],
-                                 inherit_state: bool = True) -> ParserContext:
-        """Create context for sub-parser (e.g., command substitution).
-
-        Args:
-            parent_ctx: Parent parser context
-            sub_tokens: Tokens for sub-parser
-            inherit_state: Whether to inherit parent state
-
-        Returns:
-            ParserContext for sub-parser
-        """
-        # Create base context with same configuration
-        sub_ctx = ParserContextFactory.create(
-            tokens=sub_tokens,
-            config=parent_ctx.config,
-            source_text=parent_ctx.source_text
-        )
-
-        if inherit_state:
-            # Inherit some state from parent
-            sub_ctx.nesting_depth = parent_ctx.nesting_depth + 1
-            sub_ctx.function_depth = parent_ctx.function_depth
-            sub_ctx.loop_depth = parent_ctx.loop_depth
-            sub_ctx.in_function_body = parent_ctx.in_function_body
-
-            # Mark as command substitution
-            sub_ctx.in_command_substitution = True
-
-        return sub_ctx
-
-    @staticmethod
-    def create_validation_context(tokens: List[Token],
-                                 source_text: Optional[str] = None) -> ParserContext:
-        """Create context optimized for validation without execution."""
-        config = ParserConfig(
-            parsing_mode=ParsingMode.PERMISSIVE,
-            error_handling=ErrorHandlingMode.COLLECT,
-            collect_errors=True,
-            enable_error_recovery=True,
-            max_errors=100,
-            validate_ast=True
-        )
-
-        return ParserContextFactory.create(tokens, config, source_text)
-
-    @staticmethod
-    def create_performance_test_context(tokens: List[Token],
-                                       source_text: Optional[str] = None) -> ParserContext:
-        """Create context for performance testing."""
-        config = ParserConfig(
-            parsing_mode=ParsingMode.BASH_COMPAT,
-            error_handling=ErrorHandlingMode.STRICT,
-            profile_parsing=True,
-            trace_parsing=False,
-            show_error_suggestions=False,
-        )
-
-        return ParserContextFactory.create(tokens, config, source_text)
-
-
-class ContextConfiguration:
-    """Helper class for advanced context configuration."""
-
-    @staticmethod
-    def configure_for_testing(ctx: ParserContext,
-                             enable_debugging: bool = True,
-                             collect_errors: bool = True) -> ParserContext:
-        """Configure context for testing scenarios."""
-        if collect_errors:
-            ctx.config.collect_errors = True
-            ctx.config.error_handling = ErrorHandlingMode.COLLECT
-
-        if enable_debugging:
-            ctx.config.trace_parsing = True
-            ctx.trace_enabled = True
-
-        return ctx
-
-    @staticmethod
-    def configure_for_production(ctx: ParserContext,
-                                fast_mode: bool = True) -> ParserContext:
-        """Configure context for production use."""
-        if fast_mode:
-            ctx.config.trace_parsing = False
-            ctx.config.profile_parsing = False
-            ctx.config.show_error_suggestions = False
-            ctx.trace_enabled = False
-            ctx.profiler = None
-
-        return ctx
-
-    @staticmethod
-    def enable_full_debugging(ctx: ParserContext) -> ParserContext:
-        """Enable all debugging features."""
-        ctx.config.trace_parsing = True
-        ctx.config.profile_parsing = True
-        ctx.config.validate_ast = True
-        ctx.config.show_error_suggestions = True
-        ctx.trace_enabled = True
-
-        # Create profiler if not exists
-        if not ctx.profiler:
-            from ..context import ParserProfiler
-            ctx.profiler = ParserProfiler(ctx.config)
-
-        return ctx
+    create = staticmethod(create_context)
+    create_strict_posix = staticmethod(create_strict_posix_context)
+    create_permissive = staticmethod(create_permissive_context)
+    create_for_repl = staticmethod(create_repl_context)
+    create_shell_parser = staticmethod(create_shell_parser_context)
+    create_sub_parser_context = staticmethod(create_sub_parser_context)
+    create_validation_context = staticmethod(create_validation_context)
+    create_performance_test_context = staticmethod(create_performance_test_context)

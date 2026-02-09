@@ -27,7 +27,7 @@ from .parsers.commands import CommandParser
 from .parsers.control_structures import ControlStructureParser
 from .parsers.statements import StatementParser
 from .parsers.tests import TestParser
-from .support.context_factory import ParserContextFactory
+from .support.context_factory import create_context
 
 
 from ..config import ErrorHandlingMode, ParserConfig
@@ -102,7 +102,7 @@ class Parser(ContextBaseParser):
                 config.error_handling = ErrorHandlingMode.COLLECT
 
             # Create context
-            ctx = ParserContextFactory.create(
+            ctx = create_context(
                 tokens=tokens,
                 config=config,
                 source_text=source_text
@@ -141,7 +141,7 @@ class Parser(ContextBaseParser):
     def create_configured_parser(self, tokens: List[Token], **overrides) -> 'Parser':
         """Create a new parser with the same configuration."""
         # Create context with same config
-        ctx = ParserContextFactory.create(
+        ctx = create_context(
             tokens=tokens,
             config=self.ctx.config,
             source_text=self.ctx.source_text
@@ -165,7 +165,7 @@ class Parser(ContextBaseParser):
     def create_with_config(cls, tokens: List[Token], config: ParserConfig,
                           source_text: Optional[str] = None) -> 'Parser':
         """Create parser with specific configuration."""
-        ctx = ParserContextFactory.create(tokens, config, source_text)
+        ctx = create_context(tokens, config, source_text)
         return cls.from_context(ctx)
 
     # === Legacy Compatibility Properties ===
