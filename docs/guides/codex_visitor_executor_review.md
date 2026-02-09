@@ -1,6 +1,7 @@
 # Codex Review: `psh/visitor` and `psh/executor`
 
 Date: 2026-02-09
+Fixes applied: v0.146.0–v0.148.0 (see [Fix Status](#fix-status-v0146v0148) below)
 
 ## Scope
 Primary review target:
@@ -36,7 +37,7 @@ Method:
 
 ## Findings (severity-ordered)
 
-### 1) Critical: background brace groups execute twice and mutate parent state
+### 1) Critical: background brace groups execute twice and mutate parent state — **FIXED v0.146.0**
 - File refs:
   - `psh/executor/subshell.py:96`
   - `psh/executor/subshell.py:99`
@@ -52,8 +53,9 @@ Method:
   - `{ X=1; } & wait; printf "%s\n" "$X"` left `X=1` in parent
 - Recommendation:
   - branch on `node.background` before any foreground execution path.
+- **Resolution:** `execute_brace_group()` now checks `node.background` before any execution, matching the pattern used by `execute_subshell()`. Regression test: `TestBraceGroupBackground`.
 
-### 2) High: `loop_depth` leaks on non-local exits in loop executors
+### 2) High: `loop_depth` leaks on non-local exits in loop executors — **FIXED v0.146.0**
 - File refs:
   - `psh/executor/control_flow.py:124`
   - `psh/executor/control_flow.py:153`
@@ -71,8 +73,9 @@ Method:
   - nested `break 2` left `ExecutorVisitor.context.loop_depth == 1`.
 - Recommendation:
   - wrap loop body methods with outer `try/finally` that always decrements loop depth.
+- **Resolution:** `execute_while()`, `execute_until()`, and `execute_for()` now wrap `loop_depth` increment/decrement in an outer `try/finally`. Regression tests: `TestLoopDepthLeak` (4 tests).
 
-### 3) High: command-prefixed assignments are restored even for POSIX special builtins
+### 3) High: command-prefixed assignments are restored even for POSIX special builtins — **FIXED v0.146.0**
 - File refs:
   - `psh/executor/command.py:94`
   - `psh/executor/command.py:177`
@@ -86,8 +89,9 @@ Method:
   - `FOO=1 export BAR=2; printf "%s\n" "$FOO"` did not preserve `FOO` as expected.
 - Recommendation:
   - detect special-builtin resolution path and skip temporary rollback for that class.
+- **Resolution:** `_execute_with_strategy()` now returns `(exit_code, is_special)`. The `finally` block in `execute()` skips `_restore_command_assignments()` when `is_special` is True. Regression tests: `TestSpecialBuiltinAssignmentPersistence` (4 tests).
 
-### 4) High: linter generic traversal duplicates diagnostics
+### 4) High: linter generic traversal duplicates diagnostics — **FIXED v0.148.0**
 - File ref:
   - `psh/visitor/linter_visitor.py:408`
 - What happens:
@@ -99,8 +103,9 @@ Method:
   - script `foo` produced repeated “Command might not be available” entries.
 - Recommendation:
   - replace reflective `dir()` walk with explicit traversal or dataclass-field walk only.
+- **Resolution:** `generic_visit()` now uses `dataclasses.fields(node)` to iterate only declared dataclass fields, matching `ASTTransformer.transform_children()`. Regression test: `TestLinterGenericVisit`.
 
-### 5) Medium: formatter can change semantics of array parameter expansions
+### 5) Medium: formatter can change semantics of array parameter expansions — **Not-a-bug (verified v0.148.0)**
 - File refs:
   - `psh/visitor/formatter_visitor.py:77`
   - `psh/visitor/formatter_visitor.py:136`
@@ -112,8 +117,9 @@ Method:
   - `arr=(a b); echo ${arr[0]}` formatted to `echo $arr[0]`, yielding `a[0]`.
 - Recommendation:
   - preserve exact expansion form in AST metadata and emitter.
+- **Resolution:** Investigation shows `${arr[0]}` is parsed as `ParameterExpansion(parameter='arr[0]')` whose `__str__()` returns `${arr[0]}` — so `_format_word()` produces correct output. For unbraced `$arr[0]`, the parser produces `VariableExpansion(name='arr')` + `LiteralPart('[0]')`, which correctly formats as `$arr[0]` (matching the input). Regression test: `TestFormatterArraySubscript`.
 
-### 6) Medium: formatter emits invalid/non-portable C-style `for` text
+### 6) Medium: formatter emits invalid/non-portable C-style `for` text — **FIXED v0.148.0**
 - File ref:
   - `psh/visitor/formatter_visitor.py:247`
 - What happens:
@@ -122,8 +128,9 @@ Method:
   - generated shell text is not valid in Bash for normal arithmetic loop syntax.
 - Recommendation:
   - emit `for (({init}; {cond}; {update}))`.
+- **Resolution:** Changed f-string from `${init}; ${cond}; ${update}` to `{init}; {cond}; {update}`. Regression test: `TestFormatterCStyleFor`.
 
-### 7) Medium: undefined-variable checks in enhanced validator can under-report
+### 7) Medium: undefined-variable checks in enhanced validator can under-report — **FIXED v0.148.0**
 - File refs:
   - `psh/visitor/enhanced_validator_visitor.py:604`
   - `psh/visitor/enhanced_validator_visitor.py:622`
@@ -133,8 +140,9 @@ Method:
   - mixed expressions can suppress warnings for truly undefined variables.
 - Recommendation:
   - evaluate defaults against each matched expansion token span, not the whole argument.
+- **Resolution:** `_has_parameter_default()` now scans for `${...}` delimiters and only checks for `:-` / `:=` inside them, with proper brace nesting. Regression tests: `TestEnhancedValidatorParameterDefault` (4 tests).
 
-### 8) Medium (latent): pipeline test-mode fallback builds invalid context object
+### 8) Medium (latent): pipeline test-mode fallback builds invalid context object — **FIXED v0.147.0**
 - File ref:
   - `psh/executor/pipeline.py:461`
 - What happens:
@@ -143,6 +151,7 @@ Method:
   - secondary failures possible if fallback path triggers.
 - Recommendation:
   - reuse original `context`/`node` in fallback path.
+- **Resolution:** Replaced anonymous `type()` objects with a real `Pipeline` AST node and the caller's `context`. Added `context` parameter to `_execute_mixed_pipeline_in_test_mode()`.
 
 ### 9) Low: linter mixes command-resolution and function-resolution concerns
 - File refs:
@@ -171,32 +180,36 @@ Recommendation:
 ## Structure recommendations
 1. Introduce a shared, canonical child-traversal helper in `psh/visitor/base.py`.
 - Removes duplicated and inconsistent generic traversal logic across visitors.
+- *Partially addressed:* linter now uses `dataclasses.fields()` (v0.148.0), but not yet shared across all visitors.
 
 2. Centralize execution context lifecycle management.
 - Add scoped helpers/context managers for loop/pipeline/function state transitions.
+- *Partially addressed:* loop_depth lifecycle is now safe via `try/finally` (v0.146.0), but still uses direct mutation rather than scoped context managers.
 
 3. Separate test-mode pipeline emulation from production executor path.
 - Keep job-control process code isolated from testing shims.
+- *Partially addressed:* fallback path now uses real AST/context objects (v0.147.0), but test-mode code still lives in `pipeline.py`.
 
 4. Unify redirection context manager implementation.
 - `_apply_redirections()` is currently repeated across multiple executor modules.
 
-5. Add compatibility contracts for behavior-critical features.
-- Explicitly test assignment semantics, loop control depth handling, and formatter roundtrip behavior.
+5. ~~Add compatibility contracts for behavior-critical features.~~
+- ~~Explicitly test assignment semantics, loop control depth handling, and formatter roundtrip behavior.~~
+- **Done v0.146.0–v0.148.0:** 17 regression tests in `tests/regression/test_visitor_executor_review_fixes.py` cover assignment persistence, loop depth, formatter roundtrip, and validator behaviour.
 
 ## Pythonic/style recommendations
-1. Remove reflective `dir()` traversal for AST walking.
+1. ~~Remove reflective `dir()` traversal for AST walking.~~ **Done v0.148.0** — replaced with `dataclasses.fields()`
 2. Avoid broad bare `except:` blocks in runtime paths; catch specific exception classes.
 3. Prefer typed dataclasses/enums for issues (`SecurityIssue` currently stringly typed).
 4. Reduce cross-module calls to private methods (e.g., expansion internals); expose public APIs.
-5. Keep formatter either explicitly lossy (and documented) or semantics-preserving with tests.
+5. ~~Keep formatter either explicitly lossy (and documented) or semantics-preserving with tests.~~ **Done v0.148.0** — C-style for fixed, array subscript verified correct with test
 
 ## Priority fix order
-1. Fix background brace-group double execution + state leak.
-2. Fix loop-depth lifecycle leaks (`while`, `until`, `for`).
-3. Correct special-builtin assignment persistence semantics.
-4. Replace linter generic traversal to eliminate duplicate findings.
-5. Harden formatter to preserve expansion semantics.
+1. ~~Fix background brace-group double execution + state leak.~~ **Done v0.146.0**
+2. ~~Fix loop-depth lifecycle leaks (`while`, `until`, `for`).~~ **Done v0.146.0**
+3. ~~Correct special-builtin assignment persistence semantics.~~ **Done v0.146.0**
+4. ~~Replace linter generic traversal to eliminate duplicate findings.~~ **Done v0.148.0**
+5. ~~Harden formatter to preserve expansion semantics.~~ **Done v0.148.0** (C-style for fixed; array subscript verified not-a-bug)
 
 ## Test additions recommended now
 1. `tests/integration/subshells/test_background_brace_group_no_parent_leak.py`

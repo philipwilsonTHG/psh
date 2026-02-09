@@ -3,7 +3,7 @@
 **Reviewer:** Claude Opus 4.6
 **Date:** 2026-02-09
 **Scope:** `psh/visitor/` (8 modules, ~3,655 lines) and `psh/executor/` (9 modules, ~2,850 lines)
-**Version:** 0.145.0
+**Version:** 0.145.0 (fixes applied in v0.146.0–v0.148.0; see [Fix Status](#fix-status-v0146v0148) below)
 
 ---
 
@@ -124,6 +124,11 @@ Issues:
   (lines 192--228) duplicate data from other visitors.
 - Line 414: zips `node.args` with `node.words` assuming equal length
   --- this is fragile if the two lists ever diverge.
+- ~~`_has_parameter_default()` at line 600 used context-wide string
+  matching (`any(op in text for op in [':-', ':='])`) which could
+  suppress warnings when `:-` or `:=` appeared outside `${...}`
+  expansions.~~ **FIXED v0.148.0** — now checks only inside `${...}`
+  delimiters with proper brace nesting.
 
 ### `security_visitor.py` (344 lines) --- B-
 
@@ -146,9 +151,10 @@ handling, naming conventions.
 
 Issues:
 - `import re` inside methods at lines 258 and 325.
-- The `generic_visit()` at line 411 uses `dir(node)` to find child
+- ~~The `generic_visit()` at line 411 uses `dir(node)` to find child
   attributes, which also finds methods and properties --- it should use
-  `dataclasses.fields()` like `ASTTransformer.transform_children()`.
+  `dataclasses.fields()` like `ASTTransformer.transform_children()`.~~
+  **FIXED v0.148.0** — now uses `dataclasses.fields(node)`.
 - Dangerous command dict (lines 110--114) partially duplicates the one
   in `security_visitor.py`.
 
@@ -264,6 +270,10 @@ concurrent execution paths.  The context should either be fully
 immutable (all mutations via `*_enter` methods) or the direct mutations
 should be documented as intentional.
 
+**Note (v0.146.0):** The `loop_depth` mutation is now safe because it
+is wrapped in `try/finally`, but direct mutation is still used rather
+than the `*_enter` pattern.
+
 ### `control_flow.py` --- ControlFlowExecutor (692 lines) --- B
 
 Comprehensive control structure execution: if/elif/else, while, until,
@@ -278,6 +288,9 @@ Issues:
    `ExecutionContext` methods.  This works because execution is
    single-threaded, but it's fragile and inconsistent with the
    immutable-context design in `context.py`.
+   **Partially addressed v0.146.0:** `loop_depth` increment/decrement
+   is now wrapped in outer `try/finally` so multi-level `break`/`continue`
+   can no longer skip the decrement.  Direct mutation pattern is retained.
 
 2. **`_expand_for_loop_items()` and `_expand_select_items()`** (lines
    504--540) are near-identical.  They should be a single method.
@@ -306,11 +319,13 @@ Issues:
    `_execute_mixed_pipeline_in_test_mode`).  These use StringIO
    buffers and `subprocess.Popen` as alternatives to fork/exec.  While
    necessary for test output capture, this code: (a) doubles the
-   maintenance surface for pipelines, (b) has a fallback at line 462
+   maintenance surface for pipelines, ~~(b) has a fallback at line 462
    that creates anonymous types with `type()` calls, which is fragile
-   and hard to read, and (c) confuses students trying to understand
+   and hard to read,~~ and (c) confuses students trying to understand
    how pipelines actually work.  This should be isolated into a
    separate test helper module.
+   **Partially addressed v0.147.0:** The `type()` fallback (item b)
+   now uses a real `Pipeline` AST node and the caller's `context`.
 
 2. **`PYTEST_CURRENT_TEST` guard** at line 143.
 
@@ -365,14 +380,14 @@ the first element is `$0`, which is inconsistent with how
 
 ## Correctness Concerns
 
-| # | Issue | Severity | Location |
-|---|-------|----------|----------|
-| 1 | Context mutation: `context.loop_depth += 1` and `context.in_pipeline = False` mutate shared context instead of using immutable `*_enter` methods | Medium | `control_flow.py:124,130,153` |
-| 2 | `_expand_assignment_value()` in core.py has quote-unaware scanner (may be dead code) | Low | `core.py:297-367` |
-| 3 | `_word_split_and_glob()` reimplements IFS splitting instead of using `WordSplitter` | Medium | `control_flow.py:591-613` |
-| 4 | `FunctionExecutionStrategy` creates new `ExecutorVisitor`, losing pipeline context | Medium | `strategies.py:209-212` |
-| 5 | Bare `except:` in multiple files | Low | `command.py:316,345`, `strategies.py:335`, `process_launcher.py:246,311` |
-| 6 | Duplicate exec handling between `core.py` and `command.py` | Low | `core.py:416-526`, `command.py:567-603` |
+| # | Issue | Severity | Location | Status |
+|---|-------|----------|----------|--------|
+| 1 | Context mutation: `context.loop_depth += 1` and `context.in_pipeline = False` mutate shared context instead of using immutable `*_enter` methods | Medium | `control_flow.py:124,130,153` | **Partially fixed v0.146.0** — loop_depth now in `try/finally`; direct mutation pattern retained but safe |
+| 2 | `_expand_assignment_value()` in core.py has quote-unaware scanner (may be dead code) | Low | `core.py:297-367` | Open |
+| 3 | `_word_split_and_glob()` reimplements IFS splitting instead of using `WordSplitter` | Medium | `control_flow.py:591-613` | Open |
+| 4 | `FunctionExecutionStrategy` creates new `ExecutorVisitor`, losing pipeline context | Medium | `strategies.py:209-212` | Open |
+| 5 | Bare `except:` in multiple files | Low | `command.py:316,345`, `strategies.py:335`, `process_launcher.py:246,311` | Open |
+| 6 | Duplicate exec handling between `core.py` and `command.py` | Low | `core.py:416-526`, `command.py:567-603` | Open |
 
 ---
 
@@ -448,9 +463,9 @@ the first element is `$0`, which is inconsistent with how
     `security_visitor.py` (line 287).  Currently always returns
     `False`.
 
-11. **Use `dataclasses.fields()` in linter's `generic_visit()`**
+11. ~~**Use `dataclasses.fields()` in linter's `generic_visit()`**
     instead of `dir(node)`, matching the pattern in
-    `ASTTransformer.transform_children()`.
+    `ASTTransformer.transform_children()`.~~ **FIXED v0.148.0**
 
 12. **Deduplicate `_apply_redirections` context manager.**  This
     identical pattern appears in `core.py`, `command.py`, and
@@ -505,9 +520,9 @@ the first element is `$0`, which is inconsistent with how
 | `debug_ast_visitor.py` | 391 | B+ | Dual args/Word display | Will need cleanup post-migration |
 | `validator_visitor.py` | 502 | B+ | Context stack for errors | No-op `generic_visit` |
 | `metrics_visitor.py` | 585 | B | Comprehensive complexity metrics | Inline imports, duplicated builtins |
-| `enhanced_validator_visitor.py` | 713 | B | Scope-aware variable tracking | Hardcoded data, fragile args/words zip |
+| `enhanced_validator_visitor.py` | 713 | B | Scope-aware variable tracking | Hardcoded data, fragile args/words zip (`_has_parameter_default` fixed v0.148.0) |
 | `security_visitor.py` | 344 | B- | Detects real vulnerability patterns | Stubbed method, type annotation error |
-| `linter_visitor.py` | 422 | B- | Useful style checks | `dir(node)` traversal, inline imports |
+| `linter_visitor.py` | 422 | B- | Useful style checks | ~~`dir(node)` traversal~~ (fixed v0.148.0), inline imports |
 
 ### Executor Subsystem
 
@@ -519,25 +534,55 @@ the first element is `$0`, which is inconsistent with how
 | `core.py` | 542 | B+ | Clean delegation to specialists | Likely-dead code, duplicate exec handling |
 | `command.py` | 604 | B+ | Thorough assignment candidate detection | Bare `except:`, test infrastructure leak |
 | `function.py` | 138 | B+ | Proper scope save/restore | Positional param indexing inconsistency |
-| `control_flow.py` | 692 | B | Complete control structure coverage | Context mutation, duplicated expand methods |
+| `control_flow.py` | 692 | B | Complete control structure coverage | Context mutation (loop_depth fixed v0.146.0), duplicated expand methods |
 | `strategies.py` | 421 | B | Clean Strategy pattern | New visitor on function call, pytest guard |
-| `pipeline.py` | 500 | B- | Correct sync-pipe coordination | ~160 lines of test-mode code |
+| `pipeline.py` | 500 | B- | Correct sync-pipe coordination | ~160 lines of test-mode code (fallback fixed v0.147.0) |
 
 ---
 
 ## Fix Status (v0.146.0–v0.148.0)
 
-The following items from the Correctness Concerns and Structural Recommendations
-sections have been addressed:
+The following items from the Correctness Concerns, Structural Recommendations,
+and the companion codex review have been addressed or triaged:
 
-| Ref | Item | Status | Version | Notes |
-|-----|------|--------|---------|-------|
-| CC-1 | `context.loop_depth` mutation not in `finally` | **FIXED** | v0.146.0 | Wrapped in outer `try/finally` (while, until, for) |
-| SR-11 | Linter `generic_visit()` uses `dir(node)` | **FIXED** | v0.148.0 | Replaced with `dataclasses.fields(node)` |
-| — | Background brace-group double execution (from codex review) | **FIXED** | v0.146.0 | Check `node.background` before any execution |
-| — | Special-builtin prefix assignment persistence (from codex review) | **FIXED** | v0.146.0 | `_execute_with_strategy()` returns `(exit_code, is_special)` |
-| — | Pipeline test-mode fallback invalid context (from codex review) | **FIXED** | v0.147.0 | Real `Pipeline` node + real `context` |
-| — | Formatter C-style for `$` injection (from codex review) | **FIXED** | v0.148.0 | Removed spurious `$` from f-string |
-| — | Enhanced validator `_has_parameter_default` under-reporting (from codex review) | **FIXED** | v0.148.0 | Now checks inside `${...}` only |
+### Fixed
+
+| Ref | Item | Version | Resolution |
+|-----|------|---------|------------|
+| CC-1 | `context.loop_depth` mutation not in `finally` | v0.146.0 | Wrapped in outer `try/finally` (while, until, for) |
+| SR-11 | Linter `generic_visit()` uses `dir(node)` | v0.148.0 | Replaced with `dataclasses.fields(node)` |
+| Codex #1 | Background brace-group double execution | v0.146.0 | Check `node.background` before any execution |
+| Codex #3 | Special-builtin prefix assignment persistence | v0.146.0 | `_execute_with_strategy()` returns `(exit_code, is_special)` |
+| Codex #4 | Linter generic traversal duplicates | v0.148.0 | `dir(node)` → `dataclasses.fields(node)` |
+| Codex #6 | Formatter C-style for `$` injection | v0.148.0 | Removed spurious `$` from f-string |
+| Codex #7 | Enhanced validator `_has_parameter_default` under-reporting | v0.148.0 | Now checks inside `${...}` delimiters only |
+| Codex #8 | Pipeline test-mode fallback invalid context | v0.147.0 | Real `Pipeline` node + real `context` |
+
+### Verified not-a-bug
+
+| Ref | Item | Version | Analysis |
+|-----|------|---------|----------|
+| Codex #5 | Formatter array subscript semantics | v0.148.0 | `${arr[0]}` round-trips correctly via `ParameterExpansion.__str__()`; unbraced `$arr[0]` correctly emits as-is |
+
+### Open (from this review)
+
+| Ref | Item | Severity |
+|-----|------|----------|
+| CC-2 | `_expand_assignment_value()` quote-unaware scanner (likely dead code) | Low |
+| CC-3 | `_word_split_and_glob()` reimplements IFS splitting | Medium |
+| CC-4 | `FunctionExecutionStrategy` creates new `ExecutorVisitor` | Medium |
+| CC-5 | Bare `except:` in multiple files | Low |
+| CC-6 | Duplicate exec handling between `core.py` and `command.py` | Low |
+| SR-1 | Consolidate shared visitor data into common module | High |
+| SR-2 | Make ExecutionContext mutations consistent | High |
+| SR-3 | Use `WordSplitter` in `_word_split_and_glob()` | High |
+| SR-4 | Isolate test-mode pipeline execution | Medium |
+| SR-5 | Delete likely-dead code in `core.py` | Medium |
+| SR-6 | Deduplicate `_expand_for_loop_items` / `_expand_select_items` | Medium |
+| SR-7 | Move inline `import re` to module level | Medium |
+| SR-8 | Replace bare `except:` with specific types | Low |
+| SR-9 | Fix `security_visitor.py` type annotation | Low |
+| SR-10 | Implement or remove `_is_piped_to_shell()` | Low |
+| SR-12 | Deduplicate `_apply_redirections` context manager | Low |
 
 Regression tests: `tests/regression/test_visitor_executor_review_fixes.py` (17 tests)
