@@ -2,10 +2,27 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.139.0"
+__version__ = "0.140.0"
 
 # Version history
 VERSION_HISTORY = """
+0.140.0 (2026-02-09) - Fix 5 Parser Validation and Config Issues
+- Fixed validation false positives: fd-dup redirects (2>&1) no longer flagged
+  as "missing target"; case statement uses correct field (items, not cases);
+  variable name validation checks first char only (var1 no longer rejected).
+- Fixed stale AST field references in validation traversal: ForLoop.values→items
+  (List[str], not visitable), CaseConditional.word/cases→expr/items,
+  AndOrList.pipeline→pipelines. Replaced wildcard imports with explicit imports
+  in all three validation files.
+- Fixed ParserConfig field name disconnect: renamed validate_ast to
+  enable_validation; added enable_semantic_analysis and enable_validation_rules
+  as real dataclass fields instead of dynamically injected attributes.
+- Fixed create_configured_parser() config mutation: now uses config.clone() to
+  create an independent copy instead of mutating the shared parent config.
+- Fixed can_parse() EOF false negatives in combinator parser: added 'EOF' to
+  the trailing-token skip loop, matching the parse() method.
+- Added 13 regression tests in tests/regression/test_parser_review_fixes.py.
+
 0.139.0 (2026-02-09) - Fix Redirect-Only Command Execution
 - Fixed redirect-only commands (e.g., >file) not creating/truncating the target
   file. CommandExecutor.execute() returned early when no command args remained,
