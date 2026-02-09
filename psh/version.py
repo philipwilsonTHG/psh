@@ -2,10 +2,22 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.130.0"
+__version__ = "0.131.0"
 
 # Version history
 VERSION_HISTORY = """
+0.131.0 (2026-02-09) - Parser Quality Improvements
+- Pruned ParserConfig from 45 fields to 12 actually-read fields. Removed
+  33 unused fields and 5 factory methods (~500 lines). Kept strict_posix()
+  and permissive() presets plus clone(), is_feature_enabled(), should_allow().
+- Unified error handling: deleted ErrorCollector class and error_collector.py.
+  ParserContext.errors is now the sole error list with fatal_error tracking.
+  MultiErrorParseResult moved to parser.py. Recovery strategies inlined.
+  Added _ErrorCollectorView for backward compatibility (~360 lines removed).
+- Added combinator parser guide (docs/guides/combinator_parser_guide.md)
+  documenting the functional parser's concepts, module structure, feature
+  coverage, and differences from recursive descent.
+
 0.130.0 (2026-02-08) - Remove Parser Abstraction Layers
 - Phase 1: Removed AbstractShellParser, ParserRegistry, ParserStrategy, and
   RecursiveDescentAdapter (~930 lines). Replaced ParserStrategy in shell.py
