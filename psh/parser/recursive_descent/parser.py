@@ -131,20 +131,28 @@ class Parser(ContextBaseParser):
         return self.ctx
 
     def create_configured_parser(self, tokens: List[Token], **overrides) -> 'Parser':
-        """Create a new parser with the same configuration."""
-        # Create context with same config
+        """Create a new parser with the same configuration.
+
+        Uses config.clone() so the child parser gets an independent copy
+        of the configuration, avoiding mutation of the parent's config.
+        """
+        # Separate config-level overrides from context-level overrides
+        config_overrides = {k: v for k, v in overrides.items()
+                           if k in ParserConfig.__dataclass_fields__}
+        ctx_overrides = {k: v for k, v in overrides.items()
+                        if k not in config_overrides}
+
+        # Clone config with overrides applied atomically
         ctx = create_context(
             tokens=tokens,
-            config=self.ctx.config,
+            config=self.ctx.config.clone(**config_overrides),
             source_text=self.ctx.source_text
         )
 
-        # Apply any overrides to the context
-        for key, value in overrides.items():
+        # Apply context-level overrides
+        for key, value in ctx_overrides.items():
             if hasattr(ctx, key):
                 setattr(ctx, key, value)
-            elif hasattr(ctx.config, key):
-                setattr(ctx.config, key, value)
 
         return Parser(tokens=[], ctx=ctx)
 

@@ -432,3 +432,25 @@ class TestConfigValidationField:
         assert ast is not None
         # Validation not enabled, so report should be empty
         assert not report.issues
+
+
+# ===========================================================================
+# Codex Review Finding 4: create_configured_parser() config mutation
+# ===========================================================================
+
+class TestCreateConfiguredParserNoMutation:
+    """Tests that create_configured_parser() does not mutate parent config."""
+
+    def test_create_configured_parser_no_mutation(self):
+        """Child parser with collect_errors=True should not mutate parent config."""
+        tokens = tokenize('echo hello')
+        parent = Parser(tokens, source_text='echo hello')
+        assert parent.config.collect_errors is False
+
+        child_tokens = tokenize('echo world')
+        child = parent.create_configured_parser(child_tokens, collect_errors=True)
+
+        # Child should have the override
+        assert child.config.collect_errors is True
+        # Parent config must be unchanged
+        assert parent.config.collect_errors is False
