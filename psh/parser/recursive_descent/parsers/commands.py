@@ -482,7 +482,12 @@ class CommandParser:
             return f"${value}"
 
     def parse_argument_as_word(self) -> 'Word':
-        """Parse an argument as a Word AST node with expansions."""
+        """Parse an argument as a Word AST node with expansions.
+
+        Delegates to WordBuilder (support/word_builder.py) for token-to-Word
+        conversion. See WordBuilder for details on RichToken decomposition,
+        composite word building, and parameter expansion parsing.
+        """
         from ....token_stream import TokenStream
         from ..support.word_builder import WordBuilder
 

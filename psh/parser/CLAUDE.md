@@ -43,7 +43,7 @@ Statements Commands  Control   Functions  Tests
 
 | File | Purpose |
 |------|---------|
-| `context_factory.py` | `ParserContextFactory` for creating configured contexts |
+| `context_factory.py` | Factory functions for creating configured contexts |
 | `word_builder.py` | Build Word AST nodes from tokens |
 | `utils.py` | Parser utilities |
 
@@ -92,7 +92,41 @@ class Parser(ContextBaseParser):
         self.arrays = ArrayParser(self)
 ```
 
-### 2. ParserContext State Management
+### 2. Sub-Parser Contract
+
+All 8 sub-parsers follow the same implicit contract:
+
+- **Initialization**: `__init__(self, main_parser)` stores `self.parser`
+  (the main `Parser` instance). There is no shared base class enforcing
+  this -- it is a convention.
+- **State access**: Use `self.parser.peek()`, `.advance()`, `.match()`,
+  `.expect()`, `.consume_if()`, etc. (methods inherited from
+  `ContextBaseParser`).
+- **Token position**: Use `self.parser.current` (the property on
+  `Parser`), not `self.parser.ctx.current` directly. Both work, but the
+  property is the intended public interface.
+- **Context manager**: Use `with self.parser.ctx:` **only** when the
+  method needs to change a parsing state flag. The context manager
+  saves all flags on entry and restores them on exit. Sub-parsers that
+  don't change flags correctly omit it.
+
+  | Sub-parser | Method | Flag changed |
+  |---|---|---|
+  | ArithmeticParser | `_parse_arithmetic_neutral` | `in_arithmetic` |
+  | TestParser | `parse_enhanced_test_statement` | `in_test_expr` |
+  | ControlStructureParser | `parse_case_item` | `in_case_pattern` |
+  | FunctionParser | `parse_compound_command` | `in_function_body` |
+
+  CommandParser, StatementParser, RedirectionParser, and ArrayParser
+  never change flags and never use the context manager.
+
+- **Optional consumption**: Prefer `self.parser.consume_if(TokenType.X)`
+  over the inline `if self.parser.match(X): self.parser.advance()`
+  pattern.
+- **Error creation**: Use `self.parser.error(message)` or
+  `self.parser.error(message, token)`.
+
+### 3. ParserContext State Management
 
 `ParserContext` tracks all parsing state:
 
@@ -116,20 +150,21 @@ class ParserContext:
     errors: List[ParseError]
 ```
 
-### 3. Context Manager for State Preservation
+### 4. Context Manager for State Preservation
 
-Use `with parser.context:` to save/restore parsing state flags:
+Use `with self.parser.ctx:` to save/restore parsing state flags (see
+the sub-parser contract above for when this is appropriate):
 
 ```python
 # In control_structures.py
 def parse_case_item(self):
-    with self.parser.context:  # Saves state
-        self.parser.context.in_case_pattern = True
-        pattern = self.parse_pattern()
-    # State automatically restored
+    with self.parser.ctx:  # Saves state
+        self.parser.ctx.in_case_pattern = True
+        pattern_str = self._parse_case_pattern()
+    # in_case_pattern automatically restored
 ```
 
-### 4. TokenGroups for Matching
+### 5. TokenGroups for Matching
 
 Predefined token sets for common checks:
 
@@ -296,10 +331,32 @@ Word(parts=[
 ], quote_type='"')
 ```
 
-`WordBuilder` (`support/word_builder.py`) constructs Word nodes from tokens:
-- Decomposes double-quoted STRING tokens with RichToken parts into expansion nodes
-- Detects parameter expansion operators in VARIABLE tokens (e.g. `${x:6}`)
-- Handles composite words by building multi-part Words with per-part quote context
+### WordBuilder
+
+`WordBuilder` (`support/word_builder.py`) is the bridge between lexer
+tokens and the Word AST. It is the most complex single piece of the
+parser -- it handles RichToken decomposition, composite word merging,
+and parameter expansion operator parsing.
+
+**Entry point**: `CommandParser.parse_argument_as_word()` in
+`parsers/commands.py`. This method detects composite sequences via
+`TokenStream.peek_composite_sequence()`, then delegates to the
+appropriate WordBuilder method.
+
+**Three key operations**:
+
+1. **Single tokens** -- `build_word_from_token()`: Decomposes
+   double-quoted STRING tokens with `RichToken.parts` into
+   `LiteralPart`/`ExpansionPart` nodes with per-part quote context.
+
+2. **Composite tokens** -- `build_composite_word()`: Merges adjacent
+   tokens (e.g. `"hello"$USER'!'`) into a single `Word` with per-part
+   quote tracking.
+
+3. **Expansion tokens** -- `parse_expansion_token()`: Parses VARIABLE,
+   PARAM_EXPANSION, COMMAND_SUB, and ARITH_EXPANSION tokens into
+   expansion AST nodes, handling operators like `${var:-default}`,
+   `${var##pattern}`, etc.
 
 ## Configuration
 

@@ -22,8 +22,8 @@ module-level functions, dead compatibility code was deleted, and
 `ErrorContext.severity` was changed from a string to an `Enum`.
 
 **Overall: A-.** Sound architecture with focused configuration,
-unified error handling, and clean Pythonic style. Remaining issues
-are sub-parser pattern inconsistencies and documentation gaps.
+unified error handling, and clean Pythonic style. All 10
+recommendations from the original review are now complete.
 
 ---
 
@@ -355,12 +355,15 @@ but no production code path sets it to `True`.
 10. ~~**Remove `parse_with_rule` and `parse_scoped`**~~ Done. Deleted
     both methods (~15 lines) from `ContextBaseParser`.
 
-### Remaining
+5. ~~**Standardise sub-parser patterns.**~~ Done. Added "Sub-Parser
+   Contract" section to parser CLAUDE.md documenting the implicit
+   convention: initialization, state access, token position, context
+   manager usage (with table of which sub-parsers set which flags),
+   `consume_if` preference, and error creation.
 
-5. **Standardise sub-parser patterns.** Document (or enforce via a base
-   class) when to use context managers, how to create errors, and whether
-   to access `self.parser.ctx.current` directly or through the property.
+6. ~~**Promote WordBuilder documentation.**~~ Done. Expanded WordBuilder
+   section in parser CLAUDE.md with entry point, three key operations,
+   and cross-reference from `commands.py` (docstring on
+   `parse_argument_as_word`).
 
-6. **Promote WordBuilder documentation.** Add cross-references from
-   `commands.py` and the parser CLAUDE.md so readers discover it before
-   they need to debug it.
+All 10 recommendations are now complete.
