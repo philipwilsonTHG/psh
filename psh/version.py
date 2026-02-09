@@ -2,10 +2,22 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.134.0"
+__version__ = "0.135.0"
 
 # Version history
 VERSION_HISTORY = """
+0.135.0 (2026-02-09) - Consolidate parse_composite_argument() into Word AST
+- Migrated all 10 callers of parse_composite_argument() to use parse_argument_as_word(),
+  unifying all argument parsing into a single Word AST path.
+- Deleted parse_composite_argument(), _token_to_argument(), and _format_variable() from
+  CommandParser (82 lines removed).
+- Added _word_to_element_type() static helper to ArrayParser for deriving legacy
+  element-type strings (STRING, COMPOSITE_QUOTED, COMPOSITE, WORD) from Word nodes.
+- Removed duplicate TokenStream import from parse_argument_as_word().
+- Updated callers in redirections.py (2 sites), control_structures.py (3 sites),
+  arrays.py (4 sites), and commands.py (1 site).
+- No behavioral changes; all tests passing.
+
 0.134.0 (2026-02-09) - Parser Code Quality: Error Helper, Inline Imports, Dead Code
 - Extracted _raise_unclosed_expansion_error() helper in CommandParser, replacing 6
   repetitive ErrorContext + raise ParseError blocks in _check_for_unclosed_expansions
