@@ -2,10 +2,24 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.133.0"
+__version__ = "0.134.0"
 
 # Version history
 VERSION_HISTORY = """
+0.134.0 (2026-02-09) - Parser Code Quality: Error Helper, Inline Imports, Dead Code
+- Extracted _raise_unclosed_expansion_error() helper in CommandParser, replacing 6
+  repetitive ErrorContext + raise ParseError blocks in _check_for_unclosed_expansions
+  and _validate_command_start with single-line calls.
+- Moved inline imports to module level across 4 files: import re in commands.py,
+  redirections.py, word_builder.py; import time in context.py (4 sites);
+  LiteralPart and Word added to module-level ast_nodes import in commands.py.
+- Declared _saved_states as a dataclass field in ParserContext with
+  field(default_factory=list), removing hasattr guards in __enter__/__exit__
+  and adding reset in reset_state().
+- Removed dead branch in _format_variable where both if/else paths returned
+  the same f"${token.value}".
+- No behavioral changes; all tests passing.
+
 0.133.0 (2026-02-09) - Parser Docs: Sub-Parser Contract, WordBuilder Cross-refs
 - Added "Sub-Parser Contract" section to parser CLAUDE.md documenting the implicit
   convention all 8 sub-parsers follow: initialization, state access via
