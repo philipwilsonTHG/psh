@@ -25,15 +25,20 @@ class ParserUtils:
                     # Use the heredoc key if available
                     if hasattr(redirect, 'heredoc_key') and redirect.heredoc_key in heredoc_map:
                         heredoc_info = heredoc_map[redirect.heredoc_key]
-                        redirect.heredoc_content = heredoc_info['content']
-                        # Store whether the delimiter was quoted for expansion decisions
-                        redirect.heredoc_quoted = heredoc_info['quoted']
+                        if isinstance(heredoc_info, dict):
+                            redirect.heredoc_content = heredoc_info['content']
+                            redirect.heredoc_quoted = heredoc_info.get('quoted', False)
+                        else:
+                            redirect.heredoc_content = heredoc_info
                     else:
                         # Fallback: find by delimiter (for backward compatibility)
                         for key, heredoc_info in heredoc_map.items():
                             if key.endswith(f'_{redirect.target}'):
-                                redirect.heredoc_content = heredoc_info['content']
-                                redirect.heredoc_quoted = heredoc_info['quoted']
+                                if isinstance(heredoc_info, dict):
+                                    redirect.heredoc_content = heredoc_info['content']
+                                    redirect.heredoc_quoted = heredoc_info.get('quoted', False)
+                                else:
+                                    redirect.heredoc_content = heredoc_info
                                 break
 
         # Recursively process child nodes

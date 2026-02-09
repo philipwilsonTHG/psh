@@ -354,12 +354,15 @@ class Parser(ContextBaseParser):
         self.heredoc_map = heredoc_map
 
         # Populate context with heredoc information
-        for key, content in heredoc_map.items():
+        for key, heredoc_info in heredoc_map.items():
             # Extract delimiter from key (format: "heredoc_N_delimiter")
             parts = key.split('_')
             if len(parts) >= 3:
                 delimiter = '_'.join(parts[2:])
                 ctx_key = self.ctx.register_heredoc(delimiter)
+                # Handle both dict format {'content': ..., 'quoted': ...}
+                # and plain string format
+                content = heredoc_info['content'] if isinstance(heredoc_info, dict) else heredoc_info
                 # Add content lines
                 for line in content.splitlines():
                     self.ctx.add_heredoc_line(ctx_key, line)
