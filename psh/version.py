@@ -2,10 +2,26 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.135.0"
+__version__ = "0.136.0"
 
 # Version history
 VERSION_HISTORY = """
+0.136.0 (2026-02-09) - Parser Code Quality: 5 Improvements from v0.135.0 Review
+- Compiled regex patterns at module level in commands.py, redirections.py,
+  and word_builder.py (3 files, 5 patterns).
+- Moved 5 inline imports to module level: RichToken and WordBuilder in
+  commands.py, ErrorContext and ErrorSeverity in context.py, ParsingMode
+  in base_context.py.
+- Replaced if/elif chain in _check_for_unclosed_expansions with
+  data-driven _UNCLOSED_EXPANSION_MSGS dictionary lookup.
+- Removed compatibility shim classes: ParserFactory, ConfigurationValidator,
+  ParserContextFactory, _ErrorCollectorView. Migrated all callers to
+  underlying module-level functions and ctx attributes.
+- Factored combinators/control_structures.py (1,306 lines) into a package
+  with 3 mixin modules (loops, conditionals, structures) plus shared
+  format_token_value utility in utils.py.
+- No behavioral changes; all tests passing.
+
 0.135.0 (2026-02-09) - Consolidate parse_composite_argument() into Word AST
 - Migrated all 10 callers of parse_composite_argument() to use parse_argument_as_word(),
   unifying all argument parsing into a single Word AST path.
