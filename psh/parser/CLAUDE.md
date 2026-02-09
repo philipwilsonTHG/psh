@@ -44,19 +44,25 @@ Statements Commands  Control   Functions  Tests
 | File | Purpose |
 |------|---------|
 | `context_factory.py` | `ParserContextFactory` for creating configured contexts |
-| `error_collector.py` | Multi-error collection and recovery |
 | `word_builder.py` | Build Word AST nodes from tokens |
 | `utils.py` | Parser utilities |
 
 ### Parser Combinators (`combinators/`)
 
-Alternative parsing approach using functional combinators:
+Alternative parser using functional composition. See
+[Combinator Parser Guide](../../docs/guides/combinator_parser_guide.md)
+for a detailed walkthrough.
 
 | File | Purpose |
 |------|---------|
 | `core.py` | Combinator primitives (`token`, `many`, `sequence`, etc.) |
-| `parser.py` | Combinator-based parser implementation |
-| `control_structures.py` | Control structure combinators |
+| `tokens.py` | Token-level matchers |
+| `expansions.py` | Expansion parsers and Word AST building |
+| `commands.py` | Simple commands, pipelines, and-or lists |
+| `control_structures.py` | if, while, for, case, select, functions, groups |
+| `special_commands.py` | `(( ))`, `[[ ]]`, arrays, process substitution |
+| `heredoc_processor.py` | Post-parse heredoc content population |
+| `parser.py` | `ParserCombinatorShellParser` integration class |
 
 ### Validation (`validation/`)
 
