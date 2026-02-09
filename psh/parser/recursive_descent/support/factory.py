@@ -7,7 +7,7 @@ with different configurations for various use cases.
 from typing import List, Optional
 
 from ....token_types import Token
-from ...config import ParserConfig, ParsingMode
+from ...config import ErrorHandlingMode, ParserConfig, ParsingMode
 from ..parser import Parser
 
 
@@ -113,7 +113,7 @@ def validate_config(config: ParserConfig) -> List[str]:
 
     # Check error handling consistency
     if (config.enable_error_recovery and
-        config.error_handling == 'strict'):
+        config.error_handling == ErrorHandlingMode.STRICT):
         warnings.append(
             "Error recovery is enabled with strict error handling - "
             "recovery will not be attempted"
