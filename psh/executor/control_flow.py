@@ -324,34 +324,44 @@ class ControlFlowExecutor:
             context.in_pipeline = False
             try:
                 # Try each case item
+                fall_through = False
                 for case_item in node.items:
-                    # Check if any pattern matches
-                    for pattern_obj in case_item.patterns:
-                        # Expand pattern
-                        pattern_str = pattern_obj.pattern
-                        expanded_pattern = pattern_str
-                        if '$' in pattern_str:
-                            expanded_pattern = self.expansion_manager.expand_string_variables(pattern_str)
+                    matched = fall_through
+                    if not matched:
+                        # Check if any pattern matches
+                        for pattern_obj in case_item.patterns:
+                            # Expand pattern
+                            pattern_str = pattern_obj.pattern
+                            expanded_pattern = pattern_str
+                            if '$' in pattern_str:
+                                expanded_pattern = self.expansion_manager.expand_string_variables(pattern_str)
 
-                        # Convert bash-style escape sequences for fnmatch
-                        fnmatch_pattern = self._convert_case_pattern_for_fnmatch(expanded_pattern)
+                            # Convert bash-style escape sequences for fnmatch
+                            fnmatch_pattern = self._convert_case_pattern_for_fnmatch(expanded_pattern)
 
-                        if self._match_case_pattern(expr, fnmatch_pattern):
-                            # Execute the commands for this case
-                            exit_status = visitor.visit(case_item.commands)
-
-                            # Handle terminator
-                            if case_item.terminator == ';;':
-                                # Normal termination
-                                return exit_status
-                            elif case_item.terminator == ';&':
-                                # Fall through to next case
+                            if self._match_case_pattern(expr, fnmatch_pattern):
+                                matched = True
                                 break
-                            elif case_item.terminator == ';;&':
-                                # Continue testing patterns
-                                continue
 
+                    fall_through = False
+
+                    if matched:
+                        # Execute the commands for this case
+                        exit_status = visitor.visit(case_item.commands)
+
+                        # Handle terminator
+                        if case_item.terminator == ';;':
+                            # Normal termination
                             return exit_status
+                        elif case_item.terminator == ';&':
+                            # Fall through: execute next case unconditionally
+                            fall_through = True
+                            continue
+                        elif case_item.terminator == ';;&':
+                            # Continue testing patterns
+                            continue
+
+                        return exit_status
 
                 # No pattern matched
                 return 0
