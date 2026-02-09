@@ -1,0 +1,479 @@
+"""Loop parsers for the shell parser combinator.
+
+This module provides mixin parsers for while, until, for (traditional and
+C-style), select loops, and break/continue statements.
+"""
+
+from typing import List, Optional, Tuple, Union
+
+from ....ast_nodes import (
+    BreakStatement,
+    CommandList,
+    ContinueStatement,
+    CStyleForLoop,
+    ForLoop,
+    SelectLoop,
+    UntilLoop,
+    WhileLoop,
+)
+from ....lexer.keyword_defs import matches_keyword
+from ....token_types import Token
+from ..core import Parser, ParseResult
+from ..utils import format_token_value
+
+
+class LoopParserMixin:
+    """Mixin providing loop parsers for ControlStructureParsers."""
+
+    def _build_while_loop(self) -> Parser[WhileLoop]:
+        """Build parser for while/do/done loops."""
+        def parse_while_loop(tokens: List[Token], pos: int) -> ParseResult[WhileLoop]:
+            """Parse while loop."""
+            if pos >= len(tokens) or not matches_keyword(tokens[pos], 'while'):
+                return ParseResult(success=False, error="Expected 'while'", position=pos)
+
+            pos += 1  # Skip 'while'
+
+            # Parse condition (until 'do')
+            condition_tokens = []
+            while pos < len(tokens):
+                token = tokens[pos]
+                if matches_keyword(token, 'do'):
+                    break
+                if token.type.name in ['SEMICOLON', 'NEWLINE']:
+                    if pos + 1 < len(tokens):
+                        next_token = tokens[pos + 1]
+                        if matches_keyword(next_token, 'do'):
+                            break
+                condition_tokens.append(token)
+                pos += 1
+
+            if pos >= len(tokens):
+                return ParseResult(success=False, error="Expected 'do' in while loop", position=pos)
+
+            condition_result = self.commands.statement_list.parse(condition_tokens, 0)
+            if not condition_result.success:
+                return ParseResult(success=False,
+                                 error=f"Failed to parse while condition: {condition_result.error}",
+                                 position=pos)
+
+            # Skip separator and 'do'
+            if tokens[pos].type.name in ['SEMICOLON', 'NEWLINE']:
+                pos += 1
+            if pos >= len(tokens) or not matches_keyword(tokens[pos], 'do'):
+                return ParseResult(success=False, error="Expected 'do' after while condition", position=pos)
+            pos += 1  # Skip 'do'
+
+            # Skip optional separator after 'do'
+            if pos < len(tokens) and tokens[pos].type.name in ['SEMICOLON', 'NEWLINE']:
+                pos += 1
+
+            # Parse the body (until 'done', handling nested loops)
+            body_tokens, done_pos = self._collect_tokens_until_keyword(tokens, pos, 'done', 'do')
+
+            if done_pos >= len(tokens):
+                return ParseResult(success=False, error="Expected 'done' to close while loop", position=pos)
+
+            body_result = self.commands.statement_list.parse(body_tokens, 0)
+            if not body_result.success:
+                return ParseResult(success=False,
+                                 error=f"Failed to parse while body: {body_result.error}",
+                                 position=pos)
+
+            pos = done_pos + 1  # Skip 'done'
+
+            return ParseResult(
+                success=True,
+                value=WhileLoop(
+                    condition=condition_result.value,
+                    body=body_result.value
+                ),
+                position=pos
+            )
+
+        return Parser(parse_while_loop)
+
+    def _build_until_loop(self) -> Parser[UntilLoop]:
+        """Build parser for until/do/done loops."""
+        def parse_until_loop(tokens: List[Token], pos: int) -> ParseResult[UntilLoop]:
+            """Parse until loop."""
+            if pos >= len(tokens) or not matches_keyword(tokens[pos], 'until'):
+                return ParseResult(success=False, error="Expected 'until'", position=pos)
+
+            pos += 1  # Skip 'until'
+
+            # Parse condition until 'do'
+            condition_tokens = []
+            while pos < len(tokens):
+                token = tokens[pos]
+                if matches_keyword(token, 'do'):
+                    break
+                if token.type.name in ['SEMICOLON', 'NEWLINE']:
+                    if pos + 1 < len(tokens):
+                        next_token = tokens[pos + 1]
+                        if matches_keyword(next_token, 'do'):
+                            break
+                condition_tokens.append(token)
+                pos += 1
+
+            if pos >= len(tokens):
+                return ParseResult(success=False, error="Expected 'do' in until loop", position=pos)
+
+            condition_result = self.commands.statement_list.parse(condition_tokens, 0)
+            if not condition_result.success:
+                return ParseResult(success=False,
+                                   error=f"Failed to parse until condition: {condition_result.error}",
+                                   position=pos)
+
+            if tokens[pos].type.name in ['SEMICOLON', 'NEWLINE']:
+                pos += 1
+            if pos >= len(tokens) or not matches_keyword(tokens[pos], 'do'):
+                return ParseResult(success=False, error="Expected 'do' after until condition", position=pos)
+            pos += 1
+
+            if pos < len(tokens) and tokens[pos].type.name in ['SEMICOLON', 'NEWLINE']:
+                pos += 1
+
+            body_tokens, done_pos = self._collect_tokens_until_keyword(tokens, pos, 'done', 'do')
+
+            if done_pos >= len(tokens):
+                return ParseResult(success=False, error="Expected 'done' to close until loop", position=pos)
+
+            body_result = self.commands.statement_list.parse(body_tokens, 0)
+            if not body_result.success:
+                return ParseResult(success=False,
+                                   error=f"Failed to parse until body: {body_result.error}",
+                                   position=pos)
+
+            pos = done_pos + 1
+
+            return ParseResult(
+                success=True,
+                value=UntilLoop(
+                    condition=condition_result.value,
+                    body=body_result.value
+                ),
+                position=pos
+            )
+
+        return Parser(parse_until_loop)
+
+    def _build_for_loops(self) -> Parser[Union[ForLoop, CStyleForLoop]]:
+        """Build parser for both traditional and C-style for loops."""
+        # Try C-style first, then traditional
+        return self._build_c_style_for_loop().or_else(self._build_traditional_for_loop())
+
+    def _build_traditional_for_loop(self) -> Parser[ForLoop]:
+        """Build parser for traditional for/in loops."""
+        def parse_for_loop(tokens: List[Token], pos: int) -> ParseResult[ForLoop]:
+            """Parse traditional for loop."""
+            if pos >= len(tokens) or not matches_keyword(tokens[pos], 'for'):
+                return ParseResult(success=False, error="Expected 'for'", position=pos)
+
+            pos += 1  # Skip 'for'
+
+            # Parse variable name
+            if pos >= len(tokens) or tokens[pos].type.name != 'WORD':
+                return ParseResult(success=False, error="Expected variable name after 'for'", position=pos)
+
+            var_name = tokens[pos].value
+            pos += 1
+
+            # Skip optional newlines before checking for 'in'
+            while pos < len(tokens) and tokens[pos].type.name == 'NEWLINE':
+                pos += 1
+
+            has_in_clause = False
+            if pos < len(tokens) and matches_keyword(tokens[pos], 'in'):
+                has_in_clause = True
+                pos += 1  # Skip 'in'
+                while pos < len(tokens) and tokens[pos].type.name == 'NEWLINE':
+                    pos += 1
+
+            items: List[str]
+            item_quote_types: List[Optional[str]]
+            if has_in_clause:
+                items = []
+                item_quote_types = []
+                # Parse items (words until 'do' or separator+do)
+                while pos < len(tokens):
+                    token = tokens[pos]
+                    if matches_keyword(token, 'do'):
+                        break
+                    if token.type.name in ['SEMICOLON', 'NEWLINE']:
+                        if (pos + 1 < len(tokens) and
+                            matches_keyword(tokens[pos + 1], 'do')):
+                            break
+                    if token.type.name in ['WORD', 'STRING', 'VARIABLE', 'COMPOSITE']:
+                        items.append(format_token_value(token))
+                        quote_type = getattr(token, 'quote_type', None)
+                        item_quote_types.append(quote_type)
+                        pos += 1
+                    else:
+                        break
+            else:
+                # No explicit list - default to positional parameters ("$@")
+                items = ['$@']
+                item_quote_types = ['"']
+
+            # Skip optional separator before 'do'
+            if pos < len(tokens) and tokens[pos].type.name in ['SEMICOLON', 'NEWLINE']:
+                pos += 1
+
+            if pos >= len(tokens) or not matches_keyword(tokens[pos], 'do'):
+                return ParseResult(success=False, error="Expected 'do' in for loop", position=pos)
+            pos += 1  # Skip 'do'
+
+            # Skip optional separator after 'do'
+            if pos < len(tokens) and tokens[pos].type.name in ['SEMICOLON', 'NEWLINE']:
+                pos += 1
+
+            # Parse the body (until 'done', handling nested loops)
+            body_tokens, done_pos = self._collect_tokens_until_keyword(tokens, pos, 'done', 'do')
+
+            if done_pos >= len(tokens):
+                return ParseResult(success=False, error="Expected 'done' to close for loop", position=pos)
+
+            body_result = self.commands.statement_list.parse(body_tokens, 0)
+            if not body_result.success:
+                return ParseResult(success=False,
+                                 error=f"Failed to parse for body: {body_result.error}",
+                                 position=pos)
+
+            pos = done_pos + 1  # Skip 'done'
+
+            return ParseResult(
+                success=True,
+                value=ForLoop(
+                    variable=var_name,
+                    items=items,
+                    body=body_result.value,
+                    item_quote_types=item_quote_types
+                ),
+                position=pos
+            )
+
+        return Parser(parse_for_loop)
+
+    def _build_c_style_for_loop(self) -> Parser[CStyleForLoop]:
+        """Build parser for C-style for loops."""
+        def parse_c_style_for(tokens: List[Token], pos: int) -> ParseResult[CStyleForLoop]:
+            """Parse C-style for loop."""
+            if pos >= len(tokens) or not matches_keyword(tokens[pos], 'for'):
+                return ParseResult(success=False, error="Expected 'for'", position=pos)
+
+            # Check for '((' after 'for'
+            if pos + 1 >= len(tokens) or (tokens[pos + 1].type.name != 'DOUBLE_LPAREN' and tokens[pos + 1].value != '(('):
+                return ParseResult(success=False, error="Not a C-style for loop", position=pos)
+
+            pos += 2  # Skip 'for' and '(('
+
+            # Parse init expression (until ';')
+            init_tokens = []
+            while pos < len(tokens) and tokens[pos].value != ';':
+                init_tokens.append(tokens[pos])
+                pos += 1
+
+            if pos >= len(tokens):
+                return ParseResult(success=False, error="Expected ';' after init expression", position=pos)
+            pos += 1  # Skip ';'
+
+            # Parse condition expression (until ';')
+            cond_tokens = []
+            while pos < len(tokens) and tokens[pos].value != ';':
+                cond_tokens.append(tokens[pos])
+                pos += 1
+
+            if pos >= len(tokens):
+                return ParseResult(success=False, error="Expected ';' after condition expression", position=pos)
+            pos += 1  # Skip ';'
+
+            # Parse update expression (until '))')
+            update_tokens = []
+            while pos < len(tokens) and tokens[pos].type.name != 'DOUBLE_RPAREN' and tokens[pos].value != '))':
+                update_tokens.append(tokens[pos])
+                pos += 1
+
+            if pos >= len(tokens):
+                return ParseResult(success=False, error="Expected '))' to close C-style for", position=pos)
+            pos += 1  # Skip '))'
+
+            # Skip separator and 'do'
+            if pos < len(tokens) and tokens[pos].type.name in ['SEMICOLON', 'NEWLINE']:
+                pos += 1
+            if pos >= len(tokens) or not matches_keyword(tokens[pos], 'do'):
+                return ParseResult(success=False, error="Expected 'do' after C-style for header", position=pos)
+            pos += 1  # Skip 'do'
+
+            # Skip optional separator after 'do'
+            if pos < len(tokens) and tokens[pos].type.name in ['SEMICOLON', 'NEWLINE']:
+                pos += 1
+
+            # Parse the body (until 'done', handling nested loops)
+            body_tokens, done_pos = self._collect_tokens_until_keyword(tokens, pos, 'done', 'do')
+
+            if done_pos >= len(tokens):
+                return ParseResult(success=False, error="Expected 'done' to close C-style for loop", position=pos)
+
+            body_result = self.commands.statement_list.parse(body_tokens, 0)
+            if not body_result.success:
+                return ParseResult(success=False,
+                                 error=f"Failed to parse for body: {body_result.error}",
+                                 position=pos)
+
+            pos = done_pos + 1  # Skip 'done'
+
+            # Convert token lists to strings
+            init_expr = ' '.join(t.value for t in init_tokens) if init_tokens else None
+            cond_expr = ' '.join(t.value for t in cond_tokens) if cond_tokens else None
+            update_expr = ' '.join(t.value for t in update_tokens) if update_tokens else None
+
+            return ParseResult(
+                success=True,
+                value=CStyleForLoop(
+                    init_expr=init_expr,
+                    condition_expr=cond_expr,
+                    update_expr=update_expr,
+                    body=body_result.value
+                ),
+                position=pos
+            )
+
+        return Parser(parse_c_style_for)
+
+    def _build_select_loop(self) -> Parser[SelectLoop]:
+        """Build parser for select/do/done loops."""
+        def parse_select_loop(tokens: List[Token], pos: int) -> ParseResult[SelectLoop]:
+            """Parse select loop."""
+            if pos >= len(tokens) or not matches_keyword(tokens[pos], 'select'):
+                return ParseResult(success=False, error="Expected 'select'", position=pos)
+
+            pos += 1  # Skip 'select'
+
+            # Parse variable name
+            if pos >= len(tokens) or tokens[pos].type.name != 'WORD':
+                return ParseResult(success=False, error="Expected variable name after 'select'", position=pos)
+
+            var_name = tokens[pos].value
+            pos += 1
+
+            # Expect 'in'
+            if pos >= len(tokens) or not matches_keyword(tokens[pos], 'in'):
+                return ParseResult(success=False, error="Expected 'in' after variable name", position=pos)
+
+            pos += 1  # Skip 'in'
+
+            # Parse items (words until 'do' or separator+do)
+            items = []
+            item_quote_types = []
+            while pos < len(tokens):
+                token = tokens[pos]
+                if matches_keyword(token, 'do'):
+                    break
+                if token.type.name in ['SEMICOLON', 'NEWLINE']:
+                    if (pos + 1 < len(tokens) and
+                        matches_keyword(tokens[pos + 1], 'do')):
+                        break
+                if token.type.name in ['WORD', 'STRING', 'VARIABLE', 'COMMAND_SUB',
+                                      'COMMAND_SUB_BACKTICK', 'ARITH_EXPANSION', 'PARAM_EXPANSION']:
+                    items.append(format_token_value(token))
+
+                    # Track quote type for strings
+                    quote_type = getattr(token, 'quote_type', None)
+                    item_quote_types.append(quote_type)
+
+                    pos += 1
+                else:
+                    break
+
+            # Skip separator and 'do'
+            if pos < len(tokens) and tokens[pos].type.name in ['SEMICOLON', 'NEWLINE']:
+                pos += 1
+            if pos >= len(tokens) or not matches_keyword(tokens[pos], 'do'):
+                return ParseResult(success=False, error="Expected 'do' in select loop", position=pos)
+            pos += 1  # Skip 'do'
+
+            # Skip optional separator after 'do'
+            if pos < len(tokens) and tokens[pos].type.name in ['SEMICOLON', 'NEWLINE']:
+                pos += 1
+
+            # Parse the body (until 'done', handling nested loops)
+            body_tokens, done_pos = self._collect_tokens_until_keyword(tokens, pos, 'done', 'do')
+
+            if done_pos >= len(tokens):
+                return ParseResult(success=False, error="Expected 'done' to close select loop", position=pos)
+
+            body_result = self.commands.statement_list.parse(body_tokens, 0)
+            if not body_result.success:
+                return ParseResult(success=False,
+                                 error=f"Failed to parse select body: {body_result.error}",
+                                 position=pos)
+
+            pos = done_pos + 1  # Skip 'done'
+
+            return ParseResult(
+                success=True,
+                value=SelectLoop(
+                    variable=var_name,
+                    items=items,
+                    item_quote_types=item_quote_types,
+                    body=body_result.value,
+                    redirects=[],
+                    background=False
+                ),
+                position=pos
+            )
+
+        return Parser(parse_select_loop)
+
+    def _build_break_statement(self) -> Parser[BreakStatement]:
+        """Build parser for break statement."""
+        def parse_break(tokens: List[Token], pos: int) -> ParseResult[BreakStatement]:
+            """Parse break statement."""
+            if pos >= len(tokens) or not matches_keyword(tokens[pos], 'break'):
+                return ParseResult(success=False, error="Expected 'break'", position=pos)
+
+            pos += 1  # Skip 'break'
+
+            # Parse optional level (number)
+            level = 1  # Default
+            if pos < len(tokens) and tokens[pos].type.name == 'WORD':
+                try:
+                    level = int(tokens[pos].value)
+                    pos += 1
+                except ValueError:
+                    pass  # Not a number, leave level as 1
+
+            return ParseResult(
+                success=True,
+                value=BreakStatement(level=level),
+                position=pos
+            )
+
+        return Parser(parse_break)
+
+    def _build_continue_statement(self) -> Parser[ContinueStatement]:
+        """Build parser for continue statement."""
+        def parse_continue(tokens: List[Token], pos: int) -> ParseResult[ContinueStatement]:
+            """Parse continue statement."""
+            if pos >= len(tokens) or not matches_keyword(tokens[pos], 'continue'):
+                return ParseResult(success=False, error="Expected 'continue'", position=pos)
+
+            pos += 1  # Skip 'continue'
+
+            # Parse optional level (number)
+            level = 1  # Default
+            if pos < len(tokens) and tokens[pos].type.name == 'WORD':
+                try:
+                    level = int(tokens[pos].value)
+                    pos += 1
+                except ValueError:
+                    pass  # Not a number, leave level as 1
+
+            return ParseResult(
+                success=True,
+                value=ContinueStatement(level=level),
+                position=pos
+            )
+
+        return Parser(parse_continue)

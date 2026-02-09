@@ -25,6 +25,7 @@ from ..config import ParserConfig
 from .commands import CommandParsers
 from .core import Parser, ParseResult
 from .tokens import TokenParsers
+from .utils import format_token_value
 
 
 class SpecialCommandParsers:
@@ -359,7 +360,7 @@ class SpecialCommandParsers:
                 if token.type.name in ['WORD', 'STRING', 'VARIABLE', 'COMMAND_SUB',
                                       'COMMAND_SUB_BACKTICK', 'PARAM_EXPANSION']:
                     # Format the element value
-                    element_value = self._format_token_value(token)
+                    element_value = format_token_value(token)
 
                     elements.append(element_value)
                     element_types.append(token.type.name)
@@ -474,7 +475,7 @@ class SpecialCommandParsers:
                 value_token = tokens[pos]
                 pos += 1
 
-                assigned_value = self._format_token_value(value_token)
+                assigned_value = format_token_value(value_token)
                 value_type = value_token.type.name
                 value_quote_type = getattr(value_token, 'quote_type', None)
 
@@ -554,7 +555,7 @@ class SpecialCommandParsers:
                     return ParseResult(success=False, error="Expected value after '='", position=pos)
 
                 value_token = tokens[pos]
-                value = self._format_token_value(value_token)
+                value = format_token_value(value_token)
                 value_type = value_token.type.name
                 value_quote_type = getattr(value_token, 'quote_type', None)
 
@@ -683,28 +684,6 @@ class SpecialCommandParsers:
 
         return Parser(parse_process_substitution)
 
-    def _format_token_value(self, token: Token) -> str:
-        """Format token value appropriately based on token type.
-        
-        Args:
-            token: Token to format
-            
-        Returns:
-            Formatted string representation
-        """
-        if token.type.name == 'VARIABLE':
-            # Variables need the $ prefix
-            return f"${token.value}"
-        elif token.type.name in ['COMMAND_SUB', 'COMMAND_SUB_BACKTICK',
-                                 'ARITH_EXPANSION', 'PARAM_EXPANSION']:
-            # These already include their delimiters
-            return token.value
-        elif token.type.name == 'STRING':
-            # String content after quote processing
-            return token.value
-        else:
-            # Everything else uses raw value
-            return token.value
 
 
 # Convenience functions
