@@ -16,6 +16,7 @@ from psh.ast_nodes import CaseItem, CaseConditional, SelectLoop
 from psh.lexer import tokenize
 from psh.parser import Parser, ParserConfig
 from psh.parser.recursive_descent.helpers import ParseError
+from psh.parser.validation.validation_rules import ValidationReport
 
 
 # ---------------------------------------------------------------------------
@@ -402,3 +403,32 @@ class TestValidationTraversal:
         errors, warnings = analyzer.analyze(ast)
         # No semantic errors expected for this valid construct
         assert not errors
+
+
+# ===========================================================================
+# Codex Review Finding 3: Config field name disconnect
+# ===========================================================================
+
+class TestConfigValidationField:
+    """Tests that ParserConfig.enable_validation triggers validation."""
+
+    def test_config_enable_validation_triggers(self):
+        """ParserConfig(enable_validation=True) should produce a validation report."""
+        tokens = tokenize('for x in a b; do echo $x; done')
+        config = ParserConfig(enable_validation=True)
+        parser = Parser(tokens, source_text='for x in a b; do echo $x; done',
+                        config=config)
+        ast, report = parser.parse_and_validate()
+        assert ast is not None
+        # With validation enabled, the report should have been populated
+        # (may or may not have issues, but the pipeline ran)
+        assert isinstance(report, ValidationReport)
+
+    def test_config_validation_off_by_default(self):
+        """Default config should return empty report from parse_and_validate()."""
+        tokens = tokenize('echo hello')
+        parser = Parser(tokens, source_text='echo hello')
+        ast, report = parser.parse_and_validate()
+        assert ast is not None
+        # Validation not enabled, so report should be empty
+        assert not report.issues

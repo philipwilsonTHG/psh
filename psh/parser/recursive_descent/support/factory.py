@@ -83,7 +83,7 @@ def create_shell_parser(tokens: List[Token],
         config_overrides.update({
             'trace_parsing': True,
             'profile_parsing': True,
-            'validate_ast': True
+            'enable_validation': True
         })
 
     # Apply overrides if any
@@ -139,11 +139,11 @@ def suggest_config(use_case: str) -> ParserConfig:
         return ParserConfig.permissive()
     elif 'debug' in use_case or 'develop' in use_case:
         return ParserConfig(trace_parsing=True, profile_parsing=True,
-                            validate_ast=True)
+                            enable_validation=True)
     elif 'learn' in use_case or 'teach' in use_case or 'education' in use_case:
         return ParserConfig(
             parsing_mode=ParsingMode.EDUCATIONAL,
-            trace_parsing=True, validate_ast=True,
+            trace_parsing=True, enable_validation=True,
             show_error_suggestions=True)
     else:
         return ParserConfig()  # Default bash-compatible

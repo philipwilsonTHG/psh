@@ -52,7 +52,9 @@ class ParserConfig:
     # === Development and Debugging ===
     trace_parsing: bool = False              # Trace parsing rules
     profile_parsing: bool = False            # Profile parser performance
-    validate_ast: bool = False               # Validate AST after parsing
+    enable_validation: bool = False            # Validate AST after parsing
+    enable_semantic_analysis: bool = True      # Run semantic analysis during validation
+    enable_validation_rules: bool = True       # Run validation rules during validation
 
     @classmethod
     def strict_posix(cls) -> 'ParserConfig':

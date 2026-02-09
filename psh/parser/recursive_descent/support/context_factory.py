@@ -157,7 +157,7 @@ def create_validation_context(tokens: List[Token],
         collect_errors=True,
         enable_error_recovery=True,
         max_errors=100,
-        validate_ast=True
+        enable_validation=True
     )
 
     return create_context(tokens, config, source_text)

@@ -197,7 +197,7 @@ class Parser(ContextBaseParser):
             return None, report
 
         # If AST was created and validation is enabled, validate it
-        if ast and getattr(self.config, 'enable_validation', False):
+        if ast and self.config.enable_validation:
             return ast, self.validate_ast(ast)
 
         # Return AST with empty validation report
@@ -212,14 +212,14 @@ class Parser(ContextBaseParser):
         report = ValidationReport()
 
         # Semantic analysis
-        if getattr(self.config, 'enable_semantic_analysis', True):
+        if self.config.enable_semantic_analysis:
             analyzer = SemanticAnalyzer()
             errors, warnings = analyzer.analyze(ast)
             report.add_errors(errors)
             report.add_warnings(warnings)
 
         # Validation rules
-        if getattr(self.config, 'enable_validation_rules', True):
+        if self.config.enable_validation_rules:
             pipeline = ValidationPipeline()
             rule_report = pipeline.validate(ast)
             report.add_issues(rule_report.issues)
@@ -228,7 +228,6 @@ class Parser(ContextBaseParser):
 
     def enable_validation(self, enable_semantic: bool = True, enable_rules: bool = True):
         """Enable AST validation features."""
-        # Add validation options to config (these don't exist yet, so we'll add them dynamically)
         self.config.enable_validation = True
         self.config.enable_semantic_analysis = enable_semantic
         self.config.enable_validation_rules = enable_rules
