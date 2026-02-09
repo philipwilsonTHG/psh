@@ -377,17 +377,17 @@ class TestParserIntegration:
         """Test parser configuration."""
         # Create with custom config
         config = ParserConfig(
-            enable_arrays=False,
+            enable_arithmetic=False,
             allow_bash_conditionals=False
         )
         parser = ParserCombinatorShellParser(config=config)
-        
-        assert parser.config.enable_arrays is False
+
+        assert parser.config.enable_arithmetic is False
         assert parser.config.allow_bash_conditionals is False
-        
+
         # Reconfigure
-        parser.configure(enable_arrays=True)
-        assert parser.config.enable_arrays is True
+        parser.configure(enable_arithmetic=True)
+        assert parser.config.enable_arithmetic is True
     
     def test_error_handling(self):
         """Test parse error handling."""

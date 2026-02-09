@@ -295,16 +295,16 @@ class TestParserIntegration:
         }
         """
         tokens = tokenize(code)
-        config = ParserConfig(enable_validation=True)
-        parser = Parser(tokens, config=config)
-        
+        parser = Parser(tokens)
+        parser.enable_validation()
+
         ast, report = parser.parse_and_validate()
         
         assert ast is not None
         assert isinstance(report, ValidationReport)
     
-    def test_validation_with_educational_config(self):
-        """Test validation with educational configuration."""
+    def test_validation_with_enabled_config(self):
+        """Test validation with validation enabled."""
         code = """
         function test_func() {
             echo "hello"
@@ -312,15 +312,15 @@ class TestParserIntegration:
         break
         """
         tokens = tokenize(code)
-        config = ParserConfig.educational()
-        parser = Parser(tokens, config=config)
-        
+        parser = Parser(tokens)
+        parser.enable_validation()
+
         ast, report = parser.parse_and_validate()
-        
+
         assert ast is not None
         assert isinstance(report, ValidationReport)
         # Should have validation enabled
-        assert config.enable_validation
+        assert getattr(parser.config, 'enable_validation', False)
         # Should detect break outside loop
         assert len(report.get_warnings()) > 0
     
@@ -391,17 +391,17 @@ class TestComplexValidationScenarios:
             return 0
             echo "unreachable"
         }
-        
+
         function inner() {
             echo "inner function"
         }
-        
+
         outer
         """
         tokens = tokenize(code)
-        config = ParserConfig.educational()
-        parser = Parser(tokens, config=config)
-        
+        parser = Parser(tokens)
+        parser.enable_validation()
+
         ast, report = parser.parse_and_validate()
         
         assert ast is not None
@@ -423,9 +423,9 @@ class TestComplexValidationScenarios:
         done
         """
         tokens = tokenize(code)
-        config = ParserConfig.educational()
-        parser = Parser(tokens, config=config)
-        
+        parser = Parser(tokens)
+        parser.enable_validation()
+
         ast, report = parser.parse_and_validate()
         
         assert ast is not None
@@ -441,17 +441,17 @@ class TestComplexValidationScenarios:
         function if() {
             # Bad function name
         }
-        
+
         for i in 1 2 3; do
         done
-        
+
         break
         return 1
         """
         tokens = tokenize(code)
-        config = ParserConfig.educational()
-        parser = Parser(tokens, config=config)
-        
+        parser = Parser(tokens)
+        parser.enable_validation()
+
         ast, report = parser.parse_and_validate()
         
         assert ast is not None

@@ -384,12 +384,12 @@ class TestParserContextFactory:
         
         assert ctx.config.parsing_mode == ParsingMode.STRICT_POSIX
     
-    def test_create_bash_compatible(self):
-        """Test Bash-compatible context creation."""
+    def test_create_default(self):
+        """Test default context creation (bash-compatible by default)."""
         tokens = [Token(TokenType.WORD, "test", 0)]
-        
-        ctx = ParserContextFactory.create_bash_compatible(tokens)
-        
+
+        ctx = ParserContextFactory.create(tokens)
+
         assert ctx.config.parsing_mode == ParsingMode.BASH_COMPAT
     
     def test_create_permissive(self):
@@ -409,7 +409,6 @@ class TestParserContextFactory:
         assert ctx.config.parsing_mode == ParsingMode.BASH_COMPAT
         assert ctx.config.error_handling == ErrorHandlingMode.COLLECT
         assert ctx.config.collect_errors
-        assert ctx.config.interactive_parsing
     
     def test_create_sub_parser_context(self):
         """Test sub-parser context creation."""

@@ -27,7 +27,7 @@ __all__ = [
     'ParserProfiler', 'HeredocInfo',
     'ParserConfig', 'ParsingMode', 'ErrorHandlingMode', 'ParserFactory', 'ConfigurationValidator',
     # Parsing modes
-    'parse_strict_posix', 'parse_bash_compatible', 'parse_permissive'
+    'parse_strict_posix', 'parse_permissive'
 ]
 
 
@@ -58,37 +58,24 @@ def parse_with_heredocs(tokens, heredoc_map):
 
 def parse_strict_posix(tokens, source_text=None):
     """Parse tokens with strict POSIX compliance.
-    
+
     Args:
         tokens: List of tokens to parse
         source_text: Optional source text for error reporting
-        
+
     Returns:
         Parsed AST in strict POSIX mode
     """
     return ParserFactory.create_strict_posix_parser(tokens, source_text).parse()
 
 
-def parse_bash_compatible(tokens, source_text=None):
-    """Parse tokens with Bash compatibility.
-    
-    Args:
-        tokens: List of tokens to parse
-        source_text: Optional source text for error reporting
-        
-    Returns:
-        Parsed AST in Bash-compatible mode
-    """
-    return ParserFactory.create_bash_compatible_parser(tokens, source_text).parse()
-
-
 def parse_permissive(tokens, source_text=None):
     """Parse tokens in permissive mode with error collection.
-    
+
     Args:
         tokens: List of tokens to parse
         source_text: Optional source text for error reporting
-        
+
     Returns:
         Parsed AST (may be partial if errors occurred)
     """
