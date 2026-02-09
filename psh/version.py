@@ -2,10 +2,29 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.137.0"
+__version__ = "0.138.0"
 
 # Version history
 VERSION_HISTORY = """
+0.138.0 (2026-02-09) - Fix 7 Parser Issues from Implementation Review
+- Fixed non-terminating loop in case parsing when encountering LPAREN token
+  (bash's optional (pattern) syntax). Added no-progress guard to prevent
+  infinite loops on unexpected tokens.
+- Fixed case terminator semantics: ;& and ;;& values now stored in CaseItem
+  AST node (was always defaulting to ;;). Fixed executor fall-through logic
+  so ;& correctly executes next case body unconditionally.
+- Allowed leading redirections before command name (POSIX: >out echo hi).
+  Expanded _validate_command_start() to accept REDIRECTS and fd-dup tokens.
+- Fixed [[ ]] operand concatenation: added adjacent_to_previous check so
+  '[[ a b ]]' correctly raises ParseError instead of silently concatenating.
+- Allowed 'select' without 'in' clause (defaults to "$@"), matching bash.
+- Fixed parse_with_heredocs() to handle both dict {'content':...,'quoted':...}
+  and plain string formats for heredoc content.
+- Fixed config validation enum comparison: validate_config() compared
+  error_handling against string 'strict' instead of ErrorHandlingMode.STRICT.
+- Added 23 regression tests in tests/regression/test_parser_review_fixes.py.
+- Removed @pytest.mark.xfail from test_case_fallthrough (now works).
+
 0.137.0 (2026-02-09) - Parser Code Quality: Address Remaining Code Smells #2 and #4
 - Refactored is_array_assignment() from 90-line monolithic method into 5 focused
   helper methods using peek-based lookahead instead of advance-then-restore:
