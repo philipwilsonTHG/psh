@@ -11,6 +11,9 @@ from ....ast_nodes import Redirect
 from ....token_types import Token, TokenType
 from ..helpers import TokenGroups
 
+# Pre-compiled regex for fd duplication (e.g. "2>&1", ">&-")
+_FD_DUP_RE = re.compile(r'^(\d*)([><])&(-|\d+)$')
+
 
 class RedirectionParser:
     """Parser for redirection constructs."""
@@ -32,7 +35,7 @@ class RedirectionParser:
         token = self.parser.advance()
         value = token.value
 
-        match = re.match(r'^(\d*)([><])&(-|\d+)$', value)
+        match = _FD_DUP_RE.match(value)
         if not match:
             raise self.parser.error(f"Invalid fd duplication syntax: {value}")
 
@@ -136,7 +139,7 @@ class RedirectionParser:
                 return Redirect(type=direction + '&', target=dup_part, fd=default_fd, dup_fd=dup_fd)
 
         # Handle single-token forms containing >&  or <&  (e.g., "2>&1", "3<&0", "3>&-", "3<&-")
-        match = re.match(r'^(\d*)([><])&(-|\d+)$', token.value)
+        match = _FD_DUP_RE.match(token.value)
         if match:
             source_fd_str, direction, target = match.groups()
             default_fd = 1 if direction == '>' else 0

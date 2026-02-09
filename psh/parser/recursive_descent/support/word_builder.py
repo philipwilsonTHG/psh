@@ -21,6 +21,10 @@ from ....ast_nodes import (
 from ....token_types import Token, TokenType
 
 # Token types that represent standalone expansion tokens
+# Pre-compiled regex patterns for variable name classification
+_SIMPLE_VAR_RE = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*(\[.+?\])?$')
+_SPECIAL_VAR_RE = re.compile(r'^[0-9$?!@*#-]$')
+
 EXPANSION_TYPES = frozenset({
     TokenType.VARIABLE, TokenType.COMMAND_SUB,
     TokenType.COMMAND_SUB_BACKTICK, TokenType.ARITH_EXPANSION,
@@ -48,8 +52,8 @@ class WordBuilder:
                 # with operators. Simple names: alphanumeric/underscores, or special
                 # single-char vars ($, ?, #, !, @, *, 0-9).
                 # Array subscripts (arr[@], arr[0]) are also simple.
-                if re.match(r'^[A-Za-z_][A-Za-z0-9_]*(\[.+?\])?$', inner) or \
-                   re.match(r'^[0-9$?!@*#-]$', inner):
+                if _SIMPLE_VAR_RE.match(inner) or \
+                   _SPECIAL_VAR_RE.match(inner):
                     name = inner
                 else:
                     # Contains operators — delegate to parameter expansion parser

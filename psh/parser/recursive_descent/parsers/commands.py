@@ -33,6 +33,9 @@ from ....token_stream import TokenStream
 from ....token_types import Token, TokenType
 from ..helpers import ErrorContext, ParseError, TokenGroups
 
+# Pre-compiled regex for fd duplication detection (e.g. ">&2", "2>&1")
+_FD_DUP_RE = re.compile(r'^(\d*)[><]&(-|\d+)$')
+
 
 class CommandParser:
     """Parser for command-level constructs."""
@@ -44,8 +47,7 @@ class CommandParser:
     def _is_fd_duplication(self, value: str) -> bool:
         """Check if a WORD token is actually a file descriptor duplication."""
         # Patterns: >&N, <&N, N>&M, N<&M, >&-, <&-
-        fd_dup_pattern = re.compile(r'^(\d*)[><]&(-|\d+)$')
-        return bool(fd_dup_pattern.match(value))
+        return bool(_FD_DUP_RE.match(value))
 
     def _raise_unclosed_expansion_error(self, msg: str, token: Token) -> None:
         """Raise a ParseError for an unclosed expansion."""
