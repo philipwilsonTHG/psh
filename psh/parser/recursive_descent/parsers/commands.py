@@ -129,9 +129,11 @@ class CommandParser:
                 self.parser.peek()
             )
 
-        # Ensure we have at least one word-like token
-        if not self.parser.match_any(TokenGroups.WORD_LIKE):
-            raise self.parser.error("Expected command")
+        # Ensure we have a word-like token, redirect, or fd-duplication word
+        if not self.parser.match_any(TokenGroups.WORD_LIKE | TokenGroups.REDIRECTS):
+            if not (self.parser.match(TokenType.WORD) and
+                    self._is_fd_duplication(self.parser.peek().value)):
+                raise self.parser.error("Expected command")
 
     def _parse_command_elements(self, command: SimpleCommand) -> None:
         """Parse arguments, redirections, and array assignments for a command."""
