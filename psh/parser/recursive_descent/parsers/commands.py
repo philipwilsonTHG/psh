@@ -38,6 +38,14 @@ from ..support.word_builder import WordBuilder
 # Pre-compiled regex for fd duplication detection (e.g. ">&2", "2>&1")
 _FD_DUP_RE = re.compile(r'^(\d*)[><]&(-|\d+)$')
 
+# Mapping from expansion_type to (description, prefix, chars_to_skip)
+_UNCLOSED_EXPANSION_MSGS = {
+    'parameter_unclosed': ("unclosed parameter expansion", '${', 2),
+    'command_unclosed': ("unclosed command substitution", '$(', 2),
+    'arithmetic_unclosed': ("unclosed arithmetic expansion", '$((', 3),
+    'backtick_unclosed': ("unclosed backtick substitution", '`', 1),
+}
+
 
 class CommandParser:
     """Parser for command-level constructs."""
@@ -72,15 +80,10 @@ class CommandParser:
         if isinstance(token, RichToken) and token.parts:
             for part in token.parts:
                 if part.expansion_type and part.expansion_type.endswith('_unclosed'):
-                    # Determine the type of unclosed expansion
-                    if part.expansion_type == 'parameter_unclosed':
-                        error_msg = f"Syntax error: unclosed parameter expansion '${{{part.value[2:]}'"
-                    elif part.expansion_type == 'command_unclosed':
-                        error_msg = f"Syntax error: unclosed command substitution '$({part.value[2:]}'"
-                    elif part.expansion_type == 'arithmetic_unclosed':
-                        error_msg = f"Syntax error: unclosed arithmetic expansion '$(({part.value[3:]}'"
-                    elif part.expansion_type == 'backtick_unclosed':
-                        error_msg = f"Syntax error: unclosed backtick substitution '`{part.value[1:]}'"
+                    fmt = _UNCLOSED_EXPANSION_MSGS.get(part.expansion_type)
+                    if fmt:
+                        desc, prefix, skip = fmt
+                        error_msg = f"Syntax error: {desc} '{prefix}{part.value[skip:]}'"
                     else:
                         error_msg = f"Syntax error: unclosed expansion '{part.value}'"
 
