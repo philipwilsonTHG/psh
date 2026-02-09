@@ -2,10 +2,28 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.140.0"
+__version__ = "0.141.0"
 
 # Version history
 VERSION_HISTORY = """
+0.141.0 (2026-02-09) - Fix Array Index Arithmetic Evaluation
+- Fixed array indices not evaluating bare variable names in arithmetic context.
+  In bash, array indices are always evaluated as arithmetic expressions, so
+  arr[i]="value" resolves variable i to its numeric value. PSH only called
+  evaluate_arithmetic() when operator characters were detected, causing bare
+  variable names like i to be treated as literal string keys.
+- Simplified execute_array_element_assignment() in executor/array.py: replaced
+  ~35-line heuristic block (try int(), regex for operators, conditional
+  evaluate_arithmetic) with unconditional evaluate_arithmetic() for unquoted
+  indices. Quoted indices (e.g., arr["key"]) still treated as string keys for
+  associative arrays.
+- Simplified indexed array access in expansion/variable.py: replaced
+  operator-detection conditional with unconditional evaluate_arithmetic() call.
+- Both paths now handle bare variable names, arithmetic expressions, and
+  literals uniformly via evaluate_arithmetic(), matching bash behavior.
+- Fixed test_large_array_creation: redirect was on a separate line from echo,
+  creating an empty file instead of capturing output.
+
 0.140.0 (2026-02-09) - Fix 5 Parser Validation and Config Issues
 - Fixed validation false positives: fd-dup redirects (2>&1) no longer flagged
   as "missing target"; case statement uses correct field (items, not cases);

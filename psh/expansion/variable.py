@@ -250,17 +250,14 @@ class VariableExpander:
                     expanded_index = self.expand_array_index(index_expr)
 
                     try:
-                        # Check if it's an arithmetic expression
-                        if any(op in expanded_index for op in ['+', '-', '*', '/', '%', '(', ')']):
-                            # Evaluate as arithmetic
-                            from ..arithmetic import ArithmeticError, evaluate_arithmetic
-                            try:
-                                index = evaluate_arithmetic(expanded_index, self.shell)
-                            except (ArithmeticError, Exception):
-                                return ''
-                        else:
-                            # Direct integer conversion
-                            index = int(expanded_index)
+                        # Always evaluate in arithmetic context (bash behavior).
+                        # Handles bare variable names, expressions, and literals.
+                        from ..arithmetic import ArithmeticError, evaluate_arithmetic
+                        try:
+                            index = evaluate_arithmetic(expanded_index, self.shell)
+                        except (ArithmeticError, Exception):
+                            # Bash compatibility: treat failed index on indexed arrays as index 0
+                            index = 0
 
                         result = var.value.get(index)
                         return result if result is not None else ''

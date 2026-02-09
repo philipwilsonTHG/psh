@@ -493,11 +493,11 @@ class TestArrayPerformance:
         for ((i=0; i<100; i++)); do
             arr[i]="element_$i"
         done
-        echo ${#arr[@]}
+        echo ${#arr[@]} > output.txt
         '''
-        
-        result = shell.run_command(script + ' > output.txt')
-        
+
+        result = shell.run_command(script)
+
         if result == 0:  # Only check if C-style for loops work
             with open('output.txt', 'r') as f:
                 content = f.read()

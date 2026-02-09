@@ -138,58 +138,29 @@ class ArrayOperationExecutor:
         # Determine index type - first check if it's numeric or string
         is_numeric_index = False
         cleaned_index = expanded_index
+        was_quoted = False
 
         # Remove quotes if present to check the actual key
         if len(cleaned_index) >= 2:
             if (cleaned_index.startswith('"') and cleaned_index.endswith('"')) or \
                (cleaned_index.startswith("'") and cleaned_index.endswith("'")):
+                was_quoted = True
                 cleaned_index = cleaned_index[1:-1]
 
-        # Try to determine if index is numeric
-        try:
-            # First try direct integer conversion
-            index = int(cleaned_index)
-            is_numeric_index = True
-        except (ValueError, TypeError):
-            # Not a simple integer, check if it's an arithmetic expression
-            # Be more careful about what we consider arithmetic:
-            # - Must have operators with spaces or be in parentheses
-            # - Simple identifiers with hyphens (like "my-key") are NOT arithmetic
-            has_arithmetic = False
-
-            # Check for clear arithmetic patterns
-            if '(' in cleaned_index and ')' in cleaned_index:
-                # Has parentheses, likely arithmetic
-                has_arithmetic = True
-            elif cleaned_index.strip().isdigit():
-                # Pure number
-                has_arithmetic = True
-            elif any(cleaned_index.startswith(op) for op in ['+', '-']) and cleaned_index[1:].strip().isdigit():
-                # Signed number like +5 or -3
-                has_arithmetic = True
-            else:
-                # Check for arithmetic operators but be smart about it
-                # Split on operators and see if we get numeric parts
-                import re
-                # Match patterns like: number op number (e.g., "1+1", "5-3", "10*2")
-                if re.match(r'^\d+\s*[+\-*/% ]\s*\d+', cleaned_index):
-                    has_arithmetic = True
-                elif re.match(r'^\(\s*\d+\s*[+\-*/% ]\s*\d+\s*\)', cleaned_index):
-                    # Parenthesized arithmetic like "(1+1)"
-                    has_arithmetic = True
-                else:
-                    has_arithmetic = False
-
-            if has_arithmetic:
-                try:
-                    index = evaluate_arithmetic(cleaned_index, self.shell)
-                    is_numeric_index = True
-                except (ValueError, Exception):
-                    # Failed arithmetic, treat as string
-                    index = cleaned_index
-                    is_numeric_index = False
-            else:
-                # It's a string index
+        if was_quoted:
+            # Quoted index — treat as string key (associative array).
+            # In bash, declare -A is needed for associative arrays, but PSH
+            # uses quoting to infer associative intent.
+            index = cleaned_index
+            is_numeric_index = False
+        else:
+            # Unquoted index — always evaluate in arithmetic context (bash behavior).
+            # evaluate_arithmetic handles bare variable names, expressions, and literals.
+            try:
+                index = evaluate_arithmetic(cleaned_index, self.shell)
+                is_numeric_index = True
+            except Exception:
+                # Arithmetic eval failed — treat as string key (associative array)
                 index = cleaned_index
                 is_numeric_index = False
 
