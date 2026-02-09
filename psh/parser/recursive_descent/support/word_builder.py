@@ -4,6 +4,7 @@ This module provides utilities for building Word nodes that properly
 represent expansions within command arguments.
 """
 
+import re
 from typing import List, Optional
 
 from ....ast_nodes import (
@@ -47,7 +48,6 @@ class WordBuilder:
                 # with operators. Simple names: alphanumeric/underscores, or special
                 # single-char vars ($, ?, #, !, @, *, 0-9).
                 # Array subscripts (arr[@], arr[0]) are also simple.
-                import re
                 if re.match(r'^[A-Za-z_][A-Za-z0-9_]*(\[.+?\])?$', inner) or \
                    re.match(r'^[0-9$?!@*#-]$', inner):
                     name = inner

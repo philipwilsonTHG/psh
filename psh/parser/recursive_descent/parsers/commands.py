@@ -4,6 +4,7 @@ Command parsing for PSH shell.
 This module handles parsing of commands, pipelines, and command arguments.
 """
 
+import re
 from typing import Optional, Tuple, Union
 
 from ....ast_nodes import (
@@ -18,6 +19,7 @@ from ....ast_nodes import (
     ExecutionContext,
     ForLoop,
     IfConditional,
+    LiteralPart,
     Pipeline,
     SelectLoop,
     SimpleCommand,
@@ -25,6 +27,7 @@ from ....ast_nodes import (
     SubshellGroup,
     UntilLoop,
     WhileLoop,
+    Word,
 )
 from ....token_stream import TokenStream
 from ....token_types import Token, TokenType
@@ -40,10 +43,18 @@ class CommandParser:
 
     def _is_fd_duplication(self, value: str) -> bool:
         """Check if a WORD token is actually a file descriptor duplication."""
-        import re
         # Patterns: >&N, <&N, N>&M, N<&M, >&-, <&-
         fd_dup_pattern = re.compile(r'^(\d*)[><]&(-|\d+)$')
         return bool(fd_dup_pattern.match(value))
+
+    def _raise_unclosed_expansion_error(self, msg: str, token: Token) -> None:
+        """Raise a ParseError for an unclosed expansion."""
+        error_context = ErrorContext(
+            token=token,
+            message=msg,
+            position=token.position
+        )
+        raise ParseError(error_context)
 
     def _check_for_unclosed_expansions(self, token: Token) -> None:
         """Check if a token contains unclosed expansions and raise appropriate errors."""
@@ -72,47 +83,21 @@ class CommandParser:
                     else:
                         error_msg = f"Syntax error: unclosed expansion '{part.value}'"
 
-                    # Create error context with token position
-                    error_context = ErrorContext(
-                        token=token,
-                        message=error_msg,
-                        position=token.position
-                    )
-                    raise ParseError(error_context)
+                    self._raise_unclosed_expansion_error(error_msg, token)
 
         # Also check for specific token types that indicate unclosed expansions
         if token.type == TokenType.COMMAND_SUB and not token.value.endswith(')'):
-            error_msg = f"Syntax error: unclosed command substitution '{token.value}'"
-            error_context = ErrorContext(
-                token=token,
-                message=error_msg,
-                position=token.position
-            )
-            raise ParseError(error_context)
+            self._raise_unclosed_expansion_error(
+                f"Syntax error: unclosed command substitution '{token.value}'", token)
         elif token.type == TokenType.COMMAND_SUB_BACKTICK and token.value.count('`') == 1:
-            error_msg = f"Syntax error: unclosed backtick substitution '{token.value}'"
-            error_context = ErrorContext(
-                token=token,
-                message=error_msg,
-                position=token.position
-            )
-            raise ParseError(error_context)
+            self._raise_unclosed_expansion_error(
+                f"Syntax error: unclosed backtick substitution '{token.value}'", token)
         elif token.type == TokenType.ARITH_EXPANSION and not token.value.endswith('))'):
-            error_msg = f"Syntax error: unclosed arithmetic expansion '{token.value}'"
-            error_context = ErrorContext(
-                token=token,
-                message=error_msg,
-                position=token.position
-            )
-            raise ParseError(error_context)
+            self._raise_unclosed_expansion_error(
+                f"Syntax error: unclosed arithmetic expansion '{token.value}'", token)
         elif token.type == TokenType.VARIABLE and token.value.startswith('${') and not token.value.endswith('}'):
-            error_msg = f"Syntax error: unclosed parameter expansion '{token.value}'"
-            error_context = ErrorContext(
-                token=token,
-                message=error_msg,
-                position=token.position
-            )
-            raise ParseError(error_context)
+            self._raise_unclosed_expansion_error(
+                f"Syntax error: unclosed parameter expansion '{token.value}'", token)
 
     def parse_command(self) -> SimpleCommand:
         """Parse a single command with its arguments and redirections."""
@@ -135,12 +120,10 @@ class CommandParser:
         """Validate that we're at a valid command start position."""
         # Check for unexpected tokens
         if self.parser.match_any(TokenGroups.CASE_TERMINATORS):
-            error_context = ErrorContext(
-                token=self.parser.peek(),
-                message=f"Syntax error near unexpected token '{self.parser.peek().value}'",
-                position=self.parser.peek().position
+            self._raise_unclosed_expansion_error(
+                f"Syntax error near unexpected token '{self.parser.peek().value}'",
+                self.parser.peek()
             )
-            raise ParseError(error_context)
 
         # Ensure we have at least one word-like token
         if not self.parser.match_any(TokenGroups.WORD_LIKE):
@@ -166,7 +149,6 @@ class CommandParser:
             elif self.parser.match(TokenType.EXCLAMATION):
                 token = self.parser.advance()
                 command.args.append(token.value)
-                from ....ast_nodes import LiteralPart, Word
                 command.words.append(Word(parts=[LiteralPart(token.value)]))
                 has_parsed_regular_args = True
 
@@ -193,7 +175,6 @@ class CommandParser:
         if is_array_init:
             arg_value = self._parse_array_initialization(word_token)
             command.args.append(arg_value)
-            from ....ast_nodes import LiteralPart, Word
             command.words.append(Word(parts=[LiteralPart(arg_value)]))
             return True
 
@@ -472,14 +453,7 @@ class CommandParser:
 
     def _format_variable(self, token: Token) -> str:
         """Format a VARIABLE token, prepending $ if needed."""
-        value = token.value
-        # Variables from lexer are just the name without $
-        # The only case where we don't add $ is for brace expansions ${...}
-        # which already include the braces
-        if value.startswith('{') and value.endswith('}'):
-            return f"${value}"
-        else:
-            return f"${value}"
+        return f"${token.value}"
 
     def parse_argument_as_word(self) -> 'Word':
         """Parse an argument as a Word AST node with expansions.

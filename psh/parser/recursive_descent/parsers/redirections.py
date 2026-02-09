@@ -4,6 +4,7 @@ Redirection parsing for PSH shell.
 This module handles parsing of I/O redirections, heredocs, and here-strings.
 """
 
+import re
 from typing import List
 
 from ....ast_nodes import Redirect
@@ -31,7 +32,6 @@ class RedirectionParser:
         token = self.parser.advance()
         value = token.value
 
-        import re
         match = re.match(r'^(\d*)([><])&(-|\d+)$', value)
         if not match:
             raise self.parser.error(f"Invalid fd duplication syntax: {value}")
@@ -134,7 +134,6 @@ class RedirectionParser:
                 return Redirect(type=direction + '&', target=dup_part, fd=default_fd, dup_fd=dup_fd)
 
         # Handle single-token forms containing >&  or <&  (e.g., "2>&1", "3<&0", "3>&-", "3<&-")
-        import re
         match = re.match(r'^(\d*)([><])&(-|\d+)$', token.value)
         if match:
             source_fd_str, direction, target = match.groups()

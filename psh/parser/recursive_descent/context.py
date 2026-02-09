@@ -5,6 +5,7 @@ into a single, manageable object, improving maintainability and performance trac
 """
 
 import logging
+import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
@@ -47,7 +48,6 @@ class ParserProfiler:
     def enter_rule(self, rule_name: str):
         """Enter a parse rule."""
         if self.enabled:
-            import time
             self.rule_stack.append((rule_name, time.perf_counter()))
             self.rule_counts[rule_name] = self.rule_counts.get(rule_name, 0) + 1
 
@@ -58,7 +58,6 @@ class ParserProfiler:
     def exit_rule(self, rule_name: str):
         """Exit a parse rule."""
         if self.enabled and self.rule_stack:
-            import time
             stack_rule, start_time = self.rule_stack.pop()
             if stack_rule == rule_name:
                 duration = time.perf_counter() - start_time
@@ -67,13 +66,11 @@ class ParserProfiler:
     def start_parsing(self):
         """Mark the start of parsing."""
         if self.enabled:
-            import time
             self.parse_start_time = time.perf_counter()
 
     def end_parsing(self):
         """Mark the end of parsing."""
         if self.enabled:
-            import time
             self.parse_end_time = time.perf_counter()
 
     def record_token_consumption(self):
@@ -181,6 +178,9 @@ class ParserContext:
     # Performance tracking
     trace_enabled: bool = False
     profiler: Optional[ParserProfiler] = None
+
+    # State preservation stack for context manager
+    _saved_states: List[dict] = field(default_factory=list)
 
     def __post_init__(self):
         """Initialize derived state."""
@@ -465,14 +465,12 @@ class ParserContext:
             'in_function_body': self.in_function_body,
             'in_command_substitution': self.in_command_substitution,
         }
-        if not hasattr(self, '_saved_states'):
-            self._saved_states = []
         self._saved_states.append(saved)
         return self
 
     def __exit__(self, _exc_type, _exc_val, _exc_tb):
         """Restore previously saved parsing state flags."""
-        if hasattr(self, '_saved_states') and self._saved_states:
+        if self._saved_states:
             saved = self._saved_states.pop()
             for key, value in saved.items():
                 setattr(self, key, value)
@@ -530,3 +528,4 @@ class ParserContext:
         self.loop_depth = 0
         self.function_depth = 0
         self.conditional_depth = 0
+        self._saved_states = []
