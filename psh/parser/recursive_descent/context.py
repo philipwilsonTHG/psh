@@ -153,6 +153,7 @@ class ParserContext:
     # Error handling
     errors: List[ParseError] = field(default_factory=list)
     error_recovery_mode: bool = False
+    fatal_error: Optional[ParseError] = None
 
     # Parsing context
     nesting_depth: int = 0
@@ -234,7 +235,7 @@ class ParserContext:
         error = ParseError(error_context)
 
         if self.config.collect_errors:
-            self.errors.append(error)
+            self.add_error(error)
             return current  # Return current token to continue parsing
         else:
             raise error
@@ -397,9 +398,22 @@ class ParserContext:
         """Exit error recovery mode."""
         self.error_recovery_mode = False
 
+    def add_error(self, error: ParseError) -> None:
+        """Add error to the error list, checking for fatal errors."""
+        if len(self.errors) < self.config.max_errors:
+            self.errors.append(error)
+
+        # Check if this is a fatal error
+        if (hasattr(error.error_context, 'severity') and
+            error.error_context.severity == 'fatal'):
+            self.fatal_error = error
+
     def can_continue_parsing(self) -> bool:
         """Check if parsing can continue."""
         if self.at_end():
+            return False
+
+        if self.fatal_error:
             return False
 
         if self.config.collect_errors:
@@ -506,6 +520,7 @@ class ParserContext:
         self.current = 0
         self.errors.clear()
         self.error_recovery_mode = False
+        self.fatal_error = None
         self.nesting_depth = 0
         self.scope_stack.clear()
         self.parse_stack.clear()

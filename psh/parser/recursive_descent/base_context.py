@@ -103,7 +103,7 @@ class ContextBaseParser:
     def add_error(self, error: ParseError) -> bool:
         """Add error to context and return whether parsing should continue."""
         if self.ctx.config.collect_errors:
-            self.ctx.errors.append(error)
+            self.ctx.add_error(error)
             return self.ctx.can_continue_parsing()
         else:
             raise error
