@@ -406,13 +406,15 @@ class ControlStructureParser:
             *TokenGroups.CASE_TERMINATORS, TokenType.ESAC
         )
 
-        # Consume the terminator
+        # Consume the terminator and capture its value
+        terminator = ';;'
         if self.parser.match_any(TokenGroups.CASE_TERMINATORS):
+            terminator = self.parser.peek().value
             self.parser.advance()
 
         self.parser.skip_newlines()
 
-        return CaseItem(patterns=patterns, commands=commands)
+        return CaseItem(patterns=patterns, commands=commands, terminator=terminator)
 
     def _parse_case_pattern(self) -> str:
         """Parse a case pattern."""

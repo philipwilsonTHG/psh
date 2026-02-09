@@ -181,7 +181,6 @@ class TestCaseStatements:
         captured = capsys.readouterr()
         assert captured.out.strip() == "command substitution works"
     
-    @pytest.mark.xfail(reason="PSH may not support ;& or ;;& operators")
     def test_case_fallthrough(self, shell, capsys):
         """Test case with fall-through behavior."""
         cmd = '''
