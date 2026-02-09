@@ -191,6 +191,30 @@ class TestDeclareArrays:
         var = shell.state.variables.get("assoc")
         assert var is not None
 
+    def test_declare_associative_array_init_with_quoted_spaces(self, shell):
+        """Test declare -A init with quoted keys and values containing spaces."""
+        result = shell.run_command(
+            'declare -A assoc=(["first key"]="first value" ["second key"]="second value")'
+        )
+        assert result == 0
+
+        var = shell.state.scope_manager.get_variable_object("assoc")
+        assert var is not None
+        assert var.value.get("first key") == "first value"
+        assert var.value.get("second key") == "second value"
+
+    def test_declare_associative_array_init_with_equals_in_keys_values(self, shell):
+        """Test declare -A init where keys/values include '=' characters."""
+        result = shell.run_command(
+            'declare -A assoc=(["k=1"]="v=2" ["path key"]="/tmp/a=b c")'
+        )
+        assert result == 0
+
+        var = shell.state.scope_manager.get_variable_object("assoc")
+        assert var is not None
+        assert var.value.get("k=1") == "v=2"
+        assert var.value.get("path key") == "/tmp/a=b c"
+
 
 class TestDeclareAttributeManagement:
     """Test attribute combination and management."""

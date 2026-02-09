@@ -124,6 +124,17 @@ Reduce real shell-semantics risk (not just test noise) while keeping code educat
     - external-command redirection behavior.
   - Verification: `python -m pytest -q tests/unit/builtins/test_env_builtin.py` -> `12 passed`.
 
+- Workstream B3:
+  - Replaced naive whitespace split parser in `psh/builtins/function_support.py` for associative array initialization.
+  - Added shell-like tokenization via `shlex.split` with fallback for malformed quoting.
+  - Added bracket-aware `[key]=value` entry parsing so keys/values with spaces and `=` are handled correctly.
+  - Added regression tests in `tests/integration/builtins/test_declare_comprehensive.py` for:
+    - quoted keys/values containing spaces,
+    - keys and values containing `=` characters.
+  - Verification:
+    - `python -m pytest -q tests/integration/builtins/test_declare_comprehensive.py -k "associative_array"` -> `4 passed`
+    - `python -m pytest -q tests/unit/builtins/test_function_builtins.py -k "declare_associative_array"` -> `1 passed`
+
 ### Next Recommended Step
 
-- Continue with **B3: Associative array init parsing** (highest remaining correctness-to-effort ratio in Workstream B).
+- Continue with **C1: Subshell + redirection correctness**.

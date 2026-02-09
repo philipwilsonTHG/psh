@@ -1,4 +1,5 @@
 """Function-related builtin commands."""
+import shlex
 import sys
 from typing import TYPE_CHECKING, Any, List, Optional
 
@@ -488,19 +489,32 @@ class DeclareBuiltin(Builtin):
         if not content:
             return []
 
-        # Simple parsing for now
-        # TODO: Proper shell parsing with quotes
+        # Use shell-like splitting so quoted keys/values with spaces are preserved.
+        try:
+            parts = shlex.split(content, posix=True)
+        except ValueError:
+            # Fall back to conservative splitting on malformed quoting.
+            parts = content.split()
+
         result = []
-        parts = content.split()
         for part in parts:
-            if '=' in part and part.startswith('['):
-                key_part, val = part.split('=', 1)
-                key = key_part[1:-1]  # Remove [ and ]
-                # Remove quotes if present
-                if val.startswith('"') and val.endswith('"'):
-                    val = val[1:-1]
-                result.append((key, val))
+            parsed = self._parse_assoc_array_entry(part)
+            if parsed is not None:
+                result.append(parsed)
         return result
+
+    def _parse_assoc_array_entry(self, token: str) -> Optional[tuple[str, str]]:
+        """Parse one associative array entry token in the form [key]=value."""
+        if not token.startswith('['):
+            return None
+
+        sep_idx = token.find(']=', 1)
+        if sep_idx == -1:
+            return None
+
+        key = token[1:sep_idx]
+        value = token[sep_idx + 2:]
+        return key, value
 
     def _apply_attributes(self, value: Any, attributes: VarAttributes, shell: 'Shell') -> Any:
         """Apply attribute transformations to value."""
