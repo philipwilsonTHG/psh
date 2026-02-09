@@ -161,7 +161,7 @@ class NoEmptyBodyRule(ValidationRule):
                 ))
 
         elif isinstance(node, CaseConditional):
-            if not hasattr(node, 'cases') or not node.cases:
+            if not node.items:
                 issues.append(Issue(
                     "Empty case statement",
                     position,
@@ -196,8 +196,10 @@ class ValidRedirectRule(ValidationRule):
                         self.name
                     ))
 
-            # Check for missing target
-            if not hasattr(node, 'target') or not node.target:
+            # Check for missing target (skip fd-dup redirects and heredocs)
+            if (not hasattr(node, 'target') or not node.target) and \
+               not getattr(node, 'dup_fd', None) and \
+               not (hasattr(node, 'type') and node.type and node.type.startswith('<<')):
                 issues.append(Issue(
                     "Redirection missing target",
                     position,
@@ -362,7 +364,7 @@ class ValidVariableNameRule(ValidationRule):
 
                     if name:
                         # Check for invalid variable name
-                        if not (name.isalpha() or name.startswith('_')) or not name.replace('_', '').isalnum():
+                        if not (name[0].isalpha() or name[0] == '_') or not name.replace('_', '').isalnum():
                             issues.append(Issue(
                                 f"Invalid variable name '{name}'",
                                 position,

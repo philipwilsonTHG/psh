@@ -314,3 +314,55 @@ class TestConfigValidation:
         )
         warnings = validate_config(config)
         assert not any('recovery' in w.lower() for w in warnings)
+
+
+# ===========================================================================
+# Codex Review Finding 2: Validation false positives
+# ===========================================================================
+
+class TestValidationFalsePositives:
+    """Tests for validation rules that previously produced false positives."""
+
+    def test_validate_fd_dup_no_false_positive(self):
+        """fd-dup redirect (2>&1) should not be flagged as missing target."""
+        from psh.ast_nodes import Redirect
+        from psh.parser.validation.validation_rules import (
+            ValidRedirectRule, ValidationContext,
+        )
+        rule = ValidRedirectRule()
+        ctx = ValidationContext()
+        # fd-dup redirect: target is None but dup_fd is set
+        node = Redirect(type='>&', target=None, fd=2, dup_fd=1)
+        issues = rule.validate(node, ctx)
+        assert not issues, f"Unexpected issues: {issues}"
+
+    def test_validate_case_no_false_positive(self):
+        """case x in a) echo a;; esac should not be flagged as empty."""
+        from psh.parser.validation.validation_rules import (
+            NoEmptyBodyRule, ValidationContext,
+        )
+        rule = NoEmptyBodyRule()
+        ctx = ValidationContext()
+        ast = parse('case x in a) echo a;; esac')
+        cases = _find_nodes(ast, CaseConditional)
+        assert len(cases) == 1
+        issues = rule.validate(cases[0], ctx)
+        assert not issues, f"Unexpected issues: {issues}"
+
+    def test_validate_varname_no_false_positive(self):
+        """Variable name 'var1' should not be flagged as invalid."""
+        from psh.parser.validation.validation_rules import (
+            ValidVariableNameRule, ValidationContext,
+        )
+        from psh.ast_nodes import SimpleCommand, ArrayInitialization
+        rule = ValidVariableNameRule()
+        ctx = ValidationContext()
+        # Simulate a SimpleCommand with an array assignment named 'var1'
+        assignment = ArrayInitialization(name='var1', elements=['hello'])
+        node = SimpleCommand(
+            args=['var1=hello'],
+            words=[],
+            array_assignments=[assignment],
+        )
+        issues = rule.validate(node, ctx)
+        assert not issues, f"Unexpected issues: {issues}"
