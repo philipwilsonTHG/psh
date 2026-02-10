@@ -520,26 +520,25 @@ class TestFunctionPerformance:
         for i in range(50):
             assert shell.function_manager.get_function(f'func{i}') is not None
     
-    @pytest.mark.xfail(reason="Function redirection has test isolation issues")
-    def test_function_with_many_commands(self, shell_with_temp_dir):
-        """Test function with many commands."""
-        shell = shell_with_temp_dir
-        
-        # Create function with many echo commands
-        commands = []
-        for i in range(20):
-            commands.append(f'echo "Line {i}"')
-        
-        script = f'many_commands() {{ {"; ".join(commands)}; }}'
-        result = shell.run_command(script)
-        assert result == 0
-        
-        # Test execution
-        result2 = shell.run_command('many_commands > output.txt')
-        assert result2 == 0
-        
-        with open('output.txt', 'r') as f:
-            content = f.read()
+    def test_function_with_many_commands(self, tmp_path):
+        """Test function with many commands.
+
+        Uses subprocess because function output redirection to a file
+        conflicts with pytest's output capture.
+        """
+        import subprocess, sys
+        outfile = tmp_path / "output.txt"
+        commands = "; ".join(f'echo "Line {i}"' for i in range(20))
+        script = (
+            f'many_commands() {{ {commands}; }}\n'
+            f'many_commands > {outfile}'
+        )
+        result = subprocess.run(
+            [sys.executable, '-m', 'psh', '-c', script],
+            capture_output=True, text=True
+        )
+        assert result.returncode == 0
+        content = outfile.read_text()
         assert "Line 0" in content
         assert "Line 19" in content
     

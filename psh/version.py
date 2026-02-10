@@ -2,10 +2,21 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.153.0"
+__version__ = "0.154.0"
 
 # Version history
 VERSION_HISTORY = """
+0.154.0 (2026-02-10) - Fix 4 Test Infrastructure Issues
+- Switched test_while_with_command_condition to subprocess: 'read' from
+  redirected stdin conflicts with pytest's output capture.
+- Switched test_function_with_many_commands to subprocess: function output
+  redirection to file conflicts with pytest's output capture.
+- Switched test_parameter_scoping to subprocess: 'set' positional params
+  and echo don't capture through capsys.
+- Switched test_subshell_process_substitution to subprocess: process
+  substitution FDs conflict with pytest's output capture.
+- Removed 4 xfail markers (all tests now pass).
+
 0.153.0 (2026-02-10) - Fix Brace Tokenization for Non-Expanding Braces
 - Fixed { and } being tokenized as separate LBRACE/RBRACE operator tokens
   when they appear inside words (e.g., {a..1}, {a.b}, {a,b,c, {}).

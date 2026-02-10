@@ -232,11 +232,16 @@ def test_subshell_complex_redirections(isolated_shell_with_temp_dir):
     assert "stderr" in stderr_content
 
 
-@pytest.mark.xfail(reason="Process substitution output redirection has test framework conflicts")
-def test_subshell_process_substitution(shell, capsys):
-    """Test process substitution with subshells."""
-    result = shell.run_command('cat <(echo "from subshell")')
-    assert result == 0
-    
-    captured = capsys.readouterr()
-    assert "from subshell" in captured.out
+def test_subshell_process_substitution():
+    """Test process substitution with subshells.
+
+    Uses subprocess because process substitution uses file descriptors
+    that conflict with pytest's output capture.
+    """
+    import subprocess, sys
+    result = subprocess.run(
+        [sys.executable, '-m', 'psh', '-c', 'cat <(echo "from subshell")'],
+        capture_output=True, text=True
+    )
+    assert result.returncode == 0
+    assert "from subshell" in result.stdout

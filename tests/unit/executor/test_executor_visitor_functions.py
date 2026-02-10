@@ -223,29 +223,28 @@ class TestParameterHandling:
         captured = capsys.readouterr()
         assert "first second third" in captured.out
     
-    @pytest.mark.xfail(reason="PSH may not have set builtin or full positional parameter handling")
-    def test_parameter_scoping(self, shell, capsys):
-        """Test that function parameters don't affect global scope."""
-        script = '''
-        # Set global positional parameters
-        set "global1" "global2" "global3"
-        echo "Before function: $1 $2 $3"
-        
-        test_scope() {
-            echo "In function: $1 $2 $3"
-        }
-        
-        test_scope "func1" "func2" "func3"
-        echo "After function: $1 $2 $3"
-        '''
-        
-        result = shell.run_command(script)
-        assert result == 0
-        
-        captured = capsys.readouterr()
-        assert "Before function: global1 global2 global3" in captured.out
-        assert "In function: func1 func2 func3" in captured.out
-        assert "After function: global1 global2 global3" in captured.out
+    def test_parameter_scoping(self):
+        """Test that function parameters don't affect global scope.
+
+        Uses subprocess because 'set' and positional parameter expansion
+        don't capture properly through pytest's capsys fixture.
+        """
+        import subprocess, sys
+        script = (
+            'set "global1" "global2" "global3"\n'
+            'echo "Before function: $1 $2 $3"\n'
+            'test_scope() { echo "In function: $1 $2 $3"; }\n'
+            'test_scope "func1" "func2" "func3"\n'
+            'echo "After function: $1 $2 $3"'
+        )
+        result = subprocess.run(
+            [sys.executable, '-m', 'psh', '-c', script],
+            capture_output=True, text=True
+        )
+        assert result.returncode == 0
+        assert "Before function: global1 global2 global3" in result.stdout
+        assert "In function: func1 func2 func3" in result.stdout
+        assert "After function: global1 global2 global3" in result.stdout
     
     def test_empty_parameters(self, shell, capsys):
         """Test function call with no parameters."""

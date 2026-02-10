@@ -91,25 +91,25 @@ class TestWhileLoops:
         assert "i=1 j=0" in captured.out
         assert "i=1 j=1" in captured.out
     
-    @pytest.mark.xfail(reason="read builtin conflicts with pytest's output capture")
-    def test_while_with_command_condition(self, shell, capsys):
-        """Test while with command as condition."""
-        cmd = '''
-        echo "line1" > testfile
-        echo "line2" >> testfile
-        echo "line3" >> testfile
-        
-        while read line; do
-            echo "Read: $line"
-        done < testfile
-        
-        rm -f testfile
-        '''
-        shell.run_command(cmd)
-        captured = capsys.readouterr()
-        assert "Read: line1" in captured.out
-        assert "Read: line2" in captured.out
-        assert "Read: line3" in captured.out
+    def test_while_with_command_condition(self, tmp_path):
+        """Test while with command as condition.
+
+        Uses subprocess because 'read' from redirected stdin
+        conflicts with pytest's output capture.
+        """
+        import subprocess, sys
+        testfile = tmp_path / "testfile"
+        result = subprocess.run(
+            [sys.executable, '-m', 'psh', '-c',
+             f'echo "line1" > {testfile}\n'
+             f'echo "line2" >> {testfile}\n'
+             f'echo "line3" >> {testfile}\n'
+             f'while read line; do echo "Read: $line"; done < {testfile}'],
+            capture_output=True, text=True
+        )
+        assert "Read: line1" in result.stdout
+        assert "Read: line2" in result.stdout
+        assert "Read: line3" in result.stdout
     
     def test_while_with_pipeline_condition(self, shell, capsys):
         """Test while with pipeline in condition."""
