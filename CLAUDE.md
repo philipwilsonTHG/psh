@@ -100,7 +100,7 @@ PSH uses a modern, well-organized test suite:
 ## Critical Information
 
 ### To increment the system version after completing an enhancement:
-1. Update `psh/version.py`: bump `__version__` and add a `VERSION_HISTORY` entry
+1. Update `psh/version.py`: bump `__version__`; add a new entry to `CHANGELOG.md`
 2. Update the version string in **all** of these files (they must always match):
    - `README.md` — the `**Current Version**:` line
    - `ARCHITECTURE.md` — the `**Current Version**:` line
@@ -125,7 +125,8 @@ These files have version-stamped metadata that must stay in sync:
 
 | File | Contains | Key metadata |
 |------|----------|-------------|
-| `psh/version.py` | Canonical version, changelog | `__version__`, `VERSION_HISTORY` |
+| `psh/version.py` | Canonical version | `__version__` |
+| `CHANGELOG.md` | Detailed version history | `## VERSION` entries |
 | `README.md` | User-facing overview | Version, test count, LOC, file count, recent development |
 | `ARCHITECTURE.md` | Detailed architecture guide | Version |
 | `ARCHITECTURE.llm` | LLM-optimized architecture | Version |
@@ -382,7 +383,7 @@ class MyVisitor(ASTVisitor[T]):
 
 ## Current Development Status
 
-**Version**: 0.163.0 (see version.py for detailed history)
+**Version**: 0.164.0 (see CHANGELOG.md for detailed history)
 
 **Recent Work**:
 - **Lint Cleanup and CI Gates (v0.160.0-v0.161.0)**:
@@ -413,7 +414,7 @@ class MyVisitor(ASTVisitor[T]):
 
 - **Architecture**: See ARCHITECTURE.llm for detailed component guide
 - **POSIX Compliance**: See docs/posix/posix_compliance_summary.md
-- **Version History**: See version.py for detailed changelog
+- **Version History**: See CHANGELOG.md for detailed changelog
 - **Test Patterns**: See tests/test_shell_options.py for good examples
 
 ## Important Notes
