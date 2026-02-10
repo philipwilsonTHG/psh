@@ -162,7 +162,7 @@ class TestDollarAtCompositeWords:
     def test_composite_dollar_at_splits_into_separate_args(self, captured_shell):
         """pre\"$@\"post with 3 params should produce 3 arguments."""
         shell = captured_shell
-        shell.set_positional_params(["a", "b", "c"])
+        shell.state.positional_params = list(["a", "b", "c"])
         shell.clear_output()
 
         result = shell.run_command('printf "<%s>\\n" pre"$@"post')
@@ -173,7 +173,7 @@ class TestDollarAtCompositeWords:
     def test_composite_dollar_at_single_param(self, captured_shell):
         """pre\"$@\"post with 1 param should produce 1 argument (no split needed)."""
         shell = captured_shell
-        shell.set_positional_params(["only"])
+        shell.state.positional_params = list(["only"])
         shell.clear_output()
 
         result = shell.run_command('printf "<%s>\\n" pre"$@"post')
@@ -184,7 +184,7 @@ class TestDollarAtCompositeWords:
     def test_composite_dollar_at_no_params(self, captured_shell):
         """pre\"$@\"post with 0 params should produce 'prepost'."""
         shell = captured_shell
-        shell.set_positional_params([])
+        shell.state.positional_params = list([])
         shell.clear_output()
 
         # With no params, "$@" contributes nothing but the surrounding
@@ -197,7 +197,7 @@ class TestDollarAtCompositeWords:
     def test_composite_dollar_at_two_params(self, captured_shell):
         """pre\"$@\"post with 2 params should produce 2 arguments."""
         shell = captured_shell
-        shell.set_positional_params(["x", "y"])
+        shell.state.positional_params = list(["x", "y"])
         shell.clear_output()
 
         result = shell.run_command('printf "<%s>\\n" pre"$@"post')

@@ -9,6 +9,8 @@ import tempfile
 
 import pytest
 
+from psh.interactive.rc_loader import load_rc_file
+
 
 @pytest.fixture(autouse=True)
 def clean_test_env():
@@ -59,7 +61,7 @@ def test_rc_file_loaded_in_interactive_mode():
         # Interactive mode should load RC file
         shell = Shell(rcfile=rc_file)
         shell._force_interactive = True
-        shell._load_rc_file()  # Force load since we're in test environment
+        load_rc_file(shell)  # Force load since we're in test environment
         assert shell.env.get('TEST_RC_VAR') == 'loaded'
         assert 'test_alias' in shell.alias_manager.aliases
     finally:
@@ -112,7 +114,7 @@ def test_rc_file_runtime_error_doesnt_crash_shell():
         # Shell should continue despite runtime errors
         shell = Shell(rcfile=rc_file)
         shell._force_interactive = True
-        shell._load_rc_file()  # Force load since we're in test environment
+        load_rc_file(shell)  # Force load since we're in test environment
         # Commands after error should still execute
         assert shell.env.get('TEST_AFTER_ERROR') == 'yes'
     finally:
@@ -132,7 +134,7 @@ def test_rc_file_sets_variables_and_functions():
     try:
         shell = Shell(rcfile=rc_file)
         shell._force_interactive = True
-        shell._load_rc_file()  # Force load since we're in test environment
+        load_rc_file(shell)  # Force load since we're in test environment
         # Shell variable should be set
         assert shell.variables.get('TEST_VAR') == 'hello_world'
         # Environment variable should be exported
@@ -158,7 +160,7 @@ def test_rc_file_unsafe_permissions_warning(capsys):
 
         shell = Shell(rcfile=rc_file)
         shell._force_interactive = True
-        shell._load_rc_file()  # Force load since we're in test environment
+        load_rc_file(shell)  # Force load since we're in test environment
         captured = capsys.readouterr()
 
         # Should show warning
@@ -180,7 +182,7 @@ def test_rc_file_preserves_dollar_zero():
     try:
         shell = Shell(rcfile=rc_file)
         shell._force_interactive = True
-        shell._load_rc_file()  # Force load since we're in test environment
+        load_rc_file(shell)  # Force load since we're in test environment
         # $0 should be restored to 'psh' after RC file execution
         assert shell.variables.get('0', shell.script_name) == 'psh'
     finally:
@@ -204,7 +206,7 @@ def test_rcfile_option_overrides_default():
         # Load with specific rcfile
         shell = Shell(rcfile=rc_file2)
         shell._force_interactive = True
-        shell._load_rc_file()  # Force load since we're in test environment
+        load_rc_file(shell)  # Force load since we're in test environment
 
         # Should only load the specified file
         assert 'FROM_FILE1' not in shell.env
@@ -254,7 +256,7 @@ set -o vi  # May not be implemented yet
     try:
         shell = Shell(rcfile=rc_file)
         shell._force_interactive = True
-        shell._load_rc_file()
+        load_rc_file(shell)
 
         # Check variables
         assert shell.env.get('EDITOR') == 'nano'
@@ -292,7 +294,7 @@ fi
     try:
         shell = Shell(rcfile=rc_file)
         shell._force_interactive = True
-        shell._load_rc_file()
+        load_rc_file(shell)
 
         # Should have executed conditionals
         assert 'HAS_LOCAL_BIN' in shell.env

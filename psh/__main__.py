@@ -139,7 +139,7 @@ def main():
             shell.state.is_script_mode = True
             command = sys.argv[2]
             # Set positional parameters from remaining arguments
-            shell.set_positional_params(sys.argv[3:])
+            shell.state.positional_params = list(sys.argv[3:])
 
             # Handle visitor modes for -c commands
             if any([format_only, metrics_only, security_only, lint_only, validate_only]):
@@ -197,11 +197,11 @@ def main():
             if len(sys.argv) > 2:
                 script_path = sys.argv[2]
                 script_args = sys.argv[3:]
-                exit_code = shell.run_script(script_path, script_args)
+                exit_code = shell.script_manager.run_script(script_path, script_args)
                 sys.exit(exit_code)
             else:
                 # No script after --, start interactive mode
-                shell.interactive_loop()
+                shell.interactive_manager.run_interactive_loop()
         elif sys.argv[1].startswith("-"):
             # Unknown option
             print(f"psh: {sys.argv[1]}: invalid option", file=sys.stderr)
@@ -217,12 +217,12 @@ def main():
                 exit_code = shell._handle_visitor_mode_for_script(script_path)
                 sys.exit(exit_code)
 
-            exit_code = shell.run_script(script_path, script_args)
+            exit_code = shell.script_manager.run_script(script_path, script_args)
             sys.exit(exit_code)
     else:
         if sys.stdin.isatty():
             # Interactive REPL (TTY attached)
-            shell.interactive_loop()
+            shell.interactive_manager.run_interactive_loop()
         elif force_interactive:
             # -i with piped stdin: interactive flag is set (rc loaded, history loaded)
             # but read commands from pipe, don't run REPL

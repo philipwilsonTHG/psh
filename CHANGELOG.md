@@ -4,6 +4,21 @@ All notable changes to PSH (Python Shell) are documented in this file.
 
 Format: `VERSION (DATE) - Title` followed by bullet points describing changes.
 
+## 0.165.0 (2026-02-10) - Decompose shell.py
+- Reduced shell.py from 925 lines to ~325 lines by extracting domain logic.
+- Deleted dead `_execute_buffered_command()` (165 lines) — duplicate of
+  SourceProcessor's copy, never called on Shell.
+- Extracted `TestExpressionEvaluator` class to `psh/executor/test_evaluator.py`
+  (172 lines of `[[ ]]` evaluation logic).
+- Extracted `print_ast_debug()` to `psh/utils/ast_debug.py` (72 lines).
+- Extracted `create_parser()` to `psh/utils/parser_factory.py` (33 lines).
+- Extracted `contains_heredoc()` to `psh/utils/heredoc_detection.py` (56 lines).
+- Extracted RC file loading to `psh/interactive/rc_loader.py` (44 lines).
+- Removed thin wrapper methods `run_script()`, `interactive_loop()`,
+  `set_positional_params()` — callers updated to use managers directly.
+- Updated source_processor.py to use new module functions.
+- Zero behavioral changes; all 3,087 tests pass.
+
 ## 0.164.0 (2026-02-10) - Move Changelog out of version.py
 - Moved VERSION_HISTORY string (1,157 lines, 80KB) from psh/version.py to
   CHANGELOG.md. version.py is now 19 lines (was 1,175).

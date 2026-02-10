@@ -383,9 +383,12 @@ class MyVisitor(ASTVisitor[T]):
 
 ## Current Development Status
 
-**Version**: 0.164.0 (see CHANGELOG.md for detailed history)
+**Version**: 0.165.0 (see CHANGELOG.md for detailed history)
 
 **Recent Work**:
+- **Shell.py Decomposition (v0.165.0)**:
+  - Reduced shell.py from 925 to ~325 lines by extracting domain logic
+  - Extracted TestExpressionEvaluator, AST debug, parser factory, heredoc detection, RC loading
 - **Lint Cleanup and CI Gates (v0.160.0-v0.161.0)**:
   - Fixed ~7,750 ruff lint issues across `psh/` and `tests/`
   - Added CI lint gate covering both production and test code

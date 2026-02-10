@@ -1,29 +1,18 @@
-import os
 import sys
 
 from .aliases import AliasManager
 from .ast_nodes import (
-    BinaryTestExpression,
-    CompoundTestExpression,
     EnhancedTestStatement,
-    NegatedTestExpression,
     StatementList,
-    TestExpression,
     TopLevel,
-    UnaryTestExpression,
 )
 from .builtins import registry as builtin_registry
-
-# Import from new core modules
-from .core.exceptions import LoopBreak, LoopContinue, UnboundVariableError
 from .core.state import ShellState
 from .expansion.manager import ExpansionManager
 from .functions import FunctionManager
 from .interactive.base import InteractiveManager
 from .io_redirect.manager import IOManager
 from .job_control import JobManager
-from .lexer import tokenize
-from .parser import ParseError
 
 # Legacy executor removed - using visitor pattern exclusively
 from .scripting.base import ScriptManager
@@ -135,7 +124,8 @@ class Shell:
         self.state.options['emacs'] = is_interactive and not self.is_script_mode
 
         if not self.is_script_mode and is_interactive and not self.norc:
-            self._load_rc_file()
+            from .interactive.rc_loader import load_rc_file
+            load_rc_file(self)
 
     def _setup_compatibility_properties(self):
         """Set up properties for backward compatibility."""
@@ -167,12 +157,6 @@ class Shell:
         else:
             super().__setattr__(name, value)
 
-
-
-
-    # Legacy execute_command and execute_pipeline methods removed
-    # All execution now goes through the visitor pattern
-
     def execute_command_list(self, command_list: StatementList):
         """Execute a command list"""
         from .executor import ExecutorVisitor
@@ -195,9 +179,10 @@ class Shell:
             toplevel = TopLevel([ast])
             return self.execute_toplevel(toplevel)
 
-
     def execute_enhanced_test_statement(self, test_stmt: EnhancedTestStatement) -> int:
         """Execute an enhanced test statement [[...]]."""
+        from .executor.test_evaluator import TestExpressionEvaluator
+
         # Apply redirections if present
         if test_stmt.redirects:
             saved_fds = self.io_manager.apply_redirections(test_stmt.redirects)
@@ -205,388 +190,15 @@ class Shell:
             saved_fds = None
 
         try:
-            result = self._evaluate_test_expression(test_stmt.expression)
+            evaluator = TestExpressionEvaluator(self)
+            result = evaluator.evaluate(test_stmt.expression)
             return 0 if result else 1
         except (ValueError, TypeError, OSError) as e:
             print(f"psh: [[: {e}", file=sys.stderr)
             return 2  # Syntax error
         finally:
-            # Restore file descriptors
             if saved_fds:
                 self.io_manager.restore_redirections(saved_fds)
-
-    def _evaluate_test_expression(self, expr: TestExpression) -> bool:
-        """Evaluate a test expression to boolean."""
-        if isinstance(expr, BinaryTestExpression):
-            return self._evaluate_binary_test(expr)
-        elif isinstance(expr, UnaryTestExpression):
-            return self._evaluate_unary_test(expr)
-        elif isinstance(expr, CompoundTestExpression):
-            return self._evaluate_compound_test(expr)
-        elif isinstance(expr, NegatedTestExpression):
-            return not self._evaluate_test_expression(expr.expression)
-        else:
-            raise ValueError(f"Unknown test expression type: {type(expr).__name__}")
-
-    def _evaluate_binary_test(self, expr: BinaryTestExpression) -> bool:
-        """Evaluate binary test expression."""
-        # Expand variables in operands
-        left = self.expansion_manager.expand_string_variables(expr.left)
-        right = self.expansion_manager.expand_string_variables(expr.right)
-
-        # Process escape sequences for pattern matching
-        left = self._process_escape_sequences(left)
-        right = self._process_escape_sequences(right)
-
-        # Handle different operators
-        if expr.operator == '=':
-            return left == right
-        elif expr.operator == '==':
-            # Shell pattern matching (not string equality)
-            # If the right operand was quoted, treat it as literal string
-            right_quote_type = getattr(expr, 'right_quote_type', None)
-            if right_quote_type:
-                # Quoted pattern should be treated literally
-                return left == right
-            else:
-                # Unquoted pattern should be treated as glob pattern
-                return self._pattern_match(left, right)
-        elif expr.operator == '!=':
-            # Shell pattern non-matching
-            # If the right operand was quoted, treat it as literal string
-            right_quote_type = getattr(expr, 'right_quote_type', None)
-            if right_quote_type:
-                # Quoted pattern should be treated literally
-                return left != right
-            else:
-                # Unquoted pattern should be treated as glob pattern
-                return not self._pattern_match(left, right)
-        elif expr.operator == '<':
-            # Lexicographic comparison
-            return left < right
-        elif expr.operator == '>':
-            # Lexicographic comparison
-            return left > right
-        elif expr.operator == '=~':
-            # Regex matching
-            import re
-            try:
-                pattern = re.compile(right)
-                return bool(pattern.search(left))
-            except re.error as e:
-                raise ValueError(f"invalid regex: {e}")
-        elif expr.operator == '-eq':
-            from .utils.file_tests import to_int
-            return to_int(left) == to_int(right)
-        elif expr.operator == '-ne':
-            from .utils.file_tests import to_int
-            return to_int(left) != to_int(right)
-        elif expr.operator == '-lt':
-            from .utils.file_tests import to_int
-            return to_int(left) < to_int(right)
-        elif expr.operator == '-le':
-            from .utils.file_tests import to_int
-            return to_int(left) <= to_int(right)
-        elif expr.operator == '-gt':
-            from .utils.file_tests import to_int
-            return to_int(left) > to_int(right)
-        elif expr.operator == '-ge':
-            from .utils.file_tests import to_int
-            return to_int(left) >= to_int(right)
-        elif expr.operator == '-nt':
-            # File newer than
-            from .utils.file_tests import file_newer_than
-            return file_newer_than(left, right)
-        elif expr.operator == '-ot':
-            # File older than
-            from .utils.file_tests import file_older_than
-            return file_older_than(left, right)
-        elif expr.operator == '-ef':
-            # Files are the same
-            from .utils.file_tests import files_same
-            return files_same(left, right)
-        else:
-            raise ValueError(f"unknown binary operator: {expr.operator}")
-
-    def _process_escape_sequences(self, text: str) -> str:
-        """Process escape sequences in test expression operands."""
-        if not text or '\\' not in text:
-            return text
-
-        result = []
-        i = 0
-        while i < len(text):
-            if text[i] == '\\' and i + 1 < len(text):
-                result.append(text[i + 1])
-                i += 2
-            else:
-                result.append(text[i])
-                i += 1
-
-        return ''.join(result)
-
-    def _pattern_match(self, string: str, pattern: str) -> bool:
-        """Match string against a shell pattern, with extglob support."""
-        if self.state.options.get('extglob', False):
-            from .expansion.extglob import contains_extglob, match_extglob
-            if contains_extglob(pattern):
-                return match_extglob(pattern, string)
-        import fnmatch
-        return fnmatch.fnmatch(string, pattern)
-
-    def _evaluate_unary_test(self, expr: UnaryTestExpression) -> bool:
-        """Evaluate unary test expression."""
-        # Handle -v operator specially since it needs shell state
-        if expr.operator == '-v':
-            # Check if variable is set (including array elements)
-            operand = expr.operand  # Don't expand for -v, we want the variable name
-            return self._is_variable_set(operand)
-
-        # Expand variables in operand for other operators
-        operand = self.expansion_manager.expand_string_variables(expr.operand)
-
-        # Import test command's unary operators
-        from .builtins.test_command import TestBuiltin
-        test_cmd = TestBuiltin()
-
-        # Reuse the existing unary operator implementation
-        # Note: _evaluate_unary returns 0 for true, 1 for false (shell convention)
-        # We need to convert to boolean
-        result = test_cmd._evaluate_unary(expr.operator, operand, self)
-        return result == 0
-
-    def _evaluate_compound_test(self, expr: CompoundTestExpression) -> bool:
-        """Evaluate compound test expression with && or ||."""
-        left_result = self._evaluate_test_expression(expr.left)
-
-        if expr.operator == '&&':
-            # Short-circuit AND
-            if not left_result:
-                return False
-            return self._evaluate_test_expression(expr.right)
-        elif expr.operator == '||':
-            # Short-circuit OR
-            if left_result:
-                return True
-            return self._evaluate_test_expression(expr.right)
-        else:
-            raise ValueError(f"unknown compound operator: {expr.operator}")
-
-    def _is_variable_set(self, var_ref: str) -> bool:
-        """Check if a variable is set, including array element syntax.
-
-        Supports:
-        - var: check if variable is set
-        - array[key]: check if array element exists
-        """
-        # Check for array element syntax: var[key]
-        if '[' in var_ref and var_ref.endswith(']'):
-            var_name = var_ref[:var_ref.index('[')]
-            key_expr = var_ref[var_ref.index('[') + 1:-1]
-
-            # Expand the key expression
-            key = self.expansion_manager.expand_string_variables(key_expr)
-
-            # Get the array variable
-            var_obj = self.state.scope_manager.get_variable_object(var_name)
-            if not var_obj:
-                return False
-
-            # Check if it's an array and if the key exists
-            from .core.variables import AssociativeArray, IndexedArray
-            if isinstance(var_obj.value, AssociativeArray):
-                return key in var_obj.value._elements
-            elif isinstance(var_obj.value, IndexedArray):
-                try:
-                    index = int(key)
-                    return index in var_obj.value._elements
-                except ValueError:
-                    return False
-            else:
-                # Not an array, so array[key] syntax doesn't apply
-                return False
-        else:
-            # Simple variable check
-            var_obj = self.state.scope_manager.get_variable_object(var_ref)
-            return var_obj is not None
-
-
-
-    def set_positional_params(self, params):
-        """Set positional parameters ($1, $2, etc.)."""
-        self.positional_params = params.copy() if params else []
-
-
-    def run_script(self, script_path: str, script_args: list = None) -> int:
-        """Execute a script file with optional arguments."""
-        return self.script_manager.run_script(script_path, script_args)
-
-
-    def _execute_buffered_command(self, command_string: str, input_source, start_line: int, add_to_history: bool) -> int:
-        """Execute a buffered command with enhanced error reporting."""
-        # Skip empty commands and comments
-        if not command_string.strip() or command_string.strip().startswith('#'):
-            return 0
-
-        try:
-            # Use strict=False for interactive mode, strict=True for script mode
-            strict_mode = self.state.is_script_mode
-
-            # Check if command contains heredocs (but not bit-shift operators in arithmetic)
-            if self._contains_heredoc(command_string):
-                # Use heredoc-aware tokenizer
-                from .lexer import tokenize_with_heredocs
-                tokens, heredoc_map = tokenize_with_heredocs(command_string, strict=strict_mode,
-                                                              shell_options=self.state.options)
-
-                # Debug: Print tokens if requested
-                if self.debug_tokens:
-                    print("=== Token Debug Output ===", file=sys.stderr)
-                    from .utils.token_formatter import TokenFormatter
-                    print(TokenFormatter.format(tokens), file=sys.stderr)
-                    if heredoc_map:
-                        print(f"=== Heredoc Map ({len(heredoc_map)} entries) ===", file=sys.stderr)
-                        for key, info in heredoc_map.items():
-                            print(f"{key}: quoted={info['quoted']}, content={repr(info['content'][:50])}...", file=sys.stderr)
-                    print("========================", file=sys.stderr)
-
-                # Parse with heredoc support
-                from .parser import parse_with_heredocs
-                ast = parse_with_heredocs(tokens, heredoc_map)
-            else:
-                # Regular tokenization
-                tokens = tokenize(command_string, strict=strict_mode,
-                                  shell_options=self.state.options)
-
-                # Debug: Print tokens if requested
-                if self.debug_tokens:
-                    print("=== Token Debug Output ===", file=sys.stderr)
-                    from .utils.token_formatter import TokenFormatter
-                    print(TokenFormatter.format(tokens), file=sys.stderr)
-                    print("========================", file=sys.stderr)
-
-                # Note: Alias expansion now happens during execution phase for proper precedence
-
-                # Parse using the selected parser implementation
-                from .parser import parse as rd_parse
-                from .parser.config import ParserConfig
-
-                parser_config = ParserConfig(
-                    trace_parsing=self.state.options.get('debug-parser', False)
-                )
-
-                if self._active_parser == 'combinator':
-                    from .parser.combinators.parser import ParserCombinatorShellParser
-                    ast = ParserCombinatorShellParser(parser_config).parse(tokens)
-                else:
-                    ast = rd_parse(tokens, config=parser_config)
-
-            # Debug: Print AST if requested
-            if self.debug_ast:
-                self._print_ast_debug(ast)
-
-            # Validation mode - analyze AST without executing
-            if self.validate_only:
-                from .visitor import EnhancedValidatorVisitor
-                validator = EnhancedValidatorVisitor()
-                validator.visit(ast)
-
-                # Print validation results
-                print(validator.get_summary())
-
-                # Return exit code based on errors
-                error_count = sum(1 for i in validator.issues
-                                if i.severity.value == 'error')
-                return 1 if error_count > 0 else 0
-
-            # Format mode - format AST and print
-            if self.format_only:
-                from .visitor import FormatterVisitor
-                formatter = FormatterVisitor()
-                formatted_code = formatter.visit(ast)
-                print(formatted_code)
-                return 0
-
-            # Metrics mode - analyze AST and print metrics
-            if self.metrics_only:
-                from .visitor import MetricsVisitor
-                metrics = MetricsVisitor()
-                metrics.visit(ast)
-                print(metrics.get_summary())
-                return 0
-
-            # Security mode - analyze AST for security issues
-            if self.security_only:
-                from .visitor import SecurityVisitor
-                security = SecurityVisitor()
-                security.visit(ast)
-                print(security.get_summary())
-
-                # Return exit code based on security issues
-                issue_count = len(security.issues)
-                return 1 if issue_count > 0 else 0
-
-            # Lint mode - analyze AST for style and best practices
-            if self.lint_only:
-                from .visitor import LinterVisitor
-                linter = LinterVisitor()
-                linter.visit(ast)
-                print(linter.get_summary())
-
-                # Return exit code based on lint issues
-                issue_count = len(linter.issues)
-                return 1 if issue_count > 0 else 0
-
-            # Add to history if requested (for interactive or testing)
-            # Don't add history expansion commands to history
-            if add_to_history and command_string.strip():
-                import re
-                history_pattern = r'(?:^|\s)!(?:!|[0-9]+|-[0-9]+|[a-zA-Z][a-zA-Z0-9]*|\?[^?]*\?)(?:\s|$)'
-                if not re.search(history_pattern, command_string):
-                    self.interactive_manager.history_manager.add_to_history(command_string.strip())
-
-            # Increment command number for successful parse
-            self.command_number += 1
-
-            # Handle TopLevel AST node (functions + commands)
-            if isinstance(ast, TopLevel):
-                return self.execute_toplevel(ast)
-            else:
-                # Backward compatibility - StatementList
-                try:
-                    # Collect here documents if any
-                    self.io_manager.collect_heredocs(ast)
-                    exit_code = self.execute_command_list(ast)
-                    return exit_code
-                except (LoopBreak, LoopContinue) as e:
-                    # Break/continue outside of loops is an error
-                    stmt_name = "break" if isinstance(e, LoopBreak) else "continue"
-                    print(f"{stmt_name}: only meaningful in a `for', `while', or `select' loop", file=sys.stderr)
-                    return 1
-        except ParseError as e:
-            # Check if error already has context, otherwise add location
-            if e.error_context and e.error_context.source_line:
-                # Error already has full context, just print it
-                print(f"psh: {str(e)}", file=sys.stderr)
-            else:
-                # Add location prefix to error
-                location = f"{input_source.get_name()}:{start_line}" if start_line > 0 else "command"
-                print(f"psh: {location}: {e.message}", file=sys.stderr)
-            self.last_exit_code = 2  # Bash uses exit code 2 for syntax errors
-            return 2
-        except UnboundVariableError as e:
-            # Handle nounset errors
-            print(str(e), file=sys.stderr)
-            self.last_exit_code = 1
-            if self.is_script_mode:
-                sys.exit(1)
-            return 1
-        except Exception as e:
-            # Enhanced error message with location
-            location = f"{input_source.get_name()}:{start_line}" if start_line > 0 else "command"
-            print(f"psh: {location}: unexpected error: {e}", file=sys.stderr)
-            self.last_exit_code = 1
-            return 1
 
     def _handle_visitor_mode_for_command(self, command: str) -> int:
         """Handle visitor modes for -c commands."""
@@ -674,62 +286,6 @@ class Shell:
         input_source = StringInput(command_string, "<command>")
         return self.script_manager.execute_from_source(input_source, add_to_history)
 
-    def interactive_loop(self):
-        """Run the interactive shell loop."""
-        return self.interactive_manager.run_interactive_loop()
-
-    # Built-in commands have been moved to the builtins module
-
-
-
-
-
-    def _load_rc_file(self):
-        """Load ~/.pshrc or alternative RC file if it exists."""
-        # Determine which RC file to load
-        if self.rcfile:
-            rc_file = os.path.expanduser(self.rcfile)
-        else:
-            rc_file = os.path.expanduser("~/.pshrc")
-
-        # Check if file exists and is readable
-        if os.path.isfile(rc_file) and os.access(rc_file, os.R_OK):
-            # Check security before loading
-            if not self._is_safe_rc_file(rc_file):
-                print(f"psh: warning: {rc_file} has unsafe permissions, skipping", file=sys.stderr)
-                return
-
-            try:
-                # Store current $0
-                old_script_name = self.variables.get('0', self.script_name)
-                self.variables['0'] = rc_file
-
-                # Source the file without adding to history
-                from .input_sources import FileInput
-                with FileInput(rc_file) as input_source:
-                    self.script_manager.execute_from_source(input_source, add_to_history=False)
-
-                # Restore $0
-                self.variables['0'] = old_script_name
-
-            except Exception as e:
-                # Print warning but continue shell startup
-                print(f"psh: warning: error loading {rc_file}: {e}", file=sys.stderr)
-
-    def _is_safe_rc_file(self, filepath):
-        """Check if RC file has safe permissions."""
-        try:
-            stat_info = os.stat(filepath)
-            # Check if file is owned by user or root
-            if stat_info.st_uid not in (os.getuid(), 0):
-                return False
-            # Check if file is world-writable
-            if stat_info.st_mode & 0o002:
-                return False
-            return True
-        except OSError:
-            return False
-
 
 
 
@@ -758,167 +314,3 @@ class Shell:
     def _handle_sigchld(self):
         """Get signal handler (compatibility wrapper)."""
         return self.interactive_manager.signal_manager._handle_sigchld
-
-    def create_parser(self, tokens, source_text=None, **_parser_options):
-        """Create a parser with configuration based on shell options.
-
-        Args:
-            tokens: List of tokens to parse
-            source_text: Optional source text for error reporting
-            **parser_options: Additional parser options to override
-
-        Returns:
-            Configured Parser instance or wrapper
-        """
-        from .parser import Parser
-        from .parser.config import ParserConfig
-
-        parser_config = ParserConfig(
-            trace_parsing=self.state.options.get('debug-parser', False)
-        )
-
-        if self._active_parser == 'combinator':
-            from .parser.combinators.parser import ParserCombinatorShellParser
-            pc = ParserCombinatorShellParser(parser_config)
-
-            class ParserWrapper:
-                def __init__(self, parser, tokens):
-                    self._parser = parser
-                    self.tokens = tokens
-
-                def parse(self):
-                    return self._parser.parse(self.tokens)
-
-            return ParserWrapper(pc, tokens)
-        else:
-            return Parser(tokens, config=parser_config)
-
-    def _contains_heredoc(self, command_string: str) -> bool:
-        """Check if command contains heredoc operators (not bit-shift in arithmetic).
-
-        Returns True if the command contains << that's likely a heredoc,
-        False if << only appears inside arithmetic expressions.
-        """
-        if '<<' not in command_string:
-            return False
-
-        # Quick check: if we have arithmetic expressions, check if << is inside them
-        # This is a simple heuristic that handles the common case
-        if '((' in command_string:
-            # Find all arithmetic expression boundaries
-            arith_start = []
-            arith_end = []
-            i = 0
-            while i < len(command_string) - 1:
-                if command_string[i:i+2] == '((':
-                    arith_start.append(i)
-                    i += 2
-                elif command_string[i:i+2] == '))':
-                    arith_end.append(i + 2)
-                    i += 2
-                else:
-                    i += 1
-
-            # Find all << positions
-            heredoc_positions = []
-            i = 0
-            while i < len(command_string) - 1:
-                if command_string[i:i+2] == '<<':
-                    heredoc_positions.append(i)
-                    i += 2
-                else:
-                    i += 1
-
-            # Check if all << are inside arithmetic expressions
-            if heredoc_positions and arith_start and arith_end:
-                all_inside_arithmetic = True
-                for pos in heredoc_positions:
-                    inside = False
-                    # Check if this << is inside any arithmetic expression
-                    for j in range(min(len(arith_start), len(arith_end))):
-                        if arith_start[j] < pos < arith_end[j]:
-                            inside = True
-                            break
-                    if not inside:
-                        all_inside_arithmetic = False
-                        break
-
-                # If all << are inside arithmetic expressions, no heredoc
-                if all_inside_arithmetic:
-                    return False
-
-        # Default: assume << is a heredoc
-        return True
-
-    def _print_ast_debug(self, ast) -> None:
-        """Print AST debug output in the requested format."""
-        # Check for format from command line, then from PSH_AST_FORMAT variable, then default
-        format_type = self.ast_format
-        if not format_type:
-            format_type = self.state.scope_manager.get_variable('PSH_AST_FORMAT') or 'tree'
-
-        # Include parser name in debug header
-        parser_name = self._active_parser
-        print(f"=== AST Debug Output ({parser_name}) ===", file=sys.stderr)
-
-        try:
-            if format_type == 'pretty':
-                from .parser.visualization import ASTPrettyPrinter
-                formatter = ASTPrettyPrinter(
-                    indent_size=2,
-                    show_positions=True,
-                    compact_mode=False
-                )
-                output = formatter.visit(ast)
-                print(output, file=sys.stderr)
-
-            elif format_type == 'tree':
-                from .parser.visualization import AsciiTreeRenderer
-                output = AsciiTreeRenderer.render(
-                    ast,
-                    show_positions=True,
-                    compact_mode=False
-                )
-                print(output, file=sys.stderr)
-
-            elif format_type == 'compact':
-                from .parser.visualization import CompactAsciiTreeRenderer
-                output = CompactAsciiTreeRenderer.render(ast)
-                print(output, file=sys.stderr)
-
-            elif format_type == 'dot':
-                from .parser.visualization import ASTDotGenerator
-                generator = ASTDotGenerator(
-                    show_positions=True,
-                    color_by_type=True
-                )
-                output = generator.to_dot(ast)
-                print(output, file=sys.stderr)
-                print("\n# Save to file and visualize with:", file=sys.stderr)
-                print("# dot -Tpng output.dot -o ast.png", file=sys.stderr)
-                print("# xdg-open ast.png", file=sys.stderr)
-
-            elif format_type == 'sexp':
-                from .parser.visualization.sexp_renderer import SExpressionRenderer
-                output = SExpressionRenderer.render(
-                    ast,
-                    compact_mode=False,
-                    max_width=80,
-                    show_positions=True
-                )
-                print(output, file=sys.stderr)
-
-            else:  # default - use tree format as the new default
-                from .parser.visualization import AsciiTreeRenderer
-                output = AsciiTreeRenderer.render(ast, show_positions=False, compact_mode=False)
-                print(output, file=sys.stderr)
-
-        except (ValueError, TypeError, AttributeError) as e:
-            # Fallback to default format if new formatters fail
-            print(f"Warning: AST formatting failed ({e}), using default format", file=sys.stderr)
-            from .visitor import DebugASTVisitor
-            debug_visitor = DebugASTVisitor()
-            output = debug_visitor.visit(ast)
-            print(output, file=sys.stderr)
-
-        print("======================", file=sys.stderr)

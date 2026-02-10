@@ -5,6 +5,7 @@ from typing import Optional
 from ..ast_nodes import TopLevel
 from ..lexer import LexerError, tokenize
 from ..parser import ParseError
+from ..utils.heredoc_detection import contains_heredoc
 from .base import ScriptComponent
 
 
@@ -90,7 +91,7 @@ class SourceProcessor(ScriptComponent):
 
                 # Check for unclosed heredocs and collect content if needed
                 # Use the shell's method which properly handles arithmetic expressions
-                if self.shell._contains_heredoc(test_command) and self._has_unclosed_heredoc(test_command):
+                if contains_heredoc(test_command) and self._has_unclosed_heredoc(test_command):
                     # Continue reading lines to complete heredocs
                     command_buffer = self._collect_heredoc_content(command_buffer, input_source)
                     if command_buffer is None:  # EOF while reading heredoc
@@ -314,7 +315,7 @@ class SourceProcessor(ScriptComponent):
             # Note: Alias expansion now happens during execution phase for proper precedence
 
             # Check if command contains heredocs and parse accordingly
-            if self.shell._contains_heredoc(command_string):
+            if contains_heredoc(command_string):
                 # Use the new lexer with heredoc support
                 from ..lexer import tokenize_with_heredocs
                 tokens, heredoc_map = tokenize_with_heredocs(command_string, strict=self.state.options.get('posix', False),
@@ -324,12 +325,14 @@ class SourceProcessor(ScriptComponent):
                 ast = parse_with_heredocs(tokens, heredoc_map)
             else:
                 # Parse with source text for better error messages and shell configuration
-                parser = self.shell.create_parser(tokens, source_text=command_string)
+                from ..utils.parser_factory import create_parser
+                parser = create_parser(tokens, self.shell, source_text=command_string)
                 ast = parser.parse()
 
             # Debug: Print AST if requested
             if self.state.debug_ast:
-                self.shell._print_ast_debug(ast)
+                from ..utils.ast_debug import print_ast_debug
+                print_ast_debug(ast, self.shell.ast_format, self.shell)
 
             # Validation mode - analyze AST without executing
             if self.shell.validate_only:

@@ -143,9 +143,9 @@ class PSHTestCase:
 
         # Set positional parameters
         if args:
-            shell.set_positional_params(args)
+            shell.state.positional_params = list(args)
 
-        exit_code = shell.run_script(script_path)
+        exit_code = shell.script_manager.run_script(script_path)
 
         # Capture any output (would need to enhance this)
         return CommandResult(stdout='', stderr='', exit_code=exit_code)

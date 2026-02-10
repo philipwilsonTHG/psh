@@ -67,7 +67,7 @@ def test_tilde_not_expanded_from_parameter_expansion(captured_shell):
 
 def test_quoted_dollar_at_concatenation_splits(captured_shell):
     shell = captured_shell
-    shell.set_positional_params(["a", "b"])
+    shell.state.positional_params = ["a", "b"]
     shell.clear_output()
 
     result = shell.run_command('printf "[%s]\\n" "x$@y"')
