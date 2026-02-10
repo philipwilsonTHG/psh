@@ -4,7 +4,7 @@
 
 Python Shell (psh) is a POSIX-compliant shell written entirely in Python, designed for learning shell internals while providing practical functionality. It features a clean, readable codebase with modern architecture and powerful built-in analysis tools.
 
-**Current Version**: 0.159.0 | **Tests**: 3,087 total | **POSIX Compliance**: ~98%
+**Current Version**: 0.162.0 | **Tests**: 3,087 total | **POSIX Compliance**: ~98%
 
 *All source code and documentation (except this note) has been written by Claude Code using Sonnet 4 and Opus 4 models.*
 
@@ -230,12 +230,12 @@ PSH uniquely includes two complete parser implementations:
 - **Recursive Descent Parser**: Production parser with modular package structure, clear error messages, and comprehensive shell support
 - **Parser Combinator**: Functional parsing implementation demonstrating elegant composition and achieving 100% feature parity
 - **Educational Value**: Compare and contrast imperative vs. functional parsing approaches
-- **Parser Selection**: Use `--parser=combinator` flag to switch between implementations
+- **Parser Selection**: Use `parser-select combinator` builtin to switch between implementations
 - **Feature Parity**: Both parsers support all shell constructs (control structures, arrays, process substitution, etc.)
 
 ### Project Statistics
-- **Lines of Code**: ~62,000 across 214 Python files
-- **Test Coverage**: 3,021 tests in 154 test files
+- **Lines of Code**: ~99,000 across 348 Python files
+- **Test Coverage**: 3,087 tests in 166 test files
 - **Architecture**: 8 major components with focused responsibilities
 - **Visitors**: 9 analysis and transformation visitors
 - **Dual Parser**: Both recursive descent and parser combinator implementations
@@ -331,16 +331,16 @@ PSH welcomes contributions that maintain its educational focus:
 - **Architecture**: Follow component-based design patterns
 
 ### Recent Development
-- **v0.113.0**: Extended globbing (`extglob`) - Five pattern operators `?()`, `*()`, `+()`, `@()`, `!()` across all shell contexts
-- **v0.112.0**: Fix nested subshell parsing and SIGTTOU in process substitution
-- **v0.108.0**: Fix 4 conformance bugs, achieve 0 PSH bugs - POSIX compliance 98.4%, bash compatibility 91.8%
-- **v0.107.0**: Glob fixes, `shopt` builtin with dotglob/nullglob/extglob/nocaseglob/globstar
-- **v0.104.0**: Complete all high priority executor improvements - unified process management
-- **v0.102.0**: Interactive nested prompts - zsh-style context-aware continuation prompts
-- **v0.101.0**: Parser package refactoring - Recursive descent parser modularized into clean package structure
-- **v0.100.0**: Parser combinator modular architecture complete - 2,779 lines to 8 clean modules
-- **v0.99.0**: Parser combinator Phase 6 complete - Advanced I/O & Select loops (100% feature parity achieved)
-- **v0.94.0-v0.98.0**: Parser combinator feature parity phases 1-5 complete
+- **v0.161.0**: Fix 7,132 ruff lint issues in test tree, expand CI lint gate to cover `psh/` and `tests/`
+- **v0.160.0**: Fix 626 ruff lint issues in `psh/`, add CI lint gate
+- **v0.155.0**: Fix 8 PSH bug XFAILs - heredocs, forked-child redirections, tests
+- **v0.150.0**: Executor/visitor cleanup - deduplication, shared constants, POSIX word splitting
+- **v0.145.0**: Quote-aware expansion scanners, multiple `$@` support
+- **v0.130.0**: Remove parser abstraction layers (~1,686 lines), `parser-select` builtin
+- **v0.120.0**: Complete `arg_types` migration to Word AST
+- **v0.113.0**: Extended globbing (`extglob`) - Five pattern operators across all shell contexts
+- **v0.108.0**: Fix 4 conformance bugs, achieve 0 PSH bugs - POSIX compliance 98.4%
+- **v0.100.0**: Parser combinator modular architecture complete
 
 ## License
 

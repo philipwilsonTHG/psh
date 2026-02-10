@@ -2,10 +2,23 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.161.0"
+__version__ = "0.162.0"
 
 # Version history
 VERSION_HISTORY = """
+0.162.0 (2026-02-10) - Fix Documentation and Version Drift
+- Updated version references in README.md (0.159.0 → 0.162.0),
+  ARCHITECTURE.md (0.159.0 → 0.162.0), ARCHITECTURE.llm (0.159.0 → 0.162.0),
+  and CLAUDE.md (0.120.0 → 0.162.0).
+- Fixed stale project statistics in README.md: LOC (62,000 → 99,000),
+  Python files (214 → 348), test count (3,021 → 3,087), test files (154 → 166).
+- Fixed stale --parser=combinator CLI flag in README.md (replaced with
+  parser-select combinator builtin, matching v0.130.0 changes).
+- Updated README.md Recent Development section to cover v0.100.0-v0.161.0.
+- Updated CLAUDE.md Current Development Status: version, recent work summary,
+  and removed stale active issues.
+- Updated CLAUDE.md test count (~3000 → ~3,087).
+
 0.161.0 (2026-02-10) - Test Tree Lint Cleanup
 - Fixed 7,132 ruff lint issues across ~160 test files:
   6330 W293 (whitespace on blank lines), 265 F401 (unused imports),

@@ -65,7 +65,7 @@ PSH uses a modern, well-organized test suite:
 
 ### Main Test Suite (`tests/`)
 - **Location**: `/tests/`
-- **Count**: ~3000 tests
+- **Count**: ~3,087 tests
 - **Status**: Modern, well-organized structure (migrated 2025)
 - **Organization**:
   - `unit/` - Unit tests (builtins, expansion, lexer, parser)
@@ -357,28 +357,25 @@ class MyVisitor(ASTVisitor[T]):
 
 ## Current Development Status
 
-**Version**: 0.120.0 (see version.py for detailed history)
+**Version**: 0.162.0 (see version.py for detailed history)
 
 **Recent Work**:
-- **Complete arg_types Migration to Word AST (v0.120.0)**:
-  - Removed `arg_types` and `quote_types` fields from `SimpleCommand` dataclass
-  - `words: List[Word]` is now a required field (was `Optional`)
-  - Added Word helper properties: `is_quoted`, `is_unquoted_literal`, `is_variable_expansion`,
-    `has_expansion_parts`, `has_unquoted_expansion`, `effective_quote_char`
-  - All visitors (validator, security, formatter, debug, linter) migrated to Word AST
-  - Deleted `_word_to_arg_type()` legacy bridge method from parser
-- **Parser Fixes, Dead Code Removal, AST Migration (v0.118.0-v0.119.0)**:
-  - Removed CompositeTokenProcessor (Word AST handles composites natively)
-  - Removed dead StateHandlers mixin (597 lines)
-  - Fixed parameter expansion parsing for `/#`, `/%`, and `:` operators
-  - Migrated execution-path arg_types consumers to Word AST inspection
-- **Parser Combinator Feature Parity (Phases 1-4 Complete, v0.94.0-v0.97.0)**:
-  - Process substitution, compound commands, arithmetic, enhanced test expressions
-
-**Active Issues**:
-- Test isolation problems with subprocess tests
-- Some bash comparison tests fail due to parser limitations
-- Command substitution output capture in test environment
+- **Lint Cleanup and CI Gates (v0.160.0-v0.161.0)**:
+  - Fixed ~7,750 ruff lint issues across `psh/` and `tests/`
+  - Added CI lint gate covering both production and test code
+- **Correctness Bug Fixes (v0.138.0-v0.155.0)**:
+  - Fixed 8 PSH bug XFAILs (heredocs, forked-child redirections)
+  - Fixed critical/high executor bugs (background brace-group, loop depth leak, special-builtin assignments)
+  - Fixed 7 parser issues, 5 expansion bugs, 3 FD/redirect bugs
+  - Unified child process signal policy across all fork paths
+- **Dead Code Removal and Refactoring (v0.128.0-v0.150.0)**:
+  - Removed parser abstraction layers (~1,686 lines), dead BaseParser (~380 lines),
+    context snapshots (~300 lines), error catalog (~360 lines)
+  - Pruned ParserConfig from 45 fields to 12, unified error handling
+  - Removed null byte markers, CompositeTokenProcessor, dead executor methods
+- **Word AST Migration Complete (v0.115.0-v0.120.0)**:
+  - `words: List[Word]` is now the sole argument representation
+  - All visitors, executor, and expansion code migrated to Word AST
 
 ## Debugging Tips
 
