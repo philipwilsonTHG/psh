@@ -277,7 +277,6 @@ class TestLogicalOperators:
         exit_code = shell.run_command('[ ! -z "hello" ]')
         assert exit_code == 0
     
-    @pytest.mark.xfail(reason="PSH test builtin doesn't support parentheses and logical operators")
     def test_parentheses(self, shell, capsys):
         """Test parentheses for grouping."""
         # Complex expression with grouping

@@ -2,10 +2,22 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.151.0"
+__version__ = "0.152.0"
 
 # Version history
 VERSION_HISTORY = """
+0.152.0 (2026-02-10) - Test Builtin Parentheses Support and Test Fixes
+- Implemented parenthesized grouping in test builtin: test \( expr \) now works
+  for complex expressions like test \( -n "a" -a -n "b" \) -o -z "c", matching
+  POSIX/bash behavior. Added _evaluate_with_parens() and parenthesis-aware
+  scanning in _evaluate_expression() that skips -a/-o inside groups.
+- Fixed test_alias_with_pipe and test_alias_with_args: switched from in-process
+  captured_shell/capsys to subprocess, since alias-expanded external commands
+  fork child processes whose output bypasses Python-level capture.
+- Fixed test_history_clear: drain accumulated capsys output before assertion
+  and expect the 'history' command itself to appear as entry 1 after clear.
+- Removed all 4 xfail markers (all tests now pass).
+
 0.151.0 (2026-02-10) - Fix Alias Subshell Inheritance and Alias Test Corrections
 - Fixed aliases not inherited by subshells: added AliasManager.copy() and wired it
   into Shell.__init__() parent_shell inheritance block, matching bash behavior where

@@ -58,13 +58,19 @@ class TestAliasBuiltin:
         captured = capsys.readouterr()
         assert captured.out.strip() == 'Hello World'
     
-    @pytest.mark.xfail(reason="Aliases may not expand in non-interactive mode")
-    def test_alias_with_pipe(self, shell, capsys):
-        """Test alias with pipe."""
-        shell.run_command('alias count="echo 1 2 3 | wc -w"')
-        shell.run_command('count')
-        captured = capsys.readouterr()
-        assert captured.out.strip() == "3"
+    def test_alias_with_pipe(self):
+        """Test alias with pipe.
+
+        Uses subprocess because alias-expanded pipelines fork child
+        processes whose output isn't captured by in-process fixtures.
+        """
+        import subprocess, sys
+        result = subprocess.run(
+            [sys.executable, '-m', 'psh', '-c',
+             'alias count="echo 1 2 3 | wc -w"\ncount'],
+            capture_output=True, text=True
+        )
+        assert result.stdout.strip() == "3"
     
     def test_alias_expansion_at_start_only(self, shell, capsys):
         """Test alias expansion only happens at command start."""
@@ -177,17 +183,24 @@ class TestUnaliasBuiltin:
 class TestAliasExpansion:
     """Test alias expansion behavior."""
     
-    @pytest.mark.xfail(reason="Aliases may not expand in non-interactive mode")
-    def test_alias_with_args(self, shell, capsys):
-        """Test alias with additional arguments."""
-        shell.run_command('alias myls="ls"')
-        shell.run_command('touch file1 file2')
-        shell.run_command('myls file1 file2')
-        captured = capsys.readouterr()
-        assert 'file1' in captured.out
-        assert 'file2' in captured.out
-        # Clean up
-        shell.run_command('rm -f file1 file2')
+    def test_alias_with_args(self, tmp_path):
+        """Test alias with additional arguments.
+
+        Uses subprocess because alias-expanded external commands fork
+        child processes whose output isn't captured by in-process fixtures.
+        """
+        import subprocess, sys
+        file1 = tmp_path / "file1"
+        file2 = tmp_path / "file2"
+        file1.touch()
+        file2.touch()
+        result = subprocess.run(
+            [sys.executable, '-m', 'psh', '-c',
+             f'alias myls="ls"\nmyls {file1} {file2}'],
+            capture_output=True, text=True
+        )
+        assert 'file1' in result.stdout
+        assert 'file2' in result.stdout
     
     def test_alias_chain(self, shell, capsys):
         """Test chained aliases."""

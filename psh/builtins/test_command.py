@@ -51,6 +51,10 @@ class TestBuiltin(Builtin):
         if not args:
             return 1  # False
 
+        # Handle parenthesized grouping: ( expr )
+        if args[0] == '(' and ')' in args:
+            return self._evaluate_with_parens(args, shell)
+
         if len(args) == 1:
             # Single argument - true if non-empty string
             return 0 if args[0] else 1
@@ -76,36 +80,59 @@ class TestBuiltin(Builtin):
                 return self._evaluate_binary(arg1, combined_op, arg2, shell)
 
         # Handle logical operators -a and -o
-        # These operators are binary and have lower precedence than other operators
-        # We scan from left to right looking for -a or -o
-        for i in range(len(args)):
-            if args[i] == '-a':
-                # Logical AND - both sides must be true
-                if i == 0 or i == len(args) - 1:
-                    self.error("-a: binary operator expected", shell)
-                    return 2
-                # Evaluate left side
-                left_result = self._evaluate_expression(args[:i], shell)
-                if left_result != 0:
-                    # Short circuit - left side is false
-                    return left_result
-                # Evaluate right side
-                return self._evaluate_expression(args[i+1:], shell)
-
-            elif args[i] == '-o':
-                # Logical OR - at least one side must be true
-                if i == 0 or i == len(args) - 1:
-                    self.error("-o: binary operator expected", shell)
-                    return 2
-                # Evaluate left side
-                left_result = self._evaluate_expression(args[:i], shell)
-                if left_result == 0:
-                    # Short circuit - left side is true
-                    return 0
-                # Evaluate right side
-                return self._evaluate_expression(args[i+1:], shell)
+        # Scan for -o first (lower precedence), then -a, skipping
+        # operators inside parenthesized groups.
+        for target_op in ('-o', '-a'):
+            depth = 0
+            for i in range(len(args)):
+                if args[i] == '(':
+                    depth += 1
+                elif args[i] == ')':
+                    depth -= 1
+                elif args[i] == target_op and depth == 0:
+                    if i == 0 or i == len(args) - 1:
+                        self.error(f"{target_op}: binary operator expected", shell)
+                        return 2
+                    left_result = self._evaluate_expression(args[:i], shell)
+                    if target_op == '-a' and left_result != 0:
+                        return left_result
+                    if target_op == '-o' and left_result == 0:
+                        return 0
+                    return self._evaluate_expression(args[i+1:], shell)
 
         # If we get here, it's a complex expression we don't support
+        return 2
+
+    def _evaluate_with_parens(self, args: List[str], shell: 'Shell') -> int:
+        """Evaluate an expression that starts with '('."""
+        # Find matching closing paren
+        depth = 0
+        for i, arg in enumerate(args):
+            if arg == '(':
+                depth += 1
+            elif arg == ')':
+                depth -= 1
+                if depth == 0:
+                    # Evaluate the inner expression
+                    inner = args[1:i]
+                    inner_result = self._evaluate_expression(inner, shell)
+                    # If there are more args after ')', handle them
+                    rest = args[i+1:]
+                    if not rest:
+                        return inner_result
+                    # rest should start with -a or -o
+                    if rest[0] in ('-a', '-o') and len(rest) > 1:
+                        if rest[0] == '-a':
+                            if inner_result != 0:
+                                return inner_result
+                            return self._evaluate_expression(rest[1:], shell)
+                        else:  # -o
+                            if inner_result == 0:
+                                return 0
+                            return self._evaluate_expression(rest[1:], shell)
+                    self.error(f"syntax error near '{rest[0]}'", shell)
+                    return 2
+        self.error("missing ')'", shell)
         return 2
 
     def _evaluate_unary(self, op: str, arg: str, shell: 'Shell') -> int:

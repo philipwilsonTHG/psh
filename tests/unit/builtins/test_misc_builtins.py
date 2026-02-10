@@ -39,17 +39,23 @@ class TestHistoryBuiltin:
         # History is shown (actual limiting may not work as expected)
         assert 'echo' in captured.out or 'test' in captured.out
     
-    @pytest.mark.xfail(reason="Test framework retains history between commands")
     def test_history_clear(self, shell, capsys):
         """Test clearing history."""
-        # Add some commands
+        # Add some commands to history
         shell.run_command('echo "test"')
+        shell.run_command('echo "test2"')
         shell.run_command('history -c')
-        
-        # History should be empty
+
+        # Drain any accumulated capsys output
+        capsys.readouterr()
+
+        # After clearing, running 'history' adds itself as entry 1
         shell.run_command('history')
         captured = capsys.readouterr()
-        assert captured.out.strip() == "" or "no history" in captured.out.lower()
+        lines = [l for l in captured.out.strip().splitlines() if l.strip()]
+        # Only the 'history' command itself should appear (entry 1)
+        assert len(lines) == 1
+        assert 'history' in lines[0]
     
     def test_history_expansion(self, shell, capsys):
         """Test history expansion with !."""
