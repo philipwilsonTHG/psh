@@ -2,10 +2,21 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.156.0"
+__version__ = "0.157.0"
 
 # Version history
 VERSION_HISTORY = """
+0.157.0 (2026-02-10) - Update Parser Combinator Feature Parity Tests
+- Removed skip_combinator=True from 10 test groups (23 cases) in
+  test_parser_feature_parity.py — all features were implemented in v0.94-v0.100
+  but the parity tests were never updated.
+- Added heredoc-aware parsing to parse_both(): auto-detects heredoc commands and
+  uses tokenize_with_heredocs() + parse_with_heredocs() for both parsers.
+- Added parse_both_heredoc() helper method for explicit heredoc test path.
+- Updated generate_parity_report() feature matrix: all 19 features now show full
+  support in both parsers, except &> combined redirect (1 case still skipped).
+- Only remaining skip: &> combined redirect not supported in parser combinator.
+
 0.156.0 (2026-02-10) - Reset Job ID Counter When Job Table Is Empty
 - Fixed job numbering: transient internal jobs (pipelines, subshells, command
   substitutions) incremented the job ID counter but were removed immediately,

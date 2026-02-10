@@ -11,8 +11,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import pytest
 from typing import Tuple, Any, Optional, List
 from dataclasses import dataclass
-from psh.lexer import tokenize
-from psh.parser import Parser, ParseError
+from psh.lexer import tokenize, tokenize_with_heredocs
+from psh.parser import Parser, ParseError, parse_with_heredocs
 from psh.parser.config import ParserConfig
 from psh.parser.combinators.parser import ParserCombinatorShellParser
 from psh.ast_nodes import (
@@ -53,12 +53,30 @@ class TestParserFeatureParity:
         self.pc_parser = ParserCombinatorShellParser()
 
     def parse_both(self, command: str) -> Tuple[Any, Any]:
-        """Parse with both parsers and return ASTs."""
+        """Parse with both parsers and return ASTs.
+
+        Auto-detects heredocs and uses the heredoc parsing path when needed.
+        """
+        if '<<' in command and '\n' in command:
+            return self.parse_both_heredoc(command)
+
         tokens_rd = tokenize(command)
         tokens_pc = tokenize(command)
 
         rd_ast = Parser(tokens_rd, config=ParserConfig()).parse()
         pc_ast = self.pc_parser.parse(tokens_pc)
+
+        return rd_ast, pc_ast
+
+    def parse_both_heredoc(self, command: str) -> Tuple[Any, Any]:
+        """Parse with both parsers using heredoc-aware tokenization."""
+        # Recursive descent path
+        tokens_rd, heredoc_map_rd = tokenize_with_heredocs(command)
+        rd_ast = parse_with_heredocs(tokens_rd, heredoc_map_rd)
+
+        # Combinator parser path
+        tokens_pc, heredoc_map_pc = tokenize_with_heredocs(command)
+        pc_ast = self.pc_parser.parse_with_heredocs(tokens_pc, heredoc_map_pc)
 
         return rd_ast, pc_ast
     
@@ -183,8 +201,6 @@ class TestParserFeatureParity:
             ParityTestCase(
                 "select loop with case",
                 "select opt in start stop; do case $opt in start) break;; stop) continue;; esac; done",
-                skip_combinator=True,
-                skip_reason="select not implemented"
             ),
         ]
 
@@ -194,8 +210,7 @@ class TestParserFeatureParity:
     def test_select_loops(self):
         """Test select loops."""
         cases = [
-            ParityTestCase("select loop", "select x in a b c; do echo $x; done",
-                          skip_combinator=True, skip_reason="select not implemented"),
+            ParityTestCase("select loop", "select x in a b c; do echo $x; done"),
         ]
         
         for case in cases:
@@ -221,12 +236,9 @@ class TestParserFeatureParity:
     def test_variable_assignment(self):
         """Test variable assignments."""
         cases = [
-            ParityTestCase("simple assignment", "VAR=value",
-                          skip_combinator=True, skip_reason="assignments not implemented"),
-            ParityTestCase("multiple assignments", "A=1 B=2 C=3",
-                          skip_combinator=True, skip_reason="assignments not implemented"),
-            ParityTestCase("assignment with command", "VAR=value echo test",
-                          skip_combinator=True, skip_reason="assignments not implemented"),
+            ParityTestCase("simple assignment", "VAR=value"),
+            ParityTestCase("multiple assignments", "A=1 B=2 C=3"),
+            ParityTestCase("assignment with command", "VAR=value echo test"),
         ]
         
         for case in cases:
@@ -235,12 +247,9 @@ class TestParserFeatureParity:
     def test_arrays(self):
         """Test array operations."""
         cases = [
-            ParityTestCase("array init", "arr=(a b c)",
-                          skip_combinator=True, skip_reason="arrays not implemented"),
-            ParityTestCase("array element", "arr[0]=value",
-                          skip_combinator=True, skip_reason="arrays not implemented"),
-            ParityTestCase("array append", "arr+=(d e f)",
-                          skip_combinator=True, skip_reason="arrays not implemented"),
+            ParityTestCase("array init", "arr=(a b c)"),
+            ParityTestCase("array element", "arr[0]=value"),
+            ParityTestCase("array append", "arr+=(d e f)"),
         ]
         
         for case in cases:
@@ -267,16 +276,12 @@ class TestParserFeatureParity:
     def test_redirections(self):
         """Test I/O redirections."""
         cases = [
-            ParityTestCase("output redirect", "echo hello > file.txt",
-                          skip_combinator=True, skip_reason="redirections not implemented"),
-            ParityTestCase("append redirect", "echo hello >> file.txt",
-                          skip_combinator=True, skip_reason="redirections not implemented"),
-            ParityTestCase("input redirect", "cat < file.txt",
-                          skip_combinator=True, skip_reason="redirections not implemented"),
-            ParityTestCase("stderr redirect", "command 2> error.txt",
-                          skip_combinator=True, skip_reason="redirections not implemented"),
+            ParityTestCase("output redirect", "echo hello > file.txt"),
+            ParityTestCase("append redirect", "echo hello >> file.txt"),
+            ParityTestCase("input redirect", "cat < file.txt"),
+            ParityTestCase("stderr redirect", "command 2> error.txt"),
             ParityTestCase("combined redirect", "command &> all.txt",
-                          skip_combinator=True, skip_reason="redirections not implemented"),
+                          skip_combinator=True, skip_reason="combined &> redirect not supported"),
         ]
         
         for case in cases:
@@ -285,10 +290,8 @@ class TestParserFeatureParity:
     def test_heredocs(self):
         """Test here documents."""
         cases = [
-            ParityTestCase("simple heredoc", "cat << EOF\nhello\nEOF",
-                          skip_combinator=True, skip_reason="heredocs not implemented"),
-            ParityTestCase("indented heredoc", "cat <<- EOF\n\thello\nEOF",
-                          skip_combinator=True, skip_reason="heredocs not implemented"),
+            ParityTestCase("simple heredoc", "cat << EOF\nhello\nEOF"),
+            ParityTestCase("indented heredoc", "cat <<- EOF\n\thello\nEOF"),
         ]
         
         for case in cases:
@@ -299,10 +302,8 @@ class TestParserFeatureParity:
     def test_subshells(self):
         """Test subshells and command grouping."""
         cases = [
-            ParityTestCase("subshell", "(echo hello; echo world)",
-                          skip_combinator=True, skip_reason="subshells not implemented"),
-            ParityTestCase("brace group", "{ echo hello; echo world; }",
-                          skip_combinator=True, skip_reason="brace groups not implemented"),
+            ParityTestCase("subshell", "(echo hello; echo world)"),
+            ParityTestCase("brace group", "{ echo hello; echo world; }"),
         ]
         
         for case in cases:
@@ -311,10 +312,8 @@ class TestParserFeatureParity:
     def test_process_substitution(self):
         """Test process substitution."""
         cases = [
-            ParityTestCase("input process sub", "cat <(echo hello)",
-                          skip_combinator=True, skip_reason="process substitution not implemented"),
-            ParityTestCase("output process sub", "echo hello >(cat)",
-                          skip_combinator=True, skip_reason="process substitution not implemented"),
+            ParityTestCase("input process sub", "cat <(echo hello)"),
+            ParityTestCase("output process sub", "echo hello >(cat)"),
         ]
         
         for case in cases:
@@ -323,10 +322,8 @@ class TestParserFeatureParity:
     def test_arithmetic_commands(self):
         """Test arithmetic commands."""
         cases = [
-            ParityTestCase("arithmetic command", "((x = 5 + 3))",
-                          skip_combinator=True, skip_reason="arithmetic commands not implemented"),
-            ParityTestCase("arithmetic condition", "if ((x > 5)); then echo yes; fi",
-                          skip_combinator=True, skip_reason="arithmetic commands not implemented"),
+            ParityTestCase("arithmetic command", "((x = 5 + 3))"),
+            ParityTestCase("arithmetic condition", "if ((x > 5)); then echo yes; fi"),
         ]
         
         for case in cases:
@@ -335,12 +332,9 @@ class TestParserFeatureParity:
     def test_conditional_expressions(self):
         """Test [[ ]] conditional expressions."""
         cases = [
-            ParityTestCase("string test", '[[ "$x" == "value" ]]',
-                          skip_combinator=True, skip_reason="conditional expressions not implemented"),
-            ParityTestCase("numeric test", "[[ $x -gt 5 ]]",
-                          skip_combinator=True, skip_reason="conditional expressions not implemented"),
-            ParityTestCase("file test", "[[ -f /etc/passwd ]]",
-                          skip_combinator=True, skip_reason="conditional expressions not implemented"),
+            ParityTestCase("string test", '[[ "$x" == "value" ]]'),
+            ParityTestCase("numeric test", "[[ $x -gt 5 ]]"),
+            ParityTestCase("file test", "[[ -f /etc/passwd ]]"),
         ]
         
         for case in cases:
@@ -388,28 +382,24 @@ def generate_parity_report():
     print("| If Statements | ✅ | ✅ | Full support |")
     print("| Loops | ✅ | ✅ | Full support |")
     print("| Case Statements | ✅ | ✅ | Full support |")
-    print("| Select Loops | ✅ | ❌ | Not implemented in PC |")
+    print("| Select Loops | ✅ | ✅ | Full support |")
     print("| Functions | ✅ | ✅ | Full support |")
-    print("| Variable Assignment | ✅ | ❌ | Not implemented in PC |")
-    print("| Arrays | ✅ | ❌ | Not implemented in PC |")
+    print("| Variable Assignment | ✅ | ✅ | Full support |")
+    print("| Arrays | ✅ | ✅ | Full support |")
     print("| Variable Expansion | ✅ | ✅ | Full support |")
     print("| Command Substitution | ✅ | ✅ | Full support |")
     print("| Arithmetic Expansion | ✅ | ✅ | Full support |")
-    print("| I/O Redirection | ✅ | ❌ | Not implemented in PC |")
-    print("| Here Documents | ✅ | ❌ | Not implemented in PC |")
-    print("| Subshells | ✅ | ❌ | Not implemented in PC |")
-    print("| Process Substitution | ✅ | ❌ | Not implemented in PC |")
-    print("| Arithmetic Commands | ✅ | ❌ | Not implemented in PC |")
-    print("| Conditional Expressions | ✅ | ❌ | Not implemented in PC |")
-    
+    print("| I/O Redirection | ✅ | ✅ | Full support (except &> combined redirect) |")
+    print("| Here Documents | ✅ | ✅ | Full support |")
+    print("| Subshells | ✅ | ✅ | Full support |")
+    print("| Process Substitution | ✅ | ✅ | Full support |")
+    print("| Arithmetic Commands | ✅ | ✅ | Full support |")
+    print("| Conditional Expressions | ✅ | ✅ | Full support |")
+
     print("\n## Recommendations\n")
-    print("1. The parser combinator lacks many essential shell features")
-    print("2. Priority features to implement:")
-    print("   - Variable assignments (critical)")
-    print("   - I/O redirection (critical)")
-    print("   - Subshells and grouping (important)")
-    print("   - Arithmetic commands (important)")
-    print("3. Consider if full parity is needed or if PC should remain experimental")
+    print("1. Near-complete feature parity achieved (v0.94-v0.100)")
+    print("2. Only gap: &> combined redirect not supported in parser combinator")
+    print("3. Parser combinator serves as educational reference implementation")
 
 
 if __name__ == "__main__":
