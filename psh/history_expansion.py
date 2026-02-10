@@ -15,12 +15,18 @@ class HistoryExpander:
         self.shell = shell
         self.state = shell.state
 
-    def expand_history(self, command: str, print_expansion: bool = True) -> str:
+    def expand_history(
+        self,
+        command: str,
+        print_expansion: bool = True,
+        report_errors: bool = True,
+    ) -> Optional[str]:
         """Expand history references in a command string.
         
         Args:
             command: The command string to expand
             print_expansion: Whether to print the expanded command to stdout
+            report_errors: Whether to print "event not found" errors
         
         Supports:
         - !! : Previous command
@@ -138,7 +144,8 @@ class HistoryExpander:
                                 i += 2
                                 continue
                             else:
-                                print(f"psh: !!: event not found", file=sys.stderr)
+                                if report_errors:
+                                    print(f"psh: !!: event not found", file=sys.stderr)
                                 return None
 
                         # Check for numeric (!n or !-n)
@@ -159,7 +166,8 @@ class HistoryExpander:
                                     i = j
                                     continue
                                 else:
-                                    print(f"psh: !{n}: event not found", file=sys.stderr)
+                                    if report_errors:
+                                        print(f"psh: !{n}: event not found", file=sys.stderr)
                                     return None
                             else:
                                 # !-n - relative position from end
@@ -169,7 +177,8 @@ class HistoryExpander:
                                     i = j
                                     continue
                                 else:
-                                    print(f"psh: !{n}: event not found", file=sys.stderr)
+                                    if report_errors:
+                                        print(f"psh: !{n}: event not found", file=sys.stderr)
                                     return None
 
                         # Check for !?string?
@@ -187,7 +196,8 @@ class HistoryExpander:
                                         i = j + 1
                                         break
                                 else:
-                                    print(f"psh: !?{search_str}?: event not found", file=sys.stderr)
+                                    if report_errors:
+                                        print(f"psh: !?{search_str}?: event not found", file=sys.stderr)
                                     return None
                                 continue
 
@@ -205,7 +215,8 @@ class HistoryExpander:
                                     i = j
                                     break
                             else:
-                                print(f"psh: !{search_prefix}: event not found", file=sys.stderr)
+                                if report_errors:
+                                    print(f"psh: !{search_prefix}: event not found", file=sys.stderr)
                                 return None
                             continue
 

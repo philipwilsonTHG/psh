@@ -36,15 +36,20 @@ class TestPOSIXParameterExpansion(ConformanceTest):
     
     def test_error_expansion(self):
         """Test ${parameter:?word} expansion."""
-        # These should fail in both shells
-        result1 = self.check_behavior('unset x; echo ${x:?undefined}')
-        result2 = self.check_behavior('x=; echo ${x:?empty}')
+        # Error text includes shell-specific prefixes, so compare semantics directly.
+        command1 = 'unset x; echo ${x:?undefined}'
+        psh_result1 = self.framework.run_in_psh(command1)
+        bash_result1 = self.framework.run_in_bash(command1)
 
-        # Both should fail with non-zero exit codes
-        assert result1.psh_result.exit_code != 0
-        assert result1.bash_result.exit_code != 0
-        assert result2.psh_result.exit_code != 0
-        assert result2.bash_result.exit_code != 0
+        command2 = 'x=; echo ${x:?empty}'
+        psh_result2 = self.framework.run_in_psh(command2)
+        bash_result2 = self.framework.run_in_bash(command2)
+
+        # Bash uses 127 for this expansion failure mode; PSH should match.
+        assert psh_result1.exit_code == 127
+        assert bash_result1.exit_code == 127
+        assert psh_result2.exit_code == 127
+        assert bash_result2.exit_code == 127
 
     def test_alternative_value_expansion(self):
         """Test ${parameter:+word} expansion."""

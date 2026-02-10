@@ -97,6 +97,29 @@ def test_exec_with_fd_operations(shell_with_temp_dir):
     assert result == 0
 
 
+def test_exec_fd_redirection_lifecycle(temp_dir):
+    """exec fd lifecycle should preserve explicit descriptors across commands."""
+    import subprocess
+    import sys
+
+    output_file = "fd3_output.txt"
+    command = f'exec 3> {output_file}; echo "fd write" >&3; exec 3>&-; cat {output_file}'
+
+    result = subprocess.run(
+        [sys.executable, "-m", "psh", "-c", command],
+        cwd=temp_dir,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    assert result.stdout == "fd write\n"
+    assert result.stderr == ""
+
+    with open(os.path.join(temp_dir, output_file), 'r') as f:
+        assert f.read().strip() == "fd write"
+
+
 def test_exec_error_handling(shell):
     """Test exec error handling with invalid arguments."""
     # Test with non-existent command

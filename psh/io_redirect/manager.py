@@ -31,6 +31,14 @@ class IOManager:
         # Track temporary files for cleanup
         self._temp_files = []
 
+    @staticmethod
+    def _dup2_preserve_target(opened_fd: int, target_fd: int):
+        """dup2() helper that keeps target_fd open when FDs are identical."""
+        if opened_fd == target_fd:
+            return
+        os.dup2(opened_fd, target_fd)
+        os.close(opened_fd)
+
     @contextmanager
     def with_redirections(self, redirects: List[Redirect]):
         """Context manager for applying redirections temporarily."""
@@ -163,8 +171,7 @@ class IOManager:
                 # Also need to redirect the actual file descriptor for builtins that use os.read
                 stdin_fd_backup = os.dup(0)
                 fd = os.open(target, os.O_RDONLY)
-                os.dup2(fd, 0)
-                os.close(fd)
+                self._dup2_preserve_target(fd, 0)
                 sys.stdin = open(target, 'r')
             elif redirect.type in ('<<', '<<-'):
                 stdin_backup = sys.stdin
@@ -183,8 +190,7 @@ class IOManager:
                 os.write(w, content.encode())
                 os.close(w)
                 # Redirect stdin to read end
-                os.dup2(r, 0)
-                os.close(r)
+                self._dup2_preserve_target(r, 0)
                 # Create a StringIO object from heredoc content
                 sys.stdin = io.StringIO(content)
             elif redirect.type == '<<<':
@@ -204,15 +210,14 @@ class IOManager:
                 os.write(w, content.encode())
                 os.close(w)
                 # Redirect stdin to read end
-                os.dup2(r, 0)
-                os.close(r)
+                self._dup2_preserve_target(r, 0)
                 sys.stdin = io.StringIO(content)
             elif redirect.type == '>' and redirect.fd == 2:
                 stderr_backup = sys.stderr
 
                 # Check noclobber option - prevent overwriting existing files
                 if self.state.options.get('noclobber', False) and os.path.exists(target):
-                    raise OSError(f"psh: cannot overwrite existing file: {target}")
+                    raise OSError(f"cannot overwrite existing file: {target}")
 
                 sys.stderr = open(target, 'w')
             elif redirect.type == '>>' and redirect.fd == 2:
@@ -223,7 +228,7 @@ class IOManager:
 
                 # Check noclobber option - prevent overwriting existing files
                 if self.state.options.get('noclobber', False) and os.path.exists(target):
-                    raise OSError(f"psh: cannot overwrite existing file: {target}")
+                    raise OSError(f"cannot overwrite existing file: {target}")
 
                 sys.stdout = open(target, 'w')
                 # DEBUG: Log stdout redirection
@@ -346,8 +351,7 @@ class IOManager:
 
             if redirect.type == '<':
                 fd = os.open(target, os.O_RDONLY)
-                os.dup2(fd, 0)
-                os.close(fd)
+                self._dup2_preserve_target(fd, 0)
             elif redirect.type in ('<<', '<<-'):
                 # Create a pipe for heredoc
                 r, w = os.pipe()
@@ -363,8 +367,7 @@ class IOManager:
                 os.write(w, content.encode())
                 os.close(w)
                 # Redirect stdin to read end
-                os.dup2(r, 0)
-                os.close(r)
+                self._dup2_preserve_target(r, 0)
             elif redirect.type == '<<<':
                 # Create a pipe for here string
                 r, w = os.pipe()
@@ -380,8 +383,7 @@ class IOManager:
                 os.write(w, content.encode())
                 os.close(w)
                 # Redirect stdin to read end
-                os.dup2(r, 0)
-                os.close(r)
+                self._dup2_preserve_target(r, 0)
             elif redirect.type == '>':
                 # Check noclobber option
                 if self.state.options.get('noclobber', False) and os.path.exists(target):
@@ -392,13 +394,11 @@ class IOManager:
 
                 fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)
                 target_fd = redirect.fd if redirect.fd is not None else 1
-                os.dup2(fd, target_fd)
-                os.close(fd)
+                self._dup2_preserve_target(fd, target_fd)
             elif redirect.type == '>>':
                 fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o644)
                 target_fd = redirect.fd if redirect.fd is not None else 1
-                os.dup2(fd, target_fd)
-                os.close(fd)
+                self._dup2_preserve_target(fd, target_fd)
             elif redirect.type == '>&':
                 # Handle fd duplication like 2>&1
                 if redirect.fd is not None and redirect.dup_fd is not None:
@@ -408,7 +408,7 @@ class IOManager:
                         import fcntl
                         fcntl.fcntl(redirect.dup_fd, fcntl.F_GETFD)
                     except OSError:
-                        error_msg = f"psh: {redirect.dup_fd}: bad file descriptor\n"
+                        error_msg = f"psh: {redirect.dup_fd}: Bad file descriptor\n"
                         os.write(2, error_msg.encode('utf-8'))
                         os._exit(1)
 
@@ -427,7 +427,7 @@ class IOManager:
                         import fcntl
                         fcntl.fcntl(redirect.dup_fd, fcntl.F_GETFD)
                     except OSError:
-                        error_msg = f"psh: {redirect.dup_fd}: bad file descriptor\n"
+                        error_msg = f"psh: {redirect.dup_fd}: Bad file descriptor\n"
                         os.write(2, error_msg.encode('utf-8'))
                         os._exit(1)
                     os.dup2(redirect.dup_fd, redirect.fd)

@@ -61,6 +61,11 @@ class OperatorRecognizer(ContextualRecognizer):
         '0', '1', '3', '4', '5', '6', '7', '8', '9'  # All digits for file descriptor duplication
     }
 
+    @staticmethod
+    def _is_shell_token_delimiter(char: str) -> bool:
+        """Return True when char can delimit a standalone shell token."""
+        return char.isspace() or char in '|&;(){}[]<>'
+
     def _try_fd_duplication(self, input_text: str, pos: int) -> bool:
         """Check if position starts a file descriptor duplication pattern."""
         # Check for patterns: >&N, <&N, N>&M, N<&M
@@ -232,6 +237,13 @@ class OperatorRecognizer(ContextualRecognizer):
                             and input_text[pos + 1] == '('):
                         return None
 
+                    # '!' is a reserved-word operator only when it forms a
+                    # standalone token (e.g. "! cmd"). Keep "!!" and "!name"
+                    # as regular words for command lookup/history-disabled mode.
+                    if candidate == '!' and pos + 1 < len(input_text):
+                        if not self._is_shell_token_delimiter(input_text[pos + 1]):
+                            continue
+
                     # Check configuration to see if this operator is enabled
                     if not self._is_operator_enabled(candidate):
                         continue
@@ -324,6 +336,10 @@ class OperatorRecognizer(ContextualRecognizer):
         elif operator in ['=~', '==', '!=']:
             # =~, ==, != are only operators inside [[ ]], otherwise they're words
             return context.bracket_depth > 0
+
+        elif operator == '!':
+            # Negation is only valid as a command-position reserved word.
+            return context.command_position
 
         elif operator in ['<', '>']:
             # Inside [[ ]], < and > are comparison operators, not redirections

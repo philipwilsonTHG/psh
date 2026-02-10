@@ -19,7 +19,7 @@ class LiteralRecognizer(ContextualRecognizer):
     WORD_TERMINATORS = {
         ' ', '\t', '\n', '\r', '\f', '\v',  # Whitespace
         '|', '&', ';', '(', ')', '{', '}',       # Operators
-        '<', '>', '!', '=', '+',                 # More operators
+        '<', '>', '=', '+',                      # More operators
         '[', ']',                                # Bracket operators
         '$', '`', "'",  '"',                     # Special characters
     }

@@ -37,14 +37,39 @@ class SignalNotifier:
             handle_signal(sig)
     """
 
+    # Keep internal signal pipe descriptors away from user-facing low FDs
+    # so "exec 3>file" style redirections don't clobber shell internals.
+    _INTERNAL_FD_MIN = 64
+
     def __init__(self):
         """Create a self-pipe for signal notifications."""
-        self._pipe_r, self._pipe_w = os.pipe()
+        pipe_r, pipe_w = os.pipe()
 
         # Make write end non-blocking to prevent signal handler blocking
         # This is critical for signal safety
-        flags = fcntl.fcntl(self._pipe_w, fcntl.F_GETFL)
-        fcntl.fcntl(self._pipe_w, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+        flags = fcntl.fcntl(pipe_w, fcntl.F_GETFL)
+        fcntl.fcntl(pipe_w, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+
+        # Relocate to high-numbered FDs to avoid collisions with shell
+        # scripts that intentionally manipulate low FDs like 3, 4, etc.
+        self._pipe_r = self._promote_internal_fd(pipe_r)
+        self._pipe_w = self._promote_internal_fd(pipe_w)
+
+    def _promote_internal_fd(self, fd: int) -> int:
+        """Move an FD into the reserved internal range if needed."""
+        if fd >= self._INTERNAL_FD_MIN:
+            return fd
+
+        dup_cmd = getattr(fcntl, "F_DUPFD_CLOEXEC", fcntl.F_DUPFD)
+        promoted_fd = fcntl.fcntl(fd, dup_cmd, self._INTERNAL_FD_MIN)
+
+        # F_DUPFD doesn't preserve CLOEXEC, so set it explicitly.
+        if dup_cmd == fcntl.F_DUPFD:
+            fd_flags = fcntl.fcntl(promoted_fd, fcntl.F_GETFD)
+            fcntl.fcntl(promoted_fd, fcntl.F_SETFD, fd_flags | fcntl.FD_CLOEXEC)
+
+        os.close(fd)
+        return promoted_fd
 
     def notify(self, signal_num: int):
         """Called from signal handler to notify main loop.

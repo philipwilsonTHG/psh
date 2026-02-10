@@ -272,16 +272,18 @@ class TestBashHistory(ConformanceTest):
 
     def test_history_expansion(self):
         """Test bash history expansion behavior in non-interactive mode."""
-        # In non-interactive mode (-c), bash treats !! as unknown command (exit 127)
-        # PSH currently has a parser bug where !! tokens are silently dropped (exit 0)
-        result1 = self.check_behavior('echo hello; !!')
-        
-        # Bash should fail with exit code 127 (command not found)
-        assert result1.bash_result.exit_code == 127
-        assert 'command not found' in result1.bash_result.stderr
-        
-        # PSH currently silently ignores !! (parser bug) - should be fixed to match bash
-        # When fixed, PSH should also return 127 with "command not found"
+        # Non-interactive mode should NOT apply history expansion; !! is a command token.
+        command = 'echo hello; !!'
+        psh_result = self.framework.run_in_psh(command)
+        bash_result = self.framework.run_in_bash(command)
+
+        # Both shells execute the first command, then fail on unknown "!!".
+        assert psh_result.exit_code == 127
+        assert bash_result.exit_code == 127
+        assert psh_result.stdout == "hello\n"
+        assert bash_result.stdout == "hello\n"
+        assert 'command not found' in psh_result.stderr
+        assert 'command not found' in bash_result.stderr
 
     def test_history_commands(self):
         """Test history-related commands."""
@@ -322,12 +324,18 @@ class TestBashRedirection(ConformanceTest):
         result = self.check_behavior('cat << EOF\nhello\nEOF')
         # Both should handle here documents
 
-    @pytest.mark.xfail(reason="exec with file descriptors not fully implemented")
     def test_advanced_redirection(self):
         """Test bash advanced redirection."""
-        self.assert_bash_specific('exec 3> file.txt')
-        self.assert_bash_specific('echo hello >&3')
-        self.assert_bash_specific('exec 3>&-')
+        self.assert_identical_behavior(
+            'exec 3> file.txt; echo hello >&3; exec 3>&-; cat file.txt'
+        )
+
+        # Writing to closed fd should fail in both shells.
+        command = 'exec 3> file.txt; exec 3>&-; echo hello >&3'
+        psh_result = self.framework.run_in_psh(command)
+        bash_result = self.framework.run_in_bash(command)
+        assert psh_result.exit_code != 0
+        assert bash_result.exit_code != 0
 
 
 class TestBashFunctions(ConformanceTest):

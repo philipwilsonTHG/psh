@@ -16,6 +16,14 @@ class FileRedirector:
         self.shell = shell
         self.state = shell.state
 
+    @staticmethod
+    def _dup2_preserve_target(opened_fd: int, target_fd: int):
+        """dup2() helper that avoids closing target_fd when FDs already match."""
+        if opened_fd == target_fd:
+            return
+        os.dup2(opened_fd, target_fd)
+        os.close(opened_fd)
+
     def apply_redirections(self, redirects: List[Redirect]) -> List[Tuple[int, int]]:
         """
         Apply redirections and return list of (fd, saved_fd) for restoration.
@@ -59,8 +67,7 @@ class FileRedirector:
                 # Input redirection
                 saved_fds.append((0, os.dup(0)))
                 fd = os.open(target, os.O_RDONLY)
-                os.dup2(fd, 0)
-                os.close(fd)
+                self._dup2_preserve_target(fd, 0)
 
             elif redirect.type in ('<<', '<<-'):
                 # Here document
@@ -78,8 +85,7 @@ class FileRedirector:
                 os.write(w, content.encode())
                 os.close(w)
                 # Redirect stdin to read end
-                os.dup2(r, 0)
-                os.close(r)
+                self._dup2_preserve_target(r, 0)
 
             elif redirect.type == '<<<':
                 # Here string
@@ -97,8 +103,7 @@ class FileRedirector:
                 os.write(w, content.encode())
                 os.close(w)
                 # Redirect stdin to read end
-                os.dup2(r, 0)
-                os.close(r)
+                self._dup2_preserve_target(r, 0)
 
             elif redirect.type == '>':
                 # Output redirection (truncate)
@@ -107,19 +112,17 @@ class FileRedirector:
 
                 # Check noclobber option - prevent overwriting existing files
                 if self.state.options.get('noclobber', False) and os.path.exists(target):
-                    raise OSError(f"psh: cannot overwrite existing file: {target}")
+                    raise OSError(f"cannot overwrite existing file: {target}")
 
                 fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)
-                os.dup2(fd, target_fd)
-                os.close(fd)
+                self._dup2_preserve_target(fd, target_fd)
 
             elif redirect.type == '>>':
                 # Output redirection (append)
                 target_fd = redirect.fd if redirect.fd is not None else 1
                 saved_fds.append((target_fd, os.dup(target_fd)))
                 fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o644)
-                os.dup2(fd, target_fd)
-                os.close(fd)
+                self._dup2_preserve_target(fd, target_fd)
 
             elif redirect.type == '>&':
                 # FD duplication (e.g., 2>&1)
@@ -129,7 +132,7 @@ class FileRedirector:
                         # Try to get the file descriptor flags to check if it exists
                         fcntl.fcntl(redirect.dup_fd, fcntl.F_GETFD)
                     except OSError:
-                        raise OSError(f"psh: {redirect.dup_fd}: bad file descriptor")
+                        raise OSError(f"{redirect.dup_fd}: Bad file descriptor")
 
                     saved_fds.append((redirect.fd, os.dup(redirect.fd)))
                     os.dup2(redirect.dup_fd, redirect.fd)
@@ -144,7 +147,7 @@ class FileRedirector:
                     try:
                         fcntl.fcntl(redirect.dup_fd, fcntl.F_GETFD)
                     except OSError:
-                        raise OSError(f"psh: {redirect.dup_fd}: bad file descriptor")
+                        raise OSError(f"{redirect.dup_fd}: Bad file descriptor")
                     saved_fds.append((redirect.fd, os.dup(redirect.fd)))
                     os.dup2(redirect.dup_fd, redirect.fd)
 
@@ -197,8 +200,7 @@ class FileRedirector:
             if redirect.type == '<':
                 # Input redirection - redirect stdin permanently
                 fd = os.open(target, os.O_RDONLY)
-                os.dup2(fd, 0)
-                os.close(fd)
+                self._dup2_preserve_target(fd, 0)
                 # Update shell stdin
                 self.shell.stdin = sys.stdin
                 self.state.stdin = sys.stdin
@@ -208,8 +210,7 @@ class FileRedirector:
                 r, w = os.pipe()
                 os.write(w, (redirect.heredoc_content or '').encode())
                 os.close(w)
-                os.dup2(r, 0)
-                os.close(r)
+                self._dup2_preserve_target(r, 0)
                 # Update shell stdin
                 self.shell.stdin = sys.stdin
                 self.state.stdin = sys.stdin
@@ -225,8 +226,7 @@ class FileRedirector:
                 content = expanded_content + '\n'
                 os.write(w, content.encode())
                 os.close(w)
-                os.dup2(r, 0)
-                os.close(r)
+                self._dup2_preserve_target(r, 0)
                 # Update shell stdin
                 self.shell.stdin = sys.stdin
                 self.state.stdin = sys.stdin
@@ -237,11 +237,10 @@ class FileRedirector:
 
                 # Check noclobber option - prevent overwriting existing files
                 if self.state.options.get('noclobber', False) and os.path.exists(target):
-                    raise OSError(f"psh: cannot overwrite existing file: {target}")
+                    raise OSError(f"cannot overwrite existing file: {target}")
 
                 fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)
-                os.dup2(fd, target_fd)
-                os.close(fd)
+                self._dup2_preserve_target(fd, target_fd)
                 # Update shell streams to use new file descriptor
                 if target_fd == 1:
                     # Update sys.stdout to use the new file descriptor
@@ -260,8 +259,7 @@ class FileRedirector:
                 # Output redirection (append) - redirect permanently
                 target_fd = redirect.fd if redirect.fd is not None else 1
                 fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o644)
-                os.dup2(fd, target_fd)
-                os.close(fd)
+                self._dup2_preserve_target(fd, target_fd)
                 # Update shell streams to use new file descriptor
                 if target_fd == 1:
                     # Update sys.stdout to use the new file descriptor
@@ -284,7 +282,7 @@ class FileRedirector:
                         # Try to get the file descriptor flags to check if it exists
                         fcntl.fcntl(redirect.dup_fd, fcntl.F_GETFD)
                     except OSError:
-                        raise OSError(f"psh: {redirect.dup_fd}: bad file descriptor")
+                        raise OSError(f"{redirect.dup_fd}: Bad file descriptor")
 
                     os.dup2(redirect.dup_fd, redirect.fd)
                     # Update shell streams to use new file descriptor
@@ -311,7 +309,7 @@ class FileRedirector:
                         # Try to get the file descriptor flags to check if it exists
                         fcntl.fcntl(redirect.dup_fd, fcntl.F_GETFD)
                     except OSError:
-                        raise OSError(f"psh: {redirect.dup_fd}: bad file descriptor")
+                        raise OSError(f"{redirect.dup_fd}: Bad file descriptor")
 
                     os.dup2(redirect.dup_fd, redirect.fd)
                 elif redirect.fd is not None and redirect.target == '-':

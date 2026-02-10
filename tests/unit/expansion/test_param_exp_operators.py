@@ -95,13 +95,13 @@ def test_error_if_unset_operator(shell, capsys):
     # Unset variable with custom message
     shell.run_command('unset testvar')
     result = shell.run_command('echo ${testvar:?variable is not set}')
-    assert result == 1
+    assert result == 127
     captured = capsys.readouterr()
     assert "testvar: variable is not set" in captured.err
     
     # Unset variable with no message
     result = shell.run_command('echo ${testvar:?}')
-    assert result == 1
+    assert result == 127
     captured = capsys.readouterr()
     assert "testvar: parameter null or not set" in captured.err
     
@@ -114,7 +114,7 @@ def test_error_if_unset_operator(shell, capsys):
     # Empty variable - treated as unset for :?
     shell.run_command('testvar=""')
     result = shell.run_command('echo ${testvar:?empty variable error}')
-    assert result == 1
+    assert result == 127
     captured = capsys.readouterr()
     assert "testvar: empty variable error" in captured.err
 
@@ -143,7 +143,7 @@ def test_expansion_in_default_values(shell, capsys):
     shell.run_command('error_prefix="ERROR"')
     shell.run_command('unset testvar3')
     result = shell.run_command('echo ${testvar3:?${error_prefix}: variable not set}')
-    assert result == 1
+    assert result == 127
     captured = capsys.readouterr()
     assert "testvar3: ERROR: variable not set" in captured.err
 

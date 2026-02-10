@@ -84,9 +84,9 @@ class VariableExpander:
                 if not value:
                     expanded_message = self.expand_string_variables(message) if message else "parameter null or not set"
                     print(f"psh: {var_name}: {expanded_message}", file=sys.stderr)
-                    self.state.last_exit_code = 1
+                    self.state.last_exit_code = 127
                     from ..core.exceptions import ExpansionError
-                    raise ExpansionError(f"{var_name}: {expanded_message}")
+                    raise ExpansionError(f"{var_name}: {expanded_message}", exit_code=127)
                 return value
             elif ':+' in var_content:
                 var_name, alternative = var_content.split(':+', 1)
@@ -487,9 +487,9 @@ class VariableExpander:
             if not value:
                 expanded_message = self.expand_string_variables(operand) if operand else "parameter null or not set"
                 print(f"psh: {var_name}: {expanded_message}", file=sys.stderr)
-                self.state.last_exit_code = 1
+                self.state.last_exit_code = 127
                 from ..core.exceptions import ExpansionError
-                raise ExpansionError(f"{var_name}: {expanded_message}")
+                raise ExpansionError(f"{var_name}: {expanded_message}", exit_code=127)
             return value
         elif operator == ':+':
             if value:

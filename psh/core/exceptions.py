@@ -24,4 +24,6 @@ class ReadonlyVariableError(Exception):
 
 class ExpansionError(Exception):
     """Raised when parameter expansion fails (e.g., :? operator)."""
-    pass
+    def __init__(self, message: str, exit_code: int = 1):
+        self.exit_code = exit_code
+        super().__init__(message)

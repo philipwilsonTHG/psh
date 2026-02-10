@@ -143,9 +143,17 @@ class ConformanceTestRunner:
             for method_name in test_methods:
                 try:
                     method = getattr(test_instance, method_name)
+                    is_xfail = self._is_xfail_test(method)
                     method()
-                    print(f"    ✓ {method_name}")
+                    if is_xfail:
+                        print(f"    ↷ {method_name} (xfail passed)")
+                    else:
+                        print(f"    ✓ {method_name}")
                 except Exception as e:
+                    if self._is_xfail_test(getattr(test_instance, method_name)):
+                        print(f"    ↷ {method_name} (xfail): {e}")
+                        continue
+
                     print(f"    ✗ {method_name}: {e}")
                     # Create error result
                     from framework import CommandResult, ComparisonResult
@@ -165,6 +173,13 @@ class ConformanceTestRunner:
             category_results.extend(test_instance.results)
         
         return category_results
+
+    @staticmethod
+    def _is_xfail_test(method) -> bool:
+        """Return True when a test function has a pytest xfail marker."""
+        func = getattr(method, '__func__', method)
+        marks = getattr(func, 'pytestmark', [])
+        return any(getattr(mark, 'name', None) == 'xfail' for mark in marks)
     
     def run_all_tests(self):
         """Run all conformance tests."""

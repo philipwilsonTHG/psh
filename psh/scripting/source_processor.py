@@ -78,8 +78,13 @@ class SourceProcessor(ScriptComponent):
                 test_command = process_line_continuations(test_command)
 
                 # Apply history expansion for completeness testing (don't print)
-                if hasattr(self.shell, 'history_expander'):
-                    expanded_test = self.shell.history_expander.expand_history(test_command, print_expansion=False)
+                if (not self.state.is_script_mode and
+                        hasattr(self.shell, 'history_expander')):
+                    expanded_test = self.shell.history_expander.expand_history(
+                        test_command,
+                        print_expansion=False,
+                        report_errors=False,
+                    )
                     if expanded_test is not None:
                         test_command = expanded_test
 
@@ -93,8 +98,13 @@ class SourceProcessor(ScriptComponent):
                     # Re-process the complete command
                     test_command = command_buffer
                     test_command = process_line_continuations(test_command)
-                    if hasattr(self.shell, 'history_expander'):
-                        expanded_test = self.shell.history_expander.expand_history(test_command, print_expansion=False)
+                    if (not self.state.is_script_mode and
+                            hasattr(self.shell, 'history_expander')):
+                        expanded_test = self.shell.history_expander.expand_history(
+                            test_command,
+                            print_expansion=False,
+                            report_errors=False,
+                        )
                         if expanded_test is not None:
                             test_command = expanded_test
 
@@ -283,7 +293,8 @@ class SourceProcessor(ScriptComponent):
             command_string = process_line_continuations(command_string)
 
             # Perform history expansion before tokenization
-            if hasattr(self.shell, 'history_expander'):
+            if (not self.state.is_script_mode and
+                    hasattr(self.shell, 'history_expander')):
                 expanded_command = self.shell.history_expander.expand_history(command_string)
                 if expanded_command is None:
                     # History expansion failed - this is the proper error path

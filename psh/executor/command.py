@@ -196,10 +196,11 @@ class CommandExecutor:
 
             if isinstance(e, ExpansionError):
                 # Error message already printed by the expansion code
+                expansion_exit_code = getattr(e, 'exit_code', 1)
                 # In script mode, we should exit the shell
                 if self.shell.is_script_mode:
-                    sys.exit(1)
-                return 1
+                    sys.exit(expansion_exit_code)
+                return expansion_exit_code
 
             print(f"psh: {e}", file=sys.stderr)
             return 1
