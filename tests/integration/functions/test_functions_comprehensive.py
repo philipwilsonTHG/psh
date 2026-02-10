@@ -349,33 +349,48 @@ class TestFunctionInPipelines:
             content = f.read().strip()
         assert content == "2"
     
-    @pytest.mark.xfail(reason="Pipeline function redirection has test isolation issues")
-    def test_function_as_pipeline_filter(self, shell_with_temp_dir):
-        """Test function as filter in pipeline."""
-        shell = shell_with_temp_dir
-        
-        result1 = shell.run_command('add_prefix() { while read line; do echo "PREFIX: $line"; done; }')
-        assert result1 == 0
-        
-        result2 = shell.run_command('echo "test" | add_prefix > output.txt')
-        assert result2 == 0
-        
-        with open('output.txt', 'r') as f:
-            content = f.read().strip()
-        assert content == "PREFIX: test"
-    
-    @pytest.mark.xfail(reason="Complex pipeline function interactions may have output capture issues")
-    def test_function_pipeline_chain(self, shell_with_temp_dir):
-        """Test multiple functions in pipeline."""
-        shell = shell_with_temp_dir
-        
-        shell.run_command('func1() { echo "data"; }')
-        shell.run_command('func2() { read input; echo "processed: $input"; }')
-        shell.run_command('func1 | func2 > output.txt')
-        
-        with open('output.txt', 'r') as f:
-            content = f.read().strip()
-        assert content == "processed: data"
+    def test_function_as_pipeline_filter(self):
+        """Test function as filter in pipeline.
+
+        Uses subprocess because pytest captures stdin, so `read` inside a
+        pipeline function can't read from the pipe in-process.
+        """
+        import subprocess, sys, os, tempfile
+        with tempfile.TemporaryDirectory() as td:
+            script = (
+                'add_prefix() { while read line; do echo "PREFIX: $line"; done; }\n'
+                'echo "test" | add_prefix > output.txt\n'
+                'cat output.txt'
+            )
+            result = subprocess.run(
+                [sys.executable, '-m', 'psh', '-c', script],
+                cwd=td, capture_output=True, text=True,
+                env={**os.environ, 'PYTHONPATH': os.getcwd()},
+            )
+            assert result.returncode == 0
+            assert result.stdout.strip() == "PREFIX: test"
+
+    def test_function_pipeline_chain(self):
+        """Test multiple functions in pipeline.
+
+        Uses subprocess because pytest captures stdin, so `read` inside a
+        pipeline function can't read from the pipe in-process.
+        """
+        import subprocess, sys, os, tempfile
+        with tempfile.TemporaryDirectory() as td:
+            script = (
+                'func1() { echo "data"; }\n'
+                'func2() { read input; echo "processed: $input"; }\n'
+                'func1 | func2 > output.txt\n'
+                'cat output.txt'
+            )
+            result = subprocess.run(
+                [sys.executable, '-m', 'psh', '-c', script],
+                cwd=td, capture_output=True, text=True,
+                env={**os.environ, 'PYTHONPATH': os.getcwd()},
+            )
+            assert result.returncode == 0
+            assert result.stdout.strip() == "processed: data"
 
 
 class TestFunctionErrorHandling:

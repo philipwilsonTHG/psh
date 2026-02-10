@@ -450,28 +450,42 @@ class SourceProcessor(ScriptComponent):
         """Collect heredoc content from input source until all delimiters are satisfied."""
         import re
 
-        # Extract heredoc information from current command
+        # Use the same logic as _has_unclosed_heredoc to find heredoc markers
+        # AND check which ones are already closed by content in the buffer.
         heredoc_pattern = r'<<(-?)\s*([\'"]?)(\\\s*)?(\w+)\2'
         lines = command_buffer.split('\n')
         heredoc_delimiters = []
 
-        # Find all heredoc start markers in the current command
         for line in lines:
-            for match in re.finditer(heredoc_pattern, line):
-                strip_tabs = bool(match.group(1))  # '-' present
-                quoted = bool(match.group(2))      # Delimiter is quoted
-                has_backslash = bool(match.group(3))  # Escaped delimiter
-                word = match.group(4)
-                heredoc_delimiters.append({
-                    'word': word,
-                    'strip_tabs': strip_tabs,
-                    'quoted': quoted,
-                    'closed': False,
-                    'escaped': has_backslash
-                })
+            # If there are open heredocs, this line is heredoc content
+            if any(d for d in heredoc_delimiters if not d['closed']):
+                # Check if this line closes an open heredoc
+                for delimiter in heredoc_delimiters:
+                    if not delimiter['closed']:
+                        check_line = line.lstrip('\t') if delimiter['strip_tabs'] else line
+                        if check_line.rstrip() == delimiter['word']:
+                            delimiter['closed'] = True
+                            break
+            else:
+                # Look for new heredoc markers
+                for match in re.finditer(heredoc_pattern, line):
+                    start_pos = match.start()
+                    if self._is_inside_expansion(line, start_pos):
+                        continue
+                    strip_tabs = bool(match.group(1))
+                    quoted = bool(match.group(2))
+                    has_backslash = bool(match.group(3))
+                    word = match.group(4)
+                    heredoc_delimiters.append({
+                        'word': word,
+                        'strip_tabs': strip_tabs,
+                        'quoted': quoted,
+                        'closed': False,
+                        'escaped': has_backslash
+                    })
 
-        # If no heredocs found, return current buffer
-        if not heredoc_delimiters:
+        # If no unclosed heredocs, return current buffer
+        if not heredoc_delimiters or all(d['closed'] for d in heredoc_delimiters):
             return command_buffer
 
         # Continue reading lines until all heredocs are closed
@@ -495,7 +509,6 @@ class SourceProcessor(ScriptComponent):
             # Check if this line closes any open heredocs
             for delimiter in heredoc_delimiters:
                 if not delimiter['closed']:
-                    # For <<- style, strip leading tabs from delimiter check
                     check_line = line.lstrip('\t') if delimiter['strip_tabs'] else line
                     if check_line.rstrip() == delimiter['word']:
                         delimiter['closed'] = True

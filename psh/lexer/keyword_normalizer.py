@@ -48,8 +48,13 @@ class KeywordNormalizer:
             token_lower = token.value if token.value is None else token.value.lower()
             converted_type: Optional[TokenType] = None
 
-            # Track heredoc delimiters to avoid normalizing content lines
+            # Track heredoc delimiters to avoid normalizing content lines.
+            # When heredoc content has already been collected (heredoc_key present),
+            # the content lines are NOT in the token stream, so we must NOT enter
+            # in_heredoc mode — otherwise we'd skip real tokens looking for a
+            # delimiter that has already been consumed.
             if token.type in {TokenType.HEREDOC, TokenType.HEREDOC_STRIP}:
+                heredoc_already_collected = hasattr(token, 'heredoc_key')
                 pending_heredoc_delim = True
                 command_position = False
                 continue
@@ -57,8 +62,9 @@ class KeywordNormalizer:
             if pending_heredoc_delim:
                 # The token after HEREDOC should be the delimiter
                 if token.type == TokenType.WORD:
-                    heredoc_delimiter = token.value
-                    in_heredoc = True
+                    if not heredoc_already_collected:
+                        heredoc_delimiter = token.value
+                        in_heredoc = True
                 pending_heredoc_delim = False
                 command_position = False
                 continue

@@ -241,18 +241,23 @@ class TestCommandErrorHandling:
 class TestErrorRecovery:
     """Test error recovery and shell continuation."""
     
-    @pytest.mark.xfail(reason="Shell continuation after syntax errors needs improvement")
     def test_syntax_error_recovery(self):
-        """Test that shell continues after syntax errors."""
+        """Test that shell exits with a non-zero code on syntax errors in non-interactive mode.
+
+        POSIX requires that a syntax error in a non-interactive shell causes
+        immediate exit.  Bash uses exit code 2; PSH uses 1 for lexer-level
+        errors (unclosed quotes) and 2 for parser-level errors.
+        """
         commands = [
             'echo "unclosed quote',  # Syntax error
-            'echo "this should work"'  # Should still execute
+            'echo "this should work"'  # Should NOT execute
         ]
-        
-        result = ErrorTestHelper.run_psh_command(commands)
-        
-        # Shell should continue and execute the second command
-        assert 'this should work' in result['stdout']
+
+        result = ErrorTestHelper.run_psh_command(commands, expect_failure=True)
+
+        # Non-interactive shell must exit on syntax error
+        assert result['returncode'] != 0
+        assert 'unclosed' in result['stderr'].lower() or 'quote' in result['stderr'].lower()
     
     def test_command_not_found_recovery(self):
         """Test that shell continues after command not found."""

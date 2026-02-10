@@ -47,8 +47,15 @@ class ParserUtils:
                 self.populate_heredoc_content(stmt, heredoc_map)
 
         if hasattr(node, 'commands') and node.commands:
-            for cmd in node.commands:
-                self.populate_heredoc_content(cmd, heredoc_map)
+            commands = node.commands
+            # StatementList wraps a list; unwrap before iterating
+            if hasattr(commands, 'statements'):
+                commands = commands.statements
+            if hasattr(commands, '__iter__'):
+                for cmd in commands:
+                    self.populate_heredoc_content(cmd, heredoc_map)
+            else:
+                self.populate_heredoc_content(commands, heredoc_map)
 
         if hasattr(node, 'pipelines') and node.pipelines:
             for pipeline in node.pipelines:

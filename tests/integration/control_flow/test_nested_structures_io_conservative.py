@@ -178,7 +178,6 @@ class TestAdvancedIOPatterns:
             content1 = f.read().strip()
         assert content1 == "1-a\n1-b"
     
-    @pytest.mark.xfail(reason="Heredoc support in case statements may be limited")
     def test_heredoc_in_case_statement(self, temp_dir):
         """Test heredoc usage within case statements."""
         script = '''
@@ -211,7 +210,6 @@ EOF
             header = f.read().strip()
         assert "This is the header." in header
     
-    @pytest.mark.xfail(reason="Complex pipeline processing may have limitations")
     def test_while_read_with_pipes(self, temp_dir):
         """Test while read pattern with pipes in nested structure."""
         script = '''

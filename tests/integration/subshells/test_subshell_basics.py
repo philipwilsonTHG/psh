@@ -214,7 +214,6 @@ def test_subshell_current_directory(isolated_shell_with_temp_dir):
     assert 'subdir' in pwd_output
 
 
-@pytest.mark.xfail(reason="Complex subshell redirections may not be fully implemented")
 def test_subshell_complex_redirections(isolated_shell_with_temp_dir):
     """Test complex redirection patterns with subshells."""
     shell = isolated_shell_with_temp_dir

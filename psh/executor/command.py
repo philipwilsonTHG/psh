@@ -492,14 +492,20 @@ class CommandExecutor:
         for strategy in strategies_to_use:
             if strategy.can_execute(cmd_name, self.shell):
                 is_special = isinstance(strategy, SpecialBuiltinExecutionStrategy)
-                # Check if this is a builtin that needs special redirection handling
-                if isinstance(strategy, (SpecialBuiltinExecutionStrategy, BuiltinExecutionStrategy)) and not context.in_pipeline:
+                # Check if this is a builtin that needs special redirection handling.
+                # In a forked child, builtins use os.write() on raw FDs, so
+                # redirections must be applied via os.dup2() (with_redirections)
+                # rather than Python-level sys.stdout replacement
+                # (setup_builtin_redirections).
+                is_forked = getattr(self.state, '_in_forked_child', False)
+                if isinstance(strategy, (SpecialBuiltinExecutionStrategy, BuiltinExecutionStrategy)) and not context.in_pipeline and not is_forked:
                     exit_code = self._execute_builtin_with_redirections(
                         cmd_name, args, node, context, strategy
                     )
                     return exit_code, is_special
                 else:
-                    # Apply normal redirections for other commands or builtins in pipelines
+                    # Apply fd-level redirections for external commands,
+                    # builtins in pipelines, and builtins in forked children
                     with self.io_manager.with_redirections(node.redirects):
                         exit_code = strategy.execute(
                             cmd_name, args, self.shell, context,

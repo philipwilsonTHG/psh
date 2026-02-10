@@ -264,7 +264,6 @@ class TestSubshellRedirection:
             content = f.read().strip()
         assert content == "Read: input line 1\nRead: input line 2"
     
-    @pytest.mark.xfail(reason="Stderr redirection in subshells may have implementation issues")
     def test_error_redirection(self, isolated_shell_with_temp_dir):
         """Test error redirection from subshells."""
         shell = isolated_shell_with_temp_dir

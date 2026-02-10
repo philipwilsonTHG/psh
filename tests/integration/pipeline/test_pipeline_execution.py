@@ -99,12 +99,16 @@ def test_pipeline_with_function_definition(shell, capsys):
     assert 'function output' in captured.out
 
 
-@pytest.mark.xfail(reason="Complex pipeline error handling may not be implemented")
 def test_pipeline_error_in_middle(shell, capsys):
-    """Test error handling when middle command in pipeline fails."""
+    """Test error handling when middle command in pipeline fails.
+
+    POSIX: the exit status of a pipeline is the exit status of the last
+    command.  `cat` succeeds (exit 0), so the pipeline exit is 0 even
+    though the middle command failed.
+    """
     result = shell.run_command('echo test | nonexistent_command | cat')
-    # Should handle the error gracefully
-    assert result != 0
+    # POSIX: pipeline exit status = last command exit status (cat → 0)
+    assert result == 0
 
 
 def test_pipeline_sigpipe_handling(shell, capsys):
