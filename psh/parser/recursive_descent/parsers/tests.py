@@ -72,7 +72,8 @@ class TestParser:
 
     def parse_test_unary_expression(self) -> TestExpression:
         """Parse unary test expression (possibly negated)."""
-        if self.parser.match(TokenType.EXCLAMATION):
+        if (self.parser.match(TokenType.EXCLAMATION) or
+                (self.parser.match(TokenType.WORD) and self.parser.peek().value == '!')):
             self.parser.advance()
             self.parser.skip_newlines()
             expr = self.parse_test_unary_expression()

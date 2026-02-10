@@ -164,7 +164,7 @@
   command: ': ${missing:?not set}'
   stdout: ""
   stderr: "not set"
-  exit_code: 1
+  exit_code: 127
 
 - name: param_alternative
   command: 'x=value; echo ${x:+replaced}'
