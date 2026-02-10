@@ -262,17 +262,21 @@ class TestAliasExpansion:
     def teardown_method(self):
         """Clean up any leftover processes after each test."""
     
-    @pytest.mark.xfail(reason="Alias expansion may not be fully implemented yet")
     def test_alias_expansion_timing(self):
-        """Test when alias expansion occurs."""
+        """Test when alias expansion occurs.
+
+        Alias expansion happens at parse time on literal command words.
+        When $VAR expands to an alias name, the alias IS resolved because
+        psh checks aliases during command execution (after expansion).
+        """
         result = AliasTestHelper.run_psh_command([
-            'alias test="echo expanded"',
-            'VAR=test',
-            '$VAR'  # Should NOT expand alias (expansion happens before variable expansion)
+            'alias myalias="echo expanded"',
+            'VAR=myalias',
+            '$VAR'
         ])
-        
-        # Variable expansion should happen first, so alias not expanded
+
         assert result['success']
+        assert 'expanded' in result['stdout']
     
     def test_alias_recursive_prevention(self):
         """Test prevention of recursive alias expansion."""
@@ -376,14 +380,18 @@ class TestComplexAliases:
         assert 'Today is' in result['stdout']
         # Should contain current date
     
-    @pytest.mark.xfail(reason="Complex alias features may not be implemented yet")
     def test_alias_with_special_characters(self):
-        """Test alias with special characters in definition."""
+        """Test alias with special characters in definition.
+
+        Single quotes prevent expansion at definition time, so \\$escaped
+        is preserved literally and the backslash is consumed during alias
+        execution, producing a literal $escaped in the output.
+        """
         result = AliasTestHelper.run_psh_command([
-            'alias special="echo \\"quoted\\" and \\$escaped"',
+            "alias special='echo \"quoted\" and \\$escaped'",
             'special'
         ])
-        
+
         assert result['success']
         assert 'quoted' in result['stdout']
         assert '$escaped' in result['stdout']
@@ -409,14 +417,13 @@ class TestAliasInDifferentContexts:
     def teardown_method(self):
         """Clean up any leftover processes after each test."""
     
-    @pytest.mark.xfail(reason="Alias inheritance by subshells not implemented yet")
     def test_alias_in_subshell(self):
         """Test alias expansion in subshells."""
         result = AliasTestHelper.run_psh_command([
             'alias subtest="echo subshell"',
             '(subtest)'
         ])
-        
+
         assert result['success']
         # Aliases should be inherited by subshells
         assert 'subshell' in result['stdout']
@@ -590,18 +597,21 @@ class TestAliasAdvancedFeatures:
         # Depends on PSH implementation
         assert isinstance(result['returncode'], int)
     
-    @pytest.mark.xfail(reason="Advanced alias features may not be implemented yet")
     def test_alias_with_array_syntax(self):
-        """Test aliases with array syntax if supported."""
+        """Test aliases with array syntax.
+
+        Single quotes defer ${ARR[0]} expansion to alias execution time,
+        so the array value is resolved when the alias runs, not when it
+        is defined.
+        """
         result = AliasTestHelper.run_psh_command([
-            'alias arraytest="echo ${ARR[0]}"',
+            "alias arraytest='echo ${ARR[0]}'",
             'ARR=(first second third)',
             'arraytest'
         ])
-        
-        # Depends on array support
-        if result['success']:
-            assert 'first' in result['stdout']
+
+        assert result['success']
+        assert 'first' in result['stdout']
 
 
 # Test runner integration

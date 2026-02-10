@@ -41,6 +41,13 @@ class AliasManager:
         """Return all aliases as (name, value) pairs."""
         return list(self.aliases.items())
 
+    def copy(self) -> 'AliasManager':
+        """Create a copy of this alias manager for child shells."""
+        new = AliasManager.__new__(AliasManager)
+        new.aliases = self.aliases.copy()
+        new.expanding = set()  # Fresh expansion-tracking for the child
+        return new
+
     def clear_aliases(self) -> None:
         """Remove all aliases."""
         self.aliases.clear()

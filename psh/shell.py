@@ -85,11 +85,12 @@ class Shell:
                 new_scope = scope.copy()
                 self.state.scope_manager.scope_stack.append(new_scope)
             self.function_manager = parent_shell.function_manager.copy()
+            self.alias_manager = parent_shell.alias_manager.copy()
             # Copy positional parameters for subshells
             self.state.positional_params = parent_shell.state.positional_params.copy()
             # Sync all exported variables (including local exports) to environment
             self.state.scope_manager.sync_exports_to_environment(self.env)
-            # Note: We don't copy aliases or jobs - those are shell-specific
+            # Note: We don't copy jobs - those are shell-specific
 
         # Now create managers that need references to the shell
         # These will get the correct function_manager reference

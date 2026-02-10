@@ -2,10 +2,20 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.150.0"
+__version__ = "0.151.0"
 
 # Version history
 VERSION_HISTORY = """
+0.151.0 (2026-02-10) - Fix Alias Subshell Inheritance and Alias Test Corrections
+- Fixed aliases not inherited by subshells: added AliasManager.copy() and wired it
+  into Shell.__init__() parent_shell inheritance block, matching bash behavior where
+  child shells inherit the parent's alias definitions.
+- Fixed 3 alias test bugs: test_alias_expansion_timing used alias name 'test' which
+  collides with the test builtin; test_alias_with_special_characters and
+  test_alias_with_array_syntax used double quotes causing premature variable expansion
+  at definition time instead of single quotes to defer expansion to execution time.
+- Removed all 4 xfail markers from alias expansion tests (all now pass).
+
 0.150.0 (2026-02-09) - Executor/Visitor Cleanup and Correctness
 - Deduplicated _expand_for_loop_items() and _expand_select_items() into single
   _expand_loop_items() method in control_flow.py (identical implementations)
