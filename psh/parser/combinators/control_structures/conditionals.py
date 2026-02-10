@@ -3,7 +3,7 @@
 This module provides mixin parsers for if/elif/else and case statements.
 """
 
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 from ....ast_nodes import (
     CaseConditional,

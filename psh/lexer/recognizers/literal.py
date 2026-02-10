@@ -646,7 +646,7 @@ class LiteralRecognizer(ContextualRecognizer):
     def _parse_ansi_c_quote_inline(self, input_text: str, pos: int) -> Tuple[Optional[str], int]:
         """
         Parse an ANSI-C quote $'...' starting at the given position.
-        
+
         Returns (processed_content, new_position) where processed_content is None if parsing failed.
         The processed_content has escape sequences converted to their actual characters.
         """

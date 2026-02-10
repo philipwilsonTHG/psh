@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 class ExecutionContext:
     """
     Encapsulates execution state for cleaner parameter passing.
-    
+
     This context object replaces the scattered state variables that were
     previously stored as instance variables in ExecutorVisitor, providing
     a cleaner and more maintainable approach to state management.
@@ -44,7 +44,7 @@ class ExecutionContext:
     def fork_context(self) -> 'ExecutionContext':
         """
         Create a context for a forked child process.
-        
+
         This creates a new context that inherits certain state but marks
         itself as being in a forked child, which affects how certain
         operations (like builtin output) are handled.
@@ -64,7 +64,7 @@ class ExecutionContext:
     def subshell_context(self) -> 'ExecutionContext':
         """
         Create a context for subshell execution.
-        
+
         Subshells inherit most state but are marked as being in a subshell,
         which affects variable scoping and other behaviors.
         """
@@ -83,7 +83,7 @@ class ExecutionContext:
     def pipeline_context_enter(self) -> 'ExecutionContext':
         """
         Create a context for entering a pipeline.
-        
+
         Returns a new context with in_pipeline set to True.
         """
         return ExecutionContext(
@@ -101,7 +101,7 @@ class ExecutionContext:
     def loop_context_enter(self) -> 'ExecutionContext':
         """
         Create a context for entering a loop.
-        
+
         Returns a new context with incremented loop depth.
         """
         return ExecutionContext(
@@ -119,7 +119,7 @@ class ExecutionContext:
     def function_context_enter(self, function_name: str) -> 'ExecutionContext':
         """
         Create a context for entering a function.
-        
+
         Returns a new context with the current function set.
         """
         return ExecutionContext(
@@ -137,7 +137,7 @@ class ExecutionContext:
     def with_pipeline_context(self, pipeline_ctx: 'PipelineContext') -> 'ExecutionContext':
         """
         Create a context with a specific pipeline context.
-        
+
         Used when setting up pipeline execution.
         """
         return ExecutionContext(
@@ -155,7 +155,7 @@ class ExecutionContext:
     def with_background_job(self, job: 'Job') -> 'ExecutionContext':
         """
         Create a context with a background job reference.
-        
+
         Used when executing background commands.
         """
         return ExecutionContext(
@@ -181,7 +181,7 @@ class ExecutionContext:
     def should_use_print(self) -> bool:
         """
         Determine if builtins should use print() or write to file descriptors.
-        
+
         In forked children (pipelines, subshells), builtins should write
         directly to file descriptors to ensure output goes through pipes
         correctly.

@@ -69,25 +69,25 @@ class KillBuiltin(Builtin):
     def help(self) -> str:
         return """kill: kill [-s signal | -signal] pid... | kill -l [exit_status]
     Send signals to processes or list signal names.
-    
+
     The kill utility sends a signal to the process or processes specified
     by each pid operand.
-    
+
     Options:
       -l        List supported signal names. If exit_status is specified,
                 show the signal name corresponding to that exit status.
       -s signal Specify the signal to send (case-insensitive, without SIG prefix)
       -signal   Specify signal by name (e.g., -TERM) or number (e.g., -15)
-    
+
     Arguments:
       pid       Process ID to signal. Can be:
                 - Positive integer: signal that process
                 - 0: signal current process group
                 - Negative integer: signal process group abs(pid)
                 - %jobspec: signal job (e.g., %1, %+, %-, %string)
-    
+
     Default signal is TERM (15) if none specified.
-    
+
     Exit Status:
     Returns 0 if at least one signal was sent successfully; non-zero otherwise."""
 
@@ -126,7 +126,7 @@ class KillBuiltin(Builtin):
 
     def _parse_args(self, args: List[str]) -> Tuple[int, List[str], bool]:
         """Parse kill command arguments.
-        
+
         Returns:
             Tuple of (signal_number, target_list, list_signals_flag)
         """

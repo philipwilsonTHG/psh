@@ -23,14 +23,14 @@ from .core import Parser, ParseResult, token
 
 class ExpansionParsers:
     """Parsers for shell expansions and word building.
-    
+
     This class handles all expansion types and Word AST node construction
     for the parser combinator implementation.
     """
 
     def __init__(self, config: Optional[ParserConfig] = None):
         """Initialize expansion parsers.
-        
+
         Args:
             config: Parser configuration for controlling features
         """
@@ -65,11 +65,11 @@ class ExpansionParsers:
 
     def _parse_process_substitution(self, tokens: List[Token], pos: int) -> ParseResult[ProcessSubstitution]:
         """Parse <(command) or >(command) syntax.
-        
+
         Args:
             tokens: List of tokens
             pos: Current position
-            
+
         Returns:
             ParseResult with ProcessSubstitution node
         """
@@ -105,10 +105,10 @@ class ExpansionParsers:
 
     def format_token_value(self, token: Token) -> str:
         """Format token value appropriately based on token type.
-        
+
         Args:
             token: Token to format
-            
+
         Returns:
             Formatted string value
         """
@@ -195,12 +195,12 @@ class ExpansionParsers:
 
     def _validate_command_substitution(self, cmd_str: str) -> bool:
         """Parse and validate command substitution content.
-        
+
         Returns True if valid, False if it contains invalid constructs like function definitions.
-        
+
         Args:
             cmd_str: Command string to validate
-            
+
         Returns:
             True if valid command substitution
         """
@@ -234,7 +234,7 @@ class ExpansionParsers:
 
     def create_expansion_parser(self) -> Parser[Word]:
         """Create combined expansion parser that returns Word nodes.
-        
+
         Returns:
             Parser that converts expansion tokens to Word AST nodes
         """
@@ -254,7 +254,7 @@ class ExpansionParsers:
 
     def create_word_parser(self) -> Parser[Word]:
         """Create parser for complete words including literals and expansions.
-        
+
         Returns:
             Parser that handles all word types
         """
@@ -284,10 +284,10 @@ class ExpansionParsers:
 
     def is_expansion_token(self, token: Token) -> bool:
         """Check if a token is an expansion type.
-        
+
         Args:
             token: Token to check
-            
+
         Returns:
             True if token is an expansion
         """
@@ -303,10 +303,10 @@ class ExpansionParsers:
 
 def create_expansion_parsers(config: Optional[ParserConfig] = None) -> ExpansionParsers:
     """Create and return an ExpansionParsers instance.
-    
+
     Args:
         config: Optional parser configuration
-        
+
     Returns:
         Initialized ExpansionParsers object
     """
@@ -315,7 +315,7 @@ def create_expansion_parsers(config: Optional[ParserConfig] = None) -> Expansion
 
 def parse_variable_expansion() -> Parser[Token]:
     """Create parser for variable expansion tokens.
-    
+
     Returns:
         Parser that matches $VAR tokens
     """
@@ -324,7 +324,7 @@ def parse_variable_expansion() -> Parser[Token]:
 
 def parse_command_substitution() -> Parser[Token]:
     """Create parser for command substitution tokens.
-    
+
     Returns:
         Parser that matches $(cmd) or `cmd` tokens
     """
@@ -333,7 +333,7 @@ def parse_command_substitution() -> Parser[Token]:
 
 def parse_arithmetic_expansion() -> Parser[Token]:
     """Create parser for arithmetic expansion tokens.
-    
+
     Returns:
         Parser that matches $((expr)) tokens
     """
@@ -342,7 +342,7 @@ def parse_arithmetic_expansion() -> Parser[Token]:
 
 def parse_parameter_expansion() -> Parser[Token]:
     """Create parser for parameter expansion tokens.
-    
+
     Returns:
         Parser that matches ${param} tokens
     """
@@ -351,7 +351,7 @@ def parse_parameter_expansion() -> Parser[Token]:
 
 def parse_process_substitution() -> Parser[Token]:
     """Create parser for process substitution tokens.
-    
+
     Returns:
         Parser that matches <(cmd) or >(cmd) tokens
     """

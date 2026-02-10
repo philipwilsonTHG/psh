@@ -2,10 +2,18 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.159.0"
+__version__ = "0.160.0"
 
 # Version history
 VERSION_HISTORY = """
+0.160.0 (2026-02-10) - Lint Cleanup and CI Gate
+- Fixed 626 ruff lint issues across ~50 files in psh/:
+  596 W293 (whitespace on blank lines), 17 W291 (trailing whitespace),
+  7 I001 (unsorted imports), 6 F401 (unused imports).
+- Added lint job to CI (.github/workflows/test_migration.yml): runs
+  ruff check psh before tests to prevent regressions.
+- Zero behavioral changes; all 3087 tests pass.
+
 0.159.0 (2026-02-10) - Fix Doc Drift, Dead Code, and Package Metadata
 - Fixed version drift in README.md (0.113.0 → 0.159.0), ARCHITECTURE.md
   (0.104.0 → 0.159.0), and ARCHITECTURE.llm (0.120.0 → 0.159.0).
@@ -891,7 +899,7 @@ VERSION_HISTORY = """
 0.100.0 (2025-01-06) - Parser Combinator Modular Architecture Complete
 - Completed full modularization of parser combinator from 2,779-line monolithic file to 8 clean modules
 - Phase 9 Complete: Successfully migrated parser registry to use new modular architecture
-- Modular structure: core (451 lines), tokens (90), expansions (209), commands (372), control (381), 
+- Modular structure: core (451 lines), tokens (90), expansions (209), commands (372), control (381),
   special (248), parser (198), heredoc (121) - total 2,070 lines (25% reduction through deduplication)
 - Fixed all 188 parser combinator tests to pass with new modular architecture (100% pass rate)
 - Updated 31 test files to use new import paths from modular parser
@@ -915,7 +923,7 @@ VERSION_HISTORY = """
 - Both parser implementations (recursive descent and parser combinator) handle bit-shifts correctly
 
 0.99.2 (2025-01-23) - Parser Strategy Inheritance for Child Shells
-- Fixed parser strategy inheritance so child shells (command substitution, subshells, process substitution) 
+- Fixed parser strategy inheritance so child shells (command substitution, subshells, process substitution)
   inherit the parser choice from their parent shell
 - Previously, child shells always used the default parser regardless of parent's parser selection
 - Now when parser combinator is selected, all child shells consistently use parser combinator
@@ -1063,7 +1071,7 @@ VERSION_HISTORY = """
 0.93.0 (2025-01-21) - Arithmetic Expansion Testing Complete and Parser Combinator Enhancement
 - Completed comprehensive arithmetic expansion testing plan with 134+ tests across 4 phases
 - Phase 1: Number Format Testing (38 tests) - binary, octal, hex, arbitrary bases 2-36
-- Phase 2: Special Variables Testing (31 tests) - positional parameters, $#, $?, $$, arrays  
+- Phase 2: Special Variables Testing (31 tests) - positional parameters, $#, $?, $$, arrays
 - Phase 3: Integration Testing (23 tests) - command substitution, control structures, here docs
 - Phase 4: Edge Cases Testing (42 tests) - error handling, syntax errors, whitespace, recursion
 - Fixed critical hanging tests from nested arithmetic expansion syntax abuse ($((counter)) → counter)

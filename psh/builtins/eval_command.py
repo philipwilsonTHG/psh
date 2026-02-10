@@ -12,15 +12,15 @@ class EvalBuiltin(Builtin):
 
     def execute(self, args, shell):
         """Execute the eval builtin.
-        
+
         Concatenates all arguments into a single string and executes
         it as shell commands. The string goes through full shell
         processing including tokenization, parsing, and execution.
-        
+
         Args:
             args: List of arguments where args[0] is 'eval'
             shell: The shell instance
-            
+
         Returns:
             Exit status of the executed command(s), or 0 if empty
         """

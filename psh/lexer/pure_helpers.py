@@ -65,7 +65,7 @@ def find_closing_delimiter(
 ) -> Tuple[int, bool]:
     """
     Find matching closing delimiter, handling nesting and quotes.
-    
+
     Args:
         input_text: The input string to search in
         start_pos: Starting position (after opening delimiter)
@@ -73,7 +73,7 @@ def find_closing_delimiter(
         close_delim: Closing delimiter string
         track_quotes: Whether to track quote contexts
         track_escapes: Whether to handle escape sequences
-        
+
     Returns:
         Tuple of (position_after_close, found_closing)
     """
@@ -132,12 +132,12 @@ def find_balanced_parentheses(
 ) -> Tuple[int, bool]:
     """
     Find balanced parentheses starting from given position.
-    
+
     Args:
         input_text: The input string
         start_pos: Starting position (after opening paren)
         track_quotes: Whether to ignore parens inside quotes
-        
+
     Returns:
         Tuple of (position_after_close_paren, found_closing)
     """
@@ -223,12 +223,12 @@ def handle_escape_sequence(
 ) -> Tuple[str, int]:
     """
     Handle escape sequences based on context.
-    
+
     Args:
         input_text: The input string
         pos: Position of the backslash
         quote_context: Current quote context ('"', "'", "$'", or None)
-        
+
     Returns:
         Tuple of (escaped_string, new_position)
     """
@@ -275,11 +275,11 @@ def handle_escape_sequence(
 def handle_ansi_c_escape(input_text: str, pos: int) -> Tuple[str, int]:
     """
     Handle ANSI-C escape sequences in $'...' strings.
-    
+
     Args:
         input_text: The input string
         pos: Position of the backslash
-        
+
     Returns:
         Tuple of (escaped_string, new_position)
     """
@@ -392,13 +392,13 @@ def find_word_boundary(
 ) -> int:
     """
     Find the end of a word given terminator characters.
-    
+
     Args:
         input_text: The input string
         start_pos: Starting position
         terminators: Set of characters that terminate words
         handle_escapes: Whether to handle escape sequences
-        
+
     Returns:
         Position of the first terminator or end of string
     """
@@ -430,13 +430,13 @@ def extract_variable_name(
 ) -> Tuple[str, int]:
     """
     Extract a variable name starting from the given position.
-    
+
     Args:
         input_text: The input string
         start_pos: Starting position (after $)
         special_vars: Set of special single-character variables
         posix_mode: Whether to use POSIX-compliant identifier rules
-        
+
     Returns:
         Tuple of (variable_name, new_position)
     """
@@ -479,11 +479,11 @@ def is_comment_start(
 ) -> bool:
     """
     Check if # at given position starts a comment.
-    
+
     Args:
         input_text: The input string
         pos: Position to check
-        
+
     Returns:
         True if this starts a comment
     """
@@ -505,12 +505,12 @@ def scan_whitespace(
 ) -> int:
     """
     Scan past whitespace characters.
-    
+
     Args:
         input_text: The input string
         start_pos: Starting position
         unicode_aware: Whether to recognize Unicode whitespace
-        
+
     Returns:
         Position after whitespace
     """
@@ -540,13 +540,13 @@ def extract_quoted_content(
 ) -> Tuple[str, int, bool]:
     """
     Extract content from a quoted string.
-    
+
     Args:
         input_text: The input string
         start_pos: Starting position (after opening quote)
         quote_char: The quote character ('"' or "'")
         allow_escapes: Whether to process escape sequences
-        
+
     Returns:
         Tuple of (content, position_after_close_quote, found_closing_quote)
     """
@@ -582,12 +582,12 @@ def find_operator_match(
 ) -> Optional[Tuple[str, object, int]]:
     """
     Find the longest matching operator at the given position.
-    
+
     Args:
         input_text: The input string
         pos: Position to check
         operators_by_length: Dictionary mapping length to operator dictionaries
-        
+
     Returns:
         Tuple of (operator, token_type, new_position) or None if no match
     """
@@ -608,11 +608,11 @@ def validate_brace_expansion(
 ) -> Tuple[str, int, bool]:
     """
     Validate and extract a brace expansion ${...}.
-    
+
     Args:
         input_text: The input string
         start_pos: Starting position (after ${)
-        
+
     Returns:
         Tuple of (content, position_after_close_brace, found_closing_brace)
     """
@@ -642,11 +642,11 @@ def is_inside_expansion(
 ) -> bool:
     """
     Check if the position is inside an arithmetic expression or command substitution.
-    
+
     Args:
         input_text: The input string
         position: Position to check
-        
+
     Returns:
         True if position is inside an expansion
     """

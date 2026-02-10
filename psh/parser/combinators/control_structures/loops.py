@@ -4,11 +4,10 @@ This module provides mixin parsers for while, until, for (traditional and
 C-style), select loops, and break/continue statements.
 """
 
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Union
 
 from ....ast_nodes import (
     BreakStatement,
-    CommandList,
     ContinueStatement,
     CStyleForLoop,
     ForLoop,

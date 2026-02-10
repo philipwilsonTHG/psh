@@ -28,7 +28,7 @@ class TrapBuiltin(Builtin):
     @property
     def help_text(self) -> str:
         return """trap: Set signal handlers and exit traps
-    
+
 SYNOPSIS
     trap [action] [condition...]
     trap -l
@@ -41,7 +41,7 @@ DESCRIPTION
 OPTIONS
     -l      List signal names and numbers
     -p      Print current trap settings
-    
+
 ACTIONS
     action  Command string to execute when signal is received
     ''      Ignore the signal

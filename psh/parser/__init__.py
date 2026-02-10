@@ -21,10 +21,10 @@ from .recursive_descent.support.context_factory import (
     create_strict_posix_context,
 )
 from .recursive_descent.support.factory import (
-    create_strict_posix_parser,
     create_permissive_parser,
-    validate_config,
+    create_strict_posix_parser,
     suggest_config,
+    validate_config,
 )
 from .recursive_descent.support.utils import parse_with_heredocs as utils_parse_with_heredocs
 
@@ -46,15 +46,15 @@ __all__ = [
 
 def parse(tokens, config=None):
     """Parse tokens into AST using the unified parser implementation.
-    
+
     This function provides comprehensive parsing with metadata utilization,
     context-aware analysis, and enhanced error handling - all features built
     into the standard parser.
-    
+
     Args:
         tokens: List of tokens to parse
         config: Optional ParserConfig for custom parsing behavior
-        
+
     Returns:
         Parsed AST with full feature support
     """

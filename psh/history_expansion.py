@@ -22,12 +22,12 @@ class HistoryExpander:
         report_errors: bool = True,
     ) -> Optional[str]:
         """Expand history references in a command string.
-        
+
         Args:
             command: The command string to expand
             print_expansion: Whether to print the expanded command to stdout
             report_errors: Whether to print "event not found" errors
-        
+
         Supports:
         - !! : Previous command
         - !n : Command number n

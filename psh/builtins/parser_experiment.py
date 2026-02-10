@@ -10,6 +10,11 @@ PARSERS = {
     'combinator': ['pc', 'functional'],
 }
 
+PARSER_LABELS = {
+    'recursive_descent': 'production',
+    'combinator': 'experimental',
+}
+
 
 @builtin
 class ParserSelectBuiltin(Builtin):
@@ -28,7 +33,8 @@ class ParserSelectBuiltin(Builtin):
             for name, aliases in PARSERS.items():
                 marker = '*' if name == current else ' '
                 alias_str = ', '.join(aliases)
-                shell.stdout.write(f" {marker} {name} (aliases: {alias_str})\n")
+                label = PARSER_LABELS.get(name, '')
+                shell.stdout.write(f" {marker} {name} [{label}] (aliases: {alias_str})\n")
             return 0
 
         requested = args[1]

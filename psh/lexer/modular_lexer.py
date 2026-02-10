@@ -7,15 +7,15 @@ from .expansion_parser import ExpansionContext, ExpansionParser
 from .position import LexerConfig, LexerState, Position, PositionTracker
 from .quote_parser import QuoteParsingContext, UnifiedQuoteParser
 from .recognizers import RecognizerRegistry
-from .token_parts import RichToken, TokenPart
 from .state_context import LexerContext
+from .token_parts import RichToken, TokenPart
 from .unicode_support import is_whitespace
 
 
 class ModularLexer:
     """
     Modular lexer using pluggable token recognizers.
-    
+
     This lexer combines the unified quote/expansion parsing from Phase 3
     with the modular token recognition system from Phase 4.
     """
@@ -23,7 +23,7 @@ class ModularLexer:
     def __init__(self, input_string: str, config: Optional[LexerConfig] = None):
         """
         Initialize the modular lexer.
-        
+
         Args:
             input_string: The input string to tokenize
             config: Optional lexer configuration
@@ -353,7 +353,7 @@ class ModularLexer:
 
     def _is_inside_potential_array_assignment(self) -> bool:
         """Check if we're potentially inside an array assignment pattern.
-        
+
         This is used to prevent quote/expansion parsing from breaking up
         array assignments like arr["key"]=value or arr['key']=value.
         """

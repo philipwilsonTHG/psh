@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 class CommandExecutor:
     """
     Handles execution of simple commands.
-    
+
     This class encapsulates all logic for executing SimpleCommand nodes,
     including variable assignments, expansions, and delegating to appropriate
     execution strategies.
@@ -59,11 +59,11 @@ class CommandExecutor:
     def execute(self, node: 'SimpleCommand', context: 'ExecutionContext') -> int:
         """
         Execute a simple command and return exit status.
-        
+
         Args:
             node: The SimpleCommand AST node to execute
             context: The current execution context
-            
+
         Returns:
             Exit status code
         """

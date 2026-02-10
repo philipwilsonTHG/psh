@@ -4,13 +4,13 @@ This module integrates all the parser combinator modules into a cohesive
 parser for shell commands using functional combinators.
 """
 
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 from ...ast_nodes import ASTNode, CommandList, StatementList, TopLevel
 from ...lexer.keyword_normalizer import KeywordNormalizer
 from ...token_types import Token, TokenType
-from ..recursive_descent.helpers import ErrorContext, ParseError
 from ..config import ParserConfig
+from ..recursive_descent.helpers import ErrorContext, ParseError
 from .commands import create_command_parsers
 from .control_structures import create_control_structure_parsers
 from .expansions import create_expansion_parsers
@@ -92,7 +92,7 @@ class ParserCombinatorShellParser:
 
     def _wire_dependencies(self):
         """Wire circular dependencies between modules.
-        
+
         Some parser modules have circular dependencies (e.g., commands
         can contain control structures which contain commands). This
         method resolves these dependencies after all modules are created.
@@ -246,15 +246,15 @@ class ParserCombinatorShellParser:
     def parse_with_heredocs(self, tokens: List[Token],
                            heredoc_contents: Dict[str, str]) -> Union[TopLevel, CommandList]:
         """Parse tokens with heredoc content support.
-        
+
         This method performs a two-pass parse:
         1. Parse the token stream into an AST
         2. Populate heredoc content in AST nodes
-        
+
         Args:
             tokens: List of tokens from the lexer
             heredoc_contents: Map of heredoc keys to their content
-            
+
         Returns:
             Parsed AST with heredoc content populated
         """
@@ -322,7 +322,7 @@ class ParserCombinatorShellParser:
 
     def configure(self, **options):
         """Configure the parser with implementation-specific options.
-        
+
         Args:
             **options: Implementation-specific configuration options
         """
@@ -337,10 +337,10 @@ class ParserCombinatorShellParser:
 
     def explain_parse(self, tokens: List[Token]) -> str:
         """Provide an educational explanation of how parsing works.
-        
+
         Args:
             tokens: List of tokens to parse
-            
+
         Returns:
             Multi-line string explaining the parsing process
         """
@@ -406,11 +406,11 @@ def create_parser_combinator_shell_parser(
     heredoc_contents: Optional[Dict[str, str]] = None
 ) -> ParserCombinatorShellParser:
     """Create and return a ParserCombinatorShellParser instance.
-    
+
     Args:
         config: Optional parser configuration
         heredoc_contents: Optional heredoc content map
-        
+
     Returns:
         Initialized ParserCombinatorShellParser object
     """

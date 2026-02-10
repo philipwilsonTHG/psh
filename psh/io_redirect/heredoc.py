@@ -88,11 +88,11 @@ class HeredocHandler:
     def create_heredoc_file(self, content: str, strip_tabs: bool = False) -> str:
         """
         Create a temporary file for heredoc content.
-        
+
         Args:
             content: The heredoc content
             strip_tabs: Whether to strip leading tabs (for <<- operator)
-            
+
         Returns:
             Path to the temporary file
         """
@@ -113,11 +113,11 @@ class HeredocHandler:
     def expand_variables_in_heredoc(self, content: str, delimiter: str) -> str:
         """
         Expand variables in heredoc content if delimiter is not quoted.
-        
+
         Args:
             content: The heredoc content
             delimiter: The heredoc delimiter (to check if quoted)
-            
+
         Returns:
             Content with variables expanded (if applicable)
         """

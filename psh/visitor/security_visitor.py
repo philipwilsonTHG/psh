@@ -43,7 +43,7 @@ class SecurityIssue:
 class SecurityVisitor(ASTVisitor[None]):
     """
     Analyze AST for security vulnerabilities.
-    
+
     Detects:
     - Command injection risks
     - Unsafe use of eval

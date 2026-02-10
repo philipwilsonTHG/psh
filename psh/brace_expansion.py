@@ -27,10 +27,10 @@ class BraceExpander:
 
     def expand_line(self, line: str) -> str:
         """Expand all brace expressions in a command line.
-        
+
         Args:
             line: The command line to expand
-            
+
         Returns:
             The expanded command line with all brace expressions expanded
         """
@@ -52,7 +52,7 @@ class BraceExpander:
 
     def _expand_segment(self, segment: str) -> str:
         """Expand all brace expressions in an unquoted segment.
-        
+
         This method handles the complexity of expanding braces while
         preserving the structure of the command line.
         """
@@ -117,7 +117,7 @@ class BraceExpander:
 
     def _expand_braces(self, text: str) -> List[str]:
         """Expand all brace expressions in text, returning list of results.
-        
+
         This handles nested braces by repeatedly expanding until no more
         brace expressions are found.
         """
@@ -180,7 +180,7 @@ class BraceExpander:
 
     def _expand_one_brace(self, text: str) -> List[str]:
         """Expand the first brace expression found in text.
-        
+
         Returns a list with the expanded results, or [text] if no
         valid brace expression is found.
         """
@@ -245,7 +245,7 @@ class BraceExpander:
 
     def _expand_list(self, content: str) -> List[str]:
         """Expand comma-separated list like a,b,c.
-        
+
         Handles nested braces by careful parsing of the content.
         """
         # Parse the content respecting nested braces
@@ -299,7 +299,7 @@ class BraceExpander:
 
     def _find_brace_expression(self, text: str) -> Optional[Tuple[int, int, str]]:
         """Find the first valid brace expression in text.
-        
+
         Returns:
             Tuple of (start_index, end_index, content) or None if not found.
             end_index is one past the closing brace.
@@ -357,11 +357,11 @@ class BraceExpander:
 
     def _is_valid_brace_content(self, content: str) -> bool:
         """Check if content represents a valid brace expression.
-        
+
         Valid expressions have either:
         - A comma at the top level (not inside nested braces)
         - A '..' sequence (for range expansion)
-        
+
         BUT NOT if the content contains variables that should be expanded first.
         """
         if not content:
@@ -459,7 +459,7 @@ class BraceExpander:
 
     def _expand_array_content(self, content: str) -> str:
         """Expand brace expressions in array assignment content.
-        
+
         In array assignments like arr=({a..e} {1..3}), we need to expand
         each brace expression independently and join with spaces.
         """
@@ -506,7 +506,7 @@ class BraceExpander:
 
     def _split_respecting_quotes(self, line: str) -> List[Tuple[str, bool]]:
         """Split line into segments, tracking which are inside quotes.
-        
+
         Returns:
             List of (segment, in_quotes) tuples
         """
@@ -575,7 +575,7 @@ class BraceExpander:
 
     def _expand_sequence(self, content: str) -> Optional[List[str]]:
         """Expand sequence like 1..10 or a..z.
-        
+
         Returns None if the sequence is invalid.
         """
         # Parse the sequence
@@ -606,7 +606,7 @@ class BraceExpander:
 
     def _try_numeric_sequence(self, start: str, end: str, increment: str) -> Optional[List[str]]:
         """Try to expand as numeric sequence.
-        
+
         Returns None if not valid numeric sequence.
         """
         try:
@@ -666,7 +666,7 @@ class BraceExpander:
 
     def _try_char_sequence(self, start: str, end: str, increment: str) -> Optional[List[str]]:
         """Try to expand as character sequence.
-        
+
         Returns None if not valid character sequence.
         """
         # Must be single characters
@@ -709,7 +709,7 @@ class BraceExpander:
 
     def _determine_numeric_padding(self, start: str, end: str) -> int:
         """Determine zero-padding width for numeric sequence.
-        
+
         Returns 0 if no padding needed.
         """
         # Remove sign for padding calculation
@@ -737,12 +737,12 @@ class BraceExpander:
 
     def _contains_expandable_dollar(self, content: str) -> bool:
         """Check if content contains actual variable/command substitution patterns.
-        
+
         Returns True for patterns like:
         - $var or ${var} (variable expansion)
         - $(cmd) (command substitution)
         - $((expr)) (arithmetic expansion)
-        
+
         Returns False for:
         - Single '$' not followed by variable name or special pattern
         - '$' at end of string

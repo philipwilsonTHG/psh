@@ -25,9 +25,9 @@ class ReadBuiltin(Builtin):
 
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Execute the read builtin.
-        
+
         read [-r] [-a array] [-p prompt] [-s] [-t timeout] [-n chars] [-d delim] [var...]
-        
+
         Read a line from standard input and split it into fields.
         Options:
           -r: Raw mode (no backslash interpretation)
@@ -116,7 +116,7 @@ class ReadBuiltin(Builtin):
 
     def _process_escapes(self, line: str) -> str:
         """Process backslash escape sequences.
-        
+
         Handles:
         - \\ -> \
         - \n -> newline
@@ -157,7 +157,7 @@ class ReadBuiltin(Builtin):
 
     def _split_with_ifs(self, line: str, ifs: str) -> List[str]:
         """Split line based on IFS (Internal Field Separator).
-        
+
         Rules:
         1. If IFS is empty, no splitting occurs
         2. Leading/trailing IFS whitespace characters are trimmed
@@ -213,7 +213,7 @@ class ReadBuiltin(Builtin):
 
     def _assign_to_variables(self, fields: List[str], var_names: List[str], shell: 'Shell'):
         """Assign fields to variables.
-        
+
         Rules:
         1. Each field is assigned to corresponding variable
         2. If more fields than variables, last variable gets all remaining fields
@@ -240,7 +240,7 @@ class ReadBuiltin(Builtin):
 
     def _assign_to_array(self, fields: List[str], array_name: str, shell: 'Shell'):
         """Assign fields to an indexed array.
-        
+
         Creates or replaces an indexed array with the given fields.
         Each field becomes an array element with sequential indices starting from 0.
         """
@@ -263,7 +263,7 @@ class ReadBuiltin(Builtin):
 
     def _parse_options(self, args: List[str]) -> Tuple[Dict[str, any], List[str]]:
         """Parse read command options.
-        
+
         Returns:
             Tuple of (options dict, variable names list)
         """

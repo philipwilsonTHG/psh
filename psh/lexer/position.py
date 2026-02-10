@@ -90,10 +90,10 @@ class RecoverableLexerError(LexerError):
 class LexerConfig:
     """
     Comprehensive configuration for lexer behavior and features.
-    
+
     This class controls all major aspects of lexer operation including:
     - Feature enablement/disablement
-    - Character handling modes  
+    - Character handling modes
     - Performance optimizations
     - Error handling behavior
     - Debugging capabilities

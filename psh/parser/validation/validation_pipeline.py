@@ -3,8 +3,8 @@
 from typing import Any, Dict, List
 
 from ...ast_nodes import (
-    ASTNode,
     ArithmeticEvaluation,
+    ASTNode,
     BreakStatement,
     CaseConditional,
     CommandList,

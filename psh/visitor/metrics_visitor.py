@@ -128,7 +128,7 @@ class CodeMetrics:
 class MetricsVisitor(ASTVisitor[None]):
     """
     Collect code metrics from shell script AST.
-    
+
     Metrics collected include:
     - Command counts and frequency
     - Control structure usage
@@ -534,19 +534,19 @@ Commands:
   Unique Commands:       {len(m.command_frequency):>6}
   Built-in Commands:     {len(m.builtin_commands):>6}
   External Commands:     {len(m.external_commands):>6}
-  
+
 Structure:
   Functions Defined:     {m.total_functions:>6}
   Pipelines:            {m.total_pipelines:>6}
   Loops:                {m.total_loops:>6}
   Conditionals:         {m.total_conditionals:>6}
-  
+
 Complexity:
   Cyclomatic Complexity: {m.cyclomatic_complexity:>6}
   Max Pipeline Length:   {m.max_pipeline_length:>6}
   Max Nesting Depth:     {m.max_nesting_depth:>6}
   Max Function Complex:  {m.max_function_complexity:>6}
-  
+
 Advanced Features:
   Variables Used:        {len(m.variable_names):>6}
   Arrays Used:          {len(m.array_names):>6}
@@ -554,7 +554,7 @@ Advanced Features:
   Arithmetic Operations: {m.arithmetic_evaluations:>6}
   Process Substitutions: {m.process_substitutions:>6}
   Here Documents:        {m.here_documents:>6}
-  
+
 Top Commands:
 {self._format_top_commands()}"""
 

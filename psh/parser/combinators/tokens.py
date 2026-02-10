@@ -11,7 +11,7 @@ from .core import Parser, keyword, sequence, skip, token
 
 class TokenParsers:
     """Factory for commonly used token parsers.
-    
+
     This class provides a centralized location for all token-level parsers,
     organized by category for easy access and maintenance.
     """
@@ -199,7 +199,7 @@ class TokenParsers:
     @staticmethod
     def create_separator_parser() -> Parser[Token]:
         """Create parser for command separators.
-        
+
         Returns:
             Parser that matches semicolon or newline
         """
@@ -208,7 +208,7 @@ class TokenParsers:
     @staticmethod
     def create_logical_operator_parser() -> Parser[Token]:
         """Create parser for logical operators.
-        
+
         Returns:
             Parser that matches && or ||
         """
@@ -218,7 +218,7 @@ class TokenParsers:
     @staticmethod
     def create_redirect_operator_parser() -> Parser[Token]:
         """Create parser for all redirection operators.
-        
+
         Returns:
             Parser that matches any redirection operator
         """
@@ -235,7 +235,7 @@ class TokenParsers:
     @staticmethod
     def create_expansion_parser() -> Parser[Token]:
         """Create parser for all expansion types.
-        
+
         Returns:
             Parser that matches any expansion token
         """
@@ -249,10 +249,10 @@ class TokenParsers:
 
     def is_terminator(self, token: Token) -> bool:
         """Check if a token is a statement terminator.
-        
+
         Args:
             token: Token to check
-            
+
         Returns:
             True if token is a terminator
         """
@@ -260,10 +260,10 @@ class TokenParsers:
 
     def is_keyword(self, token: Token) -> bool:
         """Check if a token is a shell keyword.
-        
+
         Args:
             token: Token to check
-            
+
         Returns:
             True if token is a keyword
         """
@@ -274,10 +274,10 @@ class TokenParsers:
 
     def is_redirect_operator(self, token: Token) -> bool:
         """Check if a token is a redirection operator.
-        
+
         Args:
             token: Token to check
-            
+
         Returns:
             True if token is a redirection operator
         """
@@ -290,10 +290,10 @@ class TokenParsers:
 
     def is_expansion(self, token: Token) -> bool:
         """Check if a token is an expansion.
-        
+
         Args:
             token: Token to check
-            
+
         Returns:
             True if token is an expansion
         """
@@ -309,7 +309,7 @@ class TokenParsers:
 
 def create_token_parsers() -> TokenParsers:
     """Create and return a TokenParsers instance.
-    
+
     Returns:
         Initialized TokenParsers object
     """
@@ -318,7 +318,7 @@ def create_token_parsers() -> TokenParsers:
 
 def pipe_separator() -> Parser[Token]:
     """Create parser for pipe operator.
-    
+
     Returns:
         Parser that matches pipe token
     """
@@ -327,7 +327,7 @@ def pipe_separator() -> Parser[Token]:
 
 def semicolon_separator() -> Parser[Token]:
     """Create parser for semicolon.
-    
+
     Returns:
         Parser that matches semicolon token
     """
@@ -336,7 +336,7 @@ def semicolon_separator() -> Parser[Token]:
 
 def newline_separator() -> Parser[Token]:
     """Create parser for newline.
-    
+
     Returns:
         Parser that matches newline token
     """
@@ -345,7 +345,7 @@ def newline_separator() -> Parser[Token]:
 
 def statement_terminator() -> Parser[Token]:
     """Create parser for statement terminators.
-    
+
     Returns:
         Parser that matches semicolon or newline
     """
@@ -354,7 +354,7 @@ def statement_terminator() -> Parser[Token]:
 
 def logical_and() -> Parser[Token]:
     """Create parser for logical AND operator.
-    
+
     Returns:
         Parser that matches && operator
     """
@@ -363,7 +363,7 @@ def logical_and() -> Parser[Token]:
 
 def logical_or() -> Parser[Token]:
     """Create parser for logical OR operator.
-    
+
     Returns:
         Parser that matches || operator
     """
@@ -372,7 +372,7 @@ def logical_or() -> Parser[Token]:
 
 def background_operator() -> Parser[Token]:
     """Create parser for background operator.
-    
+
     Returns:
         Parser that matches & operator
     """

@@ -7,14 +7,14 @@ from .token_types import Token, TokenType
 
 class TokenStream:
     """Enhanced token stream with utility methods.
-    
+
     This class provides utilities for collecting balanced token sequences,
     handling quotes and nesting, and looking ahead for composite tokens.
     """
 
     def __init__(self, tokens: List[Token], pos: int = 0):
         """Initialize token stream.
-        
+
         Args:
             tokens: List of tokens to process
             pos: Starting position in token stream
@@ -24,10 +24,10 @@ class TokenStream:
 
     def peek(self, offset: int = 0) -> Optional[Token]:
         """Look at token at current position + offset without consuming.
-        
+
         Args:
             offset: Number of tokens to look ahead (0 for current)
-            
+
         Returns:
             Token at position or None if out of bounds
         """
@@ -38,10 +38,10 @@ class TokenStream:
 
     def advance(self, count: int = 1) -> Optional[Token]:
         """Consume and return token(s).
-        
+
         Args:
             count: Number of tokens to consume
-            
+
         Returns:
             Last consumed token or None if at end
         """
@@ -65,17 +65,17 @@ class TokenStream:
                                respect_quotes: bool = True,
                                include_delimiters: bool = False) -> List[Token]:
         """Collect tokens until balanced close token found.
-        
+
         This method handles nested delimiters and optionally respects quotes.
         For example, collecting until balanced RPAREN will handle nested
         parentheses correctly.
-        
+
         Args:
             open_type: Token type that opens a nested context
             close_type: Token type that closes the context
             respect_quotes: If True, ignore delimiters inside quotes
             include_delimiters: If True, include the closing delimiter
-            
+
         Returns:
             List of collected tokens (not including the closing delimiter
             unless include_delimiters is True)
@@ -119,12 +119,12 @@ class TokenStream:
                       respect_quotes: bool = True,
                       include_stop: bool = False) -> List[Token]:
         """Collect tokens until one of stop types is encountered.
-        
+
         Args:
             stop_types: Set of token types to stop at
             respect_quotes: If True, ignore stop tokens inside quotes
             include_stop: If True, include the stop token
-            
+
         Returns:
             List of collected tokens
         """
@@ -150,7 +150,7 @@ class TokenStream:
 
     def peek_composite_sequence(self) -> Optional[List[Token]]:
         """Look ahead for adjacent tokens forming a composite argument.
-        
+
         Returns:
             List of adjacent tokens that form a composite, or None if
             current token is not part of a composite
@@ -210,16 +210,16 @@ class TokenStream:
                                     stop_condition=None,
                                     transform_redirects: bool = True) -> Tuple[List[Token], str]:
         """Collect tokens for arithmetic expression with special handling.
-        
+
         This method is specialized for collecting arithmetic expressions which need:
         - Balanced parenthesis tracking
         - Redirect token transformation (< and > operators)
         - Optional stop conditions (e.g., semicolon at depth 0)
-        
+
         Args:
             stop_condition: Optional callable(token, paren_depth) -> bool
             transform_redirects: If True, transform REDIRECT_IN/OUT to < and >
-            
+
         Returns:
             Tuple of (collected tokens, formatted expression string)
         """

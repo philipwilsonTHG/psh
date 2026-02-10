@@ -1,8 +1,27 @@
 """Parser combinator module for PSH.
 
-This module provides a modular, functional approach to parsing shell syntax
-using parser combinators. The implementation is split across multiple files
-for better organization and maintainability.
+**Status: Experimental / Educational**
+
+This module provides an alternative parser that uses functional composition
+(parser combinators) instead of recursive descent. It is NOT the production
+parser -- the recursive descent parser in ``recursive_descent/`` is the
+default and handles all shell input in normal operation.
+
+This implementation exists for two reasons:
+
+1. **Educational contrast.** It demonstrates the same shell grammar parsed
+   with a fundamentally different paradigm: immutable position passing and
+   composable ``Parser[T]`` functions vs. mutable state and imperative
+   control flow.
+
+2. **Proof of concept.** It proves that parser combinators can handle
+   real-world shell syntax (~95% feature coverage), which is a non-obvious
+   result given the language's context-sensitivity.
+
+There is no plan to converge the two parsers or to replace the recursive
+descent parser.  The combinator parser may lag behind on new features and
+edge-case fixes.  Use ``parser-select combinator`` in an interactive psh
+session to experiment with it.
 """
 
 from .commands import (

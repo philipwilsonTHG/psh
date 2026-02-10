@@ -290,7 +290,7 @@ class ArrayParser:
 
     def _parse_array_key_tokens(self) -> List[Token]:
         """Parse array key as list of tokens for later evaluation.
-        
+
         This implements the late binding approach where we collect tokens
         without evaluation, allowing the executor to determine whether to
         evaluate as arithmetic (indexed arrays) or string (associative arrays).

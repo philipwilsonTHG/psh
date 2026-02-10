@@ -56,10 +56,10 @@ class ExitBuiltin(Builtin):
     def help(self) -> str:
         return """exit: exit [n]
     Exit the shell.
-    
+
     Exits the shell with a status of N. If N is omitted, the exit status
     is that of the last command executed.
-    
+
     Exit Status:
     Returns N, or failure if an invalid argument is given."""
 
@@ -88,11 +88,11 @@ class ColonBuiltin(Builtin):
     def help(self) -> str:
         return """: : [arguments]
     Null command.
-    
+
     This command does nothing and always returns success (0).
     Any arguments are ignored. Useful as a placeholder or for parameter expansion
     side effects.
-    
+
     Exit Status:
     Always returns success."""
 
@@ -121,9 +121,9 @@ class TrueBuiltin(Builtin):
     def help(self) -> str:
         return """true: true
     Always return success.
-    
+
     Always returns success (exit code 0). Useful in conditional expressions.
-    
+
     Exit Status:
     Always returns success."""
 
@@ -152,9 +152,9 @@ class FalseBuiltin(Builtin):
     def help(self) -> str:
         return """false: false
     Always return failure.
-    
+
     Always returns failure (exit code 1). Useful in conditional expressions.
-    
+
     Exit Status:
     Always returns failure."""
 
@@ -205,22 +205,22 @@ class ExecBuiltin(Builtin):
     @property
     def help(self) -> str:
         return """exec: exec [command [argument ...]]
-    
+
     Execute commands and manipulate file descriptors.
-    
+
     If command is specified, it replaces the shell without creating a new process.
     If no command is specified, any redirections take effect in the current shell.
-    
+
     Examples:
         exec echo hello world    # Replace shell with echo command
         exec 3< file             # Open file descriptor 3 for reading
         exec 4> file             # Open file descriptor 4 for writing
         exec 5<&0                # Duplicate fd 0 to fd 5
         exec 3<&-                # Close file descriptor 3
-    
+
     Exit Status:
         If command is specified: doesn't return (process replaced)
         Command not found: 127
-        Command not executable: 126  
+        Command not executable: 126
         Redirection error: 1-125
         Success (no command): 0"""

@@ -16,7 +16,7 @@ class InputSource(ABC):
     @abstractmethod
     def read_line(self) -> Optional[str]:
         """Read the next line from the input source.
-        
+
         Returns:
             The next line as a string, or None on EOF.
         """

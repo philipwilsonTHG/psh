@@ -54,13 +54,13 @@ class HistoryBuiltin(Builtin):
     @property
     def help(self) -> str:
         return """history: history [n] | history -c
-    
+
     Display the command history list with line numbers.
-    
+
     Options:
       n     Show only the last n entries
       -c    Clear the history list
-    
+
     Default is to show the last 10 commands."""
 
 
@@ -90,7 +90,7 @@ class VersionBuiltin(Builtin):
     @property
     def help(self) -> str:
         return """version: version [--short]
-    
+
     Display version information for Python Shell (psh).
     With --short, display only the version number."""
 
@@ -312,27 +312,27 @@ class LocalBuiltin(Builtin):
     @property
     def help(self) -> str:
         return """local: local [-aAilrux] [name[=value] ...]
-    
+
     Create local variables within functions.
-    
+
     Options:
       -a    Declare indexed array variables
-      -A    Declare associative array variables  
+      -A    Declare associative array variables
       -i    Make variables have the 'integer' attribute
       -l    Convert values to lowercase on assignment
       -r    Make variables readonly
       -u    Convert values to uppercase on assignment
       -x    Make variables export to the environment
-    
+
     When used inside a function, creates variables that are only
     visible within that function. Without an assignment, the variable
     is created but unset.
-    
+
     Examples:
         local var              # Create unset local variable
         local var=value        # Create local with value
         local -i num=42        # Create local integer variable
         local -u text=hello    # Create local uppercase variable
         local x=1 y=2 z        # Multiple variables
-    
+
     Note: Using 'local' outside a function is an error."""

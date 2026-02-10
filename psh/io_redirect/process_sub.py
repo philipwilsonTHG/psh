@@ -24,7 +24,7 @@ class ProcessSubstitutionHandler:
     def setup_process_substitutions(self, command: Command) -> Tuple[List[int], List[str], List[int]]:
         """
         Set up process substitutions for a command.
-        
+
         Returns:
             Tuple of (file_descriptors, substituted_paths, child_pids)
         """
@@ -67,7 +67,7 @@ class ProcessSubstitutionHandler:
     def _create_process_substitution(self, arg: str, arg_type: str) -> Tuple[int, str, int]:
         """
         Create a single process substitution.
-        
+
         Returns:
             Tuple of (file_descriptor, fd_path, child_pid)
         """
@@ -154,10 +154,10 @@ class ProcessSubstitutionHandler:
     def handle_redirect_process_sub(self, target: str) -> Tuple[str, int, int]:
         """
         Handle process substitution used as a redirect target.
-        
+
         Args:
             target: The process substitution string (e.g., "<(cmd)" or ">(cmd)")
-            
+
         Returns:
             Tuple of (fd_path, fd_to_close, child_pid)
         """

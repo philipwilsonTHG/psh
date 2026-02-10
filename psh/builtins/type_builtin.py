@@ -152,12 +152,12 @@ class TypeBuiltin(Builtin):
     @property
     def help(self) -> str:
         return """type: type [-afptP] name [name ...]
-    
+
     Display information about command type.
-    
+
     For each NAME, indicate how it would be interpreted if used as a
     command name.
-    
+
     Options:
       -a    display all locations containing an executable named NAME;
             includes aliases, builtins, and functions, if and only if
@@ -172,9 +172,9 @@ class TypeBuiltin(Builtin):
             `file', `function', or `keyword', if NAME is an alias, shell
             builtin, disk file, shell function, or shell reserved word,
             respectively
-    
+
     Arguments:
       NAME  Command name to be interpreted.
-    
+
     Exit Status:
     Returns success if all of the NAMEs are found; fails if any are not found."""

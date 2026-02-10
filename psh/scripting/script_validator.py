@@ -15,7 +15,7 @@ class ScriptValidator(ScriptComponent):
     def validate_script_file(self, script_path: str) -> int:
         """
         Validate script file and return appropriate exit code.
-        
+
         Returns:
             0 if file is valid
             126 if permission denied or binary file

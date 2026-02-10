@@ -61,7 +61,7 @@ class LinterConfig:
 class LinterVisitor(ASTVisitor[None]):
     """
     Visitor that performs linting checks on shell scripts.
-    
+
     This visitor analyzes the AST to find potential issues including:
     - Undefined/unused variables
     - Missing quotes that could cause word splitting

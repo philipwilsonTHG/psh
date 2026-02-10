@@ -539,7 +539,7 @@ class ExpansionManager:
 
     def execute_arithmetic_expansion(self, expr: str) -> int:
         """Execute arithmetic expansion and return result.
-        
+
         Raises:
             ExpansionError: If arithmetic evaluation fails
         """
@@ -618,14 +618,14 @@ class ExpansionManager:
 
     def _expand_vars_in_arithmetic(self, expr: str) -> str:
         """Expand $var syntax in arithmetic expression.
-        
+
         This method finds all $var patterns in the arithmetic expression
         and replaces them with their values before arithmetic evaluation.
         The arithmetic parser only understands bare variable names.
-        
+
         Args:
             expr: The arithmetic expression potentially containing $var
-            
+
         Returns:
             The expression with all $var expanded to their values
         """

@@ -53,7 +53,7 @@ from .subshell import SubshellExecutor
 class ExecutorVisitor(ASTVisitor[int]):
     """
     Visitor that executes AST nodes and returns exit status.
-    
+
     This visitor maintains compatibility with the existing execution
     engine while providing a cleaner architecture based on the visitor
     pattern.
@@ -62,7 +62,7 @@ class ExecutorVisitor(ASTVisitor[int]):
     def __init__(self, shell: 'Shell'):
         """
         Initialize executor with shell instance.
-        
+
         Args:
             shell: The shell instance providing access to all components
         """

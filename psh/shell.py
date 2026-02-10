@@ -374,7 +374,7 @@ class Shell:
 
     def _is_variable_set(self, var_ref: str) -> bool:
         """Check if a variable is set, including array element syntax.
-        
+
         Supports:
         - var: check if variable is set
         - array[key]: check if array element exists
@@ -795,7 +795,7 @@ class Shell:
 
     def _contains_heredoc(self, command_string: str) -> bool:
         """Check if command contains heredoc operators (not bit-shift in arithmetic).
-        
+
         Returns True if the command contains << that's likely a heredoc,
         False if << only appears inside arithmetic expressions.
         """

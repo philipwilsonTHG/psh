@@ -146,21 +146,21 @@ class DisownBuiltin(Builtin):
     def help(self) -> str:
         return """disown: disown [-h] [-ar] [jobspec ... | pid ...]
     Remove jobs from active job table.
-    
+
     Options:
         -a      Remove all jobs from job table
         -h      Mark jobs to not receive SIGHUP when shell exits
         -r      Remove only running jobs from job table
-    
+
     Arguments:
         jobspec     Job specification (e.g., %1, %+, %-)
         pid         Process ID
-    
+
     Without options or arguments, removes the current job from the
     active job table.
-    
+
     When -h is used, jobs are marked to not receive SIGHUP but remain
     in the job table. Otherwise, jobs are completely removed.
-    
+
     Exit Status:
     Returns 0 unless an invalid option or job specification is given."""

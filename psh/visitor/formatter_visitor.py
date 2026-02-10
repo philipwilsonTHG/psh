@@ -44,7 +44,7 @@ from .base import ASTVisitor
 class FormatterVisitor(ASTVisitor[str]):
     """
     Visitor that formats AST nodes as readable text.
-    
+
     This visitor can be used to:
     - Pretty-print AST structure for debugging
     - Generate shell script from AST
@@ -54,7 +54,7 @@ class FormatterVisitor(ASTVisitor[str]):
     def __init__(self, indent: int = 2):
         """
         Initialize the formatter.
-        
+
         Args:
             indent: Number of spaces per indentation level
         """

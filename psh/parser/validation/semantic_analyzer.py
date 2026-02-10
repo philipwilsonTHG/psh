@@ -4,8 +4,8 @@ from dataclasses import dataclass
 from typing import List, Tuple
 
 from ...ast_nodes import (
-    ASTNode,
     AndOrList,
+    ASTNode,
     BreakStatement,
     CommandList,
     ContinueStatement,

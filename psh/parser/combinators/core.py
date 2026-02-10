@@ -18,7 +18,7 @@ U = TypeVar('U')
 @dataclass
 class ParseResult(Generic[T]):
     """Result of a parse operation.
-    
+
     Attributes:
         success: Whether the parse succeeded
         value: The parsed value if successful
@@ -35,14 +35,14 @@ class ParseResult(Generic[T]):
 
 class Parser(Generic[T]):
     """A parser combinator that produces values of type T.
-    
+
     This is the core abstraction for parser combinators. A parser is essentially
     a function that takes tokens and a position, and returns a parse result.
     """
 
     def __init__(self, parse_fn: Callable[[List[Token], int], ParseResult[T]]):
         """Initialize with a parsing function.
-        
+
         Args:
             parse_fn: Function that performs the actual parsing
         """
@@ -50,11 +50,11 @@ class Parser(Generic[T]):
 
     def parse(self, tokens: List[Token], position: int = 0) -> ParseResult[T]:
         """Execute the parser.
-        
+
         Args:
             tokens: List of tokens to parse
             position: Starting position in token stream
-            
+
         Returns:
             ParseResult containing success status and parsed value
         """
@@ -62,10 +62,10 @@ class Parser(Generic[T]):
 
     def map(self, fn: Callable[[T], U]) -> 'Parser[U]':
         """Transform the result of this parser.
-        
+
         Args:
             fn: Function to transform the parsed value
-            
+
         Returns:
             New parser that applies the transformation
         """
@@ -84,10 +84,10 @@ class Parser(Generic[T]):
 
     def then(self, next_parser: 'Parser[U]') -> 'Parser[Tuple[T, U]]':
         """Sequence this parser with another.
-        
+
         Args:
             next_parser: Parser to run after this one
-            
+
         Returns:
             Parser that returns tuple of both results
         """
@@ -111,10 +111,10 @@ class Parser(Generic[T]):
 
     def or_else(self, alternative: 'Parser[T]') -> 'Parser[T]':
         """Try this parser, or alternative if it fails.
-        
+
         Args:
             alternative: Parser to try if this one fails
-            
+
         Returns:
             Parser that tries both options
         """
@@ -130,10 +130,10 @@ class Parser(Generic[T]):
 # Basic combinators
 def token(token_type: str) -> Parser[Token]:
     """Parse a specific token type.
-    
+
     Args:
         token_type: Name of the token type to match
-        
+
     Returns:
         Parser that matches the specified token type
     """
@@ -156,10 +156,10 @@ def token(token_type: str) -> Parser[Token]:
 
 def many(parser: Parser[T]) -> Parser[List[T]]:
     """Parse zero or more occurrences.
-    
+
     Args:
         parser: Parser to repeat
-        
+
     Returns:
         Parser that returns list of parsed values
     """
@@ -185,10 +185,10 @@ def many(parser: Parser[T]) -> Parser[List[T]]:
 
 def many1(parser: Parser[T]) -> Parser[List[T]]:
     """Parse one or more occurrences.
-    
+
     Args:
         parser: Parser to repeat
-        
+
     Returns:
         Parser that returns non-empty list of parsed values
     """
@@ -197,10 +197,10 @@ def many1(parser: Parser[T]) -> Parser[List[T]]:
 
 def optional(parser: Parser[T]) -> Parser[Optional[T]]:
     """Parse optionally.
-    
+
     Args:
         parser: Parser to try
-        
+
     Returns:
         Parser that returns value or None
     """
@@ -215,10 +215,10 @@ def optional(parser: Parser[T]) -> Parser[Optional[T]]:
 
 def sequence(*parsers: Parser) -> Parser[tuple]:
     """Parse a sequence of parsers.
-    
+
     Args:
         *parsers: Parsers to run in sequence
-        
+
     Returns:
         Parser that returns tuple of all results
     """
@@ -244,11 +244,11 @@ def sequence(*parsers: Parser) -> Parser[tuple]:
 
 def separated_by(parser: Parser[T], separator: Parser) -> Parser[List[T]]:
     """Parse items separated by a separator.
-    
+
     Args:
         parser: Parser for items
         separator: Parser for separators
-        
+
     Returns:
         Parser that returns list of items
     """
@@ -287,10 +287,10 @@ def separated_by(parser: Parser[T], separator: Parser) -> Parser[List[T]]:
 # Enhanced combinators for control structures
 def lazy(parser_factory: Callable[[], Parser[T]]) -> Parser[T]:
     """Lazy evaluation for recursive grammars.
-    
+
     Args:
         parser_factory: Function that creates the parser when needed
-        
+
     Returns:
         Parser that delays creation until first use
     """
@@ -306,12 +306,12 @@ def lazy(parser_factory: Callable[[], Parser[T]]) -> Parser[T]:
 
 def between(open_p: Parser, close_p: Parser, content_p: Parser[T]) -> Parser[T]:
     """Parse content between delimiters.
-    
+
     Args:
         open_p: Parser for opening delimiter
         close_p: Parser for closing delimiter
         content_p: Parser for content
-        
+
     Returns:
         Parser that returns the content value
     """
@@ -342,10 +342,10 @@ def between(open_p: Parser, close_p: Parser, content_p: Parser[T]) -> Parser[T]:
 
 def skip(parser: Parser) -> Parser[None]:
     """Parse but discard result.
-    
+
     Args:
         parser: Parser to run
-        
+
     Returns:
         Parser that returns None
     """
@@ -360,10 +360,10 @@ def skip(parser: Parser) -> Parser[None]:
 
 def fail_with(msg: str) -> Parser[None]:
     """Parser that always fails with custom message.
-    
+
     Args:
         msg: Error message
-        
+
     Returns:
         Parser that always fails
     """
@@ -375,10 +375,10 @@ def fail_with(msg: str) -> Parser[None]:
 
 def try_parse(parser: Parser[T]) -> Parser[Optional[T]]:
     """Backtracking support - try parser without consuming on failure.
-    
+
     Args:
         parser: Parser to try
-        
+
     Returns:
         Parser that returns value or None without consuming tokens on failure
     """
@@ -394,10 +394,10 @@ def try_parse(parser: Parser[T]) -> Parser[Optional[T]]:
 
 def keyword(kw: str) -> Parser[Token]:
     """Parse specific keyword ensuring word boundaries.
-    
+
     Args:
         kw: Keyword to match
-        
+
     Returns:
         Parser that matches the keyword
     """
@@ -416,10 +416,10 @@ def keyword(kw: str) -> Parser[Token]:
 
 def literal(lit: str) -> Parser[Token]:
     """Parse specific literal value.
-    
+
     Args:
         lit: Literal value to match
-        
+
     Returns:
         Parser that matches the literal
     """
@@ -439,7 +439,7 @@ def literal(lit: str) -> Parser[Token]:
 # Forward declaration support
 class ForwardParser(Parser[T], Generic[T]):
     """Parser that can be defined later for handling circular references.
-    
+
     This is useful for recursive grammars where a parser needs to reference
     itself or create mutual recursion between parsers.
     """
@@ -457,7 +457,7 @@ class ForwardParser(Parser[T], Generic[T]):
 
     def define(self, parser: Parser[T]) -> None:
         """Define the actual parser implementation.
-        
+
         Args:
             parser: The parser to use for this forward reference
         """
@@ -466,11 +466,11 @@ class ForwardParser(Parser[T], Generic[T]):
 
 def with_error_context(parser: Parser[T], context: str) -> Parser[T]:
     """Add context to parser errors for better debugging.
-    
+
     Args:
         parser: Parser to wrap
         context: Context string to prepend to errors
-        
+
     Returns:
         Parser with contextualized error messages
     """

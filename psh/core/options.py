@@ -16,13 +16,13 @@ class OptionHandler:
                            in_pipeline: bool = False, is_negated: bool = False) -> bool:
         """
         Check if shell should exit on command failure.
-        
+
         Args:
             state: Shell state
-            in_conditional: True if command is in if/while/&&/|| context  
+            in_conditional: True if command is in if/while/&&/|| context
             in_pipeline: True if command is part of a pipeline (not the last)
             is_negated: True if command is negated with !
-            
+
         Returns:
             True if shell should exit due to errexit
         """
@@ -51,12 +51,12 @@ class OptionHandler:
                            in_expansion: bool = False) -> None:
         """
         Check if accessing unset variable should cause error.
-        
+
         Args:
             state: Shell state
             var_name: Variable name being accessed
             in_expansion: True if in parameter expansion context like ${var:-default}
-            
+
         Raises:
             UnboundVariableError: If variable is unset and nounset is enabled
         """
@@ -93,7 +93,7 @@ class OptionHandler:
     def print_xtrace(state: 'ShellState', command_parts: list) -> None:
         """
         Print xtrace output for a command.
-        
+
         Args:
             state: Shell state
             command_parts: List of command parts (already expanded)
@@ -110,11 +110,11 @@ class OptionHandler:
     def get_pipeline_exit_code(state: 'ShellState', exit_codes: list) -> int:
         """
         Get the exit code for a pipeline based on pipefail option.
-        
+
         Args:
             state: Shell state
             exit_codes: List of exit codes from pipeline commands
-            
+
         Returns:
             Exit code for the pipeline
         """

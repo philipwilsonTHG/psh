@@ -10,7 +10,7 @@ from .position import LexerState
 class LexerContext:
     """
     Unified state representation for the lexer.
-    
+
     This replaces the fragmented state tracking that was previously
     scattered across multiple boolean flags and counters.
     """

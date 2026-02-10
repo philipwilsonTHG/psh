@@ -137,16 +137,16 @@ class CommandBuiltin(Builtin):
     def help(self) -> str:
         return """command: command [-pVv] command [arg ...]
     Execute a simple command or display information about commands.
-    
+
     Runs COMMAND with ARGS suppressing shell function lookup, or display
     information about the specified COMMANDs.  Can be used to invoke commands
     on disk when a function with the same name exists.
-    
+
     Options:
       -p    use a default value for PATH that is guaranteed to find all of
             the standard utilities
       -v    print a description of COMMAND similar to the `type' builtin
       -V    print a more verbose description of each COMMAND
-    
+
     Exit Status:
     Returns exit status of COMMAND, or failure if COMMAND is not found."""

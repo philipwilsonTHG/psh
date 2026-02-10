@@ -27,10 +27,10 @@ class FileRedirector:
     def apply_redirections(self, redirects: List[Redirect]) -> List[Tuple[int, int]]:
         """
         Apply redirections and return list of (fd, saved_fd) for restoration.
-        
+
         This handles all types of redirections:
         - < (input redirection)
-        - > (output redirection) 
+        - > (output redirection)
         - >> (append redirection)
         - << and <<- (here documents)
         - <<< (here strings)

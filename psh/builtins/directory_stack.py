@@ -232,16 +232,16 @@ class PushdBuiltin(Builtin):
     def help(self) -> str:
         return """pushd: pushd [dir | +N | -N]
     Add directories to stack and change directory.
-    
+
     Arguments:
         dir     Change to DIR and add it to the directory stack
         +N      Rotate stack so Nth entry from left is on top
         -N      Rotate stack so Nth entry from right is on top
-    
+
     With no arguments, exchanges the top two directories.
-    
+
     The directory stack is displayed with the most recent directory first.
-    
+
     Exit Status:
     Returns 0 unless an invalid argument is given or the directory
     change fails."""
@@ -366,14 +366,14 @@ class PopdBuiltin(Builtin):
     def help(self) -> str:
         return """popd: popd [+N | -N]
     Remove directories from stack and change directory.
-    
+
     Arguments:
         +N      Remove Nth entry from left of stack (counting from 0)
         -N      Remove Nth entry from right of stack
-    
+
     With no arguments, removes the top directory from the stack and
     changes to the new top directory.
-    
+
     Exit Status:
     Returns 0 unless an invalid argument is given, the directory
     stack is empty, or the directory change fails."""
@@ -492,16 +492,16 @@ class DirsBuiltin(Builtin):
     def help(self) -> str:
         return """dirs: dirs [-clv] [+N | -N]
     Display directory stack.
-    
+
     Options:
         -c      Clear the directory stack by deleting all entries
         -l      List in long format; do not use ~ to indicate HOME
         -v      List in vertical format with indices
         +N      Display Nth entry from left of stack (counting from 0)
         -N      Display Nth entry from right of stack
-    
+
     With no options, displays the directory stack with the most recent
     directory first.
-    
+
     Exit Status:
     Returns 0 unless an invalid option is given."""

@@ -14,9 +14,9 @@ class ParserConfigBuiltin(Builtin):
 
     def execute(self, args: List[str], shell) -> int:
         """Execute the parser-config builtin.
-        
+
         Usage: parser-config [COMMAND] [OPTIONS]
-        
+
         Commands:
             show              Show current parser configuration
             mode MODE         Set parsing mode (posix|bash|permissive|educational)
@@ -24,7 +24,7 @@ class ParserConfigBuiltin(Builtin):
             permissive        Enable permissive mode
             enable FEATURE    Enable a parser feature
             disable FEATURE   Disable a parser feature
-            
+
         Features:
             arithmetic        Arithmetic evaluation (( ))
             arrays            Array support
@@ -32,7 +32,7 @@ class ParserConfigBuiltin(Builtin):
             aliases           Alias expansion
             process-subst     Process substitution
             brace-expand      Brace expansion
-            
+
         Examples:
             parser-config show
             parser-config mode posix
@@ -228,15 +228,15 @@ class ParserModeBuiltin(Builtin):
 
     def execute(self, args: List[str], shell) -> int:
         """Execute the parser-mode builtin.
-        
+
         Usage: parser-mode [MODE]
-        
+
         Modes:
             posix          Strict POSIX compliance mode
             bash           Bash-compatible mode (default)
             permissive     Permissive mode with error collection
             educational    Educational mode with debugging
-            
+
         Examples:
             parser-mode posix
             parser-mode bash

@@ -5,8 +5,8 @@ from enum import Enum
 from typing import Any, Dict, List, Optional
 
 from ...ast_nodes import (
-    ASTNode,
     ArithmeticEvaluation,
+    ASTNode,
     BreakStatement,
     CaseConditional,
     ContinueStatement,

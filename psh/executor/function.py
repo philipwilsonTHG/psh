@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 class FunctionOperationExecutor:
     """
     Handles function definition and execution.
-    
+
     This class encapsulates logic for:
     - Function definition
     - Function execution (will be implemented in Phase 7)
@@ -36,10 +36,10 @@ class FunctionOperationExecutor:
     def execute_function_def(self, node: 'FunctionDef') -> int:
         """
         Define a function.
-        
+
         Args:
             node: The FunctionDef AST node
-            
+
         Returns:
             Exit status code (0 for success)
         """
@@ -52,14 +52,14 @@ class FunctionOperationExecutor:
                              redirects: Optional[List['Redirect']] = None) -> int:
         """
         Execute a function call.
-        
+
         Args:
             name: Function name
             args: Function arguments (including $0)
             context: Execution context
             visitor: The visitor to use for executing the function body
             redirects: Optional redirections to apply
-            
+
         Returns:
             Exit status code
         """

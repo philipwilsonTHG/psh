@@ -184,15 +184,15 @@ class EchoBuiltin(Builtin):
     @property
     def help(self) -> str:
         return """echo: echo [-neE] [arg ...]
-    
+
     Display arguments separated by spaces, followed by a newline.
     If no arguments are given, print a blank line.
-    
+
     Options:
         -n    Do not output the trailing newline
         -e    Enable interpretation of backslash escape sequences
         -E    Disable interpretation of backslash escapes (default)
-    
+
     Escape sequences (with -e):
         \\a    Alert (bell)
         \\b    Backspace
@@ -342,7 +342,7 @@ class PrintfBuiltin(Builtin):
 
     def _parse_format_specifier_enhanced(self, format_str: str, start: int) -> tuple:
         """Parse a POSIX-compliant format specifier starting at '%'.
-        
+
         Returns:
             tuple: (spec_dict, end_position) or (None, 0) if invalid
         """
@@ -689,9 +689,9 @@ class PrintfBuiltin(Builtin):
     @property
     def help(self) -> str:
         return """printf: printf format [arguments ...]
-    
+
     Format and print data according to the POSIX printf specification.
-    
+
     Format specifiers:
         %d, %i    Signed decimal integer
         %o        Unsigned octal integer
@@ -704,20 +704,20 @@ class PrintfBuiltin(Builtin):
         %c        Single character
         %s        String
         %%        Literal percent sign
-    
+
     Flags:
         -         Left-justify output
         +         Always show sign for signed conversions
         (space)   Prefix positive numbers with space
         #         Use alternate form (0x for hex, 0 for octal)
         0         Zero-pad numeric output
-    
+
     Width and precision:
         %10s      Minimum field width of 10
         %.5s      Maximum string width of 5
         %10.2f    Field width 10, precision 2
         %*.*f     Width and precision from arguments
-    
+
     Escape sequences:
         \\a    Alert (bell)
         \\b    Backspace
@@ -731,13 +731,13 @@ class PrintfBuiltin(Builtin):
         \\xhh  Hexadecimal character (2 digits)
         \\uhhhh    Unicode character (4 hex digits)
         \\Uhhhhhhhh Unicode character (8 hex digits)
-    
+
     POSIX behavior:
         - Arguments are reused if more format specifiers than arguments
         - Missing numeric arguments default to 0
         - Missing string arguments default to empty string
         - Invalid numeric strings convert using leading digits or 0
-    
+
     Exit Status:
     Returns 0 on success, 1 on format error, 2 on usage error."""
 
@@ -781,9 +781,9 @@ class PwdBuiltin(Builtin):
     def help(self) -> str:
         return """pwd: pwd
     Print the current working directory.
-    
+
     Display the full pathname of the current working directory.
-    
+
     Exit Status:
     Returns 0 unless an error occurs while reading the pathname of the
     current directory."""

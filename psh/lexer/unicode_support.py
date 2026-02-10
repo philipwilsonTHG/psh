@@ -7,11 +7,11 @@ import unicodedata
 def is_identifier_start(char: str, posix_mode: bool = False) -> bool:
     """
     Check if character can start an identifier (variable name).
-    
+
     Args:
         char: Character to check
         posix_mode: If True, restrict to POSIX ASCII characters
-        
+
     Returns:
         True if character can start an identifier
     """
@@ -32,11 +32,11 @@ def is_identifier_start(char: str, posix_mode: bool = False) -> bool:
 def is_identifier_char(char: str, posix_mode: bool = False) -> bool:
     """
     Check if character can be part of an identifier (after the first character).
-    
+
     Args:
-        char: Character to check  
+        char: Character to check
         posix_mode: If True, restrict to POSIX ASCII characters
-        
+
     Returns:
         True if character can be part of an identifier
     """
@@ -59,11 +59,11 @@ def is_identifier_char(char: str, posix_mode: bool = False) -> bool:
 def is_whitespace(char: str, posix_mode: bool = False) -> bool:
     """
     Check if character is whitespace.
-    
+
     Args:
         char: Character to check
         posix_mode: If True, restrict to ASCII whitespace
-        
+
     Returns:
         True if character is whitespace
     """
@@ -82,12 +82,12 @@ def is_whitespace(char: str, posix_mode: bool = False) -> bool:
 def normalize_identifier(name: str, posix_mode: bool = False, case_sensitive: bool = True) -> str:
     """
     Normalize an identifier name according to configuration.
-    
+
     Args:
         name: Identifier name to normalize
         posix_mode: If True, don't apply Unicode normalization
         case_sensitive: If False, convert to lowercase
-        
+
     Returns:
         Normalized identifier name
     """
@@ -104,11 +104,11 @@ def normalize_identifier(name: str, posix_mode: bool = False, case_sensitive: bo
 def validate_identifier(name: str, posix_mode: bool = False) -> bool:
     """
     Validate that a string is a valid identifier.
-    
+
     Args:
         name: Identifier name to validate
         posix_mode: If True, use POSIX validation rules
-        
+
     Returns:
         True if the name is a valid identifier
     """

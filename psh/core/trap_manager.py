@@ -58,11 +58,11 @@ class TrapManager:
 
     def set_trap(self, action: str, signals: List[str]) -> int:
         """Set trap handler for signals.
-        
+
         Args:
             action: Command string to execute, or empty string to ignore, or '-' to reset
             signals: List of signal names/numbers
-            
+
         Returns:
             Exit code (0 for success, 1 for error)
         """
@@ -136,7 +136,7 @@ class TrapManager:
 
     def execute_trap(self, signal_name: str):
         """Execute trap handler for given signal.
-        
+
         Args:
             signal_name: Name of the signal that was received
         """
@@ -181,10 +181,10 @@ class TrapManager:
 
     def show_traps(self, signals: List[str] = None) -> str:
         """Show current trap settings.
-        
+
         Args:
             signals: Specific signals to show, or None for all
-            
+
         Returns:
             Formatted trap display string
         """
@@ -231,7 +231,7 @@ class TrapManager:
 
     def execute_err_trap(self, exit_code: int):
         """Execute ERR trap if set and command failed.
-        
+
         Args:
             exit_code: Exit code of the failed command
         """

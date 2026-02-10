@@ -9,23 +9,23 @@ including line continuation processing according to POSIX specification.
 def process_line_continuations(text: str) -> str:
     """
     Process line continuation sequences in shell input.
-    
+
     According to POSIX, backslash-newline sequences should be removed
     entirely from the input before any other processing occurs.
-    
+
     Args:
         text: Raw shell input that may contain line continuations
-        
+
     Returns:
         Text with line continuations processed (removed)
-        
+
     Examples:
         >>> process_line_continuations("echo hello \\\\nworld")
         'echo hello world'
-        
-        >>> process_line_continuations("echo hello\\\\\\\\\\\\nworld")  
+
+        >>> process_line_continuations("echo hello\\\\\\\\\\\\nworld")
         'echo hello\\\\\\\\world'  # \\\\\\\\ -> \\\\, \\n removed
-        
+
         >>> process_line_continuations("echo 'hello \\\\nworld'")
         "echo 'hello \\\\nworld'"  # No processing inside quotes
     """

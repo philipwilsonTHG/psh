@@ -58,7 +58,7 @@ class ValidationIssue:
 class ValidatorVisitor(ASTVisitor[None]):
     """
     Visitor that validates AST correctness and collects issues.
-    
+
     This visitor checks for:
     - Semantic errors (break/continue outside loops, etc.)
     - Common mistakes and anti-patterns

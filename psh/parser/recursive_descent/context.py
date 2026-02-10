@@ -137,7 +137,7 @@ class ParserProfiler:
 @dataclass
 class ParserContext:
     """Centralized parser state management.
-    
+
     This class consolidates all parser state into a single object, providing
     cleaner interfaces for sub-parsers and better performance tracking.
     """

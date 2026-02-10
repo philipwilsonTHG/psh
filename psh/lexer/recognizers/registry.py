@@ -1,7 +1,7 @@
 """Registry for token recognizers."""
 
 import logging
-from typing import Dict, List, Optional, Tuple, Type
+from typing import Dict, List, Optional, Tuple
 
 from ...token_types import Token
 from ..state_context import LexerContext
@@ -21,7 +21,7 @@ class RecognizerRegistry:
     def register(self, recognizer: TokenRecognizer) -> None:
         """
         Register a new token recognizer.
-        
+
         Args:
             recognizer: The recognizer to register
         """
@@ -31,10 +31,10 @@ class RecognizerRegistry:
     def unregister(self, recognizer: TokenRecognizer) -> bool:
         """
         Unregister a recognizer.
-        
+
         Args:
             recognizer: The recognizer to remove
-            
+
         Returns:
             True if the recognizer was found and removed
         """
@@ -47,7 +47,7 @@ class RecognizerRegistry:
     def get_recognizers(self) -> List[TokenRecognizer]:
         """
         Get all registered recognizers, sorted by priority.
-        
+
         Returns:
             List of recognizers sorted by priority (highest first)
         """
@@ -65,12 +65,12 @@ class RecognizerRegistry:
     ) -> Optional[Tuple[Token, int, TokenRecognizer]]:
         """
         Try to recognize a token using registered recognizers.
-        
+
         Args:
             input_text: The input string being lexed
             pos: Current position in the input
             context: Current lexer context/state
-            
+
         Returns:
             Tuple of (token, new_position, recognizer) if recognized, None otherwise
         """
@@ -94,7 +94,7 @@ class RecognizerRegistry:
     def get_stats(self) -> Dict[str, int]:
         """
         Get statistics about registered recognizers.
-        
+
         Returns:
             Dictionary with statistics
         """

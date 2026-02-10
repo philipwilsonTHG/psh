@@ -12,7 +12,7 @@ class ASTPrettyPrinter(ASTVisitor[str]):
     def __init__(self, indent_size: int = 2, show_positions: bool = False,
                  max_width: int = 80, compact_mode: bool = False):
         """Initialize the pretty printer.
-        
+
         Args:
             indent_size: Number of spaces per indentation level
             show_positions: Whether to show token positions
@@ -317,11 +317,11 @@ class ASTPrettyPrinter(ASTVisitor[str]):
 
 def format_ast(ast: ASTNode, **kwargs) -> str:
     """Convenience function to format an AST.
-    
+
     Args:
         ast: The AST node to format
         **kwargs: Arguments passed to ASTPrettyPrinter
-        
+
     Returns:
         Formatted string representation of the AST
     """

@@ -25,11 +25,11 @@ class Builtin(ABC):
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """
         Execute the builtin command.
-        
+
         Args:
             args: Command arguments, including the command name as args[0]
             shell: The shell instance for accessing state and I/O
-            
+
         Returns:
             Exit code (0 for success, non-zero for failure)
         """

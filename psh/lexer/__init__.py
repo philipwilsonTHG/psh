@@ -1,7 +1,7 @@
 """Advanced lexer package for PSH shell tokenization.
 
-This package provides a unified lexer for shell tokenization with comprehensive 
-Unicode support, metadata tracking, and context-aware parsing. Enhanced 
+This package provides a unified lexer for shell tokenization with comprehensive
+Unicode support, metadata tracking, and context-aware parsing. Enhanced
 functionality is now built into the standard Token class and ModularLexer.
 
 The main entry point is the tokenize() function which uses the ModularLexer

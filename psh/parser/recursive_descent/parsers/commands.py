@@ -517,7 +517,7 @@ class CommandParser:
 
     def parse_brace_group(self) -> BraceGroup:
         """Parse brace group {...} that executes in current environment.
-        
+
         POSIX syntax rules:
         - Space required after {
         - Semicolon or newline required before }

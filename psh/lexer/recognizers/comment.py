@@ -56,7 +56,7 @@ class CommentRecognizer(ContextualRecognizer):
     ) -> bool:
         """
         Check if # at current position starts a comment.
-        
+
         # starts a comment if:
         1. It's at the beginning of input
         2. It follows whitespace

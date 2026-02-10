@@ -35,14 +35,14 @@ class HeredocCollector:
                         line: int, col: int) -> str:
         """
         Register a new heredoc that needs content collection.
-        
+
         Args:
             delimiter: The heredoc delimiter
             strip_tabs: Whether to strip tabs (<<- operator)
             quoted: Whether delimiter was quoted (affects expansion)
             line: Line number where heredoc starts
             col: Column number where heredoc starts
-            
+
         Returns:
             Unique key for this heredoc
         """
@@ -75,10 +75,10 @@ class HeredocCollector:
     def collect_line(self, line: str) -> List[Tuple[str, bool]]:
         """
         Process a line for heredoc content collection.
-        
+
         Args:
             line: The line to process
-            
+
         Returns:
             List of (key, complete) tuples for heredocs that were completed
         """

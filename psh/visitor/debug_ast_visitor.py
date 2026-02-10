@@ -46,7 +46,7 @@ from .base import ASTVisitor
 class DebugASTVisitor(ASTVisitor[str]):
     """
     Visitor that formats AST nodes for debug output.
-    
+
     This visitor produces a hierarchical text representation of the AST
     structure, useful for debugging parser output and understanding how
     shell commands are parsed.
@@ -55,7 +55,7 @@ class DebugASTVisitor(ASTVisitor[str]):
     def __init__(self, indent: int = 2):
         """
         Initialize the debug formatter.
-        
+
         Args:
             indent: Number of spaces per indentation level
         """

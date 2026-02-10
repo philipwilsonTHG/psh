@@ -620,9 +620,9 @@ class DeclareBuiltin(Builtin):
     @property
     def help(self) -> str:
         return """declare: declare [-aAfFgilprtux] [name[=value] ...]
-    
+
     Declare variables and give them attributes.
-    
+
     Options:
       -a    Declare indexed array variables
       -A    Declare associative array variables
@@ -634,13 +634,13 @@ class DeclareBuiltin(Builtin):
       -p    Display the attributes and value of each variable
       -r    Make variables readonly
       -t    Give variables the 'trace' attribute (functions only)
-      -u    Convert values to uppercase on assignment  
+      -u    Convert values to uppercase on assignment
       -x    Make variables export to the environment
       +x    Remove export attribute
       +r    Remove readonly attribute (if possible)
-    
+
     Using '+' instead of '-' turns off the given attribute.
-    
+
     With no arguments, display all variables and their values.
     With -p, display variables in a reusable format.
     With -f, display all function definitions.
@@ -658,9 +658,9 @@ class TypesetBuiltin(DeclareBuiltin):
     @property
     def help(self) -> str:
         return """typeset: typeset [-aAfFgilprtux] [name[=value] ...]
-    
+
     Declare variables and give them attributes (alias for declare).
-    
+
     Options:
       -a    Declare indexed array variables
       -A    Declare associative array variables
@@ -672,18 +672,18 @@ class TypesetBuiltin(DeclareBuiltin):
       -p    Display the attributes and value of each variable
       -r    Make variables readonly
       -t    Give variables the 'trace' attribute (functions only)
-      -u    Convert values to uppercase on assignment  
+      -u    Convert values to uppercase on assignment
       -x    Make variables export to the environment
       +x    Remove export attribute
       +r    Remove readonly attribute (if possible)
-    
+
     Using '+' instead of '-' turns off the given attribute.
-    
+
     With no arguments, display all variables and their values.
     With -p, display variables in a reusable format.
     With -f, display all function definitions.
     With -F, display all function names.
-    
+
     Note: typeset is supplied for compatibility with the Korn shell.
     It is exactly equivalent to declare."""
 
@@ -776,20 +776,20 @@ class ReadonlyBuiltin(Builtin):
     @property
     def help(self) -> str:
         return """readonly: readonly [-f] [-p] [name[=value] ...]
-    
+
     Mark variables or functions as readonly.
-    
+
     Mark each name as readonly; the values of these names may not be changed
     by subsequent assignment. If value is supplied, assign value before
     marking as readonly.
-    
+
     Options:
       -f    Mark functions as readonly (cannot be redefined)
       -p    Display all readonly variables in declare format
-    
+
     With no arguments, display all readonly variables.
     With -f and no names, display all readonly functions.
-    
+
     Exit Status:
     Returns success unless an invalid option is given or name is invalid."""
 

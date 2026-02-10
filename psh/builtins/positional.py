@@ -58,10 +58,10 @@ class ShiftBuiltin(Builtin):
     def help(self) -> str:
         return """shift: shift [n]
     Shift positional parameters.
-    
+
     Rename the positional parameters $N+1,$N+2 ... to $1,$2 ...  If N is
     not given, it is assumed to be 1.
-    
+
     Exit Status:
     Returns success unless N is negative or greater than $#."""
 
@@ -209,21 +209,21 @@ class GetoptsBuiltin(Builtin):
     def help(self) -> str:
         return """getopts: getopts optstring name [arg ...]
     Parse option arguments.
-    
+
     Getopts is used by shell procedures to parse positional parameters
     as options.
-    
+
     OPTSTRING contains the option letters to be recognized; if a letter
     is followed by a colon, the option is expected to have an argument,
     which should be separated from it by white space.
-    
+
     Each time it is invoked, getopts will place the next option in the
     shell variable $name, initializing name if it does not exist, and
     the index of the next argument to be processed into the shell
     variable OPTIND.  OPTIND is initialized to 1 each time the shell or
     a shell script is invoked.  When an option requires an argument,
     getopts places that argument into the shell variable OPTARG.
-    
+
     getopts reports errors in one of two ways.  If the first character
     of OPTSTRING is a colon, getopts uses silent error reporting.  In
     this mode, no error messages are printed.  If an invalid option is
@@ -234,14 +234,14 @@ class GetoptsBuiltin(Builtin):
     NAME and unsets OPTARG.  If a required argument is not found, a '?'
     is placed in NAME, OPTARG is unset, and a diagnostic message is
     printed.
-    
+
     If the shell variable OPTERR has the value 0, getopts disables the
     printing of error messages, even if the first character of
     OPTSTRING is not a colon.  OPTERR has the value 1 by default.
-    
+
     Getopts normally parses the positional parameters, but if arguments
     are supplied as ARG values, they are parsed instead.
-    
+
     Exit Status:
     Returns success if an option is found; fails if the end of options is
     encountered or an error occurs."""

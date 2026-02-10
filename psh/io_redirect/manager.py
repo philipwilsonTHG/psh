@@ -462,12 +462,12 @@ class IOManager:
     def handle_heredoc(self, delimiter: str, content: str, strip_tabs: bool = False) -> str:
         """
         Handle here document creation.
-        
+
         Args:
             delimiter: The heredoc delimiter
             content: The heredoc content
             strip_tabs: Whether to strip leading tabs (for <<- operator)
-            
+
         Returns:
             Path to temporary file containing heredoc content
         """

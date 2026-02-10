@@ -35,7 +35,7 @@ from .tokens import TokenParsers
 
 class CommandParsers:
     """Parsers for shell commands and command structures.
-    
+
     This class provides parsers for building the command hierarchy:
     simple commands -> pipelines -> and-or lists -> statement lists
     """
@@ -44,7 +44,7 @@ class CommandParsers:
                  token_parsers: Optional[TokenParsers] = None,
                  expansion_parsers: Optional[ExpansionParsers] = None):
         """Initialize command parsers.
-        
+
         Args:
             config: Parser configuration
             token_parsers: Token parsers to use
@@ -82,11 +82,11 @@ class CommandParsers:
 
     def _parse_redirection(self, tokens: List[Token], pos: int) -> ParseResult[Redirect]:
         """Parse I/O redirection.
-        
+
         Args:
             tokens: List of tokens
             pos: Current position
-            
+
         Returns:
             ParseResult with Redirect node
         """
@@ -178,7 +178,7 @@ class CommandParsers:
 
     def _build_simple_command_parser(self) -> Parser[SimpleCommand]:
         """Build parser for simple commands.
-        
+
         Returns:
             Parser that produces SimpleCommand nodes
         """
@@ -217,12 +217,12 @@ class CommandParsers:
                              redirects: List[Redirect],
                              background: bool = False) -> SimpleCommand:
         """Build a SimpleCommand with proper token type and quote preservation.
-        
+
         Args:
             word_tokens: List of word tokens
             redirects: List of redirections
             background: Whether command runs in background
-            
+
         Returns:
             SimpleCommand AST node
         """
@@ -241,7 +241,7 @@ class CommandParsers:
 
     def _build_pipeline_parser(self) -> Parser[Union[Pipeline, ASTNode]]:
         """Build parser for pipelines.
-        
+
         Returns:
             Parser that produces Pipeline or unwrapped command nodes
         """
@@ -272,7 +272,7 @@ class CommandParsers:
 
     def _build_and_or_list_parser(self) -> Parser[AndOrList]:
         """Build parser for and-or lists.
-        
+
         Returns:
             Parser that produces AndOrList nodes
         """
@@ -289,10 +289,10 @@ class CommandParsers:
 
     def _build_and_or_list_from_parts(self, parse_result: tuple) -> AndOrList:
         """Build an AndOrList from parsed components.
-        
+
         Args:
             parse_result: Tuple of (first_element, rest_pairs)
-            
+
         Returns:
             AndOrList AST node
         """
@@ -331,7 +331,7 @@ class CommandParsers:
 
     def _build_statement_parser(self) -> Parser[Union[AndOrList, FunctionDef]]:
         """Build parser for statements.
-        
+
         Returns:
             Parser that produces statement nodes
         """
@@ -341,7 +341,7 @@ class CommandParsers:
 
     def _build_statement_list_parser(self) -> Parser[CommandList]:
         """Build parser for statement lists.
-        
+
         Returns:
             Parser that produces CommandList nodes
         """
@@ -365,9 +365,9 @@ class CommandParsers:
 
     def set_command_parser(self, command_parser: Parser):
         """Set the command parser (includes control structures).
-        
+
         This is called after control structures are initialized to break circular dependency.
-        
+
         Args:
             command_parser: Parser that handles both simple commands and control structures
         """
@@ -403,12 +403,12 @@ def create_command_parsers(config: Optional[ParserConfig] = None,
                           token_parsers: Optional[TokenParsers] = None,
                           expansion_parsers: Optional[ExpansionParsers] = None) -> CommandParsers:
     """Create and return a CommandParsers instance.
-    
+
     Args:
         config: Optional parser configuration
         token_parsers: Optional token parsers
         expansion_parsers: Optional expansion parsers
-        
+
     Returns:
         Initialized CommandParsers object
     """
@@ -418,11 +418,11 @@ def create_command_parsers(config: Optional[ParserConfig] = None,
 def parse_simple_command(tokens: TokenParsers,
                          expansions: ExpansionParsers) -> Parser[SimpleCommand]:
     """Create parser for simple commands.
-    
+
     Args:
         tokens: Token parsers
         expansions: Expansion parsers
-        
+
     Returns:
         Parser that matches simple commands
     """
@@ -432,10 +432,10 @@ def parse_simple_command(tokens: TokenParsers,
 
 def parse_pipeline(command_parser: Parser) -> Parser[Union[Pipeline, ASTNode]]:
     """Create parser for pipelines.
-    
+
     Args:
         command_parser: Parser for commands
-        
+
     Returns:
         Parser that matches pipelines
     """
@@ -453,10 +453,10 @@ def parse_pipeline(command_parser: Parser) -> Parser[Union[Pipeline, ASTNode]]:
 
 def parse_and_or_list(pipeline_parser: Parser) -> Parser[AndOrList]:
     """Create parser for and-or lists.
-    
+
     Args:
         pipeline_parser: Parser for pipelines
-        
+
     Returns:
         Parser that matches and-or lists
     """

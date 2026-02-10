@@ -27,7 +27,7 @@ class VarAttributes(Flag):
 @dataclass
 class Variable:
     """Enhanced variable with attributes and value.
-    
+
     Attributes:
         name: Variable name
         value: Variable value (can be str, IndexedArray, AssociativeArray, or int)
@@ -117,7 +117,7 @@ class Variable:
 
 class IndexedArray:
     """Indexed array implementation for bash-style arrays.
-    
+
     Supports sparse arrays where indices don't need to be contiguous.
     """
 
@@ -187,7 +187,7 @@ class IndexedArray:
 
 class AssociativeArray:
     """Associative array (hash/dictionary) implementation.
-    
+
     Provides bash-compatible associative array functionality.
     """
 

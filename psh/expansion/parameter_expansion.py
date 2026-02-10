@@ -22,7 +22,7 @@ class ParameterExpansion:
     def parse_expansion(self, expr: str) -> Tuple[str, str, str]:
         """
         Parse a parameter expansion expression.
-        
+
         Returns (operator, var_name, operand) where:
         - operator: '#', '##', '%', '%%', '/', '//', '/#', '/%', ':', '!', '^', '^^', ',', ',,'
         - var_name: The variable name

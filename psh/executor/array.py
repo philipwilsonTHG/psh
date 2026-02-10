@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 class ArrayOperationExecutor:
     """
     Handles array initialization and element operations.
-    
+
     This class encapsulates all logic for array operations including:
     - Array initialization (indexed and associative)
     - Array element assignment
@@ -37,10 +37,10 @@ class ArrayOperationExecutor:
     def execute_array_initialization(self, node: 'ArrayInitialization') -> int:
         """
         Execute array initialization: arr=(a b c)
-        
+
         Args:
             node: The ArrayInitialization AST node
-            
+
         Returns:
             Exit status code (0 for success)
         """
@@ -106,10 +106,10 @@ class ArrayOperationExecutor:
     def execute_array_element_assignment(self, node: 'ArrayElementAssignment') -> int:
         """
         Execute array element assignment: arr[i]=value
-        
+
         Args:
             node: The ArrayElementAssignment AST node
-            
+
         Returns:
             Exit status code (0 for success)
         """
@@ -215,13 +215,13 @@ class ArrayOperationExecutor:
                                        start_index: int, split_words: bool = True) -> int:
         """
         Add expanded element to array with glob expansion.
-        
+
         Args:
             array: The array to add elements to
             element: The element to expand and add
             start_index: Starting index for sequential assignment
             split_words: Whether to split on whitespace after expansion
-            
+
         Returns:
             Next available index after adding elements
         """
@@ -259,7 +259,7 @@ class ArrayOperationExecutor:
     def _parse_explicit_array_assignment(self, element: str) -> Tuple[Optional[Union[str, int]], Optional[str]]:
         """
         Parse explicit array assignment: [index]=value
-        
+
         Returns:
             tuple: (index, value) or (None, None) if parsing fails
         """

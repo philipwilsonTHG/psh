@@ -29,12 +29,12 @@ class CompletionManager(InteractiveComponent):
     def execute(self, text: str, line: str, cursor_pos: int) -> List[str]:
         """
         Perform tab completion for the given context.
-        
+
         Args:
             text: The text to complete
             line: The full command line
             cursor_pos: Current cursor position
-            
+
         Returns:
             List of possible completions
         """
@@ -43,12 +43,12 @@ class CompletionManager(InteractiveComponent):
     def get_completions(self, text: str, line: str, cursor_pos: int) -> List[str]:
         """
         Get all possible completions for the given context.
-        
+
         Args:
             text: The text to complete
             line: The full command line
             cursor_pos: Current cursor position
-            
+
         Returns:
             List of possible completions
         """
@@ -63,14 +63,14 @@ class CompletionManager(InteractiveComponent):
     def _readline_completer(self, text: str, state: int) -> Optional[str]:
         """
         Readline completer function.
-        
+
         This is called by readline to get completions. It's called repeatedly
         with increasing state values until it returns None.
-        
+
         Args:
             text: The text to complete
             state: The state (0 for first call, increments for each match)
-            
+
         Returns:
             The next completion or None when done
         """
@@ -93,10 +93,10 @@ class CompletionManager(InteractiveComponent):
     def complete_command(self, text: str) -> List[str]:
         """
         Complete a command name.
-        
+
         Args:
             text: Partial command name
-            
+
         Returns:
             List of matching command names
         """
@@ -113,10 +113,10 @@ class CompletionManager(InteractiveComponent):
     def complete_path(self, text: str) -> List[str]:
         """
         Complete a file or directory path.
-        
+
         Args:
             text: Partial path
-            
+
         Returns:
             List of matching paths
         """
@@ -127,10 +127,10 @@ class CompletionManager(InteractiveComponent):
     def complete_variable(self, text: str) -> List[str]:
         """
         Complete a variable name.
-        
+
         Args:
             text: Partial variable name (including $)
-            
+
         Returns:
             List of matching variable names
         """

@@ -17,14 +17,14 @@ class ParseTreeBuiltin(Builtin):
 
     def execute(self, args: List[str], shell) -> int:
         """Execute the parse-tree builtin.
-        
+
         Usage: parse-tree [OPTIONS] COMMAND
-        
+
         Options:
             -f FORMAT    Output format: pretty, tree, compact, dot (default: tree)
             -p           Show position information
             -h           Show this help
-        
+
         Examples:
             parse-tree "echo hello | grep world"
             parse-tree -f pretty "if true; then echo hi; fi"

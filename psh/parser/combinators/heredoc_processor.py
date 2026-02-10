@@ -31,7 +31,7 @@ from ...ast_nodes import (
 
 class HeredocProcessor:
     """Processes heredoc content in parsed AST.
-    
+
     This class provides functionality to traverse an AST and populate
     heredoc content in redirect nodes that reference heredocs. The heredoc
     content is collected during lexing/parsing and then populated in a
@@ -45,11 +45,11 @@ class HeredocProcessor:
     def populate_heredocs(self, ast: ASTNode,
                          heredoc_contents: Dict[str, str]) -> None:
         """Populate heredoc content in AST nodes.
-        
+
         This method traverses the AST and looks for redirect nodes that
         have heredoc operators. When found, it populates the heredoc_content
         field with the corresponding content from the heredoc_contents map.
-        
+
         Args:
             ast: The root AST node to process
             heredoc_contents: Map of heredoc keys to their content
@@ -62,7 +62,7 @@ class HeredocProcessor:
     def _traverse_node(self, node: ASTNode,
                       heredoc_contents: Dict[str, str]) -> None:
         """Recursively traverse AST nodes to populate heredoc content.
-        
+
         Args:
             node: Current AST node to process
             heredoc_contents: Map of heredoc keys to their content
@@ -137,7 +137,7 @@ class HeredocProcessor:
     def _process_redirects(self, redirects: List[Redirect],
                           heredoc_contents: Dict[str, str]) -> None:
         """Process redirections to populate heredoc content.
-        
+
         Args:
             redirects: List of redirect nodes
             heredoc_contents: Map of heredoc keys to their content
@@ -151,7 +151,7 @@ class HeredocProcessor:
     def _process_simple_command(self, node: SimpleCommand,
                                heredoc_contents: Dict[str, str]) -> None:
         """Process simple command node.
-        
+
         Args:
             node: Simple command node
             heredoc_contents: Map of heredoc keys to their content
@@ -162,7 +162,7 @@ class HeredocProcessor:
     def _process_pipeline(self, node: Pipeline,
                          heredoc_contents: Dict[str, str]) -> None:
         """Process pipeline node.
-        
+
         Args:
             node: Pipeline node
             heredoc_contents: Map of heredoc keys to their content
@@ -173,7 +173,7 @@ class HeredocProcessor:
     def _process_and_or_list(self, node: AndOrList,
                             heredoc_contents: Dict[str, str]) -> None:
         """Process and-or list node.
-        
+
         Args:
             node: And-or list node
             heredoc_contents: Map of heredoc keys to their content
@@ -184,7 +184,7 @@ class HeredocProcessor:
     def _process_if_conditional(self, node: IfConditional,
                                heredoc_contents: Dict[str, str]) -> None:
         """Process if conditional node.
-        
+
         Args:
             node: If conditional node
             heredoc_contents: Map of heredoc keys to their content
@@ -208,7 +208,7 @@ class HeredocProcessor:
     def _process_while_loop(self, node: WhileLoop,
                            heredoc_contents: Dict[str, str]) -> None:
         """Process while loop node.
-        
+
         Args:
             node: While loop node
             heredoc_contents: Map of heredoc keys to their content
@@ -219,7 +219,7 @@ class HeredocProcessor:
     def _process_for_loop(self, node: ForLoop,
                          heredoc_contents: Dict[str, str]) -> None:
         """Process for loop node.
-        
+
         Args:
             node: For loop node
             heredoc_contents: Map of heredoc keys to their content
@@ -231,7 +231,7 @@ class HeredocProcessor:
     def _process_c_style_for_loop(self, node: CStyleForLoop,
                                  heredoc_contents: Dict[str, str]) -> None:
         """Process C-style for loop node.
-        
+
         Args:
             node: C-style for loop node
             heredoc_contents: Map of heredoc keys to their content
@@ -243,7 +243,7 @@ class HeredocProcessor:
     def _process_case_statement(self, node: CaseConditional,
                                heredoc_contents: Dict[str, str]) -> None:
         """Process case statement node.
-        
+
         Args:
             node: Case statement node
             heredoc_contents: Map of heredoc keys to their content
@@ -254,7 +254,7 @@ class HeredocProcessor:
     def _process_select_loop(self, node: SelectLoop,
                             heredoc_contents: Dict[str, str]) -> None:
         """Process select loop node.
-        
+
         Args:
             node: Select loop node
             heredoc_contents: Map of heredoc keys to their content
@@ -269,7 +269,7 @@ class HeredocProcessor:
     def _process_function_def(self, node: FunctionDef,
                              heredoc_contents: Dict[str, str]) -> None:
         """Process function definition node.
-        
+
         Args:
             node: Function definition node
             heredoc_contents: Map of heredoc keys to their content
@@ -279,7 +279,7 @@ class HeredocProcessor:
     def _process_subshell_group(self, node: SubshellGroup,
                                heredoc_contents: Dict[str, str]) -> None:
         """Process subshell group node.
-        
+
         Args:
             node: Subshell group node
             heredoc_contents: Map of heredoc keys to their content
@@ -293,7 +293,7 @@ class HeredocProcessor:
     def _process_brace_group(self, node: BraceGroup,
                            heredoc_contents: Dict[str, str]) -> None:
         """Process brace group node.
-        
+
         Args:
             node: Brace group node
             heredoc_contents: Map of heredoc keys to their content
@@ -307,7 +307,7 @@ class HeredocProcessor:
     def _process_arithmetic_evaluation(self, node: ArithmeticEvaluation,
                                       heredoc_contents: Dict[str, str]) -> None:
         """Process arithmetic evaluation node.
-        
+
         Args:
             node: Arithmetic evaluation node
             heredoc_contents: Map of heredoc keys to their content
@@ -319,7 +319,7 @@ class HeredocProcessor:
     def _process_enhanced_test(self, node: EnhancedTestStatement,
                               heredoc_contents: Dict[str, str]) -> None:
         """Process enhanced test statement node.
-        
+
         Args:
             node: Enhanced test statement node
             heredoc_contents: Map of heredoc keys to their content
@@ -331,7 +331,7 @@ class HeredocProcessor:
     def _process_statement_list(self, node: Union[CommandList, StatementList],
                                heredoc_contents: Dict[str, str]) -> None:
         """Process command list or statement list node.
-        
+
         Args:
             node: Command list or statement list node
             heredoc_contents: Map of heredoc keys to their content
@@ -342,10 +342,10 @@ class HeredocProcessor:
     def _process_generic_node(self, node: ASTNode,
                             heredoc_contents: Dict[str, str]) -> None:
         """Process any other node type generically.
-        
+
         This is a fallback for node types that aren't explicitly handled.
         It traverses all attributes looking for AST nodes to process.
-        
+
         Args:
             node: Any AST node
             heredoc_contents: Map of heredoc keys to their content
@@ -376,10 +376,10 @@ class HeredocProcessor:
 
     def _is_ast_node(self, obj: Any) -> bool:
         """Check if an object is likely an AST node.
-        
+
         Args:
             obj: Object to check
-            
+
         Returns:
             True if the object appears to be an AST node
         """
@@ -400,7 +400,7 @@ class HeredocProcessor:
 
 def create_heredoc_processor() -> HeredocProcessor:
     """Create and return a HeredocProcessor instance.
-    
+
     Returns:
         Initialized HeredocProcessor object
     """
@@ -409,7 +409,7 @@ def create_heredoc_processor() -> HeredocProcessor:
 
 def populate_heredocs(ast: ASTNode, heredoc_contents: Dict[str, str]) -> None:
     """Convenience function to populate heredoc content in an AST.
-    
+
     Args:
         ast: The root AST node to process
         heredoc_contents: Map of heredoc keys to their content

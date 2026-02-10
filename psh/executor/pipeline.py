@@ -64,7 +64,7 @@ class PipelineContext:
 class PipelineExecutor:
     """
     Handles execution of pipelines.
-    
+
     This class encapsulates all logic for executing Pipeline nodes,
     including process forking, pipe management, job control, and
     terminal control.
@@ -83,12 +83,12 @@ class PipelineExecutor:
                 visitor: 'ASTVisitor[int]') -> int:
         """
         Execute a pipeline and return exit status.
-        
+
         Args:
             node: The Pipeline AST node to execute
             context: The current execution context
             visitor: The visitor to use for executing individual commands
-            
+
         Returns:
             Exit status code
         """

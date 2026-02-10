@@ -128,25 +128,25 @@ class CdBuiltin(Builtin):
     def help(self) -> str:
         return """cd: cd [dir]
     Change the current directory to DIR.
-    
+
     The default DIR is the value of the HOME shell variable.
-    
+
     The variable CDPATH defines the search path for directories.
     When DIR is a relative path not starting with './' or '../',
     cd searches the directories in CDPATH (colon-separated list)
     for a directory named DIR. If found, the full path is printed.
-    
+
     Special directories:
       ~     User's home directory
       -     Previous working directory
-    
+
     Examples:
       cd              # Go to $HOME
       cd /usr/local   # Absolute path
       cd mydir        # Relative path (may search CDPATH)
       cd ./mydir      # Relative path (current dir only)
       cd -            # Previous directory
-    
+
     Exit Status:
     Returns 0 if the directory is changed; non-zero otherwise."""
 

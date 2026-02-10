@@ -148,7 +148,7 @@ class TestParser:
 
     def _parse_test_operand(self) -> tuple[str, Optional[str]]:
         """Parse a test operand, handling concatenated tokens for patterns.
-        
+
         Returns:
             tuple: (operand_string, quote_type) where quote_type is None, '"', or "'"
                   - None means treat as unquoted (glob pattern)

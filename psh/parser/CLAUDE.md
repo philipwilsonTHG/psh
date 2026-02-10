@@ -47,11 +47,17 @@ Statements Commands  Control   Functions  Tests
 | `word_builder.py` | Build Word AST nodes from tokens |
 | `utils.py` | Parser utilities |
 
-### Parser Combinators (`combinators/`)
+### Parser Combinators (`combinators/`) -- Experimental
 
-Alternative parser using functional composition. See
-[Combinator Parser Guide](../../docs/guides/combinator_parser_guide.md)
-for a detailed walkthrough.
+**Status: Experimental / Educational.** This is NOT the production parser.
+It exists as an educational counterpoint demonstrating functional parsing,
+and as a proof of concept that parser combinators can handle real shell
+syntax. There is no plan to converge with or replace the recursive descent
+parser. It may lag behind on edge-case fixes and new features.
+
+See [Combinator Parser Guide](../../docs/guides/combinator_parser_guide.md)
+for a detailed walkthrough. Use `parser-select combinator` inside psh to
+try it interactively.
 
 | File | Purpose |
 |------|---------|

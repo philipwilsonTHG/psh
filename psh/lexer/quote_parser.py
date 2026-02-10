@@ -20,7 +20,7 @@ class QuoteRules:
     ):
         """
         Initialize quote rules.
-        
+
         Args:
             quote_char: The quote character ('"', "'", '`')
             allow_expansions: Whether to process variable/command expansions
@@ -90,7 +90,7 @@ class UnifiedQuoteParser:
     def __init__(self, expansion_parser: Optional['ExpansionParser'] = None):
         """
         Initialize the unified quote parser.
-        
+
         Args:
             expansion_parser: Parser for handling expansions within quotes
         """
@@ -106,14 +106,14 @@ class UnifiedQuoteParser:
     ) -> Tuple[List[TokenPart], int, bool]:
         """
         Parse a quoted string according to the given rules.
-        
+
         Args:
             input_text: The input string
             start_pos: Starting position (after opening quote)
             rules: Quote parsing rules
             position_tracker: Optional position tracker for rich position info
             quote_type: Optional quote type override (e.g., "$'" for ANSI-C)
-            
+
         Returns:
             Tuple of (token_parts, position_after_closing_quote, found_closing_quote)
         """
@@ -210,15 +210,15 @@ class UnifiedQuoteParser:
     ) -> Tuple[str, int, bool]:
         """
         Parse a simple quoted string without expansion support.
-        
+
         This is an optimized version for single quotes and contexts
         where we just need the literal content.
-        
+
         Args:
             input_text: The input string
             start_pos: Starting position (after opening quote)
             quote_char: The quote character
-            
+
         Returns:
             Tuple of (content, position_after_closing_quote, found_closing_quote)
         """
@@ -304,7 +304,7 @@ class QuoteParsingContext:
     ):
         """
         Initialize parsing context.
-        
+
         Args:
             input_text: The input string being parsed
             position_tracker: Optional position tracker for rich position info
@@ -322,11 +322,11 @@ class QuoteParsingContext:
     ) -> Tuple[List[TokenPart], int, bool]:
         """
         Parse a quoted string starting at the given position.
-        
+
         Args:
             pos: Position of the opening quote
             quote_char: The quote character found
-            
+
         Returns:
             Tuple of (token_parts, position_after_quote, found_closing)
         """

@@ -192,7 +192,7 @@ class VariableExpander:
         Returns the result string, or None if this is not a slice
         expansion (so the caller can fall through).
         """
-        from ..core.variables import AssociativeArray, IndexedArray
+        from ..core.variables import IndexedArray
 
         bracket_pos = var_content.find('[')
         close_bracket_pos = var_content.find(']')

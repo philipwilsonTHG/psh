@@ -20,24 +20,21 @@ from ...ast_nodes import (
     TopLevel,
 )
 from ...token_types import Token, TokenType
+from ..config import ErrorHandlingMode, ParserConfig
+from ..validation import Issue, SemanticAnalyzer, Severity, ValidationPipeline, ValidationReport
 from .base_context import ContextBaseParser
 from .context import ParserContext
 from .helpers import ParseError, TokenGroups
+from .parsers.arithmetic import ArithmeticParser
+from .parsers.arrays import ArrayParser
 from .parsers.commands import CommandParser
 from .parsers.control_structures import ControlStructureParser
+from .parsers.functions import FunctionParser
+from .parsers.redirections import RedirectionParser
 from .parsers.statements import StatementParser
 from .parsers.tests import TestParser
 from .support.context_factory import create_context
-
-
-from ..config import ErrorHandlingMode, ParserConfig
-from ..validation import Issue, SemanticAnalyzer, Severity, ValidationPipeline, ValidationReport
-from .parsers.arithmetic import ArithmeticParser
-from .parsers.arrays import ArrayParser
-from .parsers.functions import FunctionParser
-from .parsers.redirections import RedirectionParser
 from .support.utils import ParserUtils
-
 
 # Recovery token sets for error recovery
 _STATEMENT_START = frozenset({

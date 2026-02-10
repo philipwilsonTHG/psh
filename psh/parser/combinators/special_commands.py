@@ -30,7 +30,7 @@ from .utils import format_token_value
 
 class SpecialCommandParsers:
     """Parsers for special shell syntax.
-    
+
     This class provides parsers for specialized command forms:
     - Arithmetic commands ((expression))
     - Enhanced test expressions [[ condition ]]
@@ -42,7 +42,7 @@ class SpecialCommandParsers:
                  token_parsers: Optional[TokenParsers] = None,
                  command_parsers: Optional[CommandParsers] = None):
         """Initialize special command parsers.
-        
+
         Args:
             config: Parser configuration
             token_parsers: Token parsers to use
@@ -56,9 +56,9 @@ class SpecialCommandParsers:
 
     def set_command_parsers(self, command_parsers: CommandParsers):
         """Set command parsers after initialization.
-        
+
         This breaks the circular dependency between command and special parsers.
-        
+
         Args:
             command_parsers: Command parsers to use
         """
@@ -222,10 +222,10 @@ class SpecialCommandParsers:
 
     def _parse_test_expression(self, tokens: List[Token]) -> Optional[TestExpression]:
         """Parse test expression from a list of tokens.
-        
+
         Args:
             tokens: List of tokens representing the test expression
-            
+
         Returns:
             Parsed TestExpression or None if invalid
         """
@@ -282,10 +282,10 @@ class SpecialCommandParsers:
 
     def _format_test_operand(self, token: Token) -> str:
         """Format a test operand token for proper shell representation.
-        
+
         Args:
             token: Token to format
-            
+
         Returns:
             Formatted string representation
         """
@@ -578,11 +578,11 @@ class SpecialCommandParsers:
 
     def _detect_array_pattern(self, tokens: List[Token], pos: int) -> str:
         """Detect what type of array pattern we have at the current position.
-        
+
         Args:
             tokens: List of tokens
             pos: Current position
-            
+
         Returns:
             'initialization' for arr=(elements)
             'element_assignment' for arr[index]=value
@@ -692,12 +692,12 @@ def create_special_command_parsers(config: Optional[ParserConfig] = None,
                                   token_parsers: Optional[TokenParsers] = None,
                                   command_parsers: Optional[CommandParsers] = None) -> SpecialCommandParsers:
     """Create and return a SpecialCommandParsers instance.
-    
+
     Args:
         config: Optional parser configuration
         token_parsers: Optional token parsers
         command_parsers: Optional command parsers
-        
+
     Returns:
         Initialized SpecialCommandParsers object
     """

@@ -18,13 +18,13 @@ class DebugASTBuiltin(Builtin):
 
     def execute(self, args: List[str], shell) -> int:
         """Execute the debug-ast builtin.
-        
+
         Usage: debug-ast [on|off] [FORMAT]
-        
+
         Arguments:
             on|off     Enable or disable AST debugging (default: toggle)
             FORMAT     AST format: tree, pretty, compact, dot, sexp (default: tree)
-        
+
         Examples:
             debug-ast              # Toggle AST debugging
             debug-ast on           # Enable AST debugging with tree format
@@ -104,16 +104,16 @@ class DebugBuiltin(Builtin):
 
     def execute(self, args: List[str], shell) -> int:
         """Execute the debug builtin.
-        
+
         Usage: debug [OPTION] [on|off]
-        
+
         Options:
             ast          AST debugging
-            tokens       Token debugging  
+            tokens       Token debugging
             scopes       Scope debugging
             expansion    Expansion debugging
             exec         Execution debugging
-            
+
         Examples:
             debug                    # Show all debug options
             debug ast on             # Enable AST debugging

@@ -243,7 +243,7 @@ class ProcessLauncher:
             try:
                 sys.stdout.flush()
                 sys.stderr.flush()
-            except:
+            except Exception:
                 pass
             os._exit(exit_code)
 
@@ -308,7 +308,7 @@ class ProcessLauncher:
         if foreground:
             try:
                 original_pgid = os.tcgetpgrp(0)
-            except:
+            except OSError:
                 pass
 
         # Set up I/O redirection callback if needed

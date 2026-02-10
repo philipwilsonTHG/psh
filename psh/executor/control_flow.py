@@ -41,7 +41,7 @@ if TYPE_CHECKING:
 class ControlFlowExecutor:
     """
     Handles execution of control flow structures.
-    
+
     This class encapsulates all logic for executing control structures
     including conditionals, loops, and flow control statements.
     """
@@ -57,12 +57,12 @@ class ControlFlowExecutor:
                    visitor: 'ASTVisitor[int]') -> int:
         """
         Execute if/then/else statement.
-        
+
         Args:
             node: The IfConditional AST node
             context: Current execution context
             visitor: Visitor for executing child nodes
-            
+
         Returns:
             Exit status code
         """
@@ -96,12 +96,12 @@ class ControlFlowExecutor:
                       visitor: 'ASTVisitor[int]') -> int:
         """
         Execute while loop.
-        
+
         Args:
             node: The WhileLoop AST node
             context: Current execution context
             visitor: Visitor for executing child nodes
-            
+
         Returns:
             Exit status code
         """
@@ -172,12 +172,12 @@ class ControlFlowExecutor:
                     visitor: 'ASTVisitor[int]') -> int:
         """
         Execute for loop.
-        
+
         Args:
             node: The ForLoop AST node
             context: Current execution context
             visitor: Visitor for executing child nodes
-            
+
         Returns:
             Exit status code
         """
@@ -223,12 +223,12 @@ class ControlFlowExecutor:
                             visitor: 'ASTVisitor[int]') -> int:
         """
         Execute C-style for loop: for ((init; cond; update))
-        
+
         Args:
             node: The CStyleForLoop AST node
             context: Current execution context
             visitor: Visitor for executing child nodes
-            
+
         Returns:
             Exit status code
         """
@@ -288,12 +288,12 @@ class ControlFlowExecutor:
                      visitor: 'ASTVisitor[int]') -> int:
         """
         Execute case statement.
-        
+
         Args:
             node: The CaseConditional AST node
             context: Current execution context
             visitor: Visitor for executing child nodes
-            
+
         Returns:
             Exit status code
         """
@@ -357,12 +357,12 @@ class ControlFlowExecutor:
                        visitor: 'ASTVisitor[int]') -> int:
         """
         Execute select loop for interactive menu selection.
-        
+
         Args:
             node: The SelectLoop AST node
             context: Current execution context
             visitor: Visitor for executing child nodes
-            
+
         Returns:
             Exit status code
         """
@@ -453,11 +453,11 @@ class ControlFlowExecutor:
     def execute_break(self, node: 'BreakStatement', context: 'ExecutionContext') -> int:
         """
         Execute break statement.
-        
+
         Args:
             node: The BreakStatement AST node
             context: Current execution context
-            
+
         Returns:
             Never returns normally, always raises LoopBreak
         """
@@ -470,11 +470,11 @@ class ControlFlowExecutor:
     def execute_continue(self, node: 'ContinueStatement', context: 'ExecutionContext') -> int:
         """
         Execute continue statement.
-        
+
         Args:
             node: The ContinueStatement AST node
             context: Current execution context
-            
+
         Returns:
             Never returns normally, always raises LoopContinue
         """
@@ -581,13 +581,13 @@ class ControlFlowExecutor:
 
     def _convert_case_pattern_for_fnmatch(self, pattern: str) -> str:
         """Convert bash-style case pattern escapes to fnmatch format.
-        
+
         In bash case patterns:
         - \\[ means literal [, not character class
-        - \\] means literal ], not character class  
+        - \\] means literal ], not character class
         - \\* means literal *, not wildcard
         - \\? means literal ?, not single char wildcard
-        
+
         Note: The tokenizer strips backslashes, so we need to detect patterns that
         were likely escaped and restore the literal meaning.
         """

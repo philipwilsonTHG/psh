@@ -185,7 +185,7 @@ class EnvBuiltin(Builtin):
     @property
     def help(self) -> str:
         return """env: env [OPTION]... [-] [name=value ...] [command [args ...]]
-    
+
     Display environment variables or run a command with modified environment.
     With no arguments, print all environment variables.
     With -i (or -), start with an empty environment.
@@ -232,7 +232,7 @@ class ExportBuiltin(Builtin):
     @property
     def help(self) -> str:
         return """export: export [name[=value] ...]
-    
+
     Export variables to the environment.
     With no arguments, print all exported variables.
     With name=value, set the variable and export it.
@@ -373,10 +373,10 @@ class SetBuiltin(Builtin):
     @property
     def help(self) -> str:
         return """set: set [-abCefhmnuvx] [+abCefhmnuvx] [-o option] [arg ...]
-    
+
     Set shell options and positional parameters.
     With no arguments, print all shell variables.
-    
+
     Short options:
       -a                Enable allexport (auto-export all variables)
       -b                Enable notify (async job completion notifications)
@@ -390,7 +390,7 @@ class SetBuiltin(Builtin):
       -v                Enable verbose (echo input lines as read)
       -x                Enable xtrace (print commands before execution)
       +<option>         Disable the specified option
-    
+
     Long options:
       -o                Show current option settings
       -o vi             Set vi editing mode
@@ -421,7 +421,7 @@ class SetBuiltin(Builtin):
       -o debug-expansion Enable expansion debug output
       -o debug-exec     Enable executor debug output
       +o <option>       Disable the specified option
-    
+
     With arguments, set positional parameters ($1, $2, etc.)."""
 
     def _show_all_options(self, shell: 'Shell'):
@@ -570,11 +570,11 @@ class UnsetBuiltin(Builtin):
     @property
     def help(self) -> str:
         return """unset: unset [-f] name [name ...]
-    
+
     Unset variables or functions.
-    
+
     Options:
       -f    Treat names as functions
-    
+
     Without -f, remove the named variables from both shell
     variables and the environment."""

@@ -13,7 +13,7 @@ class ASTDotGenerator(ASTVisitor[str]):
     def __init__(self, graph_name: str = "AST", show_positions: bool = False,
                  compact_nodes: bool = True, color_by_type: bool = True):
         """Initialize the DOT generator.
-        
+
         Args:
             graph_name: Name of the generated graph
             show_positions: Whether to include token positions in labels
@@ -309,10 +309,10 @@ class ASTDotGenerator(ASTVisitor[str]):
 
     def to_dot(self, ast: ASTNode) -> str:
         """Convert AST to DOT format.
-        
+
         Args:
             ast: Root AST node to convert
-            
+
         Returns:
             DOT format string
         """
@@ -354,11 +354,11 @@ class ASTDotGenerator(ASTVisitor[str]):
 
 def generate_dot(ast: ASTNode, **kwargs) -> str:
     """Convenience function to generate DOT from AST.
-    
+
     Args:
         ast: The AST node to convert
         **kwargs: Arguments passed to ASTDotGenerator
-        
+
     Returns:
         DOT format string
     """

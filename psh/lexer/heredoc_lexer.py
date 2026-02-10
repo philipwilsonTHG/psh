@@ -15,7 +15,7 @@ from .modular_lexer import ModularLexer
 class HeredocLexer:
     """
     Lexer with heredoc collection support.
-    
+
     This lexer wraps the standard lexer and adds multi-line heredoc
     collection capabilities.
     """
@@ -23,7 +23,7 @@ class HeredocLexer:
     def __init__(self, source: str, config=None):
         """
         Initialize the heredoc lexer.
-        
+
         Args:
             source: The source code to tokenize
             config: Optional lexer configuration
@@ -40,7 +40,7 @@ class HeredocLexer:
     def tokenize(self) -> List[Token]:
         """
         Tokenize the source code with heredoc support.
-        
+
         Returns:
             List of tokens with heredoc content collected
         """
@@ -148,7 +148,7 @@ class HeredocLexer:
     def get_heredoc_map(self) -> Dict[str, Dict[str, any]]:
         """
         Get the collected heredoc content map.
-        
+
         Returns:
             Dictionary mapping heredoc keys to their content and metadata
         """
@@ -157,7 +157,7 @@ class HeredocLexer:
     def tokenize_with_heredocs(self) -> Tuple[List[Token], Dict[str, Dict[str, any]]]:
         """
         Tokenize and return both tokens and heredoc map.
-        
+
         Returns:
             Tuple of (tokens, heredoc_map)
         """
@@ -169,11 +169,11 @@ class HeredocLexer:
 def tokenize_with_heredocs(source: str, config=None) -> Tuple[List[Token], Dict[str, Dict[str, any]]]:
     """
     Convenience function to tokenize source with heredoc support.
-    
+
     Args:
         source: The source code to tokenize
         config: Optional lexer configuration
-        
+
     Returns:
         Tuple of (tokens, heredoc_map)
     """

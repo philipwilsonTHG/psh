@@ -19,15 +19,15 @@ class TokenRecognizer(ABC):
     ) -> bool:
         """
         Check if this recognizer can handle the current position.
-        
+
         This is a fast check to determine if the recognizer should
         attempt recognition. Should be efficient as it's called frequently.
-        
+
         Args:
             input_text: The input string being lexed
             pos: Current position in the input
             context: Current lexer context/state
-            
+
         Returns:
             True if this recognizer might be able to recognize a token
         """
@@ -42,12 +42,12 @@ class TokenRecognizer(ABC):
     ) -> Optional[Tuple[Token, int]]:
         """
         Attempt to recognize a token at the current position.
-        
+
         Args:
             input_text: The input string being lexed
             pos: Current position in the input
             context: Current lexer context/state
-            
+
         Returns:
             Tuple of (token, new_position) if recognized, None otherwise
         """
@@ -58,7 +58,7 @@ class TokenRecognizer(ABC):
     def priority(self) -> int:
         """
         Recognition priority (higher = checked first).
-        
+
         Suggested priority ranges:
         - 100-200: Operators and structural tokens
         - 80-99: Keywords and reserved words
@@ -85,11 +85,11 @@ class ContextualRecognizer(TokenRecognizer):
     ) -> bool:
         """
         Check if the candidate token is valid in the current context.
-        
+
         Args:
             candidate: The candidate token string
             context: Current lexer context
-            
+
         Returns:
             True if the token is valid in this context
         """

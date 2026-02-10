@@ -145,10 +145,10 @@ class ValidatorConfig:
 class EnhancedValidatorVisitor(ValidatorVisitor):
     """
     Enhanced validator with comprehensive validation checks.
-    
+
     This visitor extends the base validator with:
     - Undefined variable detection
-    - Command existence and typo checking  
+    - Command existence and typo checking
     - Quoting analysis
     - Security vulnerability detection
     """

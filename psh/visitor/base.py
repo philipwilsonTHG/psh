@@ -16,7 +16,7 @@ T = TypeVar('T')
 class ASTVisitor(ABC, Generic[T]):
     """
     Base class for AST visitors using double dispatch.
-    
+
     Subclasses should implement visit_* methods for each AST node type they
     want to handle. The visit() method automatically dispatches to the correct
     visit_* method based on the node's class name.
@@ -29,10 +29,10 @@ class ASTVisitor(ABC, Generic[T]):
     def visit(self, node: ASTNode) -> T:
         """
         Dispatch to the appropriate visit_* method based on node type.
-        
+
         Args:
             node: The AST node to visit
-            
+
         Returns:
             The result of visiting the node
         """
@@ -47,13 +47,13 @@ class ASTVisitor(ABC, Generic[T]):
     def generic_visit(self, node: ASTNode) -> T:
         """
         Called if no explicit visitor method exists for a node.
-        
+
         Subclasses can override this to provide a default behavior for
         unhandled nodes. By default, it raises an exception.
-        
+
         Args:
             node: The unhandled AST node
-            
+
         Raises:
             NotImplementedError: If no visitor is defined for the node type
         """
@@ -65,7 +65,7 @@ class ASTVisitor(ABC, Generic[T]):
 class ASTTransformer(ASTVisitor[ASTNode]):
     """
     Base class for AST transformers that modify or replace nodes.
-    
+
     Unlike ASTVisitor which is read-only, ASTTransformer can return modified
     or replaced nodes. This is useful for optimization passes, desugaring,
     or other AST transformations.
@@ -74,12 +74,12 @@ class ASTTransformer(ASTVisitor[ASTNode]):
     def generic_visit(self, node: ASTNode) -> ASTNode:
         """
         Default transformation that returns the node unchanged.
-        
+
         Subclasses can override this to provide default transformation behavior.
-        
+
         Args:
             node: The AST node to transform
-            
+
         Returns:
             The original node (no transformation)
         """
@@ -88,10 +88,10 @@ class ASTTransformer(ASTVisitor[ASTNode]):
     def transform_children(self, node: ASTNode) -> None:
         """
         Helper method to recursively transform child nodes.
-        
+
         This method inspects the node's attributes and recursively transforms
         any child AST nodes found in lists or as direct attributes.
-        
+
         Args:
             node: The parent node whose children should be transformed
         """
@@ -136,7 +136,7 @@ class ASTTransformer(ASTVisitor[ASTNode]):
 class CompositeVisitor(ASTVisitor[None]):
     """
     A visitor that runs multiple visitors in sequence.
-    
+
     This is useful for combining multiple analysis passes or for collecting
     different types of information in a single traversal.
     """
@@ -144,7 +144,7 @@ class CompositeVisitor(ASTVisitor[None]):
     def __init__(self, visitors: list[ASTVisitor]):
         """
         Initialize with a list of visitors to run.
-        
+
         Args:
             visitors: List of visitors to execute in order
         """
@@ -153,7 +153,7 @@ class CompositeVisitor(ASTVisitor[None]):
     def visit(self, node: ASTNode) -> None:
         """
         Run all visitors on the given node.
-        
+
         Args:
             node: The AST node to visit
         """
@@ -163,7 +163,7 @@ class CompositeVisitor(ASTVisitor[None]):
     def generic_visit(self, node: ASTNode) -> None:
         """
         No-op for composite visitor.
-        
+
         Individual visitors handle their own generic_visit behavior.
         """
         pass

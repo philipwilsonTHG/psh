@@ -172,17 +172,17 @@ class WaitBuiltin(Builtin):
     def help(self) -> str:
         return """wait: wait [pid|job_id ...]
     Wait for process completion and return exit status.
-    
+
     With no arguments, waits for all currently active child processes.
     With arguments, waits for specified processes or jobs.
-    
+
     Arguments can be:
       pid         Process ID to wait for
       %job_id     Job specification (e.g., %1, %+, %-)
-    
+
     Returns the exit status of the last process waited for.
     If a specified pid is not a child of this shell, returns 127.
-    
+
     Examples:
       wait              # Wait for all background jobs
       wait %1           # Wait for job 1

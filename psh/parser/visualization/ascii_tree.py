@@ -11,7 +11,7 @@ class AsciiTreeRenderer:
     def __init__(self, show_positions: bool = False, max_width: int = 80,
                  compact_mode: bool = False, show_empty_fields: bool = False):
         """Initialize the ASCII tree renderer.
-        
+
         Args:
             show_positions: Whether to show token positions
             max_width: Maximum width before truncating labels
@@ -36,11 +36,11 @@ class AsciiTreeRenderer:
     @staticmethod
     def render(node: ASTNode, **kwargs) -> str:
         """Render AST node as ASCII tree.
-        
+
         Args:
             node: Root AST node to render
             **kwargs: Arguments passed to AsciiTreeRenderer
-            
+
         Returns:
             ASCII tree representation
         """
@@ -463,11 +463,11 @@ class DetailedAsciiTreeRenderer(AsciiTreeRenderer):
 # Convenience functions
 def render_ast_tree(ast: ASTNode, **kwargs) -> str:
     """Render AST as ASCII tree.
-    
+
     Args:
         ast: The AST node to render
         **kwargs: Arguments passed to AsciiTreeRenderer
-        
+
     Returns:
         ASCII tree string
     """
@@ -476,10 +476,10 @@ def render_ast_tree(ast: ASTNode, **kwargs) -> str:
 
 def render_compact_tree(ast: ASTNode) -> str:
     """Render AST as compact ASCII tree.
-    
+
     Args:
         ast: The AST node to render
-        
+
     Returns:
         Compact ASCII tree string
     """
@@ -488,10 +488,10 @@ def render_compact_tree(ast: ASTNode) -> str:
 
 def render_detailed_tree(ast: ASTNode) -> str:
     """Render AST as detailed ASCII tree.
-    
+
     Args:
         ast: The AST node to render
-        
+
     Returns:
         Detailed ASCII tree string
     """

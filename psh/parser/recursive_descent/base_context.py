@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 class ContextBaseParser:
     """Base parser with ParserContext for centralized state management.
-    
+
     This is the new base parser that uses ParserContext instead of managing
     state directly. It provides cleaner interfaces and better maintainability.
     """

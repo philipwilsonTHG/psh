@@ -129,7 +129,7 @@ class ExpansionPart(WordPart):
 @dataclass
 class Word(ASTNode):
     """A word that may contain expansions.
-    
+
     Examples:
     - "hello" -> [LiteralPart("hello")]
     - "$USER" -> [ExpansionPart(VariableExpansion("USER"))]
@@ -265,13 +265,13 @@ class SubshellGroup(CompoundCommand):
 @dataclass
 class BraceGroup(CompoundCommand):
     """Represents a brace group {...} that executes in the current shell environment.
-    
+
     Unlike subshells, brace groups:
     - Execute in the current shell process (no fork)
     - Variable assignments persist to the parent environment
     - Directory changes (cd) affect the parent shell
     - Are more efficient (no subprocess overhead)
-    
+
     POSIX syntax requirements:
     - Must have space after opening brace: { command
     - Must have semicolon or newline before closing brace: command; }

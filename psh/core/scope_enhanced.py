@@ -76,7 +76,7 @@ class EnhancedScopeManager:
 
     def get_variable(self, name: str, default: Optional[str] = None) -> Optional[str]:
         """Get variable value as string (backward compatibility).
-        
+
         Returns the string value of the variable or default if not found.
         """
         var = self.get_variable_object(name)
@@ -109,7 +109,7 @@ class EnhancedScopeManager:
                      attributes: VarAttributes = VarAttributes.NONE,
                      local: bool = False):
         """Set variable with attributes in appropriate scope.
-        
+
         Args:
             name: Variable name
             value: Variable value
@@ -185,7 +185,7 @@ class EnhancedScopeManager:
     def create_local(self, name: str, value: Optional[Any] = None,
                      attributes: VarAttributes = VarAttributes.NONE):
         """Create a local variable in the current scope.
-        
+
         This is what the 'local' builtin uses.
         """
         if not self.is_in_function():

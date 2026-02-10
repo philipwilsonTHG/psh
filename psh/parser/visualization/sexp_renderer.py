@@ -11,7 +11,7 @@ class SExpressionRenderer:
     def __init__(self, compact_mode: bool = False, max_width: int = 80,
                  show_empty_fields: bool = False, show_positions: bool = False):
         """Initialize the S-expression renderer.
-        
+
         Args:
             compact_mode: Whether to use compact single-line format when possible
             max_width: Maximum width before breaking to multiple lines
@@ -26,11 +26,11 @@ class SExpressionRenderer:
     @staticmethod
     def render(node: ASTNode, **kwargs) -> str:
         """Render AST node as S-expression.
-        
+
         Args:
             node: Root AST node to render
             **kwargs: Arguments passed to SExpressionRenderer
-            
+
         Returns:
             S-expression representation
         """
@@ -293,11 +293,11 @@ class SExpressionRenderer:
 # Convenience functions
 def render_ast_sexp(ast: ASTNode, **kwargs) -> str:
     """Render AST as S-expression.
-    
+
     Args:
         ast: The AST node to render
         **kwargs: Arguments passed to SExpressionRenderer
-        
+
     Returns:
         S-expression string
     """
@@ -306,10 +306,10 @@ def render_ast_sexp(ast: ASTNode, **kwargs) -> str:
 
 def render_compact_sexp(ast: ASTNode) -> str:
     """Render AST as compact S-expression.
-    
+
     Args:
         ast: The AST node to render
-        
+
     Returns:
         Compact S-expression string
     """

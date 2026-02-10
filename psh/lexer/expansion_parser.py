@@ -14,7 +14,7 @@ class ExpansionParser:
     def __init__(self, config: Optional['LexerConfig'] = None):
         """
         Initialize the expansion parser.
-        
+
         Args:
             config: Optional lexer configuration for feature enablement
         """
@@ -28,12 +28,12 @@ class ExpansionParser:
     ) -> Tuple[TokenPart, int]:
         """
         Parse any form of expansion starting with $.
-        
+
         Args:
             input_text: The input string
             start_pos: Starting position (at $)
             quote_context: Quote context if inside quotes
-            
+
         Returns:
             Tuple of (token_part, position_after_expansion)
         """
@@ -275,11 +275,11 @@ class ExpansionParser:
     def can_start_expansion(self, input_text: str, pos: int) -> bool:
         """
         Check if position can start an expansion.
-        
+
         Args:
             input_text: The input string
             pos: Position to check
-            
+
         Returns:
             True if an expansion can start at this position
         """
@@ -350,7 +350,7 @@ class ExpansionContext:
     ):
         """
         Initialize expansion context.
-        
+
         Args:
             input_text: The input string being parsed
             config: Optional lexer configuration
@@ -368,11 +368,11 @@ class ExpansionContext:
     ) -> Tuple[TokenPart, int]:
         """
         Parse an expansion starting at the given position.
-        
+
         Args:
             pos: Position to start parsing
             quote_context: Quote context if inside quotes
-            
+
         Returns:
             Tuple of (token_part, position_after_expansion)
         """

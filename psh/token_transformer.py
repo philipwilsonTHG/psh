@@ -10,7 +10,7 @@ class TokenTransformer:
 
     def transform(self, tokens: List[Token]) -> List[Token]:
         """Transform tokens based on context.
-        
+
         Main transformations:
         1. Validate ;; usage - only allowed in case statements
         """

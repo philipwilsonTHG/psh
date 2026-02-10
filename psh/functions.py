@@ -81,7 +81,7 @@ class FunctionManager:
 
     def copy(self) -> 'FunctionManager':
         """Create a shallow copy of all functions.
-        
+
         Note: For now, we share AST nodes between instances since they're
         immutable once created. If we need true isolation later, we can
         implement deep copying.

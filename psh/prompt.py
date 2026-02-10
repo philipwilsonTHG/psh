@@ -21,7 +21,7 @@ class PromptExpander:
 
     def expand_prompt(self, prompt: str) -> str:
         """Expand prompt escape sequences in the given string.
-        
+
         Supported sequences:
         \\a - ASCII bell character (07)
         \\d - date in "Weekday Month Date" format
@@ -47,10 +47,10 @@ class PromptExpander:
         \\\\ - literal backslash
         \\[ - begin non-printing sequence
         \\] - end non-printing sequence
-        
+
         ANSI Color Codes (use within \\[ and \\] for proper cursor positioning):
         Example: PS1='\\[\\e[32m\\]\\u@\\h\\[\\e[0m\\]:\\w\\$ '
-        
+
         Colors: 30=black, 31=red, 32=green, 33=yellow, 34=blue, 35=magenta, 36=cyan, 37=white
         Background: 40-47 (same color order)
         Attributes: 0=reset, 1=bold, 2=dim, 4=underline, 5=blink, 7=reverse

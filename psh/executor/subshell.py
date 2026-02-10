@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 class SubshellExecutor:
     """
     Handles subshell and brace group execution.
-    
+
     This class encapsulates logic for:
     - Subshell execution with process isolation
     - Brace group execution in current shell
@@ -44,12 +44,12 @@ class SubshellExecutor:
                         visitor: 'ASTVisitor[int]') -> int:
         """
         Execute subshell group (...) in isolated environment.
-        
+
         Args:
             node: The SubshellGroup AST node
             context: Current execution context
             visitor: Visitor for executing child nodes
-            
+
         Returns:
             Exit status code
         """
@@ -59,18 +59,18 @@ class SubshellExecutor:
                            visitor: 'ASTVisitor[int]') -> int:
         """
         Execute brace group {...} in current shell environment.
-        
+
         Key differences from subshells:
         - No fork() - executes in current process
         - Variable assignments persist
         - Directory changes persist
         - More efficient (no subprocess overhead)
-        
+
         Args:
             node: The BraceGroup AST node
             context: Current execution context
             visitor: Visitor for executing child nodes
-            
+
         Returns:
             Exit status code
         """

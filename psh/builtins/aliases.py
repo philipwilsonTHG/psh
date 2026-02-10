@@ -102,7 +102,7 @@ class AliasBuiltin(Builtin):
     @property
     def help(self) -> str:
         return """alias: alias [name[=value] ...]
-    
+
     Define or display aliases.
     With no arguments, print all aliases.
     With name=value, define an alias.
@@ -139,10 +139,10 @@ class UnaliasBuiltin(Builtin):
     @property
     def help(self) -> str:
         return """unalias: unalias [-a] name [name ...]
-    
+
     Remove aliases.
-    
+
     Options:
       -a    Remove all aliases
-    
+
     Without -a, remove the specified aliases."""

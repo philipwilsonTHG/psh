@@ -17,7 +17,7 @@ class ShebangHandler(ScriptComponent):
     def parse_shebang(self, script_path: str) -> Tuple[bool, Optional[str], List[str]]:
         """
         Parse shebang line from script file.
-        
+
         Returns:
             tuple: (has_shebang, interpreter_path, interpreter_args)
         """
