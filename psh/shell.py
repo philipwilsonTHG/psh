@@ -33,7 +33,7 @@ class Shell:
     def __init__(self, args=None, script_name=None, debug_ast=False, debug_tokens=False, debug_scopes=False,
                  debug_expansion=False, debug_expansion_detail=False, debug_exec=False, debug_exec_fork=False,
                  norc=False, rcfile=None, validate_only=False, format_only=False, metrics_only=False,
-                 security_only=False, lint_only=False, parent_shell=None, ast_format=None, enhanced_lexer=None,
+                 security_only=False, lint_only=False, parent_shell=None, ast_format=None,
                  force_interactive=False):
         # Initialize state
         self.state = ShellState(args, script_name, debug_ast,
@@ -112,15 +112,6 @@ class Shell:
         # Initialize trap manager
         from .core.trap_manager import TrapManager
         self.trap_manager = TrapManager(self)
-
-        # Initialize parser integration (enhanced features now standard)
-        if enhanced_lexer is not False:  # None or True means auto-detect/enable
-            try:
-                from .shell_parser import install_parser_integration
-                install_parser_integration(self)
-            except ImportError:
-                # Parser integration not available, continue without it
-                pass
 
         # Initialize stream references (used by builtins)
         self.stdout = sys.stdout

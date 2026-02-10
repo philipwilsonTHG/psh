@@ -2,10 +2,20 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.157.0"
+__version__ = "0.158.0"
 
 # Version history
 VERSION_HISTORY = """
+0.158.0 (2026-02-10) - Remove Dead shell_parser.py Module
+- Deleted psh/shell_parser.py (248 lines): entirely dead code. It imported
+  parse_with_lexer_integration from psh.parser, which was never exported,
+  so the import always failed. shell.py caught the ImportError silently,
+  meaning ShellParser, install_parser_integration, and related functions
+  never ran. The module also referenced ParserConfig fields removed in
+  v0.131.0 (use_enhanced_tokens, enable_context_validation, etc.).
+- Removed the dead import block from Shell.__init__() in shell.py.
+- Removed the unused enhanced_lexer parameter from Shell.__init__().
+
 0.157.0 (2026-02-10) - Update Parser Combinator Feature Parity Tests
 - Removed skip_combinator=True from 10 test groups (23 cases) in
   test_parser_feature_parity.py — all features were implemented in v0.94-v0.100
