@@ -100,11 +100,36 @@ PSH uses a modern, well-organized test suite:
 ## Critical Information
 
 ### To increment the system version after completing an enhancement:
-1. Update the version number in psh/version.py
-2. If appropriate, update the user's guide (docs/user_guide/*) with new features
-3. If appropriate, update ARCHITECTURE.md and ARCHITECTURE.llm with architectural changes.
+1. Update `psh/version.py`: bump `__version__` and add a `VERSION_HISTORY` entry
+2. Update the version string in **all** of these files (they must always match):
+   - `README.md` — the `**Current Version**:` line
+   - `ARCHITECTURE.md` — the `**Current Version**:` line
+   - `ARCHITECTURE.llm` — the `Version:` line
+   - `CLAUDE.md` — the `**Version**:` line in "Current Development Status"
+3. If the change affects any of the following, update the relevant docs:
+   - **Test count or file count** → `README.md` "Project Statistics" section and
+     `CLAUDE.md` test count
+   - **New features or user-visible behavior** → `docs/user_guide/*`
+   - **Architectural changes** (new subsystems, changed execution flow, new
+     component managers) → `ARCHITECTURE.md` and `ARCHITECTURE.llm`
+   - **Recent Development** milestones → `README.md` "Recent Development" section
+     (keep the 10 most notable entries)
+   - **Development status** summary → `CLAUDE.md` "Current Development Status"
+     "Recent Work" section
 4. Commit changes in the git repo
 5. Tag the commit with the new version
+
+### Architecture documentation files and what they contain
+
+These files have version-stamped metadata that must stay in sync:
+
+| File | Contains | Key metadata |
+|------|----------|-------------|
+| `psh/version.py` | Canonical version, changelog | `__version__`, `VERSION_HISTORY` |
+| `README.md` | User-facing overview | Version, test count, LOC, file count, recent development |
+| `ARCHITECTURE.md` | Detailed architecture guide | Version |
+| `ARCHITECTURE.llm` | LLM-optimized architecture | Version |
+| `CLAUDE.md` | AI assistant working guide | Version, test count, recent work summary |
 
 ### Known Test Issues
 
