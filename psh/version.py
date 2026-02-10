@@ -2,10 +2,29 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.152.0"
+__version__ = "0.153.0"
 
 # Version history
 VERSION_HISTORY = """
+0.153.0 (2026-02-10) - Fix Brace Tokenization for Non-Expanding Braces
+- Fixed { and } being tokenized as separate LBRACE/RBRACE operator tokens
+  when they appear inside words (e.g., {a..1}, {a.b}, {a,b,c, {}).
+  These should remain literal parts of the word when brace expansion doesn't
+  apply, matching bash behavior. Previously echo {a..1} output "{ a..1 }"
+  (three separate tokens), now correctly outputs "{a..1}".
+- Added standalone-brace check in operator recognizer: { and } are only
+  recognized as operators when followed by whitespace/delimiter/EOF (brace
+  group syntax), not when followed by word characters.
+- Added {} special case: {} is always a word token, never LBRACE+RBRACE.
+- Updated literal recognizer can_recognize() and _is_word_terminator() to
+  allow { and } as word characters when they would be part of a larger word.
+- Fixed test_single_item assertion to expect correct "{a}" output.
+- Switched test_very_long_expansion to subprocess (pipeline fork issue).
+- Removed 5 xfail markers from brace expansion tests. 1 xfail remains
+  (test_special_chars_in_expansion) due to architectural limitation: pre-
+  tokenization brace expansion of {$,#,@} produces "echo $ # @" where #
+  becomes a comment character.
+
 0.152.0 (2026-02-10) - Test Builtin Parentheses Support and Test Fixes
 - Implemented parenthesized grouping in test builtin: test \( expr \) now works
   for complex expressions like test \( -n "a" -a -n "b" \) -o -z "c", matching

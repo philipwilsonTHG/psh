@@ -28,8 +28,8 @@ class TestSimpleBraceExpansion:
         """Test single item (no expansion)."""
         shell.run_command('echo {a}')
         captured = capsys.readouterr()
-        # PSH adds spaces around braces when it's not a valid expansion
-        assert captured.out.strip() == "{ a }"
+        # Single item with no comma or range — stays literal
+        assert captured.out.strip() == "{a}"
     
     def test_empty_item(self, shell, capsys):
         """Test empty items in list."""
@@ -247,9 +247,14 @@ class TestBraceExpansionEscaping:
         # The quoted part should not expand
         assert "a,b" in captured.out and "c" in captured.out
     
-    @pytest.mark.xfail(reason="PSH handles special chars differently in brace expansion")
+    @pytest.mark.xfail(reason="Pre-tokenization brace expansion inserts spaces; # becomes comment")
     def test_special_chars_in_expansion(self, shell, capsys):
-        """Test special characters in expansion."""
+        """Test special characters in expansion.
+
+        PSH does brace expansion as string preprocessing before tokenization,
+        so {$,#,@} becomes 'echo $ # @' and '#' is treated as a comment.
+        Bash handles this at the word level, avoiding the issue.
+        """
         shell.run_command('echo {$,#,@}')
         captured = capsys.readouterr()
         assert captured.out.strip() == "$ # @"
@@ -300,38 +305,40 @@ class TestBraceExpansionInContext:
 class TestBraceExpansionEdgeCases:
     """Test edge cases in brace expansion."""
     
-    @pytest.mark.xfail(reason="PSH handles invalid ranges differently")
     def test_invalid_range(self, shell, capsys):
         """Test invalid range syntax."""
         shell.run_command('echo {a..1}')
         captured = capsys.readouterr()
         # Should not expand (mixing letters and numbers)
         assert captured.out.strip() == "{a..1}"
-    
-    @pytest.mark.xfail(reason="PSH handles single dot differently")
+
     def test_single_dot_range(self, shell, capsys):
         """Test single dot (not a range)."""
         shell.run_command('echo {a.b}')
         captured = capsys.readouterr()
         assert captured.out.strip() == "{a.b}"
-    
-    @pytest.mark.xfail(reason="PSH handles unclosed braces differently")
+
     def test_unclosed_brace(self, shell, capsys):
         """Test unclosed brace."""
         shell.run_command('echo {a,b,c')
         captured = capsys.readouterr()
         assert captured.out.strip() == "{a,b,c"
-    
-    @pytest.mark.xfail(reason="PSH expands empty braces to '{ }'")
+
     def test_empty_braces(self, shell, capsys):
         """Test empty braces."""
         shell.run_command('echo {}')
         captured = capsys.readouterr()
         assert captured.out.strip() == "{}"
-    
-    @pytest.mark.xfail(reason="PSH may have different performance characteristics")
-    def test_very_long_expansion(self, shell, capsys):
-        """Test very long expansion."""
-        shell.run_command('echo {1..100} | wc -w')
-        captured = capsys.readouterr()
-        assert captured.out.strip() == "100"
+
+    def test_very_long_expansion(self):
+        """Test very long expansion.
+
+        Uses subprocess because the pipeline forks child processes
+        whose output isn't captured by in-process fixtures.
+        """
+        import subprocess, sys
+        result = subprocess.run(
+            [sys.executable, '-m', 'psh', '-c', 'echo {1..100} | wc -w'],
+            capture_output=True, text=True
+        )
+        assert result.stdout.strip() == "100"

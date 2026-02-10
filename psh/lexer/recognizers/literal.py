@@ -68,6 +68,17 @@ class LiteralRecognizer(ContextualRecognizer):
             if char in ('!', '+') and self.config and self.config.enable_extglob:
                 if pos + 1 < len(input_text) and input_text[pos + 1] == '(':
                     return True  # Start of extglob pattern
+            # { and } are operators only when standalone (followed by
+            # whitespace/delimiter/EOF).  When adjacent to word chars
+            # (e.g. {a..1}) they start a word.  {} is always a word.
+            if char in ('{', '}'):
+                next_pos = pos + 1
+                # {} is a word, not operators
+                if char == '{' and next_pos < len(input_text) and input_text[next_pos] == '}':
+                    return True
+                if next_pos >= len(input_text) or input_text[next_pos] in ' \t\n\r;|&(){}<>':
+                    return False  # Standalone brace — let operator handle it
+                return True  # Attached to word chars — part of word
             return False
 
         # Skip quotes and expansions based on configuration, but only if they can be fully handled
@@ -360,6 +371,16 @@ class LiteralRecognizer(ContextualRecognizer):
             # Inside [[ ]], < and > are comparison operators that should be treated as word chars
             if char in ['<', '>'] and context.bracket_depth > 0:
                 return False  # Treat as word character
+            # { and } are operators only when standalone; inside words
+            # (e.g. {a..1}) they are literal characters.  The operator
+            # recognizer handles the standalone check, so here we just
+            # need to check if we're already mid-word — if the literal
+            # collector has accumulated any value, the brace is
+            # continuation, not a terminator.  If we're at word start,
+            # the operator recognizer already declined (otherwise we
+            # wouldn't be here), so treat as literal.
+            if char in ('{', '}'):
+                return False
             return True
 
         # Context-specific terminators

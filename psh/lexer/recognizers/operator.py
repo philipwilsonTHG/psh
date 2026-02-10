@@ -244,6 +244,17 @@ class OperatorRecognizer(ContextualRecognizer):
                         if not self._is_shell_token_delimiter(input_text[pos + 1]):
                             continue
 
+                    # { and } are reserved words only when standalone (followed
+                    # by whitespace/delimiter/EOF).  When attached to word chars
+                    # (e.g. {a..1} after failed brace expansion) they are literal.
+                    # Special case: {} is a single word, not LBRACE + RBRACE.
+                    if candidate in ('{', '}'):
+                        next_pos = pos + 1
+                        if candidate == '{' and next_pos < len(input_text) and input_text[next_pos] == '}':
+                            continue  # {} is a word, not brace group
+                        if next_pos < len(input_text) and not self._is_shell_token_delimiter(input_text[next_pos]):
+                            continue
+
                     # Check configuration to see if this operator is enabled
                     if not self._is_operator_enabled(candidate):
                         continue
