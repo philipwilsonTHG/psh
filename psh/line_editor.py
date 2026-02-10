@@ -111,7 +111,7 @@ class LineEditor:
                         # Try to restore terminal before failing
                         try:
                             self.terminal.restore()
-                        except:
+                        except OSError:
                             pass
                     raise  # Re-raise the exception
 
@@ -923,7 +923,7 @@ class LineEditor:
         try:
             import shutil
             term_width = shutil.get_terminal_size().columns
-        except:
+        except (OSError, ValueError):
             term_width = 80
 
         # Calculate column width (add 2 for spacing)

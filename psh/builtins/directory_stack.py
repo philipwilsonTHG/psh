@@ -199,7 +199,7 @@ class PushdBuiltin(Builtin):
         except PermissionError:
             self.error(f"{directory}: Permission denied", shell)
             return 1
-        except Exception as e:
+        except OSError as e:
             self.error(str(e), shell)
             return 1
 

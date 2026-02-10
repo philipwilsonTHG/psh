@@ -264,7 +264,7 @@ class ExecutorVisitor(ASTVisitor[int]):
                 # Bash behavior: exit 0 if expression is true (non-zero)
                 # exit 1 if expression is false (zero)
                 return 0 if result != 0 else 1
-        except Exception as e:
+        except (ValueError, ArithmeticError) as e:
             print(f"psh: ((: {e}", file=sys.stderr)
             return 1
 

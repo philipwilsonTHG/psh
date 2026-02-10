@@ -110,7 +110,7 @@ class JobManager:
         # Save shell's terminal modes
         try:
             self.shell_tmodes = termios.tcgetattr(0)
-        except:
+        except (OSError, termios.error):
             pass
 
     def set_shell_state(self, state):
@@ -169,7 +169,7 @@ class JobManager:
         if self.current_job and self.current_job != job:
             try:
                 self.current_job.tmodes = termios.tcgetattr(0)
-            except:
+            except (OSError, termios.error):
                 pass
             self.previous_job = self.current_job
 
@@ -179,13 +179,13 @@ class JobManager:
         if job and job.tmodes:
             try:
                 termios.tcsetattr(0, termios.TCSADRAIN, job.tmodes)
-            except:
+            except (OSError, termios.error):
                 pass
         elif job is None and self.shell_tmodes:
             # Restore shell's terminal modes
             try:
                 termios.tcsetattr(0, termios.TCSADRAIN, self.shell_tmodes)
-            except:
+            except (OSError, termios.error):
                 pass
 
     def count_active_jobs(self) -> int:

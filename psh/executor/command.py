@@ -600,7 +600,7 @@ class CommandExecutor:
                 try:
                     self.io_manager.apply_permanent_redirections(node.redirects)
                     return 0
-                except Exception as e:
+                except OSError as e:
                     print(f"psh: exec: {e}", file=sys.stderr)
                     return 1
             else:

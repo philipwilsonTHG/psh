@@ -207,7 +207,7 @@ class Shell:
         try:
             result = self._evaluate_test_expression(test_stmt.expression)
             return 0 if result else 1
-        except Exception as e:
+        except (ValueError, TypeError, OSError) as e:
             print(f"psh: [[: {e}", file=sys.stderr)
             return 2  # Syntax error
         finally:
@@ -599,7 +599,7 @@ class Shell:
             ast = parse(tokens)
 
             return self._apply_visitor_mode(ast)
-        except Exception as e:
+        except (ValueError, TypeError) as e:
             print(f"Error parsing command: {e}", file=sys.stderr)
             return 1
 
@@ -620,7 +620,7 @@ class Shell:
         except FileNotFoundError:
             print(f"psh: {script_path}: No such file or directory", file=sys.stderr)
             return 1
-        except Exception as e:
+        except (ValueError, TypeError, OSError) as e:
             print(f"Error processing script: {e}", file=sys.stderr)
             return 1
 
@@ -913,7 +913,7 @@ class Shell:
                 output = AsciiTreeRenderer.render(ast, show_positions=False, compact_mode=False)
                 print(output, file=sys.stderr)
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             # Fallback to default format if new formatters fail
             print(f"Warning: AST formatting failed ({e}), using default format", file=sys.stderr)
             from .visitor import DebugASTVisitor

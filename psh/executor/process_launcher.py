@@ -243,7 +243,7 @@ class ProcessLauncher:
             try:
                 sys.stdout.flush()
                 sys.stderr.flush()
-            except Exception:
+            except (OSError, ValueError):
                 pass
             os._exit(exit_code)
 

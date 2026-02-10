@@ -59,7 +59,7 @@ class VariableExpander:
                 operator, var_name, operand = self.param_expansion.parse_expansion('${' + var_content + '}')
                 if operator:
                     return self.expand_parameter_direct(operator, var_name, operand)
-            except Exception:
+            except (ValueError, AttributeError):
                 pass
 
             # Handle ${var:-default} syntax

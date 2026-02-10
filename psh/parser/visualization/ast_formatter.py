@@ -299,7 +299,7 @@ class ASTPrettyPrinter(ASTVisitor[str]):
                     value = getattr(node, attr_name)
                     if value is not None:
                         attrs[attr_name] = value
-                except:
+                except (AttributeError, TypeError):
                     continue
 
         if compact := self._format_compact_node(node_name, attrs):

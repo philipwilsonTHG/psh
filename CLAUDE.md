@@ -382,7 +382,7 @@ class MyVisitor(ASTVisitor[T]):
 
 ## Current Development Status
 
-**Version**: 0.162.0 (see version.py for detailed history)
+**Version**: 0.163.0 (see version.py for detailed history)
 
 **Recent Work**:
 - **Lint Cleanup and CI Gates (v0.160.0-v0.161.0)**:

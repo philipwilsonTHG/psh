@@ -116,7 +116,7 @@ class SExpressionRenderer:
                         if isinstance(value, bool) and value is False:
                             continue
                         fields.append((attr_name, value))
-                except:
+                except (AttributeError, TypeError):
                     continue
 
         return fields

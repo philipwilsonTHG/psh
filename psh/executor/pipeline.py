@@ -148,7 +148,7 @@ class PipelineExecutor:
                 original_pgid = os.tcgetpgrp(0)
                 if self.state.options.get('debug-exec'):
                     print(f"DEBUG Pipeline: Original terminal PGID: {original_pgid}", file=sys.stderr)
-            except Exception as e:
+            except OSError as e:
                 if self.state.options.get('debug-exec'):
                     print(f"DEBUG Pipeline: Cannot get original PGID: {e}", file=sys.stderr)
                 original_pgid = None
@@ -249,7 +249,7 @@ class PipelineExecutor:
                 # Foreground pipeline - wait for completion
                 return self._wait_for_foreground_pipeline(job, node, original_pgid)
 
-        except Exception:
+        except (OSError, ValueError):
             # Clean up sync pipe on error
             try:
                 os.close(sync_pipe_r)
@@ -456,7 +456,7 @@ class PipelineExecutor:
             except FileNotFoundError:
                 # If command not found, try executing as builtins
                 return self._execute_builtin_to_builtin_pipeline(first_cmd, second_cmd, visitor)
-            except Exception:
+            except (OSError, subprocess.SubprocessError):
                 # Fallback to original forking method with a real Pipeline node
                 from ..ast_nodes import Pipeline
                 fallback_node = Pipeline(

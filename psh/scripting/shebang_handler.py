@@ -119,6 +119,6 @@ class ShebangHandler(ScriptComponent):
         except PermissionError:
             print(f"psh: {interpreter}: Permission denied", file=sys.stderr)
             return 126
-        except Exception as e:
+        except OSError as e:
             print(f"psh: {interpreter}: {e}", file=sys.stderr)
             return 1

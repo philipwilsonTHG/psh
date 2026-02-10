@@ -126,7 +126,7 @@ class SubshellExecutor:
                     is_interactive = False
                     if self.state.options.get('debug-exec'):
                         print(f"DEBUG Subshell: Skipping terminal control (not foreground)", file=sys.stderr)
-            except Exception as e:
+            except OSError as e:
                 if self.state.options.get('debug-exec'):
                     print(f"DEBUG Subshell: Exception checking terminal: {e}", file=sys.stderr)
                 is_interactive = False
@@ -175,7 +175,7 @@ class SubshellExecutor:
             try:
                 subshell.stdout.flush()
                 subshell.stderr.flush()
-            except Exception:
+            except (OSError, ValueError):
                 pass
 
             return exit_code
@@ -243,7 +243,7 @@ class SubshellExecutor:
                 try:
                     subshell.stdout.flush()
                     subshell.stderr.flush()
-                except Exception:
+                except (OSError, ValueError):
                     pass
 
             return exit_code

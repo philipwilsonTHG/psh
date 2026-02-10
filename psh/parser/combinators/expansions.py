@@ -228,7 +228,7 @@ class ExpansionParsers:
             # For now, accept if tokenization succeeded
             # Full validation would require parsing with statement_list
             return True
-        except:
+        except Exception:
             # If tokenization fails, consider it invalid
             return False
 

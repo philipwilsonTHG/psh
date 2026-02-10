@@ -302,7 +302,7 @@ class ASTDotGenerator(ASTVisitor[str]):
                     value = getattr(node, attr_name)
                     if value is not None:
                         self._process_field(node_id, attr_name, value)
-                except:
+                except (AttributeError, TypeError):
                     continue
 
         return node_id

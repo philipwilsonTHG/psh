@@ -120,7 +120,7 @@ class CdBuiltin(Builtin):
         except PermissionError:
             self.error(f"{path}: Permission denied", shell)
             return 1
-        except Exception as e:
+        except OSError as e:
             self.error(str(e), shell)
             return 1
 

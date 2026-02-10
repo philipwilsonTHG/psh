@@ -159,7 +159,7 @@ class ArrayOperationExecutor:
             try:
                 index = evaluate_arithmetic(cleaned_index, self.shell)
                 is_numeric_index = True
-            except Exception:
+            except (ValueError, ArithmeticError, TypeError):
                 # Arithmetic eval failed — treat as string key (associative array)
                 index = cleaned_index
                 is_numeric_index = False

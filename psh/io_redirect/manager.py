@@ -311,7 +311,7 @@ class IOManager:
             for fd in self.shell._builtin_proc_sub_fds:
                 try:
                     os.close(fd)
-                except:
+                except OSError:
                     pass
             self.shell._builtin_proc_sub_fds = []
 
@@ -319,7 +319,7 @@ class IOManager:
             for pid in self.shell._builtin_proc_sub_pids:
                 try:
                     os.waitpid(pid, 0)
-                except:
+                except OSError:
                     pass
             self.shell._builtin_proc_sub_pids = []
 

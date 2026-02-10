@@ -2,10 +2,26 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.162.0"
+__version__ = "0.163.0"
 
 # Version history
 VERSION_HISTORY = """
+0.163.0 (2026-02-10) - Replace Broad Exception Handlers with Specific Types
+- Eliminated all 22 bare except: handlers across 13 files, replacing with
+  specific exception types (OSError, termios.error, ValueError, KeyError,
+  AttributeError, TypeError).
+- Narrowed 40 of 61 except Exception handlers across 20 files to specific
+  types: OSError for I/O/terminal/process ops, (ValueError, ArithmeticError)
+  for arithmetic evaluation, (AttributeError, TypeError) for getattr ops,
+  (KeyError, IndexError) for collection access, etc.
+- Kept 21 except Exception handlers that are intentional: forked child
+  catch-alls before os._exit(), REPL last-resort, trap execution safety,
+  __del__ cleanup, and command execution catch-alls that re-raise control
+  flow exceptions.
+- Fixed termios.error not inheriting from OSError: job_control.py terminal
+  mode handlers now catch (OSError, termios.error).
+- Zero behavioral changes; all 3087 tests pass.
+
 0.162.0 (2026-02-10) - Fix Documentation and Version Drift
 - Updated version references in README.md (0.159.0 → 0.162.0),
   ARCHITECTURE.md (0.159.0 → 0.162.0), ARCHITECTURE.llm (0.159.0 → 0.162.0),

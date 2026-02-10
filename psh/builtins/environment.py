@@ -541,11 +541,11 @@ class UnsetBuiltin(Builtin):
 
                             # Unset the element
                             var_obj.value.unset(index)
-                        except Exception:
+                        except (ValueError, KeyError, IndexError):
                             # Bash compatibility: treat string indices on indexed arrays as index 0
                             try:
                                 var_obj.value.unset(0)
-                            except Exception:
+                            except (KeyError, IndexError):
                                 self.error(f"{var}: bad array subscript", shell)
                                 exit_code = 1
                     elif var_obj and isinstance(var_obj.value, AssociativeArray):

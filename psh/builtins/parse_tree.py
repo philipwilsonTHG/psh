@@ -119,7 +119,7 @@ class ParseTreeBuiltin(Builtin):
         except ParseError as e:
             self.error(f"parse error: {e}", shell)
             return 1
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             self.error(f"visualization error: {e}", shell)
             return 1
 

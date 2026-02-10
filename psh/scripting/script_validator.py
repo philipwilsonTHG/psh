@@ -81,5 +81,5 @@ class ScriptValidator(ScriptComponent):
 
                 return False
 
-        except:
+        except OSError:
             return True  # If we can't read it, assume binary

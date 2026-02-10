@@ -425,7 +425,7 @@ class LineEditor:
         try:
             import shutil
             term_width = shutil.get_terminal_size().columns
-        except:
+        except (OSError, ValueError):
             term_width = 80
 
         # Calculate column width (add 2 for spacing)

@@ -53,7 +53,7 @@ class SourceBuiltin(Builtin):
             with FileInput(script_path) as input_source:
                 # Execute with no history since it's sourced
                 return shell.script_manager.source_processor.execute_from_source(input_source, add_to_history=False)
-        except Exception as e:
+        except OSError as e:
             print(f"source: {script_path}: {e}", file=sys.stderr)
             return 1
         finally:

@@ -95,7 +95,7 @@ class KillBuiltin(Builtin):
         """Execute the kill builtin."""
         try:
             return self._execute_kill(args, shell)
-        except Exception as e:
+        except (OSError, ValueError) as e:
             print(f"kill: {e}", file=sys.stderr)
             return 1
 
@@ -225,7 +225,7 @@ class KillBuiltin(Builtin):
             except ValueError:
                 print(f"kill: {target}: invalid process id", file=sys.stderr)
                 continue
-            except Exception as e:
+            except (OSError, KeyError) as e:
                 print(f"kill: {target}: {e}", file=sys.stderr)
                 continue
 

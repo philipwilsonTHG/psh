@@ -41,7 +41,7 @@ class HistoryManager(InteractiveComponent):
                 # Trim to max size
                 if len(self.state.history) > self.state.max_history_size:
                     self.state.history = self.state.history[-self.state.max_history_size:]
-        except Exception:
+        except OSError:
             # Silently ignore history file errors
             pass
 
@@ -52,7 +52,7 @@ class HistoryManager(InteractiveComponent):
                 # Save only the last max_history_size commands
                 for cmd in self.state.history[-self.state.max_history_size:]:
                     f.write(cmd + '\n')
-        except Exception:
+        except OSError:
             # Silently ignore history file errors
             pass
 

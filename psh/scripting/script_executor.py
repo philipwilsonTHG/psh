@@ -47,7 +47,7 @@ class ScriptExecutor(ScriptComponent):
                     self.shell.trap_manager.execute_exit_trap()
 
                 return exit_code
-        except Exception as e:
+        except OSError as e:
             print(f"psh: {script_path}: {e}", file=sys.stderr)
             return 1
         finally:

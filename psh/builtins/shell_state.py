@@ -301,11 +301,11 @@ class LocalBuiltin(Builtin):
                 from ..arithmetic import evaluate_arithmetic
                 result = evaluate_arithmetic(value, shell)
                 return str(result)
-            except Exception:
+            except (ValueError, ArithmeticError):
                 # Fall back to simple int conversion
                 try:
                     return str(int(value))
-                except:
+                except (ValueError, TypeError):
                     return "0"
         return value
 

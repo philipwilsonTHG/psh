@@ -271,7 +271,7 @@ class EnhancedScopeManager:
                     # For now, just try to convert or evaluate simple expressions
                     result = self._evaluate_integer(str_value)
                     return str(result)  # Store as string, but evaluated as integer
-                except Exception:
+                except (ValueError, ArithmeticError):
                     return "0"
             return "0"
 
@@ -290,7 +290,7 @@ class EnhancedScopeManager:
                 # Evaluate the expression using the helper function
                 result = evaluate_arithmetic(expr, self._shell)
                 return result
-            except Exception:
+            except (ValueError, ArithmeticError):
                 # If evaluation fails, return 0
                 return 0
 
@@ -314,7 +314,7 @@ class EnhancedScopeManager:
             evaluator = ArithmeticEvaluator(minimal_shell)
             return evaluator.evaluate(ast)
 
-        except Exception:
+        except (ValueError, ArithmeticError, TypeError):
             # Last resort: simple conversion, but this loses octal support
             try:
                 return int(expr)

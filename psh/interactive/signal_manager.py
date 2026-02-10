@@ -102,7 +102,7 @@ class SignalManager(InteractiveComponent):
         for sig, handler in self._original_handlers.items():
             try:
                 self._signal_registry.register(sig, handler, "SignalManager:restore")
-            except Exception:
+            except (OSError, ValueError):
                 # Signal may not be valid on this platform
                 pass
         self._original_handlers.clear()

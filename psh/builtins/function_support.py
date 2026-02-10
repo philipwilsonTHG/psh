@@ -535,11 +535,11 @@ class DeclareBuiltin(Builtin):
                 evaluator = ArithmeticEvaluator(shell.state)
                 result = evaluator.evaluate(str_value)
                 return str(result)  # Return as string but evaluated
-            except Exception:
+            except (ValueError, ArithmeticError):
                 # Fall back to simple int conversion
                 try:
                     return str(int(str_value))
-                except:
+                except (ValueError, TypeError):
                     return "0"
         return str_value
 

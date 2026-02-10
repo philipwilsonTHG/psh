@@ -139,7 +139,7 @@ class PromptExpander:
         if self._hostname is None:
             try:
                 self._hostname = socket.gethostname()
-            except:
+            except OSError:
                 self._hostname = 'localhost'
 
         if short:
@@ -151,7 +151,7 @@ class PromptExpander:
         if self._username is None:
             try:
                 self._username = pwd.getpwuid(os.getuid()).pw_name
-            except:
+            except (KeyError, OSError):
                 self._username = os.environ.get('USER', 'unknown')
         return self._username
 

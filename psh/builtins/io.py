@@ -240,7 +240,7 @@ class PrintfBuiltin(Builtin):
             output = self._process_format_string_posix(format_str, arguments)
             self._write_output(output, shell)
             return 0
-        except Exception as e:
+        except (ValueError, TypeError, KeyError) as e:
             self.error(f"printf: {str(e)}", shell)
             return 1
 

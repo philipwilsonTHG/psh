@@ -501,7 +501,7 @@ class ExpansionManager:
             return self.evaluator.evaluate(expansion)
         except (ExpansionError, UnboundVariableError):
             raise  # Propagate expansion errors (e.g., ${var:?msg}, nounset)
-        except Exception as e:
+        except (ValueError, AttributeError, TypeError) as e:
             # Fallback to string representation if evaluation fails
             if self.state.options.get('debug-expansion'):
                 print(f"[EXPANSION] Evaluation failed for {type(expansion).__name__}: {e}", file=self.state.stderr)
@@ -566,7 +566,7 @@ class ExpansionManager:
             print(f"psh: arithmetic error: {e}", file=sys.stderr)
             # Raise exception to stop command execution (like bash)
             raise ExpansionError(f"arithmetic error: {e}")
-        except Exception as e:
+        except (ValueError, TypeError) as e:
             import sys
             print(f"psh: unexpected arithmetic error: {e}", file=sys.stderr)
             # Raise exception to stop command execution (like bash)

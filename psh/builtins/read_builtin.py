@@ -110,7 +110,7 @@ class ReadBuiltin(Builtin):
         except KeyboardInterrupt:
             # Ctrl-C pressed
             return 130
-        except Exception as e:
+        except (OSError, ValueError) as e:
             print(f"read: {e}", file=sys.stderr)
             return 1
 
