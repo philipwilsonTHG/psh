@@ -4,15 +4,15 @@
 
 Python Shell (psh) is designed with a clean, component-based architecture that separates concerns and makes the codebase easy to understand, test, and extend. The shell follows a traditional interpreter pipeline: lexing → parsing → expansion → execution, with each phase carefully designed for educational clarity and correctness.
 
-**Current Version**: 0.104.0 (as of 2025-11-19)
+**Current Version**: 0.159.0
 
 **Note:** For LLM-optimized architecture documentation, see `ARCHITECTURE.llm`
 
 **Key Architectural Features**:
 - **Dual Parser Architecture**: Two complete parser implementations for educational comparison
   - **Recursive Descent Parser**: Production parser with modular package structure in `psh/parser/recursive_descent/`
-  - **Parser Combinator**: Functional parser with 100% feature parity in `psh/parser/combinators/`
-  - **Parser Selection**: Switch between implementations with `--parser=combinator` flag
+  - **Parser Combinator**: Functional parser with near-complete feature parity (~95%) in `psh/parser/combinators/`
+  - **Parser Selection**: Switch between implementations with `parser-select combinator` builtin
   - **Educational Value**: Compare imperative vs. functional parsing approaches
 - **Unified Lexer Architecture**: State machine lexer with modular architecture
   - **Single Token System**: Unified Token class with built-in metadata and context information
@@ -254,7 +254,7 @@ This preserves quote information for each part, enabling correct expansion behav
 
 ## Phase 3: Syntactic Analysis (Parsing)
 
-PSH features a unique dual parser architecture with two complete implementations that demonstrate different parsing paradigms while maintaining 100% feature parity.
+PSH features a unique dual parser architecture with two complete implementations that demonstrate different parsing paradigms while maintaining near-complete feature parity.
 
 ### 3.1 Dual Parser Architecture
 **Package**: `psh/parser/`
@@ -318,7 +318,7 @@ The parser combinator is a functional parser implementation demonstrating elegan
   - Arrays and associative arrays
   - Select loops and advanced I/O
 - **Educational Value**: Demonstrates functional parsing techniques
-- **Parser Selection**: Use `--parser=combinator` flag to enable
+- **Parser Selection**: Use `parser-select combinator` builtin to enable
 
 **Public API** (`psh/parser/__init__.py`):
 - Clean interface for both parser implementations
@@ -407,7 +407,7 @@ The dual parser architecture provides unique advantages:
 - **Production vs. Research**: Production-ready recursive descent and elegant functional combinators
 
 **Technical Benefits:**
-- **100% Feature Parity**: Both parsers support all shell constructs
+- **Near-Complete Feature Parity**: Both parsers support nearly all shell constructs (~95%)
 - **Unified AST**: Identical output regardless of parser choice
 - **Separation of Concerns**: Each parser module handles focused aspects
 - **Enhanced Maintainability**: Modular structure easier to understand and modify
@@ -1141,10 +1141,10 @@ PSH's architecture provides comprehensive shell functionality through clean, mod
 
 ### Dual Parser System
 - **Two Complete Implementations**: Recursive descent (production) and parser combinator (educational)
-- **100% Feature Parity**: Both parsers support all shell constructs
+- **Near-Complete Feature Parity**: Both parsers support nearly all shell constructs (~95%)
 - **Educational Comparison**: Learn both imperative and functional parsing approaches
 - **Unified Output**: Identical AST regardless of parser choice
-- **Parser Selection**: Runtime switchable with `--parser=combinator` flag
+- **Parser Selection**: Runtime switchable with `parser-select combinator` builtin
 
 ### Comprehensive Parser Features
 - **Configuration System**: 40+ options for POSIX, bash-compat, and educational modes

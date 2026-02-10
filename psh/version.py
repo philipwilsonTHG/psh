@@ -2,10 +2,25 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.158.0"
+__version__ = "0.159.0"
 
 # Version history
 VERSION_HISTORY = """
+0.159.0 (2026-02-10) - Fix Doc Drift, Dead Code, and Package Metadata
+- Fixed version drift in README.md (0.113.0 → 0.159.0), ARCHITECTURE.md
+  (0.104.0 → 0.159.0), and ARCHITECTURE.llm (0.120.0 → 0.159.0).
+- Fixed test count (3,021 → 3,087) and parser parity claims (100% → near-complete)
+  in README.md and ARCHITECTURE.md.
+- Fixed stale --parser=combinator CLI flag references in ARCHITECTURE.md
+  (replaced with parser-select combinator builtin, matching v0.130.0 changes).
+- Deleted dead psh/core/scope.py (147 lines): superseded by scope_enhanced.py,
+  only imported in core/__init__.py, never used by any other code. Updated
+  __init__.py to import VariableScope from scope_enhanced.py instead.
+- Deleted stale psh/test_assoc.py (74 lines): ad-hoc test script referencing
+  removed APIs (executor_manager, get_variable_object, old Parser(tokens) usage).
+- Fixed package metadata in pyproject.toml: placeholder author/email replaced
+  with actual values.
+
 0.158.0 (2026-02-10) - Remove Dead shell_parser.py Module
 - Deleted psh/shell_parser.py (248 lines): entirely dead code. It imported
   parse_with_lexer_integration from psh.parser, which was never exported,

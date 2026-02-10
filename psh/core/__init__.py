@@ -1,8 +1,7 @@
 """Core PSH modules for state management and variable handling."""
 
 from .exceptions import LoopBreak, LoopContinue, ReadonlyVariableError, UnboundVariableError
-from .scope import ScopeManager, VariableScope
-from .scope_enhanced import EnhancedScopeManager
+from .scope_enhanced import EnhancedScopeManager, VariableScope
 from .state import ShellState
 from .variables import AssociativeArray, IndexedArray, VarAttributes, Variable
 
@@ -20,7 +19,6 @@ __all__ = [
     'IndexedArray',
     'AssociativeArray',
     # Scope management
-    'ScopeManager',
     'EnhancedScopeManager',
     'VariableScope',
     # State and options

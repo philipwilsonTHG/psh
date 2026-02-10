@@ -8,7 +8,7 @@ dynamic = ["version"]
 description = "Python Shell (psh) - An educational Unix shell implementation"
 readme = "README.md"
 authors = [
-    {name = "Your Name", email = "your.email@example.com"}
+    {name = "Philip Wilson", email = "pgw@acm.org"}
 ]
 license = {text = "MIT"}
 classifiers = [

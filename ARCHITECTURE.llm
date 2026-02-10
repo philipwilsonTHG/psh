@@ -1,6 +1,6 @@
 # PSH Architecture Reference for Large Language Models
 
-Version: 0.120.0 (2026-02-07) – Word AST Migration Complete, arg_types Removed
+Version: 0.159.0
 Purpose: Optimized reference for LLMs working with the PSH codebase
 
 ## Quick Start
