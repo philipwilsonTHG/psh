@@ -2,10 +2,17 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.155.0"
+__version__ = "0.156.0"
 
 # Version history
 VERSION_HISTORY = """
+0.156.0 (2026-02-10) - Reset Job ID Counter When Job Table Is Empty
+- Fixed job numbering: transient internal jobs (pipelines, subshells, command
+  substitutions) incremented the job ID counter but were removed immediately,
+  so the first user-visible background/stopped job got an unexpectedly high
+  number (e.g. [15] instead of [1]). Now resets next_job_id to 1 when the
+  job table is empty before creating a new job, matching bash behavior.
+
 0.155.0 (2026-02-10) - Fix 8 PSH Bug XFAILs
 - Fixed heredoc in case statement parsing: KeywordNormalizer entered in_heredoc
   mode when heredoc content had already been collected by tokenize_with_heredocs(),

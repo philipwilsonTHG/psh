@@ -118,7 +118,13 @@ class JobManager:
         self.shell_state = state
 
     def create_job(self, pgid: int, command: str) -> Job:
-        """Create a new job."""
+        """Create a new job.
+
+        When the job table is empty the counter resets to 1, matching bash
+        behavior so that the first user-visible job is always [1].
+        """
+        if not self.jobs:
+            self.next_job_id = 1
         job = Job(self.next_job_id, pgid, command)
         self.jobs[self.next_job_id] = job
         self.next_job_id += 1
