@@ -5,7 +5,6 @@ Tests both $(command) and `command` syntax for command substitution,
 including nested substitutions and edge cases.
 """
 
-import pytest
 
 
 def test_simple_dollar_paren_substitution(shell, capsys):
@@ -110,7 +109,7 @@ def test_substitution_multiline_output(shell, capsys):
 def test_substitution_in_pipeline(shell, capsys):
     """Test command substitution in pipeline."""
     result = shell.run_command('echo $(echo hello) | tr a-z A-Z')
-    captured = capsys.readouterr()
+    capsys.readouterr()
     # Pipeline output isn't captured by capsys - command executes successfully
     assert result == 0
 
@@ -215,7 +214,7 @@ def test_substitution_in_here_document(shell, capsys):
 Hello $(echo world)
 EOF'''
     result = shell.run_command(script)
-    captured = capsys.readouterr()
+    capsys.readouterr()
     # Here document output may not be captured by capsys
     assert result == 0
 

@@ -17,7 +17,7 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install ruff
-      - run: ruff check psh
+      - run: ruff check psh tests
 
   quick-suite:
     name: Quick Test Suite

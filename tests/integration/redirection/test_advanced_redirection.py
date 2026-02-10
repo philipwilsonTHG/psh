@@ -10,14 +10,14 @@ Tests for complex I/O redirection scenarios including:
 - Error handling in redirection scenarios
 """
 
-import pytest
 import os
-import tempfile
 import subprocess
-import time
-import stat
 import sys
+import tempfile
+import time
 from pathlib import Path
+
+import pytest
 
 # Add framework to path
 TEST_ROOT = Path(__file__).parent.parent.parent
@@ -61,16 +61,16 @@ class TestFileDescriptorDuplication:
     def test_stderr_to_stdout_duplication(self, isolated_shell_with_temp_dir):
         """Test redirecting stderr to stdout (2>&1)."""
         shell = isolated_shell_with_temp_dir
-        
+
         # Use subprocess for better isolation
-        result = subprocess.run(
-            [sys.executable, '-m', 'psh', '-c', 
+        subprocess.run(
+            [sys.executable, '-m', 'psh', '-c',
              'echo "stdout message"; echo "stderr message" >&2'],
             cwd=shell.state.variables['PWD'],
             capture_output=True,
             text=True
         )
-        
+
         # Both should appear in stdout when using 2>&1
         result2 = subprocess.run(
             [sys.executable, '-m', 'psh', '-c',
@@ -79,7 +79,7 @@ class TestFileDescriptorDuplication:
             capture_output=True,
             text=True
         )
-        
+
         assert "stdout message" in result2.stdout
         assert "stderr message" in result2.stdout
         assert result2.stderr == ""  # stderr should be empty as it's redirected
@@ -92,7 +92,7 @@ class TestFileDescriptorDuplication:
         try:
             # Use a command that actually generates stderr output
             # and redirect it to a file
-            result = shell.run_command(f'ls /nonexistent/path 2> {temp_path}')
+            shell.run_command(f'ls /nonexistent/path 2> {temp_path}')
             # ls should fail but stderr should be captured
 
             # Check that error output went to file
@@ -126,13 +126,13 @@ class TestFileDescriptorDuplication:
         stderr_path = os.path.join(shell.state.variables['PWD'], 'stderr_test.txt')
 
         # Test separate redirection of stdout and stderr
-        result = shell.run_command(f'echo "to stdout" > {stdout_path} && ls /nonexistent 2> {stderr_path}')
+        shell.run_command(f'echo "to stdout" > {stdout_path} && ls /nonexistent 2> {stderr_path}')
 
         # Check stdout file
         with open(stdout_path, 'r') as f:
             stdout_content = f.read()
         assert "to stdout" in stdout_content
-        
+
         # Note: We're not checking stderr_path content as ls behavior varies
 
     def test_null_device_redirection(self, shell):
@@ -157,7 +157,7 @@ class TestFileDescriptorDuplication:
         try:
             # Test 2>&1 - redirect stderr to stdout, then redirect to file
             # Order matters: redirect stdout to file, then redirect stderr to stdout
-            result = shell.run_command(f'ls /nonexistent/path > {temp_path} 2>&1')
+            shell.run_command(f'ls /nonexistent/path > {temp_path} 2>&1')
             # This should capture both stdout and stderr in the file
 
             # Check that some output was captured
@@ -180,7 +180,7 @@ class TestProcessSubstitution:
     def teardown_method(self):
         """Clean up any leftover processes after each test."""
         pass
-    
+
     def test_invalid_file_descriptor(self, shell):
         """Test redirection with invalid file descriptor numbers."""
         # Try to use extremely high fd number

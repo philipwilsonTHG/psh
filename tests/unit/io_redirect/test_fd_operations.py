@@ -2,8 +2,6 @@
 import subprocess
 import sys
 
-import pytest
-
 
 def run_psh(cmd):
     """Run a command in psh and return (stdout, stderr, returncode)."""

@@ -4,7 +4,6 @@ Positional parameter builtin tests.
 Tests for builtins that manipulate positional parameters like shift.
 """
 
-import pytest
 
 
 def test_shift_default(shell):
@@ -12,7 +11,7 @@ def test_shift_default(shell):
     shell.run_command('set arg1 arg2 arg3')
     result = shell.run_command('shift')
     assert result == 0
-    
+
     # Verify shift worked by checking $1, $2
     shell.run_command('echo "$1"')
     # Note: Positional parameter testing may be complex with current fixture

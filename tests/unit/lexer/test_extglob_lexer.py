@@ -1,8 +1,6 @@
 """Unit tests for extglob lexer tokenization."""
 
-import pytest
 from psh.lexer import tokenize
-from psh.lexer.position import LexerConfig
 from psh.token_types import TokenType
 
 

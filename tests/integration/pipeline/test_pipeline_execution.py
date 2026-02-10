@@ -5,7 +5,6 @@ Tests fundamental pipeline functionality that can be verified through
 exit codes and PSH's internal mechanisms.
 """
 
-import pytest
 
 
 def test_pipeline_exit_status_success(shell, capsys):
@@ -37,7 +36,7 @@ def test_pipeline_background_job(shell, capsys):
 
 def test_pipeline_with_variable_assignment(shell, capsys):
     """Test pipeline with variable in assignment context."""
-    result = shell.run_command('x=$(echo hello | cat); echo $x')
+    shell.run_command('x=$(echo hello | cat); echo $x')
     captured = capsys.readouterr()
     assert captured.out.strip() == 'hello'
 
@@ -54,7 +53,7 @@ def test_complex_pipeline_exit_status(shell, capsys):
     # Multi-stage pipeline - exit status from last command
     result = shell.run_command('true | true | false')
     assert result != 0
-    
+
     result = shell.run_command('false | false | true')
     assert result == 0
 
@@ -138,7 +137,7 @@ def test_pipeline_in_subshell(shell, capsys):
     """Test pipeline execution in subshell."""
     shell.run_command('(echo subshell | cat)')
     # Subshell should execute without error
-    captured = capsys.readouterr()
+    capsys.readouterr()
     # May or may not capture output depending on implementation
 
 
@@ -148,7 +147,7 @@ def test_pipeline_with_logical_operators(shell, capsys):
     captured = capsys.readouterr()
     assert 'success' in captured.out
     assert result == 0
-    
+
     result = shell.run_command('true | false || echo failure')
     captured = capsys.readouterr()
     assert 'failure' in captured.out

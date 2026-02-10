@@ -12,10 +12,9 @@ from pathlib import Path
 PSH_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PSH_ROOT))
 
-import pytest
+from psh.ast_nodes import SimpleCommand
 from psh.lexer import tokenize
 from psh.parser import Parser
-from psh.ast_nodes import SimpleCommand, Pipeline
 
 
 class TestCompositeTokenParsing:

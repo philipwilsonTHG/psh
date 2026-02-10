@@ -1,7 +1,7 @@
 """Tests for SignalRegistry functionality."""
 import signal
-import pytest
-from psh.utils.signal_utils import SignalRegistry, SignalHandlerRecord, get_signal_registry, set_signal_registry
+
+from psh.utils.signal_utils import SignalRegistry, get_signal_registry, set_signal_registry
 
 
 class TestSignalRegistry:
@@ -21,7 +21,7 @@ class TestSignalRegistry:
             pass
 
         # Register handler
-        old = registry.register(signal.SIGUSR1, handler, "test")
+        registry.register(signal.SIGUSR1, handler, "test")
 
         # Verify it was registered
         record = registry.get_handler(signal.SIGUSR1)

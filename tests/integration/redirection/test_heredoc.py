@@ -4,14 +4,13 @@ Here document (heredoc) integration tests.
 Tests for heredoc (<<) and here string (<<<) redirection functionality.
 """
 
-import pytest
 
 
 def test_tokenize_heredoc():
     """Test that << is tokenized correctly."""
     from psh.lexer import tokenize
     from psh.token_types import TokenType
-    
+
     tokens = tokenize("cat << EOF")
     assert tokens[1].type == TokenType.HEREDOC
     assert tokens[1].value == "<<"
@@ -23,7 +22,7 @@ def test_tokenize_heredoc_strip():
     """Test that <<- is tokenized correctly."""
     from psh.lexer import tokenize
     from psh.token_types import TokenType
-    
+
     tokens = tokenize("cat <<- END")
     assert tokens[1].type == TokenType.HEREDOC_STRIP
     assert tokens[1].value == "<<-"
@@ -35,11 +34,11 @@ def test_parse_heredoc():
     """Test parsing of here document."""
     from psh.lexer import tokenize
     from psh.parser import parse
-    
+
     tokens = tokenize("cat << EOF")
     ast = parse(tokens)
     command = ast.and_or_lists[0].pipelines[0].commands[0]
-    
+
     assert len(command.redirects) == 1
     redirect = command.redirects[0]
     assert redirect.type == "<<"
@@ -51,7 +50,7 @@ def test_tokenize_here_string():
     """Test that <<< is tokenized correctly."""
     from psh.lexer import tokenize
     from psh.token_types import TokenType
-    
+
     tokens = tokenize("cat <<< 'hello world'")
     assert tokens[1].type == TokenType.HERE_STRING
     assert tokens[1].value == "<<<"
@@ -63,11 +62,11 @@ def test_parse_here_string():
     """Test parsing of here string."""
     from psh.lexer import tokenize
     from psh.parser import parse
-    
+
     tokens = tokenize("cat <<< 'test string'")
     ast = parse(tokens)
     command = ast.and_or_lists[0].pipelines[0].commands[0]
-    
+
     assert len(command.redirects) == 1
     redirect = command.redirects[0]
     assert redirect.type == "<<<"
@@ -79,7 +78,7 @@ def test_here_string_literal(shell_with_temp_dir):
     output_file = "herestring_literal_test.txt"
     result = shell_with_temp_dir.run_command(f"cat <<< 'literal text' > {output_file}")
     assert result == 0
-    
+
     with open(output_file, 'r') as f:
         content = f.read()
     assert content == "literal text\n"
@@ -90,7 +89,7 @@ def test_here_string_with_builtin(shell_with_temp_dir):
     output_file = "herestring_builtin_test.txt"
     result = shell_with_temp_dir.run_command(f"cat <<< 'from here string' > {output_file}")
     assert result == 0
-    
+
     with open(output_file, 'r') as f:
         content = f.read()
     assert content == "from here string\n"
@@ -101,7 +100,7 @@ def test_here_string_with_quotes(shell_with_temp_dir):
     output_file = "herestring_quotes_test.txt"
     result = shell_with_temp_dir.run_command(f'cat <<< "She said \\"Hello\\"" > {output_file}')
     assert result == 0
-    
+
     with open(output_file, 'r') as f:
         content = f.read()
     assert 'She said "Hello"' in content
@@ -112,7 +111,7 @@ def test_here_string_empty(shell_with_temp_dir):
     output_file = "herestring_empty_test.txt"
     result = shell_with_temp_dir.run_command(f"cat <<< '' > {output_file}")
     assert result == 0
-    
+
     with open(output_file, 'r') as f:
         content = f.read()
     assert content == "\n"  # Just a newline
@@ -123,7 +122,7 @@ def test_here_string_in_pipeline(shell_with_temp_dir):
     output_file = "herestring_pipeline_test.txt"
     result = shell_with_temp_dir.run_command(f"cat <<< 'apple banana cherry' | wc -w > {output_file}")
     assert result == 0
-    
+
     with open(output_file, 'r') as f:
         content = f.read().strip()
     assert "3" in content
@@ -132,11 +131,11 @@ def test_here_string_in_pipeline(shell_with_temp_dir):
 def test_here_string_with_variable(shell_with_temp_dir):
     """Test here string with variable expansion."""
     shell_with_temp_dir.state.set_variable('NAME', 'World')
-    
+
     output_file = "herestring_var_test.txt"
     result = shell_with_temp_dir.run_command(f'cat <<< "Hello $NAME" > {output_file}')
     assert result == 0
-    
+
     with open(output_file, 'r') as f:
         content = f.read()
     assert content == "Hello World\n"
@@ -230,7 +229,7 @@ Line 2
 EOF
 """)
     assert result == 0
-    
+
     # Check file content
     import os
     output_file = os.path.join(shell.state.variables['PWD'], 'output.txt')
@@ -261,15 +260,15 @@ def test_heredoc_syntax_variants():
     """Test various heredoc syntax forms are parsed correctly."""
     from psh.lexer import tokenize
     from psh.parser import parse
-    
+
     # Test different spacing patterns
     test_cases = [
         "cat <<EOF",
-        "cat << EOF", 
+        "cat << EOF",
         "cat <<-EOF",
         "cat <<- EOF"
     ]
-    
+
     for case in test_cases:
         tokens = tokenize(case)
         ast = parse(tokens)
@@ -282,7 +281,7 @@ def test_here_string_syntax_variants():
     """Test various here string syntax forms are parsed correctly."""
     from psh.lexer import tokenize
     from psh.parser import parse
-    
+
     # Test different quoting patterns
     test_cases = [
         "cat <<<word",
@@ -292,7 +291,7 @@ def test_here_string_syntax_variants():
         "cat <<< 'quoted word'",
         "cat <<< \"quoted word\""
     ]
-    
+
     for case in test_cases:
         tokens = tokenize(case)
         ast = parse(tokens)

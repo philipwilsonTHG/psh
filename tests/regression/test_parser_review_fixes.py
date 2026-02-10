@@ -6,18 +6,16 @@ the parser review findings documented in
 docs/guides/parser_implementation_review_2026-02-09.md.
 """
 
-import signal
 import subprocess
 import sys
 
 import pytest
 
-from psh.ast_nodes import CaseItem, CaseConditional, SelectLoop
+from psh.ast_nodes import CaseConditional, SelectLoop
 from psh.lexer import tokenize
 from psh.parser import Parser, ParserConfig
 from psh.parser.recursive_descent.helpers import ParseError
 from psh.parser.validation.validation_rules import ValidationReport
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -328,7 +326,8 @@ class TestValidationFalsePositives:
         """fd-dup redirect (2>&1) should not be flagged as missing target."""
         from psh.ast_nodes import Redirect
         from psh.parser.validation.validation_rules import (
-            ValidRedirectRule, ValidationContext,
+            ValidationContext,
+            ValidRedirectRule,
         )
         rule = ValidRedirectRule()
         ctx = ValidationContext()
@@ -340,7 +339,8 @@ class TestValidationFalsePositives:
     def test_validate_case_no_false_positive(self):
         """case x in a) echo a;; esac should not be flagged as empty."""
         from psh.parser.validation.validation_rules import (
-            NoEmptyBodyRule, ValidationContext,
+            NoEmptyBodyRule,
+            ValidationContext,
         )
         rule = NoEmptyBodyRule()
         ctx = ValidationContext()
@@ -352,10 +352,11 @@ class TestValidationFalsePositives:
 
     def test_validate_varname_no_false_positive(self):
         """Variable name 'var1' should not be flagged as invalid."""
+        from psh.ast_nodes import ArrayInitialization, SimpleCommand
         from psh.parser.validation.validation_rules import (
-            ValidVariableNameRule, ValidationContext,
+            ValidationContext,
+            ValidVariableNameRule,
         )
-        from psh.ast_nodes import SimpleCommand, ArrayInitialization
         rule = ValidVariableNameRule()
         ctx = ValidationContext()
         # Simulate a SimpleCommand with an array assignment named 'var1'

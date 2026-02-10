@@ -16,13 +16,9 @@ Findings:
 
 import os
 
-import pytest
-
-from psh.ast_nodes import ExpansionPart, LiteralPart, Word
 from psh.lexer import tokenize
 from psh.parser import Parser, ParserConfig
 from psh.visitor.formatter_visitor import FormatterVisitor
-
 
 # ---------------------------------------------------------------------------
 # Helpers

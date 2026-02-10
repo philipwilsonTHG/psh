@@ -9,10 +9,6 @@ Tests for signal handling, trap command, and signal propagation including:
 - Signal delivery to job groups
 """
 
-import pytest
-import signal
-import subprocess
-import time
 import os
 import sys
 from pathlib import Path

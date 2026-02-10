@@ -9,12 +9,11 @@ Tests cover:
 - Complex patterns
 """
 
-import pytest
 
 
 class TestCaseStatements:
     """Test case statement functionality."""
-    
+
     def test_basic_case(self, shell, capsys):
         """Test basic case statement."""
         cmd = '''
@@ -34,7 +33,7 @@ class TestCaseStatements:
         shell.run_command(cmd)
         captured = capsys.readouterr()
         assert captured.out.strip() == "It's an apple"
-    
+
     def test_case_with_multiple_patterns(self, shell, capsys):
         """Test case with multiple patterns per branch."""
         cmd = '''
@@ -55,7 +54,7 @@ class TestCaseStatements:
         assert "orange is citrus or pomaceous" in captured.out
         assert "banana is tropical or vine" in captured.out
         assert "grape is tropical or vine" in captured.out
-    
+
     def test_case_with_wildcards(self, shell, capsys):
         """Test case with wildcard patterns."""
         cmd = '''
@@ -82,7 +81,7 @@ class TestCaseStatements:
         assert "image.jpg is an image" in captured.out
         assert "script.sh is a shell script" in captured.out
         assert "data.csv is something else" in captured.out
-    
+
     def test_case_with_character_classes(self, shell, capsys):
         """Test case with character class patterns."""
         cmd = '''
@@ -110,7 +109,7 @@ class TestCaseStatements:
         assert "Z is uppercase" in captured.out
         assert "@ is special" in captured.out
         assert "_ is special" in captured.out
-    
+
     def test_case_no_match(self, shell, capsys):
         """Test case with no matching pattern."""
         cmd = '''
@@ -130,7 +129,7 @@ class TestCaseStatements:
         assert "affirmative" not in captured.out
         assert "negative" not in captured.out
         assert "done" in captured.out
-    
+
     def test_case_empty_variable(self, shell, capsys):
         """Test case with empty variable."""
         cmd = '''
@@ -147,7 +146,7 @@ class TestCaseStatements:
         shell.run_command(cmd)
         captured = capsys.readouterr()
         assert captured.out.strip() == "empty"
-    
+
     def test_case_with_quotes(self, shell, capsys):
         """Test case with quoted patterns."""
         cmd = '''
@@ -164,7 +163,7 @@ class TestCaseStatements:
         shell.run_command(cmd)
         captured = capsys.readouterr()
         assert captured.out.strip() == "matched with spaces"
-    
+
     def test_case_with_command_substitution(self, shell, capsys):
         """Test case with command substitution."""
         cmd = '''
@@ -180,7 +179,7 @@ class TestCaseStatements:
         shell.run_command(cmd)
         captured = capsys.readouterr()
         assert captured.out.strip() == "command substitution works"
-    
+
     def test_case_fallthrough(self, shell, capsys):
         """Test case with fall-through behavior."""
         cmd = '''
@@ -198,13 +197,13 @@ class TestCaseStatements:
         captured = capsys.readouterr()
         assert "matched test" in captured.out
         assert "also in default" in captured.out
-    
+
     def test_nested_case(self, shell, capsys):
         """Test nested case statements."""
         cmd = '''
         TYPE="file"
         EXT="txt"
-        
+
         case $TYPE in
             file)
                 case $EXT in
@@ -224,7 +223,7 @@ class TestCaseStatements:
         shell.run_command(cmd)
         captured = capsys.readouterr()
         assert captured.out.strip() == "text file"
-    
+
     def test_case_with_glob_patterns(self, shell, capsys):
         """Test case with various glob patterns."""
         cmd = '''
@@ -248,14 +247,14 @@ class TestCaseStatements:
         assert "a1c matches a?c" in captured.out
         assert "aXc matches a?c" in captured.out
         assert "a12c matches a*c" in captured.out
-    
+
     def test_case_with_function(self, shell, capsys):
         """Test case calling functions."""
         cmd = '''
         handle_text() { echo "Processing text file: $1"; }
         handle_image() { echo "Processing image file: $1"; }
         handle_other() { echo "Processing other file: $1"; }
-        
+
         for file in doc.txt pic.jpg data.bin; do
             case $file in
                 *.txt)
@@ -275,7 +274,7 @@ class TestCaseStatements:
         assert "Processing text file: doc.txt" in captured.out
         assert "Processing image file: pic.jpg" in captured.out
         assert "Processing other file: data.bin" in captured.out
-    
+
     def test_case_oneline(self, shell, capsys):
         """Test case on single line (semicolon separated)."""
         shell.run_command('X=yes; case $X in yes) echo "YES";; no) echo "NO";; esac')

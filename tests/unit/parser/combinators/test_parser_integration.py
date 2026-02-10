@@ -1,19 +1,10 @@
 """Tests for the integrated modular parser combinator."""
 
-import pytest
-from psh.token_types import Token, TokenType
-from psh.ast_nodes import (
-    TopLevel, CommandList, SimpleCommand, Pipeline, AndOrList,
-    IfConditional, WhileLoop, ForLoop, FunctionDef,
-    ArithmeticEvaluation, EnhancedTestStatement,
-    Word, LiteralPart
-)
+from psh.ast_nodes import AndOrList, ForLoop, IfConditional, Pipeline, SimpleCommand, TopLevel, WhileLoop
+from psh.parser.combinators.parser import ParserCombinatorShellParser, create_parser_combinator_shell_parser
 from psh.parser.config import ParserConfig
 from psh.parser.recursive_descent.helpers import ParseError
-from psh.parser.combinators.parser import (
-    ParserCombinatorShellParser,
-    create_parser_combinator_shell_parser
-)
+from psh.token_types import Token, TokenType
 
 
 def make_token(token_type: TokenType, value: str, position: int = 0) -> Token:
@@ -23,16 +14,16 @@ def make_token(token_type: TokenType, value: str, position: int = 0) -> Token:
 
 class TestParserIntegration:
     """Test the integrated parser functionality."""
-    
+
     def test_empty_input(self):
         """Test parsing empty input."""
         parser = ParserCombinatorShellParser()
-        
+
         # Empty token list
         result = parser.parse([])
         assert isinstance(result, TopLevel)
         assert len(result.items) == 0
-        
+
         # Only newline (no WHITESPACE token type)
         tokens = [
             make_token(TokenType.NEWLINE, "\n")
@@ -40,60 +31,60 @@ class TestParserIntegration:
         result = parser.parse(tokens)
         assert isinstance(result, TopLevel)
         assert len(result.items) == 0
-    
+
     def test_simple_command(self):
         """Test parsing a simple command."""
         parser = ParserCombinatorShellParser()
-        
+
         tokens = [
             make_token(TokenType.WORD, "echo"),
             make_token(TokenType.WORD, "hello"),
             make_token(TokenType.WORD, "world")
         ]
-        
+
         result = parser.parse(tokens)
         assert isinstance(result, TopLevel)
         assert len(result.items) == 1
-        
+
         # Commands are wrapped in AndOrList -> Pipeline
         stmt = result.items[0]
         assert isinstance(stmt, AndOrList)
         assert len(stmt.pipelines) == 1
         assert len(stmt.pipelines[0].commands) == 1
-        
+
         cmd = stmt.pipelines[0].commands[0]
         assert isinstance(cmd, SimpleCommand)
         assert len(cmd.args) == 3
         assert cmd.args == ['echo', 'hello', 'world']
-    
+
     def test_pipeline(self):
         """Test parsing a pipeline."""
         parser = ParserCombinatorShellParser()
-        
+
         tokens = [
             make_token(TokenType.WORD, "ls"),
             make_token(TokenType.PIPE, "|"),
             make_token(TokenType.WORD, "grep"),
             make_token(TokenType.WORD, "test")
         ]
-        
+
         result = parser.parse(tokens)
         assert isinstance(result, TopLevel)
         assert len(result.items) == 1
-        
+
         # Pipelines are wrapped in AndOrList
         stmt = result.items[0]
         assert isinstance(stmt, AndOrList)
         assert len(stmt.pipelines) == 1
-        
+
         pipeline = stmt.pipelines[0]
         assert isinstance(pipeline, Pipeline)
         assert len(pipeline.commands) == 2
-    
+
     def test_if_statement(self):
         """Test parsing an if statement."""
         parser = ParserCombinatorShellParser()
-        
+
         tokens = [
             make_token(TokenType.WORD, "if"),
             make_token(TokenType.WORD, "test"),
@@ -105,7 +96,7 @@ class TestParserIntegration:
             make_token(TokenType.SEMICOLON, ";"),
             make_token(TokenType.WORD, "fi")
         ]
-        
+
         result = parser.parse(tokens)
         assert isinstance(result, TopLevel)
 
@@ -128,11 +119,11 @@ class TestParserIntegration:
         assert len(if_stmt.then_part.statements[0].pipelines) == 1
         cmd = if_stmt.then_part.statements[0].pipelines[0].commands[0]
         assert cmd.args == ["echo", "yes"]
-    
+
     def test_while_loop(self):
         """Test parsing a while loop."""
         parser = ParserCombinatorShellParser()
-        
+
         tokens = [
             make_token(TokenType.WORD, "while"),
             make_token(TokenType.WORD, "true"),
@@ -143,7 +134,7 @@ class TestParserIntegration:
             make_token(TokenType.SEMICOLON, ";"),
             make_token(TokenType.WORD, "done")
         ]
-        
+
         result = parser.parse(tokens)
         assert isinstance(result, TopLevel)
 
@@ -164,11 +155,11 @@ class TestParserIntegration:
         assert len(while_loop.body.statements[0].pipelines) == 1
         cmd = while_loop.body.statements[0].pipelines[0].commands[0]
         assert cmd.args == ["echo", "loop"]
-    
+
     def test_for_loop(self):
         """Test parsing a for loop."""
         parser = ParserCombinatorShellParser()
-        
+
         tokens = [
             make_token(TokenType.WORD, "for"),
             make_token(TokenType.WORD, "i"),
@@ -183,7 +174,7 @@ class TestParserIntegration:
             make_token(TokenType.SEMICOLON, ";"),
             make_token(TokenType.WORD, "done")
         ]
-        
+
         result = parser.parse(tokens)
         assert isinstance(result, TopLevel)
 
@@ -204,11 +195,11 @@ class TestParserIntegration:
         assert len(for_loop.body.statements[0].pipelines) == 1
         cmd = for_loop.body.statements[0].pipelines[0].commands[0]
         assert "echo" in cmd.args
-    
+
     def test_function_definition(self):
         """Test parsing a function definition."""
         parser = ParserCombinatorShellParser()
-        
+
         tokens = [
             make_token(TokenType.WORD, "myfunc"),
             make_token(TokenType.LPAREN, "("),
@@ -219,7 +210,7 @@ class TestParserIntegration:
             make_token(TokenType.SEMICOLON, ";"),
             make_token(TokenType.RBRACE, "}")
         ]
-        
+
         # The parser may not handle function definitions with these tokens
         # It needs proper integration between the parsers
         try:
@@ -230,11 +221,11 @@ class TestParserIntegration:
         except:
             # If parsing fails, that's expected with the current implementation
             pass
-    
+
     def test_arithmetic_command(self):
         """Test parsing an arithmetic command."""
         parser = ParserCombinatorShellParser()
-        
+
         tokens = [
             make_token(TokenType.DOUBLE_LPAREN, "(("),
             make_token(TokenType.WORD, "x"),
@@ -244,7 +235,7 @@ class TestParserIntegration:
             make_token(TokenType.WORD, "3"),
             make_token(TokenType.DOUBLE_RPAREN, "))")
         ]
-        
+
         # DOUBLE_LPAREN and DOUBLE_RPAREN tokens should trigger arithmetic parsing
         # but it may not be fully wired yet
         try:
@@ -255,11 +246,11 @@ class TestParserIntegration:
         except:
             # If parsing fails, that's expected with the current implementation
             pass
-    
+
     def test_enhanced_test(self):
         """Test parsing an enhanced test expression."""
         parser = ParserCombinatorShellParser()
-        
+
         tokens = [
             make_token(TokenType.DOUBLE_LBRACKET, "[["),
             make_token(TokenType.VARIABLE, "x"),
@@ -267,7 +258,7 @@ class TestParserIntegration:
             make_token(TokenType.WORD, "5"),
             make_token(TokenType.DOUBLE_RBRACKET, "]]")
         ]
-        
+
         # DOUBLE_LBRACKET and DOUBLE_RBRACKET should trigger test parsing
         # but it may not be fully wired yet
         try:
@@ -278,11 +269,11 @@ class TestParserIntegration:
         except:
             # If parsing fails, that's expected with the current implementation
             pass
-    
+
     def test_multiple_statements(self):
         """Test parsing multiple statements."""
         parser = ParserCombinatorShellParser()
-        
+
         tokens = [
             make_token(TokenType.WORD, "echo"),
             make_token(TokenType.WORD, "first"),
@@ -293,41 +284,41 @@ class TestParserIntegration:
             make_token(TokenType.WORD, "echo"),
             make_token(TokenType.WORD, "third")
         ]
-        
+
         result = parser.parse(tokens)
         assert isinstance(result, TopLevel)
         assert len(result.items) == 3
-        
+
         # Each statement is wrapped in AndOrList
         for stmt in result.items:
             assert isinstance(stmt, AndOrList)
             assert len(stmt.pipelines) == 1
             assert len(stmt.pipelines[0].commands) == 1
             assert isinstance(stmt.pipelines[0].commands[0], SimpleCommand)
-    
+
     def test_heredoc_support(self):
         """Test heredoc content population."""
         parser = ParserCombinatorShellParser()
-        
+
         tokens = [
             make_token(TokenType.WORD, "cat"),
             make_token(TokenType.HEREDOC, "<<"),
             make_token(TokenType.WORD, "EOF")
         ]
-        
+
         heredoc_contents = {'heredoc_1': 'Hello\nWorld\n'}
-        
+
         # Parse with heredocs
         result = parser.parse_with_heredocs(tokens, heredoc_contents)
         assert isinstance(result, TopLevel)
-        
+
         # Note: The actual heredoc population would happen if the
         # redirect nodes had heredoc_key attributes set
-    
+
     def test_parse_partial(self):
         """Test partial parsing."""
         parser = ParserCombinatorShellParser()
-        
+
         tokens = [
             make_token(TokenType.WORD, "echo"),
             make_token(TokenType.WORD, "hello"),
@@ -335,23 +326,23 @@ class TestParserIntegration:
             make_token(TokenType.WORD, "invalid"),
             make_token(TokenType.WORD, "###")  # Use WORD instead of INVALID
         ]
-        
+
         ast, pos = parser.parse_partial(tokens)
         assert ast is not None
         # Parser will consume all valid tokens
         assert pos >= 3  # At least stopped after the semicolon
-    
+
     def test_can_parse(self):
         """Test checking if tokens can be parsed."""
         parser = ParserCombinatorShellParser()
-        
+
         # Valid tokens
         valid_tokens = [
             make_token(TokenType.WORD, "echo"),
             make_token(TokenType.WORD, "hello")
         ]
         assert parser.can_parse(valid_tokens) is True
-        
+
         # Incomplete if statement: keywords are normalized, so this is
         # correctly detected as an incomplete if (missing fi)
         tokens_to_check = [
@@ -362,7 +353,7 @@ class TestParserIntegration:
             make_token(TokenType.WORD, "echo")
         ]
         assert parser.can_parse(tokens_to_check) is False
-    
+
     def test_explain_parse(self):
         """Test parser explain method."""
         parser = ParserCombinatorShellParser()
@@ -387,11 +378,11 @@ class TestParserIntegration:
         # Reconfigure
         parser.configure(enable_arithmetic=True)
         assert parser.config.enable_arithmetic is True
-    
+
     def test_error_handling(self):
         """Test parse error handling."""
         parser = ParserCombinatorShellParser()
-        
+
         # These tokens will parse successfully as commands
         # To get a real parse error, we need something that truly can't parse
         # An empty LPAREN without RPAREN might work
@@ -399,7 +390,7 @@ class TestParserIntegration:
             make_token(TokenType.LPAREN, "("),
             # Missing closing paren and content
         ]
-        
+
         # This should actually fail to parse
         try:
             result = parser.parse(tokens)
@@ -411,12 +402,12 @@ class TestParserIntegration:
         except:
             # Other errors are also acceptable
             pass
-    
+
     def test_convenience_function(self):
         """Test convenience function for creating parser."""
         parser = create_parser_combinator_shell_parser()
         assert isinstance(parser, ParserCombinatorShellParser)
-        
+
         # With config and heredocs
         config = ParserConfig()
         heredocs = {'key': 'value'}

@@ -1,21 +1,21 @@
 """Tests for control structure parsers."""
 
-import pytest
-from psh.token_types import Token, TokenType
 from psh.ast_nodes import (
-    IfConditional, WhileLoop, ForLoop, CaseConditional, SelectLoop,
-    CStyleForLoop, CaseItem, CasePattern, FunctionDef,
-    SubshellGroup, BraceGroup, BreakStatement, ContinueStatement,
-    CommandList, StatementList, SimpleCommand, Pipeline, AndOrList
+    BraceGroup,
+    BreakStatement,
+    CaseConditional,
+    ContinueStatement,
+    CStyleForLoop,
+    ForLoop,
+    FunctionDef,
+    IfConditional,
+    SelectLoop,
+    SubshellGroup,
+    WhileLoop,
 )
-from psh.parser.config import ParserConfig
-from psh.parser.combinators.control_structures import (
-    ControlStructureParsers,
-    create_control_structure_parsers
-)
-from psh.parser.combinators.tokens import TokenParsers
-from psh.parser.combinators.expansions import ExpansionParsers
 from psh.parser.combinators.commands import CommandParsers
+from psh.parser.combinators.control_structures import ControlStructureParsers, create_control_structure_parsers
+from psh.token_types import Token, TokenType
 
 
 def make_token(token_type: TokenType, value: str, position: int = 0) -> Token:
@@ -25,13 +25,13 @@ def make_token(token_type: TokenType, value: str, position: int = 0) -> Token:
 
 class TestIfStatements:
     """Test if/elif/else statement parsing."""
-    
+
     def test_simple_if_then_fi(self):
         """Test basic if-then-fi structure."""
         parsers = ControlStructureParsers()
         command_parsers = CommandParsers()
         parsers.set_command_parsers(command_parsers)
-        
+
         tokens = [
             make_token(TokenType.WORD, "if"),
             make_token(TokenType.WORD, "test"),
@@ -44,7 +44,7 @@ class TestIfStatements:
             make_token(TokenType.SEMICOLON, ";"),
             make_token(TokenType.WORD, "fi")
         ]
-        
+
         result = parsers.if_statement.parse(tokens, 0)
         assert result.success is True
         assert isinstance(result.value, IfConditional)
@@ -52,13 +52,13 @@ class TestIfStatements:
         assert len(result.value.then_part.statements) == 1
         assert result.value.elif_parts == []
         assert result.value.else_part is None
-    
+
     def test_if_with_else(self):
         """Test if-then-else-fi structure."""
         parsers = ControlStructureParsers()
         command_parsers = CommandParsers()
         parsers.set_command_parsers(command_parsers)
-        
+
         tokens = [
             make_token(TokenType.WORD, "if"),
             make_token(TokenType.WORD, "true"),
@@ -73,19 +73,19 @@ class TestIfStatements:
             make_token(TokenType.SEMICOLON, ";"),
             make_token(TokenType.WORD, "fi")
         ]
-        
+
         result = parsers.if_statement.parse(tokens, 0)
         assert result.success is True
         assert isinstance(result.value, IfConditional)
         assert result.value.else_part is not None
         assert len(result.value.else_part.statements) == 1
-    
+
     def test_if_with_elif(self):
         """Test if-then-elif-then-fi structure."""
         parsers = ControlStructureParsers()
         command_parsers = CommandParsers()
         parsers.set_command_parsers(command_parsers)
-        
+
         tokens = [
             make_token(TokenType.WORD, "if"),
             make_token(TokenType.WORD, "test1"),
@@ -103,7 +103,7 @@ class TestIfStatements:
             make_token(TokenType.SEMICOLON, ";"),
             make_token(TokenType.WORD, "fi")
         ]
-        
+
         result = parsers.if_statement.parse(tokens, 0)
         assert result.success is True
         assert isinstance(result.value, IfConditional)
@@ -111,13 +111,13 @@ class TestIfStatements:
         elif_cond, elif_body = result.value.elif_parts[0]
         assert len(elif_cond.statements) == 1
         assert len(elif_body.statements) == 1
-    
+
     def test_nested_if_statements(self):
         """Test nested if statements."""
         parsers = ControlStructureParsers()
         command_parsers = CommandParsers()
         parsers.set_command_parsers(command_parsers)
-        
+
         tokens = [
             make_token(TokenType.WORD, "if"),
             make_token(TokenType.WORD, "test1"),
@@ -134,7 +134,7 @@ class TestIfStatements:
             make_token(TokenType.SEMICOLON, ";"),
             make_token(TokenType.WORD, "fi")
         ]
-        
+
         result = parsers.if_statement.parse(tokens, 0)
         assert result.success is True
         assert isinstance(result.value, IfConditional)
@@ -145,13 +145,13 @@ class TestIfStatements:
 
 class TestWhileLoops:
     """Test while loop parsing."""
-    
+
     def test_simple_while_loop(self):
         """Test basic while-do-done structure."""
         parsers = ControlStructureParsers()
         command_parsers = CommandParsers()
         parsers.set_command_parsers(command_parsers)
-        
+
         tokens = [
             make_token(TokenType.WORD, "while"),
             make_token(TokenType.WORD, "test"),
@@ -163,19 +163,19 @@ class TestWhileLoops:
             make_token(TokenType.SEMICOLON, ";"),
             make_token(TokenType.WORD, "done")
         ]
-        
+
         result = parsers.while_loop.parse(tokens, 0)
         assert result.success is True
         assert isinstance(result.value, WhileLoop)
         assert len(result.value.condition.statements) == 1
         assert len(result.value.body.statements) == 1
-    
+
     def test_nested_while_loops(self):
         """Test nested while loops."""
         parsers = ControlStructureParsers()
         command_parsers = CommandParsers()
         parsers.set_command_parsers(command_parsers)
-        
+
         tokens = [
             make_token(TokenType.WORD, "while"),
             make_token(TokenType.WORD, "outer"),
@@ -192,7 +192,7 @@ class TestWhileLoops:
             make_token(TokenType.SEMICOLON, ";"),
             make_token(TokenType.WORD, "done")
         ]
-        
+
         result = parsers.while_loop.parse(tokens, 0)
         assert result.success is True
         assert isinstance(result.value, WhileLoop)
@@ -203,13 +203,13 @@ class TestWhileLoops:
 
 class TestForLoops:
     """Test for loop parsing."""
-    
+
     def test_traditional_for_loop(self):
         """Test traditional for-in loop."""
         parsers = ControlStructureParsers()
         command_parsers = CommandParsers()
         parsers.set_command_parsers(command_parsers)
-        
+
         tokens = [
             make_token(TokenType.WORD, "for"),
             make_token(TokenType.WORD, "i"),
@@ -224,20 +224,20 @@ class TestForLoops:
             make_token(TokenType.SEMICOLON, ";"),
             make_token(TokenType.WORD, "done")
         ]
-        
+
         result = parsers.for_loop.parse(tokens, 0)
         assert result.success is True
         assert isinstance(result.value, ForLoop)
         assert result.value.variable == "i"
         assert result.value.items == ["a", "b", "c"]
         assert len(result.value.body.statements) == 1
-    
+
     def test_c_style_for_loop(self):
         """Test C-style for loop."""
         parsers = ControlStructureParsers()
         command_parsers = CommandParsers()
         parsers.set_command_parsers(command_parsers)
-        
+
         tokens = [
             make_token(TokenType.WORD, "for"),
             make_token(TokenType.DOUBLE_LPAREN, "(("),
@@ -259,7 +259,7 @@ class TestForLoops:
             make_token(TokenType.SEMICOLON, ";"),
             make_token(TokenType.WORD, "done")
         ]
-        
+
         result = parsers.for_loop.parse(tokens, 0)
         assert result.success is True
         assert isinstance(result.value, CStyleForLoop)
@@ -267,13 +267,13 @@ class TestForLoops:
         assert result.value.condition_expr == "i < 10"
         assert result.value.update_expr == "i ++"
         assert len(result.value.body.statements) == 1
-    
+
     def test_for_loop_with_variable_expansion(self):
         """Test for loop with variable in items."""
         parsers = ControlStructureParsers()
         command_parsers = CommandParsers()
         parsers.set_command_parsers(command_parsers)
-        
+
         tokens = [
             make_token(TokenType.WORD, "for"),
             make_token(TokenType.WORD, "file"),
@@ -286,7 +286,7 @@ class TestForLoops:
             make_token(TokenType.SEMICOLON, ";"),
             make_token(TokenType.WORD, "done")
         ]
-        
+
         result = parsers.for_loop.parse(tokens, 0)
         assert result.success is True
         assert isinstance(result.value, ForLoop)
@@ -296,13 +296,13 @@ class TestForLoops:
 
 class TestCaseStatements:
     """Test case statement parsing."""
-    
+
     def test_simple_case_statement(self):
         """Test basic case-esac structure."""
         parsers = ControlStructureParsers()
         command_parsers = CommandParsers()
         parsers.set_command_parsers(command_parsers)
-        
+
         tokens = [
             make_token(TokenType.WORD, "case"),
             make_token(TokenType.VARIABLE, "var"),
@@ -319,7 +319,7 @@ class TestCaseStatements:
             make_token(TokenType.DOUBLE_SEMICOLON, ";;"),
             make_token(TokenType.WORD, "esac")
         ]
-        
+
         result = parsers.case_statement.parse(tokens, 0)
         assert result.success is True
         assert isinstance(result.value, CaseConditional)
@@ -327,13 +327,13 @@ class TestCaseStatements:
         assert len(result.value.items) == 2
         assert result.value.items[0].patterns[0].pattern == "pattern1"
         assert result.value.items[1].patterns[0].pattern == "pattern2"
-    
+
     def test_case_with_multiple_patterns(self):
         """Test case with multiple patterns per item."""
         parsers = ControlStructureParsers()
         command_parsers = CommandParsers()
         parsers.set_command_parsers(command_parsers)
-        
+
         tokens = [
             make_token(TokenType.WORD, "case"),
             make_token(TokenType.WORD, "option"),
@@ -349,7 +349,7 @@ class TestCaseStatements:
             make_token(TokenType.DOUBLE_SEMICOLON, ";;"),
             make_token(TokenType.WORD, "esac")
         ]
-        
+
         result = parsers.case_statement.parse(tokens, 0)
         assert result.success is True
         assert isinstance(result.value, CaseConditional)
@@ -362,13 +362,13 @@ class TestCaseStatements:
 
 class TestSelectLoops:
     """Test select loop parsing."""
-    
+
     def test_simple_select_loop(self):
         """Test basic select-in-do-done structure."""
         parsers = ControlStructureParsers()
         command_parsers = CommandParsers()
         parsers.set_command_parsers(command_parsers)
-        
+
         tokens = [
             make_token(TokenType.WORD, "select"),
             make_token(TokenType.WORD, "choice"),
@@ -383,7 +383,7 @@ class TestSelectLoops:
             make_token(TokenType.SEMICOLON, ";"),
             make_token(TokenType.WORD, "done")
         ]
-        
+
         result = parsers.select_loop.parse(tokens, 0)
         assert result.success is True
         assert isinstance(result.value, SelectLoop)
@@ -394,13 +394,13 @@ class TestSelectLoops:
 
 class TestFunctionDefinitions:
     """Test function definition parsing."""
-    
+
     def test_posix_function(self):
         """Test POSIX-style function: name() { body }"""
         parsers = ControlStructureParsers()
         command_parsers = CommandParsers()
         parsers.set_command_parsers(command_parsers)
-        
+
         tokens = [
             make_token(TokenType.WORD, "myfunc"),
             make_token(TokenType.LPAREN, "("),
@@ -411,19 +411,19 @@ class TestFunctionDefinitions:
             make_token(TokenType.SEMICOLON, ";"),
             make_token(TokenType.RBRACE, "}")
         ]
-        
+
         result = parsers.function_def.parse(tokens, 0)
         assert result.success is True
         assert isinstance(result.value, FunctionDef)
         assert result.value.name == "myfunc"
         assert len(result.value.body.statements) == 1
-    
+
     def test_function_keyword_style(self):
         """Test function keyword style: function name { body }"""
         parsers = ControlStructureParsers()
         command_parsers = CommandParsers()
         parsers.set_command_parsers(command_parsers)
-        
+
         tokens = [
             make_token(TokenType.WORD, "function"),
             make_token(TokenType.WORD, "myfunc"),
@@ -433,18 +433,18 @@ class TestFunctionDefinitions:
             make_token(TokenType.SEMICOLON, ";"),
             make_token(TokenType.RBRACE, "}")
         ]
-        
+
         result = parsers.function_def.parse(tokens, 0)
         assert result.success is True
         assert isinstance(result.value, FunctionDef)
         assert result.value.name == "myfunc"
-    
+
     def test_function_keyword_with_parens(self):
         """Test function keyword with parentheses: function name() { body }"""
         parsers = ControlStructureParsers()
         command_parsers = CommandParsers()
         parsers.set_command_parsers(command_parsers)
-        
+
         tokens = [
             make_token(TokenType.WORD, "function"),
             make_token(TokenType.WORD, "myfunc"),
@@ -456,18 +456,18 @@ class TestFunctionDefinitions:
             make_token(TokenType.SEMICOLON, ";"),
             make_token(TokenType.RBRACE, "}")
         ]
-        
+
         result = parsers.function_def.parse(tokens, 0)
         assert result.success is True
         assert isinstance(result.value, FunctionDef)
         assert result.value.name == "myfunc"
-    
+
     def test_invalid_function_name(self):
         """Test that invalid function names are handled."""
         parsers = ControlStructureParsers()
         command_parsers = CommandParsers()
         parsers.set_command_parsers(command_parsers)
-        
+
         # Name starting with digit - parser currently accepts any WORD token
         tokens = [
             make_token(TokenType.WORD, "1func"),
@@ -477,18 +477,18 @@ class TestFunctionDefinitions:
             make_token(TokenType.WORD, "echo"),
             make_token(TokenType.RBRACE, "}")
         ]
-        
+
         result = parsers.function_def.parse(tokens, 0)
         # The parser tries 'function' keyword style first, then POSIX style
         # Since '1func' doesn't match 'function' keyword, it fails
         assert result.success is False
-    
+
     def test_reserved_word_function_name(self):
         """Test that reserved words as function names are handled."""
         parsers = ControlStructureParsers()
         command_parsers = CommandParsers()
         parsers.set_command_parsers(command_parsers)
-        
+
         # Using 'if' as function name - will be parsed as if statement instead
         tokens = [
             make_token(TokenType.WORD, "if"),
@@ -498,7 +498,7 @@ class TestFunctionDefinitions:
             make_token(TokenType.WORD, "echo"),
             make_token(TokenType.RBRACE, "}")
         ]
-        
+
         result = parsers.function_def.parse(tokens, 0)
         # The parser tries 'function' keyword style first
         # Since 'if' doesn't match 'function' keyword, it fails
@@ -509,13 +509,13 @@ class TestFunctionDefinitions:
 
 class TestCompoundCommands:
     """Test compound command parsing."""
-    
+
     def test_subshell_group(self):
         """Test subshell group (...) syntax."""
         parsers = ControlStructureParsers()
         command_parsers = CommandParsers()
         parsers.set_command_parsers(command_parsers)
-        
+
         tokens = [
             make_token(TokenType.LPAREN, "("),
             make_token(TokenType.WORD, "echo"),
@@ -524,18 +524,18 @@ class TestCompoundCommands:
             make_token(TokenType.WORD, "pwd"),
             make_token(TokenType.RPAREN, ")")
         ]
-        
+
         result = parsers.subshell_group.parse(tokens, 0)
         assert result.success is True
         assert isinstance(result.value, SubshellGroup)
         assert len(result.value.statements.statements) == 2
-    
+
     def test_brace_group(self):
         """Test brace group {...} syntax."""
         parsers = ControlStructureParsers()
         command_parsers = CommandParsers()
         parsers.set_command_parsers(command_parsers)
-        
+
         tokens = [
             make_token(TokenType.LBRACE, "{"),
             make_token(TokenType.WORD, "echo"),
@@ -544,7 +544,7 @@ class TestCompoundCommands:
             make_token(TokenType.WORD, "pwd"),
             make_token(TokenType.RBRACE, "}")
         ]
-        
+
         result = parsers.brace_group.parse(tokens, 0)
         assert result.success is True
         assert isinstance(result.value, BraceGroup)
@@ -553,64 +553,64 @@ class TestCompoundCommands:
 
 class TestBreakContinue:
     """Test break and continue statement parsing."""
-    
+
     def test_break_statement(self):
         """Test break statement."""
         parsers = ControlStructureParsers()
         command_parsers = CommandParsers()
         parsers.set_command_parsers(command_parsers)
-        
+
         tokens = [
             make_token(TokenType.WORD, "break")
         ]
-        
+
         result = parsers.break_statement.parse(tokens, 0)
         assert result.success is True
         assert isinstance(result.value, BreakStatement)
         assert result.value.level == 1  # Default
-    
+
     def test_break_with_level(self):
         """Test break statement with level."""
         parsers = ControlStructureParsers()
         command_parsers = CommandParsers()
         parsers.set_command_parsers(command_parsers)
-        
+
         tokens = [
             make_token(TokenType.WORD, "break"),
             make_token(TokenType.WORD, "2")
         ]
-        
+
         result = parsers.break_statement.parse(tokens, 0)
         assert result.success is True
         assert isinstance(result.value, BreakStatement)
         assert result.value.level == 2
-    
+
     def test_continue_statement(self):
         """Test continue statement."""
         parsers = ControlStructureParsers()
         command_parsers = CommandParsers()
         parsers.set_command_parsers(command_parsers)
-        
+
         tokens = [
             make_token(TokenType.WORD, "continue")
         ]
-        
+
         result = parsers.continue_statement.parse(tokens, 0)
         assert result.success is True
         assert isinstance(result.value, ContinueStatement)
         assert result.value.level == 1  # Default
-    
+
     def test_continue_with_level(self):
         """Test continue statement with level."""
         parsers = ControlStructureParsers()
         command_parsers = CommandParsers()
         parsers.set_command_parsers(command_parsers)
-        
+
         tokens = [
             make_token(TokenType.WORD, "continue"),
             make_token(TokenType.WORD, "3")
         ]
-        
+
         result = parsers.continue_statement.parse(tokens, 0)
         assert result.success is True
         assert isinstance(result.value, ContinueStatement)
@@ -619,7 +619,7 @@ class TestBreakContinue:
 
 class TestConvenienceFunctions:
     """Test convenience functions for control structure parsing."""
-    
+
     def test_create_control_structure_parsers(self):
         """Test factory function."""
         parsers = create_control_structure_parsers()

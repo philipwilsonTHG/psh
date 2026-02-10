@@ -6,11 +6,14 @@ has_expansion_parts, has_unquoted_expansion, and effective_quote_char
 properties on the Word AST node.
 """
 
-import pytest
 from psh.ast_nodes import (
-    Word, LiteralPart, ExpansionPart,
-    VariableExpansion, ParameterExpansion,
-    CommandSubstitution, ArithmeticExpansion,
+    ArithmeticExpansion,
+    CommandSubstitution,
+    ExpansionPart,
+    LiteralPart,
+    ParameterExpansion,
+    VariableExpansion,
+    Word,
 )
 
 

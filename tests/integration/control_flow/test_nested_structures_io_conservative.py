@@ -5,15 +5,14 @@ Tests nested control structures with I/O operations that are known to work well 
 More advanced I/O patterns are marked as expected failures to track implementation areas.
 """
 
-import pytest
+import os
 import subprocess
 import sys
-import os
 
 
 class TestBasicNestedIO:
     """Test basic I/O operations with nested control structures."""
-    
+
     def test_simple_output_redirection_in_loops(self, temp_dir):
         """Test basic output redirection within nested structures."""
         script = '''
@@ -21,23 +20,23 @@ class TestBasicNestedIO:
             echo "Item $i" > "item_${i}.txt"
         done
         '''
-        
+
         result = subprocess.run([
             sys.executable, '-m', 'psh', '-c', script
         ], cwd=temp_dir, capture_output=True, text=True,
            env={**os.environ, 'PYTHONPATH': os.getcwd()})
-        
+
         assert result.returncode == 0
-        
+
         # Check individual files
         with open(os.path.join(temp_dir, 'item_1.txt'), 'r') as f:
             content1 = f.read().strip()
         assert content1 == "Item 1"
-        
+
         with open(os.path.join(temp_dir, 'item_2.txt'), 'r') as f:
             content2 = f.read().strip()
         assert content2 == "Item 2"
-    
+
     def test_append_redirection_in_case(self, temp_dir):
         """Test append redirection within case statements."""
         script = '''
@@ -52,29 +51,29 @@ class TestBasicNestedIO:
             esac
         done
         '''
-        
+
         result = subprocess.run([
             sys.executable, '-m', 'psh', '-c', script
         ], cwd=temp_dir, capture_output=True, text=True,
            env={**os.environ, 'PYTHONPATH': os.getcwd()})
-        
+
         assert result.returncode == 0
-        
+
         with open(os.path.join(temp_dir, 'numbers.txt'), 'r') as f:
             numbers = f.read().strip()
         assert numbers == "Number: 123"
-        
+
         with open(os.path.join(temp_dir, 'text.txt'), 'r') as f:
             text = f.read().strip()
         assert text == "Text: apple\nText: banana"
-    
+
     def test_input_redirection_with_existing_file(self, temp_dir):
         """Test input redirection with pre-existing file."""
         # Create input file first
         input_file = os.path.join(temp_dir, 'input.txt')
         with open(input_file, 'w') as f:
             f.write('line1\nline2\n')
-        
+
         script = '''
         counter=0
         while read line; do
@@ -82,14 +81,14 @@ class TestBasicNestedIO:
             echo "Line $counter: $line" >> output.txt
         done < input.txt
         '''
-        
+
         result = subprocess.run([
             sys.executable, '-m', 'psh', '-c', script
         ], cwd=temp_dir, capture_output=True, text=True,
            env={**os.environ, 'PYTHONPATH': os.getcwd()})
-        
+
         assert result.returncode == 0
-        
+
         with open(os.path.join(temp_dir, 'output.txt'), 'r') as f:
             output = f.read().strip()
         assert output == "Line 1: line1\nLine 2: line2"
@@ -97,7 +96,7 @@ class TestBasicNestedIO:
 
 class TestWorkingPipePatterns:
     """Test pipe patterns that work reliably with nested structures."""
-    
+
     def test_echo_pipe_in_nested_structure(self, temp_dir):
         """Test echo with pipe in nested control structure."""
         script = '''
@@ -112,22 +111,22 @@ class TestWorkingPipePatterns:
             esac
         done
         '''
-        
+
         result = subprocess.run([
             sys.executable, '-m', 'psh', '-c', script
         ], cwd=temp_dir, capture_output=True, text=True,
            env={**os.environ, 'PYTHONPATH': os.getcwd()})
-        
+
         assert result.returncode == 0
-        
+
         with open(os.path.join(temp_dir, 'fruits_raw.txt'), 'r') as f:
             fruits = f.read().strip()
         assert fruits == "apple banana cherry"
-        
+
         with open(os.path.join(temp_dir, 'colors_raw.txt'), 'r') as f:
             colors = f.read().strip()
         assert colors == "red blue green"
-    
+
     def test_simple_function_output_redirection(self, temp_dir):
         """Test function output redirection in nested context."""
         script = '''
@@ -135,19 +134,19 @@ class TestWorkingPipePatterns:
             echo "Data for: $1"
             echo "Value: $2"
         }
-        
+
         for item in item1 item2; do
             generate_data "test" "$item" > "${item}_data.txt"
         done
         '''
-        
+
         result = subprocess.run([
             sys.executable, '-m', 'psh', '-c', script
         ], cwd=temp_dir, capture_output=True, text=True,
            env={**os.environ, 'PYTHONPATH': os.getcwd()})
-        
+
         assert result.returncode == 0
-        
+
         with open(os.path.join(temp_dir, 'item1_data.txt'), 'r') as f:
             item1_data = f.read().strip()
         assert "Data for: test" in item1_data
@@ -156,7 +155,7 @@ class TestWorkingPipePatterns:
 
 class TestAdvancedIOPatterns:
     """Test advanced I/O patterns - many expected to fail for now."""
-    
+
     def test_complex_nested_redirection(self, temp_dir):
         """Test complex redirection patterns in deeply nested structures."""
         script = '''
@@ -166,18 +165,18 @@ class TestAdvancedIOPatterns:
             done > "output${outer}.txt"
         done
         '''
-        
+
         result = subprocess.run([
             sys.executable, '-m', 'psh', '-c', script
         ], cwd=temp_dir, capture_output=True, text=True,
            env={**os.environ, 'PYTHONPATH': os.getcwd()})
-        
+
         assert result.returncode == 0
-        
+
         with open(os.path.join(temp_dir, 'output1.txt'), 'r') as f:
             content1 = f.read().strip()
         assert content1 == "1-a\n1-b"
-    
+
     def test_heredoc_in_case_statement(self, temp_dir):
         """Test heredoc usage within case statements."""
         script = '''
@@ -198,18 +197,18 @@ EOF
             esac
         done
         '''
-        
+
         result = subprocess.run([
             sys.executable, '-m', 'psh', '-c', script
         ], cwd=temp_dir, capture_output=True, text=True,
            env={**os.environ, 'PYTHONPATH': os.getcwd()})
-        
+
         assert result.returncode == 0
-        
+
         with open(os.path.join(temp_dir, 'header.txt'), 'r') as f:
             header = f.read().strip()
         assert "This is the header." in header
-    
+
     def test_while_read_with_pipes(self, temp_dir):
         """Test while read pattern with pipes in nested structure."""
         script = '''
@@ -227,18 +226,18 @@ EOF
             esac
         done
         '''
-        
+
         result = subprocess.run([
             sys.executable, '-m', 'psh', '-c', script
         ], cwd=temp_dir, capture_output=True, text=True,
            env={**os.environ, 'PYTHONPATH': os.getcwd()})
-        
+
         assert result.returncode == 0
-        
+
         with open(os.path.join(temp_dir, 'first.txt'), 'r') as f:
             first = f.read().strip()
         assert first == "First: line1"
-    
+
     def test_error_handling_in_redirection(self, temp_dir):
         """Test error handling when redirection fails."""
         script = '''
@@ -250,14 +249,14 @@ EOF
         done
         echo "Successes: $success_count" > summary.txt
         '''
-        
+
         result = subprocess.run([
             sys.executable, '-m', 'psh', '-c', script
         ], cwd=temp_dir, capture_output=True, text=True,
            env={**os.environ, 'PYTHONPATH': os.getcwd()})
-        
+
         assert result.returncode == 0
-        
+
         with open(os.path.join(temp_dir, 'summary.txt'), 'r') as f:
             summary = f.read().strip()
         # Should have 1 success (good_file) and 1 failure
@@ -266,7 +265,7 @@ EOF
 
 class TestNestedStructuresRegression:
     """Test that nested structures don't break basic shell functionality."""
-    
+
     def test_simple_command_after_nested_structure(self, temp_dir):
         """Test that simple commands work after complex nested structures."""
         script = '''
@@ -279,26 +278,26 @@ class TestNestedStructuresRegression:
                 esac
             fi
         done > complex_output.txt
-        
+
         # Simple command should still work
         echo "simple command" > simple_output.txt
         '''
-        
+
         result = subprocess.run([
             sys.executable, '-m', 'psh', '-c', script
         ], cwd=temp_dir, capture_output=True, text=True,
            env={**os.environ, 'PYTHONPATH': os.getcwd()})
-        
+
         assert result.returncode == 0
-        
+
         with open(os.path.join(temp_dir, 'simple_output.txt'), 'r') as f:
             simple = f.read().strip()
         assert simple == "simple command"
-        
+
         with open(os.path.join(temp_dir, 'complex_output.txt'), 'r') as f:
             complex_output = f.read().strip()
         assert complex_output == "one"
-    
+
     def test_variable_assignment_after_nesting(self, temp_dir):
         """Test that variable assignments work correctly after nested structures."""
         script = '''
@@ -309,22 +308,22 @@ class TestNestedStructuresRegression:
                 result="found_two"
             fi
         done
-        
+
         # Variable should retain value
         echo "Final result: $result" > final.txt
-        
+
         # New assignment should work
         new_var="new_value"
         echo "New variable: $new_var" >> final.txt
         '''
-        
+
         result = subprocess.run([
             sys.executable, '-m', 'psh', '-c', script
         ], cwd=temp_dir, capture_output=True, text=True,
            env={**os.environ, 'PYTHONPATH': os.getcwd()})
-        
+
         assert result.returncode == 0
-        
+
         with open(os.path.join(temp_dir, 'final.txt'), 'r') as f:
             final_content = f.read().strip()
         assert "Final result: found_two" in final_content

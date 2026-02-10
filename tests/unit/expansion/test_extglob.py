@@ -1,11 +1,14 @@
 """Unit tests for the extglob pattern engine."""
 
-import os
 import re
-import pytest
+
 from psh.expansion.extglob import (
-    contains_extglob, extglob_to_regex, match_extglob,
-    expand_extglob, _find_matching_paren, _split_pattern_list,
+    _find_matching_paren,
+    _split_pattern_list,
+    contains_extglob,
+    expand_extglob,
+    extglob_to_regex,
+    match_extglob,
 )
 
 

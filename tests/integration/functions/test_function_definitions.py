@@ -5,7 +5,6 @@ Tests shell function definitions, parsing, and execution including
 parameter passing, return values, and scope.
 """
 
-import pytest
 
 
 def test_simple_function_definition(shell, capsys):
@@ -115,7 +114,7 @@ def test_function_variable_scope(shell, capsys):
     shell.run_command('test_scope')
     captured = capsys.readouterr()
     assert 'local' in captured.out
-    
+
     # Check global variable
     shell.run_command('echo $VAR')
     captured = capsys.readouterr()
@@ -129,7 +128,7 @@ def test_function_local_variables(shell, capsys):
     shell.run_command('test_local')
     captured = capsys.readouterr()
     assert 'local' in captured.out
-    
+
     # Global should be unchanged
     shell.run_command('echo $VAR')
     captured = capsys.readouterr()
@@ -145,11 +144,11 @@ def test_function_with_conditionals(shell, capsys):
             echo "Parameter is not test"
         fi
     }''')
-    
+
     shell.run_command('check_param test')
     captured = capsys.readouterr()
     assert 'Parameter is test' in captured.out
-    
+
     shell.run_command('check_param other')
     captured = capsys.readouterr()
     assert 'Parameter is not test' in captured.out
@@ -192,7 +191,7 @@ def test_function_with_pipeline(shell_with_temp_dir, capsys):
     shell.run_command('upper() { echo "$1" | tr a-z A-Z; }')
     result = shell.run_command('upper hello > pipeline_output.txt')
     assert result == 0
-    
+
     # Read the output file to verify
     with open('pipeline_output.txt', 'r') as f:
         output = f.read()
@@ -206,11 +205,11 @@ def test_function_redirection(shell_with_temp_dir):
     shell_with_temp_dir.run_command('write_file() { echo "test content" > function_output.txt; }')
     result = shell_with_temp_dir.run_command('write_file')
     assert result == 0
-    
+
     # Verify file was created
     import os
     assert os.path.exists(output_file)
-    
+
     # Verify content
     with open(output_file, 'r') as f:
         content = f.read()
@@ -234,7 +233,7 @@ def test_function_unset(shell):
     """Test unsetting a function."""
     shell.run_command('temp_func() { echo "temporary"; }')
     shell.run_command('temp_func')  # Should work
-    
+
     shell.run_command('unset -f temp_func')
     result = shell.run_command('temp_func')
     assert result != 0  # Should fail after unset

@@ -5,8 +5,6 @@ import subprocess
 import sys
 from unittest.mock import MagicMock, call, patch
 
-import pytest
-
 from psh.executor.child_policy import apply_child_signal_policy
 
 

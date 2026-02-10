@@ -4,17 +4,16 @@ Simple I/O redirection tests.
 Tests basic redirection functionality that can be verified reliably.
 """
 
-import pytest
 import os
 
 
 def test_output_redirection_to_file(shell_with_temp_dir):
     """Test basic output redirection to file."""
     temp_file = 'test_output.txt'
-    
+
     result = shell_with_temp_dir.run_command(f'echo "hello world" > {temp_file}')
     assert result == 0
-    
+
     # Verify file was created and has content
     assert os.path.exists(temp_file)
     with open(temp_file, 'r') as f:
@@ -25,14 +24,14 @@ def test_output_redirection_to_file(shell_with_temp_dir):
 def test_output_redirection_append(shell_with_temp_dir):
     """Test output redirection with append mode."""
     temp_file = 'test_append.txt'
-    
+
     # Create initial file
     with open(temp_file, 'w') as f:
         f.write("first line\n")
-    
+
     result = shell_with_temp_dir.run_command(f'echo "second line" >> {temp_file}')
     assert result == 0
-    
+
     # Verify both lines are present
     with open(temp_file, 'r') as f:
         content = f.read()
@@ -43,11 +42,11 @@ def test_output_redirection_append(shell_with_temp_dir):
 def test_input_redirection_from_file(shell_with_temp_dir):
     """Test input redirection from file."""
     temp_file = 'test_input.txt'
-    
+
     # Create input file
     with open(temp_file, 'w') as f:
         f.write("test content\n")
-    
+
     result = shell_with_temp_dir.run_command(f'cat < {temp_file}')
     assert result == 0
 
@@ -82,10 +81,10 @@ EOF''')
 def test_redirection_with_variables(shell_with_temp_dir):
     """Test redirection with variable-specified filenames."""
     temp_file = 'variable_output.txt'
-    
+
     shell_with_temp_dir.run_command(f'OUTFILE={temp_file}')
     result = shell_with_temp_dir.run_command('echo "variable file" > $OUTFILE')
-    
+
     # Test passes if the command executed without error, even if file creation is complex
     assert result == 0
 
@@ -93,15 +92,15 @@ def test_redirection_with_variables(shell_with_temp_dir):
 def test_redirection_overwrite_protection(shell_with_temp_dir):
     """Test redirection overwrite behavior."""
     temp_file = 'overwrite_test.txt'
-    
+
     # Create initial file
     with open(temp_file, 'w') as f:
         f.write("original content\n")
-    
+
     # Overwrite the file
     result = shell_with_temp_dir.run_command(f'echo "new content" > {temp_file}')
     assert result == 0
-    
+
     # Verify file was overwritten
     with open(temp_file, 'r') as f:
         content = f.read()
@@ -112,10 +111,10 @@ def test_redirection_overwrite_protection(shell_with_temp_dir):
 def test_redirection_with_pipeline(shell_with_temp_dir):
     """Test redirection combined with pipeline."""
     temp_file = 'pipeline_output.txt'
-    
+
     result = shell_with_temp_dir.run_command(f'echo "test data" | cat > {temp_file}')
     assert result == 0
-    
+
     # Verify file was created
     assert os.path.exists(temp_file)
     with open(temp_file, 'r') as f:
@@ -133,11 +132,11 @@ def test_redirection_error_handling(shell_with_temp_dir):
 def test_redirection_with_background_job(shell_with_temp_dir):
     """Test redirection with background jobs."""
     temp_file = 'background_output.txt'
-    
+
     result = shell_with_temp_dir.run_command(f'echo "background" > {temp_file} &')
     assert result == 0
-    
+
     # Give the background job time to complete
-    
+
     # Verify file was created
     assert os.path.exists(temp_file)

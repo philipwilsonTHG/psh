@@ -2,10 +2,21 @@
 """Version information for Python Shell (psh)."""
 
 # Semantic versioning: MAJOR.MINOR.PATCH
-__version__ = "0.160.0"
+__version__ = "0.161.0"
 
 # Version history
 VERSION_HISTORY = """
+0.161.0 (2026-02-10) - Test Tree Lint Cleanup
+- Fixed 7,132 ruff lint issues across ~160 test files:
+  6330 W293 (whitespace on blank lines), 265 F401 (unused imports),
+  163 I001 (unsorted imports), 121 W292 (missing newline at EOF),
+  121 F841 (unused variables), 116 W291 (trailing whitespace),
+  13 W605 (invalid escape sequences), 3 F811 (redefined while unused).
+- Added noqa: F401 to 4 intentional imports (removed-module tests, pexpect
+  availability detection).
+- Expanded CI lint gate to cover tests/ alongside psh/.
+- Zero behavioral changes; all 3087 tests pass.
+
 0.160.0 (2026-02-10) - Lint Cleanup and CI Gate
 - Fixed 626 ruff lint issues across ~50 files in psh/:
   596 W293 (whitespace on blank lines), 17 W291 (trailing whitespace),

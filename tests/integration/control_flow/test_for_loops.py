@@ -9,12 +9,11 @@ Tests cover:
 - Break and continue in for loops
 """
 
-import pytest
 
 
 class TestForLoops:
     """Test for loop functionality."""
-    
+
     def test_basic_for_loop(self, shell, capsys):
         """Test basic for loop with list."""
         cmd = '''
@@ -27,7 +26,7 @@ class TestForLoops:
         assert "item: one" in captured.out
         assert "item: two" in captured.out
         assert "item: three" in captured.out
-    
+
     def test_for_loop_with_variable(self, shell, capsys):
         """Test for loop iterating over variable."""
         cmd = '''
@@ -41,7 +40,7 @@ class TestForLoops:
         assert "fruit: apple" in captured.out
         assert "fruit: banana" in captured.out
         assert "fruit: cherry" in captured.out
-    
+
     def test_for_loop_with_glob(self, shell, capsys):
         """Test for loop with glob pattern."""
         cmd = '''
@@ -56,7 +55,7 @@ class TestForLoops:
         assert "found: file1.txt" in captured.out
         assert "found: file2.txt" in captured.out
         assert "found: file3.txt" in captured.out
-    
+
     def test_for_loop_with_command_substitution(self, shell, capsys):
         """Test for loop with command substitution."""
         cmd = '''
@@ -69,7 +68,7 @@ class TestForLoops:
         assert "word: hello" in captured.out
         assert "word: world" in captured.out
         assert "word: test" in captured.out
-    
+
     def test_for_loop_with_break(self, shell, capsys):
         """Test for loop with break."""
         cmd = '''
@@ -88,7 +87,7 @@ class TestForLoops:
         assert "i: 3" not in captured.out
         assert "i: 4" not in captured.out
         assert "after loop" in captured.out
-    
+
     def test_for_loop_with_continue(self, shell, capsys):
         """Test for loop with continue."""
         cmd = '''
@@ -106,7 +105,7 @@ class TestForLoops:
         assert "i: 3" not in captured.out  # Skipped
         assert "i: 4" in captured.out
         assert "i: 5" in captured.out
-    
+
     def test_nested_for_loops(self, shell, capsys):
         """Test nested for loops."""
         cmd = '''
@@ -122,7 +121,7 @@ class TestForLoops:
         assert "A2" in captured.out
         assert "B1" in captured.out
         assert "B2" in captured.out
-    
+
     def test_c_style_for_loop(self, shell, capsys):
         """Test C-style for loop."""
         cmd = '''
@@ -135,7 +134,7 @@ class TestForLoops:
         assert "i: 0" in captured.out
         assert "i: 1" in captured.out
         assert "i: 2" in captured.out
-    
+
     def test_for_loop_no_list(self, shell, capsys):
         """Test for loop without list (uses positional parameters)."""
         cmd = '''
@@ -149,7 +148,7 @@ class TestForLoops:
         assert "arg: arg1" in captured.out
         assert "arg: arg2" in captured.out
         assert "arg: arg3" in captured.out
-    
+
     def test_for_loop_empty_list(self, shell, capsys):
         """Test for loop with empty list."""
         cmd = '''
@@ -164,7 +163,7 @@ class TestForLoops:
         assert "before" in captured.out
         assert "after" in captured.out
         assert "should not print" not in captured.out
-    
+
     def test_for_loop_with_quotes(self, shell, capsys):
         """Test for loop with quoted strings."""
         cmd = '''
@@ -177,7 +176,7 @@ class TestForLoops:
         assert "[hello world]" in captured.out
         assert "[foo bar]" in captured.out
         assert "[test]" in captured.out
-    
+
     def test_for_loop_with_array(self, shell, capsys):
         """Test for loop with array expansion."""
         cmd = '''
@@ -191,7 +190,7 @@ class TestForLoops:
         assert "color: red" in captured.out
         assert "color: green" in captured.out
         assert "color: blue" in captured.out
-    
+
     def test_for_loop_modifying_variable(self, shell, capsys):
         """Test for loop that modifies loop variable."""
         cmd = '''
@@ -208,20 +207,20 @@ class TestForLoops:
         assert "after: 99" in captured.out
         assert "before: 2" in captured.out
         assert "before: 3" in captured.out
-    
+
     def test_for_loop_oneline(self, shell, capsys):
         """Test for loop on single line."""
         shell.run_command('for x in a b c; do echo $x; done')
         captured = capsys.readouterr()
         assert "a\nb\nc" in captured.out
-    
+
     def test_for_loop_with_function(self, shell, capsys):
         """Test for loop calling function."""
         cmd = '''
         process() {
             echo "Processing: $1"
         }
-        
+
         for item in file1 file2 file3; do
             process "$item"
         done

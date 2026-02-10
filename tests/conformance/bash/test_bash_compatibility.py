@@ -5,9 +5,10 @@ Tests PSH compatibility with bash-specific features and behaviors.
 Documents areas where PSH intentionally differs or doesn't support bash extensions.
 """
 
-import pytest
-import sys
 import os
+import sys
+
+import pytest
 
 # Add parent directory to path for framework import
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
@@ -37,7 +38,7 @@ class TestBashBuiltins(ConformanceTest):
     def test_read_builtin(self):
         """Test read builtin compatibility."""
         # Basic read functionality
-        result = self.check_behavior('echo "test" | read var; echo $var')
+        self.check_behavior('echo "test" | read var; echo $var')
         # Read from pipe behavior might differ
 
     def test_test_builtin(self):
@@ -183,7 +184,7 @@ class TestBashBraceExpansion(ConformanceTest):
 
     def test_nested_brace_expansion(self):
         """Test nested brace expansion."""
-        result = self.check_behavior('echo {a,b{1,2}}')
+        self.check_behavior('echo {a,b{1,2}}')
         # Should expand properly in both shells
         # Exact format might differ but should contain all combinations
 
@@ -231,9 +232,9 @@ class TestBashGlobbing(ConformanceTest):
         to recognize the patterns. Same-line shopt+pattern won't work
         in bash or psh because tokenization happens before execution.
         """
-        result = self.check_behavior('shopt -s extglob\necho @(a|b)')
-        result = self.check_behavior('shopt -s extglob\necho +(a|b)')
-        result = self.check_behavior('shopt -s extglob\necho *(a|b)')
+        self.check_behavior('shopt -s extglob\necho @(a|b)')
+        self.check_behavior('shopt -s extglob\necho +(a|b)')
+        self.check_behavior('shopt -s extglob\necho *(a|b)')
 
     def test_brace_globbing_interaction(self):
         """Test interaction between braces and globbing."""
@@ -260,7 +261,7 @@ class TestBashJobControl(ConformanceTest):
         """Test job control commands."""
         # These tests are complex in non-interactive mode
         result1 = self.check_behavior('jobs')
-        result2 = self.check_behavior('sleep 1 & jobs')
+        self.check_behavior('sleep 1 & jobs')
 
         # Should succeed in both shells
         assert result1.psh_result.exit_code == 0
@@ -287,7 +288,7 @@ class TestBashHistory(ConformanceTest):
 
     def test_history_commands(self):
         """Test history-related commands."""
-        result = self.check_behavior('history')
+        self.check_behavior('history')
         # History command behavior might differ
 
 
@@ -299,8 +300,8 @@ class TestBashOptions(ConformanceTest):
         self.assert_identical_behavior('set -e; true')
 
         # These might have different behavior
-        result1 = self.check_behavior('set -o pipefail; true')
-        result2 = self.check_behavior('set -u; true')
+        self.check_behavior('set -o pipefail; true')
+        self.check_behavior('set -u; true')
 
     def test_shopt_options(self):
         """Test bash shopt options."""
@@ -321,7 +322,7 @@ class TestBashRedirection(ConformanceTest):
     def test_here_documents(self):
         """Test here documents (POSIX)."""
         # Here document tests are complex - check basic syntax
-        result = self.check_behavior('cat << EOF\nhello\nEOF')
+        self.check_behavior('cat << EOF\nhello\nEOF')
         # Both should handle here documents
 
     def test_advanced_redirection(self):
@@ -417,7 +418,7 @@ class TestBashMiscellaneous(ConformanceTest):
     def test_export_functionality(self):
         """Test export functionality."""
         # Basic export
-        result = self.check_behavior('export VAR=value; env | grep VAR')
+        self.check_behavior('export VAR=value; env | grep VAR')
         # Should appear in environment
 
     def test_env_option_compatibility(self):
@@ -477,8 +478,8 @@ class TestDocumentedDifferences(ConformanceTest):
         # These might have subtle differences in behavior
         # but both shells should succeed
 
-        result1 = self.check_behavior('pushd /tmp')
-        result2 = self.check_behavior('popd')
+        self.check_behavior('pushd /tmp')
+        self.check_behavior('popd')
 
         # Both should work but might have different output formats
         # This documents the differences rather than asserting sameness
@@ -486,8 +487,8 @@ class TestDocumentedDifferences(ConformanceTest):
 
 def generate_bash_compatibility_report():
     """Generate comprehensive bash compatibility report."""
-    import tempfile
     import json
+    import tempfile
 
     test_classes = [
         TestBashBuiltins,

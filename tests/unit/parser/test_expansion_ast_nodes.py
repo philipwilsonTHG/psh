@@ -1,9 +1,13 @@
 """Test expansion AST nodes."""
 
-import pytest
 from psh.ast_nodes import (
-    Word, LiteralPart, ExpansionPart,
-    VariableExpansion, CommandSubstitution, ParameterExpansion, ArithmeticExpansion
+    ArithmeticExpansion,
+    CommandSubstitution,
+    ExpansionPart,
+    LiteralPart,
+    ParameterExpansion,
+    VariableExpansion,
+    Word,
 )
 from psh.parser.recursive_descent.support.word_builder import WordBuilder
 from psh.token_types import Token, TokenType
@@ -11,13 +15,13 @@ from psh.token_types import Token, TokenType
 
 class TestExpansionASTNodes:
     """Test the expansion AST node classes."""
-    
+
     def test_variable_expansion(self):
         """Test VariableExpansion node."""
         var = VariableExpansion("USER")
         assert str(var) == "$USER"
         assert var.name == "USER"
-    
+
     def test_command_substitution(self):
         """Test CommandSubstitution node."""
         # Modern style
@@ -25,51 +29,51 @@ class TestExpansionASTNodes:
         assert str(cmd) == "$(date +%Y)"
         assert cmd.command == "date +%Y"
         assert not cmd.backtick_style
-        
+
         # Backtick style
         cmd2 = CommandSubstitution("hostname", backtick_style=True)
         assert str(cmd2) == "`hostname`"
         assert cmd2.command == "hostname"
         assert cmd2.backtick_style
-    
+
     def test_parameter_expansion(self):
         """Test ParameterExpansion node."""
         # Simple form
         param = ParameterExpansion("HOME")
         assert str(param) == "${HOME}"
-        
+
         # With default value
         param2 = ParameterExpansion("USER", ":-", "nobody")
         assert str(param2) == "${USER:-nobody}"
-        
+
         # Length operator
         param3 = ParameterExpansion("PATH", "#", None)
         assert str(param3) == "${#PATH}"
-        
+
         # Pattern removal
         param4 = ParameterExpansion("FILE", "%", ".txt")
         assert str(param4) == "${FILE%.txt}"
-    
+
     def test_arithmetic_expansion(self):
         """Test ArithmeticExpansion node."""
         arith = ArithmeticExpansion("2 + 2")
         assert str(arith) == "$((2 + 2))"
         assert arith.expression == "2 + 2"
-    
+
     def test_word_with_literal(self):
         """Test Word with only literal content."""
         word = Word(parts=[LiteralPart("hello")])
         assert str(word) == "hello"
-        
+
         # With quotes
         word2 = Word(parts=[LiteralPart("hello world")], quote_type='"')
         assert str(word2) == '"hello world"'
-    
+
     def test_word_with_expansion(self):
         """Test Word with expansion."""
         word = Word(parts=[ExpansionPart(VariableExpansion("USER"))])
         assert str(word) == "$USER"
-    
+
     def test_word_mixed_content(self):
         """Test Word with mixed literal and expansion."""
         word = Word(parts=[
@@ -78,7 +82,7 @@ class TestExpansionASTNodes:
             LiteralPart("!")
         ])
         assert str(word) == "Hello $USER!"
-    
+
     def test_word_from_string(self):
         """Test Word.from_string helper."""
         word = Word.from_string("hello")
@@ -89,7 +93,7 @@ class TestExpansionASTNodes:
 
 class TestWordBuilder:
     """Test the WordBuilder utility."""
-    
+
     def test_parse_variable_token(self):
         """Test parsing VARIABLE tokens."""
         # Simple variable
@@ -97,13 +101,13 @@ class TestWordBuilder:
         expansion = WordBuilder.parse_expansion_token(token)
         assert isinstance(expansion, VariableExpansion)
         assert expansion.name == "USER"
-        
+
         # Braced variable
         token2 = Token(TokenType.VARIABLE, "{HOME}", 0)
         expansion2 = WordBuilder.parse_expansion_token(token2)
         assert isinstance(expansion2, VariableExpansion)
         assert expansion2.name == "HOME"
-    
+
     def test_parse_command_sub_token(self):
         """Test parsing COMMAND_SUB tokens."""
         token = Token(TokenType.COMMAND_SUB, "$(date)", 0)
@@ -111,7 +115,7 @@ class TestWordBuilder:
         assert isinstance(expansion, CommandSubstitution)
         assert expansion.command == "date"
         assert not expansion.backtick_style
-    
+
     def test_parse_backtick_token(self):
         """Test parsing COMMAND_SUB_BACKTICK tokens."""
         token = Token(TokenType.COMMAND_SUB_BACKTICK, "`hostname`", 0)
@@ -119,14 +123,14 @@ class TestWordBuilder:
         assert isinstance(expansion, CommandSubstitution)
         assert expansion.command == "hostname"
         assert expansion.backtick_style
-    
+
     def test_parse_arithmetic_token(self):
         """Test parsing ARITH_EXPANSION tokens."""
         token = Token(TokenType.ARITH_EXPANSION, "$((10 + 5))", 0)
         expansion = WordBuilder.parse_expansion_token(token)
         assert isinstance(expansion, ArithmeticExpansion)
         assert expansion.expression == "10 + 5"
-    
+
     def test_parse_param_expansion_token(self):
         """Test parsing PARAM_EXPANSION tokens."""
         # Default value
@@ -136,7 +140,7 @@ class TestWordBuilder:
         assert expansion.parameter == "USER"
         assert expansion.operator == ":-"
         assert expansion.word == "nobody"
-        
+
         # Pattern removal
         token2 = Token(TokenType.PARAM_EXPANSION, "${PATH##*/}", 0)
         expansion2 = WordBuilder.parse_expansion_token(token2)
@@ -144,7 +148,7 @@ class TestWordBuilder:
         assert expansion2.parameter == "PATH"
         assert expansion2.operator == "##"
         assert expansion2.word == "*/"
-        
+
         # Length
         token3 = Token(TokenType.PARAM_EXPANSION, "${#VAR}", 0)
         expansion3 = WordBuilder.parse_expansion_token(token3)
@@ -152,7 +156,7 @@ class TestWordBuilder:
         assert expansion3.parameter == "VAR"
         assert expansion3.operator == "#"
         assert expansion3.word is None
-    
+
     def test_parse_prefix_substitution(self):
         """Test ${var/#pat/repl} produces operator='/#'."""
         token = Token(TokenType.PARAM_EXPANSION, "${path/#\\/usr/\\/opt}", 0)
@@ -242,7 +246,7 @@ class TestWordBuilder:
         assert str(word) == "hello"
         assert len(word.parts) == 1
         assert isinstance(word.parts[0], LiteralPart)
-        
+
         # Variable token
         token2 = Token(TokenType.VARIABLE, "USER", 0)
         word2 = WordBuilder.build_word_from_token(token2)
@@ -250,7 +254,7 @@ class TestWordBuilder:
         assert len(word2.parts) == 1
         assert isinstance(word2.parts[0], ExpansionPart)
         assert isinstance(word2.parts[0].expansion, VariableExpansion)
-    
+
     def test_build_composite_word(self):
         """Test building Word from multiple tokens."""
         tokens = [

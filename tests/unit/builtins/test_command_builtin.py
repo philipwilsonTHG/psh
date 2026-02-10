@@ -5,7 +5,6 @@ Tests for the command builtin which executes commands while bypassing
 function definitions and sometimes aliases.
 """
 
-import pytest
 
 
 def test_command_builtin_exists(shell):
@@ -32,17 +31,17 @@ def test_command_bypass_function(shell, capsys):
     """Test that command bypasses functions."""
     # Define a function that shadows echo
     shell.run_command('echo() { printf "function echo"; }')
-    
+
     # Normal call should use function
     shell.run_command('echo test')
     captured = capsys.readouterr()
     function_output = captured.out
-    
+
     # Command should bypass function and use builtin
     shell.run_command('command echo test')
     captured = capsys.readouterr()
     builtin_output = captured.out
-    
+
     # Outputs should be different
     assert function_output != builtin_output
     assert 'test' in builtin_output
@@ -98,7 +97,7 @@ def test_command_error_handling(shell):
     # Test with invalid option
     result = shell.run_command('command -xyz echo')
     # May or may not be implemented - just ensure no crash
-    
+
     # Test with no arguments
     result = shell.run_command('command')
     # Should fail or show usage
@@ -117,7 +116,7 @@ def test_command_with_redirection(shell_with_temp_dir):
     output_file = "command_output.txt"
     result = shell_with_temp_dir.run_command(f'command echo "redirected" > {output_file}')
     assert result == 0
-    
+
     # Check file was created
     import os
     assert os.path.exists(output_file)
@@ -132,5 +131,5 @@ def test_command_with_environment(shell, capsys):
 
 def test_command_help(shell):
     """Test command builtin help."""
-    result = shell.run_command('command --help')
+    shell.run_command('command --help')
     # May succeed or fail depending on implementation

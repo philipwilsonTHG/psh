@@ -1,6 +1,5 @@
 """Fixtures for behavioral golden tests."""
 
-import pytest
 
 
 def pytest_addoption(parser):

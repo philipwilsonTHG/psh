@@ -1,22 +1,19 @@
 """
 Basic nested control structures integration tests.
 
-Tests fundamental two-level nesting patterns including if-for, while-if, 
+Tests fundamental two-level nesting patterns including if-for, while-if,
 and for-while combinations with proper variable scoping and output handling.
 """
 
-import pytest
-import tempfile
-import os
 
 
 class TestBasicNestedStructures:
     """Test basic two-level nested control structures."""
-    
+
     def test_if_inside_for(self, shell_with_temp_dir):
         """Test if statement inside for loop."""
         shell = shell_with_temp_dir
-        
+
         script = '''
         result=""
         for i in 1 2 3; do
@@ -27,23 +24,23 @@ class TestBasicNestedStructures:
         done
         echo "$result" > output.txt
         '''
-        
+
         result = shell.run_command(script)
         assert result == 0
-        
+
         with open('output.txt', 'r') as f:
             output = f.read().strip()
         assert output == "1 found_two 2 3"
-    
+
     def test_while_inside_if(self, shell_with_temp_dir):
         """Test while loop inside if statement."""
         shell = shell_with_temp_dir
-        
+
         script = '''
         condition="true"
         counter=0
         result=""
-        
+
         if [ "$condition" = "true" ]; then
             while [ "$counter" -lt 3 ]; do
                 counter=$((counter + 1))
@@ -52,22 +49,22 @@ class TestBasicNestedStructures:
         fi
         echo "$result" > output.txt
         '''
-        
+
         result = shell.run_command(script)
         assert result == 0
-        
+
         with open('output.txt', 'r') as f:
             output = f.read().strip()
         assert output == "1 2 3"
-    
+
     def test_for_inside_while(self, shell_with_temp_dir):
         """Test for loop inside while loop."""
         shell = shell_with_temp_dir
-        
+
         script = '''
         outer=0
         result=""
-        
+
         while [ "$outer" -lt 2 ]; do
             for inner in a b; do
                 result="${result}${outer}-${inner} "
@@ -76,22 +73,22 @@ class TestBasicNestedStructures:
         done
         echo "$result" > output.txt
         '''
-        
+
         result = shell.run_command(script)
         assert result == 0
-        
+
         with open('output.txt', 'r') as f:
             output = f.read().strip()
         assert output == "0-a 0-b 1-a 1-b"
-    
+
     def test_nested_if_statements(self, shell_with_temp_dir):
         """Test multiple nested if statements."""
         shell = shell_with_temp_dir
-        
+
         script = '''
         value=15
         result=""
-        
+
         if [ "$value" -gt 10 ]; then
             result="${result}outer_true "
             if [ "$value" -gt 20 ]; then
@@ -105,18 +102,18 @@ class TestBasicNestedStructures:
         fi
         echo "$result" > output.txt
         '''
-        
+
         result = shell.run_command(script)
         assert result == 0
-        
+
         with open('output.txt', 'r') as f:
             output = f.read().strip()
         assert output == "outer_true innermost_true inner_true"
-    
+
     def test_case_inside_for_basic(self, shell_with_temp_dir):
         """Test case statement inside for loop."""
         shell = shell_with_temp_dir
-        
+
         script = '''
         result=""
         for item in apple banana cherry; do
@@ -134,22 +131,22 @@ class TestBasicNestedStructures:
         done
         echo "$result" > output.txt
         '''
-        
+
         result = shell.run_command(script)
         assert result == 0
-        
+
         with open('output.txt', 'r') as f:
             output = f.read().strip()
         assert output == "fruit1 fruit2 other"
-    
+
     def test_variable_scoping_in_nesting(self, shell_with_temp_dir):
         """Test variable scoping across nested structures."""
         shell = shell_with_temp_dir
-        
+
         script = '''
         outer_var="global"
         result=""
-        
+
         for i in 1 2; do
             inner_var="loop${i}"
             if [ "$i" -eq 2 ]; then
@@ -158,18 +155,18 @@ class TestBasicNestedStructures:
             fi
             result="${result}${outer_var}-${inner_var} "
         done
-        
+
         # Check if nested_var exists outside
         if [ -n "${nested_var:-}" ]; then
             result="${result}nested_exists"
         fi
-        
+
         echo "$result" > output.txt
         '''
-        
+
         result = shell.run_command(script)
         assert result == 0
-        
+
         with open('output.txt', 'r') as f:
             output = f.read().strip()
         assert output == "global-loop1 modified-loop2 nested_exists"
@@ -177,11 +174,11 @@ class TestBasicNestedStructures:
 
 class TestNestedControlFlow:
     """Test control flow statements (break/continue) in nested structures."""
-    
+
     def test_break_in_nested_loops(self, shell_with_temp_dir):
         """Test break behavior in nested loops."""
         shell = shell_with_temp_dir
-        
+
         script = '''
         result=""
         for outer in 1 2 3; do
@@ -196,18 +193,18 @@ class TestNestedControlFlow:
         done
         echo "$result" > output.txt
         '''
-        
+
         result = shell.run_command(script)
         assert result == 0
-        
+
         with open('output.txt', 'r') as f:
             output = f.read().strip()
         assert output == "outer1: a end1 outer2: a end2 outer3: a end3"
-    
+
     def test_continue_in_nested_loops(self, shell_with_temp_dir):
         """Test continue behavior in nested loops."""
         shell = shell_with_temp_dir
-        
+
         script = '''
         result=""
         for outer in 1 2 3; do
@@ -220,18 +217,18 @@ class TestNestedControlFlow:
         done
         echo "$result" > output.txt
         '''
-        
+
         result = shell.run_command(script)
         assert result == 0
-        
+
         with open('output.txt', 'r') as f:
             output = f.read().strip()
         assert output == "1a 1b 3a 3b"
-    
+
     def test_nested_while_with_break_continue(self, shell_with_temp_dir):
         """Test break and continue in nested while loops."""
         shell = shell_with_temp_dir
-        
+
         script = '''
         result=""
         outer=0
@@ -251,10 +248,10 @@ class TestNestedControlFlow:
         done
         echo "$result" > output.txt
         '''
-        
+
         result = shell.run_command(script)
         assert result == 0
-        
+
         with open('output.txt', 'r') as f:
             output = f.read().strip()
         assert output == "11 13 21 31 33"
@@ -262,11 +259,11 @@ class TestNestedControlFlow:
 
 class TestNestedFunctions:
     """Test functions within nested control structures."""
-    
+
     def test_function_with_nested_structures(self, shell_with_temp_dir):
         """Test function containing nested control structures."""
         shell = shell_with_temp_dir
-        
+
         script = '''
         process_items() {
             result=""
@@ -279,27 +276,27 @@ class TestNestedFunctions:
             done
             echo "$result"
         }
-        
+
         output=$(process_items 3 7 1 9)
         echo "$output" > output.txt
         '''
-        
+
         result = shell.run_command(script)
         assert result == 0
-        
+
         with open('output.txt', 'r') as f:
             output = f.read().strip()
         assert output == "small:3 big:7 small:1 big:9"
-    
+
     def test_nested_structures_calling_functions(self, shell_with_temp_dir):
         """Test nested structures that call functions."""
         shell = shell_with_temp_dir
-        
+
         script = '''
         double() {
             echo $(($1 * 2))
         }
-        
+
         result=""
         for i in 1 2 3; do
             doubled=$(double "$i")
@@ -309,18 +306,18 @@ class TestNestedFunctions:
         done
         echo "$result" > output.txt
         '''
-        
+
         result = shell.run_command(script)
         assert result == 0
-        
+
         with open('output.txt', 'r') as f:
             output = f.read().strip()
         assert output == "4 6"
-    
+
     def test_function_return_in_nested_structure(self, shell_with_temp_dir):
         """Test function return behavior within nested structures."""
         shell = shell_with_temp_dir
-        
+
         script = '''
         find_value() {
             target="$1"
@@ -331,7 +328,7 @@ class TestNestedFunctions:
             done
             return 1
         }
-        
+
         result=""
         for search in 10 25 15; do
             if find_value "$search"; then
@@ -342,10 +339,10 @@ class TestNestedFunctions:
         done
         echo "$result" > output.txt
         '''
-        
+
         result = shell.run_command(script)
         assert result == 0
-        
+
         with open('output.txt', 'r') as f:
             output = f.read().strip()
         assert output == "found:10 missing:25 found:15"
@@ -353,15 +350,15 @@ class TestNestedFunctions:
 
 class TestComplexNestedPatterns:
     """Test complex multi-level nested control structures."""
-    
+
     def test_case_inside_for_inside_if(self, shell_with_temp_dir):
         """Test three-level nesting: if containing for containing case."""
         shell = shell_with_temp_dir
-        
+
         script = '''
         mode="process"
         result=""
-        
+
         if [ "$mode" = "process" ]; then
             for file in doc.txt log.dat config.ini; do
                 case "$file" in
@@ -382,22 +379,22 @@ class TestComplexNestedPatterns:
         fi
         echo "$result" > output.txt
         '''
-        
+
         result = shell.run_command(script)
         assert result == 0
-        
+
         with open('output.txt', 'r') as f:
             output = f.read().strip()
         assert output == "text:doc.txt data:log.dat config:config.ini"
-    
+
     def test_while_with_case_and_if(self, shell_with_temp_dir):
         """Test while containing case containing if."""
         shell = shell_with_temp_dir
-        
+
         script = '''
         counter=0
         result=""
-        
+
         while [ "$counter" -lt 4 ]; do
             counter=$((counter + 1))
             case "$counter" in
@@ -418,10 +415,10 @@ class TestComplexNestedPatterns:
         done
         echo "$result" > output.txt
         '''
-        
+
         result = shell.run_command(script)
         assert result == 0
-        
+
         with open('output.txt', 'r') as f:
             output = f.read().strip()
         assert output == "first second third other"
@@ -429,23 +426,23 @@ class TestComplexNestedPatterns:
 
 class TestNestedStructuresBackwardCompatibility:
     """Test backward compatibility after nested structure implementation."""
-    
+
     def test_simple_commands_still_work(self, shell_with_temp_dir):
         """Test that simple commands work correctly."""
         shell = shell_with_temp_dir
-        
+
         script = 'echo "hello world" > output.txt'
         result = shell.run_command(script)
         assert result == 0
-        
+
         with open('output.txt', 'r') as f:
             output = f.read().strip()
         assert output == "hello world"
-    
+
     def test_basic_if_still_works(self, shell_with_temp_dir):
         """Test that basic if statements work correctly."""
         shell = shell_with_temp_dir
-        
+
         script = '''
         if [ "test" = "test" ]; then
             echo "success" > output.txt
@@ -453,18 +450,18 @@ class TestNestedStructuresBackwardCompatibility:
             echo "failure" > output.txt
         fi
         '''
-        
+
         result = shell.run_command(script)
         assert result == 0
-        
+
         with open('output.txt', 'r') as f:
             output = f.read().strip()
         assert output == "success"
-    
+
     def test_basic_for_loop_still_works(self, shell_with_temp_dir):
         """Test that basic for loops work correctly."""
         shell = shell_with_temp_dir
-        
+
         script = '''
         result=""
         for item in a b c; do
@@ -472,18 +469,18 @@ class TestNestedStructuresBackwardCompatibility:
         done
         echo "$result" > output.txt
         '''
-        
+
         result = shell.run_command(script)
         assert result == 0
-        
+
         with open('output.txt', 'r') as f:
             output = f.read().strip()
         assert output == "abc"
-    
+
     def test_basic_while_loop_still_works(self, shell_with_temp_dir):
         """Test that basic while loops work correctly."""
         shell = shell_with_temp_dir
-        
+
         script = '''
         counter=0
         result=""
@@ -493,10 +490,10 @@ class TestNestedStructuresBackwardCompatibility:
         done
         echo "$result" > output.txt
         '''
-        
+
         result = shell.run_command(script)
         assert result == 0
-        
+
         with open('output.txt', 'r') as f:
             output = f.read().strip()
         assert output == "123"

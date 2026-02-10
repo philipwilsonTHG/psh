@@ -5,18 +5,17 @@ Tests for subshell group (...) syntax support including variable isolation,
 command execution, redirections, and proper process management.
 """
 
-import pytest
 import os
 
 
 def test_subshell_basic_execution(isolated_shell_with_temp_dir):
     """Test basic subshell command execution."""
     shell = isolated_shell_with_temp_dir
-    
+
     # Test basic subshell execution with output redirection
     result = shell.run_command('(echo "hello from subshell") > subshell_output.txt')
     assert result == 0
-    
+
     # Verify output
     with open('subshell_output.txt', 'r') as f:
         content = f.read()
@@ -26,18 +25,18 @@ def test_subshell_basic_execution(isolated_shell_with_temp_dir):
 def test_subshell_variable_isolation(isolated_shell_with_temp_dir):
     """Test that variables set in subshell don't affect parent."""
     shell = isolated_shell_with_temp_dir
-    
+
     # Set a variable in parent
     shell.run_command('PARENT_VAR=parent_value')
-    
+
     # Modify variable in subshell and create new one, redirect to file
     result = shell.run_command('(PARENT_VAR=subshell_value; NEW_VAR=new_value; echo "In subshell: $PARENT_VAR $NEW_VAR") > subshell_vars.txt')
     assert result == 0
-    
+
     # Check parent variables are unchanged
     assert shell.state.get_variable('PARENT_VAR') == 'parent_value'
     assert shell.state.get_variable('NEW_VAR') == ''
-    
+
     # Verify subshell output
     with open('subshell_vars.txt', 'r') as f:
         output = f.read()
@@ -47,10 +46,10 @@ def test_subshell_variable_isolation(isolated_shell_with_temp_dir):
 def test_subshell_with_pipelines(isolated_shell_with_temp_dir):
     """Test subshell containing pipelines."""
     shell = isolated_shell_with_temp_dir
-    
+
     result = shell.run_command('(echo "line1"; echo "line2") | wc -l > line_count.txt')
     assert result == 0
-    
+
     with open('line_count.txt', 'r') as f:
         count = f.read().strip()
     # Should count 2 lines
@@ -62,11 +61,11 @@ def test_subshell_exit_status(shell):
     # Successful subshell
     result = shell.run_command('(true)')
     assert result == 0
-    
+
     # Failed subshell
     result = shell.run_command('(false)')
     assert result == 1
-    
+
     # Subshell with explicit exit
     result = shell.run_command('(exit 42)')
     assert result == 42
@@ -76,10 +75,10 @@ def test_subshell_with_conditionals(isolated_shell_with_temp_dir):
     """Test subshell containing conditional statements."""
     shell = isolated_shell_with_temp_dir
     shell.run_command('TEST_VAR=hello')
-    
+
     result = shell.run_command('(if [ "$TEST_VAR" = "hello" ]; then echo "match"; else echo "no match"; fi) > conditional_output.txt')
     assert result == 0
-    
+
     with open('conditional_output.txt', 'r') as f:
         output = f.read()
     assert "match" in output
@@ -88,28 +87,28 @@ def test_subshell_with_conditionals(isolated_shell_with_temp_dir):
 def test_subshell_with_loops(isolated_shell_with_temp_dir):
     """Test subshell containing loops."""
     shell = isolated_shell_with_temp_dir
-    
+
     result = shell.run_command('(for i in 1 2 3; do echo "Item: $i"; done) > loop_output.txt')
     assert result == 0
-    
+
     with open('loop_output.txt', 'r') as f:
         output = f.read()
     assert "Item: 1" in output
-    assert "Item: 2" in output  
+    assert "Item: 2" in output
     assert "Item: 3" in output
 
 
 def test_subshell_with_functions(isolated_shell_with_temp_dir):
     """Test function calls within subshells."""
     shell = isolated_shell_with_temp_dir
-    
+
     # Define function in parent
     shell.run_command('test_func() { echo "Function called with: $1"; }')
-    
+
     # Call function in subshell
     result = shell.run_command('(test_func "subshell param") > function_output.txt')
     assert result == 0
-    
+
     with open('function_output.txt', 'r') as f:
         output = f.read()
     assert "Function called with: subshell param" in output
@@ -118,19 +117,19 @@ def test_subshell_with_functions(isolated_shell_with_temp_dir):
 def test_subshell_input_redirection(isolated_shell_with_temp_dir):
     """Test subshell with input redirection."""
     shell = isolated_shell_with_temp_dir
-    
+
     # Create input file
     with open('input.txt', 'w') as f:
         f.write('line1\nline2\nline3\n')
-    
+
     # Use subshell with input redirection
     result = shell.run_command('(cat; echo "appended") < input.txt > output.txt')
     assert result == 0
-    
+
     with open('output.txt', 'r') as f:
         content = f.read()
     assert 'line1' in content
-    assert 'line2' in content  
+    assert 'line2' in content
     assert 'line3' in content
     assert 'appended' in content
 
@@ -140,7 +139,7 @@ def test_subshell_error_handling(shell):
     # Command not found in subshell
     result = shell.run_command('(nonexistent_command)')
     assert result != 0
-    
+
     # Syntax error in subshell
     result = shell.run_command('(echo "unterminated quote)')
     assert result != 0
@@ -149,10 +148,10 @@ def test_subshell_error_handling(shell):
 def test_nested_subshells(isolated_shell_with_temp_dir):
     """Test nested subshells."""
     shell = isolated_shell_with_temp_dir
-    
+
     result = shell.run_command('(echo "outer"; (echo "inner")) > nested_output.txt')
     assert result == 0
-    
+
     with open('nested_output.txt', 'r') as f:
         output = f.read()
     assert "outer" in output
@@ -162,13 +161,13 @@ def test_nested_subshells(isolated_shell_with_temp_dir):
 def test_subshell_with_background_jobs(isolated_shell_with_temp_dir):
     """Test subshell with background job execution."""
     shell = isolated_shell_with_temp_dir
-    
+
     # Run subshell in background
     result = shell.run_command('(echo "background subshell"; echo "done") > bg_output.txt &')
     assert result == 0
-    
+
     # Give it time to complete
-    
+
     # Check output file was created and contains expected content
     if os.path.exists('bg_output.txt'):
         with open('bg_output.txt', 'r') as f:
@@ -180,14 +179,14 @@ def test_subshell_with_background_jobs(isolated_shell_with_temp_dir):
 def test_subshell_environment_inheritance(isolated_shell_with_temp_dir):
     """Test that subshell inherits parent environment."""
     shell = isolated_shell_with_temp_dir
-    
+
     # Set environment variable
     shell.run_command('export INHERITED_VAR=inherited_value')
-    
+
     # Access in subshell
     result = shell.run_command('(echo "Inherited: $INHERITED_VAR") > inherited_output.txt')
     assert result == 0
-    
+
     with open('inherited_output.txt', 'r') as f:
         output = f.read()
     assert "Inherited: inherited_value" in output
@@ -197,17 +196,17 @@ def test_subshell_current_directory(isolated_shell_with_temp_dir):
     """Test subshell directory isolation."""
     shell = isolated_shell_with_temp_dir
     original_dir = os.getcwd()
-    
+
     # Create subdirectory
     os.makedirs('subdir', exist_ok=True)
-    
+
     # Change directory in subshell
     result = shell.run_command('(cd subdir; pwd) > pwd_output.txt')
     assert result == 0
-    
+
     # Verify we're still in original directory
     assert os.getcwd() == original_dir
-    
+
     # Verify subshell was in subdirectory
     with open('pwd_output.txt', 'r') as f:
         pwd_output = f.read().strip()
@@ -217,16 +216,16 @@ def test_subshell_current_directory(isolated_shell_with_temp_dir):
 def test_subshell_complex_redirections(isolated_shell_with_temp_dir):
     """Test complex redirection patterns with subshells."""
     shell = isolated_shell_with_temp_dir
-    
+
     # Multiple redirections in subshell
     result = shell.run_command('(echo "stdout"; echo "stderr" >&2) > out.txt 2> err.txt')
     assert result == 0
-    
+
     with open('out.txt', 'r') as f:
         stdout_content = f.read()
     with open('err.txt', 'r') as f:
         stderr_content = f.read()
-        
+
     assert "stdout" in stdout_content
     assert "stderr" in stderr_content
 
@@ -237,7 +236,8 @@ def test_subshell_process_substitution():
     Uses subprocess because process substitution uses file descriptors
     that conflict with pytest's output capture.
     """
-    import subprocess, sys
+    import subprocess
+    import sys
     result = subprocess.run(
         [sys.executable, '-m', 'psh', '-c', 'cat <(echo "from subshell")'],
         capture_output=True, text=True

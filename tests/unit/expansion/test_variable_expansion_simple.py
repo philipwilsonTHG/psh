@@ -2,7 +2,6 @@
 Simple test using the existing test pattern.
 """
 
-import pytest
 
 
 def test_simple_variable(shell, capsys):

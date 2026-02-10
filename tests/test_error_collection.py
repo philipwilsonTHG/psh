@@ -1,9 +1,10 @@
 """Tests for multi-error collection functionality."""
 
 import pytest
+
 from psh.lexer import tokenize
-from psh.parser.recursive_descent.parser import Parser, MultiErrorParseResult
 from psh.parser.recursive_descent.helpers import ParseError
+from psh.parser.recursive_descent.parser import MultiErrorParseResult, Parser
 from psh.token_types import TokenType
 
 
@@ -139,7 +140,7 @@ class TestParserWithErrorCollection:
         tokens = tokenize("echo hello")
         parser = Parser(tokens, collect_errors=True)
 
-        result = parser.parse_with_error_collection()
+        parser.parse_with_error_collection()
 
         # ctx.errors should be the source of truth
         assert isinstance(parser.ctx.errors, list)

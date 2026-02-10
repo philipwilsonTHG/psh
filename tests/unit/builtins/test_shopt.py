@@ -1,6 +1,5 @@
 """Tests for the shopt builtin."""
 
-import pytest
 
 
 class TestShoptBasic:

@@ -8,12 +8,11 @@ Tests cover:
 - Complex conditions
 """
 
-import pytest
 
 
 class TestWhileLoops:
     """Test while loop functionality."""
-    
+
     def test_basic_while_loop(self, shell, capsys):
         """Test basic while loop."""
         cmd = '''
@@ -29,7 +28,7 @@ class TestWhileLoops:
         assert "count: 1" in captured.out
         assert "count: 2" in captured.out
         assert "count: 3" not in captured.out
-    
+
     def test_while_with_break(self, shell, capsys):
         """Test while loop with break."""
         cmd = '''
@@ -50,7 +49,7 @@ class TestWhileLoops:
         assert "count: 2" in captured.out
         assert "count: 3" not in captured.out
         assert "after loop" in captured.out
-    
+
     def test_while_with_continue(self, shell, capsys):
         """Test while loop with continue."""
         cmd = '''
@@ -70,7 +69,7 @@ class TestWhileLoops:
         assert "count: 3" not in captured.out  # Skipped by continue
         assert "count: 4" in captured.out
         assert "count: 5" in captured.out
-    
+
     def test_nested_while_loops(self, shell, capsys):
         """Test nested while loops."""
         cmd = '''
@@ -90,14 +89,15 @@ class TestWhileLoops:
         assert "i=0 j=1" in captured.out
         assert "i=1 j=0" in captured.out
         assert "i=1 j=1" in captured.out
-    
+
     def test_while_with_command_condition(self, tmp_path):
         """Test while with command as condition.
 
         Uses subprocess because 'read' from redirected stdin
         conflicts with pytest's output capture.
         """
-        import subprocess, sys
+        import subprocess
+        import sys
         testfile = tmp_path / "testfile"
         result = subprocess.run(
             [sys.executable, '-m', 'psh', '-c',
@@ -110,7 +110,7 @@ class TestWhileLoops:
         assert "Read: line1" in result.stdout
         assert "Read: line2" in result.stdout
         assert "Read: line3" in result.stdout
-    
+
     def test_while_with_pipeline_condition(self, shell, capsys):
         """Test while with pipeline in condition."""
         cmd = '''
@@ -125,7 +125,7 @@ class TestWhileLoops:
         assert "count is 0, 1, or 2: 0" in captured.out
         assert "count is 0, 1, or 2: 1" in captured.out
         assert "count is 0, 1, or 2: 2" in captured.out
-    
+
     def test_while_false_never_executes(self, shell, capsys):
         """Test while with false condition never executes."""
         cmd = '''
@@ -140,7 +140,7 @@ class TestWhileLoops:
         assert "before" in captured.out
         assert "after" in captured.out
         assert "should not print" not in captured.out
-    
+
     def test_while_with_arithmetic_condition(self, shell, capsys):
         """Test while with arithmetic condition."""
         cmd = '''
@@ -158,7 +158,7 @@ class TestWhileLoops:
         assert "x=2" in captured.out
         assert "x=1" in captured.out
         assert "x=0" not in captured.out
-    
+
     def test_while_with_multiple_breaks(self, shell, capsys):
         """Test while with break at different levels."""
         cmd = '''
@@ -184,7 +184,7 @@ class TestWhileLoops:
             assert "i=2 j=2" not in captured.out
             assert "i=2 j=3" not in captured.out
             assert "i=3 j=0" not in captured.out
-    
+
     def test_while_with_function(self, shell, capsys):
         """Test while loop calling function."""
         cmd = '''
@@ -192,7 +192,7 @@ class TestWhileLoops:
         should_continue() {
             [ $count -lt 3 ]
         }
-        
+
         while should_continue; do
             echo "count: $count"
             count=$((count + 1))
@@ -204,7 +204,7 @@ class TestWhileLoops:
         assert "count: 1" in captured.out
         assert "count: 2" in captured.out
         assert "count: 3" not in captured.out
-    
+
     def test_while_empty_body(self, shell, capsys):
         """Test while loop with empty body."""
         cmd = '''
@@ -218,7 +218,7 @@ class TestWhileLoops:
         shell.run_command(cmd)
         captured = capsys.readouterr()
         assert "count after: 3" in captured.out
-    
+
     def test_while_oneline(self, shell, capsys):
         """Test while loop on single line."""
         shell.run_command('x=0; while [ $x -lt 2 ]; do echo $x; x=$((x+1)); done')

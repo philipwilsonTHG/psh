@@ -5,11 +5,10 @@ These are marked xfail because they document suspected behavior gaps.
 """
 
 from pathlib import Path
-import pytest
 
+from psh.ast_nodes import ExpansionPart, SimpleCommand
 from psh.lexer import tokenize
 from psh.parser import Parser, ParserConfig
-from psh.ast_nodes import SimpleCommand, ExpansionPart
 
 
 def _first_simple_command(ast):

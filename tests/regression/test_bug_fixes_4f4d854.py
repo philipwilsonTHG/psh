@@ -10,8 +10,6 @@ These tests guard against re-introduction of 6 bugs fixed in that commit:
 6. SIGCHLD handler restore missing try/finally (not testable here)
 """
 
-import os
-import pytest
 from psh.expansion.word_splitter import WordSplitter
 
 

@@ -5,7 +5,6 @@ Tests for arbitrarily nested control structures including if/for/while/case
 combinations and complex nesting scenarios.
 """
 
-import pytest
 
 
 def test_if_inside_for(shell, capsys):
@@ -21,7 +20,7 @@ def test_if_inside_for(shell, capsys):
     '''
     result = shell.run_command(script)
     assert result == 0
-    
+
     captured = capsys.readouterr()
     output = captured.out
     assert "Not 2: 1" in output
@@ -32,7 +31,7 @@ def test_if_inside_for(shell, capsys):
 def test_for_inside_if(shell, capsys):
     """Test for loop inside if statement."""
     shell.run_command('CONDITION=true')
-    
+
     script = '''
     if $CONDITION; then
         for item in apple banana cherry; do
@@ -44,7 +43,7 @@ def test_for_inside_if(shell, capsys):
     '''
     result = shell.run_command(script)
     assert result == 0
-    
+
     captured = capsys.readouterr()
     output = captured.out
     assert "Item: apple" in output
@@ -55,7 +54,7 @@ def test_for_inside_if(shell, capsys):
 def test_while_inside_case(shell, capsys):
     """Test while loop inside case statement."""
     shell.run_command('ACTION=count')
-    
+
     script = '''
     case $ACTION in
         count)
@@ -75,7 +74,7 @@ def test_while_inside_case(shell, capsys):
     '''
     result = shell.run_command(script)
     assert result == 0
-    
+
     captured = capsys.readouterr()
     output = captured.out
     assert "Count: 1" in output
@@ -105,7 +104,7 @@ def test_case_inside_for(shell, capsys):
     '''
     result = shell.run_command(script)
     assert result == 0
-    
+
     captured = capsys.readouterr()
     output = captured.out
     assert "file.txt is a text file" in output
@@ -119,7 +118,7 @@ def test_nested_if_statements(shell, capsys):
     shell.run_command('A=1')
     shell.run_command('B=2')
     shell.run_command('C=3')
-    
+
     script = '''
     if [ $A -eq 1 ]; then
         echo "A is 1"
@@ -140,7 +139,7 @@ def test_nested_if_statements(shell, capsys):
     '''
     result = shell.run_command(script)
     assert result == 0
-    
+
     captured = capsys.readouterr()
     output = captured.out
     assert "A is 1" in output
@@ -161,7 +160,7 @@ def test_nested_for_loops(shell, capsys):
     '''
     result = shell.run_command(script)
     assert result == 0
-    
+
     captured = capsys.readouterr()
     output = captured.out
     assert "Outer: A" in output
@@ -199,7 +198,7 @@ def test_complex_nested_structure(shell, capsys):
     '''
     result = shell.run_command(script)
     assert result == 0
-    
+
     captured = capsys.readouterr()
     output = captured.out
     assert "Processing mode" in output
@@ -231,7 +230,7 @@ def test_break_in_nested_loops(shell, capsys):
     '''
     result = shell.run_command(script)
     assert result == 0
-    
+
     captured = capsys.readouterr()
     output = captured.out
     assert "Outer loop: 1" in output
@@ -265,7 +264,7 @@ def test_continue_in_nested_loops(shell, capsys):
     '''
     result = shell.run_command(script)
     assert result == 0
-    
+
     captured = capsys.readouterr()
     output = captured.out
     assert "Outer: 1" in output
@@ -301,10 +300,10 @@ def test_function_with_nested_structures(shell, capsys):
         esac
     }
     ''')
-    
+
     result = shell.run_command('process_data full')
     assert result == 0
-    
+
     captured = capsys.readouterr()
     output = captured.out
     assert "Normal: 1" in output
@@ -317,27 +316,27 @@ def test_nested_structures_with_variables(shell, capsys):
     script = '''
     GLOBAL=global
     echo "Global: $GLOBAL"
-    
+
     for scope in 1 2; do
         LOCAL=local_$scope
         echo "Loop $scope: $LOCAL"
-        
+
         if [ "$scope" = "1" ]; then
             INNER=inner_value
             echo "  If: $INNER"
         else
             echo "  Else: ${INNER:-undefined}"
         fi
-        
+
         echo "  Global in loop: $GLOBAL"
     done
-    
+
     echo "After loop - Local: ${LOCAL:-undefined}"
     echo "After loop - Inner: ${INNER:-undefined}"
     '''
     result = shell.run_command(script)
     assert result == 0
-    
+
     captured = capsys.readouterr()
     output = captured.out
     assert "Global: global" in output
@@ -366,6 +365,6 @@ def test_very_deep_nesting(shell, capsys):
     '''
     result = shell.run_command(script)
     assert result == 0
-    
+
     captured = capsys.readouterr()
     assert "Very deep nesting works" in captured.out

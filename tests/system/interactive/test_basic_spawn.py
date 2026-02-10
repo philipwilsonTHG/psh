@@ -9,18 +9,17 @@ from pathlib import Path
 TEST_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(TEST_ROOT))
 
-import pytest
-import pexpect
-import time
-import signal
 import os
+import signal
+
+import pexpect
 
 
 def safe_cleanup(shell):
     """Safely clean up a pexpect shell process."""
     if shell is None:
         return
-    
+
     try:
         # Check if process is still alive
         if shell.isalive():
@@ -30,18 +29,18 @@ def safe_cleanup(shell):
                 shell.expect(pexpect.EOF, timeout=2)
             except:
                 pass
-        
+
         # If still alive, force termination
         if shell.isalive():
             shell.terminate(force=True)
-            
+
         # Wait for cleanup
         try:
             shell.wait()
         except:
             pass
-            
-    except Exception as e:
+
+    except Exception:
         # If cleanup fails, try force kill
         try:
             if hasattr(shell, 'pid') and shell.pid:
@@ -60,16 +59,16 @@ def test_can_spawn_psh():
             timeout=5,
             encoding='utf-8'
         )
-    
+
         # Give it a moment to start
 
-        
+
         # Check if it's alive
         assert shell.isalive(), "PSH process died immediately"
-        
+
         # Try to send a simple command
         shell.sendline('echo hello')
-        
+
         # Look for output
         index = shell.expect(['hello', pexpect.EOF, pexpect.TIMEOUT], timeout=2)
         if index == 0:
@@ -78,7 +77,7 @@ def test_can_spawn_psh():
             print(f"Got EOF. Output so far: {shell.before}")
         else:
             print(f"Timeout. Output so far: {shell.before}")
-            
+
     except Exception as e:
         print(f"Error: {e}")
         if shell:
@@ -97,10 +96,10 @@ def test_psh_prompt():
             timeout=5,
             encoding='utf-8'
         )
-        
+
         # Look for common prompt patterns
         prompts = [r'\$ ', r'> ', r'psh.*>', r'.*\$', pexpect.EOF]
-        
+
         index = shell.expect(prompts, timeout=3)
         if index < len(prompts) - 1:
             print(f"Found prompt pattern {index}: '{prompts[index]}'")
@@ -108,7 +107,7 @@ def test_psh_prompt():
             print(f"Match: '{shell.after}'")
         else:
             print(f"Got EOF instead of prompt. Output: {shell.before}")
-            
+
     except pexpect.TIMEOUT:
         print(f"Timeout waiting for prompt. Output so far: {shell.before if shell else 'None'}")
         # Try sending a newline
@@ -136,19 +135,19 @@ def test_psh_with_norc():
             timeout=5,
             encoding='utf-8'
         )
-        
+
         # Give it time to start
 
-        
+
         # Send a command
         shell.sendline('echo test')
-        
+
         # Capture all output
 
         shell.expect([pexpect.EOF, pexpect.TIMEOUT], timeout=1)
-        
+
         print(f"Full output:\n{shell.before}")
-        
+
     except Exception as e:
         print(f"Error: {e}")
         if shell:

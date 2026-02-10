@@ -23,9 +23,6 @@ Phase 3 (v0.148.0) — Medium visitor bugs:
 import subprocess
 import sys
 
-import pytest
-
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -171,7 +168,6 @@ class TestLinterGenericVisit:
     def test_generic_visit_no_duplicate_traversal(self):
         """generic_visit should not traverse the same child multiple times."""
         from psh.ast_nodes import (
-            Pipeline,
             SimpleCommand,
             StatementList,
             WhileLoop,

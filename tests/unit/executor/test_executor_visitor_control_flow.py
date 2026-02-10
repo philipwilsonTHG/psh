@@ -6,58 +6,57 @@ logical operators (&&, ||), control structures (if/while/for/case),
 and loop control statements (break/continue).
 """
 
-import pytest
 
 
 class TestLogicalOperators:
     """Test logical operators (&& and ||) execution."""
-    
+
     def test_and_operator_success_path(self, shell, capsys):
         """Test && operator when first command succeeds."""
         result = shell.run_command("true && echo 'second command'")
         assert result == 0
-        
+
         captured = capsys.readouterr()
         assert "second command" in captured.out
-    
+
     def test_and_operator_failure_path(self, shell, capsys):
         """Test && operator when first command fails."""
         result = shell.run_command("false && echo 'should not print'")
         assert result == 1  # Should return failure status
-        
+
         captured = capsys.readouterr()
         assert "should not print" not in captured.out
-    
+
     def test_or_operator_success_path(self, shell, capsys):
         """Test || operator when first command succeeds."""
         result = shell.run_command("true || echo 'should not print'")
         assert result == 0
-        
+
         captured = capsys.readouterr()
         assert "should not print" not in captured.out
-    
+
     def test_or_operator_failure_path(self, shell, capsys):
         """Test || operator when first command fails."""
         result = shell.run_command("false || echo 'second command'")
         assert result == 0  # Should succeed due to second command
-        
+
         captured = capsys.readouterr()
         assert "second command" in captured.out
-    
+
     def test_chained_logical_operators(self, shell, capsys):
         """Test chaining multiple logical operators."""
         result = shell.run_command("true && echo 'first' && echo 'second'")
         assert result == 0
-        
+
         captured = capsys.readouterr()
         assert "first" in captured.out
         assert "second" in captured.out
-    
+
     def test_mixed_logical_operators(self, shell, capsys):
         """Test mixing && and || operators."""
         result = shell.run_command("false || echo 'from or' && echo 'from and'")
         assert result == 0
-        
+
         captured = capsys.readouterr()
         assert "from or" in captured.out
         assert "from and" in captured.out
@@ -65,7 +64,7 @@ class TestLogicalOperators:
 
 class TestConditionalStatements:
     """Test if/then/else statement execution."""
-    
+
     def test_simple_if_true(self, shell, capsys):
         """Test simple if statement with true condition."""
         script = '''
@@ -73,13 +72,13 @@ class TestConditionalStatements:
             echo "condition was true"
         fi
         '''
-        
+
         result = shell.run_command(script)
         assert result == 0
-        
+
         captured = capsys.readouterr()
         assert "condition was true" in captured.out
-    
+
     def test_simple_if_false(self, shell, capsys):
         """Test simple if statement with false condition."""
         script = '''
@@ -87,13 +86,13 @@ class TestConditionalStatements:
             echo "should not print"
         fi
         '''
-        
+
         result = shell.run_command(script)
         assert result == 0
-        
+
         captured = capsys.readouterr()
         assert "should not print" not in captured.out
-    
+
     def test_if_else_true_path(self, shell, capsys):
         """Test if/else with true condition."""
         script = '''
@@ -103,14 +102,14 @@ class TestConditionalStatements:
             echo "false path"
         fi
         '''
-        
+
         result = shell.run_command(script)
         assert result == 0
-        
+
         captured = capsys.readouterr()
         assert "true path" in captured.out
         assert "false path" not in captured.out
-    
+
     def test_if_else_false_path(self, shell, capsys):
         """Test if/else with false condition."""
         script = '''
@@ -120,14 +119,14 @@ class TestConditionalStatements:
             echo "false path"
         fi
         '''
-        
+
         result = shell.run_command(script)
         assert result == 0
-        
+
         captured = capsys.readouterr()
         assert "true path" not in captured.out
         assert "false path" in captured.out
-    
+
     def test_if_elif_else_chain(self, shell, capsys):
         """Test if/elif/else chain."""
         script = '''
@@ -140,10 +139,10 @@ class TestConditionalStatements:
             echo "other"
         fi
         '''
-        
+
         result = shell.run_command(script)
         assert result == 0
-        
+
         captured = capsys.readouterr()
         assert "two" in captured.out
         assert "one" not in captured.out
@@ -152,7 +151,7 @@ class TestConditionalStatements:
 
 class TestLoopStatements:
     """Test while and for loop execution."""
-    
+
     def test_while_loop_execution(self, shell, capsys):
         """Test basic while loop execution."""
         script = '''
@@ -162,16 +161,16 @@ class TestLoopStatements:
             counter=$((counter + 1))
         done
         '''
-        
+
         result = shell.run_command(script)
         assert result == 0
-        
+
         captured = capsys.readouterr()
         assert "count: 0" in captured.out
         assert "count: 1" in captured.out
         assert "count: 2" in captured.out
         assert "count: 3" not in captured.out
-    
+
     def test_for_loop_with_list(self, shell, capsys):
         """Test for loop with explicit list."""
         script = '''
@@ -179,15 +178,15 @@ class TestLoopStatements:
             echo "fruit: $item"
         done
         '''
-        
+
         result = shell.run_command(script)
         assert result == 0
-        
+
         captured = capsys.readouterr()
         assert "fruit: apple" in captured.out
         assert "fruit: banana" in captured.out
         assert "fruit: cherry" in captured.out
-    
+
     def test_for_loop_with_range(self, shell, capsys):
         """Test for loop with numeric range."""
         script = '''
@@ -195,15 +194,15 @@ class TestLoopStatements:
             echo "number: $num"
         done
         '''
-        
+
         result = shell.run_command(script)
         assert result == 0
-        
+
         captured = capsys.readouterr()
         assert "number: 1" in captured.out
         assert "number: 2" in captured.out
         assert "number: 3" in captured.out
-    
+
     def test_nested_loops(self, shell, capsys):
         """Test nested loop execution."""
         script = '''
@@ -213,10 +212,10 @@ class TestLoopStatements:
             done
         done
         '''
-        
+
         result = shell.run_command(script)
         assert result == 0
-        
+
         captured = capsys.readouterr()
         assert "1a" in captured.out
         assert "1b" in captured.out
@@ -226,7 +225,7 @@ class TestLoopStatements:
 
 class TestCaseStatements:
     """Test case statement execution."""
-    
+
     def test_simple_case_match(self, shell, capsys):
         """Test basic case statement with pattern matching."""
         script = '''
@@ -243,15 +242,15 @@ class TestCaseStatements:
                 ;;
         esac
         '''
-        
+
         result = shell.run_command(script)
         assert result == 0
-        
+
         captured = capsys.readouterr()
         assert "found apple" in captured.out
         assert "found banana" not in captured.out
         assert "found other" not in captured.out
-    
+
     def test_case_wildcard_match(self, shell, capsys):
         """Test case statement with wildcard patterns."""
         script = '''
@@ -268,15 +267,15 @@ class TestCaseStatements:
                 ;;
         esac
         '''
-        
+
         result = shell.run_command(script)
         assert result == 0
-        
+
         captured = capsys.readouterr()
         assert "text file" in captured.out
         assert "log file" not in captured.out
         assert "other file" not in captured.out
-    
+
     def test_case_multiple_patterns(self, shell, capsys):
         """Test case statement with multiple patterns per case."""
         script = '''
@@ -293,15 +292,15 @@ class TestCaseStatements:
                 ;;
         esac
         '''
-        
+
         result = shell.run_command(script)
         assert result == 0
-        
+
         captured = capsys.readouterr()
         assert "number two" in captured.out
         assert "number one" not in captured.out
         assert "other number" not in captured.out
-    
+
     def test_case_no_match(self, shell, capsys):
         """Test case statement with no matching patterns."""
         script = '''
@@ -318,10 +317,10 @@ class TestCaseStatements:
                 ;;
         esac
         '''
-        
+
         result = shell.run_command(script)
         assert result == 0
-        
+
         captured = capsys.readouterr()
         assert "found other" in captured.out
         assert "found apple" not in captured.out
@@ -330,7 +329,7 @@ class TestCaseStatements:
 
 class TestLoopControl:
     """Test break and continue statements."""
-    
+
     def test_break_in_for_loop(self, shell, capsys):
         """Test break statement in for loop."""
         script = '''
@@ -342,17 +341,17 @@ class TestLoopControl:
         done
         echo "after loop"
         '''
-        
+
         result = shell.run_command(script)
         assert result == 0
-        
+
         captured = capsys.readouterr()
         assert "number: 1" in captured.out
         assert "number: 2" in captured.out
         assert "number: 3" not in captured.out
         assert "number: 4" not in captured.out
         assert "after loop" in captured.out
-    
+
     def test_continue_in_for_loop(self, shell, capsys):
         """Test continue statement in for loop."""
         script = '''
@@ -363,17 +362,17 @@ class TestLoopControl:
             echo "number: $i"
         done
         '''
-        
+
         result = shell.run_command(script)
         assert result == 0
-        
+
         captured = capsys.readouterr()
         assert "number: 1" in captured.out
         assert "number: 2" in captured.out
         assert "number: 3" not in captured.out
         assert "number: 4" in captured.out
         assert "number: 5" in captured.out
-    
+
     def test_break_in_while_loop(self, shell, capsys):
         """Test break statement in while loop."""
         script = '''
@@ -386,15 +385,15 @@ class TestLoopControl:
             echo "count: $counter"
         done
         '''
-        
+
         result = shell.run_command(script)
         assert result == 0
-        
+
         captured = capsys.readouterr()
         assert "count: 1" in captured.out
         assert "count: 2" in captured.out
         assert "count: 3" not in captured.out
-    
+
     def test_break_outside_loop_error(self, captured_shell):
         """Test error when break is used outside a loop."""
         result = captured_shell.run_command("break")
@@ -418,7 +417,7 @@ class TestLoopControl:
 
 class TestComplexControlFlow:
     """Test complex combinations of control flow structures."""
-    
+
     def test_if_in_loop(self, shell, capsys):
         """Test if statement inside loop."""
         script = '''
@@ -430,17 +429,17 @@ class TestComplexControlFlow:
             fi
         done
         '''
-        
+
         result = shell.run_command(script)
         assert result == 0
-        
+
         captured = capsys.readouterr()
         assert "small: 1" in captured.out
         assert "small: 2" in captured.out
         assert "small: 3" in captured.out
         assert "big: 4" in captured.out
         assert "big: 5" in captured.out
-    
+
     def test_case_in_loop(self, shell, capsys):
         """Test case statement inside loop."""
         script = '''
@@ -455,15 +454,15 @@ class TestComplexControlFlow:
             esac
         done
         '''
-        
+
         result = shell.run_command(script)
         assert result == 0
-        
+
         captured = capsys.readouterr()
         assert "text: apple" in captured.out
         assert "number: 123" in captured.out
         assert "text: banana" in captured.out
-    
+
     def test_nested_if_statements(self, shell, capsys):
         """Test nested if statements."""
         script = '''
@@ -477,15 +476,15 @@ class TestComplexControlFlow:
             fi
         fi
         '''
-        
+
         result = shell.run_command(script)
         assert result == 0
-        
+
         captured = capsys.readouterr()
         assert "greater than 10" in captured.out
         assert "between 10 and 20" in captured.out
         assert "greater than 20" not in captured.out
-    
+
     def test_loop_with_logical_operators(self, shell, capsys):
         """Test loops combined with logical operators."""
         script = '''
@@ -493,10 +492,10 @@ class TestComplexControlFlow:
             true && echo "true branch: $i" || echo "false branch: $i"
         done
         '''
-        
+
         result = shell.run_command(script)
         assert result == 0
-        
+
         captured = capsys.readouterr()
         assert "true branch: 1" in captured.out
         assert "true branch: 2" in captured.out

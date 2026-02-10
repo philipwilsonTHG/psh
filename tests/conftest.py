@@ -5,18 +5,19 @@ This provides fixtures and configuration specific to the organized test structur
 avoiding conflicts with the main test suite's conftest.py.
 """
 
-import pytest
 import os
 import sys
-from pathlib import Path
 from io import StringIO
+from pathlib import Path
+
+import pytest
 
 # Add PSH to path
 PSH_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PSH_ROOT))
 
-from psh.shell import Shell
 from psh.job_control import JobState
+from psh.shell import Shell
 
 
 def _reap_children():
@@ -76,18 +77,18 @@ def clean_shell():
 @pytest.fixture
 def temp_dir():
     """Create a temporary directory for test files.
-    
+
     This fixture creates a temporary directory that is automatically
     cleaned up after the test completes.
     """
-    import tempfile
     import shutil
-    
+    import tempfile
+
     temp_dir = tempfile.mkdtemp(prefix='psh_test_')
     original_cwd = os.getcwd()
-    
+
     yield temp_dir
-    
+
     # Cleanup
     os.chdir(original_cwd)
     shutil.rmtree(temp_dir, ignore_errors=True)
@@ -96,19 +97,19 @@ def temp_dir():
 @pytest.fixture
 def shell_with_temp_dir(shell, temp_dir):
     """Shell instance with a temporary working directory.
-    
+
     This fixture provides a shell instance that operates in a temporary
     directory without changing the global Python working directory.
     This ensures thread safety for parallel test execution.
     """
     # Store original PWD
     original_pwd = shell.state.variables.get('PWD', os.getcwd())
-    
+
     # Set shell's working directory without changing global cwd
     shell.state.variables['PWD'] = temp_dir
-    
+
     yield shell
-    
+
     # Restore original PWD
     shell.state.variables['PWD'] = original_pwd
 
@@ -125,9 +126,10 @@ def isolated_shell_with_temp_dir(temp_dir):
     fixture may fail when run as part of a full suite but pass individually
     or when run with pytest's `-s` flag (disable capture).
     """
-    from psh.shell import Shell
-    import sys
     import os
+    import sys
+
+    from psh.shell import Shell
 
     # Store original working directory and change to temp directory FIRST
     original_cwd = os.getcwd()
@@ -160,32 +162,32 @@ def isolated_shell_with_temp_dir(temp_dir):
 
 class MockStdout:
     """Mock stdout that captures output for testing."""
-    
+
     def __init__(self):
         self.content = StringIO()
-        
+
     def write(self, text):
         self.content.write(text)
-        
+
     def flush(self):
         pass
-        
+
     def getvalue(self):
         return self.content.getvalue()
 
 
 class MockStderr:
     """Mock stderr that captures error output for testing."""
-    
+
     def __init__(self):
         self.content = StringIO()
-        
+
     def write(self, text):
         self.content.write(text)
-        
+
     def flush(self):
         pass
-        
+
     def getvalue(self):
         return self.content.getvalue()
 
@@ -193,29 +195,29 @@ class MockStderr:
 @pytest.fixture
 def captured_shell():
     """Shell with output capture for testing.
-    
+
     This fixture provides a shell instance where stdout and stderr
     are captured properly, working around the executor's tendency
     to reset shell.stdout to sys.stdout.
-    
+
     The approach: capture at the sys.stdout/stderr level during
-    command execution, which is more reliable than trying to 
+    command execution, which is more reliable than trying to
     intercept at the shell level.
     """
     # Create shell with captured I/O
     shell = Shell()
-    
+
     # Store original sys streams
     original_sys_stdout = sys.stdout
     original_sys_stderr = sys.stderr
-    
+
     # Create capture buffers
     captured_stdout = StringIO()
     captured_stderr = StringIO()
-    
+
     # Store original run_command method
     original_run_command = shell.run_command
-    
+
     def capturing_run_command(command_string, add_to_history=True):
         """Run command with output capture."""
         # Replace sys streams during execution
@@ -239,10 +241,10 @@ def captured_shell():
             shell.stderr = original_shell_stderr
 
         return result
-    
+
     # Replace run_command
     shell.run_command = capturing_run_command
-    
+
     # Add helper methods
     shell.get_stdout = lambda: captured_stdout.getvalue()
     shell.get_stderr = lambda: captured_stderr.getvalue()
@@ -252,9 +254,9 @@ def captured_shell():
         captured_stderr.truncate(0),
         captured_stderr.seek(0)
     )
-    
+
     yield shell
-    
+
     # Cleanup
     sys.stdout = original_sys_stdout
     sys.stderr = original_sys_stderr
@@ -295,16 +297,15 @@ def reset_environment():
 @pytest.fixture
 def isolated_subprocess_env():
     """Provide an isolated environment for subprocess tests.
-    
+
     This fixture is specifically designed for tests that spawn
     PSH as a subprocess to ensure proper isolation in parallel execution.
     """
     import tempfile
-    import subprocess
-    
+
     # Create a unique temp directory for this test
     temp_dir = tempfile.mkdtemp(prefix=f'psh_test_{os.getpid()}_')
-    
+
     # Create clean environment
     env = {
         'PATH': os.environ.get('PATH', '/usr/bin:/bin'),
@@ -317,9 +318,9 @@ def isolated_subprocess_env():
         'PYTHONPATH': str(PSH_ROOT),
         'PYTHONUNBUFFERED': '1',
     }
-    
+
     yield {'env': env, 'cwd': temp_dir}
-    
+
     # Cleanup
     import shutil
     try:
@@ -368,16 +369,16 @@ def pytest_configure(config):
 
 def pytest_collection_modifyitems(config, items):
     """Modify test collection to add markers based on file paths."""
-    
-    
+
+
     # Tests that need serial execution to avoid race conditions
     serial_tests = [
         "test_file_not_found_redirection",
         "test_permission_denied_redirection",
     ]
-    
+
     # Mark tests that need special handling
-    
+
     for item in items:
         # Add markers based on test file location
         if "unit/" in str(item.fspath):
@@ -390,16 +391,16 @@ def pytest_collection_modifyitems(config, items):
             item.add_marker(pytest.mark.conformance)
         elif "performance/" in str(item.fspath):
             item.add_marker(pytest.mark.performance)
-            
+
         # Mark interactive tests
         if "interactive/" in str(item.fspath):
             item.add_marker(pytest.mark.interactive)
-        
+
         # Mark tests that need serial execution
         if any(test_name in item.name for test_name in serial_tests):
             item.add_marker(pytest.mark.serial)
             item.add_marker(pytest.mark.isolated)
-            
+
         # Mark error recovery tests as needing isolation
         if "test_error_recovery" in str(item.fspath):
             item.add_marker(pytest.mark.isolated)
@@ -411,16 +412,16 @@ def pytest_runtest_setup(item):
     if item.get_closest_marker("interactive"):
         if not item.config.getoption("--run-interactive", default=False):
             pytest.skip("Interactive tests skipped (use --run-interactive to run)")
-    
+
     # Clean up any lingering PSH processes before each test
     # This helps with isolation when running tests in parallel
     import subprocess
     try:
-        subprocess.run(['pkill', '-f', f'python.*psh.*{os.getpid()}'], 
+        subprocess.run(['pkill', '-f', f'python.*psh.*{os.getpid()}'],
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except:
         pass
-    
+
     # Handle serial tests in parallel execution
     if item.get_closest_marker("serial"):
         if hasattr(item.config, "workerinput"):
@@ -440,7 +441,7 @@ def pytest_addoption(parser):
     )
     parser.addoption(
         "--run-slow",
-        action="store_true", 
+        action="store_true",
         default=False,
         help="Run slow tests (performance benchmarks)"
     )

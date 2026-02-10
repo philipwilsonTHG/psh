@@ -8,10 +8,8 @@ extglob integration points:
 4. Conditional expressions [[ ]]
 """
 
-import os
 import subprocess
 import sys
-import pytest
 
 
 def run_psh(command: str, cwd: str = None) -> subprocess.CompletedProcess:

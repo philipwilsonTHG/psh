@@ -5,13 +5,12 @@ Tests PSH conformance to POSIX shell standard requirements.
 Tests features that MUST be supported for POSIX compliance.
 """
 
-import pytest
-import sys
 import os
+import sys
 
 # Add parent directory to path for framework import
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-from framework import ConformanceTest, get_posix_test_commands, is_posix_required
+from framework import ConformanceTest
 
 
 class TestPOSIXParameterExpansion(ConformanceTest):
@@ -28,12 +27,12 @@ class TestPOSIXParameterExpansion(ConformanceTest):
         self.assert_identical_behavior('x=hello; echo ${x:-default}')
         self.assert_identical_behavior('x=; echo ${x:-default}')
         self.assert_identical_behavior('unset x; echo ${x:-default}')
-    
+
     def test_assign_default_expansion(self):
         """Test ${parameter:=word} expansion."""
         self.assert_identical_behavior('unset x; echo ${x:=default}; echo $x')
         self.assert_identical_behavior('x=; echo ${x:=default}; echo $x')
-    
+
     def test_error_expansion(self):
         """Test ${parameter:?word} expansion."""
         # Error text includes shell-specific prefixes, so compare semantics directly.
@@ -437,8 +436,8 @@ class TestPOSIXShellParameters(ConformanceTest):
 # Test suite summary function
 def run_posix_compliance_suite():
     """Run complete POSIX compliance test suite and generate report."""
-    import tempfile
     import json
+    import tempfile
 
     test_classes = [
         TestPOSIXParameterExpansion,

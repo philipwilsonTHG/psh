@@ -4,9 +4,9 @@ Signal handling builtin tests.
 Tests for signal-related builtins like trap.
 """
 
-import pytest
-import signal
 import os
+
+import pytest
 
 
 def test_trap_builtin_exists(shell):
@@ -20,7 +20,7 @@ def test_trap_list_signals(shell, capsys):
     result = shell.run_command('trap -l')
     assert result == 0
     captured = capsys.readouterr()
-    
+
     # Should list common signals
     assert 'INT' in captured.out or 'SIGINT' in captured.out
     assert 'TERM' in captured.out or 'SIGTERM' in captured.out
@@ -43,7 +43,7 @@ def test_trap_signal_execution():
     """Test that trap handler executes when signal is received using subprocess."""
     import subprocess
     import sys
-    
+
     # Test trap handling in isolated process
     # Note: PSH recognizes ${$} but not $$ for PID
     script = '''
@@ -52,31 +52,31 @@ echo "PID: ${$}"
 kill -TERM ${$}
 echo "after signal"
 '''
-    
+
     result = subprocess.run(
         [sys.executable, '-m', 'psh', '-c', script],
         capture_output=True,
         text=True
     )
-    
+
     # Check that trap was executed
     assert "caught TERM signal" in result.stdout
     # Process should continue after trap
     assert "after signal" in result.stdout
-    
+
     # Test with INT signal
     script2 = '''
 trap "echo 'caught INT signal'; exit 0" INT
 kill -INT ${$}
 echo "should not see this"
 '''
-    
+
     result2 = subprocess.run(
         [sys.executable, '-m', 'psh', '-c', script2],
         capture_output=True,
         text=True
     )
-    
+
     assert "caught INT signal" in result2.stdout
     assert "should not see this" not in result2.stdout
     assert result2.returncode == 0
@@ -106,7 +106,7 @@ def test_trap_remove_handler(shell):
     """Test removing trap handler."""
     # Set handler
     shell.run_command('trap "echo test" TERM')
-    
+
     # Remove handler
     result = shell.run_command('trap - TERM')
     assert result == 0
@@ -146,28 +146,28 @@ def test_trap_print_specific_signal(shell, capsys):
     """Test printing trap for specific signal."""
     # Set a trap
     shell.run_command('trap "echo test handler" TERM')
-    
+
     # Print trap for that signal
     result = shell.run_command('trap -p TERM')
     assert result == 0
-    captured = capsys.readouterr()
+    capsys.readouterr()
     # Should show the trap if -p option is supported
 
 
 def test_trap_help(shell):
     """Test trap help option."""
-    result = shell.run_command('trap --help')
+    shell.run_command('trap --help')
     # May or may not be implemented
 
 
 def test_trap_error_cases(shell):
     """Test various trap error cases."""
     # Too few arguments
-    result = shell.run_command('trap')
+    shell.run_command('trap')
     # Should succeed (shows current traps) or fail
-    
+
     # Invalid option
-    result = shell.run_command('trap -xyz')
+    shell.run_command('trap -xyz')
     # Should fail
 
 
@@ -175,20 +175,20 @@ def test_trap_error_cases(shell):
 def test_trap_unix_signals(shell):
     """Test trap with Unix-specific signals."""
     # Test with SIGUSR1 if available
-    result = shell.run_command('trap "echo usr1" SIGUSR1')
+    shell.run_command('trap "echo usr1" SIGUSR1')
     # Should work on Unix systems
 
 
 def test_trap_persistence(shell, capsys):
     """Test that traps persist across commands."""
     shell.run_command('trap "echo persistent" TERM')
-    
+
     # Execute another command
     shell.run_command('echo "other command"')
-    
+
     # Check that trap is still there
     shell.run_command('trap')
-    captured = capsys.readouterr()
+    capsys.readouterr()
     # Should still show the trap
 
 

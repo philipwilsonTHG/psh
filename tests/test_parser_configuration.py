@@ -1,20 +1,25 @@
 """Tests for parser configuration system."""
 
 import pytest
+
 from psh.lexer import tokenize
 from psh.parser import (
-    Parser, ParserConfig, ParsingMode, ErrorHandlingMode,
-    parse_strict_posix, parse_permissive,
-)
-from psh.parser.recursive_descent.support.factory import (
-    create_strict_posix_parser,
-    create_permissive_parser,
-    create_custom_parser,
-    create_shell_parser,
-    validate_config,
-    suggest_config,
+    ErrorHandlingMode,
+    Parser,
+    ParserConfig,
+    ParsingMode,
+    parse_permissive,
+    parse_strict_posix,
 )
 from psh.parser.recursive_descent.helpers import ParseError
+from psh.parser.recursive_descent.support.factory import (
+    create_custom_parser,
+    create_permissive_parser,
+    create_shell_parser,
+    create_strict_posix_parser,
+    suggest_config,
+    validate_config,
+)
 
 
 class TestParserConfig:

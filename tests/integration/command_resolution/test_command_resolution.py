@@ -10,12 +10,10 @@ Tests for command resolution precedence and PATH handling including:
 - Relative vs absolute path execution
 """
 
-import pytest
 import os
 import subprocess
-import tempfile
-import stat
 import sys
+import tempfile
 from pathlib import Path
 
 # Add framework to path

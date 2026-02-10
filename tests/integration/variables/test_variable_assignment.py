@@ -5,7 +5,6 @@ Tests for variable assignment before commands, environment
 variable handling, and assignment contexts.
 """
 
-import pytest
 import os
 
 
@@ -115,7 +114,7 @@ def test_assignment_with_command_substitution(shell, capsys):
 
 def test_assignment_with_arithmetic_expansion(shell, capsys):
     """Test assignment with arithmetic expansion."""
-    # Test global assignment with arithmetic expansion  
+    # Test global assignment with arithmetic expansion
     result = shell.run_command('CALC=$((2 + 3)); echo $CALC')
     assert result == 0
     captured = capsys.readouterr()
@@ -142,7 +141,7 @@ echo "TEST_VAR=$TEST_VAR"
     with open("test_script.sh", "w") as f:
         f.write(script_content)
     os.chmod("test_script.sh", 0o755)
-    
+
     result = shell_with_temp_dir.run_command("TEST_VAR=hello ./test_script.sh")
     assert result == 0
 
@@ -211,7 +210,7 @@ def test_assignment_with_alias(shell, capsys):
     assert result == 0
     captured = capsys.readouterr()
     assert "test" in captured.out
-    
+
     # Test assignment with alias using environment approach
     result = shell.run_command('VAR=alias_value env | grep VAR || echo "assignment works"')
     assert result == 0
@@ -229,7 +228,7 @@ def test_assignment_with_redirection(shell_with_temp_dir):
     # Use global assignment to test expansion with redirection
     result = shell_with_temp_dir.run_command("VAR=value; echo $VAR > output.txt")
     assert result == 0
-    
+
     with open("output.txt", "r") as f:
         content = f.read()
     assert "value" in content
@@ -240,7 +239,7 @@ def test_assignment_with_pipe(shell_with_temp_dir):
     # Use global assignment to test expansion with pipes
     result = shell_with_temp_dir.run_command("VAR=value; echo $VAR | cat > output.txt")
     assert result == 0
-    
+
     with open("output.txt", "r") as f:
         content = f.read()
     assert "value" in content
@@ -290,9 +289,9 @@ def test_export_vs_assignment(shell, capsys):
     shell.run_command("VAR1=value1")
     # Export assignment
     shell.run_command("export VAR2=value2")
-    
+
     # Check that exported variable is in environment
-    result = shell.run_command("env | grep VAR2")
+    shell.run_command("env | grep VAR2")
     # VAR2 should be in environment, VAR1 should not be
 
 

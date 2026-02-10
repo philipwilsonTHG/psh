@@ -9,12 +9,11 @@ Tests cover:
 - Complex conditions
 """
 
-import pytest
 
 
 class TestIfStatements:
     """Test if statement functionality."""
-    
+
     def test_basic_if_true(self, shell, capsys):
         """Test basic if with true condition."""
         cmd = '''
@@ -25,7 +24,7 @@ class TestIfStatements:
         shell.run_command(cmd)
         captured = capsys.readouterr()
         assert captured.out.strip() == "condition was true"
-    
+
     def test_basic_if_false(self, shell, capsys):
         """Test basic if with false condition."""
         cmd = '''
@@ -38,7 +37,7 @@ class TestIfStatements:
         captured = capsys.readouterr()
         assert "should not print" not in captured.out
         assert "after if" in captured.out
-    
+
     def test_if_else(self, shell, capsys):
         """Test if/then/else/fi."""
         cmd = '''
@@ -51,7 +50,7 @@ class TestIfStatements:
         shell.run_command(cmd)
         captured = capsys.readouterr()
         assert captured.out.strip() == "in else"
-    
+
     def test_if_elif_else(self, shell, capsys):
         """Test if/elif/else chain."""
         cmd = '''
@@ -67,7 +66,7 @@ class TestIfStatements:
         shell.run_command(cmd)
         captured = capsys.readouterr()
         assert captured.out.strip() == "X is 2"
-    
+
     def test_multiple_elif(self, shell, capsys):
         """Test multiple elif branches."""
         cmd = '''
@@ -87,7 +86,7 @@ class TestIfStatements:
         shell.run_command(cmd)
         captured = capsys.readouterr()
         assert captured.out.strip() == "three"
-    
+
     def test_nested_if(self, shell, capsys):
         """Test nested if statements."""
         cmd = '''
@@ -107,7 +106,7 @@ class TestIfStatements:
         shell.run_command(cmd)
         captured = capsys.readouterr()
         assert "X is 1\nY is 2" in captured.out
-    
+
     def test_if_with_command_substitution(self, shell, capsys):
         """Test if with command substitution in condition."""
         cmd = '''
@@ -118,7 +117,7 @@ class TestIfStatements:
         shell.run_command(cmd)
         captured = capsys.readouterr()
         assert captured.out.strip() == "command substitution works"
-    
+
     def test_if_with_arithmetic(self, shell, capsys):
         """Test if with arithmetic condition."""
         cmd = '''
@@ -129,14 +128,14 @@ class TestIfStatements:
         shell.run_command(cmd)
         captured = capsys.readouterr()
         assert "5 is greater than 3" in captured.out
-    
+
     def test_if_with_exit_code(self, shell, capsys):
         """Test if based on command exit code."""
         cmd = '''
         if echo "test" > /dev/null; then
             echo "echo succeeded"
         fi
-        
+
         if false; then
             echo "should not print"
         else
@@ -147,7 +146,7 @@ class TestIfStatements:
         captured = capsys.readouterr()
         assert "echo succeeded" in captured.out
         assert "false failed" in captured.out
-    
+
     def test_if_with_pipeline(self, shell, capsys):
         """Test if with pipeline in condition."""
         cmd = '''
@@ -158,18 +157,18 @@ class TestIfStatements:
         shell.run_command(cmd)
         captured = capsys.readouterr()
         assert captured.out.strip() == "pattern found"
-    
+
     def test_if_with_logical_operators(self, shell, capsys):
         """Test if with && and || in condition."""
         cmd = '''
         if true && true; then
             echo "both true"
         fi
-        
+
         if true || false; then
             echo "at least one true"
         fi
-        
+
         if false && true; then
             echo "should not print"
         else
@@ -182,27 +181,27 @@ class TestIfStatements:
         assert "at least one true" in captured.out
         assert "not both true" in captured.out
         assert "should not print" not in captured.out
-    
+
     def test_if_oneline(self, shell, capsys):
         """Test if statement on single line."""
         shell.run_command('if true; then echo "oneline"; fi')
         captured = capsys.readouterr()
         assert captured.out.strip() == "oneline"
-    
+
     def test_if_with_variable_test(self, shell, capsys):
         """Test if with various variable tests."""
         cmd = '''
         VAR="hello"
         EMPTY=""
-        
+
         if [ -n "$VAR" ]; then
             echo "VAR is not empty"
         fi
-        
+
         if [ -z "$EMPTY" ]; then
             echo "EMPTY is empty"
         fi
-        
+
         if [ "$VAR" = "hello" ]; then
             echo "VAR equals hello"
         fi
@@ -212,25 +211,25 @@ class TestIfStatements:
         assert "VAR is not empty" in captured.out
         assert "EMPTY is empty" in captured.out
         assert "VAR equals hello" in captured.out
-    
+
     def test_if_with_file_test(self, shell, capsys):
         """Test if with file test operators."""
         cmd = '''
         touch testfile
         mkdir testdir
-        
+
         if [ -e testfile ]; then
             echo "file exists"
         fi
-        
+
         if [ -f testfile ]; then
             echo "is regular file"
         fi
-        
+
         if [ -d testdir ]; then
             echo "is directory"
         fi
-        
+
         rm -f testfile
         rmdir testdir
         '''
@@ -239,18 +238,18 @@ class TestIfStatements:
         assert "file exists" in captured.out
         assert "is regular file" in captured.out
         assert "is directory" in captured.out
-    
+
     def test_if_with_functions(self, shell, capsys):
         """Test if with function calls."""
         cmd = '''
         check_value() {
             [ "$1" -eq 42 ]
         }
-        
+
         if check_value 42; then
             echo "value is 42"
         fi
-        
+
         if check_value 10; then
             echo "should not print"
         else

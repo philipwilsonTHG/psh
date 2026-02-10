@@ -4,7 +4,6 @@ import pytest
 
 from psh.lexer import tokenize
 
-
 FIXTURE_DIR = Path(__file__).parent / "fixtures" / "keyword_normalizer"
 
 GOLDEN_CASES = {
