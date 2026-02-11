@@ -269,7 +269,6 @@ The recursive descent parser is the primary production parser, using an imperati
 **Core Structure:**
 - **`recursive_descent/`** - Main package directory
   - **`parser.py`** - Main Parser class with delegation orchestration
-  - **`base.py`** - Base parser class with token management
   - **`base_context.py`** - ContextBaseParser using ParserContext
   - **`context.py`** - Centralized parser context management
   - **`helpers.py`** - Helper classes and token groups
@@ -284,13 +283,10 @@ The recursive descent parser is the primary production parser, using an imperati
 - **`arrays.py`** - Array initialization and assignment parsing
 - **`functions.py`** - Function definition parsing
 
-**Enhanced Features** (`recursive_descent/enhanced/`):
-- Advanced parsing capabilities and optimizations
-
 **Support Utilities** (`recursive_descent/support/`):
 - **`utils.py`** - Utility functions and heredoc handling
 - **`context_factory.py`** - Parser context factory
-- **`error_collector.py`** - Multi-error collection
+- **`factory.py`** - Parser factory with preset configurations
 - **`word_builder.py`** - Word AST node construction
 
 #### 3.1.2 Parser Combinator (Educational)
@@ -330,13 +326,12 @@ The parser combinator is a functional parser implementation demonstrating elegan
 Both parser implementations share common infrastructure:
 
 #### Parser Configuration System
-- **`psh/parser/config.py`** - Comprehensive ParserConfig with 40+ configuration options
-- **`psh/parser/factory.py`** - ParserFactory with preset configurations for different use cases
+- **`psh/parser/config.py`** - ParserConfig with 14 configuration fields
+- **`psh/parser/recursive_descent/support/factory.py`** - ParserFactory with preset configurations
 
 #### Centralized State Management
-- **`psh/parser/context.py`** - ParserContext class for unified state management
-- **`psh/parser/context_factory.py`** - Factory for creating contexts with different configurations
-- **`psh/parser/context_snapshots.py`** - Context snapshots for backtracking and speculation
+- **`psh/parser/recursive_descent/context.py`** - ParserContext class for unified state management
+- **`psh/parser/recursive_descent/support/context_factory.py`** - Factory for creating contexts with different configurations
 
 #### AST Validation System
 - **`psh/parser/validation/`** - Complete validation package
@@ -421,46 +416,50 @@ The parser supports comprehensive configuration for different parsing modes and 
 ```python
 @dataclass
 class ParserConfig:
-    """Parser configuration with 40+ options"""
-    # Parsing modes
+    """Parser configuration with 14 fields"""
+    # Core parsing mode
     parsing_mode: ParsingMode = ParsingMode.BASH_COMPAT
+
+    # Error handling
     error_handling: ErrorHandlingMode = ErrorHandlingMode.STRICT
-    
-    # Feature toggles
-    enable_validation: bool = False
-    enable_profiling: bool = False
-    collect_errors: bool = False
-    
-    # POSIX compliance
-    strict_posix: bool = False
-    allow_bash_extensions: bool = True
-    
-    # Error recovery
     max_errors: int = 10
-    panic_mode_recovery: bool = True
-    
+    collect_errors: bool = False
+    enable_error_recovery: bool = False
+    show_error_suggestions: bool = True
+
+    # Language features
+    enable_arithmetic: bool = True
+
+    # Bash compatibility
+    allow_bash_conditionals: bool = True
+    allow_bash_arithmetic: bool = True
+
+    # Development and debugging
+    trace_parsing: bool = False
+    profile_parsing: bool = False
+    enable_validation: bool = False
+    enable_semantic_analysis: bool = True
+    enable_validation_rules: bool = True
+
     @classmethod
     def strict_posix(cls) -> 'ParserConfig':
         """Strict POSIX compliance mode"""
         return cls(
             parsing_mode=ParsingMode.STRICT_POSIX,
-            strict_posix=True,
-            allow_bash_extensions=False
-        )
-    
-    @classmethod
-    def educational(cls) -> 'ParserConfig':
-        """Educational mode with enhanced error reporting"""
-        return cls(
-            collect_errors=True,
-            enable_validation=True,
-            panic_mode_recovery=True,
-            max_errors=50
+            allow_bash_conditionals=False,
+            allow_bash_arithmetic=False,
         )
 
-# Factory for creating parsers with different configurations
-parser = ParserFactory.create_bash_compatible_parser(tokens, source_text)
-parser = ParserFactory.create_strict_posix_parser(tokens, source_text)
+    @classmethod
+    def permissive(cls) -> 'ParserConfig':
+        """Permissive mode with error tolerance"""
+        return cls(
+            parsing_mode=ParsingMode.PERMISSIVE,
+            error_handling=ErrorHandlingMode.RECOVER,
+            max_errors=50,
+            collect_errors=True,
+            enable_error_recovery=True,
+        )
 ```
 
 ### 3.7 Centralized ParserContext
@@ -475,29 +474,31 @@ class ParserContext:
     tokens: List[Token]
     current: int = 0
     config: ParserConfig = field(default_factory=ParserConfig)
-    
+
     # Error handling
     errors: List[ParseError] = field(default_factory=list)
     error_recovery_mode: bool = False
-    
+
     # Parsing context
-    scope_stack: List[str] = field(default_factory=list)
     nesting_depth: int = 0
-    
-    # Special state
+    scope_stack: List[str] = field(default_factory=list)
+
+    # Special parsing state
     in_case_pattern: bool = False
     in_arithmetic: bool = False
+    in_test_expr: bool = False
     in_function_body: bool = False
-    
+    in_command_substitution: bool = False
+
+    # Control flow state
+    loop_depth: int = 0
+    function_depth: int = 0
+
+    # Source context
+    source_text: Optional[str] = None
+
     # Performance tracking
     profiler: Optional[ParserProfiler] = None
-    
-    def enter_scope(self, scope: str):
-        """Enter a new parsing scope with tracking"""
-        self.scope_stack.append(scope)
-        self.nesting_depth += 1
-        if self.profiler:
-            self.profiler.enter_scope(scope)
 ```
 
 ### 3.8 AST Validation and Semantic Analysis
@@ -649,16 +650,18 @@ The executor uses a modular package architecture with specialized executors:
 ```
 executor/
 ├── __init__.py          # Public API exports
-├── core.py              # Main ExecutorVisitor (542 lines, down from ~2000)
+├── core.py              # Main ExecutorVisitor (~312 lines, down from ~2000)
 ├── command.py           # Simple command execution with strategies
 ├── pipeline.py          # Pipeline execution and process management
-├── process_launcher.py  # Unified process creation (NEW in v0.103.0)
+├── process_launcher.py  # Unified process creation
 ├── control_flow.py      # Control structures (if, loops, case, select)
 ├── array.py             # Array initialization and element operations
 ├── function.py          # Function definition and execution
 ├── subshell.py          # Subshell and brace group execution
 ├── context.py           # ExecutionContext state management
-└── strategies.py        # Command type execution strategies
+├── strategies.py        # Command type execution strategies
+├── child_policy.py      # Child process signal/cleanup policy
+└── test_evaluator.py    # Test expression evaluation ([, [[)
 ```
 
 #### Unified Process Creation (NEW in v0.103.0)
@@ -891,7 +894,7 @@ def _execute_pipeline(self, node: Pipeline, context: ExecutionContext,
 The refactored executor package provides:
 
 1. **Separation of Concerns**: Each executor handles one aspect of execution
-2. **Reduced Complexity**: Core visitor reduced from ~2000 to 542 lines (73% reduction)
+2. **Reduced Complexity**: Core visitor reduced from ~2000 to ~312 lines (84% reduction)
 3. **Improved Testability**: Isolated components with clear interfaces
 4. **Better Maintainability**: Focused modules easier to understand and modify
 5. **Extensibility**: New execution features can be added to specific modules
@@ -900,8 +903,8 @@ The refactored executor package provides:
 ### 4.6 Execution Statistics
 
 - **Original ExecutorVisitor**: ~1994 lines in single file
-- **Refactored Package**: 9 modules with clear responsibilities
-- **Code Reduction**: 73% in core module
+- **Refactored Package**: 13 modules with clear responsibilities
+- **Core Module**: ~312 lines (84% reduction)
 - **New Architecture**: Strategy pattern for commands, delegation for all operations
 
 ## Phase 5: Expansion
@@ -1044,27 +1047,20 @@ def setup_heredoc(self, delimiter: str, content: str, strip_tabs: bool) -> int:
 ### 6.3 Process Substitution
 **File**: `io_redirect/process_sub.py`
 
-Creates pipes to/from processes:
+Process substitution is handled by a single module-level function that serves as the source of truth for all process substitution creation (argument-position, redirect-position for externals, and redirect-position for builtins):
 ```python
-def setup_process_substitution(self, command: str, mode: str) -> str:
-    """Set up <(...) or >(...) and return /dev/fd/N path"""
-    if mode == 'read':
-        # <(...) - reading from command output
-        read_fd, write_fd = os.pipe()
-        pid = os.fork()
-        if pid == 0:
-            # Child: redirect stdout to pipe
-            os.close(read_fd)
-            os.dup2(write_fd, 1)
-            os.close(write_fd)
-            # Execute command
-            self.shell.run_command(command)
-            sys.exit(0)
-        else:
-            # Parent: return read end
-            os.close(write_fd)
-            return f"/dev/fd/{read_fd}"
+def create_process_substitution(cmd_str: str, direction: str, shell) -> Tuple[int, str, int]:
+    """Create a process substitution, returning (parent_fd, fd_path, child_pid).
+
+    Handles the fork/pipe/exec sequence. The caller decides where to
+    track the returned FD and PID for cleanup.
+    """
+    # Creates pipe, clears close-on-exec, forks child
+    # Child: resets signals, redirects stdio, executes command
+    # Parent: returns (parent_fd, "/dev/fd/{fd}", child_pid)
 ```
+
+`ProcessSubstitutionHandler` wraps this function for argument-position usage and tracks FDs/PIDs for cleanup. The `FileRedirector` and `IOManager` also call `create_process_substitution()` for redirect-position usage, tracking through the same handler.
 
 ## Component Communication
 
@@ -1084,7 +1080,6 @@ All components share state through a centralized `ShellState` object:
 Components are organized as managers that coordinate related functionality:
 - `ExpansionManager` - All expansions
 - `IOManager` - All I/O operations
-- `ExecutorManager` - Command execution (legacy)
 - `InteractiveManager` - Interactive features
 - `ScriptManager` - Script execution
 
@@ -1147,7 +1142,7 @@ PSH's architecture provides comprehensive shell functionality through clean, mod
 - **Parser Selection**: Runtime switchable with `parser-select combinator` builtin
 
 ### Comprehensive Parser Features
-- **Configuration System**: 40+ options for POSIX, bash-compat, and educational modes
+- **Configuration System**: 14 options for POSIX, bash-compat, and permissive modes
 - **AST Validation**: Semantic analysis with symbol table and validation rules
 - **Error Recovery**: Multi-error collection, smart suggestions, panic mode recovery
 - **Visualization**: Pretty-print, DOT graphs, and ASCII tree rendering
@@ -1156,7 +1151,7 @@ PSH's architecture provides comprehensive shell functionality through clean, mod
 ### Modular Execution Engine
 - **Specialized Executors**: Separate modules for commands, pipelines, control flow, arrays, functions
 - **Strategy Pattern**: Flexible command execution (builtins, functions, external)
-- **Clean Delegation**: 73% code reduction through focused executor modules
+- **Clean Delegation**: 84% code reduction through focused executor modules
 - **Visitor Pattern**: Extensible AST traversal for execution and analysis
 
 ### Unified Lexer System
@@ -1169,7 +1164,7 @@ PSH's architecture provides comprehensive shell functionality through clean, mod
 - **Clear Boundaries**: Each subsystem (lexer, parser, executor, expansion) is independent
 - **Manager Pattern**: Coordinated functionality through manager classes
 - **POSIX Compliance**: ~93% compliance with proper expansion ordering
-- **Testability**: Comprehensive test suite with 2,865+ tests
+- **Testability**: Comprehensive test suite with 3,400+ tests
 
 ## Known Limitations
 

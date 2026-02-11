@@ -6,8 +6,8 @@ Purpose: Optimized reference for LLMs working with the PSH codebase
 ## Quick Start
 
 **Add a new builtin command**
-1. Create module in `psh/builtins/` (example: `mycommand.py`) inheriting from `BuiltinCommand`
-2. Register it inside `psh/builtins/registry.py` via `registry.register('name', MyCommand)`
+1. Create module in `psh/builtins/` (example: `mycommand.py`) inheriting from `Builtin`
+2. Apply the `@builtin` decorator to auto-register the class
 3. Add behavioral tests in `tests/unit/builtins/` (or create a focused integration test under `tests/integration/builtins/`)
 
 **Add a new shell option**
@@ -38,8 +38,7 @@ Purpose: Optimized reference for LLMs working with the PSH codebase
 
 ```
 psh/
-├── shell.py                 # Main orchestrator (visitor executor only)
-├── shell_parser.py          # Optional parser integration helper
+├── shell.py                 # Main orchestrator (~316 lines, visitor executor only)
 ├── token_stream.py          # Parser-oriented token stream helpers
 ├── token_transformer.py     # Keyword/context normalization pass
 ├── pipeline/                # End-to-end pipeline builder utilities
@@ -72,16 +71,12 @@ psh/
 │   ├── config.py            # ParserConfig & enums
 │   ├── recursive_descent/
 │   │   ├── parser.py        # Main Parser class (composite-aware)
-│   │   ├── base.py / base_context.py
+│   │   ├── base_context.py  # ContextBaseParser base class
 │   │   ├── context.py       # ParserContext & profiler
 │   │   ├── helpers.py       # TokenGroups & ParseError
 │   │   ├── parsers/         # commands, control_structures, statements, arrays, etc.
-│   │   ├── enhanced/        # Optional enhanced parsing hooks
-│   │   └── support/         # context_factory, factory, integration_manager, utils, word_builder
+│   │   └── support/         # context_factory, factory, utils, word_builder
 │   ├── combinators/         # Modular parser-combinator implementation
-│   ├── parser_registry.py   # Runtime parser selection (strategy pattern)
-│   ├── abstract_parser.py   # Interface shared by all parser implementations
-│   ├── implementations/     # Recursive descent adapter + archived examples
 │   ├── validation/          # Semantic analyzer & validation pipeline
 │   └── visualization/       # AST renderers (ASCII, DOT, pretty)
 ├── expansion/               # POSIX expansion pipeline
@@ -91,10 +86,11 @@ psh/
 │   ├── variable.py / parameter_expansion.py
 │   ├── command_sub.py / tilde.py / glob.py / word_splitter.py
 ├── executor/                # Visitor-based executor package
-│   ├── core.py              # ExecutorVisitor (delegates to specialists)
+│   ├── core.py              # ExecutorVisitor (~312 lines, delegates to specialists)
 │   ├── command.py / pipeline.py / control_flow.py
 │   ├── array.py / function.py / subshell.py
-│   ├── process_launcher.py  # Unified process creation (C1,C2,C3,H3)
+│   ├── process_launcher.py  # Unified process creation
+│   ├── child_policy.py / test_evaluator.py
 │   ├── context.py           # ExecutionContext state management
 │   └── strategies.py        # Builtin/function/external dispatch
 ├── io_redirect/             # Redirection management
@@ -111,8 +107,7 @@ psh/
 ├── brace_expansion.py / history_expansion.py / multiline_handler.py
 ├── builtins/                # Builtin commands (registry + implementations)
 ├── job_control.py           # Job control manager (JobManager)
-├── utils/                   # Formatting helpers, path utilities, etc.
-└── pipeline/                # Tokenize → parse → validate → execute helper
+└── utils/                   # Formatting helpers, path utilities, etc.
 ```
 
 ## Execution Pipeline
@@ -140,7 +135,7 @@ Input → Preprocessing → Tokenization → Token Normalization → Parsing →
    - Default `Parser` (recursive descent) built from modular sub-parsers
    - `ParserContextFactory` wires contexts with config, tokens, and source text
    - `ParserFactory` produces preset configurations (strict POSIX, Bash-compatible, permissive, etc.)
-   - Optional `ParserStrategy` switches between recursive descent and parser-combinator implementations
+   - Parser selection (`_active_parser` attribute) switches between recursive descent and parser-combinator implementations
 
 5. **Validation (optional)**
    - `parser/validation/validation_pipeline.py` provides semantic analysis and warnings
@@ -160,7 +155,7 @@ Input → Preprocessing → Tokenization → Token Normalization → Parsing →
 ### Shell (`psh/shell.py`)
 - Central entry point; orchestrates state, managers, parser strategy, and execution
 - Initializes `ShellState`, alias/function/job managers, `ExpansionManager`, `IOManager`, `ScriptManager`, `InteractiveManager`, and `HistoryExpander`
-- Uses `ParserStrategy` to honor parser selection (recursive descent vs. combinators); child shells inherit strategy
+- Uses `_active_parser` attribute to honor parser selection (recursive descent vs. combinators); child shells inherit parser choice
 - Lazily instantiates `ExecutorVisitor` per execution to ensure fresh delegation wiring
 - Key methods:
   - `run_command(cmd: str) -> int`
@@ -175,9 +170,8 @@ Input → Preprocessing → Tokenization → Token Normalization → Parsing →
 - Coordinates trap installation through `TrapManager`
 
 ### Parser Integration Helpers
-- `shell_parser.install_parser_integration(shell)` attaches a `ShellParser` instance that consumes shell options (`parser-mode`, `validate-context`, etc.) to build `ParserConfig`
 - `psh/pipeline/builder.py` encapsulates tokenize → parse → validate → execute flows for tooling (`PipelineBuilder.build()` returns `ShellPipeline`)
-- `parser/parser_registry.py` exposes `ParserStrategy` for runtime switching and instrumentation
+- Parser selection uses `shell._active_parser` attribute, switchable via `parser-select` builtin
 
 ## Token Pipeline Details
 
@@ -213,18 +207,16 @@ Input → Preprocessing → Tokenization → Token Normalization → Parsing →
 - **`context.py`**: Defines `ParserContext`, profiling utilities, heredoc tracking, backtracking support
 - **`base_context.py`**: Shared context-handling helpers (feature toggles, error policies)
 - **`parsers/`**: Specialized modules for statements, commands, control structures, arithmetic, arrays, redirections, functions, and tests
-- **`helpers.py`**: `ParseError`, `ErrorContext`, `TokenGroups`, and legacy compatibility shims
-- **`enhanced/`**: Optional hook-ins for enriched error recovery and semantic-aware parsing (installed via `integration_manager`)
+- **`helpers.py`**: `ParseError`, `ErrorContext`, `TokenGroups`
 - **`support/`**:
   - `context_factory.py`: Builds `ParserContext` from tokens/config
   - `factory.py`: Provides `ParserFactory` presets and configuration validation helpers
-  - `integration_manager.py`: Installs enhanced parsing features on demand
   - `utils.py`: Miscellaneous helpers (`parse_with_heredocs`, context adapters)
   - `word_builder.py`: Constructs Word AST nodes linking to expansion metadata
 
 ### Parser Configuration & Modes
-- `parser/config.py`: `ParserConfig`, `ParsingMode`, `ErrorHandlingMode` with >40 toggles (validation, error collection, semantic analysis)
-- `parser/parser_registry.py`: `ParserRegistry` and `ParserStrategy` enabling runtime parser swapping with metrics collection
+- `parser/config.py`: `ParserConfig`, `ParsingMode`, `ErrorHandlingMode` with 14 fields (parsing mode, error handling, bash compatibility, validation)
+- Parser selection: `psh/builtins/parser_experiment.py` provides `parser-select` builtin for runtime parser swapping
 - `parser/validation/`: `SemanticAnalyzer`, `ValidationPipeline`, rule definitions, warnings, and symbol tables
 - `parser/visualization/`: Formatters for pretty, DOT, ASCII, and S-expression AST outputs
 - **Keyword Helper Lifecycle**:
@@ -235,7 +227,7 @@ Input → Preprocessing → Tokenization → Token Normalization → Parsing →
 
 ### Alternative Implementation (`psh/parser/combinators/`)
 - Fully modular parser-combinator implementation with near parity to recursive descent (`core.py`, `tokens.py`, `commands.py`, `control_structures.py`, etc.)
-- Registered via `ParserRegistry` (aliases: `"combinator"`, `"parser-combinator"`)
+- Selected via `parser-select combinator` builtin (aliases: `"pc"`, `"functional"`)
 - Used for experimentation, benchmarking, and educational comparisons
 
 ## Expansion System
@@ -300,15 +292,16 @@ Input → Preprocessing → Tokenization → Token Normalization → Parsing →
 **New Builtin Command**
 ```python
 # psh/builtins/mybuiltin.py
-from psh.builtins.base import BuiltinCommand
+from psh.builtins.base import Builtin
+from psh.builtins.registry import builtin
 
-class MyBuiltin(BuiltinCommand):
+@builtin
+class MyBuiltin(Builtin):
+    name = "mybuiltin"
+
     def execute(self, args: list[str], shell: 'Shell') -> int:
         # Implementation
         return 0
-
-# Register in psh/builtins/registry.py
-registry.register('mybuiltin', MyBuiltin)
 ```
 
 **New Parser Rule**
@@ -368,7 +361,7 @@ registry.register('mybuiltin', MyBuiltin)
 - **Parser entry point**: `psh/parser/__init__.py` (`parse`, `ParserFactory`)
 - **Parser context**: `psh/parser/recursive_descent/context.py`
 - **Parser presets**: `psh/parser/recursive_descent/support/factory.py`
-- **Parser registry/strategy**: `psh/parser/parser_registry.py`
+- **Parser selection**: `psh/builtins/parser_experiment.py` (`parser-select` builtin)
 - **Parser validation**: `psh/parser/validation/validation_pipeline.py`
 - **Expansion manager**: `psh/expansion/manager.py`
 - **Executor visitor**: `psh/executor/core.py`
@@ -390,10 +383,7 @@ registry.register('mybuiltin', MyBuiltin)
 
 Related documentation:
 - `ARCHITECTURE.md` – human-readable guide
-- `ENHANCED_PARSER_INTEGRATION_PLAN.md` – historical context for parser integration
-- `LEXER_REFACTORING_STATUS.md` / `LEXER_REFACTORING_PLAN.md` – lexer migration notes
-- `PARSER_HIGH_PRIORITY_IMPLEMENTATION_PLAN.md` – historical plan for parser enhancements
-- `RELEASE_NOTES_v0.91.3.md` and `psh/version.py` – change history
+- `CHANGELOG.md` and `psh/version.py` – change history
 - `CLAUDE.md`, `AGENTS.md` – collaboration guidelines for agentic contributors
 - `docs/keyword_helper_cookbook.md` – practical guide for keyword normalization and parser integration
 - `docs/architecture_recommendations.md` – ongoing suggestions for structural improvements and refactors

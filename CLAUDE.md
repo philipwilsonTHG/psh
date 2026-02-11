@@ -65,7 +65,7 @@ PSH uses a modern, well-organized test suite:
 
 ### Main Test Suite (`tests/`)
 - **Location**: `/tests/`
-- **Count**: ~3,087 tests
+- **Count**: ~3,450 tests
 - **Status**: Modern, well-organized structure (migrated 2025)
 - **Organization**:
   - `unit/` - Unit tests (builtins, expansion, lexer, parser)
@@ -175,10 +175,10 @@ These files have version-stamped metadata that must stay in sync:
 
 **Modify parser:**
 1. Add tokens to `psh/token_types.py` if needed
-2. Update `psh/lexer/` package for new tokens (core.py for main logic, constants.py for new token constants)
+2. Update `psh/lexer/` package for new tokens (modular_lexer.py for main logic, constants.py for new token constants)
 3. Add AST nodes to `psh/ast_nodes.py`
-4. Update `psh/parser.py` with parsing logic
-5. Implement visitor methods in `psh/visitor/executor_visitor.py`
+4. Update the appropriate module in `psh/parser/recursive_descent/parsers/`
+5. Implement visitor methods in `psh/executor/core.py` (or the relevant specialized executor)
 
 ## Architecture Quick Reference
 
@@ -201,7 +201,7 @@ Each major subsystem has its own CLAUDE.md with detailed guidance:
 These provide focused documentation for working within each subsystem.
 
 ### Key Files
-- `psh/shell.py` - Main orchestrator (~500 lines)
+- `psh/shell.py` - Main orchestrator (~316 lines)
 - `psh/parser/` - Recursive descent parser package
 - `psh/lexer/` - Modular tokenizer package with recognizer architecture
 - `psh/executor/` - Execution engine with visitor pattern
@@ -404,7 +404,7 @@ class MyVisitor(ASTVisitor[T]):
 - **Dead Code Removal and Refactoring (v0.128.0-v0.150.0)**:
   - Removed parser abstraction layers (~1,686 lines), dead BaseParser (~380 lines),
     context snapshots (~300 lines), error catalog (~360 lines)
-  - Pruned ParserConfig from 45 fields to 12, unified error handling
+  - Pruned ParserConfig from 45 fields to 14, unified error handling
   - Removed null byte markers, CompositeTokenProcessor, dead executor methods
 - **Word AST Migration Complete (v0.115.0-v0.120.0)**:
   - `words: List[Word]` is now the sole argument representation
