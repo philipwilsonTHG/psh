@@ -18,6 +18,7 @@ def main():
     debug_exec_fork = False
     norc = False
     rcfile = None
+    parser_type = None
     validate_only = False
     format_only = False
     metrics_only = False
@@ -120,6 +121,21 @@ def main():
             args.remove(arg)
             break
 
+    # Handle --parser
+    for i, arg in enumerate(args):
+        if arg == "--parser":
+            if i + 1 < len(args):
+                parser_type = args[i + 1]
+                args = args[:i] + args[i+2:]
+                break
+            else:
+                print("psh: --parser requires an argument", file=sys.stderr)
+                sys.exit(2)
+        elif arg.startswith("--parser="):
+            parser_type = arg[9:]  # Remove "--parser=" prefix
+            args.remove(arg)
+            break
+
     # Update sys.argv to remove the flags
     sys.argv = [sys.argv[0]] + args
 
@@ -132,6 +148,20 @@ def main():
                   ast_format=ast_format,
                   force_interactive=force_interactive
                   )
+
+    # Apply --parser selection
+    if parser_type is not None:
+        from .builtins.parser_experiment import PARSERS
+        target = None
+        for name, aliases in PARSERS.items():
+            if parser_type == name or parser_type in aliases:
+                target = name
+                break
+        if target is None:
+            print(f"psh: unknown parser: {parser_type}", file=sys.stderr)
+            print("Available parsers: recursive_descent (rd), combinator (pc)", file=sys.stderr)
+            sys.exit(2)
+        shell._active_parser = target
 
     if len(sys.argv) > 1:
         if sys.argv[1] == "-c" and len(sys.argv) > 2:
@@ -169,6 +199,7 @@ def main():
             print("  -V, --version    Show version information and exit")
             print("  --norc           Do not read ~/.pshrc on startup")
             print("  --rcfile FILE    Read FILE instead of ~/.pshrc")
+            print("  --parser PARSER  Select parser: recursive_descent (rd), combinator (pc)")
             print("  --force-interactive Same as -i")
             print("  --debug-ast      Print AST before execution (debugging)")
             print("  --debug-ast=FORMAT AST format: pretty, tree, compact, dot, sexp")
