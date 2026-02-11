@@ -12,34 +12,39 @@ class ParserConfigBuiltin(Builtin):
 
     name = "parser-config"
 
+    @property
+    def synopsis(self) -> str:
+        return "parser-config [COMMAND] [ARG]"
+
+    @property
+    def help(self) -> str:
+        return """parser-config: parser-config [COMMAND] [ARG]
+    Control parser configuration settings.
+
+    With no arguments, shows current parser configuration (same as 'show').
+
+    Commands:
+      show              Show current parser configuration
+      mode MODE         Set parsing mode (posix|bash|permissive|educational)
+      strict            Enable strict POSIX mode
+      permissive        Enable permissive mode
+      enable FEATURE    Enable a parser feature
+      disable FEATURE   Disable a parser feature
+
+    Features:
+      arithmetic        Arithmetic evaluation (( ))
+      arrays            Array support
+      functions         Function definitions
+      aliases           Alias expansion
+      process-subst     Process substitution
+      brace-expand      Brace expansion
+      history-expand    History expansion
+
+    Exit Status:
+    Returns success unless an unknown command or feature is given."""
+
     def execute(self, args: List[str], shell) -> int:
-        """Execute the parser-config builtin.
-
-        Usage: parser-config [COMMAND] [OPTIONS]
-
-        Commands:
-            show              Show current parser configuration
-            mode MODE         Set parsing mode (posix|bash|permissive|educational)
-            strict            Enable strict POSIX mode
-            permissive        Enable permissive mode
-            enable FEATURE    Enable a parser feature
-            disable FEATURE   Disable a parser feature
-
-        Features:
-            arithmetic        Arithmetic evaluation (( ))
-            arrays            Array support
-            functions         Function definitions
-            aliases           Alias expansion
-            process-subst     Process substitution
-            brace-expand      Brace expansion
-
-        Examples:
-            parser-config show
-            parser-config mode posix
-            parser-config strict
-            parser-config enable arithmetic
-            parser-config disable arrays
-        """
+        """Execute the parser-config builtin."""
         if len(args) == 1:
             # No arguments - show current configuration
             return self._show_config(shell)
@@ -226,22 +231,29 @@ class ParserModeBuiltin(Builtin):
 
     name = "parser-mode"
 
+    @property
+    def synopsis(self) -> str:
+        return "parser-mode [MODE]"
+
+    @property
+    def help(self) -> str:
+        return """parser-mode: parser-mode [MODE]
+    Quick parser mode switching command.
+
+    With no arguments, shows the current parser mode.
+    Shorthand for 'parser-config mode MODE'.
+
+    Modes:
+      posix          Strict POSIX compliance mode
+      bash           Bash-compatible mode (default)
+      permissive     Permissive mode with error collection
+      educational    Educational mode with debugging
+
+    Exit Status:
+    Returns success unless an unknown mode is given."""
+
     def execute(self, args: List[str], shell) -> int:
-        """Execute the parser-mode builtin.
-
-        Usage: parser-mode [MODE]
-
-        Modes:
-            posix          Strict POSIX compliance mode
-            bash           Bash-compatible mode (default)
-            permissive     Permissive mode with error collection
-            educational    Educational mode with debugging
-
-        Examples:
-            parser-mode posix
-            parser-mode bash
-            parser-mode permissive
-        """
+        """Execute the parser-mode builtin."""
         if len(args) == 1:
             # Show current mode
             posix_mode = shell.state.options.get('posix', False)

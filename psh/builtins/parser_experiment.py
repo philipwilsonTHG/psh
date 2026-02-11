@@ -21,13 +21,28 @@ class ParserSelectBuiltin(Builtin):
     """Select the active parser implementation."""
     name = 'parser-select'
 
-    def execute(self, args: List[str], shell: 'Shell') -> int:
-        """Execute parser-select command.
+    @property
+    def synopsis(self) -> str:
+        return "parser-select [PARSER]"
 
-        Usage:
-            parser-select              # List available parsers
-            parser-select PARSER       # Switch to specified parser
-        """
+    @property
+    def help(self) -> str:
+        return """parser-select: parser-select [PARSER]
+    Select the active parser implementation.
+
+    With no arguments, lists available parsers and marks the active one.
+
+    Parsers:
+      recursive_descent  Production recursive descent parser (default)
+                         Aliases: rd, recursive, default
+      combinator         Experimental combinator parser
+                         Aliases: pc, functional
+
+    Exit Status:
+    Returns success unless an unknown parser is given."""
+
+    def execute(self, args: List[str], shell: 'Shell') -> int:
+        """Execute parser-select command."""
         if len(args) < 2:
             current = getattr(shell, '_active_parser', 'recursive_descent')
             for name, aliases in PARSERS.items():
