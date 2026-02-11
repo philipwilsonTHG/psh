@@ -168,6 +168,9 @@ class TokenParsers:
         # Here-document delimiter
         self.heredoc_delimiter = token('HEREDOC_DELIMITER')
 
+        # Pipeline negation
+        self.exclamation = token('EXCLAMATION')
+
     def _initialize_combined_parsers(self):
         """Initialize combined/composite parsers."""
         # Statement terminators (semicolon or newline)

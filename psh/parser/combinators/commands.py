@@ -4,6 +4,7 @@ This module provides parsers for simple commands, pipelines, and-or lists,
 and statement lists - the core command structures in shell syntax.
 """
 
+import re
 from typing import List, Optional, Union
 
 from ...ast_nodes import (
@@ -31,6 +32,9 @@ from ..config import ParserConfig
 from .core import ForwardParser, Parser, ParseResult, many, many1, optional, separated_by, sequence, token
 from .expansions import ExpansionParsers
 from .tokens import TokenParsers
+
+# Pre-compiled regex for fd duplication detection (e.g. ">&2", "2>&1", ">&-")
+_FD_DUP_RE = re.compile(r'^(\d*)([><])&(-|\d+)$')
 
 
 class CommandParsers:
@@ -90,9 +94,23 @@ class CommandParsers:
         Returns:
             ParseResult with Redirect node
         """
+        # Check for FD-prefixed redirect (e.g., 3>file, 3>>file, 3<file)
+        fd = None
+        if (pos < len(tokens)
+                and tokens[pos].type.name == 'WORD'
+                and tokens[pos].value.isdigit()
+                and pos + 1 < len(tokens)
+                and self.tokens.is_redirect_operator(tokens[pos + 1])
+                and tokens[pos + 1].adjacent_to_previous):
+            fd = int(tokens[pos].value)
+            pos += 1  # skip the FD word, parse redirect operator next
+
         # First try to parse a redirection operator
         op_result = self.tokens.redirect_operator.parse(tokens, pos)
         if not op_result.success:
+            if fd is not None:
+                # We consumed an FD word but no redirect operator followed — backtrack
+                return ParseResult(success=False, error=op_result.error, position=pos - 1)
             return ParseResult(success=False, error=op_result.error, position=pos)
 
         op_token = op_result.value
@@ -101,11 +119,24 @@ class CommandParsers:
         # Handle redirect duplication (e.g., 2>&1, >&2, etc.)
         if op_token.type.name == 'REDIRECT_DUP':
             # REDIRECT_DUP tokens contain the full operator (e.g., "2>&1")
-            return ParseResult(
-                success=True,
-                value=Redirect(type=op_token.value, target=''),
-                position=pos
-            )
+            # Parse the fd and dup_fd from the token value
+            dup_match = _FD_DUP_RE.match(op_token.value)
+            if dup_match:
+                source_fd_str, direction, target = dup_match.groups()
+                default_fd = 1 if direction == '>' else 0
+                source_fd = int(source_fd_str) if source_fd_str else default_fd
+                if fd is not None:
+                    source_fd = fd
+                if target == '-':
+                    redirect = Redirect(type=direction + '&-', target=None, fd=source_fd)
+                else:
+                    redirect = Redirect(
+                        type=direction + '&', target=None,
+                        fd=source_fd, dup_fd=int(target),
+                    )
+            else:
+                redirect = Redirect(type=op_token.value, target='', fd=fd)
+            return ParseResult(success=True, value=redirect, position=pos)
 
         # Handle heredoc operators
         if op_token.type.name in ['HEREDOC', 'HEREDOC_STRIP']:
@@ -120,19 +151,8 @@ class CommandParsers:
             delimiter_token = tokens[pos]
             delimiter = delimiter_token.value
 
-            # Check if delimiter is quoted
-            # Note: heredoc_quoted and heredoc_key are not part of the AST node
-            # They would be handled by a separate heredoc processor
-
-            return ParseResult(
-                success=True,
-                value=Redirect(
-                    type=op_token.value,
-                    target=delimiter,
-                    # heredoc_content will be populated later by heredoc processor
-                ),
-                position=pos + 1
-            )
+            redirect = Redirect(type=op_token.value, target=delimiter, fd=fd)
+            return ParseResult(success=True, value=redirect, position=pos + 1)
 
         # Handle here string (<<<)
         if op_token.type.name == 'HERE_STRING':
@@ -147,17 +167,11 @@ class CommandParsers:
 
             content_value = content_result.value.value if hasattr(content_result.value, 'value') else str(content_result.value)
 
-            # Here strings are always treated as single-quoted (no expansion)
-            return ParseResult(
-                success=True,
-                value=Redirect(
-                    type=op_token.value,
-                    target=content_value,
-                    heredoc_content=content_value
-                    # Note: heredoc_quoted would be True but it's not in the AST
-                ),
-                position=content_result.position
+            redirect = Redirect(
+                type=op_token.value, target=content_value,
+                heredoc_content=content_value, fd=fd,
             )
+            return ParseResult(success=True, value=redirect, position=content_result.position)
 
         # Normal redirection - needs a target
         target_result = self.tokens.word_like.parse(tokens, pos)
@@ -170,11 +184,8 @@ class CommandParsers:
 
         target_value = target_result.value.value if hasattr(target_result.value, 'value') else str(target_result.value)
 
-        return ParseResult(
-            success=True,
-            value=Redirect(type=op_token.value, target=target_value),
-            position=target_result.position
-        )
+        redirect = Redirect(type=op_token.value, target=target_value, fd=fd)
+        return ParseResult(success=True, value=redirect, position=target_result.position)
 
     def _build_simple_command_parser(self) -> Parser[SimpleCommand]:
         """Build parser for simple commands.
@@ -183,19 +194,39 @@ class CommandParsers:
             Parser that produces SimpleCommand nodes
         """
         def parse_simple_command(tokens: List[Token], pos: int) -> ParseResult[SimpleCommand]:
-            """Parse a simple command with words and redirections."""
-            # Parse one or more words
-            words_result = many1(self.tokens.word_like).parse(tokens, pos)
-            if not words_result.success:
+            """Parse a simple command with words, redirections, and FD dups."""
+            word_tokens: List[Token] = []
+            redirects: List[Redirect] = []
+
+            # Collect words, redirections, and FD dup words in any order
+            while pos < len(tokens):
+                # Try FD dup word first (e.g., 2>&1, >&-)
+                if pos < len(tokens) and tokens[pos].type.name == 'WORD':
+                    fd_dup = self._parse_fd_dup_word(tokens[pos])
+                    if fd_dup is not None:
+                        redirects.append(fd_dup)
+                        pos += 1
+                        continue
+
+                # Try redirection (includes FD-prefixed redirects)
+                redir_result = self.redirection.parse(tokens, pos)
+                if redir_result.success:
+                    redirects.append(redir_result.value)
+                    pos = redir_result.position
+                    continue
+
+                # Try a word-like token
+                word_result = self.tokens.word_like.parse(tokens, pos)
+                if word_result.success:
+                    word_tokens.append(word_result.value)
+                    pos = word_result.position
+                    continue
+
+                # Nothing matched — stop collecting
+                break
+
+            if not word_tokens:
                 return ParseResult(success=False, error="Expected command", position=pos)
-
-            word_tokens = words_result.value
-            pos = words_result.position
-
-            # Parse optional redirections
-            redirects_result = many(self.redirection).parse(tokens, pos)
-            redirects = redirects_result.value if redirects_result.success else []
-            pos = redirects_result.position if redirects_result.success else pos
 
             # Parse optional background operator
             background_result = optional(self.tokens.ampersand).parse(tokens, pos)
@@ -239,6 +270,29 @@ class CommandParsers:
 
         return cmd
 
+    @staticmethod
+    def _parse_fd_dup_word(tok: Token) -> Optional[Redirect]:
+        """Try to parse a WORD token as an FD duplication (e.g., 2>&1, >&-, <&0).
+
+        Returns a Redirect node if the token matches, otherwise None.
+        """
+        if tok.type.name != 'WORD':
+            return None
+        match = _FD_DUP_RE.match(tok.value)
+        if not match:
+            return None
+
+        source_fd_str, direction, target = match.groups()
+        default_fd = 1 if direction == '>' else 0
+        source_fd = int(source_fd_str) if source_fd_str else default_fd
+
+        if target == '-':
+            return Redirect(type=direction + '&-', target=None, fd=source_fd)
+        return Redirect(
+            type=direction + '&', target=None,
+            fd=source_fd, dup_fd=int(target),
+        )
+
     def _build_pipeline_parser(self) -> Parser[Union[Pipeline, ASTNode]]:
         """Build parser for pipelines.
 
@@ -248,27 +302,34 @@ class CommandParsers:
         # Note: We need a command parser first, but that includes control structures
         # For now, we'll use simple_command and expect control structures to be added later
 
-        def build_pipeline(commands):
-            """Build pipeline, but don't wrap single control structures."""
-            if len(commands) == 1:
-                # Single command - check if it's a control structure
+        # For initial version, just use simple commands
+        # Control structures will be added when we have a command parser that includes them
+        inner = separated_by(
+            self.simple_command,
+            self.tokens.pipe
+        )
+
+        def parse_pipeline_with_negation(tokens: List[Token], pos: int) -> ParseResult:
+            """Parse optional `!` followed by a pipeline."""
+            neg_result = optional(self.tokens.exclamation).parse(tokens, pos)
+            negated = neg_result.value is not None
+            pos = neg_result.position
+
+            cmds_result = inner.parse(tokens, pos)
+            if not cmds_result.success:
+                return cmds_result
+
+            commands = cmds_result.value
+            if len(commands) == 1 and not negated:
                 cmd = commands[0]
                 if isinstance(cmd, (IfConditional, WhileLoop, ForLoop, CaseConditional, SelectLoop,
                                   SubshellGroup, BraceGroup, CStyleForLoop, ArithmeticEvaluation,
                                   EnhancedTestStatement)):
-                    # Don't wrap control structures in Pipeline when they're standalone
-                    return cmd
-            # Multiple commands or single simple command - wrap in Pipeline
-            return Pipeline(commands=commands) if commands else None
+                    return ParseResult(success=True, value=cmd, position=cmds_result.position)
+            pipeline = Pipeline(commands=commands, negated=negated) if commands else None
+            return ParseResult(success=True, value=pipeline, position=cmds_result.position)
 
-        # For initial version, just use simple commands
-        # Control structures will be added when we have a command parser that includes them
-        pipeline_parser = separated_by(
-            self.simple_command,
-            self.tokens.pipe
-        ).map(build_pipeline)
-
-        return pipeline_parser
+        return Parser(parse_pipeline_with_negation)
 
     def _build_and_or_list_parser(self) -> Parser[AndOrList]:
         """Build parser for and-or lists.
@@ -371,21 +432,32 @@ class CommandParsers:
         Args:
             command_parser: Parser that handles both simple commands and control structures
         """
-        # Update pipeline parser to use full command parser
-        def build_pipeline(commands):
-            """Build pipeline, but don't wrap single control structures."""
-            if len(commands) == 1:
+        # Update pipeline parser to use full command parser with negation support
+        inner = separated_by(
+            command_parser,
+            self.tokens.pipe
+        )
+
+        def parse_pipeline_with_negation(tokens: List[Token], pos: int) -> ParseResult:
+            neg_result = optional(self.tokens.exclamation).parse(tokens, pos)
+            negated = neg_result.value is not None
+            pos = neg_result.position
+
+            cmds_result = inner.parse(tokens, pos)
+            if not cmds_result.success:
+                return cmds_result
+
+            commands = cmds_result.value
+            if len(commands) == 1 and not negated:
                 cmd = commands[0]
                 if isinstance(cmd, (IfConditional, WhileLoop, ForLoop, CaseConditional, SelectLoop,
                                   SubshellGroup, BraceGroup, CStyleForLoop, ArithmeticEvaluation,
                                   EnhancedTestStatement)):
-                    return cmd
-            return Pipeline(commands=commands) if commands else None
+                    return ParseResult(success=True, value=cmd, position=cmds_result.position)
+            pipeline = Pipeline(commands=commands, negated=negated) if commands else None
+            return ParseResult(success=True, value=pipeline, position=cmds_result.position)
 
-        self.pipeline = separated_by(
-            command_parser,
-            self.tokens.pipe
-        ).map(build_pipeline)
+        self.pipeline = Parser(parse_pipeline_with_negation)
 
         # Update and-or list parser
         and_or_element = self.pipeline.or_else(command_parser)
@@ -439,16 +511,29 @@ def parse_pipeline(command_parser: Parser) -> Parser[Union[Pipeline, ASTNode]]:
     Returns:
         Parser that matches pipelines
     """
-    def build_pipeline(commands):
-        if len(commands) == 1:
+    inner = separated_by(command_parser, token('PIPE'))
+    exclamation = token('EXCLAMATION')
+
+    def parse_pipeline_with_negation(tokens: List[Token], pos: int) -> ParseResult:
+        neg_result = optional(exclamation).parse(tokens, pos)
+        negated = neg_result.value is not None
+        pos = neg_result.position
+
+        cmds_result = inner.parse(tokens, pos)
+        if not cmds_result.success:
+            return cmds_result
+
+        commands = cmds_result.value
+        if len(commands) == 1 and not negated:
             cmd = commands[0]
             if isinstance(cmd, (IfConditional, WhileLoop, ForLoop, CaseConditional, SelectLoop,
                               SubshellGroup, BraceGroup, CStyleForLoop, ArithmeticEvaluation,
                               EnhancedTestStatement)):
-                return cmd
-        return Pipeline(commands=commands) if commands else None
+                return ParseResult(success=True, value=cmd, position=cmds_result.position)
+        pipeline = Pipeline(commands=commands, negated=negated) if commands else None
+        return ParseResult(success=True, value=pipeline, position=cmds_result.position)
 
-    return separated_by(command_parser, token('PIPE')).map(build_pipeline)
+    return Parser(parse_pipeline_with_negation)
 
 
 def parse_and_or_list(pipeline_parser: Parser) -> Parser[AndOrList]:
