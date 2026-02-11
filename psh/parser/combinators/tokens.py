@@ -176,11 +176,12 @@ class TokenParsers:
         # Statement terminators (semicolon or newline)
         self.statement_terminator = self.semicolon.or_else(self.newline)
 
-        # Word-like tokens (words, strings, expansions)
+        # Word-like tokens (words, strings, expansions, and [ which starts test commands)
         self.word_like = (
             self.word
             .or_else(self.return_kw)
             .or_else(self.string)
+            .or_else(self.lbracket)
             .or_else(self.expansion)
             .or_else(self.process_sub_in)
             .or_else(self.process_sub_out)

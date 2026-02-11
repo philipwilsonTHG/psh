@@ -1,3 +1,4 @@
+import os
 import sys
 
 from .aliases import AliasManager
@@ -97,6 +98,8 @@ class Shell:
         self._active_parser = 'recursive_descent'
         if parent_shell and hasattr(parent_shell, '_active_parser'):
             self._active_parser = parent_shell._active_parser
+        elif os.environ.get('PSH_TEST_PARSER'):
+            self._active_parser = os.environ['PSH_TEST_PARSER']
 
         # Initialize trap manager
         from .core.trap_manager import TrapManager

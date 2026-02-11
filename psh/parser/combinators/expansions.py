@@ -135,6 +135,12 @@ class ExpansionParsers:
         qt = getattr(token, 'quote_type', None)
         is_quoted = qt is not None
 
+        # Check for decomposable parts from the lexer (RichToken with expansions)
+        if WordBuilder._has_decomposable_parts(token):
+            word_parts = [WordBuilder._token_part_to_word_part(tp)
+                          for tp in token.parts]
+            return Word(parts=word_parts, quote_type=qt)
+
         # Use TokenType enum values
         if token.type.name == 'STRING':
             # String token - check for quote type

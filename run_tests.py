@@ -12,20 +12,21 @@ Usage:
     python run_tests.py --help             # Show help
 """
 
-import sys
-import subprocess
 import argparse
+import os
+import subprocess
+import sys
 from pathlib import Path
 
 
-def run_command(cmd, description):
+def run_command(cmd, description, env=None):
     """Run a command and return the result."""
     print(f"\n{'=' * 80}")
     print(f"Running: {description}")
     print(f"Command: {' '.join(cmd)}")
     print('=' * 80)
 
-    result = subprocess.run(cmd, cwd=Path(__file__).parent)
+    result = subprocess.run(cmd, cwd=Path(__file__).parent, env=env)
     return result.returncode
 
 
@@ -74,12 +75,24 @@ Examples:
     )
 
     parser.add_argument(
+        '--combinator',
+        action='store_true',
+        help='Run tests using the combinator parser instead of recursive descent'
+    )
+
+    parser.add_argument(
         'pytest_args',
         nargs='*',
         help='Additional arguments to pass to pytest'
     )
 
     args = parser.parse_args()
+
+    # Set up environment for subprocess calls
+    env = None
+    if args.combinator:
+        env = os.environ.copy()
+        env['PSH_TEST_PARSER'] = 'combinator'
 
     # Build base pytest command
     base_cmd = ['python', '-m', 'pytest']
@@ -91,35 +104,36 @@ Examples:
     if args.pytest_args:
         base_cmd.extend(args.pytest_args)
 
+    parser_label = "combinator" if args.combinator else "recursive_descent"
     exit_codes = []
 
     if args.all_nocapture:
         # Simple mode: run everything with -s
         print("\n" + "=" * 80)
-        print("MODE: Running ALL tests with capture disabled (-s flag)")
+        print(f"MODE: Running ALL tests with capture disabled (-s flag) [parser: {parser_label}]")
         print("=" * 80)
 
         cmd = base_cmd + ['tests/', '-s']
         if args.quick:
             cmd.extend(['-m', 'not slow'])
 
-        exit_code = run_command(cmd, "All tests with capture disabled")
+        exit_code = run_command(cmd, "All tests with capture disabled", env=env)
         exit_codes.append(exit_code)
 
     elif args.subshells_only:
         # Just run subshell tests
         print("\n" + "=" * 80)
-        print("MODE: Running subshell tests only")
+        print(f"MODE: Running subshell tests only [parser: {parser_label}]")
         print("=" * 80)
 
         cmd = base_cmd + ['tests/integration/subshells/', '-s']
-        exit_code = run_command(cmd, "Subshell tests (with -s)")
+        exit_code = run_command(cmd, "Subshell tests (with -s)", env=env)
         exit_codes.append(exit_code)
 
     else:
         # Smart mode: Run tests in two phases
         print("\n" + "=" * 80)
-        print("MODE: Smart test runner (recommended)")
+        print(f"MODE: Smart test runner (recommended) [parser: {parser_label}]")
         print("  - Phase 1: Regular tests with normal capture")
         print("  - Phase 2: Subshell tests with capture disabled (-s)")
         print("=" * 80)
@@ -138,7 +152,7 @@ Examples:
             if args.quick:
                 cmd.extend(['-m', 'not slow'])
 
-            exit_code = run_command(cmd, "Phase 1: Regular tests (with capture)")
+            exit_code = run_command(cmd, "Phase 1: Regular tests (with capture)", env=env)
             exit_codes.append(exit_code)
 
         if not args.no_subshells:
@@ -148,7 +162,7 @@ Examples:
                 '-s'
             ]
 
-            exit_code = run_command(cmd, "Phase 2: Subshell tests (with -s)")
+            exit_code = run_command(cmd, "Phase 2: Subshell tests (with -s)", env=env)
             exit_codes.append(exit_code)
 
             # Phase 3: Run the other tests that need -s
@@ -161,7 +175,7 @@ Examples:
                 '-s'
             ]
 
-            exit_code = run_command(cmd, "Phase 3: Other tests needing -s")
+            exit_code = run_command(cmd, "Phase 3: Other tests needing -s", env=env)
             exit_codes.append(exit_code)
 
     # Summary

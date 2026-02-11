@@ -29,12 +29,19 @@ from ...ast_nodes import (
 )
 from ...token_types import Token
 from ..config import ParserConfig
+from ..recursive_descent.support.word_builder import WordBuilder
 from .core import ForwardParser, Parser, ParseResult, many, many1, optional, separated_by, sequence, token
 from .expansions import ExpansionParsers
 from .tokens import TokenParsers
 
 # Pre-compiled regex for fd duplication detection (e.g. ">&2", "2>&1", ">&-")
 _FD_DUP_RE = re.compile(r'^(\d*)([><])&(-|\d+)$')
+
+# Token types that should be treated as word-like for composite merging
+_WORD_LIKE_TYPES = frozenset({
+    'WORD', 'STRING', 'VARIABLE', 'PARAM_EXPANSION', 'COMMAND_SUB',
+    'COMMAND_SUB_BACKTICK', 'ARITH_EXPANSION', 'PROCESS_SUB_IN', 'PROCESS_SUB_OUT',
+})
 
 
 class CommandParsers:
@@ -244,6 +251,25 @@ class CommandParsers:
 
         return Parser(parse_simple_command)
 
+    @staticmethod
+    def _group_adjacent_tokens(word_tokens: List[Token]) -> List[List[Token]]:
+        """Group adjacent tokens into composite sequences.
+
+        Tokens with adjacent_to_previous=True are merged with their
+        predecessor to form a single composite word (e.g. i= + $((1+1))
+        becomes a single word i=$((1+1))).
+        """
+        if not word_tokens:
+            return []
+        groups: List[List[Token]] = [[word_tokens[0]]]
+        for tok in word_tokens[1:]:
+            if (getattr(tok, 'adjacent_to_previous', False)
+                    and tok.type.name in _WORD_LIKE_TYPES):
+                groups[-1].append(tok)
+            else:
+                groups.append([tok])
+        return groups
+
     def _build_simple_command(self, word_tokens: List[Token],
                              redirects: List[Redirect],
                              background: bool = False) -> SimpleCommand:
@@ -259,13 +285,18 @@ class CommandParsers:
         """
         cmd = SimpleCommand(redirects=redirects, background=background)
 
-        # Build traditional string arguments
-        cmd.args = [self.expansions.format_token_value(t) for t in word_tokens]
+        # Group adjacent tokens into composite sequences
+        groups = self._group_adjacent_tokens(word_tokens)
 
-        # Build Word AST nodes
+        # Build traditional string arguments and Word AST nodes
+        cmd.args = []
         cmd.words = []
-        for token in word_tokens:
-            word = self.expansions.build_word_from_token(token)
+        for group in groups:
+            cmd.args.append(''.join(self.expansions.format_token_value(t) for t in group))
+            if len(group) == 1:
+                word = self.expansions.build_word_from_token(group[0])
+            else:
+                word = WordBuilder.build_composite_word(group)
             cmd.words.append(word)
 
         return cmd

@@ -1,11 +1,18 @@
 # Combinator Parser Guide
 
+> **Status: Experimental / Educational.**  This is not the production
+> parser.  The recursive descent parser in `recursive_descent/` handles
+> all shell input in normal operation.  There is no plan to converge
+> the two implementations or to replace the recursive descent parser.
+> The combinator parser may lag behind on edge-case fixes and new features.
+
 ## What This Is
 
-The combinator parser (`psh/parser/combinators/`) is an alternative parser
-implementation that uses functional composition instead of recursive descent.
-It parses the same shell grammar as the main recursive descent parser but
-demonstrates a fundamentally different parsing paradigm.
+The combinator parser (`psh/parser/combinators/`) is an experimental,
+alternative parser implementation that uses functional composition instead
+of recursive descent.  It parses the same shell grammar as the main
+recursive descent parser but demonstrates a fundamentally different
+parsing paradigm.
 
 This is an educational counterpoint: the recursive descent parser uses
 mutable state and imperative control flow, while the combinator parser
