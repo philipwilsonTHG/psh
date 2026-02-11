@@ -10,6 +10,84 @@ if TYPE_CHECKING:
     from ..shell import Shell
 
 
+def create_process_substitution(cmd_str: str, direction: str, shell: 'Shell') -> Tuple[int, str, int]:
+    """Create a process substitution, returning (parent_fd, fd_path, child_pid).
+
+    Args:
+        cmd_str: The command string to execute (without the <()/>()} wrapper).
+        direction: 'in' for <(cmd) (parent reads), 'out' for >(cmd) (parent writes).
+        shell: The parent shell instance.
+
+    Returns:
+        Tuple of (parent_fd, fd_path, child_pid).
+    """
+    # Create pipe
+    if direction == 'in':
+        # For <(cmd), parent reads from pipe, child writes to it
+        read_fd, write_fd = os.pipe()
+        parent_fd = read_fd
+        child_fd = write_fd
+        child_stdout = child_fd
+        child_stdin = 0
+    else:
+        # For >(cmd), parent writes to pipe, child reads from it
+        read_fd, write_fd = os.pipe()
+        parent_fd = write_fd
+        child_fd = read_fd
+        child_stdout = 1
+        child_stdin = child_fd
+
+    # Clear close-on-exec flag for parent_fd so it survives exec
+    flags = fcntl.fcntl(parent_fd, fcntl.F_GETFD)
+    fcntl.fcntl(parent_fd, fcntl.F_SETFD, flags & ~fcntl.FD_CLOEXEC)
+
+    # Fork child for process substitution
+    pid = os.fork()
+    if pid == 0:  # Child
+        from psh.executor.child_policy import apply_child_signal_policy
+        apply_child_signal_policy(
+            shell.interactive_manager.signal_manager,
+            shell.state,
+            is_shell_process=True,
+        )
+
+        # Close parent's end of pipe
+        os.close(parent_fd)
+
+        # Set up child's stdio
+        if direction == 'in':
+            os.dup2(child_stdout, 1)
+        else:
+            os.dup2(child_stdin, 0)
+
+        # Close the pipe fd we duplicated
+        os.close(child_fd)
+
+        # Execute the substitution command
+        try:
+            from ..lexer import tokenize
+            from ..parser import parse
+            from ..shell import Shell as ShellClass
+
+            tokens = tokenize(cmd_str)
+            ast = parse(tokens)
+            temp_shell = ShellClass(parent_shell=shell)
+            exit_code = temp_shell.execute_command_list(ast)
+            os._exit(exit_code)
+        except Exception as e:
+            print(f"psh: process substitution error: {e}", file=sys.stderr)
+            os._exit(1)
+
+    else:  # Parent
+        # Close child's end of pipe
+        os.close(child_fd)
+
+        # Create path for this fd
+        fd_path = f"/dev/fd/{parent_fd}"
+
+        return parent_fd, fd_path, pid
+
+
 class ProcessSubstitutionHandler:
     """Handles process substitution <(...) and >(...)."""
 
@@ -81,75 +159,7 @@ class ProcessSubstitutionHandler:
         else:
             raise ValueError(f"Invalid process substitution: {arg}")
 
-        # Create pipe
-        if direction == 'in':
-            # For <(cmd), parent reads from pipe, child writes to it
-            read_fd, write_fd = os.pipe()
-            parent_fd = read_fd
-            child_fd = write_fd
-            child_stdout = child_fd
-            child_stdin = 0
-        else:
-            # For >(cmd), parent writes to pipe, child reads from it
-            read_fd, write_fd = os.pipe()
-            parent_fd = write_fd
-            child_fd = read_fd
-            child_stdout = 1
-            child_stdin = child_fd
-
-        # Clear close-on-exec flag for parent_fd so it survives exec
-        flags = fcntl.fcntl(parent_fd, fcntl.F_GETFD)
-        fcntl.fcntl(parent_fd, fcntl.F_SETFD, flags & ~fcntl.FD_CLOEXEC)
-
-        # Fork child for process substitution
-        pid = os.fork()
-        if pid == 0:  # Child
-            from psh.executor.child_policy import apply_child_signal_policy
-            apply_child_signal_policy(
-                self.shell.interactive_manager.signal_manager,
-                self.state,
-                is_shell_process=True,
-            )
-
-            # Close parent's end of pipe
-            os.close(parent_fd)
-
-            # Set up child's stdio
-            if direction == 'in':
-                os.dup2(child_stdout, 1)
-            else:
-                os.dup2(child_stdin, 0)
-
-            # Close the pipe fd we duplicated
-            os.close(child_fd)
-
-            # Execute the substitution command
-            try:
-                # Import here to avoid circular import
-                from ..lexer import tokenize
-                from ..parser import parse
-                from ..shell import Shell
-
-                # Parse and execute the command string
-                tokens = tokenize(cmd_str)
-                ast = parse(tokens)
-                # Create a new shell instance to avoid state pollution
-                temp_shell = Shell(parent_shell=self.shell)
-                exit_code = temp_shell.execute_command_list(ast)
-                os._exit(exit_code)
-            except Exception as e:
-                print(f"psh: process substitution error: {e}", file=sys.stderr)
-                os._exit(1)
-
-        else:  # Parent
-            # Close child's end of pipe
-            os.close(child_fd)
-
-            # Create path for this fd
-            # On Linux/macOS, we can use /dev/fd/N
-            fd_path = f"/dev/fd/{parent_fd}"
-
-            return parent_fd, fd_path, pid
+        return create_process_substitution(cmd_str, direction, self.shell)
 
     def handle_redirect_process_sub(self, target: str) -> Tuple[str, int, int]:
         """

@@ -65,11 +65,7 @@ class IOManager:
 
     def setup_builtin_redirections(self, command: Command) -> Tuple:
         """Set up redirections for built-in commands. Returns tuple of backup objects."""
-        import fcntl
         import io
-
-        from ..lexer import tokenize
-        from ..parser import parse
 
         # DEBUG: Log builtin redirection setup
         if self.state.options.get('debug-exec'):
@@ -98,73 +94,14 @@ class IOManager:
 
             # Handle process substitution as redirect target
             if target and target.startswith(('<(', '>(')) and target.endswith(')'):
-                # This is a process substitution used as a redirect target
-                # Set up the process substitution and get the fd path
-                if target.startswith('<('):
-                    direction = 'in'
-                    cmd_str = target[2:-1]
-                else:
-                    direction = 'out'
-                    cmd_str = target[2:-1]
+                from .process_sub import create_process_substitution
 
-                # Create pipe
-                if direction == 'in':
-                    read_fd, write_fd = os.pipe()
-                    parent_fd = read_fd
-                    child_fd = write_fd
-                    child_stdout = child_fd
-                    child_stdin = 0
-                else:
-                    read_fd, write_fd = os.pipe()
-                    parent_fd = write_fd
-                    child_fd = read_fd
-                    child_stdout = 1
-                    child_stdin = child_fd
-
-                # Clear close-on-exec flag
-                flags = fcntl.fcntl(parent_fd, fcntl.F_GETFD)
-                fcntl.fcntl(parent_fd, fcntl.F_SETFD, flags & ~fcntl.FD_CLOEXEC)
-
-                # Fork child
-                pid = os.fork()
-                if pid == 0:  # Child
-                    from psh.executor.child_policy import apply_child_signal_policy
-                    apply_child_signal_policy(
-                        self.shell.interactive_manager.signal_manager,
-                        self.state,
-                        is_shell_process=True,
-                    )
-
-                    os.close(parent_fd)
-                    if direction == 'in':
-                        os.dup2(child_stdout, 1)
-                    else:
-                        os.dup2(child_stdin, 0)
-                    os.close(child_fd)
-
-                    try:
-                        tokens = tokenize(cmd_str)
-                        ast = parse(tokens)
-                        # Import here to avoid circular dependency
-                        from ..shell import Shell
-                        # Create child shell with parent reference for proper inheritance
-                        temp_shell = Shell(parent_shell=self.shell)
-                        exit_code = temp_shell.execute_command_list(ast)
-                        os._exit(exit_code)
-                    except Exception as e:
-                        print(f"psh: process substitution error: {e}", file=sys.stderr)
-                        os._exit(1)
-                else:  # Parent
-                    os.close(child_fd)
-                    # Store for cleanup
-                    if not hasattr(self.shell, '_builtin_proc_sub_fds'):
-                        self.shell._builtin_proc_sub_fds = []
-                    if not hasattr(self.shell, '_builtin_proc_sub_pids'):
-                        self.shell._builtin_proc_sub_pids = []
-                    self.shell._builtin_proc_sub_fds.append(parent_fd)
-                    self.shell._builtin_proc_sub_pids.append(pid)
-                    # Use the fd path as target
-                    target = f"/dev/fd/{parent_fd}"
+                direction = 'in' if target.startswith('<(') else 'out'
+                cmd_str = target[2:-1]
+                parent_fd, fd_path, pid = create_process_substitution(cmd_str, direction, self.shell)
+                self.process_sub_handler.active_fds.append(parent_fd)
+                self.process_sub_handler.active_pids.append(pid)
+                target = fd_path
 
             if redirect.type == '<':
                 stdin_backup = sys.stdin
@@ -307,21 +244,7 @@ class IOManager:
             os.close(stdin_fd_backup)
 
         # Clean up process substitution resources if any
-        if hasattr(self.shell, '_builtin_proc_sub_fds'):
-            for fd in self.shell._builtin_proc_sub_fds:
-                try:
-                    os.close(fd)
-                except OSError:
-                    pass
-            self.shell._builtin_proc_sub_fds = []
-
-        if hasattr(self.shell, '_builtin_proc_sub_pids'):
-            for pid in self.shell._builtin_proc_sub_pids:
-                try:
-                    os.waitpid(pid, 0)
-                except OSError:
-                    pass
-            self.shell._builtin_proc_sub_pids = []
+        self.process_sub_handler.cleanup()
 
     def setup_child_redirections(self, command: Command):
         """Set up redirections in child process (after fork) using dup2"""

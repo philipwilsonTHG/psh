@@ -328,77 +328,13 @@ class FileRedirector:
                         pass
 
     def _handle_process_sub_redirect(self, target: str, redirect: Redirect) -> str:
-        """
-        Handle process substitution used as a redirect target.
-        This is a placeholder - the actual implementation will be in process_sub.py
-        """
-        # For now, delegate back to shell
-        # This will be replaced when we extract process substitution
-        from ..lexer import tokenize
-        from ..parser import parse
+        """Handle process substitution used as a redirect target."""
+        from .process_sub import create_process_substitution
 
-        if target.startswith('<('):
-            direction = 'in'
-            cmd_str = target[2:-1]
-        else:
-            direction = 'out'
-            cmd_str = target[2:-1]
-
-        # Create pipe
-        if direction == 'in':
-            read_fd, write_fd = os.pipe()
-            parent_fd = read_fd
-            child_fd = write_fd
-            child_stdout = child_fd
-            child_stdin = 0
-        else:
-            read_fd, write_fd = os.pipe()
-            parent_fd = write_fd
-            child_fd = read_fd
-            child_stdout = 1
-            child_stdin = child_fd
-
-        # Clear close-on-exec flag
-        flags = fcntl.fcntl(parent_fd, fcntl.F_GETFD)
-        fcntl.fcntl(parent_fd, fcntl.F_SETFD, flags & ~fcntl.FD_CLOEXEC)
-
-        # Fork child
-        pid = os.fork()
-        if pid == 0:  # Child
-            from psh.executor.child_policy import apply_child_signal_policy
-            apply_child_signal_policy(
-                self.shell.interactive_manager.signal_manager,
-                self.state,
-                is_shell_process=True,
-            )
-
-            os.close(parent_fd)
-            if direction == 'in':
-                os.dup2(child_stdout, 1)
-            else:
-                os.dup2(child_stdin, 0)
-            os.close(child_fd)
-
-            try:
-                # Import Shell here to avoid circular import
-                from ..shell import Shell
-                tokens = tokenize(cmd_str)
-                ast = parse(tokens)
-                # Create child shell with parent reference for proper inheritance
-                temp_shell = Shell(parent_shell=self.shell)
-                exit_code = temp_shell.execute_command_list(ast)
-                os._exit(exit_code)
-            except Exception as e:
-                print(f"psh: process substitution error: {e}", file=sys.stderr)
-                os._exit(1)
-        else:  # Parent
-            os.close(child_fd)
-            # Store for cleanup
-            if not hasattr(self.shell, '_redirect_proc_sub_fds'):
-                self.shell._redirect_proc_sub_fds = []
-            if not hasattr(self.shell, '_redirect_proc_sub_pids'):
-                self.shell._redirect_proc_sub_pids = []
-            self.shell._redirect_proc_sub_fds.append(parent_fd)
-            self.shell._redirect_proc_sub_pids.append(pid)
-            # Use the fd path as target
-            return f"/dev/fd/{parent_fd}"
+        direction = 'in' if target.startswith('<(') else 'out'
+        cmd_str = target[2:-1]
+        parent_fd, fd_path, pid = create_process_substitution(cmd_str, direction, self.shell)
+        # Track through ProcessSubstitutionHandler for unified cleanup
+        self.shell.io_manager.process_sub_handler.active_fds.append(parent_fd)
+        self.shell.io_manager.process_sub_handler.active_pids.append(pid)
+        return fd_path

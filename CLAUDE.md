@@ -383,9 +383,13 @@ class MyVisitor(ASTVisitor[T]):
 
 ## Current Development Status
 
-**Version**: 0.165.0 (see CHANGELOG.md for detailed history)
+**Version**: 0.166.0 (see CHANGELOG.md for detailed history)
 
 **Recent Work**:
+- **Process Substitution Consolidation (v0.166.0)**:
+  - Extracted `create_process_substitution()` module function as single source of truth
+  - Replaced ~130 lines of duplicated fork/pipe/exec code across 3 files
+  - Unified FD/PID tracking through ProcessSubstitutionHandler; fixed cleanup leak
 - **Shell.py Decomposition (v0.165.0)**:
   - Reduced shell.py from 925 to ~325 lines by extracting domain logic
   - Extracted TestExpressionEvaluator, AST debug, parser factory, heredoc detection, RC loading

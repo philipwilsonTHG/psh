@@ -4,6 +4,21 @@ All notable changes to PSH (Python Shell) are documented in this file.
 
 Format: `VERSION (DATE) - Title` followed by bullet points describing changes.
 
+## 0.166.0 (2026-02-10) - Consolidate process substitution duplication
+- Extracted `create_process_substitution()` module-level function in
+  `psh/io_redirect/process_sub.py` — single source of truth for the
+  fork/pipe/signal/exec sequence used by all process substitution paths.
+- Replaced 75-line copy-paste in `file_redirect.py:_handle_process_sub_redirect()`
+  with 8-line delegation to the new function.
+- Replaced 69-line inline block in `manager.py:setup_builtin_redirections()`
+  with 6-line delegation.
+- Unified FD/PID tracking through `ProcessSubstitutionHandler.active_fds/active_pids`
+  — eliminates three ad-hoc shell attributes (`_redirect_proc_sub_fds`,
+  `_redirect_proc_sub_pids`, `_builtin_proc_sub_fds`, `_builtin_proc_sub_pids`).
+- Fixed FD/PID leak: `_redirect_proc_sub_*` attributes were stored but never
+  cleaned up; now all paths go through `ProcessSubstitutionHandler.cleanup()`.
+- ~130 lines of duplicated code removed. Zero behavioral changes.
+
 ## 0.165.0 (2026-02-10) - Decompose shell.py
 - Reduced shell.py from 925 lines to ~325 lines by extracting domain logic.
 - Deleted dead `_execute_buffered_command()` (165 lines) — duplicate of
