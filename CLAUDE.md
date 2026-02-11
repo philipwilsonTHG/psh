@@ -94,8 +94,118 @@ PSH uses a modern, well-organized test suite:
 - **Development work**: Use `/tests/` organized by category
 - **Unit testing**: Use `tests/unit/` for component-specific tests
 - **Integration testing**: Use `tests/integration/` for feature interaction tests
-- **Compatibility verification**: Use `tests/conformance/` 
+- **Compatibility verification**: Use `tests/conformance/`
 - **Performance analysis**: Use `tests/performance/`
+
+### Testing the Combinator Parser
+
+The combinator parser (`psh/parser/combinators/`) is an experimental alternative
+to the production recursive descent parser.  The existing test suite can be
+re-run against it to measure coverage and find regressions.
+
+**How parser selection works at test time**
+
+Set the `PSH_TEST_PARSER` environment variable to `combinator`.  The `Shell`
+constructor reads this variable and switches the active parser for all
+commands executed during the test run.  No test code changes are needed.
+
+**Running the full suite with the combinator parser**
+
+```bash
+# Via the smart test runner (recommended)
+python run_tests.py --combinator > tmp/combinator-results.txt 2>&1
+tail -15 tmp/combinator-results.txt
+
+# Via pytest directly (must exclude subshell tests manually)
+PSH_TEST_PARSER=combinator python -m pytest tests/ \
+  --ignore=tests/integration/subshells/ \
+  --ignore=tests/integration/functions/test_function_advanced.py \
+  --ignore=tests/integration/variables/test_variable_assignment.py \
+  -q --tb=line > tmp/combinator-results.txt 2>&1
+tail -5 tmp/combinator-results.txt
+```
+
+**Running a specific test or file with the combinator parser**
+
+```bash
+PSH_TEST_PARSER=combinator python -m pytest tests/integration/control_flow/test_case_statements.py -xvs
+PSH_TEST_PARSER=combinator python -m pytest -k "test_for_loop" -xvs
+```
+
+**Combinator-specific unit tests**
+
+Direct unit tests for the combinator modules live in
+`tests/unit/parser/combinators/`.  These test parser internals (token matching,
+AST construction) without going through the shell:
+
+```bash
+python -m pytest tests/unit/parser/combinators/ -v
+```
+
+**Comparing before/after a change**
+
+When fixing combinator bugs, capture failure lists before and after to verify
+no regressions:
+
+```bash
+# Before: save baseline failures
+PSH_TEST_PARSER=combinator python -m pytest tests/ \
+  --ignore=tests/integration/subshells/ -q --tb=line 2>&1 \
+  | grep "^FAILED" | sort > tmp/before-failures.txt
+
+# ... make changes ...
+
+# After: save new failures and diff
+PSH_TEST_PARSER=combinator python -m pytest tests/ \
+  --ignore=tests/integration/subshells/ -q --tb=line 2>&1 \
+  | grep "^FAILED" | sort > tmp/after-failures.txt
+
+comm -23 tmp/before-failures.txt tmp/after-failures.txt  # Fixed tests
+comm -13 tmp/before-failures.txt tmp/after-failures.txt  # New regressions (should be empty)
+```
+
+**Always verify the recursive descent parser is unaffected**
+
+After changing combinator code, confirm the production parser still passes:
+
+```bash
+python -m pytest tests/behavioral/test_golden_behavior.py -q --tb=line
+python -m pytest tests/unit/parser/ -q --tb=line
+```
+
+**Interactive testing**
+
+You can switch parsers inside a running psh session:
+
+```bash
+python -m psh --parser combinator         # Start with combinator
+python -m psh --parser rd                 # Start with recursive descent (default)
+# Or switch at runtime:
+parser-select combinator                  # Inside psh REPL
+parser-select rd                          # Switch back
+```
+
+**Known exclusions in combinator mode**
+
+The test runner ignores these directories because the combinator parser does
+not yet handle the features they exercise (subshell FD inheritance, advanced
+function scoping, complex variable assignment):
+
+- `tests/integration/subshells/`
+- `tests/integration/functions/test_function_advanced.py`
+- `tests/integration/variables/test_variable_assignment.py`
+
+**Current combinator parser test status**: ~39 remaining failures out of ~3,350
+tests (as of v0.166.0).  Most remaining failures are pre-existing gaps in
+arithmetic evaluation, process substitution, and capsys-based output capture.
+
+**Lint**
+
+Always lint combinator code after changes:
+
+```bash
+ruff check psh/parser/combinators/
+```
 
 ## Critical Information
 
