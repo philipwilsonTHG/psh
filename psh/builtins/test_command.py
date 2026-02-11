@@ -18,6 +18,53 @@ class TestBuiltin(Builtin):
     def name(self) -> str:
         return "test"
 
+    @property
+    def synopsis(self) -> str:
+        return "test [EXPRESSION]"
+
+    @property
+    def help(self) -> str:
+        return """test: test [EXPRESSION]
+    Evaluate conditional expression.
+
+    Returns 0 (true) or 1 (false) depending on the evaluation of EXPR.
+    Expressions may be unary, binary, or combined with -a (AND), -o (OR),
+    ! (NOT), and ( ) grouping.
+
+    File operators:
+      -e FILE    FILE exists
+      -f FILE    FILE exists and is a regular file
+      -d FILE    FILE exists and is a directory
+      -s FILE    FILE exists and has size > 0
+      -r FILE    FILE exists and is readable
+      -w FILE    FILE exists and is writable
+      -x FILE    FILE exists and is executable
+      -L FILE    FILE exists and is a symbolic link
+      -b FILE    FILE is a block device
+      -c FILE    FILE is a character device
+      -p FILE    FILE is a named pipe
+      -S FILE    FILE is a socket
+      -t FD      FD is opened on a terminal
+
+    String operators:
+      -z STRING        STRING has zero length
+      -n STRING        STRING has non-zero length
+      S1 = S2          Strings are equal
+      S1 != S2         Strings are not equal
+
+    Integer operators:
+      N1 -eq N2   N1 equals N2         N1 -ne N2   N1 not equal to N2
+      N1 -lt N2   N1 less than N2      N1 -gt N2   N1 greater than N2
+      N1 -le N2   N1 less or equal     N1 -ge N2   N1 greater or equal
+
+    File comparison:
+      F1 -nt F2   F1 is newer than F2
+      F1 -ot F2   F1 is older than F2
+      F1 -ef F2   F1 and F2 are the same file
+
+    Exit Status:
+    Returns 0 if EXPRESSION is true, 1 if false, 2 on error."""
+
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Execute the test builtin."""
         # Remove 'test' from args
@@ -334,6 +381,23 @@ class BracketBuiltin(Builtin):
     @property
     def name(self) -> str:
         return "["
+
+    @property
+    def synopsis(self) -> str:
+        return "[ EXPRESSION ]"
+
+    @property
+    def help(self) -> str:
+        return """[: [ EXPRESSION ]
+    Evaluate conditional expression.
+
+    This is a synonym for the 'test' builtin, but the last argument
+    must be a literal ] to match the opening [.
+
+    See 'help test' for the full list of supported operators.
+
+    Exit Status:
+    Returns 0 if EXPRESSION is true, 1 if false, 2 on error."""
 
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Execute the [ builtin."""

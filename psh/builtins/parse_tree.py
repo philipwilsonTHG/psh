@@ -15,21 +15,29 @@ class ParseTreeBuiltin(Builtin):
 
     name = "parse-tree"
 
+    @property
+    def synopsis(self) -> str:
+        return "parse-tree [-f FORMAT] [-p] COMMAND"
+
+    @property
+    def help(self) -> str:
+        return """parse-tree: parse-tree [-f FORMAT] [-p] COMMAND
+    Show parse tree for shell commands.
+
+    Parses COMMAND and displays its abstract syntax tree in the
+    specified format.
+
+    Options:
+      -f FORMAT    Output format (default: tree)
+                   Formats: pretty, tree, compact, dot
+      -p           Show position information in the tree
+      -h           Show this help
+
+    Exit Status:
+    Returns success unless a parse or visualization error occurs."""
+
     def execute(self, args: List[str], shell) -> int:
-        """Execute the parse-tree builtin.
-
-        Usage: parse-tree [OPTIONS] COMMAND
-
-        Options:
-            -f FORMAT    Output format: pretty, tree, compact, dot (default: tree)
-            -p           Show position information
-            -h           Show this help
-
-        Examples:
-            parse-tree "echo hello | grep world"
-            parse-tree -f pretty "if true; then echo hi; fi"
-            parse-tree -f dot "for i in 1 2 3; do echo $i; done"
-        """
+        """Execute the parse-tree builtin."""
         if len(args) < 2:
             self.error("usage: parse-tree [options] command", shell)
             return 2
@@ -130,6 +138,21 @@ class ShowASTBuiltin(Builtin):
 
     name = "show-ast"
 
+    @property
+    def synopsis(self) -> str:
+        return "show-ast [-p] COMMAND"
+
+    @property
+    def help(self) -> str:
+        return """show-ast: show-ast [-p] COMMAND
+    Alias for 'parse-tree -f pretty'.
+
+    Parses COMMAND and displays the AST in pretty-printed format.
+    Accepts the same options as parse-tree (except -f).
+
+    Exit Status:
+    Returns success unless a parse or visualization error occurs."""
+
     def execute(self, args: List[str], shell) -> int:
         """Execute the show-ast builtin (alias for parse-tree -f pretty)."""
         # Prepend -f pretty to the arguments
@@ -145,6 +168,21 @@ class ASTDotBuiltin(Builtin):
     """Generate Graphviz DOT format for AST."""
 
     name = "ast-dot"
+
+    @property
+    def synopsis(self) -> str:
+        return "ast-dot [-p] COMMAND"
+
+    @property
+    def help(self) -> str:
+        return """ast-dot: ast-dot [-p] COMMAND
+    Generate Graphviz DOT format for AST.
+
+    Alias for 'parse-tree -f dot'. Parses COMMAND and outputs the AST
+    in DOT format suitable for rendering with Graphviz.
+
+    Exit Status:
+    Returns success unless a parse or visualization error occurs."""
 
     def execute(self, args: List[str], shell) -> int:
         """Execute the ast-dot builtin (alias for parse-tree -f dot)."""

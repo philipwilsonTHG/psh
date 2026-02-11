@@ -23,21 +23,34 @@ class ReadBuiltin(Builtin):
     def name(self) -> str:
         return "read"
 
+    @property
+    def synopsis(self) -> str:
+        return "read [-rs] [-a array] [-d delim] [-n chars] [-p prompt] [-t timeout] [var ...]"
+
+    @property
+    def help(self) -> str:
+        return """read: read [-rs] [-a array] [-d delim] [-n chars] [-p prompt] [-t timeout] [var ...]
+    Read a line from standard input and assign to variables.
+
+    Reads a single line from stdin (or the specified fd) and splits it
+    into fields using IFS. Fields are assigned to the named variables;
+    if more fields than variables, the last variable gets the remainder.
+    With no variables, the line is stored in REPLY.
+
+    Options:
+      -r            Raw mode (do not interpret backslash escapes)
+      -s            Silent mode (do not echo input)
+      -a array      Read into indexed array ARRAY
+      -d delim      Use DELIM as line delimiter instead of newline
+      -n chars      Read at most CHARS characters
+      -p prompt     Display PROMPT on stderr before reading
+      -t timeout    Time out after TIMEOUT seconds (exit code 142)
+
+    Exit Status:
+    Returns 0 unless EOF is reached, a timeout expires, or an error occurs."""
+
     def execute(self, args: List[str], shell: 'Shell') -> int:
-        """Execute the read builtin.
-
-        read [-r] [-a array] [-p prompt] [-s] [-t timeout] [-n chars] [-d delim] [var...]
-
-        Read a line from standard input and split it into fields.
-        Options:
-          -r: Raw mode (no backslash interpretation)
-          -a array: Read into indexed array instead of individual variables
-          -p prompt: Display prompt on stderr
-          -s: Silent mode (no echo)
-          -t timeout: Timeout after N seconds
-          -n chars: Read only N characters
-          -d delim: Use custom delimiter instead of newline
-        """
+        """Execute the read builtin."""
         try:
             options, var_names = self._parse_options(args)
         except ValueError as e:

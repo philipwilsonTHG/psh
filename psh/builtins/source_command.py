@@ -18,6 +18,24 @@ class SourceBuiltin(Builtin):
     def name(self) -> str:
         return "source"
 
+    @property
+    def synopsis(self) -> str:
+        return "source FILENAME [ARGS]"
+
+    @property
+    def help(self) -> str:
+        return """source: source FILENAME [ARGS]
+    Execute commands from a file in the current shell.
+
+    Reads and executes commands from FILENAME in the current shell
+    environment. If FILENAME does not contain a slash, PATH is
+    searched. Any ARGS are set as positional parameters for the
+    duration of the sourced script.
+
+    Exit Status:
+    Returns the exit status of the last command executed from FILENAME,
+    or 1 if the file cannot be found or read."""
+
     def execute(self, args: List[str], shell: 'Shell') -> int:
         """Execute the source builtin."""
         if len(args) < 2:
@@ -92,3 +110,17 @@ class DotBuiltin(SourceBuiltin):
     @property
     def name(self) -> str:
         return "."
+
+    @property
+    def synopsis(self) -> str:
+        return ". FILENAME [ARGS]"
+
+    @property
+    def help(self) -> str:
+        return """. FILENAME [ARGS]
+    Execute commands from FILENAME in the current shell environment.
+
+    This is a synonym for 'source'. See 'help source' for details.
+
+    Exit Status:
+    Returns the exit status of the last command executed from FILENAME."""
