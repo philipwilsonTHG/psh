@@ -16,22 +16,29 @@ class DebugASTBuiltin(Builtin):
 
     name = "debug-ast"
 
+    @property
+    def synopsis(self) -> str:
+        return "debug-ast [on|off] [FORMAT]"
+
+    @property
+    def help(self) -> str:
+        return """debug-ast: debug-ast [on|off] [FORMAT]
+    Control AST debugging options.
+
+    With no arguments, toggles AST debugging on/off.
+
+    Arguments:
+      on|off     Enable or disable AST debugging (default: toggle)
+      FORMAT     AST format: tree, pretty, compact, dot, sexp (default: tree)
+
+    A format name alone (e.g. 'debug-ast pretty') enables debugging with
+    that format.
+
+    Exit Status:
+    Returns success unless an invalid argument is given."""
+
     def execute(self, args: List[str], shell) -> int:
-        """Execute the debug-ast builtin.
-
-        Usage: debug-ast [on|off] [FORMAT]
-
-        Arguments:
-            on|off     Enable or disable AST debugging (default: toggle)
-            FORMAT     AST format: tree, pretty, compact, dot, sexp (default: tree)
-
-        Examples:
-            debug-ast              # Toggle AST debugging
-            debug-ast on           # Enable AST debugging with tree format
-            debug-ast off          # Disable AST debugging
-            debug-ast on pretty    # Enable with pretty format
-            debug-ast tree         # Enable with tree format
-        """
+        """Execute the debug-ast builtin."""
         if len(args) == 1:
             # No arguments - toggle debug-ast
             current = shell.state.options.get('debug-ast', False)
@@ -102,24 +109,32 @@ class DebugBuiltin(Builtin):
 
     name = "debug"
 
+    @property
+    def synopsis(self) -> str:
+        return "debug [OPTION] [on|off]"
+
+    @property
+    def help(self) -> str:
+        return """debug: debug [OPTION] [on|off]
+    Control various debug options.
+
+    With no arguments, shows the current state of all debug options.
+    With an OPTION name alone, toggles that option on/off.
+    With an OPTION and on/off, sets that option explicitly.
+
+    Options:
+      ast          AST debugging
+      tokens       Token debugging
+      scopes       Scope debugging
+      expansion    Expansion debugging
+      exec         Execution debugging
+      parser       Parser tracing
+
+    Exit Status:
+    Returns success unless an invalid option is given."""
+
     def execute(self, args: List[str], shell) -> int:
-        """Execute the debug builtin.
-
-        Usage: debug [OPTION] [on|off]
-
-        Options:
-            ast          AST debugging
-            tokens       Token debugging
-            scopes       Scope debugging
-            expansion    Expansion debugging
-            exec         Execution debugging
-
-        Examples:
-            debug                    # Show all debug options
-            debug ast on             # Enable AST debugging
-            debug tokens off         # Disable token debugging
-            debug expansion          # Toggle expansion debugging
-        """
+        """Execute the debug builtin."""
         if len(args) == 1:
             # Show all debug options
             print("Debug Options:")
@@ -224,19 +239,27 @@ class SignalsBuiltin(Builtin):
 
     name = "signals"
 
+    @property
+    def synopsis(self) -> str:
+        return "signals [-v]"
+
+    @property
+    def help(self) -> str:
+        return """signals: signals [-v]
+    Show signal handler state and history.
+
+    Displays the current signal handler registrations. With -v, also
+    shows the full signal history and stack traces.
+
+    Options:
+      -v, --verbose     Show full history and stack traces
+      -h, --help        Show this help message
+
+    Exit Status:
+    Returns success unless the signal registry is not initialized."""
+
     def execute(self, args: List[str], shell: 'Shell') -> int:
-        """Execute the signals builtin.
-
-        Usage: signals [OPTIONS]
-
-        Options:
-            -v, --verbose     Show full history and stack traces
-            -h, --help        Show this help message
-
-        Examples:
-            signals           # Show current signal handlers
-            signals -v        # Show detailed history
-        """
+        """Execute the signals builtin."""
         # Parse options
         verbose = False
 
