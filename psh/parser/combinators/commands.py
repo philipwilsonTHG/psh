@@ -232,7 +232,7 @@ class CommandParsers:
                 # Nothing matched — stop collecting
                 break
 
-            if not word_tokens:
+            if not word_tokens and not redirects:
                 return ParseResult(success=False, error="Expected command", position=pos)
 
             # Parse optional background operator

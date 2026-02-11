@@ -11,7 +11,7 @@ The ControlStructureParsers class inherits from three mixin classes:
 
 from typing import List, Optional, Tuple
 
-from ....ast_nodes import CommandList
+from ....ast_nodes import CommandList, Redirect
 from ....lexer.keyword_defs import matches_keyword
 from ....token_types import Token
 from ...config import ParserConfig
@@ -132,6 +132,33 @@ class ControlStructureParsers(LoopParserMixin, ConditionalParserMixin, Structure
         )
 
     # === Shared helper methods ===
+
+    def _parse_trailing_redirects(self, tokens: List[Token], pos: int
+                                  ) -> Tuple[List[Redirect], bool, int]:
+        """Parse trailing redirections and background operator after a compound command.
+
+        Called after the closing keyword (done, fi, esac, }, )) to collect any
+        redirections like ``done > file`` or background operator like ``done &``.
+
+        Returns:
+            Tuple of (redirects, background, new_pos)
+        """
+        redirects: List[Redirect] = []
+        background = False
+
+        while pos < len(tokens):
+            redir_result = self.commands.redirection.parse(tokens, pos)
+            if redir_result.success:
+                redirects.append(redir_result.value)
+                pos = redir_result.position
+                continue
+            break
+
+        if pos < len(tokens) and tokens[pos].type.name == 'AMPERSAND':
+            background = True
+            pos += 1
+
+        return redirects, background, pos
 
     def _parse_do_separator(self, tokens: List[Token], pos: int) -> ParseResult[None]:
         """Parse separator followed by 'do' keyword."""

@@ -202,13 +202,18 @@ class ConditionalParserMixin:
 
             pos += 1  # Skip 'fi'
 
+            # Parse trailing redirections and background
+            redirects, background, pos = self._parse_trailing_redirects(tokens, pos)
+
             return ParseResult(
                 success=True,
                 value=IfConditional(
                     condition=condition,
                     then_part=then_part,
                     elif_parts=elif_parts,
-                    else_part=else_part
+                    else_part=else_part,
+                    redirects=redirects,
+                    background=background,
                 ),
                 position=pos
             )
@@ -225,7 +230,11 @@ class ConditionalParserMixin:
             pos += 1  # Skip 'case'
 
             # Parse expression (usually a variable or word)
-            if pos >= len(tokens) or tokens[pos].type.name not in ['WORD', 'VARIABLE', 'STRING']:
+            _CASE_EXPR_TYPES = {
+                'WORD', 'VARIABLE', 'STRING', 'COMMAND_SUB',
+                'COMMAND_SUB_BACKTICK', 'ARITH_EXPANSION', 'PARAM_EXPANSION',
+            }
+            if pos >= len(tokens) or tokens[pos].type.name not in _CASE_EXPR_TYPES:
                 return ParseResult(success=False, error="Expected expression after 'case'", position=pos)
 
             # Format the expression appropriately
@@ -243,24 +252,32 @@ class ConditionalParserMixin:
                 pos += 1
 
             # Parse case items until 'esac'
+            _CASE_PATTERN_TYPES = {
+                'WORD', 'STRING', 'VARIABLE', 'PARAM_EXPANSION',
+                'COMMAND_SUB', 'COMMAND_SUB_BACKTICK', 'ARITH_EXPANSION',
+            }
             items = []
             while pos < len(tokens) and not matches_keyword(tokens[pos], 'esac'):
                 # Parse pattern(s)
                 patterns = []
 
+                # Consume optional leading '('
+                if pos < len(tokens) and tokens[pos].value == '(':
+                    pos += 1
+
                 # Parse first pattern
-                if pos >= len(tokens) or tokens[pos].type.name not in ['WORD', 'STRING']:
+                if pos >= len(tokens) or tokens[pos].type.name not in _CASE_PATTERN_TYPES:
                     break
 
-                patterns.append(CasePattern(tokens[pos].value))
+                patterns.append(CasePattern(format_token_value(tokens[pos])))
                 pos += 1
 
                 # Parse additional patterns separated by '|'
                 while pos < len(tokens) and tokens[pos].value == '|':
                     pos += 1  # Skip '|'
-                    if pos >= len(tokens) or tokens[pos].type.name not in ['WORD', 'STRING']:
+                    if pos >= len(tokens) or tokens[pos].type.name not in _CASE_PATTERN_TYPES:
                         return ParseResult(success=False, error="Expected pattern after '|'", position=pos)
-                    patterns.append(CasePattern(tokens[pos].value))
+                    patterns.append(CasePattern(format_token_value(tokens[pos])))
                     pos += 1
 
                 # Expect ')'
@@ -302,10 +319,15 @@ class ConditionalParserMixin:
                         # Check for case terminators
                         if token.type in CASE_TERMINATOR_TOKENS:
                             break
-                        # Check if next token is a pattern (word followed by ')')
+                        # Check if next token is a pattern (word/expansion followed by ')')
                         if (pos + 1 < len(tokens) and
-                            token.type.name in ['WORD', 'STRING'] and
+                            token.type.name in _CASE_PATTERN_TYPES and
                             tokens[pos + 1].value == ')'):
+                            break
+                        # Check for '(' starting a new pattern group
+                        if (token.value == '(' and
+                            pos + 1 < len(tokens) and
+                            tokens[pos + 1].type.name in _CASE_PATTERN_TYPES):
                             break
 
                     command_tokens.append(token)
@@ -348,11 +370,16 @@ class ConditionalParserMixin:
 
             pos += 1  # Skip 'esac'
 
+            # Parse trailing redirections and background
+            redirects, background, pos = self._parse_trailing_redirects(tokens, pos)
+
             return ParseResult(
                 success=True,
                 value=CaseConditional(
                     expr=expr,
-                    items=items
+                    items=items,
+                    redirects=redirects,
+                    background=background,
                 ),
                 position=pos
             )

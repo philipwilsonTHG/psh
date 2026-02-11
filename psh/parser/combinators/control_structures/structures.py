@@ -14,7 +14,8 @@ from ....ast_nodes import (
 )
 from ....lexer.keyword_defs import matches_keyword
 from ....token_types import Token
-from ..core import Parser, ParseResult, between, lazy
+from ...recursive_descent.helpers import ErrorContext, ParseError
+from ..core import Parser, ParseResult
 
 
 class StructureParserMixin:
@@ -148,7 +149,7 @@ class StructureParserMixin:
             # Parse name
             name_result = self._build_function_name().parse(tokens, pos)
             if not name_result.success:
-                return ParseResult(success=False, error="Not a function definition", position=pos)
+                return ParseResult(success=False, error=name_result.error, position=pos)
 
             name = name_result.value
             pos = name_result.position
@@ -247,26 +248,116 @@ class StructureParserMixin:
         return Parser(parse_function_with_parens)
 
     def _build_function_def(self) -> Parser[FunctionDef]:
-        """Build parser for function definitions."""
-        # Try all three forms: POSIX first (most specific), then keyword variants
-        return (
-            self._build_posix_function()
-            .or_else(self._build_function_keyword_with_parens())
-            .or_else(self._build_function_keyword_style())
-        )
+        """Build parser for function definitions.
+
+        Uses a wrapper that commits to function parsing when ``WORD (`` is
+        detected, preventing fallthrough to simple-command parsing when
+        the function name is invalid (e.g. ``123func() { ... }``).
+        """
+        posix_fn = self._build_posix_function()
+        keyword_parens_fn = self._build_function_keyword_with_parens()
+        keyword_fn = self._build_function_keyword_style()
+
+        def parse_function_def(tokens: List[Token], pos: int) -> ParseResult[FunctionDef]:
+            # Try keyword forms first (they start with 'function' keyword)
+            result = keyword_parens_fn.parse(tokens, pos)
+            if result.success:
+                return result
+            result = keyword_fn.parse(tokens, pos)
+            if result.success:
+                return result
+
+            # For POSIX form: if we see WORD followed by '(' ')', commit to
+            # function parsing.  This prevents ``123func()`` from falling
+            # through to simple-command parsing.
+            # Exclude words containing '=' (assignments like ``arr=()``).
+            if (pos < len(tokens) and tokens[pos].type.name == 'WORD'
+                    and '=' not in tokens[pos].value
+                    and pos + 1 < len(tokens) and tokens[pos + 1].value == '('
+                    and pos + 2 < len(tokens) and tokens[pos + 2].value == ')'):
+                # Committed — must be a function definition
+                result = posix_fn.parse(tokens, pos)
+                if not result.success:
+                    # Hard error — raise ParseError to prevent fallthrough
+                    raise ParseError(ErrorContext(
+                        token=tokens[pos],
+                        message=result.error,
+                        position=pos,
+                    ))
+                return result
+
+            return ParseResult(success=False, error="Not a function definition", position=pos)
+
+        return Parser(parse_function_def)
 
     def _build_subshell_group(self) -> Parser[SubshellGroup]:
         """Build parser for subshell group (...) syntax."""
-        return between(
-            self.tokens.lparen,
-            self.tokens.rparen,
-            lazy(lambda: self.commands.statement_list)
-        ).map(lambda statements: SubshellGroup(statements=statements))
+        def parse_subshell_group(tokens: List[Token], pos: int) -> ParseResult[SubshellGroup]:
+            # Expect '('
+            lparen_result = self.tokens.lparen.parse(tokens, pos)
+            if not lparen_result.success:
+                return ParseResult(success=False, error="Expected '('", position=pos)
+            pos = lparen_result.position
+
+            # Parse body
+            body_result = self.commands.statement_list.parse(tokens, pos)
+            if not body_result.success:
+                return ParseResult(success=False, error=body_result.error, position=pos)
+            pos = body_result.position
+
+            # Expect ')'
+            rparen_result = self.tokens.rparen.parse(tokens, pos)
+            if not rparen_result.success:
+                return ParseResult(success=False, error="Expected ')'", position=pos)
+            pos = rparen_result.position
+
+            # Parse trailing redirections and background
+            redirects, background, pos = self._parse_trailing_redirects(tokens, pos)
+
+            return ParseResult(
+                success=True,
+                value=SubshellGroup(
+                    statements=body_result.value,
+                    redirects=redirects,
+                    background=background,
+                ),
+                position=pos,
+            )
+
+        return Parser(parse_subshell_group)
 
     def _build_brace_group(self) -> Parser[BraceGroup]:
         """Build parser for brace group {...} syntax."""
-        return between(
-            self.tokens.lbrace,
-            self.tokens.rbrace,
-            lazy(lambda: self.commands.statement_list)
-        ).map(lambda statements: BraceGroup(statements=statements))
+        def parse_brace_group(tokens: List[Token], pos: int) -> ParseResult[BraceGroup]:
+            # Expect '{'
+            lbrace_result = self.tokens.lbrace.parse(tokens, pos)
+            if not lbrace_result.success:
+                return ParseResult(success=False, error="Expected '{'", position=pos)
+            pos = lbrace_result.position
+
+            # Parse body
+            body_result = self.commands.statement_list.parse(tokens, pos)
+            if not body_result.success:
+                return ParseResult(success=False, error=body_result.error, position=pos)
+            pos = body_result.position
+
+            # Expect '}'
+            rbrace_result = self.tokens.rbrace.parse(tokens, pos)
+            if not rbrace_result.success:
+                return ParseResult(success=False, error="Expected '}'", position=pos)
+            pos = rbrace_result.position
+
+            # Parse trailing redirections and background
+            redirects, background, pos = self._parse_trailing_redirects(tokens, pos)
+
+            return ParseResult(
+                success=True,
+                value=BraceGroup(
+                    statements=body_result.value,
+                    redirects=redirects,
+                    background=background,
+                ),
+                position=pos,
+            )
+
+        return Parser(parse_brace_group)

@@ -12,7 +12,6 @@ from ...ast_nodes import (
     ExpansionPart,
     LiteralPart,
     ProcessSubstitution,
-    VariableExpansion,
     Word,
 )
 from ...token_types import Token
@@ -133,7 +132,7 @@ class ExpansionParsers:
             Word AST node with appropriate parts
         """
         qt = getattr(token, 'quote_type', None)
-        is_quoted = qt is not None
+        is_quoted = qt is not None and qt != 'mixed'
 
         # Check for decomposable parts from the lexer (RichToken with expansions)
         if WordBuilder._has_decomposable_parts(token):
@@ -148,8 +147,8 @@ class ExpansionParsers:
                         quote_type=qt)
 
         elif token.type.name == 'VARIABLE':
-            # Variable expansion
-            expansion = VariableExpansion(token.value)
+            # Variable expansion — delegate to WordBuilder for brace-stripping
+            expansion = WordBuilder.parse_expansion_token(token)
             return Word(parts=[ExpansionPart(expansion, quoted=is_quoted, quote_char=qt)])
 
         elif token.type.name == 'COMMAND_SUB':

@@ -81,11 +81,16 @@ class LoopParserMixin:
 
             pos = done_pos + 1  # Skip 'done'
 
+            # Parse trailing redirections and background
+            redirects, background, pos = self._parse_trailing_redirects(tokens, pos)
+
             return ParseResult(
                 success=True,
                 value=WhileLoop(
                     condition=condition_result.value,
-                    body=body_result.value
+                    body=body_result.value,
+                    redirects=redirects,
+                    background=background,
                 ),
                 position=pos
             )
@@ -146,11 +151,16 @@ class LoopParserMixin:
 
             pos = done_pos + 1
 
+            # Parse trailing redirections and background
+            redirects, background, pos = self._parse_trailing_redirects(tokens, pos)
+
             return ParseResult(
                 success=True,
                 value=UntilLoop(
                     condition=condition_result.value,
-                    body=body_result.value
+                    body=body_result.value,
+                    redirects=redirects,
+                    background=background,
                 ),
                 position=pos
             )
@@ -241,13 +251,18 @@ class LoopParserMixin:
 
             pos = done_pos + 1  # Skip 'done'
 
+            # Parse trailing redirections and background
+            redirects, background, pos = self._parse_trailing_redirects(tokens, pos)
+
             return ParseResult(
                 success=True,
                 value=ForLoop(
                     variable=var_name,
                     items=items,
                     body=body_result.value,
-                    item_quote_types=item_quote_types
+                    item_quote_types=item_quote_types,
+                    redirects=redirects,
+                    background=background,
                 ),
                 position=pos
             )
@@ -267,25 +282,31 @@ class LoopParserMixin:
 
             pos += 2  # Skip 'for' and '(('
 
-            # Parse init expression (until ';')
-            init_tokens = []
-            while pos < len(tokens) and tokens[pos].value != ';':
-                init_tokens.append(tokens[pos])
-                pos += 1
+            # Handle ';;' (DOUBLE_SEMICOLON) — both init and condition are empty
+            if pos < len(tokens) and tokens[pos].type.name == 'DOUBLE_SEMICOLON':
+                init_tokens = []
+                cond_tokens = []
+                pos += 1  # Skip ';;'
+            else:
+                # Parse init expression (until ';')
+                init_tokens = []
+                while pos < len(tokens) and tokens[pos].value != ';':
+                    init_tokens.append(tokens[pos])
+                    pos += 1
 
-            if pos >= len(tokens):
-                return ParseResult(success=False, error="Expected ';' after init expression", position=pos)
-            pos += 1  # Skip ';'
+                if pos >= len(tokens):
+                    return ParseResult(success=False, error="Expected ';' after init expression", position=pos)
+                pos += 1  # Skip ';'
 
-            # Parse condition expression (until ';')
-            cond_tokens = []
-            while pos < len(tokens) and tokens[pos].value != ';':
-                cond_tokens.append(tokens[pos])
-                pos += 1
+                # Parse condition expression (until ';')
+                cond_tokens = []
+                while pos < len(tokens) and tokens[pos].value != ';':
+                    cond_tokens.append(tokens[pos])
+                    pos += 1
 
-            if pos >= len(tokens):
-                return ParseResult(success=False, error="Expected ';' after condition expression", position=pos)
-            pos += 1  # Skip ';'
+                if pos >= len(tokens):
+                    return ParseResult(success=False, error="Expected ';' after condition expression", position=pos)
+                pos += 1  # Skip ';'
 
             # Parse update expression (until '))')
             update_tokens = []
@@ -322,6 +343,9 @@ class LoopParserMixin:
 
             pos = done_pos + 1  # Skip 'done'
 
+            # Parse trailing redirections and background
+            redirects, background, pos = self._parse_trailing_redirects(tokens, pos)
+
             # Convert token lists to strings
             init_expr = ' '.join(t.value for t in init_tokens) if init_tokens else None
             cond_expr = ' '.join(t.value for t in cond_tokens) if cond_tokens else None
@@ -333,7 +357,9 @@ class LoopParserMixin:
                     init_expr=init_expr,
                     condition_expr=cond_expr,
                     update_expr=update_expr,
-                    body=body_result.value
+                    body=body_result.value,
+                    redirects=redirects,
+                    background=background,
                 ),
                 position=pos
             )
@@ -410,6 +436,9 @@ class LoopParserMixin:
 
             pos = done_pos + 1  # Skip 'done'
 
+            # Parse trailing redirections and background
+            redirects, background, pos = self._parse_trailing_redirects(tokens, pos)
+
             return ParseResult(
                 success=True,
                 value=SelectLoop(
@@ -417,8 +446,8 @@ class LoopParserMixin:
                     items=items,
                     item_quote_types=item_quote_types,
                     body=body_result.value,
-                    redirects=[],
-                    background=False
+                    redirects=redirects,
+                    background=background,
                 ),
                 position=pos
             )

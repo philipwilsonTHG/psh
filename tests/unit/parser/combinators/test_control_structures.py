@@ -1,5 +1,7 @@
 """Tests for control structure parsers."""
 
+import pytest
+
 from psh.ast_nodes import (
     BraceGroup,
     BreakStatement,
@@ -15,6 +17,7 @@ from psh.ast_nodes import (
 )
 from psh.parser.combinators.commands import CommandParsers
 from psh.parser.combinators.control_structures import ControlStructureParsers, create_control_structure_parsers
+from psh.parser.recursive_descent.helpers import ParseError
 from psh.token_types import Token, TokenType
 
 
@@ -478,10 +481,11 @@ class TestFunctionDefinitions:
             make_token(TokenType.RBRACE, "}")
         ]
 
-        result = parsers.function_def.parse(tokens, 0)
-        # The parser tries 'function' keyword style first, then POSIX style
-        # Since '1func' doesn't match 'function' keyword, it fails
-        assert result.success is False
+        # The parser detects WORD followed by '(' ')' and commits to function
+        # parsing.  An invalid name raises ParseError instead of returning
+        # success=False, preventing fallthrough to simple-command parsing.
+        with pytest.raises(ParseError):
+            parsers.function_def.parse(tokens, 0)
 
     def test_reserved_word_function_name(self):
         """Test that reserved words as function names are handled."""
@@ -499,12 +503,11 @@ class TestFunctionDefinitions:
             make_token(TokenType.RBRACE, "}")
         ]
 
-        result = parsers.function_def.parse(tokens, 0)
-        # The parser tries 'function' keyword style first
-        # Since 'if' doesn't match 'function' keyword, it fails
-        assert result.success is False
-        # The error won't mention reserved words, just that it expected 'function'
-        assert "function" in result.error.lower()
+        # 'if' is a reserved word — _build_function_name rejects it.
+        # Since the test creates a WORD token (not an IF keyword token),
+        # _build_function_def sees WORD+( and commits, then raises ParseError.
+        with pytest.raises(ParseError, match="(?i)reserved word"):
+            parsers.function_def.parse(tokens, 0)
 
 
 class TestCompoundCommands:
