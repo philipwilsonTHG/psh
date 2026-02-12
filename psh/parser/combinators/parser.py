@@ -116,19 +116,25 @@ class ParserCombinatorShellParser:
             # Control structures haven't been initialized yet, use simple commands only
             self.command = self.commands.and_or_list
         else:
-            # Combine all command types
-            self.command = (
-                # Try control structures first (most specific)
+            # Build a pipeline-element parser: what can appear as a single
+            # element inside a pipeline.  Control structures and special
+            # commands are included so that e.g.
+            #   for i in 1 2 3; do echo $i; done | grep 2
+            # is parsed correctly.
+            pipeline_element = (
                 self.control.control_structure
-                # Then special commands
                 .or_else(self.special.special_command)
-                # Then and-or lists (which include pipelines and simple commands)
-                .or_else(self.commands.and_or_list)
+                .or_else(self.commands.simple_command)
             )
 
-        # Update command parsers with the complete command parser
-        if hasattr(self.commands, 'set_command_parser'):
-            self.commands.set_command_parser(self.command)
+            # Update the pipeline/and-or layer to use this element parser.
+            if hasattr(self.commands, 'set_command_parser'):
+                self.commands.set_command_parser(pipeline_element)
+
+            # The top-level command parser is now the and-or list, which
+            # internally uses the pipeline layer (which now accepts compound
+            # commands as elements).
+            self.command = self.commands.and_or_list
 
         # CRITICAL: Update the statement parser to include control structures
         # The statement parser was built before control structures were available
@@ -136,7 +142,7 @@ class ParserCombinatorShellParser:
         self.commands.statement = (
             # Try function definitions first
             self.control.function_def
-            # Then the full command parser (control structures, special commands, and-or lists)
+            # Then the full command parser (and-or lists which include pipelines)
             .or_else(self.command)
         )
 

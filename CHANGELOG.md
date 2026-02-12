@@ -4,6 +4,25 @@ All notable changes to PSH (Python Shell) are documented in this file.
 
 Format: `VERSION (DATE) - Title` followed by bullet points describing changes.
 
+## 0.167.0 (2026-02-12) - Fix 21 combinator parser failures (39 → 18)
+- Restructured `_build_complete_parser()` so compound commands (for, while,
+  if, case, etc.) are pipeline elements rather than top-level alternatives,
+  fixing `for ... done | grep` and similar piped compound commands.
+- Added `COMMAND_SUB`, `COMMAND_SUB_BACKTICK`, `ARITH_EXPANSION`,
+  `PARAM_EXPANSION` to accepted token types in the for-loop word list,
+  matching the select-loop parser.
+- Added explicit handling for `REDIRECT_ERR` and `REDIRECT_ERR_APPEND`
+  tokens to produce `Redirect(type='>', fd=2)` instead of
+  `Redirect(type='2>', fd=None)`.
+- Added array assignment detection in the simple-command parser: when a
+  word ending with `=` is followed by an adjacent `LPAREN`, parenthesized
+  items are collected into a single synthetic `name=(item1 item2 ...)` token.
+- Made `do` keyword optional after `))` in C-style for loops, matching
+  the recursive descent parser's behavior.
+- Added remaining failures documentation at
+  `docs/guides/combinator_parser_remaining_failures.md`.
+- Zero regressions in recursive descent parser or combinator tests.
+
 ## 0.166.0 (2026-02-10) - Consolidate process substitution duplication
 - Extracted `create_process_substitution()` module-level function in
   `psh/io_redirect/process_sub.py` — single source of truth for the

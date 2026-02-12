@@ -213,7 +213,9 @@ class LoopParserMixin:
                         if (pos + 1 < len(tokens) and
                             matches_keyword(tokens[pos + 1], 'do')):
                             break
-                    if token.type.name in ['WORD', 'STRING', 'VARIABLE', 'COMPOSITE']:
+                    if token.type.name in ['WORD', 'STRING', 'VARIABLE', 'COMPOSITE',
+                                            'COMMAND_SUB', 'COMMAND_SUB_BACKTICK',
+                                            'ARITH_EXPANSION', 'PARAM_EXPANSION']:
                         items.append(format_token_value(token))
                         quote_type = getattr(token, 'quote_type', None)
                         item_quote_types.append(quote_type)
@@ -318,16 +320,16 @@ class LoopParserMixin:
                 return ParseResult(success=False, error="Expected '))' to close C-style for", position=pos)
             pos += 1  # Skip '))'
 
-            # Skip separator and 'do'
+            # Skip optional separator and optional 'do' keyword.
+            # PSH (like some shells) allows omitting 'do' for C-style for loops:
+            #   for ((i=0; i<3; i++)) echo $i; done
             if pos < len(tokens) and tokens[pos].type.name in ['SEMICOLON', 'NEWLINE']:
                 pos += 1
-            if pos >= len(tokens) or not matches_keyword(tokens[pos], 'do'):
-                return ParseResult(success=False, error="Expected 'do' after C-style for header", position=pos)
-            pos += 1  # Skip 'do'
-
-            # Skip optional separator after 'do'
-            if pos < len(tokens) and tokens[pos].type.name in ['SEMICOLON', 'NEWLINE']:
-                pos += 1
+            if pos < len(tokens) and matches_keyword(tokens[pos], 'do'):
+                pos += 1  # Skip 'do'
+                # Skip optional separator after 'do'
+                if pos < len(tokens) and tokens[pos].type.name in ['SEMICOLON', 'NEWLINE']:
+                    pos += 1
 
             # Parse the body (until 'done', handling nested loops)
             body_tokens, done_pos = self._collect_tokens_until_keyword(tokens, pos, 'done', 'do')

@@ -195,9 +195,11 @@ function scoping, complex variable assignment):
 - `tests/integration/functions/test_function_advanced.py`
 - `tests/integration/variables/test_variable_assignment.py`
 
-**Current combinator parser test status**: ~39 remaining failures out of ~3,350
-tests (as of v0.166.0).  Most remaining failures are pre-existing gaps in
-arithmetic evaluation, process substitution, and capsys-based output capture.
+**Current combinator parser test status**: ~18 remaining failures out of ~3,350
+tests (as of v0.167.0).  Remaining failures are pre-existing gaps in
+process substitution, arithmetic evaluation, capsys-based output capture,
+and associative array edge cases.  See
+`docs/guides/combinator_parser_remaining_failures.md` for details.
 
 **Lint**
 
@@ -493,9 +495,13 @@ class MyVisitor(ASTVisitor[T]):
 
 ## Current Development Status
 
-**Version**: 0.166.0 (see CHANGELOG.md for detailed history)
+**Version**: 0.167.0 (see CHANGELOG.md for detailed history)
 
 **Recent Work**:
+- **Combinator Parser Bug Fixes (v0.167.0)**:
+  - Fixed 21 test failures (39 → 18) across 5 parser bugs with zero regressions
+  - Compound commands now route through pipeline layer (fixes piped for/while/if)
+  - Fixed stderr redirection, for-loop expansion tokens, array assignments, C-style for `do`
 - **Process Substitution Consolidation (v0.166.0)**:
   - Extracted `create_process_substitution()` module function as single source of truth
   - Replaced ~130 lines of duplicated fork/pipe/exec code across 3 files

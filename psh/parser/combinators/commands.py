@@ -180,6 +180,23 @@ class CommandParsers:
             )
             return ParseResult(success=True, value=redirect, position=content_result.position)
 
+        # Handle stderr redirections: REDIRECT_ERR ('2>') and REDIRECT_ERR_APPEND ('2>>')
+        # The lexer produces a single token with value '2>' or '2>>'.  The executor
+        # expects Redirect(type='>' or '>>', fd=2), so strip the leading '2'.
+        if op_token.type.name in ('REDIRECT_ERR', 'REDIRECT_ERR_APPEND'):
+            target_result = self.tokens.word_like.parse(tokens, pos)
+            if not target_result.success:
+                return ParseResult(
+                    success=False,
+                    error=f"Expected target after {op_token.value}",
+                    position=pos,
+                )
+            target_value = target_result.value.value if hasattr(target_result.value, 'value') else str(target_result.value)
+            # Strip '2' prefix: '2>' → '>', '2>>' → '>>'
+            operator = op_token.value[1:]
+            redirect = Redirect(type=operator, target=target_value, fd=fd if fd is not None else 2)
+            return ParseResult(success=True, value=redirect, position=target_result.position)
+
         # Normal redirection - needs a target
         target_result = self.tokens.word_like.parse(tokens, pos)
         if not target_result.success:
@@ -227,6 +244,35 @@ class CommandParsers:
                 if word_result.success:
                     word_tokens.append(word_result.value)
                     pos = word_result.position
+
+                    # Check for array assignment: WORD('name=') followed by
+                    # adjacent LPAREN — e.g. `declare -a arr=(one two three)`.
+                    # Collect the parenthesized items and synthesize a single
+                    # WORD token "name=(item1 item2 ...)" that the executor
+                    # recognises as an array initialization.
+                    if (pos < len(tokens)
+                            and tokens[pos].type.name == 'LPAREN'
+                            and getattr(tokens[pos], 'adjacent_to_previous', False)
+                            and word_tokens[-1].value.endswith('=')):
+                        arr_prefix = word_tokens.pop()  # remove the 'name=' token
+                        pos += 1  # skip '('
+                        items = []
+                        while pos < len(tokens) and tokens[pos].type.name != 'RPAREN':
+                            if tokens[pos].type.name in _WORD_LIKE_TYPES:
+                                items.append(tokens[pos].value)
+                            # Skip whitespace/newlines inside array parens
+                            pos += 1
+                        if pos < len(tokens) and tokens[pos].type.name == 'RPAREN':
+                            pos += 1  # skip ')'
+                        # Build a single synthetic token: "name=(item1 item2 ...)"
+                        arr_value = arr_prefix.value + '(' + ' '.join(items) + ')'
+                        synth_token = Token(
+                            type=arr_prefix.type,
+                            value=arr_value,
+                            position=getattr(arr_prefix, 'position', 0),
+                        )
+                        word_tokens.append(synth_token)
+
                     continue
 
                 # Nothing matched — stop collecting
