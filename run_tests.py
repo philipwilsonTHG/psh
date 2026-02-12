@@ -7,6 +7,8 @@ require special pytest configuration (e.g., subshell tests that need capture dis
 
 Usage:
     python run_tests.py                    # Run all tests with smart handling
+    python run_tests.py --parallel         # Parallel execution (pytest-xdist)
+    python run_tests.py --parallel 8       # Parallel with 8 workers
     python run_tests.py --all-nocapture    # Run ALL tests with -s flag
     python run_tests.py --quick            # Run only fast tests
     python run_tests.py --help             # Show help
@@ -14,19 +16,63 @@ Usage:
 
 import argparse
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
 
 
-def run_command(cmd, description, env=None):
-    """Run a command and return the result."""
+def run_command(cmd, description, env=None, parallel=False):
+    """Run a command and return the result.
+
+    When *parallel* is True, the output is captured so we can detect the
+    pytest-xdist teardown race (``INTERNALERROR ... cannot send``) that
+    produces exit-code 3 even though all tests passed.  In that case we
+    report success based on the pytest summary line instead.
+    """
     print(f"\n{'=' * 80}")
     print(f"Running: {description}")
     print(f"Command: {' '.join(cmd)}")
     print('=' * 80)
 
-    result = subprocess.run(cmd, cwd=Path(__file__).parent, env=env)
+    if not parallel:
+        result = subprocess.run(cmd, cwd=Path(__file__).parent, env=env)
+        return result.returncode
+
+    # In parallel mode, capture output to detect and suppress the known
+    # pytest-xdist teardown race (BrokenPipeError / "cannot send").
+    result = subprocess.run(
+        cmd, cwd=Path(__file__).parent, env=env,
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+    )
+
+    # Strip INTERNALERROR traceback lines — they are xdist teardown noise.
+    clean_lines = [
+        line for line in result.stdout.splitlines()
+        if not line.startswith('INTERNALERROR>')
+    ]
+    print('\n'.join(clean_lines))
+
+    if result.returncode == 0:
+        return 0
+
+    # Exit code 3 with "cannot send (already closed?)" is a known
+    # pytest-xdist teardown race — harmless if no tests actually failed.
+    if result.returncode == 3 and 'cannot send (already closed?)' in result.stdout:
+        # Check whether the summary line reports any real failures.
+        # The pytest summary looks like "=== 1739 passed, 264 skipped ... ==="
+        # Note: must distinguish "N failed" from "N xfailed" — only the
+        # former indicates real test failures.
+        for line in reversed(result.stdout.splitlines()):
+            if 'passed' in line and re.search(r'(?<!\w)failed(?!\w)', line):
+                # Real failures present — print the full output so the
+                # user can see what went wrong, then honour the exit code.
+                print(result.stdout)
+                return result.returncode
+            if 'passed' in line:
+                # All tests passed (possibly with xfails); teardown noise.
+                return 0
+
     return result.returncode
 
 
@@ -37,6 +83,8 @@ def main():
         epilog="""
 Examples:
   python run_tests.py                    # Smart mode (recommended)
+  python run_tests.py --parallel         # Parallel mode (auto worker count)
+  python run_tests.py --parallel 8       # Parallel with 8 workers
   python run_tests.py --all-nocapture    # All tests with -s (simpler but noisy)
   python run_tests.py --quick            # Fast tests only
   python run_tests.py --verbose          # Verbose output
@@ -72,6 +120,16 @@ Examples:
         '--no-subshells',
         action='store_true',
         help='Skip subshell tests entirely'
+    )
+
+    parser.add_argument(
+        '--parallel', '-p',
+        nargs='?',
+        const='auto',
+        default=None,
+        metavar='N',
+        help='Run Phase 1 tests in parallel using pytest-xdist. '
+             'Use "auto" (default) to match CPU count, or specify worker count.'
     )
 
     parser.add_argument(
@@ -131,29 +189,40 @@ Examples:
         exit_codes.append(exit_code)
 
     else:
-        # Smart mode: Run tests in two phases
+        # Smart mode: Run tests in phases
+        parallel_label = ""
+        if args.parallel:
+            parallel_label = f", parallel={args.parallel}"
         print("\n" + "=" * 80)
-        print(f"MODE: Smart test runner (recommended) [parser: {parser_label}]")
+        print(f"MODE: Smart test runner (recommended) [parser: {parser_label}{parallel_label}]")
         print("  - Phase 1: Regular tests with normal capture")
-        print("  - Phase 2: Subshell tests with capture disabled (-s)")
+        if args.parallel:
+            print(f"             (parallelized with {args.parallel} workers)")
+        print("  - Phase 2: Subshell tests with capture disabled (-s, serial)")
         print("=" * 80)
 
-        if not args.no_subshells:
-            # Phase 1: Run non-subshell tests normally
-            cmd = base_cmd + [
-                'tests/',
-                '--ignore=tests/integration/subshells/',
-                '--ignore=tests/integration/functions/test_function_advanced.py',
-                '--ignore=tests/integration/variables/test_variable_assignment.py',
-                '--deselect=tests/integration/control_flow/test_c_style_for_loops.py::TestCStyleForIORedirection::test_c_style_with_output_redirection',
-                '--deselect=tests/integration/control_flow/test_c_style_for_loops.py::TestCStyleForIORedirection::test_c_style_with_append_redirection',
-                '--deselect=tests/integration/control_flow/test_c_style_for_loops.py::TestCStyleForIORedirection::test_c_style_with_input_redirection',
-            ]
-            if args.quick:
-                cmd.extend(['-m', 'not slow'])
+        # Phase 1: Run non-subshell tests normally (parallelizable)
+        cmd = base_cmd + [
+            'tests/',
+            '--ignore=tests/integration/subshells/',
+            '--ignore=tests/integration/functions/test_function_advanced.py',
+            '--ignore=tests/integration/variables/test_variable_assignment.py',
+            '--deselect=tests/integration/control_flow/test_c_style_for_loops.py::TestCStyleForIORedirection::test_c_style_with_output_redirection',
+            '--deselect=tests/integration/control_flow/test_c_style_for_loops.py::TestCStyleForIORedirection::test_c_style_with_append_redirection',
+            '--deselect=tests/integration/control_flow/test_c_style_for_loops.py::TestCStyleForIORedirection::test_c_style_with_input_redirection',
+        ]
+        if args.parallel:
+            cmd.extend(['-n', args.parallel])
+        if args.quick:
+            cmd.extend(['-m', 'not slow'])
 
-            exit_code = run_command(cmd, "Phase 1: Regular tests (with capture)", env=env)
-            exit_codes.append(exit_code)
+        desc = "Phase 1: Regular tests"
+        if args.parallel:
+            desc += f" (parallel, {args.parallel} workers)"
+        else:
+            desc += " (with capture)"
+        exit_code = run_command(cmd, desc, env=env, parallel=bool(args.parallel))
+        exit_codes.append(exit_code)
 
         if not args.no_subshells:
             # Phase 2: Run subshell tests with -s

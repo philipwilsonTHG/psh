@@ -24,6 +24,8 @@ python run_tests.py > tmp/test-results.txt 2>&1; tail -15 tmp/test-results.txt
 #   grep -A 10 "FAILURES" tmp/test-results.txt
 
 python run_tests.py --quick                # Fast tests only
+python run_tests.py --parallel             # Parallel mode (~10x faster)
+python run_tests.py --parallel 8           # Parallel with 8 workers
 python run_tests.py --all-nocapture        # Simple mode - run all with -s
 
 # Run tests manually (for specific scenarios)
