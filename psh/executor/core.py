@@ -108,6 +108,13 @@ class ExecutorVisitor(ASTVisitor[int]):
                 exit_status = self.visit(item)
                 # Update $? after each top-level item
                 self.state.last_exit_code = exit_status
+
+                # Check errexit mode (set -e)
+                if exit_status != 0 and self.state.options.get('errexit', False):
+                    if hasattr(self.shell, 'is_script_mode') and self.shell.is_script_mode:
+                        import sys
+                        sys.exit(exit_status)
+                    break
             except LoopBreak:
                 # Break at top level is an error
                 print("break: only meaningful in a `for' or `while' loop", file=sys.stderr)

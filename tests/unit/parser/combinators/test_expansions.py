@@ -228,7 +228,11 @@ class TestWordBuilding:
         assert word.parts[0].expansion.expression == "5 + 3"
 
     def test_build_word_from_process_sub_in(self):
-        """Test building Word from input process substitution."""
+        """Test building Word from input process substitution.
+
+        Process substitution tokens are treated as literals — the expansion
+        manager recognises the <()/() syntax during the expansion phase.
+        """
         parsers = ExpansionParsers()
 
         token = make_token(TokenType.PROCESS_SUB_IN, "<(sort file.txt)")
@@ -236,13 +240,15 @@ class TestWordBuilding:
 
         assert isinstance(word, Word)
         assert len(word.parts) == 1
-        assert isinstance(word.parts[0], ExpansionPart)
-        assert isinstance(word.parts[0].expansion, ProcessSubstitution)
-        assert word.parts[0].expansion.direction == 'in'
-        assert word.parts[0].expansion.command == 'sort file.txt'
+        assert isinstance(word.parts[0], LiteralPart)
+        assert word.parts[0].text == "<(sort file.txt)"
 
     def test_build_word_from_process_sub_out(self):
-        """Test building Word from output process substitution."""
+        """Test building Word from output process substitution.
+
+        Process substitution tokens are treated as literals — the expansion
+        manager recognises the <()/() syntax during the expansion phase.
+        """
         parsers = ExpansionParsers()
 
         token = make_token(TokenType.PROCESS_SUB_OUT, ">(gzip > output.gz)")
@@ -250,10 +256,8 @@ class TestWordBuilding:
 
         assert isinstance(word, Word)
         assert len(word.parts) == 1
-        assert isinstance(word.parts[0], ExpansionPart)
-        assert isinstance(word.parts[0].expansion, ProcessSubstitution)
-        assert word.parts[0].expansion.direction == 'out'
-        assert word.parts[0].expansion.command == 'gzip > output.gz'
+        assert isinstance(word.parts[0], LiteralPart)
+        assert word.parts[0].text == ">(gzip > output.gz)"
 
 
 class TestConvenienceFunctions:

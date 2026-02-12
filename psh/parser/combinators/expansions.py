@@ -182,17 +182,11 @@ class ExpansionParsers:
             expansion = WordBuilder.parse_expansion_token(token)
             return Word(parts=[ExpansionPart(expansion, quoted=is_quoted, quote_char=qt)])
 
-        elif token.type.name == 'PROCESS_SUB_IN':
-            # Process substitution <(...)
-            cmd = token.value[2:-1] if token.value.startswith('<(') and token.value.endswith(')') else token.value[2:]
-            expansion = ProcessSubstitution(direction='in', command=cmd)
-            return Word(parts=[ExpansionPart(expansion, quoted=is_quoted, quote_char=qt)])
-
-        elif token.type.name == 'PROCESS_SUB_OUT':
-            # Process substitution >(...)
-            cmd = token.value[2:-1] if token.value.startswith('>(') and token.value.endswith(')') else token.value[2:]
-            expansion = ProcessSubstitution(direction='out', command=cmd)
-            return Word(parts=[ExpansionPart(expansion, quoted=is_quoted, quote_char=qt)])
+        elif token.type.name in ('PROCESS_SUB_IN', 'PROCESS_SUB_OUT'):
+            # Process substitution <(...) / >(...)
+            # Treat as literal — the expansion manager recognizes the <()/() syntax
+            # and handles process substitution during the expansion phase.
+            return Word(parts=[LiteralPart(text=token.value, quoted=is_quoted, quote_char=qt)])
 
         else:
             # Regular word token

@@ -4,6 +4,22 @@ All notable changes to PSH (Python Shell) are documented in this file.
 
 Format: `VERSION (DATE) - Title` followed by bullet points describing changes.
 
+## 0.168.0 (2026-02-12) - Fix 7 more combinator parser failures (18 → 11)
+- Fixed process substitution `<(cmd)` by treating PROCESS_SUB_IN/OUT tokens
+  as LiteralPart nodes (matching the recursive descent parser) instead of
+  ExpansionPart nodes.  The expansion manager handles the `<()`/`>()` syntax
+  during the expansion phase.
+- Added errexit (`set -e`) check to `visit_TopLevel` in the executor,
+  matching the existing logic in `visit_StatementList`.  The combinator
+  parser produces TopLevel nodes; without this check, `set -e` had no
+  effect between top-level statements.
+- Added adjacent RBRACE consumption in the simple command parser so that
+  brace expansion with arithmetic tokens (`echo {$((1)),$((2)),$((3))}`)
+  no longer fails with "Unexpected token: RBRACE".  Only consumes RBRACE
+  when adjacent to the previous token to avoid breaking brace groups.
+- Updated remaining failures documentation (11 failures in 4 categories).
+- Zero regressions in recursive descent parser or combinator tests.
+
 ## 0.167.0 (2026-02-12) - Fix 21 combinator parser failures (39 → 18)
 - Restructured `_build_complete_parser()` so compound commands (for, while,
   if, case, etc.) are pipeline elements rather than top-level alternatives,

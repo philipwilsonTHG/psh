@@ -275,6 +275,18 @@ class CommandParsers:
 
                     continue
 
+                # RBRACE as part of brace expansion (e.g. echo {$((1)),$((2))})
+                # Only consume when adjacent to the previous token — a
+                # standalone '}' (with whitespace before it) ends a brace
+                # group and must not be consumed as a command argument.
+                if (pos < len(tokens)
+                        and tokens[pos].type.name == 'RBRACE'
+                        and word_tokens
+                        and getattr(tokens[pos], 'adjacent_to_previous', False)):
+                    word_tokens.append(tokens[pos])
+                    pos += 1
+                    continue
+
                 # Nothing matched — stop collecting
                 break
 
