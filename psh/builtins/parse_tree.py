@@ -3,8 +3,7 @@
 from typing import List
 
 from ..lexer import tokenize
-from ..parser.recursive_descent.helpers import ParseError
-from ..parser.recursive_descent.parser import Parser
+from ..parser import ParseError, Parser
 from .base import Builtin
 from .registry import builtin
 

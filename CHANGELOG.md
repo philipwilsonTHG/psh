@@ -4,6 +4,26 @@ All notable changes to PSH (Python Shell) are documented in this file.
 
 Format: `VERSION (DATE) - Title` followed by bullet points describing changes.
 
+## 0.178.0 (2026-02-13) - Parser public API cleanup
+- Trimmed `__all__` from 17 items to 5 (`parse`, `parse_with_heredocs`,
+  `Parser`, `ParserConfig`, `ParseError`); demoted Tier 2 items
+  (`ParserContext`, `ParserProfiler`, `ErrorContext`, `ParsingMode`,
+  `ErrorHandlingMode`) to convenience imports; removed Tier 3 items
+  (`ContextBaseParser`, `HeredocInfo`, `TokenGroups`) from package-level
+  `__all__`.
+- Deleted `psh/parser/recursive_descent/support/factory.py` (6 functions,
+  zero production callers).
+- Trimmed `context_factory.py` from 8 functions to 1 (`create_context`);
+  deleted 7 zero-caller wrapper functions.
+- Trimmed `psh/parser/recursive_descent/__init__.py` `__all__` from 8 to 5;
+  trimmed `psh/parser/validation/__init__.py` `__all__` from 9 to 7.
+- Deleted `parse_strict_posix` and `parse_permissive` convenience functions
+  from parser `__init__.py`.
+- Fixed bypass imports in `psh/builtins/parse_tree.py` and
+  `psh/utils/parser_factory.py` to import from `psh.parser` instead of
+  reaching into submodule internals.
+- Removed 3 test classes and 4 test methods that tested deleted functions.
+
 ## 0.177.0 (2026-02-13) - Lexer public API cleanup
 - Trimmed `__all__` from 27 items to 5 (`tokenize`, `tokenize_with_heredocs`,
   `ModularLexer`, `LexerConfig`, `LexerError`); demoted Tier 2 items

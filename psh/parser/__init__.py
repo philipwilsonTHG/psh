@@ -6,41 +6,23 @@ The parser converts tokens into an Abstract Syntax Tree (AST) with metadata supp
 context-aware parsing, semantic analysis, and enhanced error recovery.
 """
 
-from typing import Optional
-
 from .config import ErrorHandlingMode, ParserConfig, ParsingMode
-from .recursive_descent.base_context import ContextBaseParser
-from .recursive_descent.context import HeredocInfo, ParserContext, ParserProfiler
-from .recursive_descent.helpers import ErrorContext, ParseError, TokenGroups
+from .recursive_descent.context import ParserContext, ParserProfiler
+from .recursive_descent.helpers import ErrorContext, ParseError
 
 # Import from final locations
 from .recursive_descent.parser import Parser
-from .recursive_descent.support.context_factory import (
-    create_context,
-    create_permissive_context,
-    create_strict_posix_context,
-)
-from .recursive_descent.support.factory import (
-    create_permissive_parser,
-    create_strict_posix_parser,
-    suggest_config,
-    validate_config,
-)
+from .recursive_descent.support.context_factory import create_context
 from .recursive_descent.support.utils import parse_with_heredocs as utils_parse_with_heredocs
 
 # Public API
 __all__ = [
-    # Main API
-    'parse', 'parse_with_heredocs', 'Parser', 'ParseError', 'ErrorContext', 'TokenGroups',
-    'ContextBaseParser', 'ParserContext',
-    'ParserProfiler', 'HeredocInfo',
-    'ParserConfig', 'ParsingMode', 'ErrorHandlingMode',
-    # Factory functions
-    'create_context', 'create_strict_posix_context', 'create_permissive_context',
-    'create_strict_posix_parser', 'create_permissive_parser',
-    'validate_config', 'suggest_config',
-    # Parsing modes
-    'parse_strict_posix', 'parse_permissive'
+    # Main parsing interface
+    'parse', 'parse_with_heredocs', 'Parser',
+    # Configuration
+    'ParserConfig',
+    # Errors
+    'ParseError',
 ]
 
 
@@ -67,29 +49,3 @@ def parse(tokens, config=None):
 def parse_with_heredocs(tokens, heredoc_map):
     """Parse tokens with heredoc content."""
     return utils_parse_with_heredocs(tokens, heredoc_map)
-
-
-def parse_strict_posix(tokens, source_text=None):
-    """Parse tokens with strict POSIX compliance.
-
-    Args:
-        tokens: List of tokens to parse
-        source_text: Optional source text for error reporting
-
-    Returns:
-        Parsed AST in strict POSIX mode
-    """
-    return create_strict_posix_parser(tokens, source_text).parse()
-
-
-def parse_permissive(tokens, source_text=None):
-    """Parse tokens in permissive mode with error collection.
-
-    Args:
-        tokens: List of tokens to parse
-        source_text: Optional source text for error reporting
-
-    Returns:
-        Parsed AST (may be partial if errors occurred)
-    """
-    return create_permissive_parser(tokens, source_text).parse()

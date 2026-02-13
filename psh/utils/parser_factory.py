@@ -12,8 +12,7 @@ def create_parser(tokens, shell, source_text=None):
     Returns:
         Configured Parser instance or wrapper with a .parse() method.
     """
-    from ..parser import Parser
-    from ..parser.config import ParserConfig
+    from ..parser import Parser, ParserConfig
 
     parser_config = ParserConfig(
         trace_parsing=shell.state.options.get('debug-parser', False)

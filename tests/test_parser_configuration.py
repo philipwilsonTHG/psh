@@ -8,18 +8,8 @@ from psh.parser import (
     Parser,
     ParserConfig,
     ParsingMode,
-    parse_permissive,
-    parse_strict_posix,
 )
 from psh.parser.recursive_descent.helpers import ParseError
-from psh.parser.recursive_descent.support.factory import (
-    create_custom_parser,
-    create_permissive_parser,
-    create_shell_parser,
-    create_strict_posix_parser,
-    suggest_config,
-    validate_config,
-)
 
 
 class TestParserConfig:
@@ -90,79 +80,6 @@ class TestParserConfig:
         assert config.should_allow('nonexistent') == False
 
 
-class TestParserFactory:
-    """Test parser factory functions."""
-
-    def test_create_strict_posix_parser(self):
-        """Test creating strict POSIX parser."""
-        tokens = tokenize("echo hello")
-        parser = create_strict_posix_parser(tokens)
-
-        assert parser.config.parsing_mode == ParsingMode.STRICT_POSIX
-
-    def test_create_permissive_parser(self):
-        """Test creating permissive parser."""
-        tokens = tokenize("echo hello")
-        parser = create_permissive_parser(tokens)
-
-        assert parser.config.parsing_mode == ParsingMode.PERMISSIVE
-        assert parser.config.error_handling == ErrorHandlingMode.RECOVER
-        assert parser.ctx.config.collect_errors
-
-    def test_create_custom_parser(self):
-        """Test creating custom parser."""
-        tokens = tokenize("echo hello")
-
-        parser = create_custom_parser(
-            tokens,
-            base_config=ParserConfig(),
-            enable_arithmetic=False,
-            max_errors=25
-        )
-
-        assert parser.config.parsing_mode == ParsingMode.BASH_COMPAT
-        assert parser.config.enable_arithmetic == False
-        assert parser.config.max_errors == 25
-
-    def test_create_shell_parser(self):
-        """Test creating parser from shell options."""
-        tokens = tokenize("echo hello")
-
-        # Test POSIX mode
-        shell_options = {'posix': True}
-        parser = create_shell_parser(tokens, shell_options=shell_options)
-        assert parser.config.parsing_mode == ParsingMode.STRICT_POSIX
-
-        # Test debug mode
-        shell_options = {'debug_parser': True}
-        parser = create_shell_parser(tokens, shell_options=shell_options)
-        assert parser.config.trace_parsing == True
-        assert parser.config.profile_parsing == True
-
-
-class TestConfigurationValidator:
-    """Test configuration validation functions."""
-
-    def test_validate_config_no_warnings(self):
-        """Test validating a good configuration."""
-        config = ParserConfig()
-        warnings = validate_config(config)
-
-        # Default config should have no warnings
-        assert len(warnings) == 0
-
-    def test_suggest_config_for_use_case(self):
-        """Test configuration suggestions."""
-        assert suggest_config('posix').parsing_mode == ParsingMode.STRICT_POSIX
-        assert suggest_config('educational').trace_parsing == True
-        assert suggest_config('development').trace_parsing == True
-        assert suggest_config('permissive').parsing_mode == ParsingMode.PERMISSIVE
-
-        # Test default case
-        default_config = suggest_config('unknown')
-        assert default_config.parsing_mode == ParsingMode.BASH_COMPAT
-
-
 class TestParserWithConfiguration:
     """Test parser behavior with different configurations."""
 
@@ -202,35 +119,16 @@ class TestParserWithConfiguration:
 
     def test_error_collection_configuration(self):
         """Test error collection based on configuration."""
-        # Test strict mode (no collection)
         tokens = tokenize("echo hello")
-        strict_parser = create_strict_posix_parser(tokens)
+
+        # Test strict mode (no collection)
+        strict_parser = Parser(tokens, config=ParserConfig.strict_posix())
         assert not strict_parser.ctx.config.collect_errors
 
         # Test permissive mode (with collection)
-        permissive_parser = create_permissive_parser(tokens)
+        permissive_parser = Parser(tokens, config=ParserConfig.permissive())
         assert permissive_parser.ctx.config.collect_errors
         assert permissive_parser.ctx.config.max_errors == 50
-
-
-class TestConvenienceFunctions:
-    """Test convenience parsing functions."""
-
-    def test_parse_strict_posix(self):
-        """Test strict POSIX convenience function."""
-        tokens = tokenize("echo hello")
-        ast = parse_strict_posix(tokens, "echo hello")
-
-        # Should parse successfully
-        assert ast is not None
-
-    def test_parse_permissive(self):
-        """Test permissive convenience function."""
-        tokens = tokenize("echo hello")
-        ast = parse_permissive(tokens, "echo hello")
-
-        # Should parse successfully
-        assert ast is not None
 
 
 class TestConfigurationIntegration:

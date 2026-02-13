@@ -287,34 +287,6 @@ class TestParseWithHeredocs:
 # Commit 7: Fix config validation enum comparison
 # ===========================================================================
 
-class TestConfigValidation:
-    """Tests for validate_config() enum comparison fix."""
-
-    def test_validate_config_warns_recovery_strict(self):
-        """Error recovery + strict handling should emit a warning."""
-        from psh.parser.config import ErrorHandlingMode
-        from psh.parser.recursive_descent.support.factory import validate_config
-
-        config = ParserConfig(
-            enable_error_recovery=True,
-            error_handling=ErrorHandlingMode.STRICT,
-        )
-        warnings = validate_config(config)
-        assert any('recovery' in w.lower() for w in warnings)
-
-    def test_validate_config_no_warning_collect(self):
-        """Error recovery + collect handling should NOT emit the warning."""
-        from psh.parser.config import ErrorHandlingMode
-        from psh.parser.recursive_descent.support.factory import validate_config
-
-        config = ParserConfig(
-            enable_error_recovery=True,
-            error_handling=ErrorHandlingMode.COLLECT,
-        )
-        warnings = validate_config(config)
-        assert not any('recovery' in w.lower() for w in warnings)
-
-
 # ===========================================================================
 # Codex Review Finding 2: Validation false positives
 # ===========================================================================

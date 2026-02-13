@@ -7,13 +7,7 @@ import pytest
 from psh.parser.config import ErrorHandlingMode, ParserConfig, ParsingMode
 from psh.parser.recursive_descent.context import ParserContext, ParserProfiler
 from psh.parser.recursive_descent.helpers import ParseError
-from psh.parser.recursive_descent.support.context_factory import (
-    create_context,
-    create_permissive_context,
-    create_repl_context,
-    create_strict_posix_context,
-    create_sub_parser_context,
-)
+from psh.parser.recursive_descent.support.context_factory import create_context
 from psh.token_types import Token, TokenType
 
 
@@ -383,14 +377,6 @@ class TestParserContextFactory:
 
         assert ctx.config.parsing_mode == ParsingMode.STRICT_POSIX
 
-    def test_create_strict_posix(self):
-        """Test strict POSIX context creation."""
-        tokens = [Token(TokenType.WORD, "test", 0)]
-
-        ctx = create_strict_posix_context(tokens)
-
-        assert ctx.config.parsing_mode == ParsingMode.STRICT_POSIX
-
     def test_create_default(self):
         """Test default context creation (bash-compatible by default)."""
         tokens = [Token(TokenType.WORD, "test", 0)]
@@ -399,40 +385,5 @@ class TestParserContextFactory:
 
         assert ctx.config.parsing_mode == ParsingMode.BASH_COMPAT
 
-    def test_create_permissive(self):
-        """Test permissive context creation."""
-        tokens = [Token(TokenType.WORD, "test", 0)]
-
-        ctx = create_permissive_context(tokens)
-
-        assert ctx.config.parsing_mode == ParsingMode.PERMISSIVE
-        assert ctx.config.collect_errors
-        assert ctx.config.enable_error_recovery
-
-    def test_create_for_repl(self):
-        """Test REPL context creation."""
-        ctx = create_repl_context()
-
-        assert ctx.config.parsing_mode == ParsingMode.BASH_COMPAT
-        assert ctx.config.error_handling == ErrorHandlingMode.COLLECT
-        assert ctx.config.collect_errors
-
-    def test_create_sub_parser_context(self):
-        """Test sub-parser context creation."""
-        parent_tokens = [Token(TokenType.WORD, "parent", 0)]
-        parent_ctx = ParserContext(tokens=parent_tokens)
-        parent_ctx.function_depth = 1
-        parent_ctx.nesting_depth = 2
-
-        sub_tokens = [Token(TokenType.WORD, "sub", 0)]
-        sub_ctx = create_sub_parser_context(
-            parent_ctx, sub_tokens, inherit_state=True
-        )
-
-        assert sub_ctx.tokens == sub_tokens
-        assert sub_ctx.config == parent_ctx.config
-        assert sub_ctx.function_depth == 1  # inherited
-        assert sub_ctx.nesting_depth == 3   # incremented
-        assert sub_ctx.in_command_substitution
 
 
