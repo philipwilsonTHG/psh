@@ -1,21 +1,19 @@
 # Lexer Token Type Issues
 
-**As of v0.168.0**
+**As of v0.169.0**
 
 This document records design-level problems with the lexer's token type
-system discovered during combinator parser development.  All four issues
-affect both parsers to varying degrees, though the recursive descent
-parser works around most of them via context flags that the combinator
-parser lacks.
+system discovered during combinator parser development.  Issues 1 and 2
+have been fixed; issues 3 and 4 are worked around at the parser level.
 
 ## Summary
 
-| Issue | Severity | Affected Tests | Root Cause |
-|-------|----------|---------------|------------|
-| Operator characters dropped in arithmetic | High | 3 | No fallback when operator rejected and literal won't start |
-| LBRACKET at command position in case patterns | Medium | 3 | `command_position` doesn't distinguish case patterns |
-| LBRACE/RBRACE asymmetric tokenization | Low | 1 | "followed by delimiter" check not symmetric |
-| REDIRECT_ERR hardcoded for fd 2 only | Low | 0 (worked around) | Fixed operator table instead of general fd-redirect |
+| Issue | Severity | Status | Root Cause |
+|-------|----------|--------|------------|
+| Operator characters dropped in arithmetic | High | **Fixed (v0.169.0)** | No fallback when operator rejected and literal won't start |
+| LBRACKET at command position in case patterns | Medium | **Worked around (v0.169.0)** | `command_position` doesn't distinguish case patterns |
+| LBRACE/RBRACE asymmetric tokenization | Low | Worked around (v0.168.0) | "followed by delimiter" check not symmetric |
+| REDIRECT_ERR hardcoded for fd 2 only | Low | Worked around (v0.167.0) | Fixed operator table instead of general fd-redirect |
 
 ## 1. Operator Characters Silently Dropped Inside Arithmetic
 

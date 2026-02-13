@@ -4,6 +4,19 @@ All notable changes to PSH (Python Shell) are documented in this file.
 
 Format: `VERSION (DATE) - Title` followed by bullet points describing changes.
 
+## 0.169.0 (2026-02-12) - Fix lexer arithmetic bug and case pattern parsing (11 → 5)
+- Fixed lexer bug where `>`, `<`, `>=`, `<=` were silently dropped from
+  the token stream inside `(( ))` after `$((expr))` expansions.  The
+  literal recognizer now accepts these characters as word-start characters
+  when `arithmetic_depth > 0`.
+- Fixed combinator parser case pattern parsing for multi-line character
+  class patterns like `[a-z]*)`.  When the lexer emits `LBRACKET` at
+  command position, the case pattern parser now reconstructs the full
+  glob pattern from constituent tokens.
+- Updated remaining failures documentation (5 failures in 2 categories).
+- Updated lexer token type issues documentation.
+- Zero regressions in recursive descent parser, lexer, or combinator tests.
+
 ## 0.168.0 (2026-02-12) - Fix 7 more combinator parser failures (18 → 11)
 - Fixed process substitution `<(cmd)` by treating PROCESS_SUB_IN/OUT tokens
   as LiteralPart nodes (matching the recursive descent parser) instead of

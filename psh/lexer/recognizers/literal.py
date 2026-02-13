@@ -64,6 +64,12 @@ class LiteralRecognizer(ContextualRecognizer):
             # Inside [[ ]], < and > are comparison operators that should be tokenized as words
             if char in ['<', '>'] and context.bracket_depth > 0:
                 return True  # Can be part of word
+            # Inside (( )), < and > are arithmetic comparisons, not redirects.
+            # The operator recognizer already rejects them, but the literal
+            # recognizer must accept them as word-start characters — otherwise
+            # they are silently dropped from the token stream.
+            if char in ['<', '>'] and context.arithmetic_depth > 0:
+                return True  # Can be part of word
             # Extglob: !( and +( should be treated as word start, not operator
             if char in ('!', '+') and self.config and self.config.enable_extglob:
                 if pos + 1 < len(input_text) and input_text[pos + 1] == '(':
