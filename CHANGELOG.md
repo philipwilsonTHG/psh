@@ -4,6 +4,17 @@ All notable changes to PSH (Python Shell) are documented in this file.
 
 Format: `VERSION (DATE) - Title` followed by bullet points describing changes.
 
+## 0.170.0 (2026-02-13) - Fix combinator parser associative array initialization (5 → 3)
+- Fixed associative array initialization in the combinator parser.
+  `declare -A assoc=(["first key"]="first value")` now works correctly.
+- The array collection loop had two bugs: LBRACKET/RBRACKET tokens were
+  silently dropped, and STRING token values lost their quotes.
+- Added LBRACKET/RBRACKET to accepted token types in the array loop,
+  preserved original quote characters on STRING tokens, and used
+  `adjacent_to_previous` to group tokens into properly concatenated
+  elements (e.g. `["key"]="value"` instead of `[ "key" ]= "value"`).
+- Zero regressions in recursive descent parser or combinator test suite.
+
 ## 0.169.0 (2026-02-12) - Fix lexer arithmetic bug and case pattern parsing (11 → 5)
 - Fixed lexer bug where `>`, `<`, `>=`, `<=` were silently dropped from
   the token stream inside `(( ))` after `$((expr))` expansions.  The

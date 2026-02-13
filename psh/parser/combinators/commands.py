@@ -258,8 +258,21 @@ class CommandParsers:
                         pos += 1  # skip '('
                         items = []
                         while pos < len(tokens) and tokens[pos].type.name != 'RPAREN':
-                            if tokens[pos].type.name in _WORD_LIKE_TYPES:
-                                items.append(tokens[pos].value)
+                            tok = tokens[pos]
+                            if tok.type.name in _WORD_LIKE_TYPES or tok.type.name in ('LBRACKET', 'RBRACKET'):
+                                # Preserve quotes around STRING tokens so the executor
+                                # can parse ["key"]="value" for associative arrays.
+                                qt = getattr(tok, 'quote_type', None)
+                                if qt and tok.type.name == 'STRING':
+                                    text = f'{qt}{tok.value}{qt}'
+                                else:
+                                    text = tok.value
+                                # Group adjacent tokens into a single element
+                                # (e.g. ["key"]="value" is one element, not four).
+                                if items and getattr(tok, 'adjacent_to_previous', False):
+                                    items[-1] += text
+                                else:
+                                    items.append(text)
                             # Skip whitespace/newlines inside array parens
                             pos += 1
                         if pos < len(tokens) and tokens[pos].type.name == 'RPAREN':
