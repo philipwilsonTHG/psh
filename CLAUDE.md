@@ -197,10 +197,9 @@ function scoping, complex variable assignment):
 - `tests/integration/functions/test_function_advanced.py`
 - `tests/integration/variables/test_variable_assignment.py`
 
-**Current combinator parser test status**: ~3 remaining failures out of ~3,350
-tests (as of v0.170.0).  Remaining failures are 3 C-style for loop I/O
-redirection tests.  See `docs/guides/combinator_parser_remaining_failures.md`
-for details.
+**Current combinator parser test status**: 0 remaining failures out of ~3,350
+tests (as of v0.171.0).  See `docs/guides/combinator_parser_remaining_failures.md`
+for history.
 
 **Lint**
 
@@ -496,7 +495,7 @@ class MyVisitor(ASTVisitor[T]):
 
 ## Current Development Status
 
-**Version**: 0.170.0 (see CHANGELOG.md for detailed history)
+**Version**: 0.171.0 (see CHANGELOG.md for detailed history)
 
 **Recent Work**:
 - **Combinator Parser Associative Array Fix (v0.170.0)**:

@@ -4,6 +4,15 @@ All notable changes to PSH (Python Shell) are documented in this file.
 
 Format: `VERSION (DATE) - Title` followed by bullet points describing changes.
 
+## 0.171.0 (2026-02-13) - Fix C-style for loop I/O redirection test infrastructure (3 → 0)
+- Rewrote 3 C-style for loop I/O redirection tests to use `subprocess.run()`
+  instead of `isolated_shell_with_temp_dir`, eliminating pytest capture
+  interference with forked child process file descriptors.
+- Removed Phase 1 `--deselect` and Phase 3 re-run workarounds from
+  `run_tests.py` — these tests no longer need the `-s` flag.
+- Combinator parser now has 0 remaining test failures out of ~3,350 tests.
+- Updated remaining failures documentation to reflect completion.
+
 ## 0.170.0 (2026-02-13) - Fix combinator parser associative array initialization (5 → 3)
 - Fixed associative array initialization in the combinator parser.
   `declare -A assoc=(["first key"]="first value")` now works correctly.

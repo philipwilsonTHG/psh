@@ -6,6 +6,8 @@ Tests cover initialization, condition evaluation, update expressions, and edge c
 """
 
 import os
+import subprocess
+import sys
 
 
 class TestCStyleForBasic:
@@ -227,37 +229,49 @@ class TestCStyleForControlFlow:
 
 
 class TestCStyleForIORedirection:
-    """Test C-style for loops with I/O redirection."""
+    """Test C-style for loops with I/O redirection.
 
-    def test_c_style_with_output_redirection(self, isolated_shell_with_temp_dir):
+    These tests use subprocess.run() so that pytest's output capture doesn't
+    interfere with psh's file descriptor operations in forked child processes.
+    """
+
+    def test_c_style_with_output_redirection(self, temp_dir):
         """Test C-style for loop with output redirection."""
-        shell = isolated_shell_with_temp_dir
-        result = shell.run_command('for ((i=0; i<3; i++)); do echo $i; done > numbers.txt')
-        assert result == 0
+        script = 'for ((i=0; i<3; i++)); do echo $i; done > numbers.txt'
 
-        with open(os.path.join(shell.state.variables['PWD'], 'numbers.txt')) as f:
+        result = subprocess.run([
+            sys.executable, '-m', 'psh', '-c', script
+        ], cwd=temp_dir, capture_output=True, text=True,
+           env={**os.environ, 'PYTHONPATH': os.getcwd()})
+
+        assert result.returncode == 0
+
+        with open(os.path.join(temp_dir, 'numbers.txt')) as f:
             content = f.read()
             assert content == "0\n1\n2\n"
 
-    def test_c_style_with_append_redirection(self, isolated_shell_with_temp_dir):
+    def test_c_style_with_append_redirection(self, temp_dir):
         """Test C-style for loop with append redirection."""
-        shell = isolated_shell_with_temp_dir
-        shell.run_command('echo "start" > log.txt')
-        shell.run_command('for ((i=1; i<=2; i++)); do echo "line $i"; done >> log.txt')
+        script = 'echo "start" > log.txt; for ((i=1; i<=2; i++)); do echo "line $i"; done >> log.txt'
 
-        with open(os.path.join(shell.state.variables['PWD'], 'log.txt')) as f:
+        result = subprocess.run([
+            sys.executable, '-m', 'psh', '-c', script
+        ], cwd=temp_dir, capture_output=True, text=True,
+           env={**os.environ, 'PYTHONPATH': os.getcwd()})
+
+        assert result.returncode == 0
+
+        with open(os.path.join(temp_dir, 'log.txt')) as f:
             content = f.read()
             assert content == "start\nline 1\nline 2\n"
 
-    def test_c_style_with_input_redirection(self, isolated_shell_with_temp_dir):
+    def test_c_style_with_input_redirection(self, temp_dir):
         """Test C-style for loop reading from file."""
-        shell = isolated_shell_with_temp_dir
+        # Create input file with Python (no shell instance available)
+        with open(os.path.join(temp_dir, 'fruits.txt'), 'w') as f:
+            f.write("apple\nbanana\ncherry\n")
 
-        # Create input file
-        shell.run_command('echo -e "apple\\nbanana\\ncherry" > fruits.txt')
-
-        # Use for loop to process file line by line
-        cmd = '''
+        script = '''
         counter=0
         while read line; do
             ((counter++))
@@ -266,10 +280,15 @@ class TestCStyleForIORedirection:
             done
         done < fruits.txt
         '''
-        result = shell.run_command(cmd)
-        assert result == 0
 
-        with open(os.path.join(shell.state.variables['PWD'], 'processed.txt')) as f:
+        result = subprocess.run([
+            sys.executable, '-m', 'psh', '-c', script
+        ], cwd=temp_dir, capture_output=True, text=True,
+           env={**os.environ, 'PYTHONPATH': os.getcwd()})
+
+        assert result.returncode == 0
+
+        with open(os.path.join(temp_dir, 'processed.txt')) as f:
             content = f.read()
             assert content == "1: apple\n1: banana\n2: banana\n1: cherry\n2: cherry\n3: cherry\n"
 
