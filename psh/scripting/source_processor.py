@@ -239,30 +239,6 @@ class SourceProcessor(ScriptComponent):
             ("Expected TokenType.ELSE", "got TokenType.EOF"),
             ("Expected TokenType.ELIF", "got TokenType.EOF"),
 
-            # Lowercase variants (in case error messages are normalized)
-            ("expected tokentype.do", "got tokentype.eof"),
-            ("expected tokentype.done", "got tokentype.eof"),
-            ("expected tokentype.fi", "got tokentype.eof"),
-            ("expected tokentype.then", "got tokentype.eof"),
-            ("expected tokentype.in", "got tokentype.eof"),
-            ("expected tokentype.esac", "got tokentype.eof"),
-            ("expected tokentype.rparen", "got tokentype.eof"),
-            ("expected tokentype.double_rbracket", "got tokentype.eof"),
-            ("expected tokentype.lbrace", "got tokentype.eof"),
-            ("expected tokentype.rbrace", "got tokentype.eof"),
-            ("expected tokentype.lparen", "got tokentype.eof"),
-            ("expected tokentype.else", "got tokentype.eof"),
-            ("expected tokentype.elif", "got tokentype.eof"),
-
-            # Old patterns for backward compatibility (in case some weren't updated)
-            ("Expected DO", "got EOF"),
-            ("Expected DONE", "got EOF"),
-            ("Expected FI", "got EOF"),
-            ("Expected THEN", "got EOF"),
-            ("Expected IN", "got EOF"),
-            ("Expected ESAC", "got EOF"),
-            ("Expected RPAREN", "got EOF"),
-            ("Expected DOUBLE_RBRACKET", None),
         ]
 
         for expected, got in incomplete_patterns:
@@ -372,7 +348,6 @@ class SourceProcessor(ScriptComponent):
             if isinstance(ast, TopLevel):
                 return self.shell.execute_toplevel(ast)
             else:
-                # Backward compatibility - CommandList
                 try:
                     # Heredoc content is now pre-populated during parsing
                     exit_code = self.shell.execute_command_list(ast)
@@ -586,123 +561,3 @@ class SourceProcessor(ScriptComponent):
 
         return False
 
-    def _extract_heredoc_content(self, command_text: str) -> dict:
-        """Extract heredoc content from complete command text and return a mapping."""
-        import re
-
-        heredoc_map = {}
-        heredoc_pattern = r'<<(-?)\s*([\'"]?)(\\\s*)?(\w+)\2'
-        lines = command_text.split('\n')
-
-        # Track delimiters and their content
-        current_heredocs = []  # Stack of active heredocs
-        line_idx = 0
-
-        while line_idx < len(lines):
-            line = lines[line_idx]
-
-            # Check if this line closes any active heredocs
-            if current_heredocs:
-                for i in range(len(current_heredocs) - 1, -1, -1):  # Check in reverse order (LIFO)
-                    delimiter_info = current_heredocs[i]
-                    # For <<- style, strip leading tabs from delimiter check
-                    check_line = line.lstrip('\t') if delimiter_info['strip_tabs'] else line
-                    if check_line.rstrip() == delimiter_info['word']:
-                        # Found closing delimiter
-                        delimiter_info['end_line'] = line_idx
-                        # Extract content between start and end
-                        content_lines = lines[delimiter_info['start_line'] + 1:line_idx]
-                        if delimiter_info['strip_tabs']:
-                            # Strip leading tabs from content for <<-
-                            content_lines = [l.lstrip('\t') for l in content_lines]
-                        content = '\n'.join(content_lines)
-                        if content_lines:  # Add final newline if there was content
-                            content += '\n'
-                        heredoc_map[delimiter_info['delimiter']] = {
-                            'content': content,
-                            'quoted': delimiter_info['quoted'],
-                            'strip_tabs': delimiter_info['strip_tabs'],
-                            'delimiter': delimiter_info['delimiter']
-                        }
-                        current_heredocs.pop(i)
-                        break
-
-            # Look for new heredoc markers in this line
-            potential_matches = list(re.finditer(heredoc_pattern, line))
-            for match in potential_matches:
-                # Check if this << is inside an arithmetic expression or command substitution
-                start_pos = match.start()
-                if self._is_inside_expansion(line, start_pos):
-                    continue  # Skip this match
-
-                strip_tabs = bool(match.group(1))  # '-' present
-                quoted = bool(match.group(2))      # Delimiter is quoted
-                has_backslash = bool(match.group(3))  # Escaped delimiter
-                word = match.group(4)
-
-                current_heredocs.append({
-                    'word': word,
-                    'delimiter': word,  # Keep original for mapping
-                    'strip_tabs': strip_tabs,
-                    'quoted': quoted,
-                    'start_line': line_idx,
-                    'escaped': has_backslash
-                })
-
-            line_idx += 1
-
-        return heredoc_map
-
-    def _remove_heredoc_content_from_command(self, command_text: str) -> str:
-        """Remove heredoc content lines from command text, leaving only the shell commands."""
-        import re
-
-        heredoc_pattern = r'<<(-?)\s*([\'"]?)(\\\s*)?(\w+)\2'
-        lines = command_text.split('\n')
-        result_lines = []
-
-        # Track delimiters and skip their content
-        current_heredocs = []
-        line_idx = 0
-
-        while line_idx < len(lines):
-            line = lines[line_idx]
-            skip_line = False
-
-            # Check if this line closes any active heredocs
-            if current_heredocs:
-                for i in range(len(current_heredocs) - 1, -1, -1):
-                    delimiter_info = current_heredocs[i]
-                    # For <<- style, strip leading tabs from delimiter check
-                    check_line = line.lstrip('\t') if delimiter_info['strip_tabs'] else line
-                    if check_line.rstrip() == delimiter_info['word']:
-                        # Found closing delimiter - skip this line and close heredoc
-                        current_heredocs.pop(i)
-                        skip_line = True
-                        break
-
-                # If we're inside a heredoc and this isn't a closing delimiter, skip content
-                if current_heredocs and not skip_line:
-                    skip_line = True
-
-            # Look for new heredoc markers in this line
-            if not skip_line:
-                potential_matches = list(re.finditer(heredoc_pattern, line))
-                for match in potential_matches:
-                    # Check if this << is inside an arithmetic expression or command substitution
-                    start_pos = match.start()
-                    if self._is_inside_expansion(line, start_pos):
-                        continue  # Skip this match
-
-                    strip_tabs = bool(match.group(1))
-                    word = match.group(4)
-                    current_heredocs.append({
-                        'word': word,
-                        'strip_tabs': strip_tabs
-                    })
-                # Keep this line since it contains the command with heredoc redirect
-                result_lines.append(line)
-
-            line_idx += 1
-
-        return '\n'.join(result_lines)
