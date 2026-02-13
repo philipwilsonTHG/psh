@@ -495,9 +495,12 @@ class MyVisitor(ASTVisitor[T]):
 
 ## Current Development Status
 
-**Version**: 0.175.0 (see CHANGELOG.md for detailed history)
+**Version**: 0.176.0 (see CHANGELOG.md for detailed history)
 
 **Recent Work**:
+- **Deep Cleanup of Parser, Shell, and Lexer Dead Code (v0.176.0)**:
+  - Removed dead code from ast_nodes, parser, SourceProcessor, Shell,
+    ContextBaseParser, and LexerConfig; fixed DOT generator bugs
 - **Dead Code and Legacy Shim Cleanup (v0.175.0)**:
   - Removed dead `LineEditor` from `tab_completion.py`, unused `psh/pipeline/`
     package, 5 stale Shell wrappers, 4 dead PrintfBuiltin shims, dead

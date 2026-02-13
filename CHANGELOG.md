@@ -4,6 +4,24 @@ All notable changes to PSH (Python Shell) are documented in this file.
 
 Format: `VERSION (DATE) - Title` followed by bullet points describing changes.
 
+## 0.176.0 (2026-02-13) - Deep cleanup of parser, shell, and lexer dead code
+- Removed dead `StatementList.pipelines` property (zero callers) and 3 stale
+  "Deprecated" placeholder comments from `ast_nodes.py`.
+- Fixed 2 pre-existing bugs in DOT generator (`visit_AndOrList` used wrong
+  fields, `visit_CommandList` referenced nonexistent `node.commands`).
+- Removed dead code from recursive descent parser: `source_text`/`source_lines`
+  aliases, `context` property, `heredoc_map` assignments (parser.py + utils.py).
+- Removed 145 lines from `SourceProcessor`: dead `_extract_heredoc_content()`,
+  `_remove_heredoc_content_from_command()`, and 21 dead error pattern entries.
+- Removed dead code from `Shell`: visitor-executor option cleanup, `builtins`
+  dict, `execute()` method, `executor_manager` reference.
+- Removed 9 dead methods from `ContextBaseParser` (60 lines): `synchronize`,
+  `trace`, `get_position_info`, `match_statement_start`, `match_redirection_start`,
+  `match_control_structure`, `_token_type_to_string`, `get_state_summary`,
+  `generate_profiling_report`.
+- Removed dead `legacy_mode` field from `LexerConfig` (never set to True).
+- Cleaned up stale "legacy"/"backward compatibility" labels across all files.
+
 ## 0.175.0 (2026-02-13) - Dead code and legacy shim cleanup
 - Removed dead `LineEditor` class from `psh/tab_completion.py` (372 lines);
   superseded by production `LineEditor` in `psh/line_editor.py`.
