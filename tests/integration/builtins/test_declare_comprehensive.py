@@ -462,7 +462,7 @@ class TestDeclareSpecialCases:
         assert result == 0
         assert shell.state.get_variable("VAR2") == "single quotes"
 
-    @pytest.mark.xfail(reason="Advanced declare features may not be fully implemented")
+    @pytest.mark.xfail(reason="declare -n (nameref) not implemented")
     def test_declare_nameref_attribute(self, shell):
         """Test declare -n nameref attribute (if supported)."""
         # Create a variable

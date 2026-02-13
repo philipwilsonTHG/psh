@@ -158,18 +158,22 @@ class TestPatternRemoval:
             content = f.read().strip()
         assert content == "gz"
 
-    @pytest.mark.xfail(reason="Character class patterns may not be fully implemented")
     def test_character_class_patterns(self, shell_with_temp_dir):
         """Test with character class patterns."""
         shell = shell_with_temp_dir
 
-        # Remove leading digits
+        # ${VAR#[0-9]*} is shortest match: [0-9]* matches "1" (one digit + zero chars)
         shell.run_command('VAR="123abc"')
         shell.run_command('echo ${VAR#[0-9]*} > output.txt')
         with open('output.txt', 'r') as f:
             content = f.read().strip()
-        # Should remove "123" leaving "abc"
-        assert content == "abc"
+        assert content == "23abc"
+
+        # ${VAR##[0-9]*} is longest match: strips everything
+        shell.run_command('echo ${VAR##[0-9]*} > output.txt')
+        with open('output.txt', 'r') as f:
+            content = f.read().strip()
+        assert content == ""
 
 
 class TestPatternSubstitution:

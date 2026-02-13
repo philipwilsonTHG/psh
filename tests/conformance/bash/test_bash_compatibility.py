@@ -386,16 +386,13 @@ class TestBashAliases(ConformanceTest):
         assert 'test_alias=' in result.psh_result.stdout
         assert 'test_alias=' in result.bash_result.stdout
 
-    @pytest.mark.xfail(reason="Alias expansion may not work in non-interactive shell sessions")
     def test_alias_with_arguments(self):
-        """Test aliases with arguments."""
-        result = self.check_behavior('alias greet="echo hello"; greet world')
+        """Test aliases with arguments.
 
-        # Should pass arguments to aliased command
-        assert 'hello' in result.psh_result.stdout
-        assert 'world' in result.psh_result.stdout
-        assert 'hello' in result.bash_result.stdout
-        assert 'world' in result.bash_result.stdout
+        Bash disables alias expansion in non-interactive mode by default,
+        so this is a PSH extension (PSH always expands aliases).
+        """
+        self.assert_psh_extension('alias greet="echo hello"; greet world')
 
     def test_unalias(self):
         """Test removing aliases."""
