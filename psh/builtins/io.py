@@ -320,10 +320,6 @@ class PrintfBuiltin(Builtin):
 
         return ''.join(result)
 
-    def _process_format_string(self, format_str: str, arguments: list) -> str:
-        """Legacy method for backward compatibility."""
-        return self._process_format_string_posix(format_str, arguments)
-
     def _write_output(self, text: str, shell: 'Shell'):
         """Write output to appropriate file descriptor."""
         # Check if we're in a child process (forked for pipeline/background)
@@ -394,10 +390,6 @@ class PrintfBuiltin(Builtin):
 
         return None, 0
 
-    def _parse_format_specifier(self, format_str: str, start: int) -> tuple:
-        """Legacy method for backward compatibility."""
-        return self._parse_format_specifier_enhanced(format_str, start)
-
     def _format_argument_posix(self, spec: dict, arguments: list, arg_index: int) -> str:
         """Format an argument according to POSIX printf specification."""
         # Get argument value with cycling
@@ -418,10 +410,6 @@ class PrintfBuiltin(Builtin):
         else:
             # Unknown format specifier - POSIX behavior is implementation-defined
             return f"%{spec['type']}"
-
-    def _format_argument(self, spec: dict, arguments: list, arg_index: int) -> str:
-        """Legacy method for backward compatibility."""
-        return self._format_argument_posix(spec, arguments, arg_index)
 
     def _get_argument_value(self, arguments: list, arg_index: int) -> str:
         """Get argument value with POSIX cycling behavior."""
@@ -676,15 +664,6 @@ class PrintfBuiltin(Builtin):
 
         # Default: return the character as-is
         return next_char, 2
-
-    def _apply_string_formatting(self, value: str, spec: dict) -> str:
-        """Legacy method for backward compatibility."""
-        return self._format_string(value, spec)
-
-    def _apply_integer_formatting(self, value: int, spec: dict) -> str:
-        """Legacy method for backward compatibility."""
-        spec_copy = spec.copy()
-        return self._format_integer(str(value), spec_copy)
 
     @property
     def help(self) -> str:
