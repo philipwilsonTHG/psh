@@ -135,27 +135,6 @@ class ModularLexer:
         """Set lexer state."""
         self.context.state = value
 
-    # Backward compatibility properties
-    @property
-    def command_position(self) -> bool:
-        """Get command position flag."""
-        return self.context.command_position
-
-    @command_position.setter
-    def command_position(self, value: bool) -> None:
-        """Set command position flag."""
-        self.context.command_position = value
-
-    @property
-    def in_double_brackets(self) -> int:
-        """Get double bracket depth."""
-        return self.context.bracket_depth
-
-    @in_double_brackets.setter
-    def in_double_brackets(self, value: int) -> None:
-        """Set double bracket depth."""
-        self.context.bracket_depth = value
-
     # Token emission
     def emit_token(
         self,
