@@ -19,7 +19,10 @@ carries out the actual work.
 
 ## 2. External API
 
-The public interface is defined in `psh/parser/__init__.py`.
+The public interface is defined in `psh/parser/__init__.py`.  The declared
+`__all__` contains five items: `parse`, `parse_with_heredocs`, `Parser`,
+`ParserConfig`, and `ParseError`.  See `docs/guides/parser_public_api.md`
+for full signature documentation and API tiers.
 
 ### 2.1 `parse()`
 
@@ -49,39 +52,9 @@ Parse tokens that were produced by `tokenize_with_heredocs()`.  The
 `heredoc_map` (a dict mapping delimiter strings to content dicts) is used to
 populate `Redirect` nodes with their heredoc bodies.
 
-### 2.3 Preset parsing modes
+### 2.3 `ParserConfig`
 
-Three convenience functions select a `ParserFactory` preset and call
-`.parse()`:
-
-| Function | Mode | Description |
-|----------|------|-------------|
-| `parse_strict_posix(tokens, source_text=None)` | Strict POSIX | Disables bash extensions. |
-| `parse_bash_compatible(tokens, source_text=None)` | Bash-compatible | Default behaviour with bash extensions. |
-| `parse_permissive(tokens, source_text=None)` | Permissive | Collects multiple errors instead of stopping on the first. |
-
-### 2.4 `ParserStrategy` (runtime parser selection)
-
-The shell itself uses `ParserStrategy` from `psh/parser/parser_registry.py`
-to choose between parser implementations at runtime:
-
-```python
-from psh.parser.parser_registry import ParserStrategy
-
-strategy = ParserStrategy("default")       # recursive descent
-strategy = ParserStrategy("combinator")    # parser combinator
-
-ast = strategy.parse(tokens)
-```
-
-`ParserStrategy` wraps whichever parser is registered under the given name
-and provides a uniform `.parse()` interface.  It also supports
-`.parse_with_metrics()` for benchmarking and `.compare_parsers()` for
-side-by-side comparison.
-
-### 2.5 `ParserConfig`
-
-Configuration dataclass in `psh/parser/config.py` with 100+ settings.
+Configuration dataclass in `psh/parser/config.py` with 14 fields.
 
 Key fields:
 
@@ -89,36 +62,67 @@ Key fields:
 |-------|---------|---------|
 | `parsing_mode` | `BASH_COMPAT` | One of `STRICT_POSIX`, `BASH_COMPAT`, `PERMISSIVE`, `EDUCATIONAL`. |
 | `error_handling` | `STRICT` | `STRICT` (stop on first error), `COLLECT`, or `RECOVER`. |
-| `strict_posix` | `False` | When true, disallows bash extensions. |
-| `enable_bash_extensions` | `True` | Enables `[[ ]]`, `(( ))`, arrays, etc. |
 | `collect_errors` | `False` | Collect multiple parse errors before reporting. |
 | `max_errors` | `10` | Maximum errors to collect. |
+| `enable_arithmetic` | `True` | Enable arithmetic expressions. |
+| `allow_bash_conditionals` | `True` | Allow `[[ ]]` enhanced tests. |
+| `allow_bash_arithmetic` | `True` | Allow `(( ))` arithmetic commands. |
 | `enable_validation` | `False` | Run AST validation after parsing. |
-| `enable_profiling` | `False` | Collect performance metrics. |
+| `profile_parsing` | `False` | Collect performance metrics. |
 
-Factory methods: `ParserConfig.strict_posix()`, `.bash_compatible()`,
-`.permissive()`, `.educational()`, `.development()`.
+Factory methods: `ParserConfig.strict_posix()`, `.permissive()`.  Use
+`.clone(**overrides)` to derive a modified config from an existing one.
 
-### 2.6 `ParserFactory`
-
-Static factory in `psh/parser/recursive_descent/support/factory.py` that
-creates fully configured `Parser` instances:
+### 2.4 `Parser` class
 
 ```python
-from psh.parser import ParserFactory
+from psh.parser import Parser
 
-parser = ParserFactory.create_bash_compatible_parser(tokens)
+parser = Parser(tokens, source_text=None, config=None)
 ast = parser.parse()
 ```
 
-Methods: `create_strict_posix_parser()`, `create_bash_compatible_parser()`,
-`create_permissive_parser()`, `create_educational_parser()`,
-`create_development_parser()`.
+Direct access to the parser for advanced use cases.  Key methods beyond
+`parse()`:
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `parse_with_heredocs(heredoc_map)` | AST | Parse and populate heredoc content. |
+| `parse_with_error_collection()` | `MultiErrorParseResult` | Parse collecting all errors. |
+| `parse_and_validate()` | `(AST, ValidationReport)` | Parse and run AST validation. |
+| `create_configured_parser(tokens, **overrides)` | `Parser` | Create child parser with cloned config. |
+
+### 2.5 `ParseError`
+
+```python
+from psh.parser import ParseError
+
+try:
+    ast = parse(tokens)
+except ParseError as e:
+    print(e)                    # formatted message
+    ctx = e.error_context       # ErrorContext with position, suggestions
+```
+
+### 2.6 Runtime parser selection
+
+The shell uses `psh/utils/parser_factory.py` to choose between the
+recursive descent parser and the combinator parser at runtime:
+
+```python
+from psh.utils.parser_factory import create_parser
+
+parser = create_parser(tokens, shell, source_text=source)
+ast = parser.parse()
+```
+
+This reads `shell._active_parser` to select the implementation.  Users can
+switch at runtime via the `parser-select` builtin.
 
 
 ## 3. The AST
 
-AST nodes are defined in `psh/ast_nodes.py` (~525 lines).  All nodes inherit
+AST nodes are defined in `psh/ast_nodes.py` (~500 lines).  All nodes inherit
 from `ASTNode`.
 
 ### 3.1 Node hierarchy
@@ -217,10 +221,7 @@ PSH has two complete parser implementations that produce identical ASTs:
 2. **Parser combinator** (`psh/parser/combinators/`) &mdash; a functional
    alternative.  Builds parsers from composable primitives.  Useful for
    education and experimentation.  Selectable at runtime with
-   `--parser=combinator`.
-
-Both are registered in `ParserRegistry` and can be swapped via
-`ParserStrategy`.
+   `--parser combinator` or the `parser-select` builtin.
 
 ### 4.2 Recursive descent architecture
 
@@ -289,9 +290,9 @@ TopLevel / CommandList AST
 - **Profiling**: optional `ParserProfiler` that records rule timings,
   recursion depth, and backtracking events.
 
-The `ContextWrapper` class provides a context manager (`with parser.context:`)
-that saves and restores state around a block &mdash; used when entering
-nested parsing contexts where flags need temporary changes.
+The context manager (`with parser.ctx:`) saves and restores state around a
+block &mdash; used when entering nested parsing contexts where flags need
+temporary changes.
 
 ### 4.5 `WordBuilder`
 
@@ -299,7 +300,7 @@ nested parsing contexts where flags need temporary changes.
 from tokens.  It:
 
 - Decomposes STRING tokens into `LiteralPart` and `ExpansionPart` nodes
-  using the token's `parts` list (from `RichToken`).
+  using the token's `parts` list.
 - Detects parameter-expansion operators in VARIABLE tokens (e.g.
   `${x:-default}`).
 - Handles composite words by building multi-part `Word` nodes with per-part
@@ -314,11 +315,11 @@ used for fast membership checks:
 |-------|----------|
 | `WORD_LIKE` | WORD, STRING, VARIABLE, COMMAND_SUB, ARITH_EXPANSION, ... |
 | `REDIRECTS` | REDIRECT_IN, REDIRECT_OUT, REDIRECT_APPEND, HEREDOC, ... |
-| `CONTROL_KEYWORDS` | IF, WHILE, FOR, CASE, SELECT, FUNCTION, ... |
-| `STATEMENT_SEPARATORS` | SEMICOLON, NEWLINE, AMPERSAND |
+| `CONTROL_KEYWORDS` | IF, WHILE, FOR, CASE, SELECT, ... |
+| `STATEMENT_SEPARATORS` | SEMICOLON, NEWLINE |
 | `CASE_TERMINATORS` | DOUBLE_SEMICOLON, SEMICOLON_AMP, AMP_SEMICOLON |
 | `COMMAND_LIST_END` | FI, DONE, ESAC, ELSE, ELIF, RBRACE, ... |
-| `CASE_PATTERN_KEYWORDS` | ESAC, RPAREN |
+| `CASE_PATTERN_KEYWORDS` | IF, THEN, ELSE, FI, WHILE, FOR, CASE, ESAC, ... |
 
 ### 4.7 Error handling
 
@@ -326,8 +327,7 @@ Three modes, selected via `ParserConfig.error_handling`:
 
 - **STRICT** (default) &mdash; raise `ParseError` on the first error.
 - **COLLECT** &mdash; accumulate errors in `ParserContext.errors` and
-  continue parsing.  The `ErrorCollector` (in `support/error_collector.py`)
-  manages synchronisation points and recovery strategies.
+  continue parsing.
 - **RECOVER** &mdash; like COLLECT, but also attempts to skip tokens and
   resume parsing after errors.
 
@@ -359,11 +359,10 @@ Key modules:
 | `core.py` | `Parser[T]` monad, `ParseResult[T]`, combinators (`many`, `optional`, `sequence`, `choice`, ...) |
 | `tokens.py` | Token-level parsers (`keyword()`, `word()`, `operator()`, ...) |
 | `commands.py` | Command hierarchy (simple command &rarr; pipeline &rarr; and-or list &rarr; statement list) |
-| `control_structures.py` | All control structures (if, while, for, case, select, functions, subshells, brace groups) |
-| `special_commands.py` | `declare`, `local`, `export`, arithmetic commands, `[[ ]]` tests, array assignments |
+| `special_commands.py` | Arithmetic commands, `[[ ]]` tests, array assignments, process substitution, declaration builtins, control structures |
 | `expansions.py` | Expansion node construction |
 | `heredoc_processor.py` | Two-pass heredoc content population |
-| `parser.py` | `ParserCombinatorShellParser` &mdash; main entry point implementing `AbstractShellParser` |
+| `parser.py` | `ParserCombinatorShellParser` &mdash; main entry point |
 
 Circular dependencies between commands and control structures are resolved
 with `ForwardParser[T]` (a deferred parser definition) and explicit
@@ -410,54 +409,41 @@ All paths are relative to `psh/parser/`.
 
 ### 5.1 Package entry point
 
-#### `__init__.py` (~100 lines)
+#### `__init__.py` (~50 lines)
 
-Defines `parse()`, `parse_with_heredocs()`, `parse_strict_posix()`,
-`parse_bash_compatible()`, `parse_permissive()`.  Re-exports all public
-classes.
+Defines `parse()` and `parse_with_heredocs()`.  Re-exports the public API
+(`Parser`, `ParserConfig`, `ParseError`) and convenience imports
+(`ParsingMode`, `ErrorHandlingMode`, `ParserContext`, `ParserProfiler`,
+`ErrorContext`, `create_context`).
 
-### 5.2 Configuration and infrastructure
+### 5.2 Configuration
 
-#### `config.py` (~350 lines)
+#### `config.py` (~100 lines)
 
-`ParserConfig` dataclass with 100+ fields, `ParsingMode` enum (STRICT_POSIX,
+`ParserConfig` dataclass with 14 fields, `ParsingMode` enum (STRICT_POSIX,
 BASH_COMPAT, PERMISSIVE, EDUCATIONAL), and `ErrorHandlingMode` enum (STRICT,
-COLLECT, RECOVER).  Factory methods produce preset configurations.
-
-#### `abstract_parser.py` (~260 lines)
-
-`AbstractShellParser` &mdash; the interface that all parser implementations
-must satisfy.  Defines `parse()`, `parse_partial()`, `can_parse()`,
-`get_name()`, `get_characteristics()`.  Also defines
-`ParserCharacteristics` and `ParseMetrics` dataclasses.
-
-#### `parser_registry.py` (~385 lines)
-
-`ParserRegistry` &mdash; registers parser implementations by name (and
-aliases).  `ParserStrategy` &mdash; wraps a registry entry with a uniform
-`.parse()` interface and supports runtime switching, benchmarking, and
-comparison.
+COLLECT, RECOVER).  Factory methods `strict_posix()` and `permissive()`
+produce preset configurations.
 
 ### 5.3 Recursive descent core
 
-#### `recursive_descent/parser.py` (~670 lines)
+#### `recursive_descent/parser.py` (~450 lines)
 
 The main `Parser` class.  Instantiates eight sub-parsers, provides
 `parse()`, `parse_with_error_collection()`, `parse_and_validate()`, and
-`parse_with_heredocs()`.  Contains `ContextWrapper` for state preservation.
+`parse_with_heredocs()`.
 
-#### `recursive_descent/context.py` (~495 lines)
+#### `recursive_descent/context.py` (~530 lines)
 
 `ParserContext` &mdash; centralised state (token stream, position, parsing
 flags, scope stack, heredoc trackers, error list, profiler).  Also defines
 `HeredocInfo` and `ParserProfiler`.
 
-#### `recursive_descent/base_context.py` (~260 lines)
+#### `recursive_descent/base_context.py` (~160 lines)
 
-`ContextBaseParser` &mdash; the base class for sub-parsers.
+`ContextBaseParser` &mdash; the base class for `Parser`.
 Delegates token operations to `ParserContext` and provides scope/rule
-tracking, error handling, and debugging helpers.  Also exports a
-`BaseParser` alias for backward compatibility.
+tracking, error handling, feature checking, and debugging helpers.
 
 #### `recursive_descent/helpers.py` (~175 lines)
 
@@ -474,14 +460,14 @@ All in `recursive_descent/parsers/`.
 `parse_command_list_until()`), and-or lists (`parse_and_or_list()`), and
 top-level statements (`parse_statement()`).
 
-#### `commands.py` (~615 lines)
+#### `commands.py` (~545 lines)
 
 `CommandParser` &mdash; parses simple commands, pipelines, and pipeline
 components.  Handles argument collection via `WordBuilder`, redirection
 detection, file-descriptor duplication, array-assignment detection, and
 unclosed-expansion checking.
 
-#### `control_structures.py` (~485 lines)
+#### `control_structures.py` (~500 lines)
 
 `ControlStructureParser` &mdash; parses `if`/`elif`/`else`/`fi`,
 `while`/`until`/`do`/`done`, `for`/`in`/`do`/`done` (including C-style
@@ -503,7 +489,7 @@ file tests (`-f`, `-d`, `-e`, ...), regex matching (`=~`), and negation
 Collects tokens between the double-paren delimiters into an expression
 string.
 
-#### `redirections.py` (~205 lines)
+#### `redirections.py` (~210 lines)
 
 `RedirectionParser` &mdash; parses all redirection operators (`>`, `>>`,
 `<`, `2>`, `2>>`, `>&`, `<&`, `<<`, `<<-`, `<<<`), heredoc delimiters, and
@@ -514,7 +500,7 @@ file-descriptor duplication.
 `FunctionParser` &mdash; detects and parses function definitions in both
 `function name() { body; }` and POSIX `name() { body; }` forms.
 
-#### `arrays.py` (~400 lines)
+#### `arrays.py` (~445 lines)
 
 `ArrayParser` &mdash; detects and parses array assignments:
 `arr=(a b c)`, `arr+=(d)`, `arr[0]=value`, `arr[key]+=value`.
@@ -523,31 +509,18 @@ file-descriptor duplication.
 
 All in `recursive_descent/support/`.
 
-#### `context_factory.py` (~280 lines)
+#### `context_factory.py` (~40 lines)
 
-`ParserContextFactory` &mdash; creates `ParserContext` instances with
-preset configurations.  Normalises tokens via `KeywordNormalizer` before
-context creation.
+`create_context()` &mdash; creates a `ParserContext` from tokens and an
+optional `ParserConfig`.  Normalises tokens via `KeywordNormalizer` before
+context creation.  Has 3 production callers inside `parser.py`.
 
-#### `factory.py` (~270 lines)
-
-`ParserFactory` &mdash; creates `Parser` instances with preset
-configurations.  Wraps `ParserContextFactory`.
-`ConfigurationValidator` validates config consistency.
-
-#### `word_builder.py` (~285 lines)
+#### `word_builder.py` (~290 lines)
 
 `WordBuilder` &mdash; constructs `Word` AST nodes from tokens, handling
 expansion decomposition and quote-context propagation.
 
-#### `error_collector.py` (~255 lines)
-
-`ErrorCollector` &mdash; multi-error collection with recovery strategies.
-`RecoveryPoints` defines synchronisation tokens.
-`MultiErrorParseResult` bundles a (possibly partial) AST with collected
-errors.
-
-#### `utils.py` (~80 lines)
+#### `utils.py` (~90 lines)
 
 `parse_with_heredocs()` function (used by the package-level
 `parse_with_heredocs()`) and token-reconstruction utilities.
@@ -563,23 +536,19 @@ Foundation: `ParseResult[T]` dataclass, `Parser[T]` monad with `.map()`,
 `ForwardParser[T]` for recursive grammars.  Helper functions: `token()`,
 `many()`, `sequence()`, `choice()`, `lazy()`, `between()`.
 
-#### `tokens.py` (~380 lines)
+#### `tokens.py` (~385 lines)
 
 `TokenParsers` &mdash; token-level parsers organised by category (basic
 tokens, operators, delimiters, keywords, expansions, combined parsers).
 
-#### `commands.py` (~490 lines)
+#### `commands.py` (~675 lines)
 
 `CommandParsers` &mdash; builds the command hierarchy: simple command &rarr;
 pipeline &rarr; and-or list &rarr; statement list.  Handles redirections and
-background operators.
+background operators.  Also includes control structure parsers (if, while,
+for, case, select, functions, subshells, brace groups).
 
-#### `control_structures.py` (~1300 lines)
-
-`ControlStructureParsers` &mdash; the largest combinator module.  All
-control structures, function definitions, subshells, and brace groups.
-
-#### `special_commands.py` (~725 lines)
+#### `special_commands.py` (~705 lines)
 
 `SpecialCommandParsers` &mdash; arithmetic commands, enhanced test
 expressions, array assignments, process substitution, and declaration
@@ -595,28 +564,28 @@ Integrates with `WordBuilder`.
 `HeredocProcessor` &mdash; post-parse pass that populates `Redirect` nodes
 with heredoc content from the `heredoc_map`.
 
-#### `parser.py` (~485 lines)
+#### `parser.py` (~425 lines)
 
 `ParserCombinatorShellParser` &mdash; main orchestrator.  Initialises all
 combinator modules, wires circular dependencies, builds the complete parser
-pipeline, and implements `AbstractShellParser`.
+pipeline.
 
 ### 5.7 Validation
 
 All in `validation/`.
 
-#### `validation_pipeline.py` (~310 lines)
+#### `validation_pipeline.py` (~320 lines)
 
 `ValidationPipeline` &mdash; `ASTVisitor` that applies registered
 `ValidationRule` instances to each node and collects `Issue` objects into a
 `ValidationReport`.
 
-#### `validation_rules.py` (~385 lines)
+#### `validation_rules.py` (~400 lines)
 
 `Severity` enum, `Issue` dataclass, `ValidationContext`,
 `ValidationReport`, `ValidationRule` ABC, and seven concrete rules.
 
-#### `semantic_analyzer.py` (~290 lines)
+#### `semantic_analyzer.py` (~295 lines)
 
 `SemanticAnalyzer` &mdash; `ASTVisitor` that maintains a `SymbolTable`,
 tracks variable/function declarations and usages, and reports unused
@@ -642,7 +611,8 @@ position information.
 
 #### `ascii_tree.py` (~500 lines)
 
-`AsciiTreeRenderer` &mdash; box-drawing tree for terminal display.
+`AsciiTreeRenderer` and `CompactAsciiTreeRenderer` &mdash; box-drawing
+trees for terminal display.
 
 #### `dot_generator.py` (~370 lines)
 
@@ -653,27 +623,27 @@ types.
 
 `SExpressionRenderer` &mdash; Lisp-style S-expression output.
 
-### 5.9 Adapter layer
-
-#### `implementations/recursive_descent_adapter.py` (~285 lines)
-
-`RecursiveDescentAdapter` &mdash; wraps the hand-written `Parser` to
-implement `AbstractShellParser`, bridging the two interfaces for the
-registry.
-
 
 ## 6. How the Shell Calls the Parser
 
-In `psh/shell.py`, the main execution path:
+In `psh/scripting/source_processor.py`, the main execution path:
 
 1. Tokenise the input (with or without heredocs).
-2. Parse via `ParserStrategy`:
+2. Parse:
    - For heredoc input: `parse_with_heredocs(tokens, heredoc_map)`.
-   - Otherwise: `self.parser_strategy.parse(tokens)`.
+   - Otherwise: `create_parser(tokens, shell)` via
+     `psh/utils/parser_factory.py`, which reads `shell._active_parser` to
+     select either the recursive descent parser or the combinator parser.
 3. Walk the resulting AST with `ExecutorVisitor`.
 
-The shell inherits `parser_strategy` from its parent shell (for subshells),
-or creates a default one pointing to the recursive descent parser.
+The `parser_factory.create_parser()` function handles parser selection:
+
+```python
+from psh.utils.parser_factory import create_parser
+
+parser = create_parser(tokens, shell, source_text=source)
+ast = parser.parse()
+```
 
 
 ## 7. Common Tasks
@@ -724,7 +694,7 @@ Programmatically:
 ```python
 from psh.parser import Parser, ParserConfig
 
-config = ParserConfig(enable_profiling=True)
+config = ParserConfig(profile_parsing=True)
 parser = Parser(tokens, config=config)
 ast = parser.parse()
 print(parser.ctx.generate_profiling_report())
@@ -751,9 +721,9 @@ code.
 
 Passing parsing flags through method parameters creates explosion in method
 signatures.  `ParserContext` consolidates all mutable state into one
-object that sub-parsers access through their `self.parser` reference.  The
-`ContextWrapper` context manager provides safe save/restore around nested
-parsing blocks.
+object that sub-parsers access through `self.parser`.  The context manager
+(`with parser.ctx:`) provides safe save/restore around nested parsing
+blocks.
 
 ### Why build `Word` nodes instead of plain strings?
 
@@ -778,7 +748,7 @@ __init__.py
 ├── recursive_descent/
 │   ├── parser.py
 │   │   ├── context.py  (ParserContext, HeredocInfo, ParserProfiler)
-│   │   ├── base_context.py  (ContextBaseParser, BaseParser alias)
+│   │   ├── base_context.py  (ContextBaseParser)
 │   │   ├── helpers.py  (TokenGroups, ErrorContext, ParseError)
 │   │   ├── parsers/
 │   │   │   ├── statements.py
@@ -791,9 +761,7 @@ __init__.py
 │   │   │   └── arrays.py
 │   │   └── support/
 │   │       ├── context_factory.py
-│   │       ├── factory.py
 │   │       ├── word_builder.py
-│   │       ├── error_collector.py
 │   │       └── utils.py
 │   └── __init__.py
 ├── combinators/
@@ -801,7 +769,6 @@ __init__.py
 │   │   ├── core.py  (Parser[T], ParseResult[T], combinators)
 │   │   ├── tokens.py
 │   │   ├── commands.py
-│   │   ├── control_structures.py
 │   │   ├── special_commands.py
 │   │   ├── expansions.py
 │   │   └── heredoc_processor.py
@@ -812,15 +779,11 @@ __init__.py
 │   ├── semantic_analyzer.py
 │   ├── symbol_table.py
 │   └── warnings.py
-├── visualization/
-│   ├── ast_formatter.py
-│   ├── ascii_tree.py
-│   ├── dot_generator.py
-│   └── sexp_renderer.py
-├── parser_registry.py  (ParserRegistry, ParserStrategy)
-├── abstract_parser.py  (AbstractShellParser interface)
-└── implementations/
-    └── recursive_descent_adapter.py
+└── visualization/
+    ├── ast_formatter.py
+    ├── ascii_tree.py
+    ├── dot_generator.py
+    └── sexp_renderer.py
 
 External dependencies (outside the parser package):
 - psh/token_types.py     — Token and TokenType definitions
