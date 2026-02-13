@@ -295,25 +295,3 @@ class Shell:
 
 
 
-    # Compatibility methods for tests (Phase 7 temporary)
-    def _add_to_history(self, command: str) -> None:
-        """Add command to history (compatibility wrapper)."""
-        self.interactive_manager.history_manager.add_to_history(command)
-
-    def _load_history(self) -> None:
-        """Load history from file (compatibility wrapper)."""
-        self.interactive_manager.history_manager.load_from_file()
-
-    def _save_history(self) -> None:
-        """Save history to file (compatibility wrapper)."""
-        self.interactive_manager.history_manager.save_to_file()
-
-    @property
-    def _handle_sigint(self):
-        """Get signal handler (compatibility wrapper)."""
-        return self.interactive_manager.signal_manager._handle_sigint
-
-    @property
-    def _handle_sigchld(self):
-        """Get signal handler (compatibility wrapper)."""
-        return self.interactive_manager.signal_manager._handle_sigchld

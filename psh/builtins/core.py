@@ -47,8 +47,8 @@ class ExitBuiltin(Builtin):
             shell.trap_manager.execute_exit_trap()
 
         # Save history before exiting
-        if hasattr(shell, '_save_history'):
-            shell._save_history()
+        if hasattr(shell, 'interactive_manager'):
+            shell.interactive_manager.history_manager.save_to_file()
 
         sys.exit(exit_code)
 
