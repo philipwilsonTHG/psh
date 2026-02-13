@@ -4,6 +4,24 @@ All notable changes to PSH (Python Shell) are documented in this file.
 
 Format: `VERSION (DATE) - Title` followed by bullet points describing changes.
 
+## 0.175.0 (2026-02-13) - Dead code and legacy shim cleanup
+- Removed dead `LineEditor` class from `psh/tab_completion.py` (372 lines);
+  superseded by production `LineEditor` in `psh/line_editor.py`.
+- Removed unused `psh/pipeline/` package (`ShellPipeline`/`PipelineBuilder`
+  facade, 68 lines + tests); never used by production code.
+- Removed 5 stale compatibility wrappers from `Shell` (`_add_to_history`,
+  `_load_history`, `_save_history`, `_handle_sigint`, `_handle_sigchld`);
+  inlined the one live caller (exit builtin).
+- Removed 4 dead legacy method wrappers from `PrintfBuiltin`
+  (`_process_format_string`, `_parse_format_specifier`, `_format_argument`,
+  `_apply_string_formatting`/`_apply_integer_formatting`).
+- Removed dead `_stdout`/`_stderr`/`_stdin` backup assignments and stale
+  "backward compatibility" comments from `ShellState`.
+- Removed 4 incorrect XFAILs from PTY interactive tests (`test_bg_resume`,
+  `test_background_job_completion`, `test_disown_command`,
+  `test_sigtstp_handler`) — moved class-level markers to individual methods.
+- Cleaned up `ARCHITECTURE.llm` references to removed pipeline package.
+
 ## 0.174.0 (2026-02-13) - Fix array element parameter expansion operators
 - Fixed `${arr[1]:-default}`, `${arr[5]:=five}`, `${arr[1]:?err}`,
   `${arr[1]:+alt}` — all four `:` operators now work with array subscripts.

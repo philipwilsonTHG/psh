@@ -495,9 +495,14 @@ class MyVisitor(ASTVisitor[T]):
 
 ## Current Development Status
 
-**Version**: 0.174.0 (see CHANGELOG.md for detailed history)
+**Version**: 0.175.0 (see CHANGELOG.md for detailed history)
 
 **Recent Work**:
+- **Dead Code and Legacy Shim Cleanup (v0.175.0)**:
+  - Removed dead `LineEditor` from `tab_completion.py`, unused `psh/pipeline/`
+    package, 5 stale Shell wrappers, 4 dead PrintfBuiltin shims, dead
+    ShellState I/O backups
+  - Removed 4 incorrect PTY interactive XFAILs (now passing)
 - **Array Element Parameter Expansion Operators (v0.174.0)**:
   - Fixed `${arr[i]:-default}`, `:=`, `:?`, `:+` for array subscripts
   - Added array subscript handling in `_get_var_or_positional()` and
