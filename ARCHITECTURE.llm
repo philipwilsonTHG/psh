@@ -170,7 +170,6 @@ Input → Preprocessing → Tokenization → Token Normalization → Parsing →
 - Coordinates trap installation through `TrapManager`
 
 ### Parser Integration Helpers
-- `psh/pipeline/builder.py` encapsulates tokenize → parse → validate → execute flows for tooling (`PipelineBuilder.build()` returns `ShellPipeline`)
 - Parser selection uses `shell._active_parser` attribute, switchable via `parser-select` builtin
 
 ## Token Pipeline Details
@@ -281,11 +280,10 @@ Input → Preprocessing → Tokenization → Token Normalization → Parsing →
 2. **Parser**: `WordBuilder.build_composite_word()` merges into single `Word(parts=[LiteralPart("file"), ExpansionPart(ParameterExpansion("N")), LiteralPart(".txt")])`
 3. **Expansion**: Per-part expansion using Word AST quote context; variable expansion occurs preserving literal parts
 
-### Pipeline With Validation: `ls | grep test`
-1. **PipelineBuilder**: `.tokenize()` uses `ModularLexer`
+### Pipeline: `ls | grep test`
+1. **Tokenizer**: `ModularLexer` produces WORD(`ls`), PIPE, WORD(`grep`), WORD(`test`)
 2. **Parser**: Produces `Pipeline([SimpleCommand("ls"), SimpleCommand("grep", "test")])`
-3. **ValidationPipeline** (optional): Checks semantic rules (e.g., globbing warnings)
-4. **ExecutorVisitor**: Sets up pipe, forks commands, returns exit status of final command (with `pipefail` awareness)
+3. **ExecutorVisitor**: Sets up pipe, forks commands, returns exit status of final command (with `pipefail` awareness)
 
 ## Extension Points
 
@@ -366,7 +364,6 @@ class MyBuiltin(Builtin):
 - **Expansion manager**: `psh/expansion/manager.py`
 - **Executor visitor**: `psh/executor/core.py`
 - **IO manager**: `psh/io_redirect/manager.py`
-- **Pipeline builder**: `psh/pipeline/builder.py`
 - **Shell options**: `psh/core/state.py`, behaviors in `psh/core/options.py`
 - **Job control**: `psh/job_control.py`
 - **Interactive shell**: `psh/interactive/base.py`, `psh/interactive/repl_loop.py`
