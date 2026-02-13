@@ -75,10 +75,7 @@ class EnhancedScopeManager:
             raise RuntimeError("Cannot pop global scope")
 
     def get_variable(self, name: str, default: Optional[str] = None) -> Optional[str]:
-        """Get variable value as string (backward compatibility).
-
-        Returns the string value of the variable or default if not found.
-        """
+        """Get variable value as string, or default if not found."""
         var = self.get_variable_object(name)
         if var:
             return var.as_string()
@@ -358,7 +355,7 @@ class EnhancedScopeManager:
         return len(self.scope_stack) > 1
 
     def get_all_variables(self) -> Dict[str, str]:
-        """Get all variables visible in current scope as strings (backward compat)."""
+        """Get all variables visible in current scope as strings."""
         result = {}
 
         # Start with global variables
@@ -394,10 +391,6 @@ class EnhancedScopeManager:
             if name in scope.variables:
                 return True
         return False
-
-    def get_variable_with_attributes(self, name: str) -> Optional[Variable]:
-        """Get variable with all its attributes (alias for get_variable_object)."""
-        return self.get_variable_object(name)
 
     def sync_exports_to_environment(self, env: Dict[str, str]):
         """Sync variables with EXPORT attribute to environment."""
