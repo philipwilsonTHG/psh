@@ -43,8 +43,7 @@ pytestmark = pytest.mark.skipif(not HAS_PEXPECT, reason="pexpect not installed")
 class TestPTYJobControl(PTYTest):
     """Test job control with real PTY."""
 
-    pytestmark = pytest.mark.xfail(reason="PSH job control not fully implemented in PTY mode")
-
+    @pytest.mark.xfail(reason="PSH job control not fully implemented in PTY mode")
     def test_ctrl_z_suspend(self, pty_framework):
         """Test Ctrl-Z to suspend a job."""
         pty_framework.spawn_shell()
@@ -72,6 +71,7 @@ class TestPTYJobControl(PTYTest):
         # Clean up - kill the background job
         pty_framework.run_command("kill %1")
 
+    @pytest.mark.xfail(reason="PSH job control not fully implemented in PTY mode")
     def test_jobs_command(self, pty_framework):
         """Test jobs command shows suspended jobs."""
         pty_framework.spawn_shell()
@@ -90,6 +90,7 @@ class TestPTYJobControl(PTYTest):
         # Clean up
         pty_framework.run_command("kill %1")
 
+    @pytest.mark.xfail(reason="PSH job control not fully implemented in PTY mode")
     def test_fg_resume(self, pty_framework):
         """Test fg command to resume job."""
         pty_framework.spawn_shell()
@@ -143,6 +144,7 @@ class TestPTYJobControl(PTYTest):
         # Cleanup
         pty_framework.run_command(f"rm -f {test_file}")
 
+    @pytest.mark.xfail(reason="PSH job control not fully implemented in PTY mode")
     def test_multiple_jobs(self, pty_framework):
         """Test managing multiple jobs."""
         pty_framework.spawn_shell()
@@ -206,6 +208,7 @@ class TestPTYJobControl(PTYTest):
 
         pty_framework._wait_for_prompt()
 
+    @pytest.mark.xfail(reason="PSH job control not fully implemented in PTY mode")
     def test_ctrl_c_foreground_only(self, pty_framework):
         """Test Ctrl-C only affects foreground job."""
         pty_framework.spawn_shell()
@@ -274,8 +277,6 @@ class TestPTYJobControl(PTYTest):
 class TestPTYSignalHandling(PTYTest):
     """Test signal handling in PTY environment."""
 
-    pytestmark = pytest.mark.xfail(reason="PSH signal handling issues in PTY mode")
-
     def test_sigtstp_handler(self, pty_framework):
         """Test custom SIGTSTP handling."""
         pty_framework.spawn_shell()
@@ -290,6 +291,7 @@ class TestPTYSignalHandling(PTYTest):
         if "TSTP" in output or "SIGTSTP" in output:
             assert "caught sigtstp" in output
 
+    @pytest.mark.xfail(reason="PSH signal handling issues in PTY mode")
     def test_sigint_in_script(self, pty_framework):
         """Test SIGINT handling in script context."""
         pty_framework.spawn_shell()
