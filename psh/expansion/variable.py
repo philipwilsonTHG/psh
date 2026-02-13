@@ -75,7 +75,7 @@ class VariableExpander:
                 if not value:
                     expanded_default = self._expand_tilde_in_operand(self.expand_string_variables(default))
                     if not var_name.isdigit():
-                        self.state.set_variable(var_name, expanded_default)
+                        self._set_var_or_array_element(var_name, expanded_default)
                     return expanded_default
                 return value
             elif ':?' in var_content:
@@ -371,8 +371,75 @@ class VariableExpander:
         elif var_name in ['#', '?', '$', '!', '@', '*', '0', '-']:
             # Special variables
             return self.state.get_special_variable(var_name)
+        elif '[' in var_name and var_name.endswith(']'):
+            # Array element: arr[index]
+            bracket_pos = var_name.find('[')
+            array_name = var_name[:bracket_pos]
+            index_expr = var_name[bracket_pos + 1:-1]
+
+            from ..core.variables import AssociativeArray, IndexedArray
+            var = self.state.scope_manager.get_variable_object(array_name)
+
+            if var and isinstance(var.value, IndexedArray):
+                expanded_index = self.expand_array_index(index_expr)
+                try:
+                    from ..arithmetic import evaluate_arithmetic
+                    index = evaluate_arithmetic(expanded_index, self.shell)
+                except Exception:
+                    index = 0
+                result = var.value.get(index)
+                return result if result is not None else ''
+            elif var and isinstance(var.value, AssociativeArray):
+                expanded_key = self.expand_array_index(index_expr)
+                result = var.value.get(expanded_key)
+                return result if result is not None else ''
+            else:
+                return ''
         else:
             return self.state.get_variable(var_name, '')
+
+    def _set_var_or_array_element(self, var_name: str, value: str):
+        """Set a variable or array element.
+
+        Handles both plain variables (``var_name="foo"``) and array
+        subscript syntax (``arr[5]="foo"``).
+        """
+        if '[' in var_name and var_name.endswith(']'):
+            bracket_pos = var_name.find('[')
+            array_name = var_name[:bracket_pos]
+            index_expr = var_name[bracket_pos + 1:-1]
+
+            from ..core.variables import AssociativeArray, IndexedArray
+            var = self.state.scope_manager.get_variable_object(array_name)
+
+            if var and isinstance(var.value, IndexedArray):
+                expanded_index = self.expand_array_index(index_expr)
+                try:
+                    from ..arithmetic import evaluate_arithmetic
+                    index = evaluate_arithmetic(expanded_index, self.shell)
+                except Exception:
+                    index = 0
+                var.value.set(index, value)
+            elif var and isinstance(var.value, AssociativeArray):
+                expanded_key = self.expand_array_index(index_expr)
+                var.value.set(expanded_key, value)
+            else:
+                # Array doesn't exist yet; create an indexed array
+                arr = IndexedArray()
+                expanded_index = self.expand_array_index(index_expr)
+                try:
+                    from ..arithmetic import evaluate_arithmetic
+                    idx = evaluate_arithmetic(expanded_index, self.shell)
+                except Exception:
+                    idx = 0
+                arr.set(idx, value)
+                from ..core.variables import VarAttributes
+                self.state.scope_manager.set_variable(
+                    array_name, arr,
+                    attributes=VarAttributes.ARRAY,
+                )
+        else:
+            self.state.set_variable(var_name, value)
 
     def expand_parameter_direct(self, operator: str, var_name: str, operand: str) -> str:
         """Expand a parameter expansion from pre-parsed components.
@@ -480,7 +547,7 @@ class VariableExpander:
             if not value:
                 expanded_default = self._expand_tilde_in_operand(self.expand_string_variables(operand))
                 if var_name and not var_name.isdigit():
-                    self.state.set_variable(var_name, expanded_default)
+                    self._set_var_or_array_element(var_name, expanded_default)
                 return expanded_default
             return value
         elif operator == ':?':

@@ -186,7 +186,6 @@ def test_nested_expansions(shell, capsys):
     assert captured.out.strip() == "FOUND"
 
 
-@pytest.mark.xfail(reason="Array element parameter expansion operators not yet implemented")
 def test_operators_with_arrays(shell, capsys):
     """Test parameter expansion operators with array elements."""
     # Test with array elements

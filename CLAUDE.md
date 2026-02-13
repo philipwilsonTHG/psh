@@ -495,9 +495,14 @@ class MyVisitor(ASTVisitor[T]):
 
 ## Current Development Status
 
-**Version**: 0.173.0 (see CHANGELOG.md for detailed history)
+**Version**: 0.174.0 (see CHANGELOG.md for detailed history)
 
 **Recent Work**:
+- **Array Element Parameter Expansion Operators (v0.174.0)**:
+  - Fixed `${arr[i]:-default}`, `:=`, `:?`, `:+` for array subscripts
+  - Added array subscript handling in `_get_var_or_positional()` and
+    `_set_var_or_array_element()` helper for `:=` assignment
+  - Removed XFAIL (3 → 2 xfails)
 - **XFAIL Cleanup (v0.173.0)**:
   - Removed 2 incorrect XFAILs (5 → 3): alias test had wrong bash expectation,
     character class pattern test had wrong assertion

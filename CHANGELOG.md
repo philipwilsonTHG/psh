@@ -4,6 +4,17 @@ All notable changes to PSH (Python Shell) are documented in this file.
 
 Format: `VERSION (DATE) - Title` followed by bullet points describing changes.
 
+## 0.174.0 (2026-02-13) - Fix array element parameter expansion operators
+- Fixed `${arr[1]:-default}`, `${arr[5]:=five}`, `${arr[1]:?err}`,
+  `${arr[1]:+alt}` — all four `:` operators now work with array subscripts.
+- Root cause: `_get_var_or_positional()` treated `arr[1]` as a scalar name
+  instead of resolving element 1 of array `arr`.
+- Added array subscript branch to `_get_var_or_positional()`.
+- Added `_set_var_or_array_element()` helper so `:=` assigns to the array
+  element instead of creating a scalar named `arr[5]`.
+- Fixed both `:=` code paths (string-split handler and `_apply_operator`).
+- Removed XFAIL from `test_operators_with_arrays` (3 → 2 xfails).
+
 ## 0.173.0 (2026-02-13) - Fix 2 incorrect XFAILs (5 → 3)
 - Removed XFAIL from `test_alias_with_arguments`: bash disables aliases in
   non-interactive mode, so PSH succeeding is a PSH extension, not a failure.
