@@ -1,8 +1,8 @@
 # Combinator Parser: Remaining Test Failures
 
-**As of v0.169.0** (post bug-fix batches reducing 18 → 5 failures)
+**As of v0.170.0** (associative array fix reducing 5 → 3 failures)
 
-This document catalogues the 5 remaining test failures when running the
+This document catalogues the 3 remaining test failures when running the
 full test suite with `PSH_TEST_PARSER=combinator`.
 
 ## Summary
@@ -10,7 +10,6 @@ full test suite with `PSH_TEST_PARSER=combinator`.
 | Category | Count | Root Cause | Difficulty |
 |----------|------:|------------|------------|
 | C-style for IO redirection | 3 | Need `-s` flag — not a parser bug | N/A |
-| Associative array edge cases | 2 | Quoted keys/values not preserved | Medium |
 
 ## Detailed Failure List
 
@@ -40,39 +39,6 @@ runner.
 
 ---
 
-### 2. Associative Array Initialisation with Quoted Keys (2 tests)
-
-The array assignment handler produces incorrect synthetic tokens for
-associative arrays with quoted keys containing spaces or `=` characters.
-
-| Test | Error |
-|------|-------|
-| `integration/builtins/test_declare_comprehensive.py::TestDeclareArrays::test_declare_associative_array_init_with_quoted_spaces` | `AssociativeArray({})` — keys with spaces lost |
-| `integration/builtins/test_declare_comprehensive.py::TestDeclareArrays::test_declare_associative_array_init_with_equals_in_keys_values` | `AssociativeArray({})` — keys with `=` lost |
-
-**Example commands:**
-```bash
-declare -A assoc=(["first key"]="first value" ["second key"]="second value")
-declare -A assoc=(["k=1"]="v=2" ["k=3"]="v=4")
-```
-
-**Root cause:** The combinator's array assignment code in `commands.py`
-synthesises a single token by joining raw token values:
-`assoc=(first key ]= first value)` instead of the correct
-`assoc=(["first key"]="first value")`.  The `LBRACKET` token is consumed
-separately, quotes are stripped, and the `[key]=value` structure is lost.
-
-The recursive descent parser's `ArrayParser` has dedicated
-bracket/quote-aware parsing that preserves the full `["key"]="value"`
-syntax.
-
-**Fix complexity:** Medium.  The synthetic token builder needs to
-preserve quotes and bracket syntax for `[key]=value` entries, or the
-combinator should route `declare -A` commands through the existing
-array initialisation parser.
-
----
-
 ## How to Run
 
 ```bash
@@ -99,3 +65,4 @@ tail -15 tmp/combinator-results.txt
 | v0.167.0 (batch 1) | 18 | Fixed: pipeline routing, for-loop expansions, stderr redirects, array assignments, C-style for `do` |
 | v0.168.0 (batch 2) | 11 | Fixed: process substitution (LiteralPart), errexit in TopLevel, RBRACE in brace expansion |
 | v0.169.0 (batch 3) | 5 | Fixed: lexer arithmetic operator drop, case pattern LBRACKET character classes |
+| v0.170.0 (batch 4) | 3 | Fixed: associative array initialization (quoted keys/values, bracket tokens) |
