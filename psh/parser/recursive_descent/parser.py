@@ -106,10 +106,7 @@ class Parser(ContextBaseParser):
             )
             super().__init__(ctx)
 
-        # Legacy attributes for backward compatibility
         self.config = self.ctx.config
-        self.source_text = self.ctx.source_text
-        self.source_lines = self.ctx.source_lines
 
         # Initialize specialized parsers
         self.statements = StatementParser(self)
@@ -121,11 +118,6 @@ class Parser(ContextBaseParser):
         self.arrays = ArrayParser(self)
         self.functions = FunctionParser(self)
         self.utils = ParserUtils(self)
-
-    @property
-    def context(self) -> ParserContext:
-        """Access to parser context (alias for self.ctx)."""
-        return self.ctx
 
     def create_configured_parser(self, tokens: List[Token], **overrides) -> 'Parser':
         """Create a new parser with the same configuration.
@@ -165,21 +157,18 @@ class Parser(ContextBaseParser):
         ctx = create_context(tokens, config, source_text)
         return cls.from_context(ctx)
 
-    # === Legacy Compatibility Properties ===
-
     @property
     def tokens(self) -> List[Token]:
-        """Legacy access to tokens."""
+        """Access to token list (stored in context)."""
         return self.ctx.tokens
 
     @property
     def current(self) -> int:
-        """Legacy access to current position."""
+        """Current token position (stored in context)."""
         return self.ctx.current
 
     @current.setter
     def current(self, value: int):
-        """Legacy setter for current position."""
         self.ctx.current = value
 
     # === AST Validation ===
@@ -354,9 +343,6 @@ class Parser(ContextBaseParser):
 
     def parse_with_heredocs(self, heredoc_map: dict) -> Union[CommandList, TopLevel]:
         """Parse tokens with heredoc content."""
-        # Store heredoc map for legacy compatibility
-        self.heredoc_map = heredoc_map
-
         # Populate context with heredoc information
         for key, heredoc_info in heredoc_map.items():
             # Extract delimiter from key (format: "heredoc_N_delimiter")
@@ -417,7 +403,7 @@ class Parser(ContextBaseParser):
             return cmd_list if cmd_list.statements else None
 
     def _simplify_result(self, top_level: TopLevel) -> Union[CommandList, TopLevel]:
-        """Simplify result for backward compatibility when possible."""
+        """Simplify single-item TopLevel to CommandList when possible."""
         if not top_level.items:
             return CommandList()
         elif len(top_level.items) == 1:

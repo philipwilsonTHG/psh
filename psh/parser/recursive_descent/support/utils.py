@@ -83,7 +83,6 @@ def parse_with_heredocs(tokens: List[Token], heredoc_map: dict) -> Union[Command
     """Parse a list of tokens into an AST with pre-collected heredoc content."""
     from ..parser import Parser
     parser = Parser(tokens)
-    parser.heredoc_map = heredoc_map
     ast = parser.parse()
     # Populate heredoc content in the AST
     parser.utils.populate_heredoc_content(ast, heredoc_map)
