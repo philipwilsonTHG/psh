@@ -16,9 +16,11 @@ consumed by the parser, which produces the AST that the executor walks.
 
 ## 2. External API
 
-The public interface is defined in `psh/lexer/__init__.py` and consists of two
-functions, one class for direct access, a configuration system, and a set of
-utilities.
+The public interface is defined in `psh/lexer/__init__.py`.  The declared
+public API (`__all__`) consists of five items.  Additional items are
+importable from `psh.lexer` as convenience imports but are not part of the
+public contract.  See `docs/guides/lexer_public_api.md` for the full
+reference including API tiers and import guidance.
 
 ### 2.1 `tokenize()`
 
@@ -105,56 +107,42 @@ scenarios:
 Commonly adjusted settings include `enable_extglob`, `posix_mode`,
 `strict_mode`, and `enable_process_substitution`.
 
-### 2.5 Constants
+### 2.5 `LexerError`
 
-Exported for use by other subsystems:
+```python
+from psh.lexer import LexerError
+```
 
-| Export | Type | Contents |
-|--------|------|----------|
-| `KEYWORDS` | `set` | All shell reserved words (`if`, `then`, `while`, ...). |
-| `OPERATORS_BY_LENGTH` | `dict[int, dict[str, TokenType]]` | Operators keyed by character length, longest first. |
-| `SPECIAL_VARIABLES` | `set` | Single-character special parameters (`?`, `$`, `!`, `#`, `@`, `*`, `-`, `0`). |
-| `DOUBLE_QUOTE_ESCAPES` | `dict` | Escape-sequence mappings valid inside double quotes. |
-| `WORD_TERMINATORS` | `set` | Characters that end a word token. |
+Exception raised for unrecoverable tokenization errors.  Carries position
+context (line, column, offset) for diagnostic messages.
 
-### 2.6 Unicode utilities
+### 2.6 Convenience imports (not in `__all__`)
 
-| Function | Purpose |
-|----------|---------|
-| `is_identifier_start(char, posix_mode=False)` | Can `char` begin a variable name? |
-| `is_identifier_char(char, posix_mode=False)` | Can `char` appear in a variable name? |
-| `is_whitespace(char, posix_mode=False)` | Is `char` whitespace? |
-| `normalize_identifier(name, ...)` | Apply NFC normalisation to a name. |
-| `validate_identifier(name, ...)` | Check whether `name` is a legal identifier. |
+The following are importable from `psh.lexer` but are not part of the
+declared public API.  They are internal implementation details kept as
+convenience imports to avoid churn.  New code should prefer the canonical
+submodule paths.
 
-In POSIX mode these functions restrict themselves to ASCII; otherwise they
-accept full Unicode letter and number categories.
+**Constants** (from `psh.lexer.constants`):
+`KEYWORDS`, `OPERATORS_BY_LENGTH`, `SPECIAL_VARIABLES`,
+`DOUBLE_QUOTE_ESCAPES`, `WORD_TERMINATORS`
 
-### 2.7 Token metadata classes
+**Unicode utilities** (from `psh.lexer.unicode_support`):
+`is_identifier_start`, `is_identifier_char`, `is_whitespace`,
+`normalize_identifier`, `validate_identifier`
 
-| Class | Purpose |
-|-------|---------|
-| `TokenPart` | One component of a composite token (literal text, variable expansion, etc.), with its own `quote_type`, `is_variable`, and `is_expansion` flags. |
-| `RichToken` | Subclass of `Token` carrying a `parts` list of `TokenPart` objects. Created via `RichToken.from_token()`. |
+**Token metadata** (from `psh.lexer.token_parts`):
+`TokenPart`, `RichToken`
 
-### 2.8 Error classes
+**State** (from `psh.lexer.state_context`):
+`LexerContext`
 
-| Class | Purpose |
-|-------|---------|
-| `LexerError` | Unrecoverable error with position context. |
-| `RecoverableLexerError` | Error from which interactive mode can recover. |
-| `LexerErrorHandler` | Centralised error handling with configurable recovery strategy. |
+**Submodule-only** (removed from package-level imports; import from
+`psh.lexer.position`):
+`Position`, `LexerState`, `PositionTracker`, `LexerErrorHandler`,
+`RecoverableLexerError`
 
-### 2.9 Other exports
-
-| Export | Purpose |
-|--------|---------|
-| `Position` | Dataclass: `offset`, `line`, `column`. |
-| `LexerState` | Enum of lexer states (NORMAL, IN_WORD, IN_SINGLE_QUOTE, ...). |
-| `PositionTracker` | Tracks line/column as the lexer advances. |
-| `LexerContext` | Unified mutable state for the lexer (nesting depths, quote stack, command position). |
-
-### 2.10 The `Token` class
+### 2.7 The `Token` class
 
 `Token` is defined in `psh/token_types.py` (outside the lexer package) and
 used throughout the shell.  Its fields:

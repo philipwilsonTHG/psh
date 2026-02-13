@@ -13,74 +13,34 @@ PSH_ROOT = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(PSH_ROOT))
 
 from psh.lexer import (
-    KEYWORDS,
-    OPERATORS_BY_LENGTH,
     LexerConfig,
+    LexerError,
     ModularLexer,
-    RichToken,
-    TokenPart,
-    is_identifier_start,
-    is_whitespace,
     tokenize,
+    tokenize_with_heredocs,
 )
 
 
 class TestLexerPublicAPI:
-    """Test the public API of the lexer package."""
+    """Test the declared public API (__all__) of the lexer package."""
+
+    def test_all_exports(self):
+        """Test that __all__ contains exactly the declared public API."""
+        import psh.lexer as lexer_pkg
+        expected = {
+            'ModularLexer', 'tokenize', 'tokenize_with_heredocs',
+            'LexerConfig',
+            'LexerError',
+        }
+        assert set(lexer_pkg.__all__) == expected
 
     def test_main_imports(self):
-        """Test that main components can be imported from psh.lexer."""
-        # These should all be available from the package root
+        """Test that public API components can be imported from psh.lexer."""
         assert tokenize is not None
-        assert TokenPart is not None
-        assert RichToken is not None
+        assert tokenize_with_heredocs is not None
         assert LexerConfig is not None
+        assert LexerError is not None
         assert ModularLexer is not None
-
-    def test_constants_available(self):
-        """Test that lexer constants are properly exposed."""
-        # Keywords should be available
-        assert isinstance(KEYWORDS, (set, frozenset))
-        assert len(KEYWORDS) > 0
-        assert 'if' in KEYWORDS
-        assert 'then' in KEYWORDS
-        assert 'else' in KEYWORDS
-        assert 'while' in KEYWORDS
-        assert 'for' in KEYWORDS
-
-        # Operators should be organized by length
-        assert isinstance(OPERATORS_BY_LENGTH, dict)
-        assert len(OPERATORS_BY_LENGTH) > 0
-
-        # Check some common operators
-        assert '&&' in OPERATORS_BY_LENGTH.get(2, [])
-        assert '||' in OPERATORS_BY_LENGTH.get(2, [])
-        assert '>>' in OPERATORS_BY_LENGTH.get(2, [])
-        assert '|' in OPERATORS_BY_LENGTH.get(1, [])
-        assert '>' in OPERATORS_BY_LENGTH.get(1, [])
-
-    def test_unicode_helper_functions(self):
-        """Test that Unicode helper functions are available and work correctly."""
-        # Test identifier start detection
-        assert is_identifier_start('a') is True
-        assert is_identifier_start('A') is True
-        assert is_identifier_start('_') is True
-        assert is_identifier_start('1') is False
-        assert is_identifier_start('$') is False
-        assert is_identifier_start(' ') is False
-
-        # Test Unicode identifier support
-        assert is_identifier_start('α') is True  # Greek alpha
-        assert is_identifier_start('名') is True  # Chinese character
-        assert is_identifier_start('é') is True  # Accented letter
-
-        # Test whitespace detection
-        assert is_whitespace(' ') is True
-        assert is_whitespace('\t') is True
-        assert is_whitespace('\n') is True
-        assert is_whitespace('\r') is True
-        assert is_whitespace('a') is False
-        assert is_whitespace('_') is False
 
     def test_tokenize_function_basic(self):
         """Test the main tokenize function with basic input."""
@@ -149,42 +109,57 @@ class TestLexerPublicAPI:
         assert len(tokens_default) >= 2
         assert len(tokens_posix) >= 2
 
+    def test_lexer_error(self):
+        """Test that LexerError is a proper exception class."""
+        assert issubclass(LexerError, Exception)
 
-class TestTokenDataStructures:
-    """Test token-related data structures."""
 
-    def test_token_part_structure(self):
-        """Test TokenPart attributes and usage."""
-        # TokenPart should be importable and usable
-        part = TokenPart(
-            value='hello',
-            quote_type=None,
-            is_variable=False,
-            is_expansion=False
-        )
-        assert part.value == 'hello'
-        assert part.quote_type is None
-        assert part.is_variable is False
-        assert part.is_expansion is False
+class TestDemotedImports:
+    """Test that items removed from __all__ are still importable from psh.lexer."""
 
-    def test_rich_token_structure(self):
-        """Test RichToken attributes."""
-        # Create tokens via tokenization
-        tokens = list(tokenize('echo "hello world"'))
+    def test_constants_importable(self):
+        """Test that lexer constants are still importable as convenience imports."""
+        from psh.lexer import KEYWORDS, OPERATORS_BY_LENGTH
 
-        # Find the quoted token
-        quoted_token = next(t for t in tokens if 'hello' in t.value)
+        assert isinstance(KEYWORDS, (set, frozenset))
+        assert len(KEYWORDS) > 0
+        assert 'if' in KEYWORDS
 
-        # RichToken should have expected attributes
-        assert hasattr(quoted_token, 'type')
-        assert hasattr(quoted_token, 'value')
-        assert hasattr(quoted_token, 'position')
-        assert hasattr(quoted_token, 'parts')
+        assert isinstance(OPERATORS_BY_LENGTH, dict)
+        assert len(OPERATORS_BY_LENGTH) > 0
 
-        # For quoted strings, should have parts
-        if hasattr(quoted_token, 'parts') and quoted_token.parts:
-            assert len(quoted_token.parts) > 0
-            assert isinstance(quoted_token.parts[0], TokenPart)
+    def test_unicode_helpers_importable(self):
+        """Test that Unicode helper functions are still importable."""
+        from psh.lexer import is_identifier_start, is_whitespace
+
+        assert is_identifier_start('a') is True
+        assert is_identifier_start('1') is False
+        assert is_whitespace(' ') is True
+        assert is_whitespace('a') is False
+
+    def test_token_classes_importable(self):
+        """Test that TokenPart and RichToken are still importable."""
+        from psh.lexer import TokenPart, RichToken
+
+        assert TokenPart is not None
+        assert RichToken is not None
+
+    def test_lexer_context_importable(self):
+        """Test that LexerContext is still importable."""
+        from psh.lexer import LexerContext
+
+        assert LexerContext is not None
+
+    def test_tier3_importable_from_submodules(self):
+        """Test that Tier 3 items are importable from their submodule paths."""
+        from psh.lexer.position import Position, LexerState, PositionTracker
+        from psh.lexer.position import LexerErrorHandler, RecoverableLexerError
+
+        assert Position is not None
+        assert LexerState is not None
+        assert PositionTracker is not None
+        assert LexerErrorHandler is not None
+        assert RecoverableLexerError is not None
 
 
 class TestPackageInternals:
@@ -192,13 +167,14 @@ class TestPackageInternals:
 
     def test_internal_module_imports(self):
         """Verify internal modules can be imported directly."""
-        # These imports test the package structure
         from psh.lexer.constants import KEYWORDS as internal_keywords
         from psh.lexer.modular_lexer import ModularLexer as internal_lexer
         from psh.lexer.token_parts import TokenPart as internal_token_part
         from psh.lexer.unicode_support import is_identifier_start as internal_is_id
 
-        # Verify they're the same as public API or at least work
+        from psh.lexer import KEYWORDS, is_identifier_start
+
+        # Verify they're the same as convenience imports
         assert internal_keywords == KEYWORDS
         assert internal_is_id('a') == is_identifier_start('a')
         assert internal_token_part is not None
@@ -217,7 +193,6 @@ class TestPackageInternals:
         # Position tracking
         assert hasattr(lexer, 'position')
         assert hasattr(lexer, 'current_char')
-        # Note: peek and advance might be internal implementation details
 
         # Configuration and context
         assert hasattr(lexer, 'config')

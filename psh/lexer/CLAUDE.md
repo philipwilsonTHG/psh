@@ -20,7 +20,7 @@ Input String → BraceExpander → ModularLexer → KeywordNormalizer → TokenT
 | File | Purpose |
 |------|---------|
 | `__init__.py` | Entry point: `tokenize()` and `tokenize_with_heredocs()` |
-| `modular_lexer.py` | Core tokenization engine (~900 lines) |
+| `modular_lexer.py` | Core tokenization engine (~600 lines) |
 | `state_context.py` | `LexerContext` - unified state management |
 | `constants.py` | Keywords, operators, special variables |
 | `position.py` | Position tracking, `LexerConfig`, error classes |
@@ -68,24 +68,20 @@ class RecognizerRegistry:
 `LexerContext` tracks all parsing state:
 
 ```python
+@dataclass
 class LexerContext:
-    # Nesting depths
-    paren_depth: int      # ( )
-    bracket_depth: int    # [ ]
-    brace_depth: int      # { }
-
-    # Quote state
-    in_single_quote: bool
-    in_double_quote: bool
-    quote_stack: List[str]
-
-    # Parsing context
-    in_arithmetic: bool
-    in_command_substitution: bool
-    at_command_position: bool
-
-    # Array assignment tracking
-    in_array_assignment: bool
+    state: LexerState = LexerState.NORMAL
+    bracket_depth: int = 0        # [[ ]] nesting
+    paren_depth: int = 0          # ( ) nesting
+    command_position: bool = True  # At command position?
+    after_regex_match: bool = False
+    quote_stack: List[str] = []
+    heredoc_delimiters: List[str] = []
+    brace_depth: int = 0          # ${...} nesting
+    arithmetic_depth: int = 0     # $((...)) nesting
+    token_start_offset: int = 0
+    current_token_parts: List[Any] = []
+    posix_mode: bool = False
 ```
 
 ### 3. Token Recognition Flow

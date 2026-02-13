@@ -495,9 +495,14 @@ class MyVisitor(ASTVisitor[T]):
 
 ## Current Development Status
 
-**Version**: 0.176.0 (see CHANGELOG.md for detailed history)
+**Version**: 0.177.0 (see CHANGELOG.md for detailed history)
 
 **Recent Work**:
+- **Lexer Public API Cleanup (v0.177.0)**:
+  - Trimmed `__all__` from 27 to 5 items; demoted Tier 2 to convenience
+    imports; removed Tier 3 from package-level imports; replaced
+    `isinstance(token, RichToken)` with `token.parts`; deleted stale
+    `__version__`; added API reference doc
 - **Deep Cleanup of Parser, Shell, and Lexer Dead Code (v0.176.0)**:
   - Removed dead code from ast_nodes, parser, SourceProcessor, Shell,
     ContextBaseParser, and LexerConfig; fixed DOT generator bugs

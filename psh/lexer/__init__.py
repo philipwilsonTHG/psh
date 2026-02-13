@@ -19,11 +19,6 @@ from .modular_lexer import ModularLexer
 from .position import (
     LexerConfig,
     LexerError,
-    LexerErrorHandler,
-    LexerState,
-    Position,
-    PositionTracker,
-    RecoverableLexerError,
 )
 from .state_context import LexerContext
 from .token_parts import RichToken, TokenPart
@@ -34,8 +29,6 @@ from .unicode_support import (
     normalize_identifier,
     validate_identifier,
 )
-
-__version__ = "0.91.1"  # Phase 3 Day 2: Clean imports and dependencies
 
 def tokenize(input_string: str, strict: bool = True, shell_options: dict = None) -> List[Token]:
     """
@@ -136,17 +129,8 @@ def tokenize_with_heredocs(input_string: str, strict: bool = True, shell_options
 __all__ = [
     # Main lexer interface
     'ModularLexer', 'tokenize', 'tokenize_with_heredocs',
-    # Position and configuration
-    'Position', 'LexerState', 'LexerConfig', 'LexerError', 'RecoverableLexerError',
-    'LexerErrorHandler', 'PositionTracker',
-    # Constants
-    'KEYWORDS', 'OPERATORS_BY_LENGTH', 'SPECIAL_VARIABLES',
-    'DOUBLE_QUOTE_ESCAPES', 'WORD_TERMINATORS',
-    # Unicode support
-    'is_identifier_start', 'is_identifier_char', 'is_whitespace',
-    'normalize_identifier', 'validate_identifier',
-    # Token classes
-    'TokenPart', 'RichToken',
-    # Context classes
-    'LexerContext',
+    # Configuration
+    'LexerConfig',
+    # Errors
+    'LexerError',
 ]

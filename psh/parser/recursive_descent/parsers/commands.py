@@ -29,7 +29,6 @@ from ....ast_nodes import (
     WhileLoop,
     Word,
 )
-from ....lexer.token_parts import RichToken
 from ....token_stream import TokenStream
 from ....token_types import Token, TokenType
 from ..helpers import ErrorContext, ParseError, TokenGroups
@@ -103,8 +102,8 @@ class CommandParser:
                               TokenType.PARAM_EXPANSION]:
             return
 
-        # If it's a RichToken, check its parts for unclosed expansions
-        if isinstance(token, RichToken) and token.parts:
+        # Check token parts for unclosed expansions
+        if token.parts:
             for part in token.parts:
                 if part.expansion_type and part.expansion_type.endswith('_unclosed'):
                     fmt = _UNCLOSED_EXPANSION_MSGS.get(part.expansion_type)

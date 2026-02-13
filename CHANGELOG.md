@@ -4,6 +4,27 @@ All notable changes to PSH (Python Shell) are documented in this file.
 
 Format: `VERSION (DATE) - Title` followed by bullet points describing changes.
 
+## 0.177.0 (2026-02-13) - Lexer public API cleanup
+- Trimmed `__all__` from 27 items to 5 (`tokenize`, `tokenize_with_heredocs`,
+  `ModularLexer`, `LexerConfig`, `LexerError`); demoted Tier 2 items
+  (constants, unicode helpers, `TokenPart`, `RichToken`, `LexerContext`) to
+  convenience imports; removed Tier 3 items (`Position`, `LexerState`,
+  `PositionTracker`, `LexerErrorHandler`, `RecoverableLexerError`) from
+  package-level imports entirely.
+- Replaced `isinstance(token, RichToken)` check in `commands.py` with
+  `token.parts` (all tokens have `parts` via `__post_init__`); removed
+  `RichToken` import — zero production callers remain.
+- Deleted stale `__version__ = "0.91.1"` from `psh/lexer/__init__.py`.
+- Updated `psh/lexer/CLAUDE.md`: fixed `modular_lexer.py` line count
+  (~900 → ~600), replaced stale `LexerContext` field listing with actual
+  dataclass fields.
+- Rewrote `test_lexer_package_api.py`: added `test_all_exports` asserting
+  exact `__all__` contents; added `TestDemotedImports` verifying convenience
+  and submodule importability.
+- Updated `docs/guides/lexer_guide.md` section 2 to reflect new API tiers.
+- Added `docs/guides/lexer_public_api.md` API reference documenting public,
+  convenience, and internal import tiers.
+
 ## 0.176.0 (2026-02-13) - Deep cleanup of parser, shell, and lexer dead code
 - Removed dead `StatementList.pipelines` property (zero callers) and 3 stale
   "Deprecated" placeholder comments from `ast_nodes.py`.
