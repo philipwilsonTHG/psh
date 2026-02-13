@@ -43,6 +43,13 @@ def _cleanup_shell(shell_instance):
                 pass
     shell_instance.job_manager.jobs.clear()
     _reap_children()
+    # Close signal notifier pipe FDs to prevent FD exhaustion across tests
+    if hasattr(shell_instance, 'interactive_manager'):
+        sm = shell_instance.interactive_manager.signal_manager
+        if hasattr(sm, '_sigchld_notifier'):
+            sm._sigchld_notifier.close()
+        if hasattr(sm, '_sigwinch_notifier'):
+            sm._sigwinch_notifier.close()
 
 
 @pytest.fixture
@@ -257,7 +264,10 @@ def captured_shell():
 
     yield shell
 
-    # Cleanup
+    # Cleanup jobs, zombies, and signal notifier FDs
+    _cleanup_shell(shell)
+
+    # Restore streams
     sys.stdout = original_sys_stdout
     sys.stderr = original_sys_stderr
 

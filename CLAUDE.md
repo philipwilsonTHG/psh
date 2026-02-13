@@ -495,9 +495,13 @@ class MyVisitor(ASTVisitor[T]):
 
 ## Current Development Status
 
-**Version**: 0.171.0 (see CHANGELOG.md for detailed history)
+**Version**: 0.172.0 (see CHANGELOG.md for detailed history)
 
 **Recent Work**:
+- **Test Fixture FD Leak Fix (v0.172.0)**:
+  - Fixed `OSError: Too many open files` when running ~3,000+ tests
+  - `_cleanup_shell()` now closes `SignalNotifier` pipe FDs; `captured_shell` fixture
+    now calls `_cleanup_shell()` in teardown
 - **Combinator Parser Associative Array Fix (v0.170.0)**:
   - Fixed associative array initialization (`declare -A assoc=(["key"]="value")`)
   - Array collection loop now accepts LBRACKET/RBRACKET, preserves STRING quotes,

@@ -4,6 +4,14 @@ All notable changes to PSH (Python Shell) are documented in this file.
 
 Format: `VERSION (DATE) - Title` followed by bullet points describing changes.
 
+## 0.172.0 (2026-02-13) - Fix FD leak in test fixtures causing "Too many open files"
+- Fixed file descriptor exhaustion (`OSError: [Errno 24] Too many open files`)
+  when running ~3,000+ tests, particularly with the combinator parser.
+- Each `Shell` instance creates 4 pipe FDs via `SignalNotifier` (SIGCHLD +
+  SIGWINCH). `_cleanup_shell()` now explicitly closes these FDs in teardown.
+- Added `_cleanup_shell()` call to `captured_shell` fixture, which was the
+  only shell fixture missing cleanup.
+
 ## 0.171.0 (2026-02-13) - Fix C-style for loop I/O redirection test infrastructure (3 → 0)
 - Rewrote 3 C-style for loop I/O redirection tests to use `subprocess.run()`
   instead of `isolated_shell_with_temp_dir`, eliminating pytest capture
