@@ -191,14 +191,13 @@ class ASTDotGenerator(ASTVisitor[str]):
 
     def visit_AndOrList(self, node) -> str:
         """Generate DOT for and/or list."""
-        op = getattr(node, 'operator', '?')
-        label = self._format_node_label(node, f'AndOrList\\n({op})')
+        ops = getattr(node, 'operators', [])
+        op_str = ','.join(ops) if ops else '|'
+        label = self._format_node_label(node, f'AndOrList\\n({op_str})')
         node_id = self._add_node(node, label)
 
-        if hasattr(node, 'left'):
-            self._process_field(node_id, 'left', node.left)
-        if hasattr(node, 'right'):
-            self._process_field(node_id, 'right', node.right)
+        if hasattr(node, 'pipelines') and node.pipelines:
+            self._process_field(node_id, 'pipelines', node.pipelines)
 
         return node_id
 
@@ -276,16 +275,19 @@ class ASTDotGenerator(ASTVisitor[str]):
 
         return node_id
 
-    def visit_CommandList(self, node) -> str:
-        """Generate DOT for command list."""
-        count = len(node.commands) if hasattr(node, 'commands') else 0
-        label = self._format_node_label(node, f'CommandList\\n({count} commands)')
+    def visit_StatementList(self, node) -> str:
+        """Generate DOT for statement list (also handles CommandList alias)."""
+        count = len(node.statements) if hasattr(node, 'statements') else 0
+        label = self._format_node_label(node, f'StatementList\\n({count} stmts)')
         node_id = self._add_node(node, label)
 
-        if hasattr(node, 'commands') and node.commands:
-            self._process_field(node_id, 'commands', node.commands)
+        if hasattr(node, 'statements') and node.statements:
+            self._process_field(node_id, 'statements', node.statements)
 
         return node_id
+
+    # CommandList is an alias for StatementList
+    visit_CommandList = visit_StatementList
 
     def generic_visit(self, node: ASTNode) -> str:
         """Generic visitor for unknown node types."""

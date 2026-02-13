@@ -298,24 +298,12 @@ class StatementList(ASTNode):
     """Container for statements (control structures, AndOrLists, etc)."""
     statements: List[Statement] = field(default_factory=list)
 
-    # Backward compatibility properties
     @property
     def and_or_lists(self):
-        """Backward compatibility: extract AndOrLists from statements."""
+        """Extract AndOrList nodes from statements."""
         return [s for s in self.statements if isinstance(s, AndOrList)]
 
-    @property
-    def pipelines(self):
-        """Backward compatibility property for tests"""
-        # Flatten all pipelines from all and_or_lists (skip control statements)
-        pipelines = []
-        for item in self.statements:
-            if hasattr(item, 'pipelines'):  # It's an AndOrList
-                pipelines.extend(item.pipelines)
-        return pipelines
 
-
-# Keep CommandList as an alias for backward compatibility
 CommandList = StatementList
 
 
@@ -325,8 +313,6 @@ class FunctionDef(Statement):
     name: str
     body: StatementList
 
-
-# Deprecated Statement types removed - use unified types instead
 
 
 @dataclass
@@ -358,11 +344,6 @@ class CaseItem(ASTNode):
     commands: StatementList = field(default_factory=lambda: StatementList())
     terminator: str = ';;'  # ';;', ';&', or ';;&'
 
-
-# Deprecated Statement types removed - use unified types instead
-
-
-# Deprecated Command types removed - use unified types instead
 
 
 @dataclass
@@ -520,5 +501,3 @@ class ArithmeticEvaluation(UnifiedControlStructure):
     execution_context: ExecutionContext = ExecutionContext.STATEMENT
     background: bool = False
 
-
-# Deprecated types have been removed - use unified types directly
