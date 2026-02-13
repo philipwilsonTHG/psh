@@ -1,14 +1,11 @@
 """Base parser class using centralized ParserContext."""
 
-import logging
 from typing import Optional, Set
 
 from ...token_types import Token, TokenType
 from ..config import ParsingMode
 from .context import ParserContext
-from .helpers import ParseError, TokenGroups
-
-logger = logging.getLogger(__name__)
+from .helpers import ParseError
 
 
 class ContextBaseParser:
@@ -157,60 +154,4 @@ class ContextBaseParser:
             return self.ctx.tokens[self.ctx.current - 1]
         return self.ctx.tokens[0] if self.ctx.tokens else Token(TokenType.EOF, "", 0)
 
-    def synchronize(self, sync_tokens: Set[TokenType]):
-        """Synchronize to recovery points after error."""
-        self.ctx.enter_error_recovery()
-
-        while not self.at_end() and not self.match_any(sync_tokens):
-            self.advance()
-
-        self.ctx.exit_error_recovery()
-
-    # === Token Group Utilities ===
-
-    def match_statement_start(self) -> bool:
-        """Check if current token can start a statement."""
-        return self.match_any(TokenGroups.STATEMENT_START)
-
-    def match_redirection_start(self) -> bool:
-        """Check if current token can start a redirection."""
-        return self.match_any(TokenGroups.REDIRECTION_OPERATORS)
-
-    def match_control_structure(self) -> bool:
-        """Check if current token starts a control structure."""
-        return self.match_any(TokenGroups.CONTROL_STRUCTURE_KEYWORDS)
-
-    # === Debugging Support ===
-
-    def trace(self, message: str):
-        """Emit trace message if tracing is enabled."""
-        if self.ctx.trace_enabled:
-            indent = "  " * self.ctx.rule_stack_depth()
-            logger.debug("%s%s", indent, message)
-
-    def get_position_info(self, token: Optional[Token] = None) -> str:
-        """Get position information for debugging."""
-        if token is None:
-            token = self.peek()
-
-        if self.ctx.source_text and token.line:
-            return f"line {token.line}, column {token.column}"
-        else:
-            return f"position {token.position}"
-
-    # === Compatibility Methods ===
-
-    def _token_type_to_string(self, token_type: TokenType) -> str:
-        """Convert token type to readable string."""
-        return str(token_type).replace('TokenType.', '').lower()
-
-    # === State Queries ===
-
-    def get_state_summary(self) -> dict:
-        """Get summary of current parser state."""
-        return self.ctx.get_state_summary()
-
-    def generate_profiling_report(self) -> str:
-        """Generate profiling report if enabled."""
-        return self.ctx.generate_profiling_report()
 
