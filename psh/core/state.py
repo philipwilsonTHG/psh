@@ -20,9 +20,6 @@ class ShellState:
         # Initialize enhanced scope manager for variable scoping with attributes
         self.scope_manager = EnhancedScopeManager()
 
-        # For backward compatibility, keep self.variables as a property
-        # that delegates to scope_manager
-
         # Default prompt variables (set in global scope)
         self.scope_manager.set_variable('PS1', 'psh$ ')
         self.scope_manager.set_variable('PS2', '> ')
@@ -133,12 +130,6 @@ class ShellState:
         # Special mode for specific eval tests that need output capture
         self._eval_test_mode = False
 
-        # I/O streams (for backward compatibility)
-        # Store initial values
-        self._stdout = sys.stdout
-        self._stderr = sys.stderr
-        self._stdin = sys.stdin
-
         # PS4 prompt for xtrace
         self.scope_manager.set_variable('PS4', '+ ')
 
@@ -211,43 +202,38 @@ class ShellState:
         """Allow setting a custom stdin."""
         self._custom_stdin = value
 
-    # Backward-compatible properties for debug options
     @property
     def debug_ast(self):
-        """Backward compatibility for debug_ast attribute."""
+        """Whether AST debug output is enabled."""
         return self.options.get('debug-ast', False)
 
     @debug_ast.setter
     def debug_ast(self, value):
-        """Backward compatibility for debug_ast attribute."""
         self.options['debug-ast'] = value
 
     @property
     def debug_tokens(self):
-        """Backward compatibility for debug_tokens attribute."""
+        """Whether token debug output is enabled."""
         return self.options.get('debug-tokens', False)
 
     @debug_tokens.setter
     def debug_tokens(self, value):
-        """Backward compatibility for debug_tokens attribute."""
         self.options['debug-tokens'] = value
 
     @property
     def debug_scopes(self):
-        """Backward compatibility for debug_scopes attribute."""
+        """Whether scope debug output is enabled."""
         return self.options.get('debug-scopes', False)
 
     @debug_scopes.setter
     def debug_scopes(self, value):
-        """Backward compatibility for debug_scopes attribute."""
         self.options['debug-scopes'] = value
-        # Also update scope manager when this is set
         if hasattr(self, 'scope_manager'):
             self.scope_manager.enable_debug(value)
 
     @property
     def variables(self) -> Dict[str, str]:
-        """Backward compatibility: return all visible variables as dict."""
+        """Return all visible variables as a dict."""
         return self.scope_manager.get_all_variables()
 
     def get_variable(self, name: str, default: str = '') -> str:
