@@ -31,7 +31,7 @@ class ParserUtils:
                         else:
                             redirect.heredoc_content = heredoc_info
                     else:
-                        # Fallback: find by delimiter (for backward compatibility)
+                        # Fallback: find by delimiter when heredoc_key is absent
                         for key, heredoc_info in heredoc_map.items():
                             if key.endswith(f'_{redirect.target}'):
                                 if isinstance(heredoc_info, dict):
