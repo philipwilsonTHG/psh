@@ -165,8 +165,6 @@ class LexerConfig:
     bash_compatibility: bool = True      # Enable bash-specific features
     sh_compatibility: bool = False       # Restrict to POSIX sh features
     zsh_compatibility: bool = False      # Enable zsh-specific features
-    legacy_mode: bool = False           # Enable deprecated features
-
     # === MEMORY MANAGEMENT ===
 
     max_input_size: int = 10 * 1024 * 1024  # 10MB maximum input
@@ -207,11 +205,6 @@ class LexerConfig:
             self.posix_mode = True
             self.bash_compatibility = False
             self.zsh_compatibility = False
-
-        if self.legacy_mode:
-            # Legacy mode enables older behavior
-            self.strict_mode = False
-            self.recovery_mode = True
 
         # Debug state validation
         if self.debug_states is not None:
