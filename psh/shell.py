@@ -14,8 +14,6 @@ from .functions import FunctionManager
 from .interactive.base import InteractiveManager
 from .io_redirect.manager import IOManager
 from .job_control import JobManager
-
-# Legacy executor removed - using visitor pattern exclusively
 from .scripting.base import ScriptManager
 
 
@@ -38,22 +36,12 @@ class Shell:
         self.lint_only = lint_only
         self.ast_format = ast_format
 
-        # Visitor executor is now the only executor
-        # Remove this option from state as well
-        if 'visitor-executor' in self.state.options:
-            del self.state.options['visitor-executor']
-
         # Set shell reference in scope manager for arithmetic evaluation
         self.state.scope_manager.set_shell(self)
 
-        # Create backward compatibility properties
         self._setup_compatibility_properties()
 
-        # Use new builtin registry for migrated builtins
         self.builtin_registry = builtin_registry
-
-        # All builtins are now handled by the registry
-        self.builtins = {}
 
         # Initialize basic managers first
         self.alias_manager = AliasManager()
@@ -86,7 +74,6 @@ class Shell:
         # These will get the correct function_manager reference
         self.expansion_manager = ExpansionManager(self)
         self.io_manager = IOManager(self)
-        # Legacy executor removed - using visitor pattern exclusively
         self.script_manager = ScriptManager(self)
         self.interactive_manager = InteractiveManager(self)
 
@@ -131,8 +118,7 @@ class Shell:
             load_rc_file(self)
 
     def _setup_compatibility_properties(self):
-        """Set up properties for backward compatibility."""
-        # These will be removed in later phases
+        """Configure which attribute names delegate to ShellState."""
         self._state_properties = [
             'env', 'variables', 'positional_params', 'script_name',
             'is_script_mode', 'debug_ast', 'debug_tokens', 'norc', 'rcfile',
@@ -143,16 +129,16 @@ class Shell:
         ]
 
     def __getattr__(self, name):
-        """Delegate attribute access to state for compatibility."""
+        """Delegate attribute access to ShellState."""
         if hasattr(self.state, name):
             return getattr(self.state, name)
         raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
 
     def __setattr__(self, name, value):
-        """Delegate attribute setting to state for compatibility."""
-        if name in ('state', '_state_properties', 'builtin_registry', 'builtins',
+        """Delegate attribute setting to ShellState for state properties."""
+        if name in ('state', '_state_properties', 'builtin_registry',
                    'alias_manager', 'function_manager', 'job_manager', 'expansion_manager',
-                   'io_manager', 'executor_manager', 'script_manager', 'interactive_manager',
+                   'io_manager', 'script_manager', 'interactive_manager',
                    'history_expander', '_active_parser'):
             super().__setattr__(name, value)
         elif hasattr(self, '_state_properties') and name in self._state_properties:
@@ -171,16 +157,6 @@ class Shell:
         from .executor import ExecutorVisitor
         executor = ExecutorVisitor(self)
         return executor.visit(toplevel)
-
-    def execute(self, ast):
-        """Execute an AST node - for backward compatibility with tests."""
-        from .ast_nodes import TopLevel
-        if isinstance(ast, TopLevel):
-            return self.execute_toplevel(ast)
-        else:
-            # Wrap in TopLevel if needed
-            toplevel = TopLevel([ast])
-            return self.execute_toplevel(toplevel)
 
     def execute_enhanced_test_statement(self, test_stmt: EnhancedTestStatement) -> int:
         """Execute an enhanced test statement [[...]]."""
