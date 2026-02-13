@@ -4,6 +4,16 @@ All notable changes to PSH (Python Shell) are documented in this file.
 
 Format: `VERSION (DATE) - Title` followed by bullet points describing changes.
 
+## 0.173.0 (2026-02-13) - Fix 2 incorrect XFAILs (5 → 3)
+- Removed XFAIL from `test_alias_with_arguments`: bash disables aliases in
+  non-interactive mode, so PSH succeeding is a PSH extension, not a failure.
+  Changed to `assert_psh_extension()`.
+- Removed XFAIL from `test_character_class_patterns`: `${VAR#[0-9]*}` shortest
+  match correctly strips one digit (`"23abc"`), not all (`"abc"`). Fixed
+  assertion and added `##` longest match test case.
+- Sharpened `test_declare_nameref_attribute` XFAIL reason to
+  `"declare -n (nameref) not implemented"`.
+
 ## 0.172.0 (2026-02-13) - Fix FD leak in test fixtures causing "Too many open files"
 - Fixed file descriptor exhaustion (`OSError: [Errno 24] Too many open files`)
   when running ~3,000+ tests, particularly with the combinator parser.

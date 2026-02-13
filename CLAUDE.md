@@ -495,9 +495,13 @@ class MyVisitor(ASTVisitor[T]):
 
 ## Current Development Status
 
-**Version**: 0.172.0 (see CHANGELOG.md for detailed history)
+**Version**: 0.173.0 (see CHANGELOG.md for detailed history)
 
 **Recent Work**:
+- **XFAIL Cleanup (v0.173.0)**:
+  - Removed 2 incorrect XFAILs (5 → 3): alias test had wrong bash expectation,
+    character class pattern test had wrong assertion
+  - Sharpened nameref XFAIL reason
 - **Test Fixture FD Leak Fix (v0.172.0)**:
   - Fixed `OSError: Too many open files` when running ~3,000+ tests
   - `_cleanup_shell()` now closes `SignalNotifier` pipe FDs; `captured_shell` fixture
