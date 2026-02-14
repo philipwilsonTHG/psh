@@ -301,8 +301,13 @@ class SourceProcessor(ScriptComponent):
                 ast = parse_with_heredocs(tokens, heredoc_map)
             else:
                 # Parse with source text for better error messages and shell configuration
-                from ..utils.parser_factory import create_parser
-                parser = create_parser(tokens, self.shell, source_text=command_string)
+                from ..parser import create_parser
+                parser = create_parser(
+                    tokens,
+                    active_parser=self.shell._active_parser,
+                    trace_parsing=self.state.options.get('debug-parser', False),
+                    source_text=command_string,
+                )
                 ast = parser.parse()
 
             # Debug: Print AST if requested

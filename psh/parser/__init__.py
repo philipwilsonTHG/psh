@@ -18,7 +18,7 @@ from .recursive_descent.support.utils import parse_with_heredocs as utils_parse_
 # Public API
 __all__ = [
     # Main parsing interface
-    'parse', 'parse_with_heredocs', 'Parser',
+    'parse', 'parse_with_heredocs', 'create_parser', 'Parser',
     # Configuration
     'ParserConfig',
     # Errors
@@ -49,3 +49,39 @@ def parse(tokens, config=None):
 def parse_with_heredocs(tokens, heredoc_map):
     """Parse tokens with heredoc content."""
     return utils_parse_with_heredocs(tokens, heredoc_map)
+
+
+def create_parser(tokens, active_parser='rd', trace_parsing=False, source_text=None):
+    """Create a parser configured for the selected implementation.
+
+    Chooses between the recursive descent parser and the combinator parser
+    based on the ``active_parser`` argument.
+
+    Args:
+        tokens: List of tokens to parse.
+        active_parser: ``'rd'`` for recursive descent (default),
+            ``'combinator'`` for the combinator parser.
+        trace_parsing: Enable parser tracing output.
+        source_text: Optional source text for error reporting.
+
+    Returns:
+        Object with a ``.parse()`` method that returns an AST.
+    """
+    config = ParserConfig(trace_parsing=trace_parsing)
+
+    if active_parser == 'combinator':
+        from .combinators.parser import ParserCombinatorShellParser
+
+        pc = ParserCombinatorShellParser(config)
+
+        class _ParserWrapper:
+            def __init__(self, parser, tokens):
+                self._parser = parser
+                self.tokens = tokens
+
+            def parse(self):
+                return self._parser.parse(self.tokens)
+
+        return _ParserWrapper(pc, tokens)
+
+    return Parser(tokens, config=config)

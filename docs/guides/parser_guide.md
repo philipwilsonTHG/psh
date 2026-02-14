@@ -106,18 +106,19 @@ except ParseError as e:
 
 ### 2.6 Runtime parser selection
 
-The shell uses `psh/utils/parser_factory.py` to choose between the
-recursive descent parser and the combinator parser at runtime:
+The `create_parser()` function in `psh/parser/__init__.py` chooses between
+the recursive descent parser and the combinator parser at runtime:
 
 ```python
-from psh.utils.parser_factory import create_parser
+from psh.parser import create_parser
 
-parser = create_parser(tokens, shell, source_text=source)
+parser = create_parser(tokens, active_parser='rd', trace_parsing=False)
 ast = parser.parse()
 ```
 
-This reads `shell._active_parser` to select the implementation.  Users can
-switch at runtime via the `parser-select` builtin.
+The `active_parser` argument selects the implementation (`'rd'` or
+`'combinator'`).  Users can switch at runtime via the `parser-select`
+builtin.
 
 
 ## 3. The AST
@@ -631,17 +632,17 @@ In `psh/scripting/source_processor.py`, the main execution path:
 1. Tokenise the input (with or without heredocs).
 2. Parse:
    - For heredoc input: `parse_with_heredocs(tokens, heredoc_map)`.
-   - Otherwise: `create_parser(tokens, shell)` via
-     `psh/utils/parser_factory.py`, which reads `shell._active_parser` to
-     select either the recursive descent parser or the combinator parser.
+   - Otherwise: `create_parser(tokens, active_parser=..., ...)` from
+     `psh.parser`, which selects either the recursive descent parser or
+     the combinator parser.
 3. Walk the resulting AST with `ExecutorVisitor`.
 
-The `parser_factory.create_parser()` function handles parser selection:
+The `create_parser()` function handles parser selection:
 
 ```python
-from psh.utils.parser_factory import create_parser
+from psh.parser import create_parser
 
-parser = create_parser(tokens, shell, source_text=source)
+parser = create_parser(tokens, active_parser='rd', trace_parsing=False)
 ast = parser.parse()
 ```
 

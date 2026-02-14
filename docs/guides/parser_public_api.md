@@ -1,6 +1,6 @@
 # Parser Public API Reference
 
-**As of v0.178.0** (post-cleanup)
+**As of v0.186.0**
 
 This document describes the public API of the `psh.parser` package: the
 items declared in `__all__`, their signatures, and guidance on internal
@@ -8,11 +8,11 @@ imports that are available but not part of the public contract.
 
 ## Public API (`__all__`)
 
-The declared public API consists of five items:
+The declared public API consists of six items:
 
 ```python
 __all__ = [
-    'parse', 'parse_with_heredocs', 'Parser',
+    'parse', 'parse_with_heredocs', 'create_parser', 'Parser',
     'ParserConfig',
     'ParseError',
 ]
@@ -60,6 +60,32 @@ Parses tokens and populates heredoc content from a pre-collected map
 | `heredoc_map` | -- | Dict mapping heredoc delimiter strings to content. Values may be plain strings or dicts with `'content'` and `'quoted'` keys. |
 
 Returns the same AST types as `parse()`.
+
+### `create_parser()`
+
+```python
+from psh.parser import create_parser
+
+parser = create_parser(
+    tokens: List[Token],
+    active_parser: str = 'rd',
+    trace_parsing: bool = False,
+    source_text: str = None,
+)
+ast = parser.parse()
+```
+
+Factory function that selects between the recursive descent parser and
+the combinator parser.  Returns an object with a `.parse()` method.
+
+| Parameter | Default | Meaning |
+|-----------|---------|---------|
+| `tokens` | -- | List of tokens to parse. |
+| `active_parser` | `'rd'` | `'rd'` for recursive descent, `'combinator'` for the combinator parser. |
+| `trace_parsing` | `False` | Enable parser tracing output. |
+| `source_text` | `None` | Optional source text for error reporting. |
+
+Moved from `psh.utils.parser_factory` to `psh.parser` in v0.186.0.
 
 ### `Parser`
 
@@ -285,7 +311,7 @@ thin wrappers with zero production callers:
 
 | Tier | Scope | How to import | Stability guarantee |
 |------|-------|---------------|-------------------|
-| **Public** | `parse`, `parse_with_heredocs`, `Parser`, `ParserConfig`, `ParseError` | `from psh.parser import ...` | Stable. Changes are versioned. |
+| **Public** | `parse`, `parse_with_heredocs`, `create_parser`, `Parser`, `ParserConfig`, `ParseError` | `from psh.parser import ...` | Stable. Changes are versioned. |
 | **Convenience** | `ParsingMode`, `ErrorHandlingMode`, `ParserContext`, `ParserProfiler`, `ErrorContext`, `create_context` | `from psh.parser import ...` (works) or `from psh.parser.<submodule> import ...` (preferred) | Available but not guaranteed. Prefer submodule paths. |
 | **Internal** | `ContextBaseParser`, `HeredocInfo`, `TokenGroups` | `from psh.parser.recursive_descent.<module> import ...` | Internal. May change without notice. |
 

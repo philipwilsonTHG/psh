@@ -102,7 +102,7 @@ declared public API:
 | `SignalRegistry` | `psh.utils.signal_utils` | Used by `SignalManager`; test-only external usage. |
 | `set_signal_registry` | `psh.utils.signal_utils` | Test helper for replacing the global instance. |
 | `SignalHandlerRecord` | `psh.utils.signal_utils` | Dataclass internal to `SignalRegistry`. |
-| `ParserWrapper` | `psh.utils.parser_factory` | Internal to `create_parser()`. |
+| *(removed)* | *`parser_factory.py` moved to `psh.parser` in v0.186.0* |
 
 
 ## 3. Architecture
@@ -114,7 +114,6 @@ psh/utils/
 ├── __init__.py           # Public API: __all__ (10 items), re-exports
 ├── signal_utils.py       # SignalNotifier, SignalRegistry, get/set_signal_registry
 ├── shell_formatter.py    # ShellFormatter (AST → shell syntax)
-├── parser_factory.py     # create_parser() (parser selection)
 ├── heredoc_detection.py  # contains_heredoc() heuristic
 ├── ast_debug.py          # print_ast_debug() (AST visualization dispatch)
 ├── file_tests.py         # file_newer_than, file_older_than, files_same
@@ -132,9 +131,6 @@ signal_utils.py
 
 shell_formatter.py
     └─ builtins/function_support.py   (ShellFormatter)
-
-parser_factory.py
-    └─ scripting/source_processor.py  (create_parser)
 
 heredoc_detection.py
     └─ scripting/source_processor.py  (contains_heredoc)
@@ -237,20 +233,7 @@ Private helpers:
 | `_format_case_item(item, indent)` | Format one `case` clause with patterns and terminator. |
 | `format_function_body(func)` | Format function body with `{ ... }` braces. |
 
-### 4.4 Parser factory
-
-#### `parser_factory.py` (~35 lines)
-
-`create_parser(tokens, shell, source_text)` reads `shell._active_parser`
-to select the parser implementation:
-
-- `'combinator'` -- imports `ParserCombinatorShellParser` and wraps it in
-  a `ParserWrapper` inner class that exposes `.parse()`.
-- Anything else -- creates a standard `Parser` with `ParserConfig`.
-
-The `trace_parsing` config field is set from `shell.state.options['debug-parser']`.
-
-### 4.5 Heredoc detection
+### 4.4 Heredoc detection
 
 #### `heredoc_detection.py` (~59 lines)
 
@@ -472,9 +455,6 @@ __init__.py
 ├── signal_utils.py          (no psh-internal imports)
 ├── shell_formatter.py
 │   └── psh/ast_nodes.py     (AST node types for isinstance dispatch)
-├── parser_factory.py
-│   ├── psh/parser           (Parser, ParserConfig)
-│   └── psh/parser/combinators/parser  (ParserCombinatorShellParser, lazy)
 ├── heredoc_detection.py     (no psh-internal imports)
 ├── ast_debug.py
 │   ├── psh/parser/visualization  (5 renderers, all lazy imports)

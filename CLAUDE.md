@@ -495,9 +495,15 @@ class MyVisitor(ASTVisitor[T]):
 
 ## Current Development Status
 
-**Version**: 0.185.0 (see CHANGELOG.md for detailed history)
+**Version**: 0.186.0 (see CHANGELOG.md for detailed history)
 
 **Recent Work**:
+- **Move create_parser to parser package (v0.186.0)**:
+  - Moved `create_parser()` from `psh/utils/parser_factory.py` to
+    `psh/parser/__init__.py`; deleted `parser_factory.py`
+  - Changed signature to take explicit `active_parser` and `trace_parsing`
+    arguments instead of the whole `shell` object
+  - Updated parser `__all__` (5 → 6 items), utils `__all__` (10 → 9 items)
 - **Core Public API Cleanup (v0.185.0)**:
   - Rewrote `__init__.py`: added module docstring, 7 new imports
     (`ExpansionError`, `OptionHandler`, `TrapManager`, `is_valid_assignment`,
@@ -583,9 +589,6 @@ class MyVisitor(ASTVisitor[T]):
     imports; removed Tier 3 from package-level imports; replaced
     `isinstance(token, RichToken)` with `token.parts`; deleted stale
     `__version__`; added API reference doc
-- **Deep Cleanup of Parser, Shell, and Lexer Dead Code (v0.176.0)**:
-  - Removed dead code from ast_nodes, parser, SourceProcessor, Shell,
-    ContextBaseParser, and LexerConfig; fixed DOT generator bugs
 ## Debugging Tips
 
 1. **Import Errors**: Clear `__pycache__` directories if you see module import issues

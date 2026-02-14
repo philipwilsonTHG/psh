@@ -4,6 +4,20 @@ All notable changes to PSH (Python Shell) are documented in this file.
 
 Format: `VERSION (DATE) - Title` followed by bullet points describing changes.
 
+## 0.186.0 (2026-02-14) - Move create_parser to parser package
+- Moved `create_parser()` from `psh/utils/parser_factory.py` to
+  `psh/parser/__init__.py`; deleted `parser_factory.py`.
+- Changed signature from `create_parser(tokens, shell, source_text)` to
+  `create_parser(tokens, active_parser='rd', trace_parsing=False,
+  source_text=None)` -- the function no longer takes the whole shell object.
+- Updated caller in `scripting/source_processor.py` to pass explicit
+  arguments.
+- Removed `create_parser` from `psh/utils/__init__.py` and `__all__`
+  (10 → 9 items).
+- Added `create_parser` to `psh/parser/__all__` (5 → 6 items).
+- Updated `parser_guide.md`, `parser_public_api.md`, `utils_guide.md`,
+  and `utils_public_api.md` to reflect the new location.
+
 ## 0.185.0 (2026-02-14) - Core public API cleanup
 - Rewrote `psh/core/__init__.py`: added module docstring, 7 new imports
   (`ExpansionError`, `OptionHandler`, `TrapManager`, `is_valid_assignment`,

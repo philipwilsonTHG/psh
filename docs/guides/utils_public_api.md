@@ -238,11 +238,11 @@ details whose signatures may change without notice.
 | `set_signal_registry` | `psh.utils.signal_utils` | Replace the global `SignalRegistry` instance (useful for testing). |
 | `SignalHandlerRecord` | `psh.utils.signal_utils` | Dataclass recording a single signal handler registration.  Internal to `SignalRegistry`. |
 
-### Parser factory
+## Moved in v0.186.0
 
-| Import | Canonical path | Description |
-|--------|---------------|-------------|
-| `ParserWrapper` | `psh.utils.parser_factory` | Inner class wrapping the combinator parser to expose a `.parse()` method.  Internal to `create_parser()`. |
+| Item | Old location | New location | Notes |
+|------|-------------|-------------|-------|
+| `create_parser` | `psh.utils.parser_factory` | `psh.parser` | Moved to parser package where it belongs.  `parser_factory.py` deleted. |
 
 ## Deleted in v0.183.0
 
