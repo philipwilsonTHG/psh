@@ -18,7 +18,7 @@ import sys
 from typing import TYPE_CHECKING, List, Optional
 
 from ..arithmetic import evaluate_arithmetic
-from ..core.exceptions import LoopBreak, LoopContinue, ReadonlyVariableError
+from ..core import LoopBreak, LoopContinue, ReadonlyVariableError
 
 if TYPE_CHECKING:
     from psh.visitor import ASTVisitor

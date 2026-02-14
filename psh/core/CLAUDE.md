@@ -20,8 +20,7 @@ Manager            (arrays)    State    Manager
 | File | Purpose |
 |------|---------|
 | `state.py` | `ShellState` - central state container for entire shell |
-| `scope.py` | `VariableScope`, `ScopeManager` - basic scope management |
-| `scope_enhanced.py` | `EnhancedScopeManager` - advanced scoping with attributes |
+| `scope_enhanced.py` | `EnhancedScopeManager`, `VariableScope` - hierarchical scope management |
 | `variables.py` | `Variable`, `VarAttributes`, `IndexedArray`, `AssociativeArray` |
 | `options.py` | Shell option handlers (errexit, pipefail, etc.) |
 | `exceptions.py` | Shell-specific exceptions (`ReadonlyVariableError`, etc.) |

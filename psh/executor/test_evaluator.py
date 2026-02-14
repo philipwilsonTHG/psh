@@ -185,7 +185,7 @@ class TestExpressionEvaluator:
             if not var_obj:
                 return False
 
-            from ..core.variables import AssociativeArray, IndexedArray
+            from ..core import AssociativeArray, IndexedArray
             if isinstance(var_obj.value, AssociativeArray):
                 return key in var_obj.value._elements
             elif isinstance(var_obj.value, IndexedArray):

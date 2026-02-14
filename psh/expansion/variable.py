@@ -85,7 +85,7 @@ class VariableExpander:
                     expanded_message = self.expand_string_variables(message) if message else "parameter null or not set"
                     print(f"psh: {var_name}: {expanded_message}", file=sys.stderr)
                     self.state.last_exit_code = 127
-                    from ..core.exceptions import ExpansionError
+                    from ..core import ExpansionError
                     raise ExpansionError(f"{var_name}: {expanded_message}", exit_code=127)
                 return value
             elif ':+' in var_content:
@@ -97,8 +97,7 @@ class VariableExpander:
             else:
                 var_name = var_content
                 if self.state.options.get('nounset', False):
-                    from ..core.exceptions import UnboundVariableError
-                    from ..core.options import OptionHandler
+                    from ..core import OptionHandler, UnboundVariableError
                     try:
                         OptionHandler.check_unset_variable(self.state, var_name)
                     except UnboundVariableError:
@@ -114,7 +113,7 @@ class VariableExpander:
 
     def _expand_array_length(self, var_content: str) -> str:
         """Handle ${#arr[@]}, ${#arr[*]}, and ${#arr[index]}."""
-        from ..core.variables import AssociativeArray, IndexedArray
+        from ..core import AssociativeArray, IndexedArray
 
         array_part = var_content[1:]  # Remove the #
         bracket_pos = array_part.find('[')
@@ -164,7 +163,7 @@ class VariableExpander:
         Returns the result string, or None if this is not a matching
         expansion (so the caller can fall through).
         """
-        from ..core.variables import AssociativeArray, IndexedArray
+        from ..core import AssociativeArray, IndexedArray
 
         array_part = var_content[1:]  # Remove the !
         bracket_pos = array_part.find('[')
@@ -192,7 +191,7 @@ class VariableExpander:
         Returns the result string, or None if this is not a slice
         expansion (so the caller can fall through).
         """
-        from ..core.variables import IndexedArray
+        from ..core import IndexedArray
 
         bracket_pos = var_content.find('[')
         close_bracket_pos = var_content.find(']')
@@ -270,7 +269,7 @@ class VariableExpander:
         Returns the result string, or None if this is not a subscript
         expansion (so the caller can fall through).
         """
-        from ..core.variables import AssociativeArray, IndexedArray
+        from ..core import AssociativeArray, IndexedArray
 
         bracket_pos = var_content.find('[')
         array_name = var_content[:bracket_pos]
@@ -352,8 +351,7 @@ class VariableExpander:
         result = self.state.get_variable(var_name, '')
 
         if self.state.options.get('nounset', False):
-            from ..core.exceptions import UnboundVariableError
-            from ..core.options import OptionHandler
+            from ..core import OptionHandler, UnboundVariableError
             try:
                 OptionHandler.check_unset_variable(self.state, var_name)
             except UnboundVariableError:
@@ -377,7 +375,7 @@ class VariableExpander:
             array_name = var_name[:bracket_pos]
             index_expr = var_name[bracket_pos + 1:-1]
 
-            from ..core.variables import AssociativeArray, IndexedArray
+            from ..core import AssociativeArray, IndexedArray
             var = self.state.scope_manager.get_variable_object(array_name)
 
             if var and isinstance(var.value, IndexedArray):
@@ -409,7 +407,7 @@ class VariableExpander:
             array_name = var_name[:bracket_pos]
             index_expr = var_name[bracket_pos + 1:-1]
 
-            from ..core.variables import AssociativeArray, IndexedArray
+            from ..core import AssociativeArray, IndexedArray
             var = self.state.scope_manager.get_variable_object(array_name)
 
             if var and isinstance(var.value, IndexedArray):
@@ -433,7 +431,7 @@ class VariableExpander:
                 except Exception:
                     idx = 0
                 arr.set(idx, value)
-                from ..core.variables import VarAttributes
+                from ..core import VarAttributes
                 self.state.scope_manager.set_variable(
                     array_name, arr,
                     attributes=VarAttributes.ARRAY,
@@ -474,7 +472,7 @@ class VariableExpander:
             array_name = var_name[:bracket_pos]
             index_expr = var_name[bracket_pos+1:-1]
 
-            from ..core.variables import AssociativeArray, IndexedArray
+            from ..core import AssociativeArray, IndexedArray
             var = self.state.scope_manager.get_variable_object(array_name)
 
             # Handle special indices @ and * for whole-array operations
@@ -555,7 +553,7 @@ class VariableExpander:
                 expanded_message = self.expand_string_variables(operand) if operand else "parameter null or not set"
                 print(f"psh: {var_name}: {expanded_message}", file=sys.stderr)
                 self.state.last_exit_code = 127
-                from ..core.exceptions import ExpansionError
+                from ..core import ExpansionError
                 raise ExpansionError(f"{var_name}: {expanded_message}", exit_code=127)
             return value
         elif operator == ':+':
@@ -845,7 +843,7 @@ class VariableExpander:
 
                 if index_expr == '@' or index_expr == '*':
                     # Get the array variable
-                    from ..core.variables import AssociativeArray, IndexedArray
+                    from ..core import AssociativeArray, IndexedArray
                     var = self.state.scope_manager.get_variable_object(array_name)
 
                     if var and isinstance(var.value, IndexedArray):
@@ -870,7 +868,7 @@ class VariableExpander:
 
                 if index_expr == '@':
                     # Get the array variable
-                    from ..core.variables import AssociativeArray, IndexedArray
+                    from ..core import AssociativeArray, IndexedArray
                     var = self.state.scope_manager.get_variable_object(array_name)
 
                     if var and isinstance(var.value, (IndexedArray, AssociativeArray)):

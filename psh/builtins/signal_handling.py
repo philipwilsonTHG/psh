@@ -71,7 +71,7 @@ EXIT STATUS
         """Execute the trap builtin."""
         if not hasattr(shell, 'trap_manager'):
             # Initialize trap manager if not already done
-            from ..core.trap_manager import TrapManager
+            from ..core import TrapManager
             shell.trap_manager = TrapManager(shell)
 
         # Parse options

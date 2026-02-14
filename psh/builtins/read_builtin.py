@@ -257,7 +257,7 @@ class ReadBuiltin(Builtin):
         Creates or replaces an indexed array with the given fields.
         Each field becomes an array element with sequential indices starting from 0.
         """
-        from ..core.variables import IndexedArray, VarAttributes
+        from ..core import IndexedArray, VarAttributes
 
         # Create new indexed array
         array = IndexedArray()

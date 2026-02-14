@@ -40,7 +40,7 @@ from ..ast_nodes import (
     WhileLoop,
 )
 from ..builtins import FunctionReturn
-from ..core.exceptions import LoopBreak, LoopContinue
+from ..core import LoopBreak, LoopContinue
 from .array import ArrayOperationExecutor
 from .command import CommandExecutor
 from .context import ExecutionContext

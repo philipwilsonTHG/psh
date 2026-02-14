@@ -354,7 +354,7 @@ class SourceProcessor(ScriptComponent):
                     return exit_code
                 except Exception as e:
                     # Import the exceptions properly
-                    from ..core.exceptions import LoopBreak, LoopContinue
+                    from ..core import LoopBreak, LoopContinue
                     if isinstance(e, (LoopBreak, LoopContinue)):
                         # Break/continue outside of loops is an error
                         stmt_name = "break" if isinstance(e, LoopBreak) else "continue"

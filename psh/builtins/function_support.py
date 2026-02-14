@@ -3,8 +3,7 @@ import shlex
 import sys
 from typing import TYPE_CHECKING, Any, List, Optional
 
-from ..core.exceptions import ReadonlyVariableError
-from ..core.variables import AssociativeArray, IndexedArray, VarAttributes, Variable
+from ..core import AssociativeArray, IndexedArray, ReadonlyVariableError, VarAttributes, Variable
 from ..utils import ShellFormatter
 from .base import Builtin
 from .registry import builtin
@@ -542,7 +541,7 @@ class DeclareBuiltin(Builtin):
 
     def _matches_filter(self, var: Variable, options: dict) -> bool:
         """Check if variable matches filter criteria."""
-        from ..core.variables import VarAttributes
+        from ..core import VarAttributes
 
         # If no specific attribute options are set, show all variables
         has_attribute_filter = any([

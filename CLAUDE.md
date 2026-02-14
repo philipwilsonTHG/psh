@@ -495,9 +495,16 @@ class MyVisitor(ASTVisitor[T]):
 
 ## Current Development Status
 
-**Version**: 0.184.0 (see CHANGELOG.md for detailed history)
+**Version**: 0.185.0 (see CHANGELOG.md for detailed history)
 
 **Recent Work**:
+- **Core Public API Cleanup (v0.185.0)**:
+  - Rewrote `__init__.py`: added module docstring, 7 new imports
+    (`ExpansionError`, `OptionHandler`, `TrapManager`, `is_valid_assignment`,
+    `extract_assignments`, `is_exported`); updated `__all__` from 11 to 18
+  - Fixed 43 bypass imports across 16 files (exceptions, variables, options,
+    trap_manager, assignment_utils, state) to use package-level imports
+  - Removed stale `scope.py` row from `core/CLAUDE.md`
 - **Builtins Public API Cleanup (v0.184.0)**:
   - Populated `__init__.py` with `FunctionReturn` and `PARSERS` imports;
     updated `__all__` from 3 to 5 items; added module-level docstring
@@ -579,11 +586,6 @@ class MyVisitor(ASTVisitor[T]):
 - **Deep Cleanup of Parser, Shell, and Lexer Dead Code (v0.176.0)**:
   - Removed dead code from ast_nodes, parser, SourceProcessor, Shell,
     ContextBaseParser, and LexerConfig; fixed DOT generator bugs
-- **Dead Code and Legacy Shim Cleanup (v0.175.0)**:
-  - Removed dead `LineEditor` from `tab_completion.py`, unused `psh/pipeline/`
-    package, 5 stale Shell wrappers, 4 dead PrintfBuiltin shims, dead
-    ShellState I/O backups
-  - Removed 4 incorrect PTY interactive XFAILs (now passing)
 ## Debugging Tips
 
 1. **Import Errors**: Clear `__pycache__` directories if you see module import issues

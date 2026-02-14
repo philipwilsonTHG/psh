@@ -8,7 +8,7 @@ import sys
 from typing import TYPE_CHECKING, List, Optional
 
 from ..builtins import FunctionReturn
-from ..core.exceptions import LoopBreak, LoopContinue, UnboundVariableError
+from ..core import LoopBreak, LoopContinue, UnboundVariableError
 
 if TYPE_CHECKING:
     from psh.visitor import ASTVisitor

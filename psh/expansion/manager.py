@@ -2,7 +2,7 @@
 from typing import TYPE_CHECKING, List, Optional, Union
 
 from ..ast_nodes import SimpleCommand
-from ..core.exceptions import ExpansionError
+from ..core import ExpansionError
 from .command_sub import CommandSubstitution
 from .glob import GlobExpander
 from .tilde import TildeExpander
@@ -495,7 +495,7 @@ class ExpansionManager:
 
     def _expand_expansion(self, expansion) -> str:
         """Evaluate an expansion AST node."""
-        from ..core.exceptions import UnboundVariableError
+        from ..core import UnboundVariableError
         # Use ExpansionEvaluator for clean evaluation
         try:
             return self.evaluator.evaluate(expansion)

@@ -120,7 +120,7 @@ class LocalBuiltin(Builtin):
             return 0
 
         # Build attributes from options
-        from ..core.variables import VarAttributes
+        from ..core import VarAttributes
         attributes = VarAttributes.NONE
         if options['readonly']:
             attributes |= VarAttributes.READONLY
@@ -146,7 +146,7 @@ class LocalBuiltin(Builtin):
                 # Check if this is an array assignment: var=(value1 value2 ...)
                 if var_value.startswith('(') and var_value.endswith(')'):
                     # Parse array initialization
-                    from ..core.variables import AssociativeArray, IndexedArray
+                    from ..core import AssociativeArray, IndexedArray
                     if attributes & VarAttributes.ASSOC_ARRAY:
                         # Create associative array
                         array = AssociativeArray()
@@ -176,11 +176,11 @@ class LocalBuiltin(Builtin):
                 # Variable without assignment: local var
                 if attributes & VarAttributes.ARRAY:
                     # Create empty indexed array
-                    from ..core.variables import IndexedArray
+                    from ..core import IndexedArray
                     shell.state.scope_manager.create_local(arg, IndexedArray(), attributes)
                 elif attributes & VarAttributes.ASSOC_ARRAY:
                     # Create empty associative array
-                    from ..core.variables import AssociativeArray
+                    from ..core import AssociativeArray
                     shell.state.scope_manager.create_local(arg, AssociativeArray(), attributes)
                 else:
                     # Creates unset local variable (shadows global but has no value)
@@ -281,7 +281,7 @@ class LocalBuiltin(Builtin):
 
     def _apply_attributes(self, value: str, attributes, shell: 'Shell') -> str:
         """Apply attribute transformations to value."""
-        from ..core.variables import VarAttributes
+        from ..core import VarAttributes
 
         if attributes & VarAttributes.UPPERCASE:
             return value.upper()

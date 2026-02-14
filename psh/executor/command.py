@@ -11,7 +11,7 @@ This module handles the execution of simple commands, including:
 import sys
 from typing import TYPE_CHECKING, List, Tuple
 
-from ..core.assignment_utils import extract_assignments, is_exported, is_valid_assignment
+from ..core import extract_assignments, is_exported, is_valid_assignment
 from .strategies import (
     AliasExecutionStrategy,
     BuiltinExecutionStrategy,
@@ -183,7 +183,7 @@ class CommandExecutor:
         except Exception as e:
             # Import these here to avoid circular imports
             from ..builtins import FunctionReturn
-            from ..core.exceptions import ExpansionError, LoopBreak, LoopContinue, ReadonlyVariableError
+            from ..core import ExpansionError, LoopBreak, LoopContinue, ReadonlyVariableError
 
             # Re-raise control flow exceptions
             if isinstance(e, (FunctionReturn, LoopBreak, LoopContinue, SystemExit)):
@@ -346,7 +346,7 @@ class CommandExecutor:
                 # Also set in shell.env for external commands
                 self.shell.env[var] = value
             except Exception:
-                from ..core.exceptions import ReadonlyVariableError
+                from ..core import ReadonlyVariableError
                 raise ReadonlyVariableError(var)
 
         return saved_vars

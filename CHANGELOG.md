@@ -4,6 +4,23 @@ All notable changes to PSH (Python Shell) are documented in this file.
 
 Format: `VERSION (DATE) - Title` followed by bullet points describing changes.
 
+## 0.185.0 (2026-02-14) - Core public API cleanup
+- Rewrote `psh/core/__init__.py`: added module docstring, 7 new imports
+  (`ExpansionError`, `OptionHandler`, `TrapManager`, `is_valid_assignment`,
+  `extract_assignments`, `is_exported`), updated `__all__` from 11 to 18 items,
+  removed stale `ShellOptions` comments.
+- Fixed 14 `exceptions` bypass imports across 9 files to use package-level
+  `from ..core import ...` instead of `from ..core.exceptions import ...`.
+- Fixed 23 `variables` bypass imports across 7 files to use package-level
+  imports.
+- Fixed 2 `options` bypass imports in `expansion/variable.py`.
+- Fixed 2 `trap_manager` bypass imports in `shell.py` and
+  `builtins/signal_handling.py`.
+- Fixed 1 `assignment_utils` bypass import in `executor/command.py`.
+- Fixed 1 `state` bypass import in `shell.py`.
+- Removed stale `scope.py` row from `core/CLAUDE.md` (file does not exist;
+  `VariableScope` already listed under `scope_enhanced.py`).
+
 ## 0.184.0 (2026-02-14) - Builtins public API cleanup
 - Populated `psh/builtins/__init__.py` with `FunctionReturn` and `PARSERS`
   imports; updated `__all__` from 3 to 5 items; added module-level docstring

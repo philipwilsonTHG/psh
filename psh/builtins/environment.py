@@ -6,7 +6,7 @@ import shlex
 import sys
 from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
-from ..core.exceptions import ReadonlyVariableError
+from ..core import ReadonlyVariableError
 from .base import Builtin
 from .registry import builtin
 
@@ -50,7 +50,7 @@ class EnvBuiltin(Builtin):
         # (e.g., export/unset/cd builtins) do not leak into parent shell state.
         command_text = " ".join(shlex.quote(arg) for arg in command_args)
 
-        from ..core.variables import VarAttributes
+        from ..core import VarAttributes
         from ..shell import Shell
 
         child_shell = Shell(parent_shell=shell)
@@ -123,7 +123,7 @@ class EnvBuiltin(Builtin):
         self, shell: 'Shell', clear_env: bool, unset_names: List[str]
     ) -> None:
         """Prevent child export sync from reintroducing env entries removed by env options."""
-        from ..core.variables import VarAttributes
+        from ..core import VarAttributes
 
         scope_manager = shell.state.scope_manager
         if clear_env:
@@ -523,7 +523,7 @@ class UnsetBuiltin(Builtin):
                     index_expr = var[bracket_pos+1:-1]
 
                     # Get the array variable
-                    from ..core.variables import AssociativeArray, IndexedArray
+                    from ..core import AssociativeArray, IndexedArray
                     var_obj = shell.state.scope_manager.get_variable_object(array_name)
 
                     if var_obj and isinstance(var_obj.value, IndexedArray):

@@ -10,7 +10,7 @@ import re
 from typing import TYPE_CHECKING, Optional, Tuple, Union
 
 from ..arithmetic import evaluate_arithmetic
-from ..core.variables import AssociativeArray, IndexedArray, VarAttributes
+from ..core import AssociativeArray, IndexedArray, VarAttributes
 
 if TYPE_CHECKING:
     from ..ast_nodes import ArrayElementAssignment, ArrayInitialization

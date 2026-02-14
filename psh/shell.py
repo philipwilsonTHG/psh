@@ -8,7 +8,7 @@ from .ast_nodes import (
     TopLevel,
 )
 from .builtins import registry as builtin_registry
-from .core.state import ShellState
+from .core import ShellState
 from .expansion import ExpansionManager
 from .functions import FunctionManager
 from .interactive.base import InteractiveManager
@@ -89,7 +89,7 @@ class Shell:
             self._active_parser = os.environ['PSH_TEST_PARSER']
 
         # Initialize trap manager
-        from .core.trap_manager import TrapManager
+        from .core import TrapManager
         self.trap_manager = TrapManager(self)
 
         # Initialize stream references (used by builtins)
