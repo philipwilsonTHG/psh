@@ -364,15 +364,13 @@ is_filename() {
 ### Text Processing
 
 ```bash
-# Extract domain from email
+# Extract domain from email (using parameter expansion)
 email="user@example.com"
-if [[ "$email" =~ @([^@]+)$ ]]; then
-    domain="${BASH_REMATCH[1]}"  # Note: BASH_REMATCH not available in PSH
-fi
+domain="${email#*@}"  # Removes everything up to and including @
 
 # Remove leading zeros
 number="00123"
-cleaned="${number##+(0)}"  # Using parameter expansion
+cleaned="${number##0}"  # Remove leading zero (use a loop for multiple)
 
 # Extract file extension
 filename="document.pdf"
@@ -417,22 +415,24 @@ while read line; do
     # Skip comments and empty lines
     [[ "$line" =~ ^[[:space:]]*# ]] && continue
     [[ "$line" =~ ^[[:space:]]*$ ]] && continue
-    
-    # Parse key=value
-    if [[ "$line" =~ ^([^=]+)=(.*)$ ]]; then
-        key="${line%%=*}"
-        value="${line#*=}"
-        echo "Key: $key, Value: $value"
-    fi
+
+    # Parse key=value using parameter expansion
+    key="${line%%=*}"
+    value="${line#*=}"
+    echo "Key: $key, Value: $value"
 done < config.file
 
-# Validate and parse version numbers
+# Validate and parse version numbers using parameter expansion
 version="v2.5.3-beta"
-if [[ "$version" =~ ^v?([0-9]+)\.([0-9]+)\.([0-9]+)(-.*)?$ ]]; then
-    echo "Major: ${BASH_REMATCH[1]}"  # Note: would need adaptation for PSH
-    echo "Minor: ${BASH_REMATCH[2]}"
-    echo "Patch: ${BASH_REMATCH[3]}"
-fi
+# Strip leading 'v'
+ver="${version#v}"
+# Extract major.minor.patch
+major="${ver%%.*}"
+rest="${ver#*.}"
+minor="${rest%%.*}"
+rest="${rest#*.}"
+patch="${rest%%-*}"
+echo "Major: $major, Minor: $minor, Patch: $patch"
 ```
 
 ## Pattern Matching Best Practices
@@ -449,10 +449,11 @@ fi
 
 While PSH supports many pattern matching features, some limitations exist:
 
-1. **No BASH_REMATCH array** - Captured groups aren't accessible via BASH_REMATCH
-2. **Limited backreferences** - Backreferences may not work in all contexts
-3. **No Perl-style extensions** - Advanced regex features like lookahead/lookbehind aren't supported
-4. **POSIX ERE only** - Extended regular expressions, not Perl-compatible (PCRE)
+1. **No BASH_REMATCH array** - Captured groups in `[[ string =~ regex ]]` aren't accessible via BASH_REMATCH
+2. **No capturing group syntax in regex** - Parenthesized groups in `=~` patterns are not supported by the parser
+3. **Limited backreferences** - Backreferences may not work in all contexts
+4. **No Perl-style extensions** - Advanced regex features like lookahead/lookbehind aren't supported
+5. **POSIX ERE only** - Extended regular expressions, not Perl-compatible (PCRE)
 
 ## Quick Reference Card
 

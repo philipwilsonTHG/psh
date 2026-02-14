@@ -1,6 +1,6 @@
 # Chapter 9: Input/Output Redirection
 
-I/O redirection is one of the most powerful features of the shell, allowing you to control where commands get their input and send their output. PSH supports all standard redirection operators, here documents, here strings, and advanced file descriptor manipulation.
+I/O redirection is one of the most powerful features of the shell, allowing you to control where commands get their input and send their output. PSH supports all standard redirection operators, here documents, here strings, process substitution, and file descriptor manipulation.
 
 ## 9.1 Standard Streams (stdin, stdout, stderr)
 
@@ -20,11 +20,11 @@ psh$ echo $name
 Alice
 
 psh$ ls /nonexistent                 # stderr to terminal
-ls: cannot access '/nonexistent': No such file or directory
+ls: /nonexistent: No such file or directory
 
 # File descriptors
 # 0 = stdin
-# 1 = stdout  
+# 1 = stdout
 # 2 = stderr
 ```
 
@@ -57,28 +57,34 @@ psh$ > empty.txt
 psh$ ls -l empty.txt
 -rw-r--r-- 1 alice alice 0 Jan 15 10:00 empty.txt
 
-# Multiple commands
+# Multiple commands via subshell
 psh$ (echo "Header"; date; echo "Footer") > report.txt
 psh$ cat report.txt
 Header
-Mon Jan 15 10:00:00 PST 2024
+Fri Feb 14 10:00:00 PST 2026
 Footer
+
+# Explicit file descriptor
+psh$ echo "test" 1> output.txt      # Same as >
 ```
 
 ### Preventing Accidental Overwrites
 
 ```bash
-# noclobber option (when implemented)
+# noclobber option prevents overwriting existing files
 psh$ set -o noclobber
-psh$ echo "data" > existing.txt
-psh: existing.txt: cannot overwrite existing file
+psh$ echo "first" > existing.txt     # Creates the file
+psh$ echo "second" > existing.txt    # Fails!
+psh: cannot overwrite existing file: existing.txt
 
-# Force overwrite with >|
-psh$ echo "data" >| existing.txt    # Forces overwrite
+# Append still works with noclobber
+psh$ echo "more" >> existing.txt     # Safe with noclobber
 
-# Or use append
-psh$ echo "data" >> existing.txt    # Safe with noclobber
+# Disable noclobber
+psh$ set +o noclobber
 ```
+
+> **Note:** The `>|` operator (force overwrite despite noclobber) is not currently supported in PSH. To force an overwrite, temporarily disable noclobber with `set +o noclobber`.
 
 ## 9.3 Input Redirection (<)
 
@@ -119,7 +125,7 @@ Number: 3
 Number: 4
 Number: 5
 
-# Sort a file
+# Combined input and output redirection
 psh$ sort < unsorted.txt > sorted.txt
 ```
 
@@ -131,13 +137,10 @@ psh$ sort < unsorted.txt > sorted.txt
 # Redirect stderr to file
 psh$ ls /nonexistent 2> errors.txt
 psh$ cat errors.txt
-ls: cannot access '/nonexistent': No such file or directory
+ls: /nonexistent: No such file or directory
 
 # Append stderr
 psh$ ls /another_nonexistent 2>> errors.txt
-psh$ cat errors.txt
-ls: cannot access '/nonexistent': No such file or directory
-ls: cannot access '/another_nonexistent': No such file or directory
 
 # Discard stderr
 psh$ ls /nonexistent 2> /dev/null
@@ -168,20 +171,16 @@ psh$ if command 2>/dev/null; then
 
 # Capture both streams separately
 psh$ command 1> stdout.txt 2> stderr.txt
-
-# Swap stdout and stderr
-psh$ command 3>&1 1>&2 2>&3 3>&-
-# Complex but occasionally useful
 ```
 
-## 9.5 Combining Streams (2>&1, >&2)
+## 9.5 Combining Streams (2>&1, &>, >&2)
 
 ### Redirecting stderr to stdout
 
 ```bash
 # Send stderr to stdout
 psh$ ls /nonexistent 2>&1
-ls: cannot access '/nonexistent': No such file or directory
+ls: /nonexistent: No such file or directory
 
 # Capture both in a file
 psh$ command > output.txt 2>&1
@@ -192,10 +191,11 @@ psh$ command 2>&1 > output.txt    # Wrong - stderr still to terminal
 # Pipe both stdout and stderr
 psh$ find / -name "*.log" 2>&1 | grep -v "Permission denied"
 
-# Shorthand for > file 2>&1
-psh$ command &> output.txt         # Bash style (if supported)
-psh$ command >& output.txt         # Csh style (if supported)
+# Shorthand for > file 2>&1 (bash style)
+psh$ command &> output.txt
 ```
+
+> **Note:** The csh-style `>& file` syntax is not supported in PSH. Use `&> file` or `> file 2>&1` instead.
 
 ### Redirecting stdout to stderr
 
@@ -249,7 +249,7 @@ Today is $(date)
 Your home is $HOME
 END
 Hello, Alice!
-Today is Mon Jan 15 10:00:00 PST 2024
+Today is Fri Feb 14 10:00:00 PST 2026
 Your home is /home/alice
 
 # Quoted delimiter prevents expansion
@@ -277,7 +277,7 @@ But spaces remain
 #!/usr/bin/env psh
 # Generate configuration files
 
-# Create config file
+# Create config file with variable expansion
 cat > app.conf << EOF
 # Application Configuration
 # Generated on $(date)
@@ -298,7 +298,7 @@ level = ${LOG_LEVEL:-info}
 file = /var/log/app.log
 EOF
 
-# Create SQL script
+# Create SQL script with no expansion (quoted delimiter)
 cat > setup.sql << 'SQL'
 -- Database setup script
 CREATE DATABASE IF NOT EXISTS myapp;
@@ -310,25 +310,7 @@ CREATE TABLE users (
     email VARCHAR(100) UNIQUE NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-
-INSERT INTO users (username, email) VALUES
-    ('admin', 'admin@example.com'),
-    ('user1', 'user1@example.com');
 SQL
-
-# Multi-line message
-mail -s "Report" user@example.com << MESSAGE
-Dear User,
-
-Here is your daily report for $(date +%Y-%m-%d):
-
-System Status: OK
-Disk Usage: $(df -h / | awk 'NR==2 {print $5}')
-Active Users: $(who | wc -l)
-
-Best regards,
-System Administrator
-MESSAGE
 ```
 
 ## 9.7 Here Strings (<<<)
@@ -345,9 +327,6 @@ psh$ name="Alice"
 psh$ read first last <<< "$name Smith"
 psh$ echo "First: $first, Last: $last"
 First: Alice, Last: Smith
-
-# Command output as here string
-psh$ read user host <<< "$(echo $USER@$HOSTNAME)"
 
 # Useful for parsing
 psh$ IFS=: read user pass uid gid rest <<< "root:x:0:0:root:/root:/bin/bash"
@@ -369,40 +348,79 @@ Word: two
 Word: three
 ```
 
-## 9.8 File Descriptors
+## 9.8 Process Substitution (<(), >())
+
+Process substitution lets you use command output as a file, or send output to a command as if writing to a file. This is a bash extension that PSH supports.
+
+### Input Process Substitution (<())
+
+```bash
+# Use command output as a file
+psh$ cat <(echo "hello from process sub")
+hello from process sub
+
+# Compare two command outputs
+psh$ diff <(echo "hello") <(echo "world")
+1c1
+< hello
+---
+> world
+
+# Use with commands that require file arguments
+psh$ diff <(sort file1.txt) <(sort file2.txt)
+
+# Multiple process substitutions
+psh$ paste <(seq 1 3) <(seq 4 6)
+1	4
+2	5
+3	6
+```
+
+### Output Process Substitution (>())
+
+```bash
+# Send output to a command
+psh$ echo "test data" > >(cat)
+test data
+
+# Tee-like behavior with multiple destinations
+psh$ echo "log entry" | tee >(grep "log" > matches.txt)
+```
+
+## 9.9 File Descriptors
 
 Beyond standard streams, you can work with custom file descriptors:
 
+### Writing to Custom File Descriptors
+
 ```bash
-# Open file descriptor for reading
-psh$ exec 3< input.txt
-
-# Read from descriptor 3
-psh$ read line <&3
-psh$ echo "First line: $line"
-
 # Open file descriptor for writing
 psh$ exec 4> output.txt
 
 # Write to descriptor 4
 psh$ echo "Hello" >&4
+psh$ echo "World" >&4
 
-# Close file descriptors
-psh$ exec 3<&-
+# Close file descriptor
 psh$ exec 4>&-
 
-# Duplicate file descriptors
-psh$ exec 5>&1      # Save stdout
-psh$ exec 1> log.txt # Redirect stdout
-psh$ echo "This goes to log"
-psh$ exec 1>&5      # Restore stdout
-psh$ exec 5>&-      # Close saved descriptor
-
-# Read and write to same file
-psh$ exec 3<> file.txt
+psh$ cat output.txt
+Hello
+World
 ```
 
-### Advanced File Descriptor Usage
+### Saving and Restoring Streams
+
+```bash
+# Save stdout, redirect, then restore
+psh$ exec 5>&1        # Save stdout to fd 5
+psh$ exec 1> log.txt  # Redirect stdout to file
+psh$ echo "This goes to log"
+psh$ exec 1>&5        # Restore stdout
+psh$ exec 5>&-        # Close saved descriptor
+```
+
+### Logging with Multiple File Descriptors
 
 ```bash
 #!/usr/bin/env psh
@@ -410,7 +428,7 @@ psh$ exec 3<> file.txt
 
 # Setup logging
 exec 3> debug.log    # Debug messages
-exec 4> info.log     # Info messages  
+exec 4> info.log     # Info messages
 exec 5> error.log    # Error messages
 
 # Logging functions
@@ -425,7 +443,6 @@ info "Processing files"
 for file in *.txt; do
     if [ -f "$file" ]; then
         info "Processing $file"
-        debug "File size: $(wc -c < "$file")"
     else
         error "File not found: $file"
     fi
@@ -433,25 +450,17 @@ done
 
 # Cleanup
 exec 3>&- 4>&- 5>&-
-
-# Temporary redirection
-{
-    echo "This block"
-    echo "goes to"
-    echo "block.txt"
-} > block.txt
-
-# Swapping streams
-swap_streams() {
-    # Swap stdout and stderr
-    "$@" 3>&1 1>&2 2>&3 3>&-
-}
-
-# Test it
-swap_streams echo "This goes to stderr"
 ```
 
-## 9.9 Redirections on Control Structures
+### Current Limitations
+
+The following file descriptor operations are not yet supported in PSH:
+
+- **Read-write descriptors** (`exec 3<> file`): Opening a file descriptor for both reading and writing is not supported.
+- **Reading from custom descriptors**: `exec 3< file` followed by `read line <&3` does not work reliably. As a workaround, use input redirection directly (`read line < file`) or command substitution.
+- **File descriptor swapping** (`3>&1 1>&2 2>&3 3>&-`): Complex fd manipulation chains involving three-way swaps do not work.
+
+## 9.10 Redirections on Control Structures
 
 PSH allows redirections on entire control structures:
 
@@ -473,19 +482,14 @@ psh$ while read line; do
 >     echo "Processing: $line"
 > done < input.txt > output.txt 2> errors.txt
 
-# Redirect to loop input
-psh$ for word in $(cat < words.txt); do
->     echo "Word: $word"
-> done
-
 # Append mode
 psh$ for file in *.log; do
->     echo "=== $file ===" 
+>     echo "=== $file ==="
 >     cat "$file"
 > done >> combined.log
 ```
 
-### Conditional Redirections
+### Conditional and Case Redirections
 
 ```bash
 # Redirect if statement
@@ -499,52 +503,21 @@ psh$ if [ -f data.txt ]; then
 psh$ case "$option" in
 >     start)
 >         echo "Starting service..."
->         systemctl start myservice
 >         ;;
 >     stop)
 >         echo "Stopping service..."
->         systemctl stop myservice
 >         ;;
 > esac 2> service_errors.log
 
-# Function with redirection
-process_files() {
-    for file in "$@"; do
-        echo "Processing $file"
-        # Process file
-    done
-} > process.log 2>&1
+# Brace group with redirection
+{
+    echo "Line 1"
+    echo "Line 2"
+    echo "Line 3"
+} > output.txt
 ```
 
 ## Practical Examples
-
-### Log File Processor
-
-```bash
-#!/usr/bin/env psh
-# Advanced log processing with I/O redirection
-
-# Create named pipes for real-time processing
-mkfifo /tmp/errors.pipe /tmp/warnings.pipe /tmp/info.pipe 2>/dev/null
-
-# Start background processors
-grep ERROR < /tmp/errors.pipe > errors.log &
-ERROR_PID=$!
-
-grep WARN < /tmp/warnings.pipe > warnings.log &
-WARN_PID=$!
-
-grep INFO < /tmp/info.pipe > info.log &
-INFO_PID=$!
-
-# Process main log
-tail -f /var/log/app.log | while read line; do
-    echo "$line" | tee /tmp/errors.pipe /tmp/warnings.pipe /tmp/info.pipe > all.log
-done
-
-# Cleanup on exit
-trap "kill $ERROR_PID $WARN_PID $INFO_PID; rm -f /tmp/*.pipe" EXIT
-```
 
 ### Backup Script with Logging
 
@@ -590,12 +563,12 @@ backup_directory() {
     local src="$1"
     local name="$(basename "$src")"
     local target="$BACKUP_DIR/${name}_$DATE.tar.gz"
-    
+
     log "Backing up $src to $target"
-    
+
     if tar -czf "$target" -C "$(dirname "$src")" "$name" 2>&1; then
         local size=$(du -h "$target" | cut -f1)
-        show "✓ $name backed up successfully ($size)"
+        show "$name backed up successfully ($size)"
     else
         error "Failed to backup $name"
         return 1
@@ -617,86 +590,6 @@ log "Disk usage: $(df -h "$BACKUP_DIR" | tail -1)"
 
 # Restore descriptors
 exec 1>&4 4>&- 3>&-
-
-# Email report
-mail -s "Backup Report $DATE" admin@example.com < "$LOG_DIR/backup_$DATE.log"
-```
-
-### Interactive Script with Clean I/O
-
-```bash
-#!/usr/bin/env psh
-# Interactive menu with proper I/O handling
-
-# Save and restore terminal
-exec 5<&0  # Save stdin
-exec 6>&1  # Save stdout
-
-# Temporary files for output
-TEMP_OUT=$(mktemp)
-TEMP_ERR=$(mktemp)
-
-# Cleanup function
-cleanup() {
-    exec 0<&5 5<&-  # Restore stdin
-    exec 1>&6 6>&-  # Restore stdout
-    rm -f "$TEMP_OUT" "$TEMP_ERR"
-}
-trap cleanup EXIT
-
-# Menu function
-show_menu() {
-    cat << 'MENU'
-=== System Tools ===
-1) Show system info
-2) Check disk space  
-3) View process list
-4) Network status
-5) Exit
-MENU
-}
-
-# Process choice with output capture
-process_choice() {
-    local choice=$1
-    
-    # Capture output and errors
-    case $choice in
-        1) uname -a; uptime; free -h ;;
-        2) df -h ;;
-        3) ps aux | head -20 ;;
-        4) netstat -tln 2>/dev/null || ss -tln ;;
-        5) return 1 ;;
-        *) echo "Invalid choice" >&2; return 0 ;;
-    esac > "$TEMP_OUT" 2> "$TEMP_ERR"
-    
-    # Display results
-    if [ -s "$TEMP_OUT" ]; then
-        echo -e "\n--- Output ---"
-        cat "$TEMP_OUT"
-    fi
-    
-    if [ -s "$TEMP_ERR" ]; then
-        echo -e "\n--- Errors ---" >&2
-        cat "$TEMP_ERR" >&2
-    fi
-    
-    return 0
-}
-
-# Main loop
-while true; do
-    show_menu
-    read -p "Enter choice: " choice
-    
-    process_choice "$choice" || break
-    
-    echo -e "\nPress Enter to continue..."
-    read
-    clear
-done
-
-echo "Goodbye!"
 ```
 
 ### Data Pipeline Builder
@@ -720,15 +613,9 @@ transform_data() {
     local format="$1"
     case "$format" in
         csv)
-            # Convert to CSV
             awk '{print $1","$2","$3}'
             ;;
-        json)
-            # Convert to JSON
-            awk '{print "{\"col1\":\""$1"\",\"col2\":\""$2"\",\"col3\":\""$3"\"}"}'
-            ;;
         tsv)
-            # Tab-separated
             awk '{print $1"\t"$2"\t"$3}'
             ;;
     esac
@@ -740,16 +627,15 @@ process_file() {
     local output="$2"
     local format="${3:-csv}"
     local errors="errors_$(date +%s).log"
-    
+
     {
         extract_data "$input" |
-        grep -v "^#" |              # Remove comments
-        sed 's/[[:space:]]\+/ /g' | # Normalize whitespace  
+        grep -v "^#" |
         transform_data "$format" |
         sort |
         uniq
     } > "$output" 2> "$errors"
-    
+
     # Check results
     if [ -s "$errors" ]; then
         echo "Errors occurred during processing:" >&2
@@ -757,13 +643,12 @@ process_file() {
     else
         rm -f "$errors"
     fi
-    
+
     echo "Processed $(wc -l < "$output") lines"
 }
 
 # Usage
 process_file "data.txt.gz" "output.csv" "csv"
-process_file "logs.bz2" "output.json" "json"
 ```
 
 ## Common Patterns and Tips
@@ -812,19 +697,26 @@ I/O redirection in PSH provides powerful control over data flow:
 
 1. **Basic Redirection**: `>` (overwrite), `>>` (append), `<` (input)
 2. **Error Handling**: `2>`, `2>>`, `2>&1` for stderr management
-3. **Here Documents**: `<<` for multi-line input
-4. **Here Strings**: `<<<` for single-line input
-5. **File Descriptors**: Advanced I/O with numbered descriptors
-6. **Combined Redirections**: Multiple streams to different destinations
-7. **Control Structure Redirections**: Redirect entire loops and conditionals
+3. **Combined Output**: `&>` redirects both stdout and stderr
+4. **Here Documents**: `<<` for multi-line input, `<<-` for tab-stripped input
+5. **Here Strings**: `<<<` for single-line input
+6. **Process Substitution**: `<()` and `>()` for using commands as files
+7. **File Descriptors**: Writing to custom descriptors (3-9) with `exec`
+8. **Control Structure Redirections**: Redirect entire loops, conditionals, and groups
+9. **noclobber**: Prevent accidental overwrites with `set -o noclobber`
 
 Key concepts:
 - Three standard streams: stdin (0), stdout (1), stderr (2)
 - Redirection order matters: `> file 2>&1` vs `2>&1 > file`
-- Use `2>&1` to combine stderr with stdout
-- Here documents can expand variables or be literal
-- File descriptors enable complex I/O patterns
-- Always handle errors appropriately
+- Use `2>&1` or `&>` to combine stderr with stdout
+- Here documents can expand variables or be literal (quoted delimiter)
+- Process substitution enables powerful file-based command composition
+
+Current limitations:
+- `>|` (force clobber) is not supported; disable noclobber instead
+- `>& file` (csh-style) is not supported; use `&> file`
+- Read-write file descriptors (`exec 3<> file`) are not supported
+- Complex fd swapping chains do not work
 
 I/O redirection is fundamental to shell scripting, enabling log files, error handling, data processing pipelines, and clean separation of output types. In the next chapter, we'll explore pipelines and command lists.
 

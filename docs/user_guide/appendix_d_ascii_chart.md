@@ -219,10 +219,9 @@ echo -e "\x41"          # Prints 'A' (hex)
 echo -e "\101"          # Prints 'A' (octal)
 echo -e "\u0041"        # Prints 'A' (Unicode)
 
-# Using printf (more portable)
-printf "%c" 65          # Prints 'A' (decimal)
-printf "\x41"           # Prints 'A' (hex)
-printf "\101"           # Prints 'A' (octal)
+# Using printf
+printf "\x41\n"         # Prints 'A' (hex)
+printf "\101\n"         # Prints 'A' (octal)
 
 # Control characters
 echo -e "\a"            # Bell (ASCII 7)
@@ -231,20 +230,20 @@ echo -e "\t"            # Tab (ASCII 9)
 echo -e "\n"            # Newline (ASCII 10)
 ```
 
+> **Note:** PSH's `printf "%c" 65` interprets the number as an ASCII code and prints 'A'. In bash, `printf "%c" 65` prints '6' (first character of the string "65"). This is a behavioral difference.
+
 ### Character Code Conversions
 
 ```bash
-# Get ASCII value of a character
-char="A"
-printf "%d\n" "'$char"  # Prints 65
-
 # Convert ASCII value to character
 ascii=65
 printf "%c\n" $ascii    # Prints 'A'
 
 # Hex to character
-printf "\x$(printf %x 65)\n"  # Prints 'A'
+printf "\x41\n"          # Prints 'A'
 ```
+
+> **Note:** The bash syntax `printf "%d" "'A"` (character to ASCII value) is not supported in PSH.
 
 ## Escape Sequences
 
@@ -256,7 +255,7 @@ PSH supports various escape sequences in strings:
 |----------|-------|-------------|---------|
 | `\a` | 7 | Alert (bell) | `echo -e "\a"` |
 | `\b` | 8 | Backspace | `echo -e "abc\b"` |
-| `\e` | 27 | Escape | `echo -e "\e[31mRed\e[0m"` |
+| `\e` | 27 | Escape (not supported in PSH echo/printf) | N/A |
 | `\f` | 12 | Form feed | `echo -e "Page\fBreak"` |
 | `\n` | 10 | Newline | `echo -e "Line1\nLine2"` |
 | `\r` | 13 | Carriage return | `echo -e "abc\rXYZ"` |
@@ -286,48 +285,24 @@ str="Hello World"
 echo "${str^^}"    # HELLO WORLD (uppercase)
 echo "${str,,}"    # hello world (lowercase)
 echo "${str^}"     # Hello World (capitalize first)
-
-# Character-by-character conversion
-char="a"
-# Convert to uppercase: add 32 to lowercase ASCII
-upper_ascii=$(($(printf "%d" "'$char") - 32))
-printf "%c\n" $upper_ascii  # Prints 'A'
 ```
 
 ### Character Classification
 
 ```bash
-# Check if character is alphabetic
+# Check if character is alphabetic (using pattern matching)
 is_alpha() {
-    local char="$1"
-    local ascii=$(printf "%d" "'$char")
-    if ((ascii >= 65 && ascii <= 90)) || ((ascii >= 97 && ascii <= 122)); then
-        return 0
-    else
-        return 1
-    fi
+    [[ "$1" =~ ^[a-zA-Z]$ ]]
 }
 
-# Check if character is digit
+# Check if character is a digit
 is_digit() {
-    local char="$1"
-    local ascii=$(printf "%d" "'$char")
-    if ((ascii >= 48 && ascii <= 57)); then
-        return 0
-    else
-        return 1
-    fi
+    [[ "$1" =~ ^[0-9]$ ]]
 }
 
-# Check if character is printable
-is_printable() {
-    local char="$1"
-    local ascii=$(printf "%d" "'$char")
-    if ((ascii >= 32 && ascii <= 126)); then
-        return 0
-    else
-        return 1
-    fi
+# Check if string is alphanumeric
+is_alnum() {
+    [[ "$1" =~ ^[a-zA-Z0-9]+$ ]]
 }
 ```
 
@@ -336,32 +311,14 @@ is_printable() {
 ### ROT13 Cipher
 
 ```bash
-# Simple ROT13 implementation
+# ROT13 using tr (the standard Unix approach)
 rot13() {
-    local input="$1"
-    local output=""
-    local i char ascii
-    
-    for ((i = 0; i < ${#input}; i++)); do
-        char="${input:i:1}"
-        ascii=$(printf "%d" "'$char")
-        
-        if ((ascii >= 65 && ascii <= 90)); then
-            # Uppercase
-            ascii=$(((ascii - 65 + 13) % 26 + 65))
-        elif ((ascii >= 97 && ascii <= 122)); then
-            # Lowercase
-            ascii=$(((ascii - 97 + 13) % 26 + 97))
-        fi
-        
-        output="${output}$(printf "%c" $ascii)"
-    done
-    
-    echo "$output"
+    echo "$1" | tr 'A-Za-z' 'N-ZA-Mn-za-m'
 }
 
 # Usage
 rot13 "Hello World"  # Outputs: Uryyb Jbeyq
+rot13 "Uryyb Jbeyq"  # Outputs: Hello World
 ```
 
 ### ASCII Art Box
@@ -396,61 +353,40 @@ draw_box() {
 }
 ```
 
-### Character Frequency Counter
+### Character Counter
 
 ```bash
-# Count character frequencies in text
-char_frequency() {
-    local text="$1"
-    local i char ascii
-    local -a freq
-    
-    # Initialize frequency array
-    for ((i = 0; i < 128; i++)); do
-        freq[i]=0
-    done
-    
-    # Count characters
-    for ((i = 0; i < ${#text}; i++)); do
-        char="${text:i:1}"
-        ascii=$(printf "%d" "'$char")
-        if ((ascii < 128)); then
-            ((freq[ascii]++))
-        fi
-    done
-    
-    # Display results
-    echo "Character frequencies:"
-    for ((i = 32; i < 127; i++)); do
-        if ((freq[i] > 0)); then
-            printf "%c: %d\n" $i ${freq[i]}
-        fi
-    done
+# Count unique characters in text using fold, sort, and uniq
+char_count() {
+    echo "Character frequencies in: $1"
+    echo "$1" | fold -w 1 | sort | uniq -c | sort -rn
 }
+
+# Usage
+char_count "hello world"
 ```
 
 ### Terminal Color Codes
 
-```bash
-# ANSI escape sequences for colors
-print_colors() {
-    local i
-    
-    echo "Basic Colors:"
-    for ((i = 30; i <= 37; i++)); do
-        echo -e "\e[${i}mColor $i\e[0m"
-    done
-    
-    echo -e "\nBright Colors:"
-    for ((i = 90; i <= 97; i++)); do
-        echo -e "\e[${i}mColor $i\e[0m"
-    done
-    
-    echo -e "\nBackground Colors:"
-    for ((i = 40; i <= 47; i++)); do
-        echo -e "\e[${i}mBackground $i\e[0m"
-    done
-}
+ANSI color codes use escape sequences to change terminal text colors. While PSH does not currently support `\e` or `\033` escape sequences in `echo -e` or `printf`, these codes are documented here for reference as they are used extensively in shell scripting.
+
+```
+# ANSI color escape sequence format:
+# \e[CODEm or \033[CODEm
+
+# Foreground colors (30-37):
+30 = Black    31 = Red      32 = Green    33 = Yellow
+34 = Blue     35 = Magenta  36 = Cyan     37 = White
+
+# Bright foreground (90-97):
+90 = Bright Black   91 = Bright Red   92 = Bright Green
+93 = Bright Yellow  94 = Bright Blue  95 = Bright Magenta
+
+# Background colors (40-47):
+40 = Black    41 = Red      42 = Green    43 = Yellow
+44 = Blue     45 = Magenta  46 = Cyan     47 = White
+
+# Reset: \e[0m
 ```
 
 ## ASCII Quick Reference

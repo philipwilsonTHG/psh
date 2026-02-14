@@ -7,10 +7,11 @@ PSH (Python Shell) is an educational Unix shell implementation written in Python
 ### Key Characteristics
 
 - **Educational Focus**: Every component is written for clarity over performance
-- **Hand-written Parser**: Uses recursive descent parsing for transparency
-- **Component Architecture**: Clean separation of concerns makes it easy to understand
-- **Comprehensive Features**: Implements 60+ shell features for real-world usability
+- **Hand-written Parser**: Uses recursive descent parsing for transparency, with an experimental combinator parser available
+- **Component Architecture**: Clean separation of concerns with visitor pattern for AST operations
+- **Comprehensive Features**: Implements 90+ shell features for real-world usability
 - **Pure Python**: No C extensions or complex dependencies
+- **Near-POSIX Compliance**: ~93% POSIX compliance as measured by conformance tests
 
 ## 1.2 Educational Purpose and Design Philosophy
 
@@ -22,14 +23,14 @@ PSH was created to demystify shell internals. When learning about shells, compil
 2. **Explicit Over Implicit**: Magic is minimized; behavior is clear
 3. **Modular Design**: Each component has a single, well-defined purpose
 4. **Progressive Complexity**: Simple features are implemented simply
-5. **Comprehensive Testing**: 2200+ tests demonstrate usage and ensure correctness
+5. **Comprehensive Testing**: 3,450+ tests demonstrate usage and ensure correctness
 
 ### Learning Opportunities
 
 By studying PSH, you can learn about:
-- Lexical analysis with unified token system (v0.91.3+)
+- Lexical analysis with a modular recognizer architecture
 - Recursive descent parsing with comprehensive validation
-- Abstract Syntax Trees (ASTs) and visitor patterns
+- Abstract Syntax Trees (ASTs) and the visitor pattern
 - Command execution and process management
 - I/O redirection and pipelines
 - Variable scoping and expansion
@@ -64,16 +65,16 @@ After installation, you can run PSH in several ways:
 
 ```bash
 # Start interactive shell
-psh
+python -m psh
 
 # Execute a single command
-psh -c "echo Hello, World!"
+python -m psh -c "echo Hello, World!"
 
 # Run a script
-psh script.sh
+python -m psh script.sh
 
 # Run with debugging
-psh --debug-ast -c "echo test"
+python -m psh --debug-ast -c "echo test"
 ```
 
 ### First Time Setup
@@ -95,7 +96,7 @@ Let's explore PSH with a quick hands-on tutorial.
 Start PSH and try these commands:
 
 ```bash
-$ psh
+$ python -m psh
 psh$ echo "Hello, PSH!"
 Hello, PSH!
 

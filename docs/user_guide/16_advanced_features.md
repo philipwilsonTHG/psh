@@ -2,9 +2,9 @@
 
 PSH includes several advanced features that provide powerful capabilities for complex scripting and interactive use. These features extend the shell's functionality beyond basic command execution, offering sophisticated text processing, debugging tools, and enhanced control structures.
 
-## 16.1 Control Structures in Pipelines (v0.37.0) 🚀
+## 16.1 Control Structures in Pipelines
 
-PSH v0.37.0 introduces the ability to use control structures as pipeline components.
+PSH supports using control structures as pipeline components.
 
 ### Overview
 
@@ -198,15 +198,13 @@ psh$ echo <(echo hello)
 psh$ echo <(echo one) <(echo two) <(echo three)
 /dev/fd/63 /dev/fd/62 /dev/fd/61
 
-# Process substitution with exec
-psh$ exec 3< <(seq 1 10)
-psh$ read -u 3 line
+# Read from process substitution via redirection
+psh$ read line < <(echo hello)
 psh$ echo $line
-1
-psh$ exec 3<&-  # Close the descriptor
+hello
 ```
 
-## 16.2 Enhanced Test Operators [[ ]]
+## 16.3 Enhanced Test Operators [[ ]]
 
 The `[[ ]]` construct provides enhanced testing capabilities with better syntax and additional operators compared to the traditional `[` command.
 
@@ -229,39 +227,38 @@ Safe without quotes
 psh$ [[ "hello.txt" == *.txt ]] && echo "Text file"
 Text file
 
-psh$ [[ "document.pdf" == *.@(pdf|doc) ]] && echo "Document"
-Document
+# Note: Extended glob patterns like @(pdf|doc) are not supported
+# Use standard glob patterns instead:
+psh$ [[ "document.pdf" == *.pdf ]] && echo "PDF Document"
+PDF Document
 ```
 
 ### Regular Expression Matching
 
 ```bash
 # =~ operator for regex matching
-psh$ [[ "user@example.com" =~ ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$ ]]
+psh$ [[ "user@example.com" =~ ^[a-zA-Z0-9]+@[a-zA-Z0-9]+\.[a-zA-Z]+$ ]]
 psh$ echo $?
 0
 
-# Capture groups (when supported)
-psh$ string="Version 2.4.6"
-psh$ if [[ "$string" =~ Version[[:space:]]([0-9]+)\.([0-9]+)\.([0-9]+) ]]; then
->     echo "Major: ${BASH_REMATCH[1]}"
->     echo "Minor: ${BASH_REMATCH[2]}"
->     echo "Patch: ${BASH_REMATCH[3]}"
-> fi
-
 # Common regex patterns
-psh$ # IP address validation
 psh$ ip="192.168.1.1"
-psh$ [[ "$ip" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]
+psh$ [[ "$ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] && echo "Valid IP format"
+Valid IP format
 
-psh$ # Phone number
 psh$ phone="123-456-7890"
-psh$ [[ "$phone" =~ ^[0-9]{3}-[0-9]{3}-[0-9]{4}$ ]]
+psh$ [[ "$phone" =~ ^[0-9]+-[0-9]+-[0-9]+$ ]] && echo "Phone number"
+Phone number
 
-psh$ # File extension check
 psh$ file="script.sh"
-psh$ [[ "$file" =~ \.(sh|bash|zsh)$ ]] && echo "Shell script"
+psh$ [[ "$file" =~ \.sh$ ]] && echo "Shell script"
+Shell script
 ```
+
+> **Note:** The `=~` operator works for true/false matching, but
+> `BASH_REMATCH` capture groups are not populated in PSH v0.187.1.
+> Use alternative parsing techniques (parameter expansion, `grep -o`,
+> `sed`, or `awk`) if you need to extract matched substrings.
 
 ### Compound Conditions
 
@@ -309,7 +306,7 @@ psh$ [[ "file.txt" == *.txt ]] # Works correctly
 # == with patterns
 ```
 
-## 16.3 Debug and Diagnostic Features
+## 16.4 Debug and Diagnostic Features
 
 PSH provides powerful debugging capabilities to help understand script execution and troubleshoot issues.
 
@@ -457,7 +454,7 @@ emacs          on
 vi             off
 ```
 
-## 16.4 Advanced Parameter Expansion
+## 16.5 Advanced Parameter Expansion
 
 PSH supports sophisticated parameter expansion operations for string manipulation, including special handling for array variables.
 
@@ -647,32 +644,21 @@ hEllO wOrld
 
 ### Variable Name Matching
 
+> **Note:** The `${!prefix*}` and `${!prefix@}` variable name prefix
+> matching feature is not fully implemented in PSH v0.187.1. It currently
+> lists all shell variables rather than filtering by prefix. Use `env`
+> or `set` with `grep` as a workaround:
+
 ```bash
-# List variables by prefix
-psh$ PATH_HOME=/home
-psh$ PATH_BIN=/bin
-psh$ PATH_LIB=/lib
-psh$ echo ${!PATH*}
-PATH PATH_BIN PATH_HOME PATH_LIB
+# Workaround for listing variables by prefix
+psh$ env | grep '^PATH'
+PATH=/usr/local/bin:/usr/bin:/bin
 
-psh$ echo ${!PATH@}
-PATH PATH_BIN PATH_HOME PATH_LIB
-
-# Practical use
-psh$ # Find all LC_ variables
-psh$ echo ${!LC_*}
-LC_ALL LC_CTYPE LC_TIME
-
-# In loops
-psh$ for var in ${!USER*}; do
->     echo "$var=${!var}"
-> done
+psh$ set | grep '^USER'
 USER=alice
-USERNAME=alice
-USER_HOME=/home/alice
 ```
 
-## 16.5 Arithmetic Commands
+## 16.6 Arithmetic Commands
 
 The `(( ))` construct provides arithmetic evaluation with conditional exit status.
 
@@ -772,7 +758,7 @@ psh$ for ((;;)); do
 > done
 ```
 
-## 16.6 Advanced I/O Features
+## 16.7 Advanced I/O Features
 
 ### Advanced Redirections
 
@@ -804,80 +790,90 @@ test pattern string
 ### Advanced Read Options
 
 ```bash
-# Read with prompt
+# Read with prompt (interactive mode)
 psh$ read -p "Enter your name: " name
 Enter your name: Alice
 psh$ echo "Hello, $name"
 Hello, Alice
 
-# Silent reading (passwords)
-psh$ read -s -p "Password: " password
-Password: 
-psh$ echo    # New line after silent input
-
-# Read with timeout
-psh$ if read -t 5 -p "Quick! Enter something: " response; then
->     echo "You entered: $response"
-> else
->     echo "Too slow! (timeout)"
-> fi
-
-# Read exact number of characters
-psh$ read -n 4 -p "Enter 4-digit PIN: " pin
-Enter 4-digit PIN: 1234psh$ echo
-psh$ echo "PIN: $pin"
-PIN: 1234
+# Raw mode (no backslash processing)
+psh$ read -r var <<< "hello\world"
+psh$ echo "$var"
+hello\world
 
 # Custom delimiter
-psh$ read -d ':' -p "Enter data (end with :): " data
-Enter data (end with :): hello world:psh$ echo
-psh$ echo "Data: $data"
-Data: hello world
+psh$ read -d ':' var <<< "hello:world"
+psh$ echo "$var"
+hello
+
+# Read from file redirection
+psh$ echo "data" > file.txt
+psh$ read var < file.txt
+psh$ echo "$var"
+data
+
+# Read from process substitution
+psh$ read var < <(echo "hello")
+psh$ echo "$var"
+hello
 ```
 
-## 16.7 Advanced Shell Options and Debugging
+> **Note:** The `read -n` (character count), `read -t` (timeout),
+> `read -s` (silent), and `read -u` (file descriptor) options are
+> not supported in PSH v0.187.1. Use alternative approaches:
+> `stty -echo` for silent input, or file redirection instead of
+> `read -u`.
+
+## 16.8 Advanced Shell Options and Debugging
 
 ### Runtime Configuration
 
 ```bash
 # View all options
 psh$ set -o
-debug-ast            off
-debug-exec           off
-debug-exec-fork      off
-debug-expansion      off
-debug-expansion-detail off
-debug-scopes         off
-debug-tokens         off
-emacs                on
-errexit              off
-nounset              off
-pipefail             off
-vi                   off
-xtrace               off
+allexport      	off
+braceexpand    	on
+emacs          	on
+errexit        	off
+histexpand     	on
+ignoreeof      	off
+monitor        	off
+noclobber      	off
+noexec         	off
+noglob         	off
+nolog          	off
+notify         	off
+nounset        	off
+pipefail       	off
+posix          	off
+verbose        	off
+vi             	off
+xtrace         	off
 
 # Enable shell options
 psh$ set -e              # Exit on error (errexit)
 psh$ set -u              # Error on undefined variables (nounset)
 psh$ set -x              # Print commands before execution (xtrace)
 psh$ set -o pipefail     # Pipeline fails if any command fails
+psh$ set -o noclobber    # Prevent file overwriting with >
+psh$ set -o allexport    # Export all variables on assignment
 
-# Enable debug options
-psh$ set -o debug-ast              # AST debugging
-psh$ set -o debug-tokens           # Token debugging
-psh$ set -o debug-scopes           # Variable scope debugging
+# Enable debug options via set -o
 psh$ set -o debug-expansion        # Expansion debugging
-psh$ set -o debug-expansion-detail # Detailed expansion debugging
 psh$ set -o debug-exec             # Execution debugging
-psh$ set -o debug-exec-fork        # Fork/exec debugging
+psh$ set -o debug-parser           # Parser debugging
+
+# Or use command-line flags for full debug output
+psh$ psh --debug-ast -c 'echo hello'
+psh$ psh --debug-tokens -c 'echo hello'
 
 # Disable options
 psh$ set +e              # Disable errexit
-psh$ set +o debug-ast    # Disable AST debugging
+psh$ set +o debug-expansion
 
 # Combine options
 psh$ set -eux            # Enable errexit, nounset, xtrace
-psh$ set -o debug-expansion -o debug-exec  # Multiple debug options
+psh$ set -eu -o pipefail # Strict mode
 ```
 
 ### Advanced Debugging Techniques
@@ -887,57 +883,45 @@ psh$ set -o debug-expansion -o debug-exec  # Multiple debug options
 psh$ set -o debug-expansion
 psh$ VAR="hello"
 psh$ echo ${VAR^^}
-[EXPANSION] Expanding command: ['echo', '${VAR^^}']
-[EXPANSION] Result: ['echo', 'HELLO']
+[EXPANSION] Expanding Word AST command: ['echo', '${VAR^^}']
+[EXPANSION] Word AST Result: ['echo', 'HELLO']
 HELLO
 
-# Debug command execution paths
-psh$ set -o debug-exec
-psh$ echo test | cat
-[EXEC] PipelineExecutor: SimpleCommand(args=['echo', 'test']) | SimpleCommand(args=['cat'])
-[EXEC] CommandExecutor: ['echo', 'test']
-[EXEC]   Executing builtin: echo
-[EXEC] CommandExecutor: ['cat']
-[EXEC]   Executing external: cat
-test
+# Use command-line flags for AST and token debugging
+psh$ psh --debug-ast -c 'echo hello'
+=== AST Debug Output (recursive_descent) ===
+... StatementList -> AndOrList -> Pipeline -> SimpleCommand ...
+======================
+hello
 
-# Trace fork/exec operations
-psh$ set -o debug-exec-fork
-psh$ ls | head -n 1
-[EXEC-FORK] Forking for pipeline command 1/2: SimpleCommand(args=['ls'])
-[EXEC-FORK] Pipeline child 12345: executing command 1
-[EXEC-FORK] Forking for pipeline command 2/2: SimpleCommand(args=['head', '-n', '1'])
-[EXEC-FORK] Pipeline child 12346: executing command 2
-file.txt
+psh$ psh --debug-tokens -c 'echo hello'
+=== Token Debug Output ===
+  [  0] WORD                 'echo'
+  [  1] WORD                 'hello'
+  [  2] EOF                  ''
+========================
+hello
 
-# Combine with traditional debugging
+# Combine xtrace with expansion debugging
 psh$ set -x -o debug-expansion
 psh$ FILE="test.txt"
 + FILE=test.txt
-[EXPANSION] Expanding command: ['FILE=test.txt']
-[EXPANSION] Result: ['FILE=test.txt']
-psh$ [ -f "$FILE" ] && echo "exists"
-+ '[' -f test.txt ']'
-[EXPANSION] Expanding command: ['[', '-f', '$FILE', ']']
-[EXPANSION] Result: ['[', '-f', 'test.txt', ']']
-+ echo exists
-[EXPANSION] Expanding command: ['echo', 'exists']
-[EXPANSION] Result: ['echo', 'exists']
-exists
+psh$ echo $FILE
+[EXPANSION] Expanding Word AST command: ['echo', '$FILE']
+[EXPANSION] Word AST Result: ['echo', 'test.txt']
++ echo test.txt
+test.txt
 
 # Debug function for specific commands
 psh$ debug_cmd() {
->     set -o debug-expansion -o debug-exec
+>     set -o debug-expansion
 >     "$@"
->     set +o debug-expansion +o debug-exec
+>     set +o debug-expansion
 > }
-psh$ debug_cmd echo $USER
-[EXPANSION] Expanding command: ['echo', '$USER']
-[EXPANSION] Result: ['echo', 'alice']
-[EXEC] PipelineExecutor: SimpleCommand(args=['echo', '$USER'])
-[EXEC] CommandExecutor: ['echo', 'alice']
-[EXEC]   Executing builtin: echo
-alice
+psh$ debug_cmd echo $HOME
+[EXPANSION] Expanding Word AST command: ['echo', '/Users/user']
+[EXPANSION] Word AST Result: ['echo', '/Users/user']
+/Users/user
 ```
 
 ### Advanced Prompt Features
@@ -970,24 +954,23 @@ psh$ PS1='[$SECONDS] \u@\h:\w\$ '
 [2] user@host:~$ 
 ```
 
-## 16.8 Advanced Scripting Patterns
+## 16.9 Advanced Scripting Patterns
 
 ### Error Handling Patterns
 
 ```bash
 #!/usr/bin/env psh
 
-# Error handler with line numbers
+# Error handler
 error_handler() {
-    local line_no=$1
-    local exit_code=$2
-    echo "Error on line $line_no: Command exited with status $exit_code" >&2
+    local exit_code=$1
+    echo "Error: Command exited with status $exit_code" >&2
     exit $exit_code
 }
 
 # Wrapper for safe execution
 safe_exec() {
-    "$@" || error_handler ${BASH_LINENO[0]} $?
+    "$@" || error_handler $?
 }
 
 # Usage
@@ -1004,18 +987,13 @@ psh$ for file in *.txt; do
 > done
 > wait  # Wait for all background jobs
 
-# Limited parallelism
-psh$ max_jobs=4
-psh$ job_count=0
-psh$ for file in *.txt; do
->     process_file "$file" &
->     ((job_count++))
->     if ((job_count >= max_jobs)); then
->         wait -n  # Wait for any job to finish
->         ((job_count--))
->     fi
-> done
-> wait  # Wait for remaining jobs
+# Note: wait -n is not supported in PSH.
+# Use wait (all jobs) or wait with specific PIDs:
+psh$ cmd1 &
+psh$ pid1=$!
+psh$ cmd2 &
+psh$ pid2=$!
+psh$ wait $pid1 $pid2
 ```
 
 ### Advanced Function Patterns
@@ -1204,7 +1182,7 @@ psh$ validate_and_eval() {
 > }
 ```
 
-## 16.9 Integration with External Tools
+## 16.10 Integration with External Tools
 
 ### Advanced Pipeline Patterns
 
@@ -1235,7 +1213,7 @@ psh$ tail -f application.log | \
 >     done
 ```
 
-## 16.10 Performance Optimization
+## 16.11 Performance Optimization
 
 ### Efficient Shell Patterns
 
@@ -1310,4 +1288,4 @@ These advanced features make PSH a sophisticated shell implementation suitable f
 
 ---
 
-[← Previous: Chapter 15 - Job Control](15_job_control.md) | [Next: Chapter 17 - Differences from Bash →](17_differences_from_bash.md)
+[Previous: Chapter 15 - Job Control](15_job_control.md) | [Next: Chapter 17 - Differences from Bash](17_differences_from_bash.md)

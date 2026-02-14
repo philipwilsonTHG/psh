@@ -230,9 +230,45 @@ psh$ echo "$message"
 This is a very long message that spans multiple lines but will be treated as a single line
 ```
 
-## 8.4 ANSI-C Quoting (in echo -e)
+## 8.4 ANSI-C Quoting
 
-With `echo -e`, PSH interprets escape sequences for special characters:
+PSH supports two forms of ANSI-C escape sequence handling: the `$'...'` quoting syntax and `echo -e`.
+
+### The $'...' Syntax
+
+The `$'...'` syntax interprets escape sequences at the quoting level, before the command runs:
+
+```bash
+# Basic escape sequences
+psh$ echo $'Line 1\nLine 2'
+Line 1
+Line 2
+
+psh$ echo $'Column1\tColumn2'
+Column1	Column2
+
+# Hex sequences
+psh$ echo $'\x48\x65\x6c\x6c\x6f'
+Hello
+
+# Escape character
+psh$ echo $'\e[31mRed Text\e[0m'   # ANSI color
+Red Text  # (displayed in red)
+
+# Unicode
+psh$ echo $'\u2665 \u2663'
+♥ ♣
+
+# Zero-prefixed octal works
+psh$ echo $'\0101'
+A
+```
+
+> **Note:** In PSH v0.187.1, `$'...'` supports `\n`, `\t`, `\r`, `\\`, `\'`, `\"`, `\a`, `\b`, `\f`, `\v`, `\e`, `\xHH` (hex), `\uNNNN` (Unicode), and `\0NNN` (zero-prefixed octal). Non-zero-prefixed octal (`\NNN`) is not yet supported; use the `\0NNN` form or `\xHH` hex form instead.
+
+### The echo -e Syntax
+
+With `echo -e`, escape sequences are interpreted in the string argument:
 
 ```bash
 # Basic escape sequences
@@ -243,24 +279,6 @@ Line 3
 
 psh$ echo -e "Column1\tColumn2\tColumn3"
 Column1	Column2	Column3
-
-# Special characters
-psh$ echo -e "Alert\a"          # Bell (may beep)
-Alert
-
-psh$ echo -e "Back\bspace"      # Backspace
-Bacspace
-
-psh$ echo -e "Form\ffeed"       # Form feed
-Form
-     feed
-
-psh$ echo -e "Carriage\rReturn" # Carriage return
-Return
-
-psh$ echo -e "Vertical\vTab"    # Vertical tab
-Vertical
-        Tab
 
 # Escape character
 psh$ echo -e "\e[31mRed Text\e[0m"      # ANSI color
@@ -279,7 +297,7 @@ psh$ echo -e "\u2665 \u2663 \u2660 \u2666"  # Unicode
 psh$ echo -e "\U0001F600"               # Extended Unicode
 😀
 
-# Octal sequences
+# Octal sequences (zero-prefixed)
 psh$ echo -e "\0101\0102\0103"          # Octal ASCII
 ABC
 
@@ -414,25 +432,21 @@ json_escape() {
     local text="$1"
     text="${text//\\/\\\\}"      # Escape backslashes first
     text="${text//\"/\\\"}"       # Escape quotes
-    text="${text//$'\n'/\\n}"     # Escape newlines
-    text="${text//$'\r'/\\r}"     # Escape carriage returns
-    text="${text//$'\t'/\\t}"     # Escape tabs
     echo "$text"
 }
 
 build_json() {
     local name="$1"
     local value="$2"
-    
+
     name=$(json_escape "$name")
     value=$(json_escape "$value")
-    
+
     echo "{\"$name\": \"$value\"}"
 }
 
 # Test JSON builder
-json=$(build_json "message" "Hello \"World\"
-New line here")
+json=$(build_json "message" "Hello \"World\"")
 echo "JSON: $json"
 ```
 
@@ -488,11 +502,6 @@ parse_args() {
     local i=1
     for arg in "$@"; do
         echo "  Arg $i: [$arg]"
-        
-        # Check if argument contains special characters
-        if [[ "$arg" =~ [[:space:]\|\&\;\<\>\(\)\$\`\\\"\'] ]]; then
-            echo "    (contains special characters - needs quoting)"
-        fi
         ((i++))
     done
 }
@@ -505,65 +514,45 @@ parse_args "simple" "with spaces" "with|pipe" 'with$var' "with\"quotes"
 
 ```bash
 #!/usr/bin/env psh
-# Parse configuration files with quote handling
+# Parse simple key=value configuration files with quote handling
 
-parse_config_line() {
-    local line="$1"
-    local key value
-    
-    # Skip comments and empty lines
-    [[ "$line" =~ ^[[:space:]]*# ]] && return
-    [[ -z "${line// }" ]] && return
-    
-    # Parse key=value with quote handling
-    if [[ "$line" =~ ^([^=]+)=(.*)$ ]]; then
-        key="${BASH_REMATCH[1]}"
-        value="${BASH_REMATCH[2]}"
-        
-        # Trim whitespace
-        key="${key#"${key%%[![:space:]]*}"}"
-        key="${key%"${key##*[![:space:]]}"}"
-        
-        # Handle quoted values
-        if [[ "$value" =~ ^\"(.*)\"$ ]]; then
-            # Double quoted - remove quotes, interpret escapes
-            value="${BASH_REMATCH[1]}"
-            value="${value//\\\"/\"}"      # Unescape quotes
-            value="${value//\\\\/\\}"      # Unescape backslashes
-        elif [[ "$value" =~ ^\'(.*)\'$ ]]; then
-            # Single quoted - remove quotes, no interpretation
-            value="${BASH_REMATCH[1]}"
-        else
-            # Unquoted - trim whitespace
-            value="${value#"${value%%[![:space:]]*}"}"
-            value="${value%"${value##*[![:space:]]}"}"
-        fi
-        
+parse_config() {
+    local config_file="$1"
+
+    while IFS='=' read -r key value; do
+        # Skip comments and empty lines
+        case "$key" in
+            \#*|"") continue ;;
+        esac
+
+        # Remove surrounding quotes from value
+        case "$value" in
+            \"*\") value="${value#\"}"; value="${value%\"}" ;;
+            \'*\') value="${value#\'}"; value="${value%\'}" ;;
+        esac
+
         # Set the configuration variable
-        declare -g "CONFIG_$key=$value"
-        echo "Set: CONFIG_$key = '$value'"
-    fi
+        if [ -n "$key" ]; then
+            declare -g "CONFIG_$key=$value"
+            echo "Set: CONFIG_$key = '$value'"
+        fi
+    done < "$config_file"
 }
 
 # Test configuration
 cat > test.conf << 'EOF'
 # Sample configuration file
-name = "My Application"
-path = '/usr/local/bin'
-debug = true
-message = "Hello \"World\""
-command = echo "test"
-spaces = "  preserved  "
-empty = ""
-unquoted = value without quotes
+name="My Application"
+path='/usr/local/bin'
+debug=true
+port=8080
 EOF
 
 echo "Parsing configuration:"
-while IFS= read -r line; do
-    parse_config_line "$line"
-done < test.conf
+parse_config test.conf
 
-echo -e "\nConfiguration loaded:"
+echo
+echo "Configuration loaded:"
 set | grep ^CONFIG_
 ```
 
@@ -618,13 +607,13 @@ cat << EOF
 $HOME expands to: $HOME
 $(date) expands to: $(date)
 EOF
-
-# Escaped delimiter
-cat << \EOF
-Same as quoted - no expansion
-$HOME stays literal
-EOF
 ```
+
+> **Note:** The backslash-escaped delimiter form (`<< \EOF`) is not supported in PSH v0.187.1. Use the single-quoted form (`<< 'EOF'`) instead to prevent expansion in heredocs.
+
+### Locale Translation Quoting ($"...")
+
+> **Note:** The `$"..."` locale translation quoting syntax is not supported in PSH v0.187.1. It is treated as a literal `$` followed by a double-quoted string. This is a rarely used bash feature intended for internationalization (i18n) of shell scripts.
 
 ## Summary
 
@@ -633,7 +622,7 @@ Quoting and escaping in PSH provide precise control over interpretation:
 1. **Single Quotes** preserve everything literally - no expansions
 2. **Double Quotes** allow variable, command, and arithmetic expansion
 3. **Backslash** escapes individual characters
-4. **ANSI-C Quoting** (echo -e) interprets escape sequences
+4. **ANSI-C Quoting** (`$'...'` and `echo -e`) interprets escape sequences
 5. **Quote Removal** happens after all expansions
 
 Key principles:

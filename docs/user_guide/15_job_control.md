@@ -737,18 +737,20 @@ psh$ kill -KILL %1
 ### PSH Job Control Limitations
 
 ```bash
-# Cannot use job control in pipelines with && or ||
-# This won't work as expected:
-psh$ jobs && fg %1
-
-# Background jobs remain until completion
-# No 'disown' command to detach jobs
-
-# No 'wait' builtin for specific jobs
-# Cannot do: wait %1
+# Job control is available in interactive mode only
+# fg/bg do not work in scripts
 
 # Limited to current shell session
 # Jobs don't transfer between terminals
+
+# wait -n (wait for any single job) is not supported
+# Use wait with specific PIDs or wait for all jobs
+
+# disown, wait, jobs, fg, bg all work in interactive mode:
+psh$ sleep 100 &
+[1] 12345
+psh$ disown %1    # Remove job from job table
+psh$ wait %1      # Wait for specific job
 ```
 
 ### Script Mode Differences
@@ -812,4 +814,4 @@ Job control transforms the shell from a simple command executor into a powerful 
 
 ---
 
-[← Previous: Chapter 14 - Interactive Features](14_interactive_features.md) | [Next: Chapter 16 - Advanced Features →](16_advanced_features.md)
+[Previous: Chapter 14 - Interactive Features](14_interactive_features.md) | [Next: Chapter 16 - Advanced Features](16_advanced_features.md)

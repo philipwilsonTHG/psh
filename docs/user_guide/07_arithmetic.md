@@ -284,8 +284,8 @@ psh$ echo $((20 >> 2))  # 10100 >> 2 = 101
 # Practical bit manipulation
 psh$ flags=0
 psh$ READ=4 WRITE=2 EXEC=1
-psh$ ((flags |= READ))    # Set READ bit
-psh$ ((flags |= WRITE))   # Set WRITE bit
+psh$ ((flags = flags | READ))    # Set READ bit
+psh$ ((flags = flags | WRITE))   # Set WRITE bit
 psh$ echo $flags
 6
 
@@ -326,28 +326,9 @@ psh$ ((x %= 4))    # x = x % 4
 psh$ echo $x
 2
 
-# Bitwise assignments
-psh$ ((x = 5))
-psh$ ((x &= 3))    # x = x & 3
-psh$ echo $x
-1
-
-psh$ ((x |= 4))    # x = x | 4
-psh$ echo $x
-5
-
-psh$ ((x ^= 3))    # x = x ^ 3
-psh$ echo $x
-6
-
-psh$ ((x <<= 2))   # x = x << 2
-psh$ echo $x
-24
-
-psh$ ((x >>= 3))   # x = x >> 3
-psh$ echo $x
-3
 ```
+
+> **Note:** Bitwise assignment operators (`&=`, `|=`, `^=`, `<<=`, `>>=`) are not yet supported in PSH v0.187.1. Use explicit assignment as a workaround: `((x = x & 3))` instead of `((x &= 3))`.
 
 ### Increment and Decrement
 
@@ -497,16 +478,12 @@ psh$ num="  42  "
 psh$ echo $((num * 2))
 84
 
-# Array elements (if supported)
-psh$ arr=(10 20 30)
-psh$ echo $((arr[0] + arr[1]))
-30
-
 # Variable indirection
 psh$ a=5
 psh$ b=a
-psh$ echo $((b))      # b is treated as 0 (string)
+psh$ echo $((b))      # PSH treats "a" as non-numeric (0)
 0
+# Note: bash would recursively resolve b -> a -> 5
 
 # Command substitution in arithmetic
 psh$ echo $(( $(echo 5) + $(echo 3) ))
@@ -712,7 +689,7 @@ show_bases() {
     local n=$num
     while ((n > 0)); do
         binary="$((n & 1))$binary"
-        ((n >>= 1))
+        ((n = n >> 1))
     done
     echo "Binary: ${binary:-0}"
 }
@@ -722,10 +699,10 @@ show_flags() {
     local value=$1
     shift
     local -a flag_names=("$@")
-    
+
     echo "Value: $value"
     echo "Flags set:"
-    
+
     local i bit=1
     for ((i = 0; i < ${#flag_names[@]}; i++)); do
         if ((value & bit)); then
@@ -733,58 +710,41 @@ show_flags() {
         else
             echo "  [ ] ${flag_names[i]} (bit $i, value $bit)"
         fi
-        ((bit <<= 1))
+        ((bit = bit << 1))
     done
 }
 
-# File permission calculator
-perm_calc() {
-    local mode="$1"
-    local perms=0
-    
-    # Parse symbolic mode
-    if [[ $mode =~ ^[rwx-]{9}$ ]]; then
-        # Convert rwxrwxrwx to octal
-        for ((i = 0; i < 9; i++)); do
-            local char="${mode:i:1}"
-            if [[ $char != "-" ]]; then
-                local bit_value=$((1 << (8 - i)))
-                ((perms |= bit_value))
-            fi
-        done
-        printf "Octal: %04o\n" $perms
-    elif [[ $mode =~ ^[0-7]+$ ]]; then
-        # Convert octal to symbolic
-        perms=$((8#$mode))
-        echo -n "Symbolic: "
-        for ((i = 8; i >= 0; i--)); do
-            local bit=$((1 << i))
-            if ((perms & bit)); then
-                case $((i % 3)) in
-                    2) echo -n "r" ;;
-                    1) echo -n "w" ;;
-                    0) echo -n "x" ;;
-                esac
-            else
-                echo -n "-"
-            fi
-        done
-        echo
-    fi
-    
-    # Show meaning
-    echo "Owner: $((perms >> 6 & 7)) ($(show_perm_octal $((perms >> 6 & 7))))"
-    echo "Group: $((perms >> 3 & 7)) ($(show_perm_octal $((perms >> 3 & 7))))"
-    echo "Other: $((perms & 7)) ($(show_perm_octal $((perms & 7))))"
-}
-
+# Octal permission display
 show_perm_octal() {
     local p=$1
     local result=""
-    ((p & 4)) && result+="r" || result+="-"
-    ((p & 2)) && result+="w" || result+="-"
-    ((p & 1)) && result+="x" || result+="-"
+    ((p & 4)) && result="${result}r" || result="${result}-"
+    ((p & 2)) && result="${result}w" || result="${result}-"
+    ((p & 1)) && result="${result}x" || result="${result}-"
     echo "$result"
+}
+
+# Octal to symbolic permission converter
+perm_to_symbolic() {
+    local perms=$((8#$1))
+    echo -n "Symbolic: "
+    for ((i = 8; i >= 0; i--)); do
+        local bit=$((1 << i))
+        if ((perms & bit)); then
+            case $((i % 3)) in
+                2) echo -n "r" ;;
+                1) echo -n "w" ;;
+                0) echo -n "x" ;;
+            esac
+        else
+            echo -n "-"
+        fi
+    done
+    echo
+
+    echo "Owner: $((perms >> 6 & 7)) ($(show_perm_octal $((perms >> 6 & 7))))"
+    echo "Group: $((perms >> 3 & 7)) ($(show_perm_octal $((perms >> 3 & 7))))"
+    echo "Other: $((perms & 7)) ($(show_perm_octal $((perms & 7))))"
 }
 
 # Examples
@@ -794,9 +754,7 @@ echo
 show_flags 13 "READ" "WRITE" "EXECUTE" "DELETE"
 echo
 
-perm_calc "rwxr-xr--"
-echo
-perm_calc "754"
+perm_to_symbolic "754"
 ```
 
 ## Summary
@@ -805,7 +763,7 @@ PSH provides comprehensive arithmetic capabilities:
 
 1. **Arithmetic Expansion** `$((...))` evaluates expressions and returns results
 2. **Arithmetic Commands** `((...))` execute expressions with exit status
-3. **Rich Operator Set**: arithmetic, comparison, logical, bitwise, assignment
+3. **Rich Operator Set**: arithmetic, comparison, logical, bitwise, assignment (except bitwise assignment operators)
 4. **Advanced Features**: ternary operator, comma operator, increment/decrement
 5. **Flexible Variable Handling**: no $ needed, undefined = 0
 6. **Multiple Number Formats**: decimal, hex, octal, binary, any base

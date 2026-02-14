@@ -8,10 +8,27 @@ PSH can run any program available on your system. When you type a command, PSH s
 
 PSH follows these steps to execute a command:
 
-1. Check if it's a built-in command (like `cd`, `echo`)
-2. Check if it's a function you've defined
-3. Check if it's an alias
-4. Search for an external program in PATH
+1. Check if it's an alias
+2. Check if it's a shell keyword (like `if`, `while`, `for`)
+3. Check if it's a function you've defined
+4. Check if it's a built-in command (like `cd`, `echo`)
+5. Search for an external program in PATH
+
+You can use the `type` builtin to see how PSH would interpret a command:
+
+```bash
+psh$ type echo
+echo is a shell builtin
+
+psh$ type ls
+ls is /bin/ls
+
+psh$ type -t echo
+builtin
+
+psh$ type -t ls
+file
+```
 
 ```bash
 # View your PATH
@@ -19,7 +36,7 @@ psh$ echo $PATH
 /usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
 
 # Which command will be run?
-psh$ which ls
+psh$ command -v ls
 /bin/ls
 
 # Run an external command
@@ -382,7 +399,7 @@ Hello
 
 # Comments can span entire lines
 psh$ # This entire line is a comment
-psh$ 
+psh$
 
 # Everything after # is ignored
 psh$ echo "Hello" # echo "This won't be printed"
@@ -396,7 +413,6 @@ psh$ cat > script_with_comments.sh << 'EOF'
 #!/usr/bin/env psh
 # This script demonstrates comments
 # Author: Your Name
-# Date: January 2024
 
 # Set a variable
 name="PSH User"  # Store the user's name

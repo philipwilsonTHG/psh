@@ -1,6 +1,6 @@
 # Chapter 12: Functions
 
-Functions in PSH allow you to define reusable blocks of code that can accept parameters and return values. PSH supports both POSIX-style function definitions and bash-style function syntax, along with local variables and proper parameter handling.
+Functions in PSH allow you to define reusable blocks of code that can accept parameters and return values. PSH supports both POSIX-style function definitions and bash-style function syntax, along with local variables, recursion, and proper parameter handling.
 
 ## 12.1 Function Definition Syntax
 
@@ -39,7 +39,7 @@ psh$ system_info() {
 ### Function Keyword Syntax
 
 ```bash
-# Bash-style function keyword
+# Bash-style function keyword (without parentheses)
 psh$ function greet {
 >     echo "Hello from function keyword!"
 > }
@@ -54,7 +54,6 @@ psh$ function process_logs {
 >     local logdir="/var/log"
 >     for file in "$logdir"/*.log; do
 >         echo "Processing $file"
->         tail -10 "$file"
 >     done
 > }
 ```
@@ -66,43 +65,32 @@ psh$ function process_logs {
 psh$ create_user() {
 >     local username="$1"
 >     local home_dir="/home/$username"
->     
+>
 >     if [ -z "$username" ]; then
 >         echo "Usage: create_user <username>" >&2
 >         return 1
 >     fi
->     
->     if id "$username" >/dev/null 2>&1; then
->         echo "User $username already exists" >&2
->         return 1
->     fi
->     
->     useradd -m -d "$home_dir" "$username"
->     echo "User $username created with home directory $home_dir"
+>
+>     echo "Creating user $username with home directory $home_dir"
 > }
 
 # Function with here document
 psh$ generate_config() {
 >     local service="$1"
->     cat > "/etc/$service.conf" << EOF
+>     cat << EOF
 > # Configuration for $service
 > # Generated on $(date)
-> 
+>
 > [main]
 > enabled=true
 > debug=false
-> 
-> [logging]
-> level=info
-> file=/var/log/$service.log
 > EOF
->     echo "Configuration created for $service"
 > }
 ```
 
 ## 12.2 Function Parameters
 
-Functions can accept parameters and access them through positional parameters.
+Functions accept parameters and access them through positional parameters.
 
 ### Basic Parameter Usage
 
@@ -128,7 +116,7 @@ psh$ copy_file() {
 >         echo "Usage: copy_file <source> <destination>" >&2
 >         return 1
 >     fi
->     
+>
 >     cp "$1" "$2"
 >     echo "Copied $1 to $2"
 > }
@@ -155,7 +143,11 @@ Second parameter: world
 All parameters: hello world test
 All parameters (array): hello world test
 Number of parameters: 3
+```
 
+> **Note:** In PSH, `$0` inside a function returns the function name. In bash, `$0` returns the shell or script name instead. This is a behavioral difference to be aware of when porting scripts.
+
+```bash
 # Shifting parameters
 psh$ process_all() {
 >     local count=1
@@ -189,11 +181,7 @@ Hi, Alice!
 psh$ calculate_sum() {
 >     local sum=0
 >     for num in "$@"; do
->         if [[ "$num" =~ ^[0-9]+$ ]]; then
->             sum=$((sum + num))
->         else
->             echo "Warning: '$num' is not a number" >&2
->         fi
+>         sum=$((sum + num))
 >     done
 >     echo "Sum: $sum"
 > }
@@ -205,7 +193,7 @@ psh$ backup_directory() {
 >     local verbose=false
 >     local compress=false
 >     local target_dir=""
->     
+>
 >     # Parse options
 >     while [ $# -gt 0 ]; do
 >         case "$1" in
@@ -227,14 +215,14 @@ psh$ backup_directory() {
 >                 ;;
 >         esac
 >     done
->     
+>
 >     if [ -z "$target_dir" ]; then
 >         echo "Usage: backup_directory [-v] [-c] <directory>" >&2
 >         return 1
 >     fi
->     
+>
 >     [ "$verbose" = true ] && echo "Backing up $target_dir"
->     
+>
 >     if [ "$compress" = true ]; then
 >         tar -czf "${target_dir}_backup.tar.gz" "$target_dir"
 >         [ "$verbose" = true ] && echo "Created compressed backup"
@@ -272,14 +260,14 @@ psh$ demo_local() {
 psh$ demo_local
 Temp var: function-scoped
 psh$ echo "Outside: $temp_var"
-Outside: 
+Outside:
 
 # Multiple local declarations
 psh$ configure_app() {
 >     local config_file="/etc/app.conf"
 >     local log_level="info"
 >     local debug_mode=false
->     
+>
 >     echo "Config: $config_file"
 >     echo "Log level: $log_level"
 >     echo "Debug: $debug_mode"
@@ -289,67 +277,40 @@ psh$ configure_app() {
 ### Local Variable Inheritance
 
 ```bash
-# Nested function access to outer locals
+# Nested function access to outer locals (dynamic scoping)
 psh$ outer_function() {
 >     local outer_var="from outer"
->     
+>
 >     inner_function() {
->         local inner_var="from inner"
 >         echo "Inner sees outer: $outer_var"
->         echo "Inner var: $inner_var"
 >     }
->     
+>
 >     inner_function
 >     echo "Outer var: $outer_var"
->     # This would be empty: echo "Outer sees inner: $inner_var"
 > }
 psh$ outer_function
 Inner sees outer: from outer
-Inner var: from inner
 Outer var: from outer
-
-# Local variable shadowing
-psh$ shadowing_demo() {
->     local var="outer scope"
->     echo "Outer: $var"
->     
->     {
->         local var="inner scope"
->         echo "Inner: $var"
->     }
->     
->     echo "After inner: $var"
-> }
-psh$ shadowing_demo
-Outer: outer scope
-Inner: inner scope
-After inner: outer scope
 ```
 
-### Local Arrays and Special Variables
+### Local Arrays
 
 ```bash
-# Local array handling (when arrays are supported)
+# Local array handling
 psh$ process_list() {
 >     local -a files=("$@")
 >     local count=${#files[@]}
->     
+>
 >     echo "Processing $count files:"
 >     for file in "${files[@]}"; do
 >         echo "  - $file"
 >     done
 > }
-
-# Local parameters
-psh$ function_with_locals() {
->     local func_name="$0"
->     local first_arg="$1"
->     local all_args=("$@")
->     
->     echo "Function: $func_name"
->     echo "First: $first_arg"
->     echo "Count: $#"
-> }
+psh$ process_list a.txt b.txt c.txt
+Processing 3 files:
+  - a.txt
+  - b.txt
+  - c.txt
 ```
 
 ## 12.4 Return Values and Exit Status
@@ -389,17 +350,17 @@ Exit status: 0
 # Early return
 psh$ validate_user() {
 >     local username="$1"
->     
+>
 >     [ -z "$username" ] && {
 >         echo "Username required" >&2
 >         return 1
 >     }
->     
+>
 >     [ ${#username} -lt 3 ] && {
 >         echo "Username too short" >&2
 >         return 2
 >     }
->     
+>
 >     echo "Valid username: $username"
 >     return 0
 > }
@@ -420,10 +381,8 @@ Current user is: alice
 psh$ system_summary() {
 >     echo "=== System Summary ==="
 >     echo "Hostname: $(hostname)"
->     echo "Uptime: $(uptime | cut -d',' -f1)"
->     echo "Load: $(uptime | awk -F'load average:' '{print $2}')"
->     echo "Users: $(who | wc -l)"
->     echo "Disk: $(df -h / | tail -1 | awk '{print $5}')"
+>     echo "User: $(whoami)"
+>     echo "Date: $(date)"
 > }
 psh$ summary=$(system_summary)
 psh$ echo "$summary"
@@ -431,12 +390,12 @@ psh$ echo "$summary"
 # Mixed output and return
 psh$ check_service() {
 >     local service="$1"
->     
->     if systemctl is-active "$service" >/dev/null 2>&1; then
->         echo "$service is running"
+>
+>     if command -v "$service" >/dev/null 2>&1; then
+>         echo "$service is available"
 >         return 0
 >     else
->         echo "$service is not running"
+>         echo "$service is not available"
 >         return 1
 >     fi
 > }
@@ -451,10 +410,10 @@ PSH provides commands to manage functions: listing, displaying, and removing the
 ```bash
 # List all function definitions
 psh$ declare -f
-hello() { 
+hello() {
     echo "Hello, $1!"
 }
-greet() { 
+greet() {
     echo "Greetings!"
 }
 
@@ -465,7 +424,7 @@ declare -f hello
 
 # Show specific function definition
 psh$ declare -f greet
-greet() { 
+greet() {
     echo "Greetings!"
 }
 
@@ -473,22 +432,9 @@ greet() {
 psh$ declare -F greet
 declare -f greet
 
-# Using typeset (ksh compatibility)
-psh$ typeset -f      # Show all function definitions
-psh$ typeset -F      # Show function names only
-psh$ typeset -f greet # Show specific function
-
-# Alternative: list functions with type
+# Check function type
 psh$ type greet
 greet is a function
-
-# Check if name is a function
-psh$ is_function() {
->     declare -f "$1" >/dev/null 2>&1
-> }
-psh$ if is_function greet; then
->     echo "greet is a function"
-> fi
 ```
 
 ### Using typeset for Function Management
@@ -498,39 +444,14 @@ The `typeset` builtin provides Korn shell (ksh) compatibility and works identica
 ```bash
 # Display all functions with their definitions
 psh$ myfunc() { echo "test"; }
-psh$ otherfunc() { echo "another"; }
-psh$ typeset -f
-myfunc() { 
+psh$ typeset -f myfunc
+myfunc () {
     echo "test"
-}
-otherfunc() { 
-    echo "another"
 }
 
 # Display only function names
 psh$ typeset -F
 declare -f myfunc
-declare -f otherfunc
-
-# Check multiple functions at once
-psh$ typeset -F myfunc otherfunc nonexistent
-declare -f myfunc
-declare -f otherfunc
-psh: typeset: nonexistent: not found
-
-# Use in scripts for portability
-psh$ cat check_functions.sh
-#!/usr/bin/env psh
-# Script that works with both bash and ksh
-
-# Check if functions exist
-for func in process_data validate_input cleanup; do
-    if typeset -F "$func" >/dev/null 2>&1; then
-        echo "Function $func is defined"
-    else
-        echo "Warning: Function $func is missing"
-    fi
-done
 ```
 
 ### Removing Functions
@@ -539,8 +460,9 @@ done
 # Remove function
 psh$ unset -f greet
 
-# Remove multiple functions
-psh$ unset -f func1 func2 func3
+# Verify removal
+psh$ greet
+psh: greet: command not found
 
 # Safe function removal
 psh$ remove_function() {
@@ -554,23 +476,18 @@ psh$ remove_function() {
 > }
 ```
 
-### Function Information
+### Function Introspection
 
 ```bash
-# Function introspection
-psh$ function_info() {
->     local func_name="$1"
->     
->     if declare -f "$func_name" >/dev/null 2>&1; then
->         echo "Function: $func_name"
->         echo "Type: $(type -t "$func_name")"
->         echo "Definition:"
->         declare -f "$func_name"
->     else
->         echo "Function $func_name not found"
->         return 1
->     fi
+# Check if a name is a function
+psh$ is_function() {
+>     declare -f "$1" >/dev/null 2>&1
 > }
+psh$ myfunc() { echo "test"; }
+psh$ if is_function myfunc; then
+>     echo "myfunc is a function"
+> fi
+myfunc is a function
 ```
 
 ## 12.6 Advanced Function Patterns
@@ -609,9 +526,9 @@ psh$ fibonacci 10
 psh$ list_files_recursive() {
 >     local dir="$1"
 >     local indent="${2:-}"
->     
+>
 >     for item in "$dir"/*; do
->         [ ! -e "$item" ] && continue
+>         [ -e "$item" ] || continue
 >         echo "$indent$(basename "$item")"
 >         if [ -d "$item" ]; then
 >             list_files_recursive "$item" "$indent  "
@@ -624,68 +541,57 @@ psh$ list_files_recursive() {
 
 ```bash
 # Math library functions
-psh$ # math_lib.sh
-psh$ abs() {
->     local num="$1"
->     echo $((num < 0 ? -num : num))
-> }
+abs() {
+    local num="$1"
+    echo $((num < 0 ? -num : num))
+}
 
-psh$ max() {
->     local a="$1" b="$2"
->     echo $((a > b ? a : b))
-> }
+max() {
+    local a="$1" b="$2"
+    echo $((a > b ? a : b))
+}
 
-psh$ min() {
->     local a="$1" b="$2"
->     echo $((a < b ? a : b))
-> }
+min() {
+    local a="$1" b="$2"
+    echo $((a < b ? a : b))
+}
 
-psh$ average() {
->     local sum=0 count=0
->     for num in "$@"; do
->         sum=$((sum + num))
->         count=$((count + 1))
->     done
->     echo $((sum / count))
-> }
+average() {
+    local sum=0 count=0
+    for num in "$@"; do
+        sum=$((sum + num))
+        count=$((count + 1))
+    done
+    echo $((sum / count))
+}
 
 # String library functions
-psh$ # string_lib.sh
-psh$ uppercase() {
->     echo "$1" | tr '[:lower:]' '[:upper:]'
-> }
+uppercase() {
+    echo "$1" | tr '[:lower:]' '[:upper:]'
+}
 
-psh$ lowercase() {
->     echo "$1" | tr '[:upper:]' '[:lower:]'
-> }
+lowercase() {
+    echo "$1" | tr '[:upper:]' '[:lower:]'
+}
 
-psh$ trim() {
->     local str="$1"
->     # Remove leading whitespace
->     str="${str#"${str%%[![:space:]]*}"}"
->     # Remove trailing whitespace
->     str="${str%"${str##*[![:space:]]}"}"
->     echo "$str"
-> }
-
-psh$ string_length() {
->     echo ${#1}
-> }
+string_length() {
+    echo ${#1}
+}
 ```
 
-### Function Decorators and Wrappers
+### Function Wrappers
 
 ```bash
 # Timing wrapper
 psh$ time_function() {
 >     local func_name="$1"
 >     shift
->     
+>
 >     local start_time=$(date +%s)
 >     "$func_name" "$@"
 >     local result=$?
 >     local end_time=$(date +%s)
->     
+>
 >     echo "Function $func_name took $((end_time - start_time)) seconds" >&2
 >     return $result
 > }
@@ -694,7 +600,7 @@ psh$ time_function() {
 psh$ log_function() {
 >     local func_name="$1"
 >     shift
->     
+>
 >     echo "[$(date)] Calling $func_name with args: $*" >&2
 >     "$func_name" "$@"
 >     local result=$?
@@ -702,23 +608,12 @@ psh$ log_function() {
 >     return $result
 > }
 
-# Error handling wrapper
-psh$ safe_function() {
->     local func_name="$1"
->     shift
->     
->     if ! "$func_name" "$@"; then
->         echo "Error in function $func_name" >&2
->         return 1
->     fi
-> }
-
 # Retry wrapper
 psh$ retry_function() {
 >     local max_attempts="$1"
 >     local func_name="$2"
 >     shift 2
->     
+>
 >     local attempt=1
 >     while [ $attempt -le $max_attempts ]; do
 >         if "$func_name" "$@"; then
@@ -728,7 +623,7 @@ psh$ retry_function() {
 >         attempt=$((attempt + 1))
 >         sleep 1
 >     done
->     
+>
 >     echo "All $max_attempts attempts failed" >&2
 >     return 1
 > }
@@ -742,67 +637,18 @@ psh$ retry_function() {
 #!/usr/bin/env psh
 # Configuration management library
 
-# Global configuration
-CONFIG_DIR="/etc/myapp"
-CONFIG_FILE="$CONFIG_DIR/config.conf"
-BACKUP_DIR="$CONFIG_DIR/backups"
-
-# Initialize configuration
-init_config() {
-    local force=false
-    
-    # Parse options
-    while [ $# -gt 0 ]; do
-        case "$1" in
-            --force) force=true; shift ;;
-            *) echo "Unknown option: $1" >&2; return 1 ;;
-        esac
-    done
-    
-    # Check if config exists
-    if [ -f "$CONFIG_FILE" ] && [ "$force" = false ]; then
-        echo "Configuration already exists. Use --force to overwrite."
-        return 1
-    fi
-    
-    # Create directories
-    mkdir -p "$CONFIG_DIR" "$BACKUP_DIR"
-    
-    # Create default configuration
-    cat > "$CONFIG_FILE" << 'EOF'
-# MyApp Configuration
-# Generated on $(date)
-
-[database]
-host=localhost
-port=5432
-name=myapp
-user=myapp
-
-[server]
-host=0.0.0.0
-port=8080
-workers=4
-
-[logging]
-level=info
-file=/var/log/myapp.log
-EOF
-    
-    echo "Configuration initialized: $CONFIG_FILE"
-}
+CONFIG_FILE="/etc/myapp/config.conf"
 
 # Read configuration value
 get_config() {
     local section="$1"
     local key="$2"
-    
+
     if [ ! -f "$CONFIG_FILE" ]; then
         echo "Configuration file not found" >&2
         return 1
     fi
-    
-    # Find section and extract value
+
     awk -v section="[$section]" -v key="$key" '
         $0 == section { in_section = 1; next }
         /^\[/ { in_section = 0; next }
@@ -814,121 +660,19 @@ get_config() {
     ' "$CONFIG_FILE"
 }
 
-# Set configuration value
-set_config() {
-    local section="$1"
-    local key="$2"
-    local value="$3"
-    
-    if [ ! -f "$CONFIG_FILE" ]; then
-        echo "Configuration file not found" >&2
-        return 1
-    fi
-    
-    # Backup current config
-    backup_config
-    
-    # Create temporary file with updated config
-    local temp_file=$(mktemp)
-    awk -v section="[$section]" -v key="$key" -v value="$value" '
-        $0 == section { 
-            in_section = 1
-            print
-            next
-        }
-        /^\[/ && in_section {
-            if (!found) print key "=" value
-            in_section = 0
-            found = 0
-        }
-        in_section && $0 ~ "^" key "=" {
-            print key "=" value
-            found = 1
-            next
-        }
-        { print }
-        END {
-            if (in_section && !found) print key "=" value
-        }
-    ' "$CONFIG_FILE" > "$temp_file"
-    
-    # Replace original with updated config
-    mv "$temp_file" "$CONFIG_FILE"
-    echo "Updated $section.$key = $value"
-}
-
-# Backup configuration
-backup_config() {
-    if [ -f "$CONFIG_FILE" ]; then
-        local backup_name="config_$(date +%Y%m%d_%H%M%S).conf"
-        cp "$CONFIG_FILE" "$BACKUP_DIR/$backup_name"
-        echo "Configuration backed up: $backup_name"
-    fi
-}
-
-# List configuration
-list_config() {
-    if [ ! -f "$CONFIG_FILE" ]; then
-        echo "Configuration file not found" >&2
-        return 1
-    fi
-    
-    echo "=== Configuration ==="
-    cat "$CONFIG_FILE" | while read line; do
-        case "$line" in
-            \#*) echo "$line" ;;  # Comments
-            \[*\]) echo; echo "$line" ;;  # Sections
-            *=*) echo "  $line" ;;  # Key-value pairs
-            "") echo ;;  # Empty lines
-        esac
-    done
-}
-
 # Validate configuration
 validate_config() {
     local errors=0
-    
+
     echo "Validating configuration..."
-    
-    # Check required sections
+
     for section in database server logging; do
-        if ! grep -q "^\[$section\]" "$CONFIG_FILE"; then
+        if [ ! -f "$CONFIG_FILE" ] || [ -z "$(grep "^\[$section\]" "$CONFIG_FILE")" ]; then
             echo "Error: Missing section [$section]" >&2
             errors=$((errors + 1))
         fi
     done
-    
-    # Check required keys
-    local required_keys=(
-        "database.host"
-        "database.port"
-        "server.port"
-        "logging.level"
-    )
-    
-    for key_path in "${required_keys[@]}"; do
-        local section="${key_path%%.*}"
-        local key="${key_path##*.}"
-        local value=$(get_config "$section" "$key")
-        
-        if [ -z "$value" ]; then
-            echo "Error: Missing required key $key_path" >&2
-            errors=$((errors + 1))
-        fi
-    done
-    
-    # Validate port numbers
-    for port_key in "database.port" "server.port"; do
-        local section="${port_key%%.*}"
-        local key="${port_key##*.}"
-        local port=$(get_config "$section" "$key")
-        
-        if ! [[ "$port" =~ ^[0-9]+$ ]] || [ "$port" -lt 1 ] || [ "$port" -gt 65535 ]; then
-            echo "Error: Invalid port number for $port_key: $port" >&2
-            errors=$((errors + 1))
-        fi
-    done
-    
+
     if [ $errors -eq 0 ]; then
         echo "Configuration is valid"
         return 0
@@ -941,10 +685,6 @@ validate_config() {
 # Main function for command-line usage
 main() {
     case "${1:-help}" in
-        init)
-            shift
-            init_config "$@"
-            ;;
         get)
             if [ $# -ne 3 ]; then
                 echo "Usage: $0 get <section> <key>"
@@ -952,46 +692,20 @@ main() {
             fi
             get_config "$2" "$3"
             ;;
-        set)
-            if [ $# -ne 4 ]; then
-                echo "Usage: $0 set <section> <key> <value>"
-                return 1
-            fi
-            set_config "$2" "$3" "$4"
-            ;;
-        list)
-            list_config
-            ;;
         validate)
             validate_config
             ;;
-        backup)
-            backup_config
-            ;;
         help)
-            echo "Usage: $0 {init|get|set|list|validate|backup|help}"
-            echo
-            echo "Commands:"
-            echo "  init [--force]      Initialize configuration"
-            echo "  get <section> <key> Get configuration value"
-            echo "  set <section> <key> <value> Set configuration value"
-            echo "  list                List all configuration"
-            echo "  validate            Validate configuration"
-            echo "  backup              Backup current configuration"
-            echo "  help                Show this help"
+            echo "Usage: $0 {get|validate|help}"
             ;;
         *)
             echo "Unknown command: $1"
-            echo "Use '$0 help' for usage information"
             return 1
             ;;
     esac
 }
 
-# Run main if script is executed directly
-if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
-    main "$@"
-fi
+main "$@"
 ```
 
 ### Network Monitoring Functions
@@ -1000,12 +714,10 @@ fi
 #!/usr/bin/env psh
 # Network monitoring functions
 
-# Configuration
 PING_TIMEOUT=3
 PING_COUNT=1
 LOG_FILE="/var/log/network_monitor.log"
 
-# Logging function
 log_message() {
     local level="$1"
     shift
@@ -1017,7 +729,7 @@ ping_host() {
     local host="$1"
     local timeout="${2:-$PING_TIMEOUT}"
     local count="${3:-$PING_COUNT}"
-    
+
     if ping -c "$count" -W "$timeout" "$host" >/dev/null 2>&1; then
         return 0
     else
@@ -1030,33 +742,11 @@ check_port() {
     local host="$1"
     local port="$2"
     local timeout="${3:-5}"
-    
-    if command -v nc >/dev/null; then
-        # Use netcat if available
-        nc -z -w "$timeout" "$host" "$port" >/dev/null 2>&1
-    elif command -v telnet >/dev/null; then
-        # Fallback to telnet
-        timeout "$timeout" telnet "$host" "$port" </dev/null >/dev/null 2>&1
-    else
-        # Use bash built-in if available
-        timeout "$timeout" bash -c "echo >/dev/tcp/$host/$port" 2>/dev/null
-    fi
-}
 
-# Check HTTP/HTTPS service
-check_http() {
-    local url="$1"
-    local expected_code="${2:-200}"
-    local timeout="${3:-10}"
-    
-    if command -v curl >/dev/null; then
-        local response_code=$(curl -s -o /dev/null -w "%{http_code}" \
-                             --max-time "$timeout" "$url" 2>/dev/null)
-        [ "$response_code" = "$expected_code" ]
-    elif command -v wget >/dev/null; then
-        wget --timeout="$timeout" --spider -q "$url" 2>/dev/null
+    if command -v nc >/dev/null; then
+        nc -z -w "$timeout" "$host" "$port" >/dev/null 2>&1
     else
-        log_message "ERROR" "No HTTP client available (curl or wget)"
+        echo "No network tools available" >&2
         return 1
     fi
 }
@@ -1066,237 +756,60 @@ monitor_host() {
     local host="$1"
     local services="${2:-ping}"
     local interval="${3:-60}"
-    
-    log_message "INFO" "Starting monitoring for $host (services: $services, interval: ${interval}s)"
-    
+
+    log_message "INFO" "Starting monitoring for $host"
+
     while true; do
         local status="UP"
-        local failed_services=()
-        
-        # Check each service
+
         for service in $services; do
             case "$service" in
                 ping)
-                    if ! ping_host "$host"; then
+                    if [ "$(ping_host "$host")" ]; then
+                        :  # OK
+                    else
                         status="DOWN"
-                        failed_services+=("ping")
                     fi
                     ;;
                 ssh)
-                    if ! check_port "$host" 22; then
+                    if [ "$(check_port "$host" 22)" ]; then
+                        :
+                    else
                         status="DEGRADED"
-                        failed_services+=("ssh")
                     fi
-                    ;;
-                http)
-                    if ! check_http "http://$host"; then
-                        status="DEGRADED"
-                        failed_services+=("http")
-                    fi
-                    ;;
-                https)
-                    if ! check_http "https://$host"; then
-                        status="DEGRADED"
-                        failed_services+=("https")
-                    fi
-                    ;;
-                *)
-                    log_message "WARN" "Unknown service: $service"
                     ;;
             esac
         done
-        
-        # Log status
+
         if [ "$status" = "UP" ]; then
             log_message "INFO" "$host is $status"
         else
-            log_message "ERROR" "$host is $status (failed: ${failed_services[*]})"
+            log_message "ERROR" "$host is $status"
         fi
-        
+
         sleep "$interval"
     done
 }
 
-# Monitor multiple hosts
-monitor_multiple() {
-    local config_file="$1"
-    
-    if [ ! -f "$config_file" ]; then
-        echo "Configuration file not found: $config_file" >&2
-        return 1
-    fi
-    
-    log_message "INFO" "Starting multiple host monitoring from $config_file"
-    
-    # Read configuration and start monitoring processes
-    while IFS=: read -r host services interval; do
-        # Skip comments and empty lines
-        [[ "$host" =~ ^#.*$ ]] && continue
-        [ -z "$host" ] && continue
-        
-        # Set defaults
-        services="${services:-ping}"
-        interval="${interval:-60}"
-        
-        # Start monitoring in background
-        {
-            monitor_host "$host" "$services" "$interval"
-        } &
-        
-        log_message "INFO" "Started monitoring for $host (PID: $!)"
-    done < "$config_file"
-    
-    # Wait for all background processes
-    wait
-}
-
-# Generate monitoring report
-generate_report() {
-    local log_file="${1:-$LOG_FILE}"
-    local hours="${2:-24}"
-    
-    if [ ! -f "$log_file" ]; then
-        echo "Log file not found: $log_file" >&2
-        return 1
-    fi
-    
-    echo "=== Network Monitoring Report ==="
-    echo "Period: Last $hours hours"
-    echo "Generated: $(date)"
-    echo
-    
-    # Extract recent logs
-    local cutoff_time=$(date -d "$hours hours ago" '+%Y-%m-%d %H:%M:%S' 2>/dev/null || \
-                       date -v-${hours}H '+%Y-%m-%d %H:%M:%S' 2>/dev/null)
-    
-    # Host status summary
-    echo "=== Host Status Summary ==="
-    awk -v cutoff="$cutoff_time" '
-        $0 >= cutoff {
-            if ($4 == "[ERROR]" && match($0, /([a-zA-Z0-9.-]+) is DOWN/, arr)) {
-                down_hosts[arr[1]]++
-            } else if ($4 == "[INFO]" && match($0, /([a-zA-Z0-9.-]+) is UP/, arr)) {
-                up_hosts[arr[1]]++
-            }
-        }
-        END {
-            print "Hosts with issues:"
-            for (host in down_hosts) {
-                printf "  %s: %d DOWN events\n", host, down_hosts[host]
-            }
-            print ""
-            print "Healthy hosts:"
-            for (host in up_hosts) {
-                if (!(host in down_hosts)) {
-                    printf "  %s: stable\n", host
-                }
-            }
-        }
-    ' "$log_file"
-    
-    echo
-    
-    # Error summary
-    echo "=== Error Summary ==="
-    grep "\[ERROR\]" "$log_file" | \
-    tail -20 | \
-    while read line; do
-        echo "  $line"
-    done
-}
-
-# Interactive monitoring dashboard
-dashboard() {
-    local config_file="$1"
-    local refresh_interval="${2:-5}"
-    
-    while true; do
-        clear
-        echo "=== Network Monitoring Dashboard ==="
-        echo "Time: $(date)"
-        echo "Refresh interval: ${refresh_interval}s"
-        echo "Press Ctrl+C to exit"
-        echo
-        
-        # Show recent status for each host
-        if [ -f "$config_file" ]; then
-            while IFS=: read -r host services interval; do
-                [[ "$host" =~ ^#.*$ ]] && continue
-                [ -z "$host" ] && continue
-                
-                echo -n "Testing $host... "
-                if ping_host "$host" 1 1; then
-                    echo "UP"
-                else
-                    echo "DOWN"
-                fi
-            done < "$config_file"
-        fi
-        
-        echo
-        echo "Recent errors:"
-        tail -5 "$LOG_FILE" 2>/dev/null | grep "\[ERROR\]" || echo "  No recent errors"
-        
-        sleep "$refresh_interval"
-    done
-}
-
-# Main function
-main() {
-    case "${1:-help}" in
-        ping)
-            ping_host "$2"
-            ;;
-        port)
-            check_port "$2" "$3"
-            ;;
-        http)
-            check_http "$2" "$3"
-            ;;
-        monitor)
-            monitor_host "$2" "$3" "$4"
-            ;;
-        multi)
-            monitor_multiple "$2"
-            ;;
-        report)
-            generate_report "$2" "$3"
-            ;;
-        dashboard)
-            dashboard "$2" "$3"
-            ;;
-        help)
-            cat << 'EOF'
-Usage: network_monitor.sh <command> [options]
-
-Commands:
-  ping <host>                    - Test if host is reachable
-  port <host> <port>            - Test if TCP port is open
-  http <url> [code]             - Test HTTP service
-  monitor <host> [services] [interval] - Monitor single host
-  multi <config_file>           - Monitor multiple hosts from config
-  report [log_file] [hours]     - Generate monitoring report
-  dashboard <config_file> [interval] - Interactive dashboard
-  help                          - Show this help
-
-Config file format (host:services:interval):
-  example.com:ping,http:60
-  database.local:ping,ssh:30
-  # This is a comment
-
-Services: ping, ssh, http, https
-EOF
-            ;;
-        *)
-            echo "Unknown command: $1"
-            echo "Use '$0 help' for usage information"
-            return 1
-            ;;
-    esac
-}
-
-# Run main if script is executed directly
-main "$@"
+# Main
+case "${1:-help}" in
+    ping)
+        ping_host "$2" && echo "UP" || echo "DOWN"
+        ;;
+    port)
+        check_port "$2" "$3" && echo "OPEN" || echo "CLOSED"
+        ;;
+    monitor)
+        monitor_host "$2" "$3" "$4"
+        ;;
+    help)
+        echo "Usage: $0 {ping <host>|port <host> <port>|monitor <host> [services] [interval]}"
+        ;;
+    *)
+        echo "Unknown command: $1"
+        exit 1
+        ;;
+esac
 ```
 
 ## Summary
@@ -1305,21 +818,22 @@ Functions in PSH provide powerful code organization and reusability:
 
 1. **Definition Syntax**: Both POSIX `name()` and bash `function name` styles
 2. **Parameters**: Positional parameters ($1, $2, etc.) with special variables ($#, $@, $*)
-3. **Local Variables**: Function-scoped variables with `local` keyword
-4. **Return Values**: Exit status with `return` command and output capture
-5. **Function Management**: List with `declare -f`, remove with `unset -f`
-6. **Advanced Patterns**: Recursion, libraries, wrappers, and decorators
+3. **Local Variables**: Function-scoped variables with `local` keyword, including local arrays (`local -a`)
+4. **Return Values**: Exit status with `return` command and output capture with `$()`
+5. **Function Management**: List with `declare -f`/`typeset -f`, names with `declare -F`, remove with `unset -f`, type check with `type`
+6. **Recursion**: Full support for recursive functions with proper local variable scoping
+7. **Advanced Patterns**: Function libraries, wrappers, and option parsing
 
 Key concepts:
-- Functions create isolated execution environments
+- Functions create isolated variable environments with `local`
 - Local variables prevent global namespace pollution
 - Parameter handling enables flexible function interfaces
-- Return statements control function exit status
+- Return statements control function exit status (0-255)
+- Output capture with `$()` provides return-value-like semantics
 - Functions can be recursive with proper base cases
-- Function libraries promote code reuse
-- Wrapper functions enable cross-cutting concerns
+- `$0` in PSH functions returns the function name (differs from bash)
 
-Functions are essential for building maintainable shell scripts and creating reusable code libraries for system administration, automation, and complex data processing tasks.
+Functions are essential for building maintainable shell scripts and creating reusable code libraries for system administration, automation, and data processing tasks.
 
 ---
 

@@ -10,17 +10,24 @@ psh [options] [script] [arguments]
 Options:
   -c COMMAND                Execute command string
   -i                        Force interactive mode
+  -h, --help                Show help
+  -V, --version             Show version
   --norc                    Skip ~/.pshrc file
   --rcfile FILE             Use alternate RC file
+  --parser PARSER           Select parser: rd (default) or combinator
   --debug-ast               Show parsed AST
+  --debug-ast=FORMAT        AST format: pretty, tree, compact, dot, sexp
   --debug-tokens            Show tokenization
   --debug-scopes            Show variable scopes
   --debug-expansion         Show expansions as they occur
   --debug-expansion-detail  Show detailed expansion steps
   --debug-exec              Show executor operations
   --debug-exec-fork         Show fork/exec details
-  --version                 Show version
-  --help                    Show help
+  --validate                Validate script without executing
+  --format                  Format script and print formatted version
+  --metrics                 Analyze script and print code metrics
+  --security                Perform security analysis on script
+  --lint                    Perform linting analysis on script
 ```
 
 ## Basic Syntax
@@ -34,9 +41,8 @@ command1 || command2         # Run command2 if command1 fails
 command &                    # Run in background
 command1 | command2          # Pipeline
 
-# 🚀 v0.37.0: Control structures in pipelines
+# Control structures in pipelines
 echo "data" | while read x; do echo $x; done
-seq 1 3 | for i in $(cat); do echo $i; done
 echo "test" | if grep -q "test"; then echo "found"; fi
 ```
 
@@ -78,7 +84,7 @@ arr[0]=value                # Set element
 arr[5]=value                # Sparse arrays supported
 arr+=(four five)            # Append elements
 
-# Associative arrays (v0.42.0+)
+# Associative arrays
 declare -A hash             # Must declare first
 declare -A config=([key]="value" [port]="8080")
 hash[key]="value"           # Set by key
@@ -96,8 +102,6 @@ ${arr[@]:1:2}               # Slice (indexed only)
 
 # Array operations
 unset arr[2]                # Remove element/key
-${arr[@]/.txt/.bak}         # Replace in all elements
-${arr[@]^^}                 # Uppercase all elements
 ```
 
 ### Parameter Expansion
@@ -115,7 +119,6 @@ ${VAR^}                     # First char uppercase
 ${VAR^^}                    # All uppercase
 ${VAR,}                     # First char lowercase
 ${VAR,,}                    # All lowercase
-${!prefix*}                 # Variable names with prefix
 ```
 
 ## Expansions
@@ -158,7 +161,7 @@ file{1,2,3}.txt             # Expands to: file1.txt file2.txt file3.txt
 ```bash
 'string'                    # Single quotes - no expansion
 "string"                    # Double quotes - allows $, `, \
-$'string'                   # ANSI-C quoting (limited support)
+$'string'                   # ANSI-C quoting (\n, \t, etc.)
 \c                          # Escape character
 ```
 
@@ -317,18 +320,22 @@ exit [n]    # Exit shell
 return [n]  # Return from function
 true        # Return success
 false       # Return failure
+exec        # Replace shell process / redirect FDs
+eval        # Execute arguments as command
 ```
 
 ### Variables & Environment
 ```bash
 export      # Export variables
-unset       # Remove variables
+unset       # Remove variables/functions
 readonly    # Make variables read-only
 local       # Create local variables
 env         # Show environment
 set         # Set options/positional parameters
+shift [n]   # Shift positional parameters
 declare     # Declare variables/functions with attributes
 typeset     # Same as declare (ksh compat)
+getopts     # Parse option arguments
 ```
 
 ### Shell Options
@@ -340,6 +347,7 @@ set -e              # Exit on error (errexit)
 set -u              # Error on undefined variables (nounset)
 set -x              # Print commands before execution (xtrace)
 set -o pipefail     # Pipeline fails if any command fails
+shopt               # Show/set shell optional behavior
 
 # Debug options (PSH specific)
 set -o debug-ast              # Show AST before execution
@@ -355,15 +363,15 @@ set -o debug-exec-fork        # Show fork/exec details
 ```bash
 cd [dir]    # Change directory
 pwd         # Print working directory
-pushd       # Push directory (not implemented)
-popd        # Pop directory (not implemented)
-dirs        # Show directory stack (not implemented)
+pushd       # Push directory onto stack
+popd        # Pop directory from stack
+dirs        # Show directory stack
 ```
 
 ### I/O
 ```bash
 echo        # Print arguments
-printf      # Formatted output (limited)
+printf      # Formatted output
 read        # Read input
 ```
 
@@ -374,7 +382,8 @@ fg [job]    # Foreground job
 bg [job]    # Background job
 wait [pid]  # Wait for process
 kill        # Send signal
-trap        # Handle signals (v0.57.2)
+disown      # Remove job from job table
+trap        # Handle signals
 ```
 
 ### Other
@@ -382,13 +391,13 @@ trap        # Handle signals (v0.57.2)
 alias       # Define aliases
 unalias     # Remove aliases
 type        # Show command type
-command     # Run command
-builtin     # Run builtin
+command     # Run command (bypass functions/aliases)
 history     # Show command history
 source      # Execute script in current shell
 test        # Evaluate expression
 [           # Evaluate expression
-eval        # Execute arguments as command
+help        # Show builtin help
+version     # Show PSH version
 ```
 
 ## Job Control
@@ -410,7 +419,7 @@ Job specifications:
 %string     # Job beginning with string
 ```
 
-## Signal Handling (v0.57.2)
+## Signal Handling
 
 ```bash
 # Set signal handlers
@@ -537,6 +546,14 @@ set -o vi                  # Vi editing mode
 # Special variables
 PS4='+ '                   # Trace prompt (default)
 PS4='[${LINENO}] '        # Show line numbers in trace
+
+# shopt (shell optional behavior)
+shopt                      # Show all shopt options
+shopt -s dotglob           # Include dotfiles in glob
+shopt -s extglob           # Extended globbing patterns
+shopt -s globstar          # ** recursive globbing
+shopt -s nocaseglob        # Case-insensitive globbing
+shopt -s nullglob          # No-match globs expand to nothing
 ```
 
 ## Declare/Typeset Options
@@ -548,7 +565,7 @@ declare -u var       # Uppercase (converts to uppercase)
 declare -r var       # Readonly (cannot be modified)
 declare -x var       # Export (to environment)
 declare -a arr       # Array (indexed)
-declare -A hash      # Associative array (v0.42.0+)
+declare -A hash      # Associative array
 declare -p var       # Print with attributes
 declare -f func      # Show function definition
 declare -F func      # Show function name only

@@ -252,23 +252,25 @@ psh$ echo $?
 ### Other Special Variables
 
 ```bash
-# Current options (when implemented)
+# Current shell options
 psh$ echo $-
-# (would show current shell options)
+sBH
 
-# Shell version variables
-psh$ echo $BASH_VERSION  # For compatibility
-psh$ echo $PSH_VERSION   # PSH-specific
+# Shell version variable
+psh$ echo $PSH_VERSION
+0.187.1
 
 # IFS (Internal Field Separator)
-psh$ echo "$IFS" | od -c
-0000000      \t  \n
-0000003
+# The default IFS splits on spaces, tabs, and newlines
+psh$ var="a b c"
+psh$ for w in $var; do echo "[$w]"; done
+[a]
+[b]
+[c]
 
-# Change IFS for parsing
+# Change IFS for custom parsing
 psh$ IFS=:
-psh$ read -r user pass uid gid rest < /etc/passwd
-psh$ echo "User: $user, UID: $uid"
+psh$ echo "root:x:0:0" | { read -r user pass uid gid; echo "User: $user, UID: $uid"; }
 User: root, UID: 0
 psh$ IFS=$' \t\n'  # Reset to default
 ```
@@ -336,29 +338,25 @@ psh$ echo ${unset:+exists}
 
 ### Indirect Expansion
 
+> **Note:** Indirect variable expansion (`${!varname}`) is not currently supported in PSH v0.187.1. The syntax is recognized but produces empty output. Use `eval` as a workaround if needed:
+
 ```bash
-# Variable containing another variable's name
-psh$ color="red"
+# Indirect expansion (not yet working in PSH)
+# psh$ color="red"
+# psh$ red="FF0000"
+# psh$ varname="red"
+# psh$ echo ${!varname}    # Returns empty in PSH
+
+# Workaround using eval
 psh$ red="FF0000"
 psh$ varname="red"
-psh$ echo ${!varname}
+psh$ eval "echo \$$varname"
 FF0000
-
-# Useful for dynamic variable access
-psh$ for i in 1 2 3; do
->     varname="item_$i"
->     declare $varname="Value $i"
-> done
-
-psh$ echo $item_1
-Value 1
-psh$ echo $item_2
-Value 2
 ```
 
 ## 5.5 Advanced Parameter Expansion
 
-PSH supports all bash parameter expansion features:
+PSH supports most bash parameter expansion features:
 
 ### String Length
 
@@ -469,14 +467,9 @@ psh$ echo ${str: -6}      # Last 6 characters (note space)
 World!
 psh$ echo ${str: -6:5}    # 5 chars starting 6 from end
 World
-
-# With positional parameters
-psh$ set -- apple banana cherry date elderberry
-psh$ echo ${@:2:3}        # Three arguments starting from $2
-banana cherry date
-psh$ echo ${@:4}          # From $4 to end
-date elderberry
 ```
+
+> **Note:** Substring extraction on positional parameters (`${@:offset:length}`) is not yet supported in PSH v0.187.1. It currently treats the expression as a substring operation on the first positional parameter rather than selecting a range of arguments. Array slicing (`${array[@]:offset:length}`) works correctly.
 
 ### Case Modification
 
@@ -520,26 +513,18 @@ The Quick Brown Fox
 
 ### Variable Name Matching
 
+> **Note:** Variable name prefix matching (`${!prefix*}` and `${!prefix@}`) is not fully working in PSH v0.187.1. The syntax is recognized but currently returns all variable names rather than filtering by prefix. This is a known limitation.
+
 ```bash
-# List all variables starting with prefix
-psh$ USER_NAME="Alice"
-psh$ USER_AGE="25"
-psh$ USER_CITY="NYC"
-psh$ ADMIN_NAME="Bob"
+# Variable name matching (not yet working correctly in PSH)
+# In bash, ${!USER*} lists only variables starting with USER
+# In PSH, it currently lists all variables
 
-psh$ echo ${!USER*}
-USER_AGE USER_CITY USER_NAME
-
-psh$ echo ${!USER@}
-USER_AGE USER_CITY USER_NAME
-
-# Useful for dynamic variable processing
-psh$ for var in ${!USER*}; do
->     echo "$var = ${!var}"
-> done
-USER_AGE = 25
-USER_CITY = NYC
-USER_NAME = Alice
+# Workaround: use set and grep to find variables by prefix
+psh$ set | grep '^USER_'
+USER_NAME=Alice
+USER_AGE=25
+USER_CITY=NYC
 ```
 
 ## 5.6 Local Variables in Functions
@@ -608,7 +593,7 @@ psh$ safe_function() {
 
 ```bash
 #!/usr/bin/env psh
-# Parse configuration file with variable expansion
+# Parse a simple key=value configuration file
 
 # Default configuration
 DEFAULT_HOST="localhost"
@@ -618,53 +603,37 @@ DEFAULT_DEBUG="false"
 # Parse config file
 parse_config() {
     local config_file="${1:-config.ini}"
-    local section=""
-    
+
     if [ ! -f "$config_file" ]; then
         echo "Warning: Config file not found, using defaults"
         return 1
     fi
-    
+
     while IFS='=' read -r key value; do
         # Skip comments and empty lines
-        [[ $key =~ ^[[:space:]]*# ]] && continue
-        [[ -z $key ]] && continue
-        
-        # Handle sections
-        if [[ $key =~ ^\[.*\]$ ]]; then
-            section="${key//[\[\]]/}"
-            continue
-        fi
-        
-        # Trim whitespace
-        key="${key%%[[:space:]]*}"
-        value="${value##[[:space:]]*}"
-        
-        # Set variables with section prefix
-        if [ -n "$section" ]; then
-            declare -g "${section}_${key}=$value"
-        else
+        case "$key" in
+            \#*|"") continue ;;
+        esac
+
+        # Set variables
+        if [ -n "$key" ] && [ -n "$value" ]; then
             declare -g "$key=$value"
         fi
     done < "$config_file"
 }
 
-# Example config.ini:
-# [server]
+# Example config file:
 # host=192.168.1.100
 # port=9090
-# 
-# [app]
 # debug=true
-# name=MyApp
 
 # Usage
 parse_config "config.ini"
 
-# Access configuration
-HOST="${server_host:-$DEFAULT_HOST}"
-PORT="${server_port:-$DEFAULT_PORT}"
-DEBUG="${app_debug:-$DEFAULT_DEBUG}"
+# Access configuration with defaults
+HOST="${host:-$DEFAULT_HOST}"
+PORT="${port:-$DEFAULT_PORT}"
+DEBUG="${debug:-$DEFAULT_DEBUG}"
 
 echo "Starting server on $HOST:$PORT (debug=$DEBUG)"
 ```
@@ -680,46 +649,26 @@ create_items() {
     local count="$1"
     local prefix="${2:-item}"
     local i
-    
+
     for ((i=1; i<=count; i++)); do
         declare -g "${prefix}_${i}=Value $i"
         declare -g "${prefix}_${i}_status=pending"
     done
 }
 
-# Process all variables with prefix
-process_items() {
-    local prefix="$1"
-    local var value
-    
-    echo "Processing all ${prefix}_ variables:"
-    for var in ${!prefix_*}; do
-        value="${!var}"
-        echo "  $var = $value"
-        
-        # Update status
-        if [[ $var =~ _status$ ]]; then
-            declare -g "$var=processed"
-        fi
-    done
-}
-
 # Example usage
 create_items 3 "task"
 
-echo "Initial state:"
-for var in ${!task_*}; do
-    echo "  $var = ${!var}"
-done
+# Access generated variables directly
+echo "task_1 = $task_1"
+echo "task_2 = $task_2"
+echo "task_3 = $task_3"
+echo "task_1_status = $task_1_status"
 
+# List variables with a prefix using set and grep
 echo
-process_items "task"
-
-echo
-echo "Final state:"
-for var in ${!task_*}; do
-    echo "  $var = ${!var}"
-done
+echo "All task_ variables:"
+set | grep '^task_'
 ```
 
 ### String Manipulation Utilities
@@ -728,14 +677,10 @@ done
 #!/usr/bin/env psh
 # Collection of string manipulation functions
 
-# Trim whitespace
+# Trim whitespace (using sed since nested pattern expansion
+# with character classes is not fully supported in PSH)
 trim() {
-    local var="$1"
-    # Remove leading whitespace
-    var="${var#"${var%%[![:space:]]*}"}"
-    # Remove trailing whitespace
-    var="${var%"${var##*[![:space:]]}"}"
-    echo "$var"
+    echo "$1" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
 }
 
 # Join array elements
@@ -767,12 +712,12 @@ urlencode() {
     local length="${#string}"
     local encoded=""
     local i c
-    
+
     for ((i=0; i<length; i++)); do
         c="${string:i:1}"
         case "$c" in
-            [a-zA-Z0-9.~_-]) encoded+="$c" ;;
-            *) encoded+=$(printf '%%%02X' "'$c") ;;
+            [a-zA-Z0-9.~_-]) encoded="${encoded}${c}" ;;
+            *) encoded="${encoded}$(printf '%%%02X' "'$c")" ;;
         esac
     done
     echo "$encoded"
@@ -878,9 +823,9 @@ psh$ echo ${!animals[@]}
 psh$ echo ${fruits[@]:1:2}
 banana cherry
 
-# Negative offset
-psh$ echo ${fruits[@]:-2:2}
-banana cherry
+# Negative offset (note the space before -2)
+psh$ echo ${fruits[@]: -2:2}
+cherry date
 ```
 
 ### Modifying Arrays
@@ -910,7 +855,7 @@ psh$ unset fruits
 
 ### Array Parameter Expansion
 
-All parameter expansion features work with array elements:
+Many parameter expansion features work with array elements:
 
 ```bash
 # Pattern substitution on all elements
@@ -918,20 +863,24 @@ psh$ files=(document.txt image.txt data.txt)
 psh$ echo ${files[@]/.txt/.bak}
 document.bak image.bak data.bak
 
-# Case modification
+# Case modification on all elements
 psh$ names=(alice bob charlie)
 psh$ echo ${names[@]^}
 Alice Bob Charlie
-
-# Pattern removal
-psh$ paths=(/home/user/file1 /home/user/file2)
-psh$ echo ${paths[@]##*/}
-file1 file2
 
 # Length of each element
 psh$ for file in "${files[@]}"; do
 >     echo "$file: ${#file} chars"
 > done
+```
+
+> **Note:** Pattern removal (`${array[@]#pattern}`, `${array[@]##pattern}`, `${array[@]%pattern}`, `${array[@]%%pattern}`) applied to the `[@]` form is not yet supported in PSH v0.187.1. As a workaround, apply pattern removal inside a loop on individual elements:
+
+```bash
+psh$ paths=(/home/user/file1 /home/user/file2)
+psh$ for p in "${paths[@]}"; do echo "${p##*/}"; done
+file1
+file2
 ```
 
 ### Practical Array Examples
@@ -1198,13 +1147,8 @@ four
 #!/usr/bin/env psh
 # Configuration management using associative arrays
 
-# Server configuration
-declare -A config=(
-    [hostname]="web01.example.com"
-    [port]="8080"
-    [ssl_enabled]="true"
-    [max_connections]="1000"
-)
+# Server configuration (single-line initialization)
+declare -A config=([hostname]="web01.example.com" [port]="8080" [ssl_enabled]="true")
 
 # Print configuration
 print_config() {
@@ -1235,47 +1179,27 @@ lookup_user() {
 }
 
 # File type mapping
-declare -A extensions=(
-    [txt]="Text file"
-    [jpg]="JPEG image"
-    [png]="PNG image"
-    [pdf]="PDF document"
-    [doc]="Word document"
-    [mp3]="Audio file"
-    [mp4]="Video file"
-)
+declare -A extensions
+extensions[txt]="Text file"
+extensions[jpg]="JPEG image"
+extensions[pdf]="PDF document"
 
 # Classify files
 classify_file() {
     local filename="$1"
     local ext="${filename##*.}"  # Get extension
     local description="${extensions[$ext]:-Unknown file type}"
-    
+
     echo "$filename: $description"
-}
-
-# HTTP status codes
-declare -A http_codes=(
-    [200]="OK"
-    [404]="Not Found"
-    [500]="Internal Server Error"
-    [403]="Forbidden"
-    [401]="Unauthorized"
-)
-
-# Process server logs
-process_status() {
-    local code="$1"
-    local message="${http_codes[$code]:-Unknown Status}"
-    echo "HTTP $code: $message"
 }
 
 # Example usage
 psh$ print_config
 psh$ lookup_user alice
 psh$ classify_file document.pdf
-psh$ process_status 404
 ```
+
+> **Note:** Multi-line compound initialization (`declare -A hash=(\n[key1]="val1"\n[key2]="val2"\n)`) is not supported in PSH v0.187.1. Use single-line compound initialization or assign elements individually instead.
 
 ### Best Practices for Associative Arrays
 

@@ -45,4 +45,4 @@ Each chapter builds upon previous concepts. Beginners should read chapters 1-5 s
 
 ### Version
 
-This guide covers PSH version 0.43.0 and later, including enhanced debugging features.
+This guide covers PSH version 0.187.1. PSH features a hand-written recursive descent parser, near-complete POSIX compliance (~93%), comprehensive signal handling via `trap`, arrays (indexed and associative), process substitution, and extensive debugging options.

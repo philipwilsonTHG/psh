@@ -20,8 +20,8 @@ Example: `echo $((2 + 3))` outputs `5`
 A command that evaluates arithmetic expressions using `((...))` syntax.  
 Example: `((x++))` increments the variable x.
 
-**Array** *(Not implemented in PSH)*  
-A variable that can hold multiple values indexed by number or string.
+**Array**
+A variable that can hold multiple values indexed by number (indexed arrays) or string (associative arrays declared with `declare -A`).
 
 **ASCII**  
 American Standard Code for Information Interchange. A character encoding standard.
@@ -418,8 +418,9 @@ Replacing `~` with the home directory path.
 **Token**  
 A basic unit of shell syntax (word, operator, etc.).
 
-**Trap** *(Not implemented in PSH)*  
-Catching and handling signals.
+**Trap**
+Catching and handling signals using the `trap` builtin.
+Example: `trap 'rm -f $tmpfile' EXIT`
 
 ## U
 

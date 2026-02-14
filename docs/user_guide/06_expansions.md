@@ -148,16 +148,6 @@ psh$ echo ~
 psh$ echo ~bob
 /home/bob
 
-# Current directory
-psh$ echo ~+
-/home/alice/documents
-
-# Previous directory (after cd)
-psh$ cd /tmp
-psh$ cd /var
-psh$ echo ~-
-/tmp
-
 # In paths
 psh$ echo ~/Documents
 /home/alice/Documents
@@ -170,15 +160,14 @@ psh$ echo ~/file1 ~bob/file2
 psh$ echo test~
 test~
 
-psh$ echo ~test
-~test
-
 # Quoted tildes are not expanded
 psh$ echo "~"
 ~
 psh$ echo '~'
 ~
 ```
+
+> **Note:** PSH v0.187.1 supports `~`, `~/path`, and `~username` tilde expansion but does not currently support `~+` (current directory) or `~-` (previous directory). Use `$PWD` and `$OLDPWD` as alternatives.
 
 ## 6.4 Command Substitution
 
@@ -258,9 +247,11 @@ psh$ if [ $? -ne 0 ]; then
 >     echo "Command failed: $result"
 > fi
 
-# Efficient file reading
-psh$ content=$(< file.txt)  # Faster than $(cat file.txt)
+# Read file via cat
+psh$ content=$(cat file.txt)
 ```
+
+> **Note:** The `$(< file)` shortcut for reading files (without running `cat`) is not supported in PSH v0.187.1. Use `$(cat file)` instead.
 
 ## 6.5 Arithmetic Expansion $((...))
 
@@ -360,7 +351,6 @@ psh$ age=18
 psh$ echo $((age >= 18 ? 1 : 0))
 1
 
-psh$ status=$((age >= 21 ? "adult" : "minor"))  # Note: returns numbers
 ```
 
 ### Arithmetic in Practice
@@ -479,9 +469,10 @@ psh$ echo '*'
 *
 
 # Empty matches
-psh$ shopt -s nullglob  # If supported
+psh$ shopt -s nullglob
 psh$ echo no_match_*
-# (empty output)
+# (empty output - no matching files, so nothing is printed)
+psh$ shopt -u nullglob  # Restore default behavior
 ```
 
 ## 6.7 Process Substitution

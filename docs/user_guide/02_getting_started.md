@@ -6,13 +6,13 @@ PSH can be run in several different modes depending on your needs. Each mode ser
 
 ### Interactive Mode
 
-The most common way to use PSH is interactively. Simply type `psh` at your terminal:
+The most common way to use PSH is interactively. Simply run `python -m psh` at your terminal:
 
 ```bash
-$ psh
+$ python -m psh
 psh$ echo "Welcome to PSH!"
 Welcome to PSH!
-psh$ 
+psh$
 ```
 
 In interactive mode:
@@ -27,7 +27,7 @@ In interactive mode:
 PSH can execute shell scripts just like any other shell:
 
 ```bash
-$ psh myscript.sh
+$ python -m psh myscript.sh
 ```
 
 Or with a shebang line in your script:
@@ -50,10 +50,10 @@ This script runs in PSH
 Execute a single command without entering interactive mode:
 
 ```bash
-$ psh -c "echo Hello from PSH"
+$ python -m psh -c "echo Hello from PSH"
 Hello from PSH
 
-$ psh -c "pwd; ls -la | head -3"
+$ python -m psh -c "pwd; ls -la | head -3"
 /home/user
 total 48
 drwxr-xr-x  5 user user 4096 Jan 15 10:00 .
@@ -74,50 +74,65 @@ PSH offers powerful debugging capabilities to understand how commands are proces
 See how PSH tokenizes your input:
 
 ```bash
-$ psh --debug-tokens -c "echo $HOME | grep user"
-=== Tokens ===
-[0] WORD: 'echo'
-[1] VARIABLE: 'HOME'
-[2] PIPE: '|'
-[3] WORD: 'grep'
-[4] WORD: 'user'
-[5] NEWLINE: '\n'
-[6] EOF: ''
-=== End Tokens ===
-/home/user
+$ python -m psh --debug-tokens -c "echo hello | grep hello"
+=== Token Debug Output ===
+  [  0] WORD                 'echo'
+  [  1] WORD                 'hello'
+  [  2] PIPE                 '|'
+  [  3] WORD                 'grep'
+  [  4] WORD                 'hello'
+  [  5] EOF                  ''
+========================
+hello
 ```
 
 #### AST Debugging (--debug-ast)
 
-View the Abstract Syntax Tree (AST) that PSH creates:
+View the Abstract Syntax Tree (AST) that PSH creates. PSH supports multiple AST output formats:
 
 ```bash
-$ psh --debug-ast -c "if [ -f file.txt ]; then echo exists; fi"
-=== AST ===
-TopLevel:
-  CommandList:
-    IfStatement:
-      condition:
-        CommandList:
-          AndOrList:
-            Pipeline:
-              Command: ['[', '-f', 'file.txt', ']']
-      then_body:
-        CommandList:
-          AndOrList:
-            Pipeline:
-              Command: ['echo', 'exists']
-      else_body: None
-      elif_parts: []
-=== End AST ===
+$ python -m psh --debug-ast -c "if [ -f /etc/passwd ]; then echo exists; fi"
+=== AST Debug Output (recursive_descent) ===
++-- TopLevel
+    +-- items: [1 items]
+        +-- IfConditional
+            |-- condition:
+            |   +-- StatementList
+            |       +-- statements: [1 items]
+            |           +-- AndOrList
+            |               +-- pipelines: [1 items]
+            |                   +-- Pipeline
+            |                       +-- commands: [1 items]
+            |                           +-- SimpleCommand
+            |                               +-- arguments: ...
+            +-- then_part:
+                +-- StatementList
+                    ...
+======================
+exists
+```
+
+You can select different AST formats:
+
+```bash
+# Tree format (default)
+$ python -m psh --debug-ast=tree -c "echo hello"
+
+# Pretty format
+$ python -m psh --debug-ast=pretty -c "echo hello"
+
+# Compact, S-expression, or Graphviz DOT formats
+$ python -m psh --debug-ast=compact -c "echo hello"
+$ python -m psh --debug-ast=sexp -c "echo hello"
+$ python -m psh --debug-ast=dot -c "echo hello"
 ```
 
 #### Combining Debug Modes
 
-You can use both debug modes together:
+You can use multiple debug modes together:
 
 ```bash
-$ psh --debug-tokens --debug-ast -c "x=5; echo $x"
+$ python -m psh --debug-tokens --debug-ast -c "x=5; echo $x"
 ```
 
 ### Debug Modes (continued)
@@ -129,9 +144,9 @@ PSH provides additional debug modes for understanding expansion and execution:
 See how PSH expands variables, globs, and other constructs:
 
 ```bash
-$ psh --debug-expansion -c 'echo $HOME/*.txt'
-[EXPANSION] Expanding command: ['echo', '$HOME/*.txt']
-[EXPANSION] Result: ['echo', '/home/user/doc1.txt', '/home/user/doc2.txt']
+$ python -m psh --debug-expansion -c 'echo $HOME/*.txt'
+[EXPANSION] Expanding Word AST command: ['echo', '$HOME/*.txt']
+[EXPANSION] Word AST Result: ['echo', '/home/user/doc1.txt', '/home/user/doc2.txt']
 /home/user/doc1.txt /home/user/doc2.txt
 ```
 
@@ -140,28 +155,22 @@ $ psh --debug-expansion -c 'echo $HOME/*.txt'
 Get step-by-step expansion details:
 
 ```bash
-$ psh --debug-expansion-detail -c 'echo ${USER:-nobody}'
-[EXPANSION] Expanding command: ['echo', '${USER:-nobody}']
-[EXPANSION]   arg_types: ['WORD', 'VARIABLE']
-[EXPANSION]   quote_types: [None, None]
-[EXPANSION]   Processing arg[0]: 'echo' (type=WORD, quote=None)
-[EXPANSION]   Processing arg[1]: '${USER:-nobody}' (type=VARIABLE, quote=None)
-[EXPANSION]     Variable expansion: '${USER:-nobody}' -> 'alice'
-[EXPANSION] Result: ['echo', 'alice']
+$ python -m psh --debug-expansion-detail -c 'echo ${USER:-nobody}'
+[EXPANSION] Expanding Word AST command: ['echo', '${USER:-nobody}']
+[EXPANSION] Word AST Result: ['echo', 'alice']
 alice
 ```
 
 #### Execution Debugging (--debug-exec)
 
-Trace command execution paths:
+Trace command execution paths including process creation details:
 
 ```bash
-$ psh --debug-exec -c 'echo hello | cat'
-[EXEC] PipelineExecutor: SimpleCommand(args=['echo', 'hello']) | SimpleCommand(args=['cat'])
-[EXEC] CommandExecutor: ['echo', 'hello']
-[EXEC]   Executing builtin: echo
-[EXEC] CommandExecutor: ['cat']
-[EXEC]   Executing external: cat
+$ python -m psh --debug-exec -c 'echo hello | cat'
+DEBUG Pipeline: ...
+DEBUG ProcessLauncher: Child 12345 is pipeline leader
+DEBUG BuiltinStrategy: executing builtin 'echo' with args ['hello']
+...
 hello
 ```
 
@@ -170,27 +179,23 @@ hello
 See detailed process creation:
 
 ```bash
-$ psh --debug-exec-fork -c 'ls | head -n 2'
-[EXEC-FORK] Forking for pipeline command 1/2: SimpleCommand(args=['ls'])
-[EXEC-FORK] Pipeline child 12345: executing command 1
-[EXEC-FORK] Forking for pipeline command 2/2: SimpleCommand(args=['head', '-n', '2'])
-[EXEC-FORK] Pipeline child 12346: executing command 2
-file1.txt
-file2.txt
+$ python -m psh --debug-exec-fork -c 'ls | head -n 2'
 ```
 
 ### Command-Line Options
 
 Here's a complete list of PSH command-line options:
 
-```bash
+```
 psh [options] [script] [arguments]
 
 Options:
   -c <command>              Execute command and exit
+  -i                        Force interactive mode
   -h, --help                Show help message
   -V, --version             Show version information
   --debug-ast               Show parsed AST before execution
+  --debug-ast=FORMAT        AST format: tree, pretty, compact, dot, sexp
   --debug-tokens            Show tokenized input before parsing
   --debug-scopes            Show variable scope operations
   --debug-expansion         Show expansions as they occur
@@ -199,6 +204,12 @@ Options:
   --debug-exec-fork         Show fork/exec details
   --norc                    Don't load ~/.pshrc file
   --rcfile <file>           Use alternative RC file instead of ~/.pshrc
+  --parser <parser>         Select parser: rd (recursive_descent), pc (combinator)
+  --validate                Validate script without executing
+  --format                  Format script and print formatted version
+  --metrics                 Analyze script and print code metrics
+  --security                Perform security analysis on script
+  --lint                    Perform linting analysis on script
 ```
 
 ## 2.2 Basic Command Structure
@@ -321,8 +332,8 @@ psh$ echo $HOME
 psh$ set | head -5
 HOME=/home/user
 PATH=/usr/local/bin:/usr/bin:/bin
-PS1=psh$ 
-PS2=> 
+PS1=psh$
+PS2=>
 PWD=/home/user
 ```
 
@@ -336,34 +347,30 @@ Many built-in commands have help text:
 
 ```bash
 psh$ help
-Available built-in commands:
-alias     - Define or display aliases
-bg        - Resume jobs in the background
-cd        - Change directory
-echo      - Display a line of text
-exit      - Exit the shell
-export    - Set environment variables
+PSH Shell, version 0.187.1
+These shell commands are defined internally. Type 'help name' to find out more
+about the function 'name'.
 ...
 
 psh$ help echo
 echo: echo [-neE] [arg ...]
-    
-    Write arguments to standard output.
-    
-    Display the ARGs, separated by a single space character and followed by a
-    newline, on the standard output.
-    
-    Options:
-      -n    do not append a newline
-      -e    enable interpretation of backslash escapes
-      -E    disable interpretation of backslash escapes (default)
+
+    Display arguments separated by spaces, followed by a newline.
+    ...
 ```
 
 ### Version Information
 
 ```bash
-psh$ psh --version
-Python Shell (psh) version 0.32.0
+psh$ python -m psh --version
+Python Shell (psh) version 0.187.1
+```
+
+Or from within PSH:
+
+```bash
+psh$ version
+Python Shell (psh) version 0.187.1
 ```
 
 ### Debug Output for Learning
@@ -371,16 +378,11 @@ Python Shell (psh) version 0.32.0
 Use debug modes to understand how PSH processes commands:
 
 ```bash
-# See how variables are expanded
-psh$ name="Alice"
-psh$ psh --debug-tokens -c 'echo "Hello, $name"'
-=== Tokens ===
-[0] WORD: 'echo'
-[1] STRING: 'Hello, Alice'
-[2] NEWLINE: '\n'
-[3] EOF: ''
-=== End Tokens ===
-Hello, Alice
+# See how the AST is constructed
+psh$ python -m psh --debug-ast -c 'echo "Hello, World"'
+
+# See tokenization
+psh$ python -m psh --debug-tokens -c 'echo "Hello, World"'
 ```
 
 ## 2.5 Customizing Your Environment (.pshrc)
@@ -413,9 +415,6 @@ hello() {
     echo "Hello, $1! Welcome to PSH."
 }
 
-# Set shell options (when implemented)
-# set -o vi  # Use vi keybindings
-
 echo "PSH initialized. Type 'help' for assistance."
 EOF
 ```
@@ -428,14 +427,11 @@ EOF
 # Simple colored prompt
 PS1='\[\e[1;32m\]psh>\[\e[0m\] '
 
-# Prompt with git branch (requires git command)
-git_branch() {
-    git branch 2>/dev/null | grep '^*' | sed 's/* //'
-}
-PS1='[\u@\h \w $(git_branch)]\$ '
+# Prompt with directory
+PS1='[\u@\h \w]\$ '
 
 # Two-line prompt
-PS1='\[\e[33m\]┌─[\u@\h:\w]\[\e[0m\]\n\[\e[33m\]└─\$\[\e[0m\] '
+PS1='\[\e[33m\][\u@\h:\w]\[\e[0m\]\n\$ '
 ```
 
 #### Productivity Aliases
@@ -454,10 +450,6 @@ alias mv='mv -i'
 alias h='history'
 alias j='jobs'
 alias e='exit'
-
-# Custom commands
-alias myip='curl -s https://api.ipify.org && echo'
-alias weather='curl -s wttr.in/London?format=3'
 ```
 
 #### Functions
@@ -492,10 +484,10 @@ ff() {
 
 ```bash
 # Skip RC file loading
-$ psh --norc
+$ python -m psh --norc
 
 # Use a different RC file
-$ psh --rcfile ~/myconfig.sh
+$ python -m psh --rcfile ~/myconfig.sh
 ```
 
 ## Summary

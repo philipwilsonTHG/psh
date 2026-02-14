@@ -53,13 +53,13 @@ psh$ x=10
 psh$ echo $((x + 5))
 15
 
-# Bad substitution error
+# Bad substitution error (with undeclared array)
 psh$ echo ${var[0]}
 psh: ${var[0]}: bad substitution
 
-# Fix: Arrays not supported, use positional parameters
-psh$ set -- first second third
-psh$ echo ${1}
+# Fix: Declare the array first
+psh$ declare -a var=(first second third)
+psh$ echo ${var[0]}
 first
 
 # Invalid parameter expansion
@@ -133,122 +133,65 @@ PSH provides several debug flags for different aspects of shell operation:
 ```bash
 # Debug tokenization issues
 psh$ psh --debug-tokens -c 'echo "Hello $USER"'
-=== Tokens ===
-Token(WORD, 'echo', 1:1)
-Token(STRING, '"Hello $USER"', 1:6)
-Token(EOF, '', 1:20)
-=== End Tokens ===
+=== Token Debug Output ===
+  [  0] WORD                 'echo'
+  [  1] WORD                 '"Hello $USER"'
+  [  2] EOF                  ''
+========================
 Hello alice
 
 # Debug parsing issues
 psh$ psh --debug-ast -c 'if true; then echo ok; fi'
-=== AST ===
-IfStatement:
-  condition: Pipeline:
-    Command: SimpleCommand
-      words: ['true']
-  then_body: [Pipeline:
-    Command: SimpleCommand
-      words: ['echo', 'ok']]
-  else_body: None
-=== End AST ===
+=== AST Debug Output (recursive_descent) ===
+... IfStatement -> condition -> SimpleCommand(true)
+    then_body -> SimpleCommand(echo, ok)
+======================
 ok
 
-# Debug variable scoping
-psh$ psh --debug-scopes script.sh
-[SCOPE] Entering function: main
-[SCOPE] Creating local variable: count
-[SCOPE] Variable lookup: count (found in local scope)
-[SCOPE] Exiting function: main
-
 # Debug expansion process
-psh$ psh --debug-expansion -c 'echo $HOME/*.txt'
-[EXPANSION] Expanding command: ['echo', '$HOME/*.txt']
-[EXPANSION] Result: ['echo', '/home/user/file1.txt', '/home/user/file2.txt']
-/home/user/file1.txt /home/user/file2.txt
+psh$ psh --debug-expansion -c 'echo $HOME'
+[EXPANSION] Expanding Word AST command: ['echo', '$HOME']
+[EXPANSION] Word AST Result: ['echo', '/home/user']
+/home/user
 
-# Debug expansion with detailed steps
-psh$ psh --debug-expansion-detail -c 'echo ${USER:-nobody}'
-[EXPANSION] Expanding command: ['echo', '${USER:-nobody}']
-[EXPANSION]   arg_types: ['WORD', 'VARIABLE']
-[EXPANSION]   quote_types: [None, None]
-[EXPANSION]   Processing arg[0]: 'echo' (type=WORD, quote=None)
-[EXPANSION]   Processing arg[1]: '${USER:-nobody}' (type=VARIABLE, quote=None)
-[EXPANSION]     Variable expansion: '${USER:-nobody}' -> 'alice'
-[EXPANSION] Result: ['echo', 'alice']
-alice
-
-# Debug command execution
-psh$ psh --debug-exec -c 'echo hello | cat'
-[EXEC] PipelineExecutor: SimpleCommand(args=['echo', 'hello']) | SimpleCommand(args=['cat'])
-[EXEC] CommandExecutor: ['echo', 'hello']
-[EXEC]   Executing builtin: echo
-[EXEC] CommandExecutor: ['cat']
-[EXEC]   Executing external: cat
-hello
-
-# Debug fork and exec operations
-psh$ psh --debug-exec-fork -c 'ls | head -n 2'
-[EXEC] PipelineExecutor: SimpleCommand(args=['ls']) | SimpleCommand(args=['head', '-n', '2'])
-[EXEC-FORK] Forking for pipeline command 1/2: SimpleCommand(args=['ls'])
-[EXEC-FORK] Pipeline child 12345: executing command 1
-[EXEC-FORK] Forking for pipeline command 2/2: SimpleCommand(args=['head', '-n', '2'])
-[EXEC-FORK] Pipeline child 12346: executing command 2
-file1.txt
-file2.txt
+# Multiple debug flags can be combined
+psh$ psh --debug-ast --debug-tokens -c 'echo hello'
 ```
 
 ### Runtime Debugging
 
 ```bash
-# Enable debugging during session
-psh$ set -o debug-ast
-psh$ echo test
-=== AST ===
-Pipeline:
-  Command: SimpleCommand
-    words: ['echo', 'test']
-=== End AST ===
-test
+# Enable expansion debugging during session
+psh$ set -o debug-expansion
+psh$ echo $USER
+[EXPANSION] Expanding Word AST command: ['echo', '$USER']
+[EXPANSION] Word AST Result: ['echo', 'alice']
+alice
 
 # Check current settings
 psh$ set -o
-debug-ast            on
-debug-exec           off
-debug-exec-fork      off
-debug-expansion      off
-debug-expansion-detail off
-debug-scopes         off
-debug-tokens         off
-emacs                on
-errexit              off
-nounset              off
-pipefail             off
-vi                   off
-xtrace               off
+allexport      	off
+braceexpand    	on
+emacs          	on
+errexit        	off
+...
 
-# Enable multiple debug options
-psh$ set -o debug-expansion -o debug-exec
-psh$ echo $USER | cat
-[EXPANSION] Expanding command: ['echo', '$USER']
-[EXPANSION] Result: ['echo', 'alice']
-[EXEC] PipelineExecutor: SimpleCommand(args=['echo', '$USER']) | SimpleCommand(args=['cat'])
-[EXEC] CommandExecutor: ['echo', 'alice']
-[EXEC]   Executing builtin: echo
-[EXEC] CommandExecutor: ['cat']
-[EXEC]   Executing external: cat
-alice
+# Enable xtrace for command tracing
+psh$ set -x
+psh$ echo hello
++ echo hello
+hello
+
+# Custom trace prefix
+psh$ PS4='[trace] '
+psh$ set -x
+psh$ echo hello
+[trace] echo hello
+hello
 
 # Disable debugging
-psh$ set +o debug-ast +o debug-expansion +o debug-exec
-
-# Trace variable values
-psh$ debug_var() {
->     echo "DEBUG: $1 = ${!1}" >&2
-> }
-psh$ myvar="test value"
-psh$ debug_var myvar
-DEBUG: myvar = test value
+psh$ set +o debug-expansion
+psh$ set +x
 ```
 
 ### Error Location Information
@@ -439,14 +382,6 @@ done
 ### Redirection Problems
 
 ```bash
-# Builtin output not redirected
-psh$ pwd > output.txt
-psh$ cat output.txt
-# May be empty due to print() usage
-
-# Workaround: Use command substitution
-psh$ echo "$(pwd)" > output.txt
-
 # Multiple redirections
 psh$ command < input.txt > output.txt 2>&1
 
@@ -456,11 +391,16 @@ psh$ cat << EOF > output.txt
 > Line 2
 > EOF
 
-# Process substitution issues
+# Process substitution
 psh$ diff <(command1) <(command2)
-# If fails, check file descriptors:
+# Check that process substitution creates valid FDs:
 psh$ echo <(echo test)
 /dev/fd/63
+
+# Builtin output redirects correctly
+psh$ pwd > output.txt
+psh$ cat output.txt
+/current/directory
 ```
 
 ### Pipeline Issues
@@ -469,23 +409,20 @@ psh$ echo <(echo test)
 # Exit status in pipelines
 psh$ false | true
 psh$ echo $?
-0  # Only last command's status
+0  # Only last command's status by default
 
-# Check all statuses (when PIPESTATUS is implemented)
-# For now, use temporary files:
-psh$ false > tmp1.txt
-psh$ status1=$?
-psh$ cat tmp1.txt | true
-psh$ status2=$?
-psh$ echo "Status: $status1, $status2"
+# Use pipefail for stricter checking
+psh$ set -o pipefail
+psh$ false | true
+psh$ echo $?
+1  # Now reports failure from any pipeline stage
 
-# Control structures in pipelines
-# This doesn't work:
+# Control structures in pipelines work correctly
 psh$ if true; then echo yes; fi | grep yes
-
-# Workaround: Use subshell
-psh$ (if true; then echo yes; fi) | grep yes
 yes
+
+psh$ echo "data" | while read line; do echo "Read: $line"; done
+Read: data
 ```
 
 ## 18.6 Job Control Problems
@@ -601,7 +538,7 @@ handle_error() {
 
 # Check commands
 run_command() {
-    "$@" || handle_error $? ${BASH_LINENO[0]:-0}
+    "$@" || handle_error $? 0
 }
 
 # Use throughout script
@@ -731,15 +668,13 @@ test
 ```bash
 # Check version
 psh$ psh --version
-PSH version 0.32.0
+Python Shell (psh) version 0.187.1
 
 # Command line help
 psh$ psh --help
-usage: psh [-h] [-c COMMAND] [-i] [--norc] [--rcfile RCFILE]
-          [--debug-ast] [--debug-tokens] [--debug-scopes]
-          [--debug-expansion] [--debug-expansion-detail]
-          [--debug-exec] [--debug-exec-fork]
-          [--version] ...
+Usage: psh [options] [script [args...]]
+       psh [options] -c command [args...]
+...
 
 # Check available builtins
 psh$ type cd pwd exit
@@ -776,7 +711,7 @@ $ bash -c 'same command'
 # Minimal reproducible example
 cat > bug_report.sh << 'EOF'
 #!/usr/bin/env psh
-# PSH version: 0.32.0
+# PSH version: 0.187.1
 # Python version: 3.8.10
 # OS: Ubuntu 20.04
 
@@ -823,4 +758,4 @@ Understanding these troubleshooting techniques helps you work effectively with P
 
 ---
 
-[← Previous: Chapter 17 - Differences from Bash](17_differences_from_bash.md) | [Table of Contents](README.md)
+[Previous: Chapter 17 - Differences from Bash](17_differences_from_bash.md) | [Table of Contents](README.md)

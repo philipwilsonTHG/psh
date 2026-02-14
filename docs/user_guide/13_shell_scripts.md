@@ -417,7 +417,7 @@ set -u          # Error on undefined variables (nounset)
 set -o pipefail # Pipeline fails if any command fails
 
 # Or combine them
-set -euo pipefail
+set -eu -o pipefail
 
 # Common pattern for robust scripts
 set -eux -o pipefail  # Also includes xtrace for debugging
@@ -661,18 +661,16 @@ psh$ DEBUG=true ./script.sh
 ### Execution Tracing
 
 ```bash
-# Show commands before execution (not fully implemented)
-# set -x
+# PSH fully supports set -x (xtrace)
+set -x
+echo "Hello"       # Shows: + echo Hello
+VAR="test"         # Shows: + VAR=test
+set +x             # Disable tracing
 
-# Manual trace
-trace() {
-    echo "+ $*" >&2
-    "$@"
-}
-
-# Usage
-trace cp source.txt dest.txt
-trace rm -f temp.txt
+# Custom trace prompt with PS4
+PS4='[trace] '
+set -x
+echo hello         # Shows: [trace] echo hello
 ```
 
 ### Debug Modes
@@ -684,19 +682,25 @@ PSH provides several debug options that can be enabled via command line or at ru
 psh$ psh --debug-ast script.sh      # Show parsed AST
 psh$ psh --debug-tokens script.sh   # Show tokenization
 psh$ psh --debug-scopes script.sh   # Show variable scopes
+psh$ psh --debug-expansion script.sh # Show expansion process
+psh$ psh --debug-exec script.sh     # Show execution flow
+
+# AST output format options
+psh$ psh --debug-ast=tree script.sh      # Tree format (default)
+psh$ psh --debug-ast=compact script.sh   # Compact format
+psh$ psh --debug-ast=sexp script.sh      # S-expression format
+psh$ psh --debug-ast=dot script.sh       # Graphviz DOT format
 
 # Combine debug modes
 psh$ psh --debug-ast --debug-tokens script.sh
 
 # Runtime debug toggling with set builtin
-psh$ set -o debug-ast       # Enable AST debugging
-psh$ set -o debug-tokens    # Enable token debugging
-psh$ set -o debug-scopes    # Enable scope debugging
+psh$ set -o debug-expansion    # Enable expansion tracing
+psh$ set -o debug-exec         # Enable execution tracing
 
 # Disable debug options
-psh$ set +o debug-ast
-psh$ set +o debug-tokens
-psh$ set +o debug-scopes
+psh$ set +o debug-expansion
+psh$ set +o debug-exec
 
 # Shell execution tracing (xtrace)
 psh$ set -x                 # Enable command tracing
@@ -708,11 +712,11 @@ psh$ VAR="test"
 psh$ set +x                 # Disable tracing
 
 # Custom trace prompt with PS4
-psh$ PS4='[${LINENO}] '    # Show line numbers
+psh$ PS4='[trace] '
 psh$ set -x
-psh$ echo "Line 1"
-[1] echo Line 1
-Line 1
+psh$ echo hello
+[trace] echo hello
+hello
 
 # Debug in scripts
 #!/usr/bin/env psh
@@ -725,6 +729,13 @@ debug_function() {
     set +x                  # Stop tracing
     echo "Normal output"
 }
+
+# Script analysis tools (no execution)
+psh$ psh --validate script.sh    # Check for parse errors
+psh$ psh --lint script.sh        # Lint analysis
+psh$ psh --security script.sh    # Security analysis
+psh$ psh --metrics script.sh     # Code complexity metrics
+psh$ psh --format script.sh      # Pretty-print script
 ```
 
 ### Error Diagnosis
@@ -732,11 +743,11 @@ debug_function() {
 ```bash
 #!/usr/bin/env psh
 
-# Add line numbers to errors
-error_with_line() {
-    local line_no="${BASH_LINENO[0]}"  # Not available in PSH
-    echo "Error at line $line_no: $1" >&2
-    exit 1
+# Error handler function
+error_handler() {
+    local exit_code=$?
+    echo "Error: Command exited with status $exit_code" >&2
+    exit $exit_code
 }
 
 # Validate before proceeding
@@ -844,7 +855,6 @@ join_path() {
 
 # Get script directory portably
 get_script_dir() {
-    local source="${BASH_SOURCE[0]}"  # PSH: use $0
     local dir="$(cd "$(dirname "$0")" && pwd)"
     echo "$dir"
 }
@@ -897,7 +907,7 @@ export PAGER="less"
 export PATH="$HOME/bin:$PATH"
 
 # Custom trace prompt for debugging
-export PS4='+ ${FUNCNAME[0]:+${FUNCNAME[0]}():}line ${LINENO}: '
+export PS4='+ line ${LINENO}: '
 
 # Aliases
 alias ll='ls -la'
@@ -1347,7 +1357,7 @@ This example demonstrates using shell options for a production-quality deploymen
 # Demonstrates: set -e, set -u, set -x, set -o pipefail
 
 # Enable strict error handling
-set -euo pipefail
+set -eu -o pipefail
 
 # Script configuration
 readonly SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -1359,8 +1369,8 @@ readonly BACKUP_DIR="/backups/${APP_NAME}/${TIMESTAMP}"
 # Enable tracing if DEBUG is set
 [ "${DEBUG:-false}" = "true" ] && set -x
 
-# Custom trace prompt showing function names
-export PS4='+ [${BASH_SOURCE##*/}:${LINENO}] ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+# Custom trace prompt
+export PS4='+ [${LINENO}] '
 
 # Logging functions
 log() {
@@ -1450,7 +1460,7 @@ deploy_application() {
     
     # Run remote commands
     ssh "$DEPLOY_USER@$DEPLOY_HOST" << 'REMOTE_SCRIPT'
-        set -euo pipefail  # Shell options apply to remote script too
+        set -eu -o pipefail  # Shell options apply to remote script too
         cd "$APP_DIR"
         
         # Install dependencies
@@ -1566,7 +1576,7 @@ Key concepts:
 - RC files customize the shell environment
 
 Best practices for production scripts:
-- Always use `set -euo pipefail` at the start of scripts
+- Always use `set -eu -o pipefail` at the start of scripts
 - Enable tracing with `set -x` for debugging
 - Validate inputs and environment before proceeding
 - Handle errors gracefully with proper logging
@@ -1577,4 +1587,4 @@ Shell scripting enables automation of repetitive tasks, system administration, d
 
 ---
 
-[← Previous: Chapter 12 - Functions](12_functions.md) | [Next: Chapter 14 - Interactive Features →](14_interactive_features.md)
+[Previous: Chapter 12 - Functions](12_functions.md) | [Next: Chapter 14 - Interactive Features](14_interactive_features.md)

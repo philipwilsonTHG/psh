@@ -1,13 +1,13 @@
 # Appendix B: Example Scripts
 
-This appendix contains a collection of scripts that demonstrate PSH's capabilities. All scripts have been tested and are guaranteed to work with PSH version 0.37.0 and later.
+This appendix contains a collection of scripts that demonstrate PSH's capabilities. All scripts have been tested with PSH version 0.187.1.
 
 ## Table of Contents
 
-1. [Control Structures in Pipelines (v0.37.0)](#control-structures-in-pipelines-v0370) 🚀
+1. [Control Structures in Pipelines](#control-structures-in-pipelines)
 2. [System Administration Scripts](#system-administration-scripts)
-3. [Signal Handling and Cleanup (v0.57.2)](#signal-handling-and-cleanup-v0572) 🆕
-4. [Process Synchronization with Wait (v0.57.3)](#process-synchronization-with-wait-v0573) 🆕
+3. [Signal Handling and Cleanup](#signal-handling-and-cleanup)
+4. [Process Synchronization with Wait](#process-synchronization-with-wait)
 5. [Mathematical Scripts](#mathematical-scripts)
 6. [Interactive Utilities](#interactive-utilities)
 7. [Text Processing Scripts](#text-processing-scripts)
@@ -15,15 +15,15 @@ This appendix contains a collection of scripts that demonstrate PSH's capabiliti
 9. [Function Libraries](#function-libraries)
 10. [Dynamic Programming with eval](#dynamic-programming-with-eval)
 
-## Control Structures in Pipelines (v0.37.0) 🚀
+## Control Structures in Pipelines
 
-PSH v0.37.0 introduces the ability to use control structures as pipeline components. The comprehensive demonstration script is available at `examples/control_structures_in_pipelines_demo.sh`.
+PSH supports using control structures as pipeline components, allowing sophisticated data transformation pipelines.
 
 ### Quick Examples
 
 ```bash
 #!/usr/bin/env psh
-# Pipeline patterns available in PSH v0.37.0
+# Pipeline patterns in PSH
 
 # Data processing with while loops
 echo -e "apple\nbanana\ncherry" | while read fruit; do
@@ -32,33 +32,25 @@ done
 
 # Conditional processing with if statements
 echo "42" | if [ $(cat) -gt 40 ]; then
-    echo "✅ Number is greater than 40"
+    echo "Number is greater than 40"
 else
-    echo "❌ Number is 40 or less"
+    echo "Number is 40 or less"
 fi
 
 # Pattern matching with case statements
 echo "script.sh" | case $(cat) in
-    *.sh)  echo "📜 Shell script detected" ;;
-    *.py)  echo "🐍 Python script detected" ;;
-    *)     echo "❓ Unknown file type" ;;
+    *.sh)  echo "Shell script detected" ;;
+    *.py)  echo "Python script detected" ;;
+    *)     echo "Unknown file type" ;;
 esac
-
-# Multi-stage pipeline processing
-seq 1 3 | while read num; do
-    echo "Group $num:" 
-    echo "  x y z" | for item in a b c; do
-        echo "    $num-$item"
-    done
-done
 
 # Real-world log processing
 echo "2024-01-06 ERROR Database connection failed" | while read date time level message; do
     case $level in
-        ERROR) echo "🔴 $date $time: $message" ;;
-        WARN)  echo "🟡 $date $time: $message" ;;
-        INFO)  echo "🔵 $date $time: $message" ;;
-        *)     echo "⚪ $date $time $level: $message" ;;
+        ERROR) echo "ERROR $date $time: $message" ;;
+        WARN)  echo "WARN  $date $time: $message" ;;
+        INFO)  echo "INFO  $date $time: $message" ;;
+        *)     echo "OTHER $date $time $level: $message" ;;
     esac
 done
 ```
@@ -68,12 +60,6 @@ done
 - **Enhanced Data Processing**: Create sophisticated data transformation pipelines
 - **Improved Readability**: More intuitive pipeline logic
 - **Increased Composability**: Mix control structures with traditional commands seamlessly
-- **Enhanced Capability**: Control structures as pipeline components
-
-For the complete demonstration with 50+ examples, run:
-```bash
-psh examples/control_structures_in_pipelines_demo.sh
-```
 
 ## System Administration Scripts
 
@@ -322,8 +308,7 @@ handle_interrupt() {
     exit 130
 }
 
-# Trap not fully implemented in PSH yet
-# trap handle_interrupt INT TERM
+trap handle_interrupt INT TERM
 
 # Run main function
 main "$@"
@@ -337,13 +322,13 @@ This script demonstrates:
 - **Validation**: Pre-flight checks before making changes
 - **Error recovery**: Graceful handling of non-critical failures
 
-## Signal Handling and Cleanup (v0.57.2) 🆕
+## Signal Handling and Cleanup
 
-PSH v0.57.2 introduces the `trap` builtin for robust signal handling and cleanup. These scripts demonstrate proper cleanup patterns for production use.
+PSH supports the `trap` builtin for signal handling and cleanup. These scripts demonstrate proper cleanup patterns.
 
-## Process Synchronization with Wait (v0.57.3) 🆕
+## Process Synchronization with Wait
 
-PSH v0.57.3 adds the POSIX-compliant `wait` builtin for process synchronization and background job management. These examples show how to coordinate multiple processes effectively.
+PSH supports the POSIX-compliant `wait` builtin for process synchronization and background job management. These examples show how to coordinate multiple processes.
 
 ### Long-Running Process with Cleanup
 
@@ -1596,27 +1581,46 @@ create_project "$name" "$type"
 #!/usr/bin/env psh
 # testrunner.sh - Simple test runner for shell scripts
 
-run_test() {
+# Assert that a command produces expected output
+assert_output() {
     local test_name="$1"
-    local test_command="$2"
-    local expected="$3"
-    
+    local expected="$2"
+    shift 2
+
     echo -n "Running $test_name... "
-    
-    # Run the test and capture output
-    local output=$($test_command 2>&1)
-    local exit_code=$?
-    
-    if [ "$expected" = "EXIT:$exit_code" ]; then
-        echo "PASS"
-        return 0
-    elif [ "$output" = "$expected" ]; then
+
+    local output
+    output=$("$@" 2>&1)
+
+    if [ "$output" = "$expected" ]; then
         echo "PASS"
         return 0
     else
         echo "FAIL"
         echo "  Expected: $expected"
-        echo "  Got: $output (exit code: $exit_code)"
+        echo "  Got:      $output"
+        return 1
+    fi
+}
+
+# Assert that a command exits with expected status
+assert_exit() {
+    local test_name="$1"
+    local expected_code="$2"
+    shift 2
+
+    echo -n "Running $test_name... "
+
+    "$@" >/dev/null 2>&1
+    local actual_code=$?
+
+    if [ "$actual_code" -eq "$expected_code" ]; then
+        echo "PASS"
+        return 0
+    else
+        echo "FAIL"
+        echo "  Expected exit code: $expected_code"
+        echo "  Got exit code:      $actual_code"
         return 1
     fi
 }
@@ -1625,38 +1629,41 @@ run_test() {
 run_tests() {
     local passed=0
     local failed=0
-    
+
     echo "Running Test Suite"
     echo "=================="
     echo
-    
-    # Example tests
-    if run_test "Echo test" "echo hello" "hello"; then
+
+    if assert_output "Echo test" "hello" echo hello; then
         ((passed++))
     else
         ((failed++))
     fi
-    
-    if run_test "Exit code test" "false" "EXIT:1"; then
+
+    if assert_exit "False returns 1" 1 false; then
         ((passed++))
     else
         ((failed++))
     fi
-    
-    if run_test "Arithmetic test" "echo $((2 + 2))" "4"; then
+
+    if assert_exit "True returns 0" 0 true; then
         ((passed++))
     else
         ((failed++))
     fi
-    
-    # Add your own tests here
-    
+
+    if assert_output "Arithmetic test" "4" echo $((2 + 2)); then
+        ((passed++))
+    else
+        ((failed++))
+    fi
+
     echo
     echo "=================="
     echo "Tests passed: $passed"
     echo "Tests failed: $failed"
     echo
-    
+
     if [ $failed -eq 0 ]; then
         echo "All tests passed!"
         return 0
@@ -1711,20 +1718,16 @@ capitalize() {
     echo "${str^}"
 }
 
-# Replace all occurrences
-replace_all() {
-    local str="$1"
-    local search="$2"
-    local replace="$3"
-    echo "${str//$search/$replace}"
-}
-
 # Count occurrences of substring
 count_substring() {
     local str="$1"
     local sub="$2"
-    local temp="${str//$sub/}"
-    local count=$(( (${#str} - ${#temp}) / ${#sub} ))
+    local count=0
+    local temp="$str"
+    while [[ "$temp" == *"$sub"* ]]; do
+        temp="${temp#*$sub}"
+        ((count++))
+    done
     echo $count
 }
 
@@ -1760,7 +1763,6 @@ ends_with() {
 # echo "Upper: $(to_upper "Hello World")"
 # echo "Lower: $(to_lower "Hello World")"
 # echo "Capitalize: $(capitalize "hello world")"
-# echo "Replace: $(replace_all "hello world" "o" "0")"
 # echo "Count 'l': $(count_substring "hello world" "l")"
 # echo "Repeat: $(repeat "abc" 3)"
 # starts_with "hello world" "hello" && echo "Starts with hello"

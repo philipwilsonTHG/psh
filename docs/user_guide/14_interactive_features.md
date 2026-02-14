@@ -69,8 +69,8 @@ psh$ exit 0
 # Exit with Ctrl-D (EOF)
 psh$ ^D
 
-# Prevent accidental Ctrl-D exit (when implemented)
-# psh$ set -o ignoreeof
+# Prevent accidental Ctrl-D exit
+psh$ set -o ignoreeof
 ```
 
 ## 14.2 Command History
@@ -92,10 +92,10 @@ psh$ history
     4  git status
     5  history
 
-# Execute command from history (when history expansion is implemented)
-# psh$ !3        # Run command 3
-# psh$ !!        # Run last command
-# psh$ !git      # Run last command starting with 'git'
+# Execute command from history
+psh$ !3        # Run command 3
+psh$ !!        # Run last command
+psh$ !git      # Run last command starting with 'git'
 ```
 
 ### History File
@@ -108,10 +108,10 @@ psh$ cat ~/.psh_history
 # Maximum history size is configurable
 
 # Clear history for current session
-psh$ history -c    # When implemented
+psh$ history -c
 
 # Prevent command from being saved to history
-# Start command with a space (when implemented)
+# Start command with a space
 psh$  echo "secret command"
 ```
 
@@ -454,9 +454,10 @@ psh$ set -o | grep -E 'emacs|vi'
 emacs          on
 vi             off
 
-# Custom prompt for vi mode (when implemented)
-# Shows mode in prompt
-psh$ PS1='$([ "$KEYMAP" = "vicmd" ] && echo "[N]")\u@\h:\w\$ '
+# Vi mode can be enabled
+psh$ set -o vi
+# Switch back to emacs mode
+psh$ set -o emacs
 ```
 
 ## 14.6 Multi-line Commands
@@ -559,54 +560,47 @@ PSH provides various shell options for controlling behavior and debugging.
 ```bash
 # View all shell options
 psh$ set -o
-debug-ast            off
-debug-exec           off
-debug-exec-fork      off
-debug-expansion      off
-debug-expansion-detail off
-debug-scopes         off
-debug-tokens         off
-emacs                on
-errexit              off
-nounset              off
-pipefail             off
-vi                   off
-xtrace               off
+allexport      	off
+braceexpand    	on
+emacs          	on
+errexit        	off
+histexpand     	on
+ignoreeof      	off
+monitor        	off
+noclobber      	off
+noexec         	off
+noglob         	off
+nolog          	off
+notify         	off
+nounset        	off
+pipefail       	off
+posix          	off
+verbose        	off
+vi             	off
+xtrace         	off
 
-# Enable expansion debugging
+# Enable expansion debugging at runtime
 psh$ set -o debug-expansion
 psh$ echo $USER
-[EXPANSION] Expanding command: ['echo', '$USER']
-[EXPANSION] Result: ['echo', 'alice']
+[EXPANSION] Expanding Word AST command: ['echo', '$USER']
+[EXPANSION] Word AST Result: ['echo', 'alice']
 alice
 
-# Enable detailed expansion debugging
-psh$ set -o debug-expansion-detail
-psh$ echo ${PATH##*/}
-[EXPANSION] Expanding command: ['echo', '${PATH##*/}']
-[EXPANSION]   arg_types: ['WORD', 'VARIABLE']
-[EXPANSION]   quote_types: [None, None]
-[EXPANSION]   Processing arg[0]: 'echo' (type=WORD, quote=None)
-[EXPANSION]   Processing arg[1]: '${PATH##*/}' (type=VARIABLE, quote=None)
-[EXPANSION]     Variable expansion: '${PATH##*/}' -> 'bin'
-[EXPANSION] Result: ['echo', 'bin']
-bin
-
-# Enable execution debugging
+# Enable execution debugging at runtime
 psh$ set -o debug-exec
 psh$ echo hello | cat
-[EXEC] PipelineExecutor: SimpleCommand(args=['echo', 'hello']) | SimpleCommand(args=['cat'])
+[EXEC] PipelineExecutor: ...
 [EXEC] CommandExecutor: ['echo', 'hello']
 [EXEC]   Executing builtin: echo
-[EXEC] CommandExecutor: ['cat']
-[EXEC]   Executing external: cat
 hello
 
 # Disable debugging
-psh$ set +o debug-expansion +o debug-expansion-detail +o debug-exec
+psh$ set +o debug-expansion +o debug-exec
 
-# Enable multiple options at once
-psh$ set -o debug-expansion -o debug-exec
+# Command-line debug flags (more reliable for full output)
+psh$ psh --debug-ast -c 'echo hello'     # Show AST
+psh$ psh --debug-tokens -c 'echo hello'  # Show tokens
+psh$ psh --debug-expansion -c 'echo $HOME'  # Show expansions
 ```
 
 ### Traditional Shell Options
@@ -617,22 +611,27 @@ psh$ set -e    # Exit on error (errexit)
 psh$ set -u    # Error on undefined variables (nounset)
 psh$ set -x    # Print commands before execution (xtrace)
 
-# Combine options
+# Combine short options
 psh$ set -eux
 
-# Pipeline error handling
-psh$ set -o pipefail  # Pipeline fails if any command fails
+# Long-form options
+psh$ set -o pipefail     # Pipeline fails if any command fails
+psh$ set -o noclobber    # Prevent overwriting files with >
+psh$ set -o allexport    # Export all variables on assignment
+psh$ set -o noglob       # Disable globbing
+psh$ set -o verbose      # Print input lines as read
 
 # Check specific option
 psh$ set -o | grep errexit
-errexit              on
+errexit        	on
 
-# Show options as set commands
+# Show options as re-enterable set commands
 psh$ set +o
 set -o errexit
 set +o nounset
 set -o xtrace
-set -o pipefail
+set +o pipefail
+...
 ```
 
 ## 14.8 Job Control
@@ -748,8 +747,10 @@ exit     # Exits shell
 - SIGINT terminates script
 - No job control signals
 
-# Custom signal handling (trap command when implemented)
-# trap 'echo "Interrupted"' INT
+# Custom signal handling with trap command
+psh$ trap 'echo "Interrupted"' INT
+psh$ trap 'echo "Cleaning up"' EXIT
+psh$ trap -p    # List current traps
 ```
 
 ## 14.9 Interactive Shell Configuration
@@ -783,8 +784,7 @@ mkcd() {
 export HISTSIZE=10000
 export HISTFILE=~/.psh_history
 
-# Custom key bindings (when implemented)
-# bind '"\C-p": history-search-backward'
+# Note: Custom key bindings (bind) are not supported
 
 # Only in interactive mode
 if [ -n "$PS1" ]; then
@@ -802,10 +802,11 @@ set -o emacs      # Emacs editing mode
 set -o vi         # Vi editing mode
 set +o vi         # Disable vi mode
 
-# Future options (when implemented):
-# set -o ignoreeof  # Ignore Ctrl-D
-# set -o noclobber  # Prevent overwriting files
-# set -o notify     # Immediate job notifications
+# Additional options:
+set -o ignoreeof  # Ignore Ctrl-D (require exit command)
+set -o noclobber  # Prevent overwriting files with >
+set -o notify     # Immediate job notifications
+set -o allexport  # Export all variables
 ```
 
 ## 14.10 Practical Tips and Tricks
@@ -818,9 +819,9 @@ psh$ cd -    # Previous directory
 psh$ cd      # Home directory
 psh$ cd ~    # Also home directory
 
-# Command repetition
-psh$ !!      # Repeat last command (when implemented)
-psh$ !$      # Last argument of previous command (when implemented)
+# Command repetition (history expansion)
+psh$ !!      # Repeat last command
+psh$ !$      # Last argument of previous command
 
 # Clear screen
 psh$ clear   # Or Ctrl-L
@@ -928,4 +929,4 @@ These features make PSH a comfortable and efficient environment for daily comman
 
 ---
 
-[← Previous: Chapter 13 - Shell Scripts](13_shell_scripts.md) | [Next: Chapter 15 - Job Control →](15_job_control.md)
+[Previous: Chapter 13 - Shell Scripts](13_shell_scripts.md) | [Next: Chapter 15 - Job Control](15_job_control.md)
