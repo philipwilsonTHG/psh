@@ -12,7 +12,7 @@ from .core.state import ShellState
 from .expansion.manager import ExpansionManager
 from .functions import FunctionManager
 from .interactive.base import InteractiveManager
-from .io_redirect.manager import IOManager
+from .io_redirect import IOManager
 from .job_control import JobManager
 from .scripting.base import ScriptManager
 

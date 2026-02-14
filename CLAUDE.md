@@ -495,9 +495,22 @@ class MyVisitor(ASTVisitor[T]):
 
 ## Current Development Status
 
-**Version**: 0.178.0 (see CHANGELOG.md for detailed history)
+**Version**: 0.179.0 (see CHANGELOG.md for detailed history)
 
 **Recent Work**:
+- **I/O Redirect Public API Cleanup (v0.179.0)**:
+  - Populated `__init__.py` with `IOManager` import and `__all__`
+  - Deleted 5 dead `IOManager` methods (~55 lines) and 3 dead
+    `HeredocHandler` methods (~82 lines) plus unused imports
+  - Consolidated `_dup2_preserve_target` as module-level function
+  - Extracted `_expand_redirect_target`, `_check_noclobber` helpers
+  - Moved saved FD state from Shell to `FileRedirector`
+  - Initialized `_saved_fds_list` in `__init__` (removed `hasattr` guards)
+  - Added 6 per-type redirect helpers (`_redirect_input_from_file`,
+    `_redirect_heredoc`, `_redirect_herestring`, `_redirect_output_to_file`,
+    `_redirect_dup_fd`, `_redirect_close_fd`)
+  - Rewrote `apply_redirections`, `apply_permanent_redirections`,
+    `setup_child_redirections`, `setup_builtin_redirections` to use helpers
 - **Parser Public API Cleanup (v0.178.0)**:
   - Trimmed `__all__` from 17 to 5 items; demoted Tier 2 to convenience
     imports; removed Tier 3 from package-level `__all__`; deleted

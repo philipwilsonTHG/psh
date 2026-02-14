@@ -9,153 +9,145 @@ if TYPE_CHECKING:
     from ..shell import Shell
 
 
+def _dup2_preserve_target(opened_fd: int, target_fd: int):
+    """dup2() helper that avoids closing target_fd when FDs already match."""
+    if opened_fd == target_fd:
+        return
+    os.dup2(opened_fd, target_fd)
+    os.close(opened_fd)
+
+
 class FileRedirector:
     """Handles file-based I/O redirections."""
 
     def __init__(self, shell: 'Shell'):
         self.shell = shell
         self.state = shell.state
+        self._saved_stdout = None
+        self._saved_stderr = None
+        self._saved_stdin = None
 
-    @staticmethod
-    def _dup2_preserve_target(opened_fd: int, target_fd: int):
-        """dup2() helper that avoids closing target_fd when FDs already match."""
-        if opened_fd == target_fd:
-            return
-        os.dup2(opened_fd, target_fd)
-        os.close(opened_fd)
+    def _check_noclobber(self, target):
+        """Raise OSError if noclobber is set and target exists."""
+        if self.state.options.get('noclobber', False) and os.path.exists(target):
+            raise OSError(f"cannot overwrite existing file: {target}")
+
+    def _expand_redirect_target(self, redirect):
+        """Expand variables and tilde in a redirect target."""
+        target = redirect.target
+        if not target or redirect.type not in ('<', '>', '>>'):
+            return target
+        if not (hasattr(redirect, 'quote_type') and redirect.quote_type == "'"):
+            target = self.shell.expansion_manager.expand_string_variables(target)
+        if target.startswith('~'):
+            target = self.shell.expansion_manager.expand_tilde(target)
+        return target
+
+    def _redirect_input_from_file(self, target):
+        """Open file for input and dup2 to stdin."""
+        fd = os.open(target, os.O_RDONLY)
+        _dup2_preserve_target(fd, 0)
+
+    def _redirect_heredoc(self, redirect):
+        """Create pipe with heredoc content, dup2 to stdin. Returns content."""
+        r, w = os.pipe()
+        content = redirect.heredoc_content or ''
+        if content and not getattr(redirect, 'heredoc_quoted', False):
+            content = self.shell.expansion_manager.expand_string_variables(content)
+        os.write(w, content.encode())
+        os.close(w)
+        _dup2_preserve_target(r, 0)
+        return content
+
+    def _redirect_herestring(self, redirect):
+        """Create pipe with here-string content, dup2 to stdin. Returns content."""
+        r, w = os.pipe()
+        if hasattr(redirect, 'quote_type') and redirect.quote_type == "'":
+            expanded = redirect.target
+        else:
+            expanded = self.shell.expansion_manager.expand_string_variables(redirect.target)
+        content = expanded + '\n'
+        os.write(w, content.encode())
+        os.close(w)
+        _dup2_preserve_target(r, 0)
+        return content
+
+    def _redirect_output_to_file(self, target, redirect, check_noclobber=True):
+        """Open file for output and dup2 to target fd. Returns target_fd."""
+        target_fd = redirect.fd if redirect.fd is not None else 1
+        if redirect.type == '>' and check_noclobber:
+            self._check_noclobber(target)
+        flags = os.O_WRONLY | os.O_CREAT
+        flags |= os.O_TRUNC if redirect.type == '>' else os.O_APPEND
+        fd = os.open(target, flags, 0o644)
+        _dup2_preserve_target(fd, target_fd)
+        return target_fd
+
+    def _redirect_dup_fd(self, redirect):
+        """Handle >&/<& fd duplication. Validates source fd."""
+        if redirect.fd is not None and redirect.dup_fd is not None:
+            try:
+                fcntl.fcntl(redirect.dup_fd, fcntl.F_GETFD)
+            except OSError:
+                raise OSError(f"{redirect.dup_fd}: Bad file descriptor")
+            os.dup2(redirect.dup_fd, redirect.fd)
+        elif redirect.fd is not None and redirect.target == '-':
+            try:
+                os.close(redirect.fd)
+            except OSError:
+                pass
+
+    def _redirect_close_fd(self, redirect):
+        """Handle >&-/<&- fd close."""
+        if redirect.fd is not None:
+            try:
+                os.close(redirect.fd)
+            except OSError:
+                pass
 
     def apply_redirections(self, redirects: List[Redirect]) -> List[Tuple[int, int]]:
-        """
-        Apply redirections and return list of (fd, saved_fd) for restoration.
-
-        This handles all types of redirections:
-        - < (input redirection)
-        - > (output redirection)
-        - >> (append redirection)
-        - << and <<- (here documents)
-        - <<< (here strings)
-        - >& (fd duplication like 2>&1)
-        """
+        """Apply redirections and return list of (fd, saved_fd) for restoration."""
         saved_fds = []
 
         # Save current Python file objects
-        self.shell._saved_stdout = self.state.stdout
-        self.shell._saved_stderr = self.state.stderr
-        self.shell._saved_stdin = self.state.stdin
+        self._saved_stdout = self.state.stdout
+        self._saved_stderr = self.state.stderr
+        self._saved_stdin = self.state.stdin
 
         for redirect in redirects:
-            # Expand variables and tilde in target for file redirections
-            target = redirect.target
-            if target and redirect.type in ('<', '>', '>>'):
-                # First expand variables (respecting quotes)
-                if hasattr(redirect, 'quote_type') and redirect.quote_type == "'":
-                    # Single quotes - no expansion
-                    pass
-                else:
-                    # Double quotes or no quotes - expand variables
-                    target = self.shell.expansion_manager.expand_string_variables(target)
-                # Then expand tilde
-                if target.startswith('~'):
-                    target = self.shell.expansion_manager.expand_tilde(target)
-
-            # Handle process substitution as redirect target
+            target = self._expand_redirect_target(redirect)
             if target and target.startswith(('<(', '>(')) and target.endswith(')'):
-                # Process substitution will be handled by process_sub module
                 target = self._handle_process_sub_redirect(target, redirect)
 
             if redirect.type == '<':
-                # Input redirection
                 saved_fds.append((0, os.dup(0)))
-                fd = os.open(target, os.O_RDONLY)
-                self._dup2_preserve_target(fd, 0)
-
+                self._redirect_input_from_file(target)
             elif redirect.type in ('<<', '<<-'):
-                # Here document
                 saved_fds.append((0, os.dup(0)))
-                r, w = os.pipe()
-
-                # Get heredoc content
-                content = redirect.heredoc_content or ''
-
-                # Expand variables if delimiter wasn't quoted
-                if not getattr(redirect, 'heredoc_quoted', False):
-                    content = self.shell.expansion_manager.expand_string_variables(content)
-
-                # Write heredoc content to pipe
-                os.write(w, content.encode())
-                os.close(w)
-                # Redirect stdin to read end
-                self._dup2_preserve_target(r, 0)
-
+                self._redirect_heredoc(redirect)
             elif redirect.type == '<<<':
-                # Here string
                 saved_fds.append((0, os.dup(0)))
-                r, w = os.pipe()
-                # Expand variables unless single quoted
-                if hasattr(redirect, 'quote_type') and redirect.quote_type == "'":
-                    # Single quotes - no expansion
-                    expanded_content = redirect.target
-                else:
-                    # Double quotes or no quotes - expand variables
-                    expanded_content = self.shell.expansion_manager.expand_string_variables(redirect.target)
-                # Write here string content with newline
-                content = expanded_content + '\n'
-                os.write(w, content.encode())
-                os.close(w)
-                # Redirect stdin to read end
-                self._dup2_preserve_target(r, 0)
-
-            elif redirect.type == '>':
-                # Output redirection (truncate)
+                self._redirect_herestring(redirect)
+            elif redirect.type in ('>', '>>'):
                 target_fd = redirect.fd if redirect.fd is not None else 1
                 saved_fds.append((target_fd, os.dup(target_fd)))
-
-                # Check noclobber option - prevent overwriting existing files
-                if self.state.options.get('noclobber', False) and os.path.exists(target):
-                    raise OSError(f"cannot overwrite existing file: {target}")
-
-                fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)
-                self._dup2_preserve_target(fd, target_fd)
-
-            elif redirect.type == '>>':
-                # Output redirection (append)
-                target_fd = redirect.fd if redirect.fd is not None else 1
-                saved_fds.append((target_fd, os.dup(target_fd)))
-                fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o644)
-                self._dup2_preserve_target(fd, target_fd)
-
-            elif redirect.type == '>&':
-                # FD duplication (e.g., 2>&1)
-                if redirect.fd is not None and redirect.dup_fd is not None:
-                    # Validate that the source file descriptor exists
-                    try:
-                        # Try to get the file descriptor flags to check if it exists
-                        fcntl.fcntl(redirect.dup_fd, fcntl.F_GETFD)
-                    except OSError:
-                        raise OSError(f"{redirect.dup_fd}: Bad file descriptor")
-
-                    saved_fds.append((redirect.fd, os.dup(redirect.fd)))
-                    os.dup2(redirect.dup_fd, redirect.fd)
-                elif redirect.fd is not None and redirect.target == '-':
-                    # Close file descriptor (>&- via _parse_dup_redirect path)
-                    saved_fds.append((redirect.fd, os.dup(redirect.fd)))
-                    os.close(redirect.fd)
-
-            elif redirect.type == '<&':
-                # Input FD duplication (e.g., 3<&0)
+                self._redirect_output_to_file(target, redirect)
+            elif redirect.type in ('>&', '<&'):
+                # Validate dup_fd BEFORE os.dup(redirect.fd), because os.dup
+                # may allocate dup_fd's number as the saved copy, making a
+                # closed fd appear valid.
                 if redirect.fd is not None and redirect.dup_fd is not None:
                     try:
                         fcntl.fcntl(redirect.dup_fd, fcntl.F_GETFD)
                     except OSError:
                         raise OSError(f"{redirect.dup_fd}: Bad file descriptor")
+                if redirect.fd is not None and (redirect.dup_fd is not None or redirect.target == '-'):
                     saved_fds.append((redirect.fd, os.dup(redirect.fd)))
-                    os.dup2(redirect.dup_fd, redirect.fd)
-
+                self._redirect_dup_fd(redirect)
             elif redirect.type in ('>&-', '<&-'):
-                # Close file descriptor (e.g., 3>&-, 3<&-)
                 if redirect.fd is not None:
                     saved_fds.append((redirect.fd, os.dup(redirect.fd)))
-                    os.close(redirect.fd)
+                self._redirect_close_fd(redirect)
 
         return saved_fds
 
@@ -166,166 +158,57 @@ class FileRedirector:
             os.close(saved_fd)
 
         # Restore Python file objects
-        if hasattr(self.shell, '_saved_stdout'):
-            self.state.stdout = self.shell._saved_stdout
-            self.state.stderr = self.shell._saved_stderr
-            self.state.stdin = self.shell._saved_stdin
-            del self.shell._saved_stdout
-            del self.shell._saved_stderr
-            del self.shell._saved_stdin
+        if self._saved_stdout is not None:
+            self.state.stdout = self._saved_stdout
+            self.state.stderr = self._saved_stderr
+            self.state.stdin = self._saved_stdin
+            self._saved_stdout = None
+            self._saved_stderr = None
+            self._saved_stdin = None
 
     def apply_permanent_redirections(self, redirects: List[Redirect]):
         """Apply redirections permanently (for exec builtin)."""
         import sys
 
         for redirect in redirects:
-            # Expand variables and tilde in target for file redirections
-            target = redirect.target
-            if target and redirect.type in ('<', '>', '>>'):
-                # First expand variables (respecting quotes)
-                if hasattr(redirect, 'quote_type') and redirect.quote_type == "'":
-                    # Single quotes - no expansion
-                    pass
-                else:
-                    # Double quotes or no quotes - expand variables
-                    target = self.shell.expansion_manager.expand_string_variables(target)
-                # Then expand tilde
-                if target.startswith('~'):
-                    target = self.shell.expansion_manager.expand_tilde(target)
-
-            # Handle process substitution as redirect target
+            target = self._expand_redirect_target(redirect)
             if target and target.startswith(('<(', '>(')) and target.endswith(')'):
                 target = self._handle_process_sub_redirect(target, redirect)
 
             if redirect.type == '<':
-                # Input redirection - redirect stdin permanently
-                fd = os.open(target, os.O_RDONLY)
-                self._dup2_preserve_target(fd, 0)
-                # Update shell stdin
+                self._redirect_input_from_file(target)
                 self.shell.stdin = sys.stdin
                 self.state.stdin = sys.stdin
-
             elif redirect.type in ('<<', '<<-'):
-                # Here document - redirect stdin permanently
-                r, w = os.pipe()
-                os.write(w, (redirect.heredoc_content or '').encode())
-                os.close(w)
-                self._dup2_preserve_target(r, 0)
-                # Update shell stdin
+                self._redirect_heredoc(redirect)
                 self.shell.stdin = sys.stdin
                 self.state.stdin = sys.stdin
-
             elif redirect.type == '<<<':
-                # Here string - redirect stdin permanently
-                r, w = os.pipe()
-                # Expand variables unless single quoted
-                if hasattr(redirect, 'quote_type') and redirect.quote_type == "'":
-                    expanded_content = redirect.target
-                else:
-                    expanded_content = self.shell.expansion_manager.expand_string_variables(redirect.target)
-                content = expanded_content + '\n'
-                os.write(w, content.encode())
-                os.close(w)
-                self._dup2_preserve_target(r, 0)
-                # Update shell stdin
+                self._redirect_herestring(redirect)
                 self.shell.stdin = sys.stdin
                 self.state.stdin = sys.stdin
-
-            elif redirect.type == '>':
-                # Output redirection (truncate) - redirect permanently
-                target_fd = redirect.fd if redirect.fd is not None else 1
-
-                # Check noclobber option - prevent overwriting existing files
-                if self.state.options.get('noclobber', False) and os.path.exists(target):
-                    raise OSError(f"cannot overwrite existing file: {target}")
-
-                fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)
-                self._dup2_preserve_target(fd, target_fd)
-                # Update shell streams to use new file descriptor
+            elif redirect.type in ('>', '>>'):
+                target_fd = self._redirect_output_to_file(target, redirect)
+                mode = 'w' if redirect.type == '>' else 'a'
                 if target_fd == 1:
-                    # Update sys.stdout to use the new file descriptor
-                    import sys
-                    sys.stdout = open(target, 'w')
+                    sys.stdout = open(target, mode)
                     self.shell.stdout = sys.stdout
                     self.state.stdout = sys.stdout
                 elif target_fd == 2:
-                    # Update sys.stderr to use the new file descriptor
-                    import sys
-                    sys.stderr = open(target, 'w')
+                    sys.stderr = open(target, mode)
                     self.shell.stderr = sys.stderr
                     self.state.stderr = sys.stderr
-
-            elif redirect.type == '>>':
-                # Output redirection (append) - redirect permanently
-                target_fd = redirect.fd if redirect.fd is not None else 1
-                fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o644)
-                self._dup2_preserve_target(fd, target_fd)
-                # Update shell streams to use new file descriptor
-                if target_fd == 1:
-                    # Update sys.stdout to use the new file descriptor
-                    import sys
-                    sys.stdout = open(target, 'a')
-                    self.shell.stdout = sys.stdout
-                    self.state.stdout = sys.stdout
-                elif target_fd == 2:
-                    # Update sys.stderr to use the new file descriptor
-                    import sys
-                    sys.stderr = open(target, 'a')
-                    self.shell.stderr = sys.stderr
-                    self.state.stderr = sys.stderr
-
-            elif redirect.type == '>&':
-                # FD duplication (e.g., 2>&1) - duplicate permanently
+            elif redirect.type in ('>&', '<&'):
+                self._redirect_dup_fd(redirect)
                 if redirect.fd is not None and redirect.dup_fd is not None:
-                    # Validate that the source file descriptor exists
-                    try:
-                        # Try to get the file descriptor flags to check if it exists
-                        fcntl.fcntl(redirect.dup_fd, fcntl.F_GETFD)
-                    except OSError:
-                        raise OSError(f"{redirect.dup_fd}: Bad file descriptor")
-
-                    os.dup2(redirect.dup_fd, redirect.fd)
-                    # Update shell streams to use new file descriptor
                     if redirect.fd == 1:
-                        # Create new file object using the redirected fd
                         self.shell.stdout = os.fdopen(1, 'w')
                         self.state.stdout = self.shell.stdout
                     elif redirect.fd == 2:
-                        # Create new file object using the redirected fd
                         self.shell.stderr = os.fdopen(2, 'w')
                         self.state.stderr = self.shell.stderr
-                elif redirect.fd is not None and redirect.target == '-':
-                    # Close file descriptor (>&- via _parse_dup_redirect path)
-                    try:
-                        os.close(redirect.fd)
-                    except OSError:
-                        pass
-
-            elif redirect.type == '<&':
-                # FD duplication for input
-                if redirect.fd is not None and redirect.dup_fd is not None:
-                    # Validate that the source file descriptor exists
-                    try:
-                        # Try to get the file descriptor flags to check if it exists
-                        fcntl.fcntl(redirect.dup_fd, fcntl.F_GETFD)
-                    except OSError:
-                        raise OSError(f"{redirect.dup_fd}: Bad file descriptor")
-
-                    os.dup2(redirect.dup_fd, redirect.fd)
-                elif redirect.fd is not None and redirect.target == '-':
-                    # Close the file descriptor
-                    try:
-                        os.close(redirect.fd)
-                    except OSError:
-                        pass
-
             elif redirect.type in ('>&-', '<&-'):
-                # Close file descriptor (e.g., 3>&-, 3<&-)
-                if redirect.fd is not None:
-                    try:
-                        os.close(redirect.fd)
-                    except OSError:
-                        pass
+                self._redirect_close_fd(redirect)
 
     def _handle_process_sub_redirect(self, target: str, redirect: Redirect) -> str:
         """Handle process substitution used as a redirect target."""

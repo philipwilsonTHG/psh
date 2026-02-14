@@ -9,11 +9,13 @@ The I/O subsystem handles all file descriptor redirections including file redire
 ```
 IOManager (orchestrator)
      ↓
-┌────┴─────┬──────────┬──────────┐
-↓          ↓          ↓          ↓
-File      Heredoc   Process    Context
-Redirector Handler  SubHandler  Manager
+┌────┴─────┬──────────┐
+↓          ↓          ↓
+File      Heredoc   Process
+Redirector Handler  SubHandler
 ```
+
+The package exports only `IOManager` via `__init__.py`.
 
 ## Key Files
 
@@ -137,31 +139,44 @@ def restore_redirections(self, saved_fds):
 
 ## Common Tasks
 
+### Per-Type Redirect Helpers
+
+`FileRedirector` provides shared helpers used by all redirect dispatch
+methods (`apply_redirections`, `apply_permanent_redirections`,
+`setup_child_redirections`, `setup_builtin_redirections`):
+
+| Helper | Used For |
+|--------|----------|
+| `_redirect_input_from_file(target)` | `<` — open + dup2 to stdin |
+| `_redirect_heredoc(redirect)` | `<<`/`<<-` — pipe + expand + dup2; returns content |
+| `_redirect_herestring(redirect)` | `<<<` — pipe + expand + dup2; returns content |
+| `_redirect_output_to_file(target, redirect)` | `>`/`>>` — open + dup2; returns target_fd |
+| `_redirect_dup_fd(redirect)` | `>&`/`<&` — validate + dup2 or close |
+| `_redirect_close_fd(redirect)` | `>&-`/`<&-` — close fd |
+| `_expand_redirect_target(redirect)` | Variable + tilde expansion for `<`/`>`/`>>` |
+| `_check_noclobber(target)` | Raises OSError if noclobber prevents write |
+
+Also: `_dup2_preserve_target(opened_fd, target_fd)` is a module-level
+function (not a method) that wraps `os.dup2()` + `os.close()` safely.
+
 ### Adding a New Redirection Type
 
-1. Add to `file_redirect.py`:
-```python
-def apply_redirections(self, redirects):
-    for redirect in redirects:
-        if redirect.type == 'NEW_TYPE':
-            self._handle_new_type(redirect)
-```
+1. Add a per-type helper on `FileRedirector` in `file_redirect.py`
 
-2. Handle in `setup_child_redirections()` in `manager.py`
+2. Call the helper from `apply_redirections`, `apply_permanent_redirections`,
+   `setup_child_redirections`, and `setup_builtin_redirections`
 
-3. Handle in `setup_builtin_redirections()` if applicable
-
-4. Add tests in `tests/unit/io/` or `tests/integration/`
+3. Add tests in `tests/unit/io_redirect/` or `tests/integration/redirection/`
 
 ### Handling noclobber Option
 
+Use the `_check_noclobber` helper on `FileRedirector`:
 ```python
-if redirect.type == '>':
-    if self.state.options.get('noclobber', False):
-        if os.path.exists(target):
-            raise OSError(f"cannot overwrite existing file: {target}")
-    fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)
+self._check_noclobber(target)  # Raises OSError if noclobber set and file exists
 ```
+
+Exception: child-process noclobber in `setup_child_redirections` uses
+`os.write(2, ...)` + `os._exit(1)` instead of raising.
 
 ## Key Implementation Details
 
@@ -214,17 +229,15 @@ else:  # Parent
 
 ### Variable Expansion in Targets
 
+Use the `_expand_redirect_target` helper on `FileRedirector`:
 ```python
-target = redirect.target
-
-# Expand variables (respecting quotes)
-if redirect.quote_type != "'":
-    target = shell.expansion_manager.expand_string_variables(target)
-
-# Expand tilde
-if target.startswith('~'):
-    target = shell.expansion_manager.expand_tilde(target)
+target = self._expand_redirect_target(redirect)
+# or from IOManager:
+target = self.file_redirector._expand_redirect_target(redirect)
 ```
+
+This expands variables (unless single-quoted) and tilde for `<`, `>`, `>>`
+redirect types.
 
 ## Testing
 

@@ -4,6 +4,36 @@ All notable changes to PSH (Python Shell) are documented in this file.
 
 Format: `VERSION (DATE) - Title` followed by bullet points describing changes.
 
+## 0.179.0 (2026-02-14) - I/O redirect public API cleanup
+- Populated `psh/io_redirect/__init__.py` with `IOManager` import and
+  `__all__ = ['IOManager']`; updated imports in `shell.py` and
+  `process_launcher.py` to use package-level import.
+- Deleted 5 dead `IOManager` methods: `collect_heredocs()`,
+  `handle_heredoc()`, `cleanup_temp_files()`, `is_valid_fd()`,
+  `_is_heredoc_delimiter_quoted()` (~55 lines) plus `_temp_files` init.
+- Deleted 3 dead `HeredocHandler` methods: `collect_heredocs()`,
+  `create_heredoc_file()`, `expand_variables_in_heredoc()` (~82 lines)
+  plus unused `tempfile` and AST node imports.
+- Consolidated `_dup2_preserve_target` from duplicate `@staticmethod`
+  on both `IOManager` and `FileRedirector` to a single module-level
+  function in `file_redirect.py`.
+- Extracted `_expand_redirect_target()` helper to replace 4 copies of
+  the 8-line variable/tilde expansion preamble.
+- Extracted `_check_noclobber()` helper to replace 4 inline noclobber
+  checks.
+- Moved `_saved_stdout`/`_saved_stderr`/`_saved_stdin` from `Shell`
+  object to `FileRedirector` instance.
+- Initialized `_saved_fds_list` in `IOManager.__init__` and removed
+  `hasattr()` guards.
+- Added 6 per-type redirect helpers on `FileRedirector`:
+  `_redirect_input_from_file`, `_redirect_heredoc`,
+  `_redirect_herestring`, `_redirect_output_to_file`,
+  `_redirect_dup_fd`, `_redirect_close_fd`.
+- Rewrote `apply_redirections` (~120→~35 lines),
+  `apply_permanent_redirections` (~152→~35 lines),
+  `setup_child_redirections` (~122→~45 lines), and
+  `setup_builtin_redirections` (~142→~55 lines) to use shared helpers.
+
 ## 0.178.0 (2026-02-13) - Parser public API cleanup
 - Trimmed `__all__` from 17 items to 5 (`parse`, `parse_with_heredocs`,
   `Parser`, `ParserConfig`, `ParseError`); demoted Tier 2 items
