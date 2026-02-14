@@ -31,6 +31,7 @@ from ..ast_nodes import (
     WhileLoop,
 )
 from .base import ASTVisitor
+from .constants import SHELL_BUILTINS
 
 
 class CodeMetrics:
@@ -137,18 +138,6 @@ class MetricsVisitor(ASTVisitor[None]):
     - Advanced feature usage
     """
 
-    # Known bash builtins
-    BASH_BUILTINS = {
-        'alias', 'bg', 'bind', 'break', 'builtin', 'caller', 'cd', 'command',
-        'compgen', 'complete', 'compopt', 'continue', 'declare', 'dirs',
-        'disown', 'echo', 'enable', 'eval', 'exec', 'exit', 'export', 'false',
-        'fc', 'fg', 'getopts', 'hash', 'help', 'history', 'jobs', 'kill',
-        'let', 'local', 'logout', 'mapfile', 'popd', 'printf', 'pushd', 'pwd',
-        'read', 'readarray', 'readonly', 'return', 'set', 'shift', 'shopt',
-        'source', '.', 'suspend', 'test', '[', '[[', 'times', 'trap', 'true',
-        'type', 'typeset', 'ulimit', 'umask', 'unalias', 'unset', 'wait'
-    }
-
     def __init__(self):
         """Initialize the metrics visitor."""
         super().__init__()
@@ -205,7 +194,7 @@ class MetricsVisitor(ASTVisitor[None]):
         self.metrics.command_frequency[cmd_name] += 1
 
         # Classify command
-        if cmd_name in self.BASH_BUILTINS:
+        if cmd_name in SHELL_BUILTINS:
             self.metrics.builtin_commands.add(cmd_name)
         else:
             self.metrics.external_commands.add(cmd_name)

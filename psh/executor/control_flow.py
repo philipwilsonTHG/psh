@@ -21,7 +21,7 @@ from ..arithmetic import evaluate_arithmetic
 from ..core.exceptions import LoopBreak, LoopContinue, ReadonlyVariableError
 
 if TYPE_CHECKING:
-    from psh.visitor.base import ASTVisitor
+    from psh.visitor import ASTVisitor
 
     from ..ast_nodes import (
         BreakStatement,

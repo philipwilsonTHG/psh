@@ -495,9 +495,23 @@ class MyVisitor(ASTVisitor[T]):
 
 ## Current Development Status
 
-**Version**: 0.180.0 (see CHANGELOG.md for detailed history)
+**Version**: 0.181.0 (see CHANGELOG.md for detailed history)
 
 **Recent Work**:
+- **Visitor Public API Cleanup (v0.181.0)**:
+  - Trimmed `__all__` from 14 to 9 items; removed 5 Tier 3 items
+    (`ASTTransformer`, `ValidatorVisitor`, `LinterConfig`, `LintLevel`,
+    `SecurityIssue`) that remain importable as convenience imports
+  - Deleted unused `ASTTransformer` and `CompositeVisitor` classes from
+    `base.py` (~105 lines); zero subclasses or external callers
+  - Fixed 7 bypass imports (`from psh.visitor.base import ASTVisitor` →
+    `from psh.visitor import ASTVisitor`) across executor and parser
+    visualization modules
+  - Deduplicated `BASH_BUILTINS` in `MetricsVisitor`; replaced with
+    `SHELL_BUILTINS` import from `constants.py`
+  - Updated `visitor/CLAUDE.md`: fixed return type table, added
+    `constants.py` to key files, removed ASTTransformer/CompositeVisitor
+    documentation sections
 - **Expansion Public API Cleanup (v0.180.0)**:
   - Populated `__init__.py` with `ExpansionManager` import and `__all__`;
     added `contains_extglob`/`match_extglob` convenience imports

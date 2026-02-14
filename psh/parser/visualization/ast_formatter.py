@@ -3,7 +3,7 @@
 from typing import Any, Dict
 
 from ...ast_nodes import ASTNode
-from ...visitor.base import ASTVisitor
+from ...visitor import ASTVisitor
 
 
 class ASTPrettyPrinter(ASTVisitor[str]):

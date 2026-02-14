@@ -4,7 +4,7 @@ import html
 from typing import Dict, List
 
 from ...ast_nodes import ASTNode
-from ...visitor.base import ASTVisitor
+from ...visitor import ASTVisitor
 
 
 class ASTDotGenerator(ASTVisitor[str]):

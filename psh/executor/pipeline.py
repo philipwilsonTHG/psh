@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, List, Optional, Tuple
 from .process_launcher import ProcessConfig, ProcessLauncher, ProcessRole
 
 if TYPE_CHECKING:
-    from psh.visitor.base import ASTVisitor
+    from psh.visitor import ASTVisitor
 
     from ..ast_nodes import ASTNode, Pipeline
     from ..job_control import Job, JobManager

@@ -11,7 +11,7 @@ from ..builtins.function_support import FunctionReturn
 from ..core.exceptions import LoopBreak, LoopContinue, UnboundVariableError
 
 if TYPE_CHECKING:
-    from psh.visitor.base import ASTVisitor
+    from psh.visitor import ASTVisitor
 
     from ..ast_nodes import FunctionDef, Redirect
     from ..shell import Shell

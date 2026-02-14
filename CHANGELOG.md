@@ -4,6 +4,23 @@ All notable changes to PSH (Python Shell) are documented in this file.
 
 Format: `VERSION (DATE) - Title` followed by bullet points describing changes.
 
+## 0.181.0 (2026-02-14) - Visitor public API cleanup
+- Trimmed `psh/visitor/__init__.py` `__all__` from 14 to 9 items; removed
+  5 Tier 3 items (`ASTTransformer`, `ValidatorVisitor`, `LinterConfig`,
+  `LintLevel`, `SecurityIssue`) — they remain importable as convenience
+  imports but are no longer part of the public API.
+- Deleted unused `ASTTransformer` class (~69 lines) and `CompositeVisitor`
+  class (~34 lines) from `base.py`; zero subclasses or external callers.
+- Fixed 7 bypass imports across `psh/executor/` (5 files) and
+  `psh/parser/visualization/` (2 files): changed
+  `from psh.visitor.base import ASTVisitor` to
+  `from psh.visitor import ASTVisitor`.
+- Deduplicated `BASH_BUILTINS` in `MetricsVisitor`; replaced with
+  `SHELL_BUILTINS` import from `constants.py`.
+- Updated `psh/visitor/CLAUDE.md`: corrected return type table, added
+  `constants.py` to Key Files, removed ASTTransformer and CompositeVisitor
+  documentation sections.
+
 ## 0.180.0 (2026-02-14) - Expansion public API cleanup
 - Populated `psh/expansion/__init__.py` with `ExpansionManager` import and
   `__all__ = ['ExpansionManager']`; added convenience imports for

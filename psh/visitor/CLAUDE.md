@@ -17,7 +17,8 @@ AST → ASTVisitor.visit(node) → visit_NodeType(node) → Result
 
 | File | Purpose |
 |------|---------|
-| `base.py` | `ASTVisitor[T]`, `ASTTransformer`, `CompositeVisitor` base classes |
+| `base.py` | `ASTVisitor[T]` base class |
+| `constants.py` | Shared data: `SHELL_BUILTINS`, `DANGEROUS_COMMANDS`, `COMMON_TYPOS`, etc. |
 | `debug_ast_visitor.py` | Debug/pretty-print AST structure |
 | `validator_visitor.py` | Basic AST validation |
 | `enhanced_validator_visitor.py` | Extended validation with semantic checks |
@@ -53,35 +54,6 @@ class ASTVisitor(ABC, Generic[T]):
         raise NotImplementedError(
             f"No visit_{node.__class__.__name__} method"
         )
-```
-
-### 2. ASTTransformer (Modifying Visitor)
-
-```python
-class ASTTransformer(ASTVisitor[ASTNode]):
-    """Visitor that can modify or replace nodes."""
-
-    def generic_visit(self, node: ASTNode) -> ASTNode:
-        """Return node unchanged by default."""
-        return node
-
-    def transform_children(self, node: ASTNode) -> None:
-        """Recursively transform child nodes."""
-        # Automatically finds and transforms AST node children
-```
-
-### 3. CompositeVisitor (Multiple Passes)
-
-```python
-class CompositeVisitor(ASTVisitor[None]):
-    """Run multiple visitors in sequence."""
-
-    def __init__(self, visitors: list[ASTVisitor]):
-        self.visitors = visitors
-
-    def visit(self, node: ASTNode) -> None:
-        for visitor in self.visitors:
-            visitor.visit(node)
 ```
 
 ## The ExecutorVisitor
@@ -257,13 +229,13 @@ class CountingVisitor(ASTVisitor[None]):
 | Visitor | Purpose | Return Type |
 |---------|---------|-------------|
 | `ExecutorVisitor` | Execute AST | `int` (exit code) |
-| `DebugASTVisitor` | Print AST structure | `None` |
-| `ValidatorVisitor` | Validate syntax | `List[Error]` |
-| `EnhancedValidatorVisitor` | Semantic validation | `List[Error]` |
+| `DebugASTVisitor` | Format AST structure | `str` |
+| `ValidatorVisitor` | Validate AST | `None` (issues in `.issues`) |
+| `EnhancedValidatorVisitor` | Semantic validation | `None` (issues in `.issues`) |
 | `FormatterVisitor` | Format code | `str` |
-| `LinterVisitor` | Style checking | `List[Warning]` |
-| `MetricsVisitor` | Complexity analysis | `Metrics` |
-| `SecurityVisitor` | Security analysis | `List[Issue]` |
+| `LinterVisitor` | Style checking | `None` (issues in `.issues`) |
+| `MetricsVisitor` | Complexity analysis | `None` (metrics in `.metrics`) |
+| `SecurityVisitor` | Security analysis | `None` (issues in `.issues`) |
 
 ## Testing
 

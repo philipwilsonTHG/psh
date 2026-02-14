@@ -7,7 +7,7 @@ maintaining compatibility with the existing execution engine.
 
 import sys
 
-from psh.visitor.base import ASTVisitor
+from psh.visitor import ASTVisitor
 
 from ..ast_nodes import (
     AndOrList,

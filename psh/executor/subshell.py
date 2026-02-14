@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, List
 from .process_launcher import ProcessConfig, ProcessLauncher, ProcessRole
 
 if TYPE_CHECKING:
-    from psh.visitor.base import ASTVisitor
+    from psh.visitor import ASTVisitor
 
     from ..ast_nodes import BraceGroup, Redirect, SubshellGroup
     from ..shell import Shell
