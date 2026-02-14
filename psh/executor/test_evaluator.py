@@ -15,6 +15,14 @@ if TYPE_CHECKING:
     from ..shell import Shell
 
 
+def to_int(value: str) -> int:
+    """Convert string to integer for numeric comparisons."""
+    try:
+        return int(value)
+    except ValueError:
+        raise ValueError(f"integer expression expected: {value}")
+
+
 class TestExpressionEvaluator:
     """Evaluates [[ ]] test expressions using shell state for expansions."""
 
@@ -76,22 +84,16 @@ class TestExpressionEvaluator:
             except re.error as e:
                 raise ValueError(f"invalid regex: {e}")
         elif expr.operator == '-eq':
-            from ..utils.file_tests import to_int
             return to_int(left) == to_int(right)
         elif expr.operator == '-ne':
-            from ..utils.file_tests import to_int
             return to_int(left) != to_int(right)
         elif expr.operator == '-lt':
-            from ..utils.file_tests import to_int
             return to_int(left) < to_int(right)
         elif expr.operator == '-le':
-            from ..utils.file_tests import to_int
             return to_int(left) <= to_int(right)
         elif expr.operator == '-gt':
-            from ..utils.file_tests import to_int
             return to_int(left) > to_int(right)
         elif expr.operator == '-ge':
-            from ..utils.file_tests import to_int
             return to_int(left) >= to_int(right)
         elif expr.operator == '-nt':
             from ..utils.file_tests import file_newer_than

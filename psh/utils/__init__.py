@@ -12,7 +12,7 @@ Utility modules supporting shell infrastructure:
 """
 
 from .ast_debug import print_ast_debug
-from .file_tests import file_newer_than, file_older_than, files_same, to_int
+from .file_tests import file_newer_than, file_older_than, files_same
 from .heredoc_detection import contains_heredoc
 from .parser_factory import create_parser
 from .shell_formatter import ShellFormatter
@@ -27,7 +27,6 @@ __all__ = [
     'contains_heredoc',
     'print_ast_debug',
     'TokenFormatter',
-    'to_int',
     'file_newer_than',
     'file_older_than',
     'files_same',

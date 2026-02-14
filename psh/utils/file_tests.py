@@ -2,14 +2,6 @@
 import os
 
 
-def to_int(value: str) -> int:
-    """Convert string to integer for numeric comparisons."""
-    try:
-        return int(value)
-    except ValueError:
-        raise ValueError(f"integer expression expected: {value}")
-
-
 def file_newer_than(file1: str, file2: str) -> bool:
     """Check if file1 is newer than file2."""
     try:
