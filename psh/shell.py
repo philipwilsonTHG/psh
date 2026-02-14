@@ -11,7 +11,7 @@ from .builtins import registry as builtin_registry
 from .core import ShellState
 from .expansion import ExpansionManager
 from .functions import FunctionManager
-from .interactive.base import InteractiveManager
+from .interactive import InteractiveManager
 from .io_redirect import IOManager
 from .job_control import JobManager
 from .scripting.base import ScriptManager
@@ -114,7 +114,7 @@ class Shell:
         self.state.options['emacs'] = is_interactive and not self.is_script_mode
 
         if not self.is_script_mode and is_interactive and not self.norc:
-            from .interactive.rc_loader import load_rc_file
+            from .interactive import load_rc_file
             load_rc_file(self)
 
     def _setup_compatibility_properties(self):

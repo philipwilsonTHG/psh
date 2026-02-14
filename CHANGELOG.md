@@ -4,6 +4,25 @@ All notable changes to PSH (Python Shell) are documented in this file.
 
 Format: `VERSION (DATE) - Title` followed by bullet points describing changes.
 
+## 0.187.0 (2026-02-14) - Interactive public API cleanup
+- Rewrote `psh/interactive/__init__.py`: added module docstring listing all
+  submodules; added `load_rc_file` and `is_safe_rc_file` imports from
+  `rc_loader`; trimmed `__all__` from 7 to 2 items (`InteractiveManager`,
+  `load_rc_file`).
+- Removed vestigial `execute()` abstractmethod from `InteractiveComponent`
+  ABC and all 5 subclass implementations (`REPLLoop`, `SignalManager`,
+  `HistoryManager`, `CompletionManager`, `PromptManager`).
+- Fixed 2 bypass imports in `shell.py`: `from .interactive.base import
+  InteractiveManager` and `from .interactive.rc_loader import load_rc_file`
+  now use package-level `from .interactive import ...`.
+- Fixed dead `shell.signal_manager` access in `repl_loop.py` and
+  `multiline_handler.py` to use `shell.interactive_manager.signal_manager`,
+  restoring SIGCHLD notification processing and SIGWINCH terminal-resize
+  handling.
+- Updated `interactive/CLAUDE.md`: replaced stale pseudocode in REPL Loop
+  and Signal Handling sections with actual implementation patterns; added
+  `rc_loader.py` to key files table.
+
 ## 0.186.0 (2026-02-14) - Move create_parser to parser package
 - Moved `create_parser()` from `psh/utils/parser_factory.py` to
   `psh/parser/__init__.py`; deleted `parser_factory.py`.

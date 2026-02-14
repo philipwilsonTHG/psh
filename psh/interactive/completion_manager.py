@@ -26,20 +26,6 @@ class CompletionManager(InteractiveComponent):
         # Set word delimiters for completion
         readline.set_completer_delims(' \t\n;|&<>')
 
-    def execute(self, text: str, line: str, cursor_pos: int) -> List[str]:
-        """
-        Perform tab completion for the given context.
-
-        Args:
-            text: The text to complete
-            line: The full command line
-            cursor_pos: Current cursor position
-
-        Returns:
-            List of possible completions
-        """
-        return self.get_completions(text, line, cursor_pos)
-
     def get_completions(self, text: str, line: str, cursor_pos: int) -> List[str]:
         """
         Get all possible completions for the given context.

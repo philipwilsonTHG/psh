@@ -28,10 +28,6 @@ class SignalManager(InteractiveComponent):
         # Get global signal registry for tracking
         self._signal_registry = get_signal_registry(create=True)
 
-    def execute(self, *args, **kwargs):
-        """Set up signal handlers based on shell mode."""
-        self.setup_signal_handlers()
-
     def setup_signal_handlers(self):
         """Configure signal handlers based on shell mode."""
         if self.state.is_script_mode:

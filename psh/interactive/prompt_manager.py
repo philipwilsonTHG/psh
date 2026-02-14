@@ -10,14 +10,6 @@ class PromptManager(InteractiveComponent):
         super().__init__(shell)
         self.prompt_expander = PromptExpander(shell)
 
-    def execute(self, prompt_type: str = "PS1") -> str:
-        """Get formatted prompt."""
-        if prompt_type == "PS1":
-            return self.get_primary_prompt()
-        elif prompt_type == "PS2":
-            return self.get_continuation_prompt()
-        return ""
-
     def get_primary_prompt(self) -> str:
         """Get the primary prompt (PS1)."""
         ps1 = self.state.get_variable('PS1', r'\u@\h:\w\$ ')

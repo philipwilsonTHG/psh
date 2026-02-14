@@ -33,9 +33,9 @@ class MultiLineInputHandler:
         # Get SIGWINCH notification fd from signal manager if available
         sigwinch_fd = -1
         sigwinch_drain = None
-        if hasattr(self.shell, 'signal_manager') and self.shell.signal_manager:
-            sigwinch_fd = self.shell.signal_manager.get_sigwinch_fd()
-            sigwinch_drain = self.shell.signal_manager.drain_sigwinch_notifications
+        if hasattr(self.shell, 'interactive_manager') and self.shell.interactive_manager:
+            sigwinch_fd = self.shell.interactive_manager.signal_manager.get_sigwinch_fd()
+            sigwinch_drain = self.shell.interactive_manager.signal_manager.drain_sigwinch_notifications
 
         while True:
             # Determine prompt

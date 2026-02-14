@@ -1,5 +1,5 @@
 """Base classes for interactive shell components."""
-from abc import ABC, abstractmethod
+from abc import ABC
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -14,11 +14,6 @@ class InteractiveComponent(ABC):
         self.state = shell.state
         self.job_manager = shell.job_manager
         self.multi_line_handler = None  # Set by InteractiveManager
-
-    @abstractmethod
-    def execute(self, *args, **kwargs):
-        """Execute the interactive component functionality."""
-        pass
 
 
 class InteractiveManager:

@@ -495,9 +495,19 @@ class MyVisitor(ASTVisitor[T]):
 
 ## Current Development Status
 
-**Version**: 0.186.0 (see CHANGELOG.md for detailed history)
+**Version**: 0.187.0 (see CHANGELOG.md for detailed history)
 
 **Recent Work**:
+- **Interactive Public API Cleanup (v0.187.0)**:
+  - Rewrote `__init__.py`: added module docstring, `load_rc_file` and
+    `is_safe_rc_file` imports; trimmed `__all__` from 7 to 2 items
+  - Removed vestigial `execute()` abstractmethod from `InteractiveComponent`
+    ABC and all 5 subclass implementations
+  - Fixed 2 bypass imports in `shell.py` to use package-level imports
+  - Fixed dead `shell.signal_manager` access in `repl_loop.py` and
+    `multiline_handler.py` (restores SIGCHLD/SIGWINCH handling)
+  - Updated `interactive/CLAUDE.md`: replaced stale pseudocode, added
+    `rc_loader.py` to key files
 - **Move create_parser to parser package (v0.186.0)**:
   - Moved `create_parser()` from `psh/utils/parser_factory.py` to
     `psh/parser/__init__.py`; deleted `parser_factory.py`
@@ -540,39 +550,6 @@ class MyVisitor(ASTVisitor[T]):
   - Fixed `__init__.py` docstring: removed non-existent modules
     (`arithmetic`, `utils`); added `strategies`, `process_launcher`,
     `child_policy`, `test_evaluator`
-- **Visitor Public API Cleanup (v0.181.0)**:
-  - Trimmed `__all__` from 14 to 9 items; removed 5 Tier 3 items
-    (`ASTTransformer`, `ValidatorVisitor`, `LinterConfig`, `LintLevel`,
-    `SecurityIssue`) that remain importable as convenience imports
-  - Deleted unused `ASTTransformer` and `CompositeVisitor` classes from
-    `base.py` (~105 lines); zero subclasses or external callers
-  - Fixed 7 bypass imports (`from psh.visitor.base import ASTVisitor` →
-    `from psh.visitor import ASTVisitor`) across executor and parser
-    visualization modules
-  - Deduplicated `BASH_BUILTINS` in `MetricsVisitor`; replaced with
-    `SHELL_BUILTINS` import from `constants.py`
-  - Updated `visitor/CLAUDE.md`: fixed return type table, added
-    `constants.py` to key files, removed ASTTransformer/CompositeVisitor
-    documentation sections
-- **Expansion Public API Cleanup (v0.180.0)**:
-  - Populated `__init__.py` with `ExpansionManager` import and `__all__`;
-    added `contains_extglob`/`match_extglob` convenience imports
-  - Updated `shell.py` to use package-level import
-  - Fixed broken `ArithmeticEvaluator` import in `function_support.py`
-    (wrong module path and wrong constructor argument)
-  - Eliminated redundant `VariableExpander` construction (2 sites in
-    `shell_state.py`); replaced with `shell.expansion_manager`
-  - Eliminated redundant `WordSplitter` construction in `control_flow.py`
-  - Updated `expansion/CLAUDE.md`: removed stale `base.py` references;
-    rewrote "Adding a New Expansion Type" section
-- **I/O Redirect Public API Cleanup (v0.179.0)**:
-  - Populated `__init__.py` with `IOManager` import and `__all__`
-  - Deleted 5 dead `IOManager` methods (~55 lines) and 3 dead
-    `HeredocHandler` methods (~82 lines) plus unused imports
-  - Consolidated `_dup2_preserve_target` as module-level function
-  - Extracted `_expand_redirect_target`, `_check_noclobber` helpers
-  - Moved saved FD state from Shell to `FileRedirector`
-  - Initialized `_saved_fds_list` in `__init__` (removed `hasattr` guards)
   - Added 6 per-type redirect helpers (`_redirect_input_from_file`,
     `_redirect_heredoc`, `_redirect_herestring`, `_redirect_output_to_file`,
     `_redirect_dup_fd`, `_redirect_close_fd`)

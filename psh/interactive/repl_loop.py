@@ -17,10 +17,6 @@ class REPLLoop(InteractiveComponent):
         self.line_editor = None
         self.multi_line_handler = None
 
-    def execute(self):
-        """Run the interactive loop."""
-        return self.run()
-
     def setup(self):
         """Set up the REPL environment."""
         # Set up readline and tab completion
@@ -47,8 +43,8 @@ class REPLLoop(InteractiveComponent):
                 # Process any pending SIGCHLD notifications
                 # This is the self-pipe pattern: signal handler writes to pipe,
                 # main loop processes notifications outside signal context
-                if hasattr(self.shell, 'signal_manager'):
-                    self.shell.signal_manager.process_sigchld_notifications()
+                if hasattr(self.shell, 'interactive_manager'):
+                    self.shell.interactive_manager.signal_manager.process_sigchld_notifications()
 
                 # Check for completed background jobs (only if notify option is disabled)
                 # When notify is enabled, jobs are notified immediately when they complete

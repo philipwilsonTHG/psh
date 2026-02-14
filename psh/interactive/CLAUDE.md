@@ -29,7 +29,8 @@ Loop       Manager    Manager   Manager   Manager
 | `completion_manager.py` | `CompletionManager` - tab completion |
 | `prompt_manager.py` | `PromptManager` - prompt generation |
 | `signal_manager.py` | `SignalManager` - signal handling, SIGCHLD |
-| `base.py` | `InteractiveComponent` base class |
+| `rc_loader.py` | `load_rc_file` / `is_safe_rc_file` - startup RC loading |
+| `base.py` | `InteractiveComponent` base class, `InteractiveManager` orchestrator |
 
 ### Job Control (`psh/job_control.py`)
 
@@ -113,49 +114,66 @@ def parse_job_spec(self, spec: str) -> Optional[Job]:
 ```python
 class REPLLoop:
     def run(self):
+        self.setup()  # Creates LineEditor + MultiLineInputHandler
+
         while True:
             try:
-                # 1. Show prompt
-                prompt = self.prompt_manager.get_prompt()
+                # 1. Process pending SIGCHLD notifications (self-pipe pattern)
+                if hasattr(self.shell, 'interactive_manager'):
+                    self.shell.interactive_manager.signal_manager.process_sigchld_notifications()
 
-                # 2. Read input (with readline)
-                line = input(prompt)
+                # 2. Notify completed/stopped background jobs
+                if not self.state.options.get('notify', False):
+                    self.job_manager.notify_completed_jobs()
+                self.job_manager.notify_stopped_jobs()
 
-                # 3. Add to history
-                self.history_manager.add(line)
+                # 3. Read command (may span multiple lines via MultiLineInputHandler)
+                command = self.multi_line_handler.read_command()
 
-                # 4. Execute
-                self.shell.execute(line)
-
-                # 5. Process signals, notify jobs
-                self.signal_manager.process_pending()
-                self.shell.job_manager.notify_completed_jobs()
+                # 4. Execute via unified input system
+                if command and command.strip():
+                    self.shell.run_command(command)
 
             except EOFError:
                 break
             except KeyboardInterrupt:
-                print()  # Newline after ^C
+                self.multi_line_handler.reset()
+                print("^C")
+                self.state.last_exit_code = 130
+
+        # Save history on exit
+        self.history_manager.save_to_file()
 ```
 
 ### Signal Handling
 
 ```python
 class SignalManager:
-    def __init__(self):
-        # Self-pipe for safe signal handling
-        self._read_fd, self._write_fd = os.pipe()
+    def __init__(self, shell):
+        # SignalNotifier wraps a self-pipe (os.pipe()) for async-signal-safe notification
+        self._sigchld_notifier = SignalNotifier()
+        self._sigwinch_notifier = SignalNotifier()
 
-    def setup_handlers(self):
-        signal.signal(signal.SIGCHLD, self._sigchld_handler)
-        signal.signal(signal.SIGTSTP, signal.SIG_IGN)  # Ignore in shell
+    def _handle_sigchld(self, signum, frame):
+        # Async-signal-safe: just writes a byte to the pipe
+        self._sigchld_notifier.notify(signal.SIGCHLD)
 
-    def _sigchld_handler(self, signum, frame):
-        # Write to pipe to wake up main loop
-        os.write(self._write_fd, b'\x00')
-
-    def process_pending(self):
-        # Reap children, update job states
-        self._reap_children()
+    def process_sigchld_notifications(self):
+        # Called from REPL loop — drains pipe, then reaps children
+        notifications = self._sigchld_notifier.drain_notifications()
+        if not notifications:
+            return
+        while True:
+            try:
+                pid, status = os.waitpid(-1, os.WNOHANG | os.WUNTRACED)
+                if pid == 0:
+                    break
+                job = self.job_manager.get_job_by_pid(pid)
+                if job:
+                    job.update_process_status(pid, status)
+                    job.update_state()
+            except OSError:
+                break
 ```
 
 ## Common Tasks

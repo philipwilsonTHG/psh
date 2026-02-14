@@ -9,15 +9,6 @@ from .base import InteractiveComponent
 class HistoryManager(InteractiveComponent):
     """Manages command history."""
 
-    def execute(self, command: str = None, action: str = "add") -> None:
-        """Execute history operations."""
-        if action == "add" and command:
-            self.add_to_history(command)
-        elif action == "load":
-            self.load_from_file()
-        elif action == "save":
-            self.save_to_file()
-
     def add_to_history(self, command: str) -> None:
         """Add a command to history."""
         # Don't add duplicates of the immediately previous command
