@@ -495,9 +495,23 @@ class MyVisitor(ASTVisitor[T]):
 
 ## Current Development Status
 
-**Version**: 0.181.0 (see CHANGELOG.md for detailed history)
+**Version**: 0.182.0 (see CHANGELOG.md for detailed history)
 
 **Recent Work**:
+- **Executor Public API Cleanup (v0.182.0)**:
+  - Trimmed `__all__` from 13 to 5 items; removed 10 items
+    (`PipelineContext`, `PipelineExecutor`, `CommandExecutor`,
+    `ControlFlowExecutor`, `ArrayOperationExecutor`,
+    `FunctionOperationExecutor`, `SubshellExecutor`,
+    `ExecutionStrategy`, `BuiltinExecutionStrategy`,
+    `FunctionExecutionStrategy`) that remain importable as convenience imports
+  - Added 2 missing items: `apply_child_signal_policy` and
+    `TestExpressionEvaluator` (both have production callers)
+  - Fixed 5 bypass imports in 4 files (`command_builtin.py`, `shell.py`,
+    `command_sub.py`, `process_sub.py`) to use package-level imports
+  - Fixed `__init__.py` docstring: removed non-existent modules
+    (`arithmetic`, `utils`); added `strategies`, `process_launcher`,
+    `child_policy`, `test_evaluator`
 - **Visitor Public API Cleanup (v0.181.0)**:
   - Trimmed `__all__` from 14 to 9 items; removed 5 Tier 3 items
     (`ASTTransformer`, `ValidatorVisitor`, `LinterConfig`, `LintLevel`,
@@ -568,10 +582,6 @@ class MyVisitor(ASTVisitor[T]):
   - Fixed `OSError: Too many open files` when running ~3,000+ tests
   - `_cleanup_shell()` now closes `SignalNotifier` pipe FDs; `captured_shell` fixture
     now calls `_cleanup_shell()` in teardown
-- **Combinator Parser Associative Array Fix (v0.170.0)**:
-  - Fixed associative array initialization (`declare -A assoc=(["key"]="value")`)
-  - Array collection loop now accepts LBRACKET/RBRACKET, preserves STRING quotes,
-    and groups adjacent tokens into single elements
 - **Combinator Parser Bug Fixes (v0.167.0)**:
   - Fixed 21 test failures (39 → 18) across 5 parser bugs with zero regressions
   - Compound commands now route through pipeline layer (fixes piped for/while/if)

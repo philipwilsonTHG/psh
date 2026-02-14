@@ -39,7 +39,7 @@ class CommandSubstitution:
         if pid == 0:
             # Child process
             try:
-                from psh.executor.child_policy import apply_child_signal_policy
+                from psh.executor import apply_child_signal_policy
                 apply_child_signal_policy(
                     self.shell.interactive_manager.signal_manager,
                     self.state,

@@ -4,6 +4,22 @@ All notable changes to PSH (Python Shell) are documented in this file.
 
 Format: `VERSION (DATE) - Title` followed by bullet points describing changes.
 
+## 0.182.0 (2026-02-14) - Executor public API cleanup
+- Trimmed `psh/executor/__init__.py` `__all__` from 13 to 5 items; removed
+  10 items (`PipelineContext`, `PipelineExecutor`, `CommandExecutor`,
+  `ControlFlowExecutor`, `ArrayOperationExecutor`, `FunctionOperationExecutor`,
+  `SubshellExecutor`, `ExecutionStrategy`, `BuiltinExecutionStrategy`,
+  `FunctionExecutionStrategy`) — they remain importable as convenience imports.
+- Added 2 missing items to `__all__` and imports: `apply_child_signal_policy`
+  (from `child_policy`) and `TestExpressionEvaluator` (from `test_evaluator`),
+  both having production callers.
+- Fixed 5 bypass imports in 4 files: `command_builtin.py` (2 → 1 package-level
+  import), `shell.py`, `command_sub.py`, `process_sub.py` — all now import
+  from `psh.executor` instead of submodules.
+- Fixed `__init__.py` docstring: removed references to non-existent modules
+  (`arithmetic`, `utils`); added `strategies`, `process_launcher`,
+  `child_policy`, `test_evaluator`.
+
 ## 0.181.0 (2026-02-14) - Visitor public API cleanup
 - Trimmed `psh/visitor/__init__.py` `__all__` from 14 to 9 items; removed
   5 Tier 3 items (`ASTTransformer`, `ValidatorVisitor`, `LinterConfig`,

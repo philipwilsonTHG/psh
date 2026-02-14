@@ -44,7 +44,7 @@ def create_process_substitution(cmd_str: str, direction: str, shell: 'Shell') ->
     # Fork child for process substitution
     pid = os.fork()
     if pid == 0:  # Child
-        from psh.executor.child_policy import apply_child_signal_policy
+        from psh.executor import apply_child_signal_policy
         apply_child_signal_policy(
             shell.interactive_manager.signal_manager,
             shell.state,

@@ -12,13 +12,16 @@ The package is organized into focused modules:
 - control_flow: Control structures (if, while, for, case, select)
 - function: Function execution and scope management
 - array: Array initialization and element operations
-- arithmetic: Arithmetic evaluation execution
 - subshell: Subshell and brace group execution
 - context: Execution context and state management
-- utils: Shared utilities and helpers
+- strategies: Execution strategies (builtin, function, alias, external)
+- process_launcher: Unified process creation with job control
+- child_policy: Child process signal setup
+- test_evaluator: [[ ]] test expression evaluation
 """
 
 from .array import ArrayOperationExecutor
+from .child_policy import apply_child_signal_policy
 from .command import CommandExecutor
 from .context import ExecutionContext
 from .control_flow import ControlFlowExecutor
@@ -32,19 +35,12 @@ from .strategies import (
     FunctionExecutionStrategy,
 )
 from .subshell import SubshellExecutor
+from .test_evaluator import TestExpressionEvaluator
 
 __all__ = [
     'ExecutorVisitor',
     'ExecutionContext',
-    'PipelineContext',
-    'PipelineExecutor',
-    'CommandExecutor',
-    'ControlFlowExecutor',
-    'ArrayOperationExecutor',
-    'FunctionOperationExecutor',
-    'SubshellExecutor',
-    'ExecutionStrategy',
-    'BuiltinExecutionStrategy',
-    'FunctionExecutionStrategy',
-    'ExternalExecutionStrategy'
+    'ExternalExecutionStrategy',
+    'apply_child_signal_policy',
+    'TestExpressionEvaluator',
 ]

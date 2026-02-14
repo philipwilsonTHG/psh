@@ -160,7 +160,7 @@ class Shell:
 
     def execute_enhanced_test_statement(self, test_stmt: EnhancedTestStatement) -> int:
         """Execute an enhanced test statement [[...]]."""
-        from .executor.test_evaluator import TestExpressionEvaluator
+        from .executor import TestExpressionEvaluator
 
         # Apply redirections if present
         if test_stmt.redirects:

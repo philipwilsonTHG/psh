@@ -110,8 +110,7 @@ class CommandBuiltin(Builtin):
         """Execute an external command using PSH's external execution strategy."""
         # Use PSH's existing external execution strategy which handles
         # process management, job control, and signal handling correctly
-        from ..executor.context import ExecutionContext
-        from ..executor.strategies import ExternalExecutionStrategy
+        from ..executor import ExecutionContext, ExternalExecutionStrategy
 
         # Create execution context
         context = ExecutionContext()
