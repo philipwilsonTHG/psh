@@ -556,9 +556,8 @@ class ControlFlowExecutor:
 
     def _word_split_and_glob(self, text: str) -> List[str]:
         """Perform word splitting and glob expansion on text."""
-        from ..expansion.word_splitter import WordSplitter
         ifs = self.state.get_variable('IFS', ' \t\n')
-        words = WordSplitter().split(text, ifs)
+        words = self.shell.expansion_manager.word_splitter.split(text, ifs)
 
         # Glob expansion on each word
         result = []

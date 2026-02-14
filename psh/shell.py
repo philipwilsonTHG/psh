@@ -9,7 +9,7 @@ from .ast_nodes import (
 )
 from .builtins import registry as builtin_registry
 from .core.state import ShellState
-from .expansion.manager import ExpansionManager
+from .expansion import ExpansionManager
 from .functions import FunctionManager
 from .interactive.base import InteractiveManager
 from .io_redirect import IOManager

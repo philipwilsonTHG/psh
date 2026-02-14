@@ -4,6 +4,26 @@ All notable changes to PSH (Python Shell) are documented in this file.
 
 Format: `VERSION (DATE) - Title` followed by bullet points describing changes.
 
+## 0.180.0 (2026-02-14) - Expansion public API cleanup
+- Populated `psh/expansion/__init__.py` with `ExpansionManager` import and
+  `__all__ = ['ExpansionManager']`; added convenience imports for
+  `contains_extglob` and `match_extglob` (not in `__all__`).
+- Updated `shell.py` to import `ExpansionManager` from the package
+  (`from .expansion import ExpansionManager`) instead of the submodule.
+- Fixed broken import in `function_support.py`: changed
+  `from ..expansion.arithmetic import ArithmeticEvaluator` (non-existent
+  module) to `from ..arithmetic import evaluate_arithmetic`; also fixed
+  incorrect `shell.state` argument (should be `shell`).
+- Eliminated redundant `VariableExpander` construction in
+  `shell_state.py` (2 locations); replaced with
+  `shell.expansion_manager.expand_string_variables()`.
+- Eliminated redundant `WordSplitter` construction in
+  `control_flow.py`; replaced with
+  `self.shell.expansion_manager.word_splitter`.
+- Updated `psh/expansion/CLAUDE.md`: removed stale `base.py` /
+  `ExpansionComponent` references; rewrote "Adding a New Expansion
+  Type" section to show actual pattern (plain class, no ABC).
+
 ## 0.179.0 (2026-02-14) - I/O redirect public API cleanup
 - Populated `psh/io_redirect/__init__.py` with `IOManager` import and
   `__all__ = ['IOManager']`; updated imports in `shell.py` and

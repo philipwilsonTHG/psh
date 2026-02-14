@@ -530,13 +530,10 @@ class DeclareBuiltin(Builtin):
         elif attributes & VarAttributes.INTEGER:
             # Evaluate arithmetic expression
             try:
-                # Use shell's arithmetic evaluator
-                from ..expansion.arithmetic import ArithmeticEvaluator
-                evaluator = ArithmeticEvaluator(shell.state)
-                result = evaluator.evaluate(str_value)
-                return str(result)  # Return as string but evaluated
+                from ..arithmetic import evaluate_arithmetic
+                result = evaluate_arithmetic(str_value, shell)
+                return str(result)
             except (ValueError, ArithmeticError):
-                # Fall back to simple int conversion
                 try:
                     return str(int(str_value))
                 except (ValueError, TypeError):

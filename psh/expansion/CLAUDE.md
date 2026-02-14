@@ -20,7 +20,6 @@ Input Arguments → ExpansionManager → Expanded Arguments
 | File | Purpose |
 |------|---------|
 | `manager.py` | `ExpansionManager` - orchestrates all expansions in correct order |
-| `base.py` | `ExpansionComponent` - abstract base class for expanders |
 | `evaluator.py` | `ExpansionEvaluator` - evaluates expansion AST nodes |
 | `variable.py` | `VariableExpander` - handles `$VAR`, `${VAR}`, arrays (~50KB) |
 | `command_sub.py` | `CommandSubstitution` - handles `$(cmd)` and `` `cmd` `` |
@@ -135,12 +134,13 @@ ${arr[0]}, ${arr[@]}, ${arr[*]}, ${#arr[@]}
 
 ### Adding a New Expansion Type
 
-1. Create expander class inheriting from `ExpansionComponent`:
+1. Create an expander class with `__init__(self, shell)` and a domain method:
 ```python
 # In new_expander.py
-from .base import ExpansionComponent
+class NewExpander:
+    def __init__(self, shell):
+        self.shell = shell
 
-class NewExpander(ExpansionComponent):
     def expand(self, value: str) -> str:
         # Implement expansion logic
         return expanded_value

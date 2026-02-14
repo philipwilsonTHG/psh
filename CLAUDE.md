@@ -495,9 +495,20 @@ class MyVisitor(ASTVisitor[T]):
 
 ## Current Development Status
 
-**Version**: 0.179.0 (see CHANGELOG.md for detailed history)
+**Version**: 0.180.0 (see CHANGELOG.md for detailed history)
 
 **Recent Work**:
+- **Expansion Public API Cleanup (v0.180.0)**:
+  - Populated `__init__.py` with `ExpansionManager` import and `__all__`;
+    added `contains_extglob`/`match_extglob` convenience imports
+  - Updated `shell.py` to use package-level import
+  - Fixed broken `ArithmeticEvaluator` import in `function_support.py`
+    (wrong module path and wrong constructor argument)
+  - Eliminated redundant `VariableExpander` construction (2 sites in
+    `shell_state.py`); replaced with `shell.expansion_manager`
+  - Eliminated redundant `WordSplitter` construction in `control_flow.py`
+  - Updated `expansion/CLAUDE.md`: removed stale `base.py` references;
+    rewrote "Adding a New Expansion Type" section
 - **I/O Redirect Public API Cleanup (v0.179.0)**:
   - Populated `__init__.py` with `IOManager` import and `__all__`
   - Deleted 5 dead `IOManager` methods (~55 lines) and 3 dead

@@ -165,9 +165,7 @@ class LocalBuiltin(Builtin):
                     # Regular variable assignment
                     # Expand variables in the value
                     if '$' in var_value:
-                        from ..expansion.variable import VariableExpander
-                        expander = VariableExpander(shell)
-                        var_value = expander.expand_string_variables(var_value)
+                        var_value = shell.expansion_manager.expand_string_variables(var_value)
 
                     # Apply attribute transformations
                     var_value = self._apply_attributes(var_value, attributes, shell)
@@ -197,11 +195,6 @@ class LocalBuiltin(Builtin):
         if not content:
             return []
 
-        # Use the shell's expansion manager to properly parse quoted strings
-        # This handles quotes, variable expansion, and proper word splitting
-        from ..expansion.variable import VariableExpander
-        expander = VariableExpander(shell)
-
         # Split on whitespace while respecting quotes
         # For now, do simple splitting - a full implementation would use the tokenizer
         import shlex
@@ -212,7 +205,7 @@ class LocalBuiltin(Builtin):
             result = []
             for val in parsed_values:
                 if '$' in val:
-                    expanded = expander.expand_string_variables(val)
+                    expanded = shell.expansion_manager.expand_string_variables(val)
                     result.append(expanded)
                 else:
                     result.append(val)
