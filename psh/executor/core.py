@@ -39,7 +39,7 @@ from ..ast_nodes import (
     UntilLoop,
     WhileLoop,
 )
-from ..builtins.function_support import FunctionReturn
+from ..builtins import FunctionReturn
 from ..core.exceptions import LoopBreak, LoopContinue
 from .array import ArrayOperationExecutor
 from .command import CommandExecutor

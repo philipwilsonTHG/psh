@@ -182,7 +182,7 @@ class CommandExecutor:
 
         except Exception as e:
             # Import these here to avoid circular imports
-            from ..builtins.function_support import FunctionReturn
+            from ..builtins import FunctionReturn
             from ..core.exceptions import ExpansionError, LoopBreak, LoopContinue, ReadonlyVariableError
 
             # Re-raise control flow exceptions

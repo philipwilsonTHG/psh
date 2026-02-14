@@ -151,7 +151,7 @@ def main():
 
     # Apply --parser selection
     if parser_type is not None:
-        from .builtins.parser_experiment import PARSERS
+        from .builtins import PARSERS
         target = None
         for name, aliases in PARSERS.items():
             if parser_type == name or parser_type in aliases:

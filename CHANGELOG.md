@@ -4,6 +4,22 @@ All notable changes to PSH (Python Shell) are documented in this file.
 
 Format: `VERSION (DATE) - Title` followed by bullet points describing changes.
 
+## 0.184.0 (2026-02-14) - Builtins public API cleanup
+- Populated `psh/builtins/__init__.py` with `FunctionReturn` and `PARSERS`
+  imports; updated `__all__` from 3 to 5 items; added module-level docstring
+  listing all builtin modules and their commands.
+- Fixed 5 `FunctionReturn` bypass imports in executor files (`core.py`,
+  `function.py`, `command.py`, `strategies.py` x2) to use package-level
+  `from ..builtins import FunctionReturn`.
+- Fixed `registry` bypass import in `pipeline.py` to use package-level import.
+- Fixed `PARSERS` bypass import in `__main__.py` to use package-level import.
+- Corrected 6 command-to-file mapping errors in `builtins/CLAUDE.md`:
+  moved `pwd` from `navigation.py` to `io.py`; moved `true`, `false`, `:`
+  from `io.py` to `core.py`; moved `declare`, `typeset`, `readonly` from
+  `environment.py` to `function_support.py`; fixed `shell_state.py` →
+  `shell_options.py` for `shopt`; added `history`, `version`, `local` to
+  `shell_state.py`.
+
 ## 0.183.0 (2026-02-14) - Utils public API cleanup
 - Populated `psh/utils/__init__.py` with `__all__` (11 items), imports, and
   docstring; all public symbols now importable from `psh.utils` directly.

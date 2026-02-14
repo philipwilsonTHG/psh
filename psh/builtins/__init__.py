@@ -1,4 +1,34 @@
-"""Shell builtins package."""
+"""Shell builtins package.
+
+Modules:
+    aliases         - alias, unalias
+    base            - Builtin abstract base class
+    command_builtin - command
+    core            - exit, :, true, false, exec
+    debug_control   - debug-related commands
+    directory_stack - pushd, popd, dirs
+    disown          - disown
+    environment     - export, set, unset
+    eval_command    - eval
+    function_support - declare, typeset, readonly, return; FunctionReturn exception
+    help_command    - help
+    io              - echo, printf, pwd
+    job_control     - jobs, fg, bg, wait
+    kill_command    - kill
+    navigation      - cd
+    parse_tree      - parse-tree visualization
+    parser_control  - parser control commands
+    parser_experiment - parser-select; PARSERS dict
+    positional      - shift, getopts
+    read_builtin    - read
+    registry        - BuiltinRegistry and @builtin decorator
+    shell_options   - shopt
+    shell_state     - history, version, local
+    signal_handling - trap
+    source_command  - source, .
+    test_command    - test, [
+    type_builtin    - type
+"""
 
 # Import all builtin modules to trigger registration
 from . import (
@@ -29,7 +59,8 @@ from . import (
     type_builtin,
 )
 from .base import Builtin
+from .function_support import FunctionReturn
+from .parser_experiment import PARSERS
 from .registry import builtin, registry
 
-# Re-export for convenience
-__all__ = ['registry', 'builtin', 'Builtin']
+__all__ = ['registry', 'builtin', 'Builtin', 'FunctionReturn', 'PARSERS']

@@ -328,7 +328,7 @@ class PipelineExecutor:
 
     def _is_builtin_command(self, cmd_name: str) -> bool:
         """Check if a command is a PSH builtin."""
-        from ..builtins.registry import registry
+        from ..builtins import registry
         return cmd_name in registry
 
     def _execute_simple_pipeline_in_test_mode(self, node: 'Pipeline', context: 'ExecutionContext',

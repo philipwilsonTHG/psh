@@ -7,7 +7,7 @@ This module handles function definition and execution operations.
 import sys
 from typing import TYPE_CHECKING, List, Optional
 
-from ..builtins.function_support import FunctionReturn
+from ..builtins import FunctionReturn
 from ..core.exceptions import LoopBreak, LoopContinue, UnboundVariableError
 
 if TYPE_CHECKING:

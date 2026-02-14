@@ -27,20 +27,21 @@ The builtins subsystem provides shell built-in commands via a decorator-based re
 **I/O Operations**
 | File | Commands |
 |------|----------|
-| `io.py` | `echo`, `printf`, `true`, `false`, `:` |
+| `io.py` | `echo`, `printf`, `pwd` |
 | `read_builtin.py` | `read` |
 
 **Navigation & Directory**
 | File | Commands |
 |------|----------|
-| `navigation.py` | `cd`, `pwd` |
+| `navigation.py` | `cd` |
 | `directory_stack.py` | `pushd`, `popd`, `dirs` |
 
 **Variables & Environment**
 | File | Commands |
 |------|----------|
-| `environment.py` | `export`, `readonly`, `declare`, `local`, `typeset`, `set`, `unset` |
-| `shell_state.py` | `shopt` |
+| `environment.py` | `export`, `set`, `unset` |
+| `shell_options.py` | `shopt` |
+| `shell_state.py` | `history`, `version`, `local` |
 | `positional.py` | `shift`, `getopts` |
 
 **Job Control**
@@ -53,14 +54,14 @@ The builtins subsystem provides shell built-in commands via a decorator-based re
 **Functions & Scripts**
 | File | Commands |
 |------|----------|
-| `function_support.py` | `return`, `caller` |
+| `function_support.py` | `declare`, `typeset`, `readonly`, `return` |
 | `source_command.py` | `source`, `.` |
 | `eval_command.py` | `eval` |
 
 **Flow Control**
 | File | Commands |
 |------|----------|
-| `core.py` | `exit`, `exec` |
+| `core.py` | `exit`, `:`, `true`, `false`, `exec` |
 
 **Test & Type**
 | File | Commands |

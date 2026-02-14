@@ -495,9 +495,16 @@ class MyVisitor(ASTVisitor[T]):
 
 ## Current Development Status
 
-**Version**: 0.183.0 (see CHANGELOG.md for detailed history)
+**Version**: 0.184.0 (see CHANGELOG.md for detailed history)
 
 **Recent Work**:
+- **Builtins Public API Cleanup (v0.184.0)**:
+  - Populated `__init__.py` with `FunctionReturn` and `PARSERS` imports;
+    updated `__all__` from 3 to 5 items; added module-level docstring
+  - Fixed 7 bypass imports across 6 files (`core.py`, `function.py`,
+    `command.py`, `strategies.py` x2, `pipeline.py`, `__main__.py`) to
+    use package-level imports
+  - Corrected 6 command-to-file mapping errors in `builtins/CLAUDE.md`
 - **Utils Public API Cleanup (v0.183.0)**:
   - Populated `__init__.py` with `__all__` (11 items), imports, and docstring;
     all public symbols now importable from `psh.utils` directly
@@ -577,43 +584,6 @@ class MyVisitor(ASTVisitor[T]):
     package, 5 stale Shell wrappers, 4 dead PrintfBuiltin shims, dead
     ShellState I/O backups
   - Removed 4 incorrect PTY interactive XFAILs (now passing)
-- **Array Element Parameter Expansion Operators (v0.174.0)**:
-  - Fixed `${arr[i]:-default}`, `:=`, `:?`, `:+` for array subscripts
-  - Added array subscript handling in `_get_var_or_positional()` and
-    `_set_var_or_array_element()` helper for `:=` assignment
-  - Removed XFAIL (3 → 2 xfails)
-- **XFAIL Cleanup (v0.173.0)**:
-  - Removed 2 incorrect XFAILs (5 → 3): alias test had wrong bash expectation,
-    character class pattern test had wrong assertion
-  - Sharpened nameref XFAIL reason
-- **Test Fixture FD Leak Fix (v0.172.0)**:
-  - Fixed `OSError: Too many open files` when running ~3,000+ tests
-  - `_cleanup_shell()` now closes `SignalNotifier` pipe FDs; `captured_shell` fixture
-    now calls `_cleanup_shell()` in teardown
-- **Combinator Parser Bug Fixes (v0.167.0)**:
-  - Fixed 21 test failures (39 → 18) across 5 parser bugs with zero regressions
-  - Compound commands now route through pipeline layer (fixes piped for/while/if)
-  - Fixed stderr redirection, for-loop expansion tokens, array assignments, C-style for `do`
-- **Process Substitution Consolidation (v0.166.0)**:
-  - Extracted `create_process_substitution()` module function as single source of truth
-  - Replaced ~130 lines of duplicated fork/pipe/exec code across 3 files
-  - Unified FD/PID tracking through ProcessSubstitutionHandler; fixed cleanup leak
-- **Shell.py Decomposition (v0.165.0)**:
-  - Reduced shell.py from 925 to ~325 lines by extracting domain logic
-  - Extracted TestExpressionEvaluator, AST debug, parser factory, heredoc detection, RC loading
-- **Lint Cleanup and CI Gates (v0.160.0-v0.161.0)**:
-  - Fixed ~7,750 ruff lint issues across `psh/` and `tests/`
-  - Added CI lint gate covering both production and test code
-- **Correctness Bug Fixes (v0.138.0-v0.155.0)**:
-  - Fixed 8 PSH bug XFAILs (heredocs, forked-child redirections)
-  - Fixed critical/high executor bugs (background brace-group, loop depth leak, special-builtin assignments)
-  - Fixed 7 parser issues, 5 expansion bugs, 3 FD/redirect bugs
-  - Unified child process signal policy across all fork paths
-- **Dead Code Removal and Refactoring (v0.128.0-v0.150.0)**:
-  - Removed parser abstraction layers (~1,686 lines), dead BaseParser (~380 lines),
-    context snapshots (~300 lines), error catalog (~360 lines)
-  - Pruned ParserConfig from 45 fields to 14, unified error handling
-  - Removed null byte markers, CompositeTokenProcessor, dead executor methods
 ## Debugging Tips
 
 1. **Import Errors**: Clear `__pycache__` directories if you see module import issues

@@ -74,7 +74,7 @@ class SpecialBuiltinExecutionStrategy(ExecutionStrategy):
             raise
         except Exception as e:
             # Import FunctionReturn here to avoid circular imports
-            from ..builtins.function_support import FunctionReturn
+            from ..builtins import FunctionReturn
             if isinstance(e, FunctionReturn):
                 # FunctionReturn must propagate to be caught by function execution
                 raise
@@ -131,7 +131,7 @@ class BuiltinExecutionStrategy(ExecutionStrategy):
             raise
         except Exception as e:
             # Import FunctionReturn here to avoid circular imports
-            from ..builtins.function_support import FunctionReturn
+            from ..builtins import FunctionReturn
             if isinstance(e, FunctionReturn):
                 # FunctionReturn must propagate to be caught by function execution
                 raise
