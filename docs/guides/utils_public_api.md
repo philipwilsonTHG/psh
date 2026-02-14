@@ -1,6 +1,6 @@
 # Utils Public API Reference
 
-**As of v0.183.0** (post-cleanup)
+**As of v0.184.1**
 
 This document describes the public API of the `psh.utils` package: the
 items declared in `__all__`, their signatures, and guidance on internal
@@ -8,7 +8,7 @@ imports that are available but not part of the public contract.
 
 ## Public API (`__all__`)
 
-The declared public API consists of eleven items:
+The declared public API consists of ten items:
 
 ```python
 __all__ = [
@@ -19,7 +19,6 @@ __all__ = [
     'contains_heredoc',
     'print_ast_debug',
     'TokenFormatter',
-    'to_int',
     'file_newer_than',
     'file_older_than',
     'files_same',
@@ -183,21 +182,6 @@ token is rendered as an indexed line with its `TokenType` name and value.
 
 Production caller: `psh/scripting/source_processor.py`.
 
-### `to_int()`
-
-```python
-from psh.utils import to_int
-
-value = to_int("42")    # 42
-value = to_int("hello") # raises ValueError
-```
-
-Convert a string to an integer for numeric comparisons in test
-expressions.  Raises `ValueError` with a shell-appropriate message
-(`"integer expression expected: ..."`) on failure.
-
-Production caller: `psh/executor/test_evaluator.py`.
-
 ### `file_newer_than()`
 
 ```python
@@ -271,11 +255,17 @@ zero callers in production or test code:
 | `restore_default_signals(*signals)` | `psh.utils.signal_utils` | Context manager for temporarily restoring `SIG_DFL` handlers in child processes.  Superseded by `SignalManager.reset_child_signals()`. |
 | `SignalNotifier.has_notifications()` | `psh.utils.signal_utils` | Non-blocking check for pending notifications.  Self-acknowledged hack that consumed pipe data it could not replace.  Use `drain_notifications()` instead. |
 
+## Moved in v0.184.1
+
+| Item | Was in | Moved to | Notes |
+|------|--------|----------|-------|
+| `to_int(value)` | `psh.utils.file_tests` | `psh.executor.test_evaluator` | Only caller was `test_evaluator.py`, where it was lazily imported 6 times.  Now a module-level function in its sole consumer. |
+
 ## API Tiers Summary
 
 | Tier | Scope | How to import | Stability guarantee |
 |------|-------|---------------|-------------------|
-| **Public** | `SignalNotifier`, `get_signal_registry`, `ShellFormatter`, `create_parser`, `contains_heredoc`, `print_ast_debug`, `TokenFormatter`, `to_int`, `file_newer_than`, `file_older_than`, `files_same` | `from psh.utils import ...` | Stable.  Changes are versioned. |
+| **Public** | `SignalNotifier`, `get_signal_registry`, `ShellFormatter`, `create_parser`, `contains_heredoc`, `print_ast_debug`, `TokenFormatter`, `file_newer_than`, `file_older_than`, `files_same` | `from psh.utils import ...` | Stable.  Changes are versioned. |
 | **Internal** | `SignalRegistry`, `set_signal_registry`, `SignalHandlerRecord`, `ParserWrapper` | `from psh.utils.<module> import ...` | Internal.  May change without notice. |
 
 ## Typical Usage

@@ -19,7 +19,7 @@ packages that need reusable infrastructure.
 ## 2. External API
 
 The public interface is defined in `psh/utils/__init__.py`.  The declared
-`__all__` contains eleven items -- every item with production callers outside
+`__all__` contains ten items -- every item with production callers outside
 the package.  See `docs/guides/utils_public_api.md` for the full reference
 including signatures and API tiers.
 
@@ -85,11 +85,12 @@ from psh.utils import print_ast_debug, TokenFormatter
 ### 2.6 File test helpers
 
 ```python
-from psh.utils import to_int, file_newer_than, file_older_than, files_same
+from psh.utils import file_newer_than, file_older_than, files_same
 ```
 
-Implement the `-eq` integer conversion, `-nt`, `-ot`, and `-ef` test
-operators for `[[ ]]` and `test` expressions.
+Implement the `-nt`, `-ot`, and `-ef` test operators for `[[ ]]` and
+`test` expressions.  (The `to_int` function for `-eq`/`-ne`/`-lt`/`-le`/
+`-gt`/`-ge` was moved to `psh/executor/test_evaluator.py` in v0.184.1.)
 
 ### 2.7 Submodule-only imports
 
@@ -110,13 +111,13 @@ declared public API:
 
 ```
 psh/utils/
-├── __init__.py           # Public API: __all__ (11 items), re-exports
+├── __init__.py           # Public API: __all__ (10 items), re-exports
 ├── signal_utils.py       # SignalNotifier, SignalRegistry, get/set_signal_registry
 ├── shell_formatter.py    # ShellFormatter (AST → shell syntax)
 ├── parser_factory.py     # create_parser() (parser selection)
 ├── heredoc_detection.py  # contains_heredoc() heuristic
 ├── ast_debug.py          # print_ast_debug() (AST visualization dispatch)
-├── file_tests.py         # to_int, file_newer_than, file_older_than, files_same
+├── file_tests.py         # file_newer_than, file_older_than, files_same
 └── token_formatter.py    # TokenFormatter (token list → debug text)
 ```
 
@@ -145,7 +146,7 @@ token_formatter.py
     └─ scripting/source_processor.py  (TokenFormatter)
 
 file_tests.py
-    └─ executor/test_evaluator.py     (to_int, file_newer_than,
+    └─ executor/test_evaluator.py     (file_newer_than,
                                        file_older_than, files_same)
 ```
 
@@ -171,7 +172,7 @@ v0.183.0).
 
 #### `__init__.py` (~35 lines)
 
-Docstring listing all submodules, import statements for the 11 public
+Docstring listing all submodules, import statements for the 10 public
 items, and `__all__` declaration.  This is the only file external code
 needs to import from.
 
@@ -285,18 +286,18 @@ dependencies and reduce startup cost.  On failure, falls back to
 
 ### 4.7 File test helpers
 
-#### `file_tests.py` (~41 lines)
+#### `file_tests.py` (~30 lines)
 
-Four standalone functions implementing shell test operators:
+Three standalone functions implementing shell file-comparison test operators:
 
 | Function | Test operator | Behaviour |
 |----------|--------------|-----------|
-| `to_int(value)` | `-eq`, `-ne`, `-lt`, `-le`, `-gt`, `-ge` | Convert string to `int`; raise `ValueError` with shell message on failure. |
 | `file_newer_than(f1, f2)` | `-nt` | Compare `st_mtime`; `False` if either file missing. |
 | `file_older_than(f1, f2)` | `-ot` | Compare `st_mtime`; `False` if either file missing. |
 | `files_same(f1, f2)` | `-ef` | Compare `st_dev` and `st_ino`; `False` if either file missing. |
 
-All four are called exclusively from `psh/executor/test_evaluator.py`.
+All three are called exclusively from `psh/executor/test_evaluator.py`.
+(`to_int` was moved to `test_evaluator.py` in v0.184.1.)
 
 ### 4.8 Token debug formatting
 
@@ -364,10 +365,10 @@ DeclareBuiltin._print_function_definition(name, func, stdout)
 
 ```
 TestExpressionEvaluator._evaluate_binary()
-    ├─ op == '-eq' → to_int(left) == to_int(right)
-    ├─ op == '-nt' → file_newer_than(left, right)
-    ├─ op == '-ot' → file_older_than(left, right)
-    └─ op == '-ef' → files_same(left, right)
+    ├─ op == '-eq' → to_int(left) == to_int(right)   (to_int is local)
+    ├─ op == '-nt' → file_newer_than(left, right)     (from psh.utils)
+    ├─ op == '-ot' → file_older_than(left, right)     (from psh.utils)
+    └─ op == '-ef' → files_same(left, right)          (from psh.utils)
 ```
 
 
@@ -448,9 +449,12 @@ is cohesive and the module boundaries within it are clear.
 
 ### Why are file test functions separate from `test_evaluator.py`?
 
-The functions are pure utilities (no shell state dependency) and could
+The file-comparison functions (`file_newer_than`, `file_older_than`,
+`files_same`) are pure utilities (no shell state dependency) and could
 potentially be reused by other components.  Keeping them separate follows
-the same pattern as the other utils modules.
+the same pattern as the other utils modules.  The `to_int` helper was
+moved to `test_evaluator.py` in v0.184.1 because it was the sole caller
+and was importing it 6 times via lazy imports.
 
 ### Why are most imports in `ast_debug.py` lazy?
 
@@ -485,6 +489,6 @@ External callers:
 ├── psh/builtins/function_support.py   → ShellFormatter
 ├── psh/scripting/source_processor.py  → contains_heredoc, create_parser,
 │                                        print_ast_debug, TokenFormatter
-└── psh/executor/test_evaluator.py     → to_int, file_newer_than,
+└── psh/executor/test_evaluator.py     → file_newer_than,
                                          file_older_than, files_same
 ```
