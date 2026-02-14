@@ -4,7 +4,6 @@ This module provides utilities for safe signal handling using the self-pipe tric
 The self-pipe pattern moves complex work out of signal handler context to avoid
 reentrancy issues and ensure async-signal-safety.
 """
-import contextlib
 import fcntl
 import os
 import signal
@@ -120,35 +119,6 @@ class SignalNotifier:
             pass
         return notifications
 
-    def has_notifications(self) -> bool:
-        """Check if there are pending notifications without draining.
-
-        Uses non-blocking read to check for data.
-
-        Returns:
-            True if notifications are pending
-        """
-        try:
-            # Save current flags
-            flags = fcntl.fcntl(self._pipe_r, fcntl.F_GETFL)
-            # Set non-blocking
-            fcntl.fcntl(self._pipe_r, fcntl.F_SETFL, flags | os.O_NONBLOCK)
-
-            # Try to read one byte
-            data = os.read(self._pipe_r, 1)
-
-            # Put it back (this is a bit of a hack)
-            # In practice, drain_notifications() will re-read it
-            # For now, we just return True
-
-            # Restore flags
-            fcntl.fcntl(self._pipe_r, fcntl.F_SETFL, flags)
-
-            return bool(data)
-        except OSError:
-            # No data available
-            return False
-
     def close(self):
         """Clean up pipe resources."""
         try:
@@ -167,82 +137,6 @@ class SignalNotifier:
         except Exception:
             # Don't raise exceptions in __del__
             pass
-
-
-@contextlib.contextmanager
-def block_signals(*signals_to_block: int):
-    """Context manager to temporarily block signals.
-
-    This is signal-async-safe and prevents race conditions between
-    signal handlers and explicit wait() calls.
-
-    Args:
-        *signals_to_block: Signal numbers to block (e.g., signal.SIGCHLD)
-
-    Example:
-        with block_signals(signal.SIGCHLD):
-            # SIGCHLD is blocked here
-            pid, status = os.waitpid(...)
-            job.update_process_status(pid, status)
-        # SIGCHLD is unblocked and pending signals delivered
-
-    Note:
-        Requires Python 3.3+ for signal.pthread_sigmask()
-    """
-    if not signals_to_block:
-        yield
-        return
-
-    try:
-        # Block signals
-        old_mask = signal.pthread_sigmask(signal.SIG_BLOCK, set(signals_to_block))
-        try:
-            yield
-        finally:
-            # Restore original mask
-            signal.pthread_sigmask(signal.SIG_SETMASK, old_mask)
-    except AttributeError:
-        # pthread_sigmask not available on this platform (Windows, old Python)
-        # Fall back to no blocking
-        yield
-
-
-@contextlib.contextmanager
-def restore_default_signals(*signals_to_restore: int):
-    """Context manager to temporarily restore default signal handlers.
-
-    Useful in child processes that need default signal behavior.
-
-    Args:
-        *signals_to_restore: Signal numbers to reset
-
-    Example:
-        with restore_default_signals(signal.SIGINT, signal.SIGTSTP):
-            # Signals have default handlers here
-            os.execv(path, args)
-    """
-    if not signals_to_restore:
-        yield
-        return
-
-    # Save current handlers
-    saved_handlers = {}
-    for sig in signals_to_restore:
-        try:
-            saved_handlers[sig] = signal.signal(sig, signal.SIG_DFL)
-        except (OSError, ValueError):
-            # Signal not valid on this platform
-            pass
-
-    try:
-        yield
-    finally:
-        # Restore saved handlers
-        for sig, handler in saved_handlers.items():
-            try:
-                signal.signal(sig, handler)
-            except (OSError, ValueError):
-                pass
 
 
 @dataclass

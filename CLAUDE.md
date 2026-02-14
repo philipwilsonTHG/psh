@@ -495,9 +495,17 @@ class MyVisitor(ASTVisitor[T]):
 
 ## Current Development Status
 
-**Version**: 0.182.0 (see CHANGELOG.md for detailed history)
+**Version**: 0.183.0 (see CHANGELOG.md for detailed history)
 
 **Recent Work**:
+- **Utils Public API Cleanup (v0.183.0)**:
+  - Populated `__init__.py` with `__all__` (11 items), imports, and docstring;
+    all public symbols now importable from `psh.utils` directly
+  - Deleted ~103 lines of dead code from `signal_utils.py`: `block_signals()`,
+    `restore_default_signals()` context managers, and
+    `SignalNotifier.has_notifications()` (zero callers each)
+  - Fixed 4 bypass imports in `signal_manager.py`, `function_support.py`,
+    `source_processor.py`, `debug_control.py` to use package-level imports
 - **Executor Public API Cleanup (v0.182.0)**:
   - Trimmed `__all__` from 13 to 5 items; removed 10 items
     (`PipelineContext`, `PipelineExecutor`, `CommandExecutor`,
@@ -606,10 +614,6 @@ class MyVisitor(ASTVisitor[T]):
     context snapshots (~300 lines), error catalog (~360 lines)
   - Pruned ParserConfig from 45 fields to 14, unified error handling
   - Removed null byte markers, CompositeTokenProcessor, dead executor methods
-- **Word AST Migration Complete (v0.115.0-v0.120.0)**:
-  - `words: List[Word]` is now the sole argument representation
-  - All visitors, executor, and expansion code migrated to Word AST
-
 ## Debugging Tips
 
 1. **Import Errors**: Clear `__pycache__` directories if you see module import issues

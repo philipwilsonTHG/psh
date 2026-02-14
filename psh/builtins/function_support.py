@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, List, Optional
 
 from ..core.exceptions import ReadonlyVariableError
 from ..core.variables import AssociativeArray, IndexedArray, VarAttributes, Variable
-from ..utils.shell_formatter import ShellFormatter
+from ..utils import ShellFormatter
 from .base import Builtin
 from .registry import builtin
 

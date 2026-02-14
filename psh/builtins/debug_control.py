@@ -275,7 +275,7 @@ class SignalsBuiltin(Builtin):
                 return 1
 
         # Get the signal registry
-        from ..utils.signal_utils import get_signal_registry
+        from ..utils import get_signal_registry
 
         registry = get_signal_registry(create=False)
 

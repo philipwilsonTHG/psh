@@ -4,7 +4,7 @@ import signal
 from typing import Callable, Dict
 
 from ..job_control import JobState
-from ..utils.signal_utils import SignalNotifier, get_signal_registry
+from ..utils import SignalNotifier, get_signal_registry
 from .base import InteractiveComponent
 
 

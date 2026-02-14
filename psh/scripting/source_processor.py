@@ -5,7 +5,7 @@ from typing import Optional
 from ..ast_nodes import TopLevel
 from ..lexer import LexerError, tokenize
 from ..parser import ParseError
-from ..utils.heredoc_detection import contains_heredoc
+from ..utils import contains_heredoc
 from .base import ScriptComponent
 
 

@@ -4,6 +4,18 @@ All notable changes to PSH (Python Shell) are documented in this file.
 
 Format: `VERSION (DATE) - Title` followed by bullet points describing changes.
 
+## 0.183.0 (2026-02-14) - Utils public API cleanup
+- Populated `psh/utils/__init__.py` with `__all__` (11 items), imports, and
+  docstring; all public symbols now importable from `psh.utils` directly.
+- Deleted ~75 lines of dead code from `signal_utils.py`: `block_signals()` and
+  `restore_default_signals()` context managers (zero callers) plus unused
+  `contextlib` import.
+- Deleted `SignalNotifier.has_notifications()` (~28 lines, zero callers,
+  self-acknowledged hack that consumed pipe data it could not replace).
+- Fixed 4 bypass imports in 4 files (`signal_manager.py`,
+  `function_support.py`, `source_processor.py`, `debug_control.py`) to use
+  package-level imports instead of submodule paths.
+
 ## 0.182.0 (2026-02-14) - Executor public API cleanup
 - Trimmed `psh/executor/__init__.py` `__all__` from 13 to 5 items; removed
   10 items (`PipelineContext`, `PipelineExecutor`, `CommandExecutor`,
