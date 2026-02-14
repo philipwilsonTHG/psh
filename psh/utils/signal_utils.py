@@ -44,10 +44,13 @@ class SignalNotifier:
         """Create a self-pipe for signal notifications."""
         pipe_r, pipe_w = os.pipe()
 
-        # Make write end non-blocking to prevent signal handler blocking
-        # This is critical for signal safety
-        flags = fcntl.fcntl(pipe_w, fcntl.F_GETFL)
-        fcntl.fcntl(pipe_w, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+        # Make both ends non-blocking:
+        # - Write end: prevents signal handler from blocking (signal safety)
+        # - Read end: prevents drain_notifications() from blocking when
+        #   no signals are pending (called from the REPL loop)
+        for fd in (pipe_r, pipe_w):
+            flags = fcntl.fcntl(fd, fcntl.F_GETFL)
+            fcntl.fcntl(fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
 
         # Relocate to high-numbered FDs to avoid collisions with shell
         # scripts that intentionally manipulate low FDs like 3, 4, etc.

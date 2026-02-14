@@ -4,6 +4,14 @@ All notable changes to PSH (Python Shell) are documented in this file.
 
 Format: `VERSION (DATE) - Title` followed by bullet points describing changes.
 
+## 0.187.1 (2026-02-14) - Fix SignalNotifier blocking read
+- Made the read end of SignalNotifier self-pipes non-blocking.  Only the
+  write end was non-blocking, so `drain_notifications()` would block
+  indefinitely when called with no pending signals.  This was exposed by
+  v0.187.0's fix to the dead `shell.signal_manager` code paths, which
+  made `process_sigchld_notifications()` actually execute in the REPL
+  loop for the first time.
+
 ## 0.187.0 (2026-02-14) - Interactive public API cleanup
 - Rewrote `psh/interactive/__init__.py`: added module docstring listing all
   submodules; added `load_rc_file` and `is_safe_rc_file` imports from
