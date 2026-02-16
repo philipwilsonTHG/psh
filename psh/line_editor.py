@@ -63,6 +63,44 @@ class LineEditor:
         self._stdin_fd = -1
         self._char_buf: List[str] = []
 
+    def _query_cursor_row(self) -> int:
+        """Query the terminal for the cursor's current row (0-indexed).
+
+        Sends the DSR (Device Status Report) sequence ``ESC[6n`` and
+        reads the ``ESC[row;colR`` response directly from the raw fd.
+        Returns -1 if the query fails or times out.
+        """
+        if self._stdin_fd < 0:
+            return -1
+
+        sys.stdout.write('\033[6n')
+        sys.stdout.flush()
+
+        buf: List[bytes] = []
+        try:
+            for _ in range(20):  # safety limit on response length
+                ready, _, _ = select.select([self._stdin_fd], [], [], 0.1)
+                if not ready:
+                    break
+                data = os.read(self._stdin_fd, 1)
+                if not data:
+                    break
+                buf.append(data)
+                if data == b'R':
+                    break
+        except OSError:
+            pass
+
+        response = b''.join(buf).decode('ascii', errors='replace')
+        m = re.match(r'\x1b\[(\d+);(\d+)R', response)
+        if m:
+            return int(m.group(1)) - 1  # convert to 0-indexed
+
+        # Response wasn't a DSR reply; push characters back
+        if response:
+            self._char_buf = list(response) + self._char_buf
+        return -1
+
     def _read_char(self) -> str:
         """Read one character from stdin via the raw file descriptor.
 
@@ -125,6 +163,18 @@ class LineEditor:
             watch_fds.append(sigwinch_fd)
 
         with self.terminal:
+            # Record the row where the prompt was drawn so that
+            # redraw_line() can detect cursor displacement on resize.
+            row = self._query_cursor_row()
+            if row >= 0:
+                prompt_vis = self._visible_length(prompt)
+                w = self._term_width if self._term_width > 0 else 80
+                # Cursor is at end of prompt; prompt started further up
+                # if it wrapped.
+                self._prompt_draw_row = max(0, row - prompt_vis // w)
+            else:
+                self._prompt_draw_row = -1
+
             while True:
                 try:
                     # Only call select() when our character buffer is empty.
@@ -830,9 +880,11 @@ class LineEditor:
         """Redraw the current prompt and input line in place.
 
         Used after terminal resize (SIGWINCH) to fix display corruption.
-        Calculates how many terminal rows the prompt+buffer occupied at
-        the old width, moves the cursor up to the prompt's starting row,
-        clears from there to the bottom, and redraws at the new width.
+
+        Uses DSR (``ESC[6n``) to query the cursor's actual row, then
+        compares with the saved prompt row to detect displacement caused
+        by terminal scrollback reflow during the resize.  Falls back to
+        a content-span calculation when DSR is unavailable.
         """
         prompt_len = self._visible_length(self.current_prompt)
         old_width = getattr(self, '_term_width', 80)
@@ -842,17 +894,23 @@ class LineEditor:
         except (OSError, ValueError):
             new_width = 80
 
-        # Calculate cursor's row relative to the prompt start using the
-        # old terminal width (before resize).  After writing N characters
-        # starting from column 0 the cursor sits at row N // W.
-        if old_width > 0:
-            cursor_row = (prompt_len + self.cursor_pos) // old_width
-        else:
-            cursor_row = 0
+        # How many rows below the prompt start is the cursor?
+        cursor_row = (prompt_len + self.cursor_pos) // old_width if old_width > 0 else 0
 
-        # Move cursor up to the row where the prompt started
-        if cursor_row > 0:
-            sys.stdout.write(f'\033[{cursor_row}A')
+        # Determine how far up to move.  If we recorded the prompt's
+        # absolute row at draw time we can detect cursor displacement
+        # (e.g. terminal shrank and scrollback pushed the cursor down).
+        rows_up = cursor_row  # fallback when DSR is unavailable
+        actual_row = -1
+        prompt_draw_row = getattr(self, '_prompt_draw_row', -1)
+        if prompt_draw_row >= 0:
+            actual_row = self._query_cursor_row()
+            if actual_row >= 0:
+                target = max(0, prompt_draw_row)
+                rows_up = actual_row - target
+
+        if rows_up > 0:
+            sys.stdout.write(f'\033[{rows_up}A')
 
         # Move to column 0, then clear from here to end of screen
         sys.stdout.write('\r\033[J')
@@ -880,6 +938,10 @@ class LineEditor:
             sys.stdout.write('\r')
             if target_col > 0:
                 sys.stdout.write(f'\033[{target_col}C')
+
+        # Update saved state for the next resize
+        if actual_row >= 0:
+            self._prompt_draw_row = max(0, actual_row - rows_up)
 
         self._term_width = new_width
         sys.stdout.flush()

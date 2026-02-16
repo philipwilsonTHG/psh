@@ -4,6 +4,18 @@ All notable changes to PSH (Python Shell) are documented in this file.
 
 Format: `VERSION (DATE) - Title` followed by bullet points describing changes.
 
+## 0.187.4 (2026-02-16) - Use DSR to fix prompt position after terminal shrink
+- Added `_query_cursor_row()` method that sends the DSR escape
+  sequence (`ESC[6n`) and reads the terminal's cursor position response.
+- `read_line()` now records the prompt's absolute viewport row at draw
+  time via DSR.
+- `redraw_line()` queries the cursor's actual row after a resize and
+  compares it with the saved prompt row to detect displacement caused
+  by scrollback reflow.  When the terminal shrinks and pushes the
+  cursor down, the prompt is now redrawn at its original row (or the
+  top of the viewport if the original row scrolled off).
+- Falls back to the content-span calculation when DSR is unavailable.
+
 ## 0.187.3 (2026-02-16) - Fix pasted text not appearing until next keystroke
 - Replaced all `sys.stdin.read(1)` calls in `LineEditor` with a new
   `_read_char()` method that reads from the raw fd via `os.read()`.
