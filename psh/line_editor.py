@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Enhanced line editor with vi/emacs key bindings and history search."""
 
+import os
 import re
 import select
 import shutil
@@ -57,6 +58,33 @@ class LineEditor:
         self.redo_stack = []
         self.save_undo_state()
 
+        # Raw fd reading state — bypasses Python's BufferedReader so that
+        # select() and reads stay in sync (see _read_char).
+        self._stdin_fd = -1
+        self._char_buf: List[str] = []
+
+    def _read_char(self) -> str:
+        """Read one character from stdin via the raw file descriptor.
+
+        Uses os.read() instead of sys.stdin.read(1) to bypass Python's
+        internal BufferedReader.  When text is pasted, BufferedReader
+        consumes all available bytes from the fd into its buffer but
+        returns only one character, making the rest invisible to
+        select().  By reading the raw fd ourselves and buffering decoded
+        characters in _char_buf, select() and reads stay in sync.
+        """
+        if self._char_buf:
+            return self._char_buf.pop(0)
+
+        data = os.read(self._stdin_fd, 4096)
+        if not data:
+            return ''
+
+        chars = data.decode('utf-8', errors='replace')
+        if len(chars) > 1:
+            self._char_buf.extend(chars[1:])
+        return chars[0] if chars else ''
+
     def read_line(self, prompt: str = "", sigwinch_fd: int = -1,
                    sigwinch_drain: Optional[Callable[[], bool]] = None) -> Optional[str]:
         """Read a line with editing and key binding support.
@@ -90,6 +118,8 @@ class LineEditor:
 
         # Build list of fds to monitor
         stdin_fd = sys.stdin.fileno()
+        self._stdin_fd = stdin_fd
+        self._char_buf = []
         watch_fds = [stdin_fd]
         if sigwinch_fd >= 0:
             watch_fds.append(sigwinch_fd)
@@ -97,8 +127,12 @@ class LineEditor:
         with self.terminal:
             while True:
                 try:
-                    # Use select() to wait for input or resize signal
-                    if sigwinch_fd >= 0:
+                    # Only call select() when our character buffer is empty.
+                    # Python's BufferedReader may consume multiple bytes from
+                    # the fd on a single sys.stdin.read(1) call, making them
+                    # invisible to select().  By reading via os.read() into
+                    # our own buffer we keep select() and reads in sync.
+                    if sigwinch_fd >= 0 and not self._char_buf:
                         readable, _, _ = select.select(watch_fds, [], [])
 
                         # Check for resize notification
@@ -110,7 +144,7 @@ class LineEditor:
                             if stdin_fd not in readable:
                                 continue
 
-                    char = sys.stdin.read(1)
+                    char = self._read_char()
                 except OSError as e:
                     # Handle I/O errors (e.g., terminal disconnected)
                     if e.errno == 5:  # EIO
@@ -170,7 +204,7 @@ class LineEditor:
         else:
             # Emacs mode
             if char == '\x1b':  # ESC - check for Meta combinations
-                next_char = sys.stdin.read(1)
+                next_char = self._read_char()
                 if next_char == '[':
                     # Arrow key sequence
                     return self._handle_arrow_sequence()
@@ -259,7 +293,7 @@ class LineEditor:
 
     def _handle_arrow_sequence(self) -> Optional[str]:
         """Handle arrow key sequences."""
-        seq = sys.stdin.read(1)
+        seq = self._read_char()
 
         if seq == 'A':  # Up arrow
             return 'previous_history'

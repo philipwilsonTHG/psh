@@ -4,6 +4,18 @@ All notable changes to PSH (Python Shell) are documented in this file.
 
 Format: `VERSION (DATE) - Title` followed by bullet points describing changes.
 
+## 0.187.3 (2026-02-16) - Fix pasted text not appearing until next keystroke
+- Replaced all `sys.stdin.read(1)` calls in `LineEditor` with a new
+  `_read_char()` method that reads from the raw fd via `os.read()`.
+  Python's `BufferedReader` would consume all available bytes from the fd
+  on the first read but return only one character; the rest became
+  invisible to `select()`, causing pasted text to appear only after the
+  next keystroke.
+- `_read_char()` reads up to 4096 bytes from the raw fd, decodes them,
+  and stores extra characters in `_char_buf`.  The main loop skips
+  `select()` when the buffer is non-empty, so all pasted characters are
+  processed immediately.
+
 ## 0.187.2 (2026-02-16) - Fix SIGWINCH redraw after terminal resize
 - Rewrote `LineEditor.redraw_line()` to correctly handle terminal resizes.
   The old implementation used `\r` (carriage return) which only moves to
