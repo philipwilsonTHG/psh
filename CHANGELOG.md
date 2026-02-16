@@ -4,6 +4,23 @@ All notable changes to PSH (Python Shell) are documented in this file.
 
 Format: `VERSION (DATE) - Title` followed by bullet points describing changes.
 
+## 0.187.2 (2026-02-16) - Fix SIGWINCH redraw after terminal resize
+- Rewrote `LineEditor.redraw_line()` to correctly handle terminal resizes.
+  The old implementation used `\r` (carriage return) which only moves to
+  column 0 of the current row; after a resize the cursor could be on a
+  different row than the prompt, causing the prompt to appear at the top
+  of the window while the cursor sat at the bottom.
+- The new implementation tracks terminal width at draw time, calculates
+  how many rows the prompt+buffer spanned at the old width, moves the
+  cursor up to the prompt's starting row with `\033[{n}A`, clears from
+  there to the bottom of the screen with `\033[J`, and redraws at the
+  new width.
+- Added `_visible_length()` static method to strip ANSI escape sequences
+  when measuring prompt length, so colored prompts are handled correctly.
+- Cursor repositioning after redraw now uses row/column ANSI sequences
+  instead of backspace characters, so it works correctly when content
+  wraps across multiple terminal lines.
+
 ## 0.187.1 (2026-02-14) - Fix SignalNotifier blocking read
 - Made the read end of SignalNotifier self-pipes non-blocking.  Only the
   write end was non-blocking, so `drain_notifications()` would block

@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Enhanced line editor with vi/emacs key bindings and history search."""
 
+import re
 import select
+import shutil
 import sys
 from typing import Callable, List, Optional
 
@@ -75,6 +77,10 @@ class LineEditor:
         self.completion_state = None
         self.current_prompt = prompt
         self.search_mode = False
+        try:
+            self._term_width = shutil.get_terminal_size().columns
+        except (OSError, ValueError):
+            self._term_width = 80
 
         # Reset vi mode to insert
         if self.edit_mode == 'vi':
@@ -781,26 +787,67 @@ class LineEditor:
 
         sys.stdout.flush()
 
+    @staticmethod
+    def _visible_length(text: str) -> int:
+        """Calculate visible length of text, stripping ANSI escape sequences."""
+        return len(re.sub(r'\033\[[0-9;]*[a-zA-Z]', '', text))
+
     def redraw_line(self):
         """Redraw the current prompt and input line in place.
 
         Used after terminal resize (SIGWINCH) to fix display corruption.
-        Moves to start of line, clears, and redraws prompt + buffer.
+        Calculates how many terminal rows the prompt+buffer occupied at
+        the old width, moves the cursor up to the prompt's starting row,
+        clears from there to the bottom, and redraws at the new width.
         """
-        # Move to beginning of line
-        sys.stdout.write('\r')
+        prompt_len = self._visible_length(self.current_prompt)
+        old_width = getattr(self, '_term_width', 80)
 
-        # Clear from cursor to end of line
-        sys.stdout.write('\033[K')
+        try:
+            new_width = shutil.get_terminal_size().columns
+        except (OSError, ValueError):
+            new_width = 80
+
+        # Calculate cursor's row relative to the prompt start using the
+        # old terminal width (before resize).  After writing N characters
+        # starting from column 0 the cursor sits at row N // W.
+        if old_width > 0:
+            cursor_row = (prompt_len + self.cursor_pos) // old_width
+        else:
+            cursor_row = 0
+
+        # Move cursor up to the row where the prompt started
+        if cursor_row > 0:
+            sys.stdout.write(f'\033[{cursor_row}A')
+
+        # Move to column 0, then clear from here to end of screen
+        sys.stdout.write('\r\033[J')
 
         # Redraw prompt and buffer
         sys.stdout.write(self.current_prompt)
         sys.stdout.write(''.join(self.buffer))
 
-        # Reposition cursor
+        # Reposition cursor if it isn't at the end of the buffer
         if self.cursor_pos < len(self.buffer):
-            sys.stdout.write('\b' * (len(self.buffer) - self.cursor_pos))
+            end_pos = prompt_len + len(self.buffer)
+            cur_pos = prompt_len + self.cursor_pos
 
+            if new_width > 0:
+                rows_back = end_pos // new_width - cur_pos // new_width
+                target_col = cur_pos % new_width
+            else:
+                rows_back = 0
+                target_col = cur_pos
+
+            if rows_back > 0:
+                sys.stdout.write(f'\033[{rows_back}A')
+
+            # Move to the exact column
+            sys.stdout.write('\r')
+            if target_col > 0:
+                sys.stdout.write(f'\033[{target_col}C')
+
+        self._term_width = new_width
         sys.stdout.flush()
 
     def _handle_interrupt(self):
