@@ -776,175 +776,168 @@ class ArithmeticEvaluator:
         # this should update the local, not create a new global
         self.shell.state.set_variable(name, str(value))
 
+    # Maps compound assignment tokens to the base binary operator so that
+    # compound assignments reuse _apply_binary_op() without duplication.
+    _COMPOUND_TO_BASE = {
+        ArithTokenType.PLUS_ASSIGN: ArithTokenType.PLUS,
+        ArithTokenType.MINUS_ASSIGN: ArithTokenType.MINUS,
+        ArithTokenType.MULTIPLY_ASSIGN: ArithTokenType.MULTIPLY,
+        ArithTokenType.DIVIDE_ASSIGN: ArithTokenType.DIVIDE,
+        ArithTokenType.MODULO_ASSIGN: ArithTokenType.MODULO,
+        ArithTokenType.LSHIFT_ASSIGN: ArithTokenType.LSHIFT,
+        ArithTokenType.RSHIFT_ASSIGN: ArithTokenType.RSHIFT,
+        ArithTokenType.BIT_AND_ASSIGN: ArithTokenType.BIT_AND,
+        ArithTokenType.BIT_OR_ASSIGN: ArithTokenType.BIT_OR,
+        ArithTokenType.BIT_XOR_ASSIGN: ArithTokenType.BIT_XOR,
+    }
+
     def evaluate(self, node: ArithNode) -> int:
-        """Evaluate an arithmetic AST node"""
+        """Evaluate an arithmetic AST node."""
         if isinstance(node, NumberNode):
             return node.value
-
-        elif isinstance(node, VariableNode):
+        if isinstance(node, VariableNode):
             return self.get_variable(node.name)
+        if isinstance(node, UnaryOpNode):
+            return self._eval_unary(node)
+        if isinstance(node, BinaryOpNode):
+            return self._eval_binary(node)
+        if isinstance(node, TernaryNode):
+            return self._eval_ternary(node)
+        if isinstance(node, AssignmentNode):
+            return self._eval_assignment(node)
+        if isinstance(node, PreIncrementNode):
+            return self._eval_pre_increment(node)
+        if isinstance(node, PostIncrementNode):
+            return self._eval_post_increment(node)
+        raise ValueError(f"Unknown node type: {type(node)}")
 
-        elif isinstance(node, UnaryOpNode):
-            operand = self.evaluate(node.operand)
+    # -- Node-type evaluators ------------------------------------------------
 
-            if node.op == ArithTokenType.PLUS:
-                return operand
-            elif node.op == ArithTokenType.MINUS:
-                return -operand
-            elif node.op == ArithTokenType.NOT:
-                return 0 if operand else 1
-            elif node.op == ArithTokenType.BIT_NOT:
-                # Bash uses 64-bit signed integers for bitwise operations.
-                # Python has arbitrary precision, so mask to 64-bit and
-                # convert to signed.
-                result = ~operand & 0xFFFFFFFFFFFFFFFF
-                if result & 0x8000000000000000:
-                    result -= 0x10000000000000000
-                return result
+    def _eval_unary(self, node: UnaryOpNode) -> int:
+        operand = self.evaluate(node.operand)
+        if node.op == ArithTokenType.PLUS:
+            return operand
+        if node.op == ArithTokenType.MINUS:
+            return _to_signed64(-operand)
+        if node.op == ArithTokenType.NOT:
+            return 0 if operand else 1
+        if node.op == ArithTokenType.BIT_NOT:
+            return _to_signed64(~operand)
+        raise ValueError(f"Unknown unary operator: {node.op}")
 
-        elif isinstance(node, BinaryOpNode):
-            # Special handling for short-circuit operators
-            if node.op == ArithTokenType.AND:
-                left = self.evaluate(node.left)
-                if not left:
-                    return 0
-                return 1 if self.evaluate(node.right) else 0
-
-            elif node.op == ArithTokenType.OR:
-                left = self.evaluate(node.left)
-                if left:
-                    return 1
-                return 1 if self.evaluate(node.right) else 0
-
-            elif node.op == ArithTokenType.COMMA:
-                # Evaluate left for side effects, return right
-                self.evaluate(node.left)
-                return self.evaluate(node.right)
-
-            # Regular binary operators
+    def _eval_binary(self, node: BinaryOpNode) -> int:
+        # Short-circuit operators — right side evaluated conditionally.
+        if node.op == ArithTokenType.AND:
             left = self.evaluate(node.left)
-            right = self.evaluate(node.right)
+            return 0 if not left else (1 if self.evaluate(node.right) else 0)
+        if node.op == ArithTokenType.OR:
+            left = self.evaluate(node.left)
+            return 1 if left else (1 if self.evaluate(node.right) else 0)
+        if node.op == ArithTokenType.COMMA:
+            self.evaluate(node.left)
+            return self.evaluate(node.right)
 
-            if node.op == ArithTokenType.PLUS:
-                return _to_signed64(left + right)
-            elif node.op == ArithTokenType.MINUS:
-                return _to_signed64(left - right)
-            elif node.op == ArithTokenType.MULTIPLY:
-                return _to_signed64(left * right)
-            elif node.op == ArithTokenType.DIVIDE:
-                if right == 0:
-                    raise ShellArithmeticError("Division by zero")
-                # Bash uses integer division (truncate toward zero)
-                return _to_signed64(int(left / right))
-            elif node.op == ArithTokenType.MODULO:
-                if right == 0:
-                    raise ShellArithmeticError("Division by zero")
-                # C-style truncated remainder (sign matches dividend),
-                # not Python's floored modulo (sign matches divisor).
-                return _to_signed64(left - int(left / right) * right)
-            elif node.op == ArithTokenType.POWER:
-                if right < 0:
-                    raise ShellArithmeticError("exponent less than 0")
-                if right > 63:
-                    raise ShellArithmeticError("exponent too large")
-                return _to_signed64(left ** right)
+        # Both operands needed for everything else.
+        left = self.evaluate(node.left)
+        right = self.evaluate(node.right)
+        return self._apply_binary_op(node.op, left, right)
 
-            # Comparison operators
-            elif node.op == ArithTokenType.LT:
-                return 1 if left < right else 0
-            elif node.op == ArithTokenType.GT:
-                return 1 if left > right else 0
-            elif node.op == ArithTokenType.LE:
-                return 1 if left <= right else 0
-            elif node.op == ArithTokenType.GE:
-                return 1 if left >= right else 0
-            elif node.op == ArithTokenType.EQ:
-                return 1 if left == right else 0
-            elif node.op == ArithTokenType.NE:
-                return 1 if left != right else 0
+    def _eval_ternary(self, node: TernaryNode) -> int:
+        if self.evaluate(node.condition):
+            return self.evaluate(node.true_expr)
+        return self.evaluate(node.false_expr)
 
-            # Bitwise operators
-            elif node.op == ArithTokenType.BIT_AND:
-                return _to_signed64(left & right)
-            elif node.op == ArithTokenType.BIT_OR:
-                return _to_signed64(left | right)
-            elif node.op == ArithTokenType.BIT_XOR:
-                return _to_signed64(left ^ right)
-            elif node.op == ArithTokenType.LSHIFT:
-                if right < 0:
-                    raise ShellArithmeticError("negative shift count")
-                # Bash/C wraps shift amount modulo 64
-                return _to_signed64(left << (right & 63))
-            elif node.op == ArithTokenType.RSHIFT:
-                if right < 0:
-                    raise ShellArithmeticError("negative shift count")
-                return _to_signed64(left) >> (right & 63)
+    def _eval_assignment(self, node: AssignmentNode) -> int:
+        value = self.evaluate(node.value)
 
-        elif isinstance(node, TernaryNode):
-            condition = self.evaluate(node.condition)
-            if condition:
-                return self.evaluate(node.true_expr)
-            else:
-                return self.evaluate(node.false_expr)
+        if node.op == ArithTokenType.ASSIGN:
+            self.set_variable(node.var_name, value)
+            return value
 
-        elif isinstance(node, AssignmentNode):
-            value = self.evaluate(node.value)
+        # Compound assignment — reuse the base binary operator.
+        base_op = self._COMPOUND_TO_BASE.get(node.op)
+        if base_op is None:
+            raise ValueError(f"Unknown assignment operator: {node.op}")
+        current = self.get_variable(node.var_name)
+        result = self._apply_binary_op(base_op, current, value)
+        self.set_variable(node.var_name, result)
+        return result
 
-            if node.op == ArithTokenType.ASSIGN:
-                self.set_variable(node.var_name, value)
-                return value
+    def _eval_pre_increment(self, node: PreIncrementNode) -> int:
+        current = self.get_variable(node.var_name)
+        new_value = _to_signed64(current + 1 if node.is_increment else current - 1)
+        self.set_variable(node.var_name, new_value)
+        return new_value
 
-            # Compound assignments
-            current = self.get_variable(node.var_name)
+    def _eval_post_increment(self, node: PostIncrementNode) -> int:
+        current = self.get_variable(node.var_name)
+        new_value = _to_signed64(current + 1 if node.is_increment else current - 1)
+        self.set_variable(node.var_name, new_value)
+        return current
 
-            if node.op == ArithTokenType.PLUS_ASSIGN:
-                result = _to_signed64(current + value)
-            elif node.op == ArithTokenType.MINUS_ASSIGN:
-                result = _to_signed64(current - value)
-            elif node.op == ArithTokenType.MULTIPLY_ASSIGN:
-                result = _to_signed64(current * value)
-            elif node.op == ArithTokenType.DIVIDE_ASSIGN:
-                if value == 0:
-                    raise ShellArithmeticError("Division by zero")
-                result = _to_signed64(int(current / value))
-            elif node.op == ArithTokenType.MODULO_ASSIGN:
-                if value == 0:
-                    raise ShellArithmeticError("Division by zero")
-                result = current - int(current / value) * value
-            elif node.op == ArithTokenType.LSHIFT_ASSIGN:
-                if value < 0:
-                    raise ShellArithmeticError("negative shift count")
-                result = _to_signed64(current << (value & 63))
-            elif node.op == ArithTokenType.RSHIFT_ASSIGN:
-                if value < 0:
-                    raise ShellArithmeticError("negative shift count")
-                result = _to_signed64(current) >> (value & 63)
-            elif node.op == ArithTokenType.BIT_AND_ASSIGN:
-                result = _to_signed64(current & value)
-            elif node.op == ArithTokenType.BIT_OR_ASSIGN:
-                result = _to_signed64(current | value)
-            elif node.op == ArithTokenType.BIT_XOR_ASSIGN:
-                result = _to_signed64(current ^ value)
-            else:
-                raise ValueError(f"Unknown assignment operator: {node.op}")
+    # -- Shared arithmetic ---------------------------------------------------
 
-            self.set_variable(node.var_name, result)
-            return result
+    @staticmethod
+    def _apply_binary_op(op: ArithTokenType, left: int, right: int) -> int:
+        """Apply a binary arithmetic operator to two integer operands.
 
-        elif isinstance(node, PreIncrementNode):
-            current = self.get_variable(node.var_name)
-            new_value = current + 1 if node.is_increment else current - 1
-            self.set_variable(node.var_name, new_value)
-            return new_value
+        Used by both ``BinaryOpNode`` and compound ``AssignmentNode``
+        evaluation, so the validation and 64-bit wrapping logic lives in
+        one place.
+        """
+        if op == ArithTokenType.PLUS:
+            return _to_signed64(left + right)
+        if op == ArithTokenType.MINUS:
+            return _to_signed64(left - right)
+        if op == ArithTokenType.MULTIPLY:
+            return _to_signed64(left * right)
+        if op == ArithTokenType.DIVIDE:
+            if right == 0:
+                raise ShellArithmeticError("Division by zero")
+            return _to_signed64(int(left / right))
+        if op == ArithTokenType.MODULO:
+            if right == 0:
+                raise ShellArithmeticError("Division by zero")
+            # C-style truncated remainder (sign matches dividend).
+            return _to_signed64(left - int(left / right) * right)
+        if op == ArithTokenType.POWER:
+            if right < 0:
+                raise ShellArithmeticError("exponent less than 0")
+            if right > 63:
+                raise ShellArithmeticError("exponent too large")
+            return _to_signed64(left ** right)
 
-        elif isinstance(node, PostIncrementNode):
-            current = self.get_variable(node.var_name)
-            new_value = current + 1 if node.is_increment else current - 1
-            self.set_variable(node.var_name, new_value)
-            return current  # Return old value
+        # Comparison operators (result is always 0 or 1).
+        if op == ArithTokenType.LT:
+            return 1 if left < right else 0
+        if op == ArithTokenType.GT:
+            return 1 if left > right else 0
+        if op == ArithTokenType.LE:
+            return 1 if left <= right else 0
+        if op == ArithTokenType.GE:
+            return 1 if left >= right else 0
+        if op == ArithTokenType.EQ:
+            return 1 if left == right else 0
+        if op == ArithTokenType.NE:
+            return 1 if left != right else 0
 
-        else:
-            raise ValueError(f"Unknown node type: {type(node)}")
+        # Bitwise operators.
+        if op == ArithTokenType.BIT_AND:
+            return _to_signed64(left & right)
+        if op == ArithTokenType.BIT_OR:
+            return _to_signed64(left | right)
+        if op == ArithTokenType.BIT_XOR:
+            return _to_signed64(left ^ right)
+        if op == ArithTokenType.LSHIFT:
+            if right < 0:
+                raise ShellArithmeticError("negative shift count")
+            return _to_signed64(left << (right & 63))
+        if op == ArithTokenType.RSHIFT:
+            if right < 0:
+                raise ShellArithmeticError("negative shift count")
+            return _to_signed64(left) >> (right & 63)
+
+        raise ValueError(f"Unknown binary operator: {op}")
 
 
 # Inherit from the Python builtin ArithmeticError so that callers that
