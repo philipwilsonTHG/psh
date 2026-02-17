@@ -4,6 +4,15 @@ All notable changes to PSH (Python Shell) are documented in this file.
 
 Format: `VERSION (DATE) - Title` followed by bullet points describing changes.
 
+## 0.188.1 (2026-02-17) - Fix tilde expansion in [[ ]] conditionals
+- Added `_expand_operand()` helper to `TestExpressionEvaluator` that
+  applies tilde expansion before variable expansion, matching POSIX
+  expansion order.
+- Unary operands (e.g., `[[ -f ~/.pshrc ]]`) and binary operands
+  (e.g., `[[ ~ == /Users/* ]]`) now both expand tilde prefixes.
+  Previously only `$VAR` expansion was applied, so `~` was passed
+  literally to file tests.
+
 ## 0.188.0 (2026-02-17) - Fix critical arithmetic evaluator bugs
 - **Modulo**: Changed from Python's floored modulo (`%`) to C-style
   truncated remainder so `$((-7 % 2))` returns `-1` (matching bash),

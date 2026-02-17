@@ -495,7 +495,7 @@ class MyVisitor(ASTVisitor[T]):
 
 ## Current Development Status
 
-**Version**: 0.188.0 (see CHANGELOG.md for detailed history)
+**Version**: 0.188.1 (see CHANGELOG.md for detailed history)
 
 **Recent Work**:
 - **Interactive Public API Cleanup (v0.187.0)**:

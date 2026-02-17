@@ -44,11 +44,16 @@ class TestExpressionEvaluator:
         else:
             raise ValueError(f"Unknown test expression type: {type(expr).__name__}")
 
+    def _expand_operand(self, operand: str) -> str:
+        """Expand tilde and variables in a [[ ]] operand."""
+        result = self.expansion_manager.expand_tilde(operand)
+        return self.expansion_manager.expand_string_variables(result)
+
     def _evaluate_binary_test(self, expr: BinaryTestExpression) -> bool:
         """Evaluate binary test expression."""
-        # Expand variables in operands
-        left = self.expansion_manager.expand_string_variables(expr.left)
-        right = self.expansion_manager.expand_string_variables(expr.right)
+        # Expand tilde and variables in operands
+        left = self._expand_operand(expr.left)
+        right = self._expand_operand(expr.right)
 
         # Process escape sequences for pattern matching
         left = self._process_escape_sequences(left)
@@ -139,8 +144,8 @@ class TestExpressionEvaluator:
             operand = expr.operand  # Don't expand for -v, we want the variable name
             return self._is_variable_set(operand)
 
-        # Expand variables in operand for other operators
-        operand = self.expansion_manager.expand_string_variables(expr.operand)
+        # Expand tilde and variables in operand for other operators
+        operand = self._expand_operand(expr.operand)
 
         # Import test command's unary operators
         from ..builtins.test_command import TestBuiltin
