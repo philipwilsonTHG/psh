@@ -2,78 +2,79 @@
 
 **Date:** 2026-02-17
 **Reviewer:** Claude Opus 4.6
-**Version:** 0.187.4
+**Reviewed version:** 0.187.4
+**Fixed in:** 0.188.0 (commit 83132f3)
 
 ---
 
-## CRITICAL
+## CRITICAL — Fixed in v0.188.0
 
-### 1. Modulo uses wrong semantics for negative numbers (line 777)
+### 1. ~~Modulo uses wrong semantics for negative numbers~~ (was line 777)
 
-`left % right` uses Python's floored modulo (sign matches divisor), but bash/C uses truncated remainder (sign matches dividend).
+`left % right` used Python's floored modulo (sign matches divisor), but bash/C uses truncated remainder (sign matches dividend).
 
 ```
 $((-7 % 2))  →  psh: 1,  bash: -1
 $((7 % -2))  →  psh: -1, bash: 1
 ```
 
-**Fix:** Replace `left % right` with `int(math.fmod(left, right))` or `left - int(left / right) * right`.
+**Resolution:** Replaced `left % right` with `left - int(left / right) * right`. Also fixed `%=` compound assignment. Verified against bash.
 
-### 2. Bitwise NOT uses 32-bit mask, bash uses 64-bit (lines 734–738)
+### 2. ~~Bitwise NOT uses 32-bit mask, bash uses 64-bit~~ (was lines 734–738)
 
-`~operand & 0xFFFFFFFF` masks to 32 bits. Bash uses 64-bit signed integers.
+`~operand & 0xFFFFFFFF` masked to 32 bits. Bash uses 64-bit signed integers.
 
 ```
 $((~0xFFFFFFFF))  →  psh: 0,  bash: -4294967296
 ```
 
-**Fix:** Use `0xFFFFFFFFFFFFFFFF` mask and `0x8000000000000000` for sign detection, or just use Python's native `~operand` since Python's arbitrary-precision `~` matches 64-bit for values in the 64-bit range.
+**Resolution:** Changed to `0xFFFFFFFFFFFFFFFF` mask with `0x8000000000000000` sign detection.
 
-### 3. `ArithmeticError` shadows the Python builtin (line 860)
+### 3. ~~`ArithmeticError` shadows the Python builtin~~ (was line 860)
 
-psh defines `class ArithmeticError(Exception)` which is a *different class* from Python's builtin `ArithmeticError`. Callers that catch bare `ArithmeticError` without importing from `psh.arithmetic` (e.g., `psh/executor/core.py:274`, `psh/executor/control_flow.py:242,257,277`) catch the **builtin**, not psh's. This means errors like division-by-zero from `evaluate_arithmetic` escape the handler.
+psh defined `class ArithmeticError(Exception)` which was a *different class* from Python's builtin `ArithmeticError`. Callers that caught bare `ArithmeticError` without importing from `psh.arithmetic` (e.g., `psh/executor/core.py`, `psh/executor/control_flow.py`) caught the **builtin**, not psh's. Arithmetic errors produced "unexpected error" messages instead of clean messages.
 
-Arithmetic errors produce "unexpected error" messages instead of clean error messages.
-
-**Fix:** Either rename the class (e.g., `ShellArithmeticError`), or make it inherit from the builtin `ArithmeticError` instead of `Exception`.
+**Resolution:** Renamed to `ShellArithmeticError` inheriting from the builtin `ArithmeticError`. Old name kept as alias for backwards compatibility. All callers now correctly catch shell arithmetic errors.
 
 ---
 
-## HIGH
+## HIGH — Fixed in v0.188.0
 
-### 4. No bounds on exponentiation or left-shift (lines 779, 802–803)
+### 4. ~~No bounds on exponentiation or left-shift~~ (was lines 779, 802–803)
 
-`left ** right` and `left << right` have no limits. Expressions like `$((2 ** 100000))` or `$((1 << 100000))` consume unbounded memory/CPU. Bash rejects negative exponents and wraps shifts at 64 bits.
+`left ** right` and `left << right` had no limits. Expressions like `$((2 ** 100000))` or `$((1 << 100000))` consumed unbounded memory/CPU. Bash rejects negative exponents and wraps shifts at 64 bits.
 
-**Fix:** Reject negative exponents (`right < 0`), clamp shifts to 0–63, and optionally cap exponent size.
+**Resolution:** Negative exponents raise an error (matching bash). Exponents > 63 are rejected. Shift amounts wrap modulo 64 (matching bash/C), and left-shift results are wrapped to signed 64-bit via `_to_signed64()`. Verified: `$((1 << 64))` now returns `1` (matching bash).
 
-### 5. No recursion depth limit in parser (lines 463–681)
+### 5. ~~No recursion depth limit in parser~~ (was lines 463–681)
 
-Deeply nested parentheses (e.g., 1000 levels) cause `RecursionError` which isn't caught by `evaluate_arithmetic`.
+Deeply nested parentheses (e.g., 1000 levels) caused `RecursionError` which wasn't caught by `evaluate_arithmetic`.
 
-**Fix:** Add `RecursionError` to the `except` clause in `evaluate_arithmetic`, or add an explicit depth counter.
+**Resolution:** `evaluate_arithmetic` now catches `RecursionError` (and `ValueError`, `OverflowError`, `MemoryError`) and wraps them in `ShellArithmeticError` with a clean message.
 
-### 6. Invalid octal silently falls back to decimal (lines 164–168)
+### 6. ~~Invalid octal silently falls back to decimal~~ (was lines 164–168)
 
-`$((09))` should be an error (9 is not a valid octal digit), but psh falls back to decimal and returns `9`. Bash errors: "value too great for base."
+`$((09))` should be an error (9 is not a valid octal digit), but psh fell back to decimal and returned `9`. Bash errors: "value too great for base."
 
-**Fix:** Raise `SyntaxError` instead of falling back to `read_decimal()`.
+**Resolution:** Now raises `SyntaxError` with a message matching bash's format.
 
 ---
 
-## MEDIUM
+## MEDIUM — Open
 
-### 7. `evaluate_arithmetic` doesn't catch all exception types (line 883)
+### 7. ~~`evaluate_arithmetic` doesn't catch all exception types~~ (was line 883)
 
-Only catches `SyntaxError` and `ArithmeticError`. `ValueError` (from `int()` overflow), `RecursionError`, and `OverflowError` can propagate uncaught.
+Only caught `SyntaxError` and `ArithmeticError`. `ValueError`, `RecursionError`, and `OverflowError` could propagate uncaught.
 
-**Fix:** Broaden the except clause to include `(ValueError, RecursionError, OverflowError)`.
+**Resolution:** Fixed as part of issue #5 above.
 
 ### 8. Arithmetic doesn't wrap at 64-bit like bash (lines 763–805)
 
-Python has arbitrary-precision integers. `$((1 << 64))` gives `18446744073709551616` in psh but `1` in bash (wraps at 64-bit).
+Python has arbitrary-precision integers. General arithmetic results (addition, multiplication, etc.) are not wrapped to 64-bit signed range. For example, very large multiplications will produce results wider than 64 bits, where bash would wrap.
 
-**Fix:** Apply 64-bit signed wrapping to all arithmetic results if bash compatibility is desired.
+Left-shift is now wrapped (fixed in #4), but other operators are not.
+
+**Fix:** Apply `_to_signed64()` wrapping to all arithmetic results if full bash compatibility is desired.
 
 ### 9. Missing bitwise assignment operators (lines 42–48)
 
@@ -99,7 +100,7 @@ In bash, if `a=b` and `b=42`, then `$((a))` evaluates to 42 via recursive resolu
 
 ---
 
-## LOW
+## LOW — Open
 
 ### 12. `evaluate` can implicitly return `None` (lines 713–857)
 
