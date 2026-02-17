@@ -1,5 +1,6 @@
 """Arithmetic expression evaluator for shell arithmetic expansion $((...))"""
 
+import builtins
 from dataclasses import dataclass
 from enum import Enum, auto
 from typing import List, Optional, Union
@@ -161,11 +162,15 @@ class ArithTokenizer:
             while self.current_char() and self.current_char() in '01234567':
                 octal_digits += self.current_char()
                 self.advance()
-            # If we hit 8 or 9, it's actually decimal
+            # If we hit 8 or 9, it's an invalid octal digit (bash errors here)
             if self.current_char() and self.current_char() in '89':
-                # Backtrack and read as decimal
-                self.position = start_pos
-                return self.read_decimal()
+                # Read the rest of the digits so the error message shows the full token
+                while self.current_char() and self.current_char().isdigit():
+                    octal_digits += self.current_char()
+                    self.advance()
+                raise SyntaxError(
+                    f"0{octal_digits}: value too great for base (error token is \"0{octal_digits}\")"
+                )
             return int(octal_digits, 8) if octal_digits else 0
 
         # Regular decimal
@@ -728,13 +733,12 @@ class ArithmeticEvaluator:
             elif node.op == ArithTokenType.NOT:
                 return 0 if operand else 1
             elif node.op == ArithTokenType.BIT_NOT:
-                # Bash uses 32-bit signed integers for bitwise operations
-                # Python has arbitrary precision, so we need to mask to 32-bit
-                # and convert to signed
-                result = ~operand & 0xFFFFFFFF
-                # Convert to signed 32-bit
-                if result & 0x80000000:  # If sign bit is set
-                    result = result - 0x100000000
+                # Bash uses 64-bit signed integers for bitwise operations.
+                # Python has arbitrary precision, so mask to 64-bit and
+                # convert to signed.
+                result = ~operand & 0xFFFFFFFFFFFFFFFF
+                if result & 0x8000000000000000:
+                    result -= 0x10000000000000000
                 return result
 
         elif isinstance(node, BinaryOpNode):
@@ -768,14 +772,21 @@ class ArithmeticEvaluator:
                 return left * right
             elif node.op == ArithTokenType.DIVIDE:
                 if right == 0:
-                    raise ArithmeticError("Division by zero")
+                    raise ShellArithmeticError("Division by zero")
                 # Bash uses integer division
                 return int(left / right)
             elif node.op == ArithTokenType.MODULO:
                 if right == 0:
-                    raise ArithmeticError("Division by zero")
-                return left % right
+                    raise ShellArithmeticError("Division by zero")
+                # C-style truncated remainder (sign matches dividend),
+                # not Python's floored modulo (sign matches divisor).
+                return left - int(left / right) * right
             elif node.op == ArithTokenType.POWER:
+                if right < 0:
+                    raise ShellArithmeticError("exponent less than 0")
+                if right > 63:
+                    # Cap exponent to prevent unbounded memory use
+                    raise ShellArithmeticError("exponent too large")
                 return left ** right
 
             # Comparison operators
@@ -800,9 +811,14 @@ class ArithmeticEvaluator:
             elif node.op == ArithTokenType.BIT_XOR:
                 return left ^ right
             elif node.op == ArithTokenType.LSHIFT:
-                return left << right
+                if right < 0:
+                    raise ShellArithmeticError("negative shift count")
+                # Bash/C wraps shift amount modulo 64
+                return _to_signed64(left << (right & 63))
             elif node.op == ArithTokenType.RSHIFT:
-                return left >> right
+                if right < 0:
+                    raise ShellArithmeticError("negative shift count")
+                return _to_signed64(left) >> (right & 63)
 
         elif isinstance(node, TernaryNode):
             condition = self.evaluate(node.condition)
@@ -829,12 +845,12 @@ class ArithmeticEvaluator:
                 result = current * value
             elif node.op == ArithTokenType.DIVIDE_ASSIGN:
                 if value == 0:
-                    raise ArithmeticError("Division by zero")
+                    raise ShellArithmeticError("Division by zero")
                 result = int(current / value)
             elif node.op == ArithTokenType.MODULO_ASSIGN:
                 if value == 0:
-                    raise ArithmeticError("Division by zero")
-                result = current % value
+                    raise ShellArithmeticError("Division by zero")
+                result = current - int(current / value) * value
             else:
                 raise ValueError(f"Unknown assignment operator: {node.op}")
 
@@ -857,9 +873,24 @@ class ArithmeticEvaluator:
             raise ValueError(f"Unknown node type: {type(node)}")
 
 
-class ArithmeticError(Exception):
+# Inherit from the Python builtin ArithmeticError so that callers that
+# catch the builtin (without importing psh's version) still work.
+class ShellArithmeticError(builtins.ArithmeticError):
     """Exception for arithmetic evaluation errors"""
     pass
+
+
+# Keep the old name as an alias so that callers that import
+# ``from psh.arithmetic import ArithmeticError`` continue to work.
+ArithmeticError = ShellArithmeticError  # noqa: A001
+
+
+def _to_signed64(value: int) -> int:
+    """Wrap an arbitrary-precision integer into the signed 64-bit range."""
+    value &= 0xFFFFFFFFFFFFFFFF
+    if value & 0x8000000000000000:
+        value -= 0x10000000000000000
+    return value
 
 
 def evaluate_arithmetic(expr: str, shell) -> int:
@@ -880,5 +911,9 @@ def evaluate_arithmetic(expr: str, shell) -> int:
         evaluator = ArithmeticEvaluator(shell)
         return evaluator.evaluate(ast)
 
-    except (SyntaxError, ArithmeticError) as e:
-        raise ArithmeticError(str(e))
+    except (SyntaxError, ShellArithmeticError) as e:
+        raise ShellArithmeticError(str(e))
+    except RecursionError:
+        raise ShellArithmeticError("expression too deeply nested")
+    except (ValueError, OverflowError, MemoryError) as e:
+        raise ShellArithmeticError(str(e))

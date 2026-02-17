@@ -4,6 +4,34 @@ All notable changes to PSH (Python Shell) are documented in this file.
 
 Format: `VERSION (DATE) - Title` followed by bullet points describing changes.
 
+## 0.188.0 (2026-02-17) - Fix critical arithmetic evaluator bugs
+- **Modulo**: Changed from Python's floored modulo (`%`) to C-style
+  truncated remainder so `$((-7 % 2))` returns `-1` (matching bash),
+  not `1`.
+- **Bitwise NOT**: Changed from 32-bit mask to 64-bit mask so
+  `$((~0xFFFFFFFF))` returns `-4294967296` (matching bash), not `0`.
+- **ArithmeticError**: Renamed to `ShellArithmeticError` and made it
+  inherit from the Python builtin `ArithmeticError`.  Callers that
+  caught the builtin name now correctly catch shell arithmetic errors
+  (previously they fell through to "unexpected error" messages).
+  The old name is kept as an alias for backwards compatibility.
+- **Exponentiation bounds**: Negative exponents now raise an error
+  (matching bash) and exponents > 63 are rejected to prevent unbounded
+  memory use.
+- **Shift bounds**: Negative shift counts now raise an error.  Shift
+  amounts wrap modulo 64 (matching bash/C behavior), so `$((1 << 64))`
+  returns `1` and left-shift results are wrapped to signed 64-bit.
+- **Invalid octal**: Numbers like `09` and `08` now raise an error
+  ("value too great for base") instead of silently falling back to
+  decimal.
+- **Exception handling**: `evaluate_arithmetic` now catches
+  `RecursionError`, `ValueError`, `OverflowError`, and `MemoryError`
+  in addition to `SyntaxError` and `ShellArithmeticError`, so deeply
+  nested expressions and huge numeric literals produce clean error
+  messages instead of crashes.
+- Added `_to_signed64()` helper for wrapping arbitrary-precision
+  integers into the signed 64-bit range.
+
 ## 0.187.4 (2026-02-16) - Use DSR to fix prompt position after terminal shrink
 - Added `_query_cursor_row()` method that sends the DSR escape
   sequence (`ESC[6n`) and reads the terminal's cursor position response.
