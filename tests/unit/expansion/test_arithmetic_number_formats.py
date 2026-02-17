@@ -331,8 +331,8 @@ class TestArithmeticNumberFormats:
 
     def test_base_out_of_range_high(self, shell):
         """Test error handling for base too high."""
-        # Base 37 is invalid (maximum is 36)
-        result = shell.run_command('echo $((37#1))')
+        # Base 65 is invalid (maximum is 64)
+        result = shell.run_command('echo $((65#1))')
         # Should error
         assert result != 0
 

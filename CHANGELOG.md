@@ -4,6 +4,22 @@ All notable changes to PSH (Python Shell) are documented in this file.
 
 Format: `VERSION (DATE) - Title` followed by bullet points describing changes.
 
+## 0.189.0 (2026-02-17) - Arithmetic: 64-bit wrapping, bitwise assignments, base 2-64, recursive variables
+- **64-bit wrapping**: All arithmetic results (`+`, `-`, `*`, `/`, `%`,
+  `**`, bitwise ops, compound assignments) are now wrapped to the signed
+  64-bit range via `_to_signed64()`, matching bash/C overflow semantics.
+  `$((9223372036854775807 + 1))` now returns `-9223372036854775808`.
+- **Bitwise assignment operators**: Added `<<=`, `>>=`, `&=`, `|=`,
+  `^=` — new token types, tokenizer rules, parser recognition, and
+  evaluator cases.
+- **Base 2-64 number literals**: Extended `base#number` notation from
+  max base 36 to 64.  For bases <= 36 letters are case-insensitive;
+  for bases > 36 lowercase = 10-35, uppercase = 36-61, `@` = 62,
+  `_` = 63 (matching bash).
+- **Recursive variable resolution**: `get_variable()` now resolves
+  identifier chains recursively (with cycle detection), so
+  `a=b; b=42; echo $((a))` prints `42` (matching bash).
+
 ## 0.188.1 (2026-02-17) - Fix tilde expansion in [[ ]] conditionals
 - Added `_expand_operand()` helper to `TestExpressionEvaluator` that
   applies tilde expansion before variable expansion, matching POSIX

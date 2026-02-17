@@ -3,7 +3,7 @@
 **Date:** 2026-02-17
 **Reviewer:** Claude Opus 4.6
 **Reviewed version:** 0.187.4
-**Fixed in:** 0.188.0 (commit 83132f3)
+**Fixed in:** 0.188.0 (commit 83132f3), 0.189.0
 
 ---
 
@@ -60,43 +60,37 @@ Deeply nested parentheses (e.g., 1000 levels) caused `RecursionError` which wasn
 
 ---
 
-## MEDIUM — Open
+## MEDIUM — Fixed in v0.189.0
 
 ### 7. ~~`evaluate_arithmetic` doesn't catch all exception types~~ (was line 883)
 
 Only caught `SyntaxError` and `ArithmeticError`. `ValueError`, `RecursionError`, and `OverflowError` could propagate uncaught.
 
-**Resolution:** Fixed as part of issue #5 above.
+**Resolution:** Fixed as part of issue #5 above (v0.188.0).
 
-### 8. Arithmetic doesn't wrap at 64-bit like bash (lines 763–805)
+### 8. ~~Arithmetic doesn't wrap at 64-bit like bash~~ (was lines 763–805)
 
-Python has arbitrary-precision integers. General arithmetic results (addition, multiplication, etc.) are not wrapped to 64-bit signed range. For example, very large multiplications will produce results wider than 64 bits, where bash would wrap.
+Python has arbitrary-precision integers. General arithmetic results (addition, multiplication, etc.) were not wrapped to 64-bit signed range.
 
-Left-shift is now wrapped (fixed in #4), but other operators are not.
+**Resolution:** All arithmetic operators (`+`, `-`, `*`, `/`, `%`, `**`, bitwise, compound assignments) now wrap results via `_to_signed64()`. Verified: `$((9223372036854775807 + 1))` returns `-9223372036854775808` (matching bash).
 
-**Fix:** Apply `_to_signed64()` wrapping to all arithmetic results if full bash compatibility is desired.
+### 9. ~~Missing bitwise assignment operators~~ (was lines 42–48)
 
-### 9. Missing bitwise assignment operators (lines 42–48)
+Bash supports `<<=`, `>>=`, `&=`, `|=`, `^=` but psh only had `+=`, `-=`, `*=`, `/=`, `%=`.
 
-Bash supports `<<=`, `>>=`, `&=`, `|=`, `^=` but psh only has `+=`, `-=`, `*=`, `/=`, `%=`. These expressions produce syntax errors in psh.
+**Resolution:** Added 5 new token types, tokenizer rules (including 3-char `<<=`/`>>=`), parser recognition, and evaluator cases. All verified against bash.
 
-**Fix:** Add the missing token types, tokenizer cases, and evaluator cases.
+### 10. ~~Base range limited to 2–36, bash supports 2–64~~ (was line 117)
 
-### 10. Base range limited to 2–36, bash supports 2–64 (line 117)
+Bash supports bases 2–64 with digits `0-9`, `a-z`, `A-Z`, `@`, `_`. psh rejected bases > 36.
 
-Bash supports bases 2–64 with digits `0-9`, `a-z`, `A-Z`, `@`, `_`. psh rejects bases > 36.
+**Resolution:** Extended to base 64. For bases <= 36, letters are case-insensitive. For bases > 36, lowercase = 10–35, uppercase = 36–61, `@` = 62, `_` = 63 (matching bash).
 
-```
-$((64#_))  →  psh: error,  bash: 63
-```
+### 11. ~~No recursive variable resolution~~ (was lines 690–704)
 
-**Fix:** Extend `read_number()` to accept bases up to 64 and handle `@` (62) and `_` (63) digits.
+In bash, if `a=b` and `b=42`, then `$((a))` evaluates to 42 via recursive resolution. psh returned 0.
 
-### 11. No recursive variable resolution (lines 690–704)
-
-In bash, if `a=b` and `b=42`, then `$((a))` evaluates to 42 via recursive resolution. psh returns 0 because it sees `a`'s value as `"b"` (non-numeric → 0).
-
-**Fix:** Implement recursive resolution in `get_variable()`: if the value is a valid identifier, look it up again (with a depth limit to prevent cycles).
+**Resolution:** `get_variable()` now resolves identifier chains recursively with cycle detection. Multi-hop chains (e.g., `a→b→c→42`) work correctly.
 
 ---
 

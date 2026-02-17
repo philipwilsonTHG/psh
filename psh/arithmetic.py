@@ -47,6 +47,11 @@ class ArithTokenType(Enum):
     MULTIPLY_ASSIGN = auto()
     DIVIDE_ASSIGN = auto()
     MODULO_ASSIGN = auto()
+    LSHIFT_ASSIGN = auto()
+    RSHIFT_ASSIGN = auto()
+    BIT_AND_ASSIGN = auto()
+    BIT_OR_ASSIGN = auto()
+    BIT_XOR_ASSIGN = auto()
 
     # Other operators
     QUESTION = auto()
@@ -115,31 +120,48 @@ class ArithTokenizer:
             # This is base#number notation
             self.advance()  # Skip #
             base = int(base_str)
-            if base < 2 or base > 36:
+            if base < 2 or base > 64:
                 raise SyntaxError(f"Invalid base {base} at position {start_pos}")
 
-            # Read the number in the specified base
-            num_str = ''
+            # Read the number in the specified base.
+            # Bash digit mapping depends on the base:
+            #   base <= 36: 0-9, a-z/A-Z (case insensitive, 10-35)
+            #   base > 36:  0-9, a-z (10-35), A-Z (36-61), @ (62), _ (63)
+            result = 0
+            num_len = 0
             while self.current_char():
-                char = self.current_char().upper()
+                char = self.current_char()
                 if char.isdigit():
                     digit_val = ord(char) - ord('0')
-                elif char.isalpha() and char <= 'Z':
-                    digit_val = ord(char) - ord('A') + 10
+                elif base <= 36:
+                    # Case-insensitive for bases 2-36
+                    upper = char.upper()
+                    if upper.isalpha() and 'A' <= upper <= 'Z':
+                        digit_val = ord(upper) - ord('A') + 10
+                    else:
+                        break
+                elif char.islower():
+                    digit_val = ord(char) - ord('a') + 10
+                elif char.isupper():
+                    digit_val = ord(char) - ord('A') + 36
+                elif char == '@':
+                    digit_val = 62
+                elif char == '_':
+                    digit_val = 63
                 else:
                     break
 
-                # Check if digit is valid for this base
                 if digit_val >= base:
                     break
 
-                num_str += self.current_char()
+                result = result * base + digit_val
+                num_len += 1
                 self.advance()
 
-            if not num_str:
+            if num_len == 0:
                 raise SyntaxError(f"Invalid base {base} number at position {start_pos}")
 
-            return int(num_str, base)
+            return result
 
         # Not base#number, restore position and check other formats
         self.position = saved_pos
@@ -278,9 +300,15 @@ class ArithTokenizer:
 
             elif char == '<':
                 if self.peek_char() == '<':
-                    self.tokens.append(ArithToken(ArithTokenType.LSHIFT, '<<', start_pos))
-                    self.advance()
-                    self.advance()
+                    if self.peek_char(2) == '=':
+                        self.tokens.append(ArithToken(ArithTokenType.LSHIFT_ASSIGN, '<<=', start_pos))
+                        self.advance()
+                        self.advance()
+                        self.advance()
+                    else:
+                        self.tokens.append(ArithToken(ArithTokenType.LSHIFT, '<<', start_pos))
+                        self.advance()
+                        self.advance()
                 elif self.peek_char() == '=':
                     self.tokens.append(ArithToken(ArithTokenType.LE, '<=', start_pos))
                     self.advance()
@@ -291,9 +319,15 @@ class ArithTokenizer:
 
             elif char == '>':
                 if self.peek_char() == '>':
-                    self.tokens.append(ArithToken(ArithTokenType.RSHIFT, '>>', start_pos))
-                    self.advance()
-                    self.advance()
+                    if self.peek_char(2) == '=':
+                        self.tokens.append(ArithToken(ArithTokenType.RSHIFT_ASSIGN, '>>=', start_pos))
+                        self.advance()
+                        self.advance()
+                        self.advance()
+                    else:
+                        self.tokens.append(ArithToken(ArithTokenType.RSHIFT, '>>', start_pos))
+                        self.advance()
+                        self.advance()
                 elif self.peek_char() == '=':
                     self.tokens.append(ArithToken(ArithTokenType.GE, '>=', start_pos))
                     self.advance()
@@ -325,6 +359,10 @@ class ArithTokenizer:
                     self.tokens.append(ArithToken(ArithTokenType.AND, '&&', start_pos))
                     self.advance()
                     self.advance()
+                elif self.peek_char() == '=':
+                    self.tokens.append(ArithToken(ArithTokenType.BIT_AND_ASSIGN, '&=', start_pos))
+                    self.advance()
+                    self.advance()
                 else:
                     self.tokens.append(ArithToken(ArithTokenType.BIT_AND, '&', start_pos))
                     self.advance()
@@ -334,13 +372,22 @@ class ArithTokenizer:
                     self.tokens.append(ArithToken(ArithTokenType.OR, '||', start_pos))
                     self.advance()
                     self.advance()
+                elif self.peek_char() == '=':
+                    self.tokens.append(ArithToken(ArithTokenType.BIT_OR_ASSIGN, '|=', start_pos))
+                    self.advance()
+                    self.advance()
                 else:
                     self.tokens.append(ArithToken(ArithTokenType.BIT_OR, '|', start_pos))
                     self.advance()
 
             elif char == '^':
-                self.tokens.append(ArithToken(ArithTokenType.BIT_XOR, '^', start_pos))
-                self.advance()
+                if self.peek_char() == '=':
+                    self.tokens.append(ArithToken(ArithTokenType.BIT_XOR_ASSIGN, '^=', start_pos))
+                    self.advance()
+                    self.advance()
+                else:
+                    self.tokens.append(ArithToken(ArithTokenType.BIT_XOR, '^', start_pos))
+                    self.advance()
 
             elif char == '~':
                 self.tokens.append(ArithToken(ArithTokenType.BIT_NOT, '~', start_pos))
@@ -669,7 +716,10 @@ class ArithParser:
             # Check for assignment operators
             if self.match(ArithTokenType.ASSIGN, ArithTokenType.PLUS_ASSIGN,
                          ArithTokenType.MINUS_ASSIGN, ArithTokenType.MULTIPLY_ASSIGN,
-                         ArithTokenType.DIVIDE_ASSIGN, ArithTokenType.MODULO_ASSIGN):
+                         ArithTokenType.DIVIDE_ASSIGN, ArithTokenType.MODULO_ASSIGN,
+                         ArithTokenType.LSHIFT_ASSIGN, ArithTokenType.RSHIFT_ASSIGN,
+                         ArithTokenType.BIT_AND_ASSIGN, ArithTokenType.BIT_OR_ASSIGN,
+                         ArithTokenType.BIT_XOR_ASSIGN):
                 op = self.advance().type
                 value = self.parse_ternary()  # Assignment is right-associative
                 return AssignmentNode(var_name, op, value)
@@ -693,20 +743,31 @@ class ArithmeticEvaluator:
         self.shell = shell
 
     def get_variable(self, name: str) -> int:
-        """Get variable value, converting to integer"""
-        # Use state's get_variable which handles scopes
-        value = self.shell.state.get_variable(name, '0')
+        """Get variable value, converting to integer.
 
-        # Handle empty string as 0
-        if not value:
-            return 0
+        If the value is a valid identifier name, resolve it recursively
+        (matching bash behaviour where ``a=b; b=42; echo $((a))`` prints 42).
+        A depth limit prevents infinite loops from circular references.
+        """
+        seen: set = set()
+        var = name
+        while True:
+            value = self.shell.state.get_variable(var, '0')
 
-        # Try to convert to integer
-        try:
-            return int(value)
-        except ValueError:
-            # Non-numeric strings evaluate to 0 in bash arithmetic
-            return 0
+            if not value:
+                return 0
+
+            try:
+                return int(value)
+            except ValueError:
+                # If it looks like a variable name, resolve recursively
+                if value.isidentifier() and not value.startswith('_' * 2):
+                    if value in seen:
+                        return 0  # circular reference
+                    seen.add(var)
+                    var = value
+                else:
+                    return 0
 
     def set_variable(self, name: str, value: int) -> None:
         """Set variable value"""
@@ -765,29 +826,28 @@ class ArithmeticEvaluator:
             right = self.evaluate(node.right)
 
             if node.op == ArithTokenType.PLUS:
-                return left + right
+                return _to_signed64(left + right)
             elif node.op == ArithTokenType.MINUS:
-                return left - right
+                return _to_signed64(left - right)
             elif node.op == ArithTokenType.MULTIPLY:
-                return left * right
+                return _to_signed64(left * right)
             elif node.op == ArithTokenType.DIVIDE:
                 if right == 0:
                     raise ShellArithmeticError("Division by zero")
-                # Bash uses integer division
-                return int(left / right)
+                # Bash uses integer division (truncate toward zero)
+                return _to_signed64(int(left / right))
             elif node.op == ArithTokenType.MODULO:
                 if right == 0:
                     raise ShellArithmeticError("Division by zero")
                 # C-style truncated remainder (sign matches dividend),
                 # not Python's floored modulo (sign matches divisor).
-                return left - int(left / right) * right
+                return _to_signed64(left - int(left / right) * right)
             elif node.op == ArithTokenType.POWER:
                 if right < 0:
                     raise ShellArithmeticError("exponent less than 0")
                 if right > 63:
-                    # Cap exponent to prevent unbounded memory use
                     raise ShellArithmeticError("exponent too large")
-                return left ** right
+                return _to_signed64(left ** right)
 
             # Comparison operators
             elif node.op == ArithTokenType.LT:
@@ -805,11 +865,11 @@ class ArithmeticEvaluator:
 
             # Bitwise operators
             elif node.op == ArithTokenType.BIT_AND:
-                return left & right
+                return _to_signed64(left & right)
             elif node.op == ArithTokenType.BIT_OR:
-                return left | right
+                return _to_signed64(left | right)
             elif node.op == ArithTokenType.BIT_XOR:
-                return left ^ right
+                return _to_signed64(left ^ right)
             elif node.op == ArithTokenType.LSHIFT:
                 if right < 0:
                     raise ShellArithmeticError("negative shift count")
@@ -838,19 +898,33 @@ class ArithmeticEvaluator:
             current = self.get_variable(node.var_name)
 
             if node.op == ArithTokenType.PLUS_ASSIGN:
-                result = current + value
+                result = _to_signed64(current + value)
             elif node.op == ArithTokenType.MINUS_ASSIGN:
-                result = current - value
+                result = _to_signed64(current - value)
             elif node.op == ArithTokenType.MULTIPLY_ASSIGN:
-                result = current * value
+                result = _to_signed64(current * value)
             elif node.op == ArithTokenType.DIVIDE_ASSIGN:
                 if value == 0:
                     raise ShellArithmeticError("Division by zero")
-                result = int(current / value)
+                result = _to_signed64(int(current / value))
             elif node.op == ArithTokenType.MODULO_ASSIGN:
                 if value == 0:
                     raise ShellArithmeticError("Division by zero")
                 result = current - int(current / value) * value
+            elif node.op == ArithTokenType.LSHIFT_ASSIGN:
+                if value < 0:
+                    raise ShellArithmeticError("negative shift count")
+                result = _to_signed64(current << (value & 63))
+            elif node.op == ArithTokenType.RSHIFT_ASSIGN:
+                if value < 0:
+                    raise ShellArithmeticError("negative shift count")
+                result = _to_signed64(current) >> (value & 63)
+            elif node.op == ArithTokenType.BIT_AND_ASSIGN:
+                result = _to_signed64(current & value)
+            elif node.op == ArithTokenType.BIT_OR_ASSIGN:
+                result = _to_signed64(current | value)
+            elif node.op == ArithTokenType.BIT_XOR_ASSIGN:
+                result = _to_signed64(current ^ value)
             else:
                 raise ValueError(f"Unknown assignment operator: {node.op}")
 
