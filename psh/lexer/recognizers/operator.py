@@ -171,6 +171,44 @@ class OperatorRecognizer(ContextualRecognizer):
 
         return token, pos
 
+    def _try_fd_prefixed_redirect(
+        self,
+        input_text: str,
+        pos: int,
+        context: LexerContext
+    ) -> Optional[Tuple[Token, int]]:
+        """Try to parse an fd-prefixed redirect like 2>, 3>>, 0<.
+
+        Called when pos is at a digit. Scans forward past digits, then
+        checks for a redirect operator (>, >>, <). Returns a single
+        redirect token with the fd number stored in token.fd.
+        """
+        start = pos
+        while pos < len(input_text) and input_text[pos].isdigit():
+            pos += 1
+
+        if pos >= len(input_text):
+            return None
+
+        # Try longest redirect operators first
+        for op, tok_type in (
+            ('>>', TokenType.REDIRECT_APPEND),
+            ('>', TokenType.REDIRECT_OUT),
+            ('<', TokenType.REDIRECT_IN),
+        ):
+            if input_text[pos:pos + len(op)] == op:
+                # Make sure the redirect operator is valid in context
+                if not self.is_valid_in_context(op, context):
+                    return None
+                if not self._is_operator_enabled(op):
+                    return None
+                fd = int(input_text[start:pos])
+                end = pos + len(op)
+                token = Token(tok_type, op, start, end, fd=fd)
+                return token, end
+
+        return None
+
     @property
     def priority(self) -> int:
         """High priority for operators."""
@@ -219,6 +257,15 @@ class OperatorRecognizer(ContextualRecognizer):
         # This MUST come before regular operator matching to handle "2>&1" correctly
         if self._try_fd_duplication(input_text, pos):
             result = self._parse_fd_duplication(input_text, pos)
+            if result is not None:
+                return result
+
+        # Detect fd-prefixed redirects: N>, N>>, N< (digit(s) immediately
+        # followed by a redirect operator). Emit a single redirect token with
+        # the fd number stored as metadata, consistent with how REDIRECT_DUP
+        # already handles N>&M as a single token.
+        if input_text[pos].isdigit():
+            result = self._try_fd_prefixed_redirect(input_text, pos, context)
             if result is not None:
                 return result
 

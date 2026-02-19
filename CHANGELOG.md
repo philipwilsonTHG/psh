@@ -4,6 +4,31 @@ All notable changes to PSH (Python Shell) are documented in this file.
 
 Format: `VERSION (DATE) - Title` followed by bullet points describing changes.
 
+## 0.191.0 (2026-02-19) - Clean up TokenType enum, fd-prefixed redirects as single tokens
+- **Remove 21 dead token types**: Deleted 11 assignment operators (`ASSIGN`
+  through `RSHIFT_ASSIGN`), 3 glob tokens (`GLOB_STAR`, `GLOB_QUESTION`,
+  `GLOB_BRACKET`), 4 test operators (`LESS_THAN_TEST` through
+  `GREATER_EQUAL_TEST`), and 3 special construct markers
+  (`HERE_DELIMITER`, `ASSIGNMENT_WORD`, `ARRAY_ASSIGNMENT_WORD`).
+  TokenType enum reduced from 80 to 59 entries. None were referenced
+  in production code, tests, or either parser.
+- **fd-prefixed redirects as single tokens**: Added `fd: Optional[int]`
+  field to `Token`. The lexer now emits `2>` as `REDIRECT_OUT '>' fd=2`
+  (a single token with fd metadata) instead of two tokens (`WORD '2'` +
+  `REDIRECT_OUT '>'`). Consistent with how `REDIRECT_DUP` already
+  handles `2>&1` as a single token.
+- **Lexer**: Added `_try_fd_prefixed_redirect()` to `OperatorRecognizer`
+  that detects digit(s) followed by `>`, `>>`, or `<` and emits a
+  single redirect token.
+- **Parser cleanup**: Removed `_is_fd_prefixed_redirect()` and
+  `_parse_fd_prefixed_redirect()` from both `RedirectionParser` and
+  `CommandParser`. Parsers now read `token.fd` directly. Simplified
+  `parse_redirects()` to a single `match_any` loop.
+- **Combinator parser**: Removed fd-prefix WORD-digit detection block
+  from `_parse_redirection()` — reads `fd` from token metadata.
+- **Debug output**: Token formatter now shows `fd=N` suffix in
+  `--debug-tokens` output (e.g., `REDIRECT_OUT '>' fd=2`).
+
 ## 0.190.0 (2026-02-19) - Fix lexer token type issues: REDIRECT_ERR, RBRACE, LBRACKET
 - **REDIRECT_ERR removal**: Removed `REDIRECT_ERR` and
   `REDIRECT_ERR_APPEND` token types.  `2>` now tokenizes as `WORD '2'` +

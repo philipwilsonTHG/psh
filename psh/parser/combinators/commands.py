@@ -101,27 +101,17 @@ class CommandParsers:
         Returns:
             ParseResult with Redirect node
         """
-        # Check for FD-prefixed redirect (e.g., 3>file, 3>>file, 3<file)
-        fd = None
-        if (pos < len(tokens)
-                and tokens[pos].type.name == 'WORD'
-                and tokens[pos].value.isdigit()
-                and pos + 1 < len(tokens)
-                and self.tokens.is_redirect_operator(tokens[pos + 1])
-                and tokens[pos + 1].adjacent_to_previous):
-            fd = int(tokens[pos].value)
-            pos += 1  # skip the FD word, parse redirect operator next
-
         # First try to parse a redirection operator
         op_result = self.tokens.redirect_operator.parse(tokens, pos)
         if not op_result.success:
-            if fd is not None:
-                # We consumed an FD word but no redirect operator followed — backtrack
-                return ParseResult(success=False, error=op_result.error, position=pos - 1)
             return ParseResult(success=False, error=op_result.error, position=pos)
 
         op_token = op_result.value
         pos = op_result.position
+
+        # Propagate fd from token metadata (set by lexer for fd-prefixed
+        # redirects like 2>, 3>>)
+        fd = op_token.fd
 
         # Handle redirect duplication (e.g., 2>&1, >&2, etc.)
         if op_token.type.name == 'REDIRECT_DUP':
@@ -132,8 +122,6 @@ class CommandParsers:
                 source_fd_str, direction, target = dup_match.groups()
                 default_fd = 1 if direction == '>' else 0
                 source_fd = int(source_fd_str) if source_fd_str else default_fd
-                if fd is not None:
-                    source_fd = fd
                 if target == '-':
                     redirect = Redirect(type=direction + '&-', target=None, fd=source_fd)
                 else:

@@ -11,7 +11,8 @@ class TokenFormatter:
         result = []
         for i, token in enumerate(tokens):
             if isinstance(token, Token):
-                result.append(f"  [{i:3d}] {token.type.name:20s} '{token.value}'")
+                fd_info = f" fd={token.fd}" if token.fd is not None else ""
+                result.append(f"  [{i:3d}] {token.type.name:20s} '{token.value}'{fd_info}")
             else:
                 result.append(f"  [{i:3d}] {str(token)}")
         return "\n".join(result)

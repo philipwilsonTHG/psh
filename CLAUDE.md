@@ -495,18 +495,26 @@ class MyVisitor(ASTVisitor[T]):
 
 ## Current Development Status
 
-**Version**: 0.190.0 (see CHANGELOG.md for detailed history)
+**Version**: 0.191.0 (see CHANGELOG.md for detailed history)
 
 **Recent Work**:
+- **Clean Up TokenType Enum (v0.191.0)**:
+  - Removed 21 dead token types: 11 assignment operators, 3 glob tokens,
+    4 test operators, 3 special construct markers (enum 80 → 59 entries)
+  - Added `fd: Optional[int]` field to `Token`; lexer now emits
+    fd-prefixed redirects (e.g. `2>`) as single tokens with fd metadata
+    instead of WORD + redirect operator
+  - Added `_try_fd_prefixed_redirect()` to `OperatorRecognizer`
+  - Removed `_is_fd_prefixed_redirect()` / `_parse_fd_prefixed_redirect()`
+    from both parsers; parsers now read `token.fd` directly
+  - Token formatter shows `fd=N` suffix in `--debug-tokens` output
 - **Fix Lexer Token Type Issues (v0.190.0)**:
   - Removed `REDIRECT_ERR`/`REDIRECT_ERR_APPEND` token types; `2>` now
-    tokenizes as `WORD '2'` + `REDIRECT_OUT '>'` like all other fd redirects
+    tokenizes as `REDIRECT_OUT '>' fd=2` (single token with fd metadata)
   - Fixed `}` to use `command_position` check instead of "followed by
     delimiter" heuristic — `}` in brace expansions is now correctly `WORD`
   - Added case pattern context tracking (`case_depth`, `in_case_pattern`)
     so `[` in case patterns is collected as glob word, not `LBRACKET`
-  - Updated `parse_redirects()` to detect fd-prefixed redirects for
-    compound command trailing redirects (subshells, brace groups, etc.)
   - Removed parser workarounds: `_parse_err_redirect()`, combinator
     RBRACE hack, LBRACKET reconstruction in case patterns
 - **Interactive Public API Cleanup (v0.187.0)**:

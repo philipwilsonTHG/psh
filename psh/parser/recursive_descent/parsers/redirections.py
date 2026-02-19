@@ -22,33 +22,11 @@ class RedirectionParser:
         """Initialize with reference to main parser."""
         self.parser = main_parser
 
-    def _is_fd_prefixed_redirect(self) -> bool:
-        """Check for fd-prefixed redirect pattern like 2>file."""
-        if not self.parser.match(TokenType.WORD):
-            return False
-        fd_token = self.parser.peek()
-        if not fd_token.value.isdigit():
-            return False
-        redirect_token = self.parser.peek(1)
-        if not redirect_token:
-            return False
-        if redirect_token.type not in TokenGroups.REDIRECTS:
-            return False
-        return bool(redirect_token.adjacent_to_previous)
-
     def parse_redirects(self) -> List[Redirect]:
         """Parse zero or more redirections."""
         redirects = []
-        while self.parser.match_any(TokenGroups.REDIRECTS) or self._is_fd_prefixed_redirect():
-            if self._is_fd_prefixed_redirect():
-                fd_token = self.parser.advance()
-                fd = int(fd_token.value)
-                redirect = self.parse_redirect()
-                if redirect.fd is None:
-                    redirect.fd = fd
-                redirects.append(redirect)
-            else:
-                redirects.append(self.parse_redirect())
+        while self.parser.match_any(TokenGroups.REDIRECTS):
+            redirects.append(self.parse_redirect())
         return redirects
 
     def parse_fd_dup_word(self) -> Redirect:
@@ -114,7 +92,8 @@ class RedirectionParser:
             type=token.value,
             target=delimiter,
             heredoc_content=None,  # Content filled later
-            heredoc_quoted=heredoc_quoted
+            heredoc_quoted=heredoc_quoted,
+            fd=token.fd
         )
 
         # Store the heredoc key if available
@@ -136,7 +115,8 @@ class RedirectionParser:
         return Redirect(
             type=token.value,
             target=content_value,
-            quote_type=quote_type
+            quote_type=quote_type,
+            fd=token.fd
         )
 
     def _parse_dup_redirect(self, token: Token) -> Redirect:
@@ -192,5 +172,6 @@ class RedirectionParser:
 
         return Redirect(
             type=token.value,
-            target=target_value
+            target=target_value,
+            fd=token.fd
         )

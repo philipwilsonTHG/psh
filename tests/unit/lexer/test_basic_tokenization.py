@@ -76,12 +76,11 @@ class TestBasicTokenization:
             assert redirect_token.type == expected_type
             assert redirect_token.value == expected_value
 
-        # 2> is now tokenized as WORD '2' + REDIRECT_OUT '>'
+        # 2> is tokenized as a single REDIRECT_OUT '>' with fd=2
         tokens = list(tokenize("cmd 2> errors"))
-        fd_token = next(t for t in tokens if t.type == TokenType.WORD and t.value == '2')
-        assert fd_token is not None
         redirect_token = next(t for t in tokens if t.type == TokenType.REDIRECT_OUT)
         assert redirect_token.value == '>'
+        assert redirect_token.fd == 2
 
     def test_command_separator(self):
         """Test command separator tokenization."""

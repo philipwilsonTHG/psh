@@ -269,12 +269,13 @@ class TestAdvancedTokenization:
 
     def test_file_descriptor_redirects(self):
         """Test file descriptor redirections."""
-        # Standard error redirect: 2> is now WORD '2' + REDIRECT_OUT '>'
+        # Standard error redirect: 2> is a single REDIRECT_OUT with fd=2
         tokens = list(tokenize("cmd 2> errors.txt"))
-        assert any(t.type == TokenType.WORD and t.value == "2" for t in tokens)
-        assert any(t.type == TokenType.REDIRECT_OUT and t.value == ">" for t in tokens)
+        redirect = next(t for t in tokens if t.type == TokenType.REDIRECT_OUT)
+        assert redirect.value == ">"
+        assert redirect.fd == 2
 
-        # Redirect and duplicate - PSH now tokenizes this as a single token
+        # Redirect and duplicate - PSH tokenizes this as a single token
         tokens = list(tokenize("cmd 2>&1"))
         assert any(t.type == TokenType.REDIRECT_DUP and t.value == "2>&1" for t in tokens)
 

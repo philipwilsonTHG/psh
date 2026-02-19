@@ -58,33 +58,6 @@ class CommandParser:
         # Patterns: >&N, <&N, N>&M, N<&M, >&-, <&-
         return bool(_FD_DUP_RE.match(value))
 
-    def _is_fd_prefixed_redirect(self) -> bool:
-        """Check for no-space fd-prefixed redirect pattern like 3>file."""
-        if not self.parser.match(TokenType.WORD):
-            return False
-
-        fd_token = self.parser.peek()
-        if not fd_token.value.isdigit():
-            return False
-
-        redirect_token = self.parser.peek(1)
-        if not redirect_token:
-            return False
-        if redirect_token.type not in TokenGroups.REDIRECTS:
-            return False
-
-        # fd prefix only applies when directly adjacent to redirect operator.
-        return bool(redirect_token.adjacent_to_previous)
-
-    def _parse_fd_prefixed_redirect(self):
-        """Parse no-space fd-prefixed redirect (e.g., 3>file, 3<<EOF)."""
-        fd_token = self.parser.advance()  # consume fd prefix word
-        fd = int(fd_token.value)
-        redirect = self.parser.redirections.parse_redirect()
-        if redirect.fd is None:
-            redirect.fd = fd
-        return redirect
-
     def _raise_unclosed_expansion_error(self, msg: str, token: Token) -> None:
         """Raise a ParseError for an unclosed expansion."""
         error_context = ErrorContext(
@@ -170,11 +143,7 @@ class CommandParser:
                 command.args[0] in ('test', '[') and
                 self.parser.match(TokenType.EXCLAMATION))):
 
-            if self._is_fd_prefixed_redirect():
-                redirect = self._parse_fd_prefixed_redirect()
-                command.redirects.append(redirect)
-
-            elif self.parser.match_any(TokenGroups.REDIRECTS):
+            if self.parser.match_any(TokenGroups.REDIRECTS):
                 redirect = self.parser.redirections.parse_redirect()
                 command.redirects.append(redirect)
 
