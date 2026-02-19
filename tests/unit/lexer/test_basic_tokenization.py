@@ -214,3 +214,64 @@ class TestComplexTokenization:
         # Should have variable references - PSH tokenizes variables without $
         assert any(t.type == TokenType.VARIABLE and t.value == "VAR" for t in tokens)
         assert any(t.type == TokenType.VARIABLE and t.value == "{VAR}" for t in tokens)
+
+
+class TestNewRedirectionOperators:
+    """Test tokenization of new redirection operators (<>, >|, &>, &>>, |&)."""
+
+    def test_readwrite_redirect_operator(self):
+        """Test <> tokenizes as REDIRECT_READWRITE."""
+        tokens = list(tokenize("cat <> file"))
+        redirect = next(t for t in tokens if t.type == TokenType.REDIRECT_READWRITE)
+        assert redirect.value == '<>'
+
+    def test_readwrite_redirect_with_fd(self):
+        """Test N<> tokenizes with fd metadata."""
+        tokens = list(tokenize("cmd 3<> file"))
+        redirect = next(t for t in tokens if t.type == TokenType.REDIRECT_READWRITE)
+        assert redirect.value == '<>'
+        assert redirect.fd == 3
+
+    def test_clobber_redirect_operator(self):
+        """Test >| tokenizes as REDIRECT_CLOBBER."""
+        tokens = list(tokenize("echo hello >| file"))
+        redirect = next(t for t in tokens if t.type == TokenType.REDIRECT_CLOBBER)
+        assert redirect.value == '>|'
+
+    def test_combined_redirect_operator(self):
+        """Test &> tokenizes as REDIRECT_OUT with combined_redirect flag."""
+        tokens = list(tokenize("cmd &> file"))
+        redirect = next(t for t in tokens if t.type == TokenType.REDIRECT_OUT)
+        assert redirect.value == '&>'
+        assert redirect.combined_redirect is True
+
+    def test_combined_append_operator(self):
+        """Test &>> tokenizes as REDIRECT_APPEND with combined_redirect flag."""
+        tokens = list(tokenize("cmd &>> file"))
+        redirect = next(t for t in tokens if t.type == TokenType.REDIRECT_APPEND)
+        assert redirect.value == '&>>'
+        assert redirect.combined_redirect is True
+
+    def test_pipe_and_operator(self):
+        """Test |& tokenizes as PIPE_AND."""
+        tokens = list(tokenize("cmd1 |& cmd2"))
+        pipe_and = next(t for t in tokens if t.type == TokenType.PIPE_AND)
+        assert pipe_and.value == '|&'
+
+    def test_pipe_and_does_not_interfere_with_or(self):
+        """Test || is still recognized correctly when |& exists."""
+        tokens = list(tokenize("cmd1 || cmd2"))
+        assert any(t.type == TokenType.OR_OR for t in tokens)
+        assert not any(t.type == TokenType.PIPE_AND for t in tokens)
+
+    def test_ampersand_still_works(self):
+        """Test & (background) is not confused with &>."""
+        tokens = list(tokenize("cmd &"))
+        assert any(t.type == TokenType.AMPERSAND for t in tokens)
+        assert not any(t.combined_redirect for t in tokens)
+
+    def test_regular_redirect_not_combined(self):
+        """Test that regular > does not have combined_redirect flag."""
+        tokens = list(tokenize("echo hello > file"))
+        redirect = next(t for t in tokens if t.type == TokenType.REDIRECT_OUT)
+        assert redirect.combined_redirect is False

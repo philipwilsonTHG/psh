@@ -4,6 +4,33 @@ All notable changes to PSH (Python Shell) are documented in this file.
 
 Format: `VERSION (DATE) - Title` followed by bullet points describing changes.
 
+## 0.192.0 (2026-02-19) - Add 5 missing redirection operators (<>, >|, &>, &>>, |&)
+- **3 new token types**: `REDIRECT_READWRITE` (`<>`), `REDIRECT_CLOBBER`
+  (`>|`), and `PIPE_AND` (`|&`). `&>` and `&>>` reuse `REDIRECT_OUT`
+  and `REDIRECT_APPEND` with a new `combined_redirect` boolean on `Token`.
+- **Lexer**: Added `<>`, `>|`, `&>`, `&>>`, `|&` to operator table.
+  Extended `_try_fd_prefixed_redirect()` for `N<>`. Set
+  `combined_redirect=True` on `&>` / `&>>` tokens. Updated operator
+  enable/context checks for new operators.
+- **AST**: Added `combined: bool` field to `Redirect` for `&>` / `&>>`
+  (redirects both stdout and stderr). Added `pipe_stderr: List[bool]`
+  to `Pipeline` to track which pipe connections use `|&`.
+- **Parser**: Added `REDIRECT_READWRITE` and `REDIRECT_CLOBBER` to
+  `TokenGroups.REDIRECTS`. Updated pipeline parsing in both recursive
+  descent and combinator parsers to accept `PIPE_AND` as pipe separator.
+  `_parse_standard_redirect()` propagates `combined` flag to `Redirect`.
+- **Execution**: Added `_redirect_readwrite()`, `_redirect_clobber()`,
+  `_redirect_combined()` helpers to `FileRedirector`. Updated all 4
+  redirect dispatch methods (`apply_redirections`,
+  `apply_permanent_redirections`, `setup_builtin_redirections`,
+  `setup_child_redirections`). `PipelineExecutor._setup_pipeline_redirections()`
+  now accepts `pipe_stderr` and does `os.dup2(1, 2)` for `|&` pipes.
+- **Tests**: 9 new lexer unit tests, 12 new integration tests covering
+  `<>`, `>|`, `&>`, `&>>`, `|&`, noclobber interaction. Updated parser
+  parity tests to verify both parsers handle all 5 operators.
+- **POSIX**: `<>` (LESSGREAT) and `>|` (CLOBBER) are POSIX-defined.
+  `&>`, `&>>`, and `|&` are bash extensions supported by both bash and zsh.
+
 ## 0.191.0 (2026-02-19) - Clean up TokenType enum, fd-prefixed redirects as single tokens
 - **Remove 21 dead token types**: Deleted 11 assignment operators (`ASSIGN`
   through `RSHIFT_ASSIGN`), 3 glob tokens (`GLOB_STAR`, `GLOB_QUESTION`,

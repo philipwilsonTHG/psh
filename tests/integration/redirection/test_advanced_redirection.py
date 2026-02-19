@@ -330,3 +330,145 @@ def wait_for_file(path, timeout=5):
             return True
 
     return False
+
+
+class TestReadWriteRedirect:
+    """Test <> read-write redirection."""
+
+    def test_readwrite_opens_file_for_reading(self):
+        """<> opens file for reading."""
+        result = subprocess.run(
+            [sys.executable, '-m', 'psh', '-c',
+             'echo existing > tmp/rw_test.txt; cat <> tmp/rw_test.txt'],
+            capture_output=True, text=True,
+            cwd=PSH_ROOT)
+        assert result.returncode == 0
+        assert 'existing' in result.stdout
+
+    def test_readwrite_creates_file_if_missing(self):
+        """<> creates file if it doesn't exist."""
+        test_file = os.path.join(PSH_ROOT, 'tmp', 'rw_create_test.txt')
+        if os.path.exists(test_file):
+            os.unlink(test_file)
+        result = subprocess.run(
+            [sys.executable, '-m', 'psh', '-c',
+             'cat <> tmp/rw_create_test.txt; echo $?'],
+            capture_output=True, text=True,
+            cwd=PSH_ROOT)
+        assert os.path.exists(test_file)
+        if os.path.exists(test_file):
+            os.unlink(test_file)
+
+    def test_readwrite_with_fd_prefix(self):
+        """N<> opens file on specified fd."""
+        result = subprocess.run(
+            [sys.executable, '-m', 'psh', '-c',
+             'echo content > tmp/rw_fd.txt; cat 0<> tmp/rw_fd.txt'],
+            capture_output=True, text=True,
+            cwd=PSH_ROOT)
+        assert result.returncode == 0
+        assert 'content' in result.stdout
+
+
+class TestClobberRedirect:
+    """Test >| clobber redirection."""
+
+    def test_clobber_writes_to_file(self):
+        """Test >| writes to file normally."""
+        result = subprocess.run(
+            [sys.executable, '-m', 'psh', '-c',
+             'echo hello >| tmp/clobber_test.txt; cat tmp/clobber_test.txt'],
+            capture_output=True, text=True,
+            cwd=PSH_ROOT)
+        assert result.returncode == 0
+        assert 'hello' in result.stdout
+
+    def test_clobber_overrides_noclobber(self):
+        """Test >| forces overwrite when noclobber is set."""
+        result = subprocess.run(
+            [sys.executable, '-m', 'psh', '-c',
+             'echo first > tmp/clobber_nc.txt; set -C; echo second >| tmp/clobber_nc.txt; cat tmp/clobber_nc.txt'],
+            capture_output=True, text=True,
+            cwd=PSH_ROOT)
+        assert result.returncode == 0
+        assert 'second' in result.stdout
+        assert 'first' not in result.stdout
+
+    def test_noclobber_blocks_regular_redirect(self):
+        """Test > fails when noclobber is set and file exists."""
+        result = subprocess.run(
+            [sys.executable, '-m', 'psh', '-c',
+             'echo first > tmp/clobber_block.txt; set -C; echo second > tmp/clobber_block.txt; echo $?'],
+            capture_output=True, text=True,
+            cwd=PSH_ROOT)
+        # Should fail (nonzero exit status)
+        assert '1' in result.stdout or result.returncode != 0
+
+
+class TestCombinedRedirect:
+    """Test &> and &>> combined redirections."""
+
+    def test_ampersand_redirect_captures_stdout(self):
+        """&> captures stdout."""
+        result = subprocess.run(
+            [sys.executable, '-m', 'psh', '-c',
+             'echo hello &> tmp/combined_test.txt; cat tmp/combined_test.txt'],
+            capture_output=True, text=True,
+            cwd=PSH_ROOT)
+        assert result.returncode == 0
+        assert 'hello' in result.stdout
+
+    def test_ampersand_redirect_captures_stderr(self):
+        """&> captures stderr."""
+        result = subprocess.run(
+            [sys.executable, '-m', 'psh', '-c',
+             'echo err >&2 &> tmp/combined_err.txt; cat tmp/combined_err.txt'],
+            capture_output=True, text=True,
+            cwd=PSH_ROOT)
+        assert 'err' in result.stdout
+
+    def test_ampersand_append_redirect(self):
+        """&>> appends both stdout and stderr."""
+        result = subprocess.run(
+            [sys.executable, '-m', 'psh', '-c',
+             'echo first > tmp/combined_append.txt; echo second &>> tmp/combined_append.txt; cat tmp/combined_append.txt'],
+            capture_output=True, text=True,
+            cwd=PSH_ROOT)
+        assert result.returncode == 0
+        assert 'first' in result.stdout
+        assert 'second' in result.stdout
+
+
+class TestPipeStderr:
+    """Test |& pipe stderr operator."""
+
+    def test_pipe_and_includes_stdout(self):
+        """|& passes stdout to next command."""
+        result = subprocess.run(
+            [sys.executable, '-m', 'psh', '-c',
+             'echo hello |& cat'],
+            capture_output=True, text=True,
+            cwd=PSH_ROOT)
+        assert result.returncode == 0
+        assert 'hello' in result.stdout
+
+    def test_pipe_and_includes_stderr(self):
+        """|& passes stderr to next command."""
+        result = subprocess.run(
+            [sys.executable, '-m', 'psh', '-c',
+             '{ echo out; echo err >&2; } |& cat'],
+            capture_output=True, text=True,
+            cwd=PSH_ROOT)
+        assert 'out' in result.stdout
+        assert 'err' in result.stdout
+
+    def test_regular_pipe_excludes_stderr(self):
+        """|  does NOT pass stderr to next command (baseline)."""
+        result = subprocess.run(
+            [sys.executable, '-m', 'psh', '-c',
+             '{ echo out; echo err >&2; } | cat'],
+            capture_output=True, text=True,
+            cwd=PSH_ROOT)
+        assert 'out' in result.stdout
+        # stderr should go to the outer stderr, not stdout
+        assert 'err' in result.stderr

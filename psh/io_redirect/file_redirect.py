@@ -35,7 +35,7 @@ class FileRedirector:
     def _expand_redirect_target(self, redirect):
         """Expand variables and tilde in a redirect target."""
         target = redirect.target
-        if not target or redirect.type not in ('<', '>', '>>'):
+        if not target or (redirect.type not in ('<', '>', '>>', '<>', '>|') and not redirect.combined):
             return target
         if not (hasattr(redirect, 'quote_type') and redirect.quote_type == "'"):
             target = self.shell.expansion_manager.expand_string_variables(target)
@@ -97,6 +97,34 @@ class FileRedirector:
             except OSError:
                 pass
 
+    def _redirect_readwrite(self, target, redirect):
+        """Open file for read-write (<>) and dup2 to target fd."""
+        target_fd = redirect.fd if redirect.fd is not None else 0
+        fd = os.open(target, os.O_RDWR | os.O_CREAT, 0o644)
+        _dup2_preserve_target(fd, target_fd)
+        return target_fd
+
+    def _redirect_clobber(self, target, redirect):
+        """Force overwrite (>|), ignoring noclobber."""
+        target_fd = redirect.fd if redirect.fd is not None else 1
+        fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)
+        _dup2_preserve_target(fd, target_fd)
+        return target_fd
+
+    def _redirect_combined(self, target, redirect):
+        """Redirect both stdout and stderr to file (&> or &>>)."""
+        flags = os.O_WRONLY | os.O_CREAT
+        is_append = redirect.type.endswith('>>')
+        if is_append:
+            flags |= os.O_APPEND
+        else:
+            if self.state.options.get('noclobber', False) and os.path.exists(target):
+                raise OSError(f"cannot overwrite existing file: {target}")
+            flags |= os.O_TRUNC
+        fd = os.open(target, flags, 0o644)
+        _dup2_preserve_target(fd, 1)   # stdout
+        os.dup2(1, 2)                  # stderr → stdout
+
     def _redirect_close_fd(self, redirect):
         """Handle >&-/<&- fd close."""
         if redirect.fd is not None:
@@ -119,15 +147,28 @@ class FileRedirector:
             if target and target.startswith(('<(', '>(')) and target.endswith(')'):
                 target = self._handle_process_sub_redirect(target, redirect)
 
-            if redirect.type == '<':
+            if redirect.combined:
+                # &> or &>> — redirect both stdout and stderr
+                saved_fds.append((1, os.dup(1)))
+                saved_fds.append((2, os.dup(2)))
+                self._redirect_combined(target, redirect)
+            elif redirect.type == '<':
                 saved_fds.append((0, os.dup(0)))
                 self._redirect_input_from_file(target)
+            elif redirect.type == '<>':
+                target_fd = redirect.fd if redirect.fd is not None else 0
+                saved_fds.append((target_fd, os.dup(target_fd)))
+                self._redirect_readwrite(target, redirect)
             elif redirect.type in ('<<', '<<-'):
                 saved_fds.append((0, os.dup(0)))
                 self._redirect_heredoc(redirect)
             elif redirect.type == '<<<':
                 saved_fds.append((0, os.dup(0)))
                 self._redirect_herestring(redirect)
+            elif redirect.type == '>|':
+                target_fd = redirect.fd if redirect.fd is not None else 1
+                saved_fds.append((target_fd, os.dup(target_fd)))
+                self._redirect_clobber(target, redirect)
             elif redirect.type in ('>', '>>'):
                 target_fd = redirect.fd if redirect.fd is not None else 1
                 saved_fds.append((target_fd, os.dup(target_fd)))
@@ -175,8 +216,22 @@ class FileRedirector:
             if target and target.startswith(('<(', '>(')) and target.endswith(')'):
                 target = self._handle_process_sub_redirect(target, redirect)
 
-            if redirect.type == '<':
+            if redirect.combined:
+                # &> or &>> — redirect both stdout and stderr permanently
+                self._redirect_combined(target, redirect)
+                mode = 'a' if redirect.type.endswith('>>') else 'w'
+                sys.stdout = open(target, mode)
+                self.shell.stdout = sys.stdout
+                self.state.stdout = sys.stdout
+                sys.stderr = open(target, mode)
+                self.shell.stderr = sys.stderr
+                self.state.stderr = sys.stderr
+            elif redirect.type == '<':
                 self._redirect_input_from_file(target)
+                self.shell.stdin = sys.stdin
+                self.state.stdin = sys.stdin
+            elif redirect.type == '<>':
+                self._redirect_readwrite(target, redirect)
                 self.shell.stdin = sys.stdin
                 self.state.stdin = sys.stdin
             elif redirect.type in ('<<', '<<-'):
@@ -187,6 +242,16 @@ class FileRedirector:
                 self._redirect_herestring(redirect)
                 self.shell.stdin = sys.stdin
                 self.state.stdin = sys.stdin
+            elif redirect.type == '>|':
+                target_fd = self._redirect_clobber(target, redirect)
+                if target_fd == 1:
+                    sys.stdout = open(target, 'w')
+                    self.shell.stdout = sys.stdout
+                    self.state.stdout = sys.stdout
+                elif target_fd == 2:
+                    sys.stderr = open(target, 'w')
+                    self.shell.stderr = sys.stderr
+                    self.state.stderr = sys.stderr
             elif redirect.type in ('>', '>>'):
                 target_fd = self._redirect_output_to_file(target, redirect)
                 mode = 'w' if redirect.type == '>' else 'a'

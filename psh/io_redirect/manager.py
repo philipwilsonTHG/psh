@@ -82,11 +82,27 @@ class IOManager:
                 self.process_sub_handler.active_pids.append(pid)
                 target = fd_path
 
-            if redirect.type == '<':
+            if redirect.combined:
+                # &> or &>> — redirect both stdout and stderr
+                stdout_backup = sys.stdout
+                stderr_backup = sys.stderr
+                is_append = redirect.type.endswith('>>')
+                mode = 'a' if is_append else 'w'
+                if not is_append and self.state.options.get('noclobber', False) and os.path.exists(target):
+                    raise OSError(f"cannot overwrite existing file: {target}")
+                f = open(target, mode)
+                sys.stdout = f
+                sys.stderr = f
+            elif redirect.type == '<':
                 stdin_backup = sys.stdin
                 stdin_fd_backup = os.dup(0)
                 self.file_redirector._redirect_input_from_file(target)
                 sys.stdin = open(target, 'r')
+            elif redirect.type == '<>':
+                stdin_backup = sys.stdin
+                stdin_fd_backup = os.dup(0)
+                self.file_redirector._redirect_readwrite(target, redirect)
+                sys.stdin = open(target, 'r+')
             elif redirect.type in ('<<', '<<-'):
                 stdin_backup = sys.stdin
                 stdin_fd_backup = os.dup(0)
@@ -97,6 +113,14 @@ class IOManager:
                 stdin_fd_backup = os.dup(0)
                 content = self.file_redirector._redirect_herestring(redirect)
                 sys.stdin = io.StringIO(content)
+            elif redirect.type == '>|':
+                target_fd = redirect.fd if redirect.fd is not None else 1
+                if target_fd == 2:
+                    stderr_backup = sys.stderr
+                    sys.stderr = open(target, 'w')
+                else:
+                    stdout_backup = sys.stdout
+                    sys.stdout = open(target, 'w')
             elif redirect.type in ('>', '>>'):
                 target_fd = redirect.fd if redirect.fd is not None else 1
                 mode = 'w' if redirect.type == '>' else 'a'
@@ -181,12 +205,22 @@ class IOManager:
                 proc_sub_fd_to_close = fd_to_close
 
             try:
-                if redirect.type == '<':
+                if redirect.combined:
+                    # &> or &>> — redirect both stdout and stderr in child
+                    if not redirect.type.endswith('>>') and self.state.options.get('noclobber', False) and os.path.exists(target):
+                        os.write(2, f"psh: cannot overwrite existing file: {target}\n".encode('utf-8'))
+                        os._exit(1)
+                    self.file_redirector._redirect_combined(target, redirect)
+                elif redirect.type == '<':
                     self.file_redirector._redirect_input_from_file(target)
+                elif redirect.type == '<>':
+                    self.file_redirector._redirect_readwrite(target, redirect)
                 elif redirect.type in ('<<', '<<-'):
                     self.file_redirector._redirect_heredoc(redirect)
                 elif redirect.type == '<<<':
                     self.file_redirector._redirect_herestring(redirect)
+                elif redirect.type == '>|':
+                    self.file_redirector._redirect_clobber(target, redirect)
                 elif redirect.type in ('>', '>>'):
                     # Child-process noclobber must exit, not raise
                     if redirect.type == '>' and self.state.options.get('noclobber', False) and os.path.exists(target):

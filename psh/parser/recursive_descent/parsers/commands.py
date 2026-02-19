@@ -266,7 +266,7 @@ class CommandParser:
             return word_token.value + '=(' + ' '.join(elements) + ')'
 
     def parse_pipeline(self) -> Pipeline:
-        """Parse a pipeline (commands connected by |)."""
+        """Parse a pipeline (commands connected by | or |&)."""
         pipeline = Pipeline()
 
         # Check for leading ! (negation)
@@ -277,9 +277,11 @@ class CommandParser:
         command = self.parse_pipeline_component()
         pipeline.commands.append(command)
 
-        # Parse additional piped commands
-        while self.parser.match(TokenType.PIPE):
+        # Parse additional piped commands (| or |&)
+        while self.parser.match(TokenType.PIPE, TokenType.PIPE_AND):
+            is_pipe_stderr = self.parser.peek().type == TokenType.PIPE_AND
             self.parser.advance()
+            pipeline.pipe_stderr.append(is_pipe_stderr)
             command = self.parse_pipeline_component()
             pipeline.commands.append(command)
 
@@ -296,16 +298,24 @@ class CommandParser:
         pipeline.commands.append(initial_component)
 
         # Must have at least one pipe since we were called due to seeing a pipe
-        self.parser.expect(TokenType.PIPE)
+        # Accept either | or |&
+        if self.parser.match(TokenType.PIPE, TokenType.PIPE_AND):
+            is_pipe_stderr = self.parser.peek().type == TokenType.PIPE_AND
+            self.parser.advance()
+            pipeline.pipe_stderr.append(is_pipe_stderr)
+        else:
+            self.parser.expect(TokenType.PIPE)
 
         # Parse remaining pipeline components
         while True:
             command = self.parse_pipeline_component()
             pipeline.commands.append(command)
 
-            if not self.parser.match(TokenType.PIPE):
+            if not self.parser.match(TokenType.PIPE, TokenType.PIPE_AND):
                 break
+            is_pipe_stderr = self.parser.peek().type == TokenType.PIPE_AND
             self.parser.advance()
+            pipeline.pipe_stderr.append(is_pipe_stderr)
 
         # Wrap pipeline in AndOrList for consistency
         and_or_list = AndOrList()

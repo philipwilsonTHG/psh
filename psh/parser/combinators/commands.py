@@ -179,7 +179,10 @@ class CommandParsers:
 
         target_value = target_result.value.value if hasattr(target_result.value, 'value') else str(target_result.value)
 
-        redirect = Redirect(type=op_token.value, target=target_value, fd=fd)
+        # Check for combined redirect (&> or &>>)
+        combined = getattr(op_token, 'combined_redirect', False)
+
+        redirect = Redirect(type=op_token.value, target=target_value, fd=fd, combined=combined)
         return ParseResult(success=True, value=redirect, position=target_result.position)
 
     def _build_simple_command_parser(self) -> Parser[SimpleCommand]:
@@ -365,10 +368,7 @@ class CommandParsers:
 
         # For initial version, just use simple commands
         # Control structures will be added when we have a command parser that includes them
-        inner = separated_by(
-            self.simple_command,
-            self.tokens.pipe
-        )
+        pipe_sep = self.tokens.pipe.or_else(self.tokens.pipe_and)
 
         def parse_pipeline_with_negation(tokens: List[Token], pos: int) -> ParseResult:
             """Parse optional `!` followed by a pipeline."""
@@ -376,19 +376,38 @@ class CommandParsers:
             negated = neg_result.value is not None
             pos = neg_result.position
 
-            cmds_result = inner.parse(tokens, pos)
-            if not cmds_result.success:
-                return cmds_result
+            # Parse first command
+            first_result = self.simple_command.parse(tokens, pos)
+            if not first_result.success:
+                return first_result
 
-            commands = cmds_result.value
+            commands = [first_result.value]
+            pipe_stderr_list = []
+            pos = first_result.position
+
+            # Parse remaining | or |& separated commands
+            while pos < len(tokens):
+                sep_result = pipe_sep.parse(tokens, pos)
+                if not sep_result.success:
+                    break
+                is_pipe_stderr = sep_result.value.type.name == 'PIPE_AND'
+                pipe_stderr_list.append(is_pipe_stderr)
+                pos = sep_result.position
+
+                cmd_result = self.simple_command.parse(tokens, pos)
+                if not cmd_result.success:
+                    return cmd_result
+                commands.append(cmd_result.value)
+                pos = cmd_result.position
+
             if len(commands) == 1 and not negated:
                 cmd = commands[0]
                 if isinstance(cmd, (IfConditional, WhileLoop, ForLoop, CaseConditional, SelectLoop,
                                   SubshellGroup, BraceGroup, CStyleForLoop, ArithmeticEvaluation,
                                   EnhancedTestStatement)):
-                    return ParseResult(success=True, value=cmd, position=cmds_result.position)
-            pipeline = Pipeline(commands=commands, negated=negated) if commands else None
-            return ParseResult(success=True, value=pipeline, position=cmds_result.position)
+                    return ParseResult(success=True, value=cmd, position=pos)
+            pipeline = Pipeline(commands=commands, negated=negated, pipe_stderr=pipe_stderr_list) if commands else None
+            return ParseResult(success=True, value=pipeline, position=pos)
 
         return Parser(parse_pipeline_with_negation)
 
@@ -494,29 +513,45 @@ class CommandParsers:
             command_parser: Parser that handles both simple commands and control structures
         """
         # Update pipeline parser to use full command parser with negation support
-        inner = separated_by(
-            command_parser,
-            self.tokens.pipe
-        )
+        pipe_sep = self.tokens.pipe.or_else(self.tokens.pipe_and)
 
         def parse_pipeline_with_negation(tokens: List[Token], pos: int) -> ParseResult:
             neg_result = optional(self.tokens.exclamation).parse(tokens, pos)
             negated = neg_result.value is not None
             pos = neg_result.position
 
-            cmds_result = inner.parse(tokens, pos)
-            if not cmds_result.success:
-                return cmds_result
+            # Parse first command
+            first_result = command_parser.parse(tokens, pos)
+            if not first_result.success:
+                return first_result
 
-            commands = cmds_result.value
+            commands = [first_result.value]
+            pipe_stderr_list = []
+            pos = first_result.position
+
+            # Parse remaining | or |& separated commands
+            while pos < len(tokens):
+                sep_result = pipe_sep.parse(tokens, pos)
+                if not sep_result.success:
+                    break
+                is_pipe_stderr = sep_result.value.type.name == 'PIPE_AND'
+                pipe_stderr_list.append(is_pipe_stderr)
+                pos = sep_result.position
+
+                cmd_result = command_parser.parse(tokens, pos)
+                if not cmd_result.success:
+                    return cmd_result
+                commands.append(cmd_result.value)
+                pos = cmd_result.position
+
             if len(commands) == 1 and not negated:
                 cmd = commands[0]
                 if isinstance(cmd, (IfConditional, WhileLoop, ForLoop, CaseConditional, SelectLoop,
                                   SubshellGroup, BraceGroup, CStyleForLoop, ArithmeticEvaluation,
                                   EnhancedTestStatement)):
-                    return ParseResult(success=True, value=cmd, position=cmds_result.position)
-            pipeline = Pipeline(commands=commands, negated=negated) if commands else None
-            return ParseResult(success=True, value=pipeline, position=cmds_result.position)
+                    return ParseResult(success=True, value=cmd, position=pos)
+            pipeline = Pipeline(commands=commands, negated=negated, pipe_stderr=pipe_stderr_list) if commands else None
+            return ParseResult(success=True, value=pipeline, position=pos)
 
         self.pipeline = Parser(parse_pipeline_with_negation)
 
@@ -572,7 +607,7 @@ def parse_pipeline(command_parser: Parser) -> Parser[Union[Pipeline, ASTNode]]:
     Returns:
         Parser that matches pipelines
     """
-    inner = separated_by(command_parser, token('PIPE'))
+    pipe_sep = token('PIPE').or_else(token('PIPE_AND'))
     exclamation = token('EXCLAMATION')
 
     def parse_pipeline_with_negation(tokens: List[Token], pos: int) -> ParseResult:
@@ -580,19 +615,38 @@ def parse_pipeline(command_parser: Parser) -> Parser[Union[Pipeline, ASTNode]]:
         negated = neg_result.value is not None
         pos = neg_result.position
 
-        cmds_result = inner.parse(tokens, pos)
-        if not cmds_result.success:
-            return cmds_result
+        # Parse first command
+        first_result = command_parser.parse(tokens, pos)
+        if not first_result.success:
+            return first_result
 
-        commands = cmds_result.value
+        commands = [first_result.value]
+        pipe_stderr_list = []
+        pos = first_result.position
+
+        # Parse remaining | or |& separated commands
+        while pos < len(tokens):
+            sep_result = pipe_sep.parse(tokens, pos)
+            if not sep_result.success:
+                break
+            is_pipe_stderr = sep_result.value.type.name == 'PIPE_AND'
+            pipe_stderr_list.append(is_pipe_stderr)
+            pos = sep_result.position
+
+            cmd_result = command_parser.parse(tokens, pos)
+            if not cmd_result.success:
+                return cmd_result
+            commands.append(cmd_result.value)
+            pos = cmd_result.position
+
         if len(commands) == 1 and not negated:
             cmd = commands[0]
             if isinstance(cmd, (IfConditional, WhileLoop, ForLoop, CaseConditional, SelectLoop,
                               SubshellGroup, BraceGroup, CStyleForLoop, ArithmeticEvaluation,
                               EnhancedTestStatement)):
-                return ParseResult(success=True, value=cmd, position=cmds_result.position)
-        pipeline = Pipeline(commands=commands, negated=negated) if commands else None
-        return ParseResult(success=True, value=pipeline, position=cmds_result.position)
+                return ParseResult(success=True, value=cmd, position=pos)
+        pipeline = Pipeline(commands=commands, negated=negated, pipe_stderr=pipe_stderr_list) if commands else None
+        return ParseResult(success=True, value=pipeline, position=pos)
 
     return Parser(parse_pipeline_with_negation)
 

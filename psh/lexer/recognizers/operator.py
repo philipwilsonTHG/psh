@@ -20,10 +20,15 @@ class OperatorRecognizer(ContextualRecognizer):
             '<<<': TokenType.HERE_STRING,
             '<<-': TokenType.HEREDOC_STRIP,
             ';;&': TokenType.AMP_SEMICOLON,
+            '&>>': TokenType.REDIRECT_APPEND,  # combined append (stdout+stderr)
         },
         2: {
             '>>': TokenType.REDIRECT_APPEND,
             '<<': TokenType.HEREDOC,
+            '<>': TokenType.REDIRECT_READWRITE,
+            '>|': TokenType.REDIRECT_CLOBBER,
+            '&>': TokenType.REDIRECT_OUT,       # combined redirect (stdout+stderr)
+            '|&': TokenType.PIPE_AND,
             '&&': TokenType.AND_AND,
             '||': TokenType.OR_OR,
             '((': TokenType.DOUBLE_LPAREN,
@@ -194,6 +199,7 @@ class OperatorRecognizer(ContextualRecognizer):
         for op, tok_type in (
             ('>>', TokenType.REDIRECT_APPEND),
             ('>', TokenType.REDIRECT_OUT),
+            ('<>', TokenType.REDIRECT_READWRITE),
             ('<', TokenType.REDIRECT_IN),
         ):
             if input_text[pos:pos + len(op)] == op:
@@ -316,6 +322,9 @@ class OperatorRecognizer(ContextualRecognizer):
                             pos,
                             pos + length
                         )
+                        # Set combined_redirect flag for &> and &>>
+                        if candidate in ('&>', '&>>'):
+                            token.combined_redirect = True
                         return token, pos + length
 
         return None
@@ -326,11 +335,11 @@ class OperatorRecognizer(ContextualRecognizer):
             return True  # No config means all enabled
 
         # Check pipes
-        if operator == '|' and not self.config.enable_pipes:
+        if operator in ('|', '|&') and not self.config.enable_pipes:
             return False
 
         # Check redirections
-        if operator in ['<', '>', '>>', '<<', '<<<'] and not self.config.enable_redirections:
+        if operator in ('<', '>', '>>', '<<', '<<<', '<>', '>|', '&>', '&>>') and not self.config.enable_redirections:
             return False
 
         # Check background operator
@@ -352,7 +361,7 @@ class OperatorRecognizer(ContextualRecognizer):
         # Inside arithmetic context, some operators should not be recognized
         if context.arithmetic_depth > 0:
             # Inside ((...)), don't tokenize these as redirects/operators
-            if operator in ['<', '>', '<<', '>>', ';&', ';;&']:
+            if operator in ['<', '>', '<<', '>>', '<>', '>|', ';&', ';;&']:
                 return False
 
         # [[ and ]] have special context rules

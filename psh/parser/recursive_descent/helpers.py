@@ -34,7 +34,9 @@ class TokenGroups:
         TokenType.REDIRECT_IN, TokenType.REDIRECT_OUT,
         TokenType.REDIRECT_APPEND, TokenType.HEREDOC,
         TokenType.HEREDOC_STRIP, TokenType.HERE_STRING,
-        TokenType.REDIRECT_DUP
+        TokenType.REDIRECT_DUP,
+        TokenType.REDIRECT_READWRITE,
+        TokenType.REDIRECT_CLOBBER,
     })
 
     # Control structure keywords

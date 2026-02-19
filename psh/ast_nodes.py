@@ -18,13 +18,14 @@ class Statement(ASTNode):
 
 @dataclass
 class Redirect(ASTNode):
-    type: str  # '<', '>', '>>', '<<', '<<-', '2>', '2>>', '2>&1', etc.
+    type: str  # '<', '>', '>>', '<<', '<<-', '<>', '>|', '2>', '2>>', '2>&1', etc.
     target: str
     fd: Optional[int] = None  # File descriptor (None for stdin/stdout, 2 for stderr, etc.)
     dup_fd: Optional[int] = None  # For duplications like 2>&1
     heredoc_content: Optional[str] = None  # For here documents
     quote_type: Optional[str] = None  # Quote type used (' or " or None) for here strings
     heredoc_quoted: bool = False  # Whether heredoc delimiter was quoted (disables variable expansion)
+    combined: bool = False  # True for &> and &>> (redirects both stdout and stderr)
 
 
 @dataclass
@@ -285,6 +286,7 @@ class BraceGroup(CompoundCommand):
 class Pipeline(ASTNode):
     commands: List[Command] = field(default_factory=list)  # Now accepts both SimpleCommand and CompoundCommand
     negated: bool = False  # True if pipeline is prefixed with !
+    pipe_stderr: List[bool] = field(default_factory=list)  # pipe_stderr[i] True if |& between commands[i] and commands[i+1]
 
 
 @dataclass

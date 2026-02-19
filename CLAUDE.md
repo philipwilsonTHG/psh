@@ -495,9 +495,23 @@ class MyVisitor(ASTVisitor[T]):
 
 ## Current Development Status
 
-**Version**: 0.191.0 (see CHANGELOG.md for detailed history)
+**Version**: 0.192.0 (see CHANGELOG.md for detailed history)
 
 **Recent Work**:
+- **Add 5 Missing Redirection Operators (v0.192.0)**:
+  - Added 3 new token types: `REDIRECT_READWRITE` (`<>`),
+    `REDIRECT_CLOBBER` (`>|`), `PIPE_AND` (`|&`). `&>` and `&>>` reuse
+    existing types with `combined_redirect` flag on `Token`
+  - Added `combined: bool` to `Redirect` AST, `pipe_stderr: List[bool]`
+    to `Pipeline` AST
+  - Updated both parsers (recursive descent and combinator) to handle
+    new redirect types and `|&` pipe separator
+  - Added `_redirect_readwrite()`, `_redirect_clobber()`,
+    `_redirect_combined()` to `FileRedirector`; updated all 4 dispatch
+    methods; `PipelineExecutor` handles `|&` via `os.dup2(1, 2)`
+  - 21 new tests (9 lexer unit, 12 integration); parser parity tests
+    updated (removed `skip_combinator` for `&>`)
+  - `<>` and `>|` are POSIX-defined; `&>`, `&>>`, `|&` are bash/zsh
 - **Clean Up TokenType Enum (v0.191.0)**:
   - Removed 21 dead token types: 11 assignment operators, 3 glob tokens,
     4 test operators, 3 special construct markers (enum 80 → 59 entries)

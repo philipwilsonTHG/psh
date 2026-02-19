@@ -265,8 +265,11 @@ class TestParserFeatureParity:
             ParityTestCase("append redirect", "echo hello >> file.txt"),
             ParityTestCase("input redirect", "cat < file.txt"),
             ParityTestCase("stderr redirect", "command 2> error.txt"),
-            ParityTestCase("combined redirect", "command &> all.txt",
-                          skip_combinator=True, skip_reason="combined &> redirect not supported"),
+            ParityTestCase("combined redirect", "command &> all.txt"),
+            ParityTestCase("combined append redirect", "command &>> all.txt"),
+            ParityTestCase("clobber redirect", "echo hello >| file.txt"),
+            ParityTestCase("readwrite redirect", "cat <> file.txt"),
+            ParityTestCase("pipe stderr", "cmd1 |& cmd2"),
         ]
 
         for case in cases:
@@ -372,7 +375,7 @@ def generate_parity_report():
     print("| Variable Expansion | ✅ | ✅ | Full support |")
     print("| Command Substitution | ✅ | ✅ | Full support |")
     print("| Arithmetic Expansion | ✅ | ✅ | Full support |")
-    print("| I/O Redirection | ✅ | ✅ | Full support (except &> combined redirect) |")
+    print("| I/O Redirection | ✅ | ✅ | Full support |")
     print("| Here Documents | ✅ | ✅ | Full support |")
     print("| Subshells | ✅ | ✅ | Full support |")
     print("| Process Substitution | ✅ | ✅ | Full support |")
@@ -380,9 +383,8 @@ def generate_parity_report():
     print("| Conditional Expressions | ✅ | ✅ | Full support |")
 
     print("\n## Recommendations\n")
-    print("1. Near-complete feature parity achieved (v0.94-v0.100)")
-    print("2. Only gap: &> combined redirect not supported in parser combinator")
-    print("3. Parser combinator serves as educational reference implementation")
+    print("1. Complete feature parity achieved (v0.94-v0.192)")
+    print("2. Parser combinator serves as educational reference implementation")
 
 
 if __name__ == "__main__":

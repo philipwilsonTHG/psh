@@ -14,10 +14,13 @@ class TokenType(Enum):
     # Basic tokens
     WORD = auto()
     PIPE = auto()
+    PIPE_AND = auto()             # |&
     REDIRECT_IN = auto()
     REDIRECT_OUT = auto()
     REDIRECT_APPEND = auto()
     REDIRECT_DUP = auto()
+    REDIRECT_READWRITE = auto()   # <>
+    REDIRECT_CLOBBER = auto()     # >|
     HEREDOC = auto()
     HEREDOC_STRIP = auto()
     HERE_STRING = auto()
@@ -101,6 +104,7 @@ class Token:
     is_keyword: bool = False  # True when keyword normalizer marks this as a keyword
     parts: Optional[List['TokenPart']] = field(default=None)  # Token parts (imported from lexer.token_parts)
     fd: Optional[int] = None  # File descriptor prefix (e.g., 2 in 2>file)
+    combined_redirect: bool = False  # True for &> and &>> (stdout+stderr)
 
     def __post_init__(self):
         """Initialize parts if not provided."""

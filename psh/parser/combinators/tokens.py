@@ -55,11 +55,16 @@ class TokenParsers:
         self.redirect_in = token('REDIRECT_IN')
         self.redirect_append = token('REDIRECT_APPEND')
         self.redirect_dup = token('REDIRECT_DUP')  # >&, 2>&1
+        self.redirect_readwrite = token('REDIRECT_READWRITE')  # <>
+        self.redirect_clobber = token('REDIRECT_CLOBBER')  # >|
 
         # Here document operators
         self.heredoc = token('HEREDOC')  # <<
         self.heredoc_strip = token('HEREDOC_STRIP')  # <<-
         self.here_string = token('HERE_STRING')  # <<<
+
+        # Pipe stderr operator
+        self.pipe_and = token('PIPE_AND')  # |&
 
         # Combined redirect operator parser
         self.redirect_operator = (
@@ -67,6 +72,8 @@ class TokenParsers:
             .or_else(self.redirect_in)
             .or_else(self.redirect_append)
             .or_else(self.redirect_dup)
+            .or_else(self.redirect_readwrite)
+            .or_else(self.redirect_clobber)
             .or_else(self.heredoc)
             .or_else(self.heredoc_strip)
             .or_else(self.here_string)
@@ -226,6 +233,8 @@ class TokenParsers:
                 .or_else(token('REDIRECT_APPEND'))
                 .or_else(token('REDIRECT_IN'))
                 .or_else(token('REDIRECT_DUP'))
+                .or_else(token('REDIRECT_READWRITE'))
+                .or_else(token('REDIRECT_CLOBBER'))
                 .or_else(token('HEREDOC'))
                 .or_else(token('HEREDOC_STRIP'))
                 .or_else(token('HERE_STRING')))
@@ -281,7 +290,7 @@ class TokenParsers:
         """
         redirect_types = {
             'REDIRECT_OUT', 'REDIRECT_IN', 'REDIRECT_APPEND',
-            'REDIRECT_DUP',
+            'REDIRECT_DUP', 'REDIRECT_READWRITE', 'REDIRECT_CLOBBER',
             'HEREDOC', 'HEREDOC_STRIP', 'HERE_STRING'
         }
         return token.type.name in redirect_types

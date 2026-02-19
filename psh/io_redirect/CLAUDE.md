@@ -81,6 +81,7 @@ def restore_redirections(self, saved_fds):
 | Syntax | Type | Description |
 |--------|------|-------------|
 | `< file` | `<` | Read stdin from file |
+| `<> file` | `<>` | Open file for read-write (POSIX) |
 | `<< DELIM` | `<<` | Here document |
 | `<<- DELIM` | `<<-` | Here document (strip tabs) |
 | `<<< string` | `<<<` | Here string |
@@ -91,6 +92,9 @@ def restore_redirections(self, saved_fds):
 |--------|------|-------------|
 | `> file` | `>` | Write stdout to file (truncate) |
 | `>> file` | `>>` | Append stdout to file |
+| `>| file` | `>|` | Force overwrite, ignore noclobber (POSIX) |
+| `&> file` | `&>` | Redirect stdout+stderr to file (bash) |
+| `&>> file` | `&>>` | Append stdout+stderr to file (bash) |
 | `2> file` | `>` (fd=2) | Write stderr to file |
 | `2>> file` | `>>` (fd=2) | Append stderr to file |
 
@@ -101,6 +105,13 @@ def restore_redirections(self, saved_fds):
 | `2>&1` | `>&` | Redirect stderr to stdout |
 | `>&2` | `>&` | Redirect stdout to stderr |
 | `n>&m` | `>&` | Duplicate fd m to fd n |
+
+### Pipe Operations
+
+| Syntax | Type | Description |
+|--------|------|-------------|
+| `cmd1 \| cmd2` | `\|` | Pipe stdout only |
+| `cmd1 \|& cmd2` | `\|&` | Pipe stdout+stderr (bash) |
 
 ### Process Substitution
 
@@ -148,12 +159,15 @@ methods (`apply_redirections`, `apply_permanent_redirections`,
 | Helper | Used For |
 |--------|----------|
 | `_redirect_input_from_file(target)` | `<` — open + dup2 to stdin |
+| `_redirect_readwrite(target, redirect)` | `<>` — open O_RDWR + dup2; returns target_fd |
 | `_redirect_heredoc(redirect)` | `<<`/`<<-` — pipe + expand + dup2; returns content |
 | `_redirect_herestring(redirect)` | `<<<` — pipe + expand + dup2; returns content |
 | `_redirect_output_to_file(target, redirect)` | `>`/`>>` — open + dup2; returns target_fd |
+| `_redirect_clobber(target, redirect)` | `>|` — open O_TRUNC (ignore noclobber); returns target_fd |
+| `_redirect_combined(target, redirect)` | `&>`/`&>>` — open + dup2(fd,1) + dup2(1,2) |
 | `_redirect_dup_fd(redirect)` | `>&`/`<&` — validate + dup2 or close |
 | `_redirect_close_fd(redirect)` | `>&-`/`<&-` — close fd |
-| `_expand_redirect_target(redirect)` | Variable + tilde expansion for `<`/`>`/`>>` |
+| `_expand_redirect_target(redirect)` | Variable + tilde expansion for `<`/`>`/`>>`/`<>`/`>|`/combined |
 | `_check_noclobber(target)` | Raises OSError if noclobber prevents write |
 
 Also: `_dup2_preserve_target(opened_fd, target_fd)` is a module-level

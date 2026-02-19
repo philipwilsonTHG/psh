@@ -162,7 +162,7 @@ class RedirectionParser:
         raise self.parser.error(f"Invalid redirection operator: {token.value}")
 
     def _parse_standard_redirect(self, token: Token) -> Redirect:
-        """Parse standard redirection (< > >>)."""
+        """Parse standard redirection (< > >> <> >| and combined &> &>>)."""
         if not self.parser.match_any(TokenGroups.WORD_LIKE):
             raise self.parser.error("Expected file name")
 
@@ -170,8 +170,12 @@ class RedirectionParser:
         word = self.parser.commands.parse_argument_as_word()
         target_value = ''.join(str(p) for p in word.parts)
 
+        # Check for combined redirect (&> or &>>)
+        combined = getattr(token, 'combined_redirect', False)
+
         return Redirect(
             type=token.value,
             target=target_value,
-            fd=token.fd
+            fd=token.fd,
+            combined=combined,
         )

@@ -372,7 +372,7 @@ class Parser(ContextBaseParser):
             control_struct = self.control_structures.parse_control_structure_neutral()
 
             # Check if followed by pipe or logical operators
-            if self.match(TokenType.PIPE):
+            if self.match(TokenType.PIPE, TokenType.PIPE_AND):
                 # Parse as pipeline with control structure as first component
                 return self.commands.parse_pipeline_with_initial_component(control_struct)
             elif self.match(TokenType.AND_AND, TokenType.OR_OR):

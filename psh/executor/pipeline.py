@@ -176,8 +176,11 @@ class PipelineExecutor:
                         # Create forked context
                         child_context = pipeline_context.fork_context()
 
-                        # Set up pipeline redirections (stdin/stdout)
-                        self._setup_pipeline_redirections(cmd_index, pipeline_ctx)
+                        # Set up pipeline redirections (stdin/stdout, and stderr for |&)
+                        self._setup_pipeline_redirections(
+                            cmd_index, pipeline_ctx,
+                            pipe_stderr=node.pipe_stderr if node.pipe_stderr else None
+                        )
 
                         # For the last command in foreground pipeline, restore terminal signals
                         if cmd_index == len(node.commands) - 1 and not is_background:
@@ -470,7 +473,8 @@ class PipelineExecutor:
         # Fallback for non-SimpleCommand cases
         return visitor.visit(first_cmd)
 
-    def _setup_pipeline_redirections(self, index: int, pipeline_ctx: PipelineContext):
+    def _setup_pipeline_redirections(self, index: int, pipeline_ctx: PipelineContext,
+                                     pipe_stderr: Optional[List[bool]] = None):
         """Set up stdin/stdout for command in pipeline."""
         # Redirect stdin from previous pipe
         stdin_fd = pipeline_ctx.get_stdin_fd(index)
@@ -481,6 +485,12 @@ class PipelineExecutor:
         stdout_fd = pipeline_ctx.get_stdout_fd(index)
         if stdout_fd is not None:
             os.dup2(stdout_fd, 1)
+
+        # If |& was used, also redirect stderr to the pipe
+        # pipe_stderr[i] is True if |& connects command i to command i+1
+        if pipe_stderr and index < len(pipe_stderr) and pipe_stderr[index]:
+            # stderr goes to same place as stdout (already pointing at pipe)
+            os.dup2(1, 2)
 
         # Close all pipe file descriptors in child
         for read_fd, write_fd in pipeline_ctx.pipes:
