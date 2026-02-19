@@ -4,6 +4,25 @@ All notable changes to PSH (Python Shell) are documented in this file.
 
 Format: `VERSION (DATE) - Title` followed by bullet points describing changes.
 
+## 0.190.0 (2026-02-19) - Fix lexer token type issues: REDIRECT_ERR, RBRACE, LBRACKET
+- **REDIRECT_ERR removal**: Removed `REDIRECT_ERR` and
+  `REDIRECT_ERR_APPEND` token types.  `2>` now tokenizes as `WORD '2'` +
+  `REDIRECT_OUT '>'`, matching how `3>`, `4>`, etc. already work.
+  Removed `_parse_err_redirect()` and combinator REDIRECT_ERR handling.
+- **RBRACE fix**: Changed `}` to use `command_position` check instead of
+  "followed by delimiter" heuristic.  `}` in brace expansions (e.g.
+  `echo {$((1)),$((2))}`) is now correctly `WORD` instead of `RBRACE`.
+  Removed combinator RBRACE-as-brace-expansion workaround.
+- **LBRACKET in case patterns**: Added `case_depth`, `case_expecting_in`,
+  and `in_case_pattern` context fields to `LexerContext`.  `[` in case
+  patterns (e.g. `[a-z]*)`) is now collected as a glob word instead of
+  being emitted as `LBRACKET`.  Removed combinator LBRACKET
+  reconstruction workaround in `_parse_case_pattern_value()`.
+- **fd-prefixed redirects**: Updated `parse_redirects()` to detect
+  fd-prefixed redirects (WORD digit + adjacent redirect operator),
+  fixing compound command trailing redirects (subshells, brace groups,
+  if/while/for/case).
+
 ## 0.189.0 (2026-02-17) - Arithmetic: 64-bit wrapping, bitwise assignments, base 2-64, recursive variables
 - **64-bit wrapping**: All arithmetic results (`+`, `-`, `*`, `/`, `%`,
   `**`, bitwise ops, compound assignments) are now wrapped to the signed

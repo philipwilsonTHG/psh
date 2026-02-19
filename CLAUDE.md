@@ -495,9 +495,20 @@ class MyVisitor(ASTVisitor[T]):
 
 ## Current Development Status
 
-**Version**: 0.189.0 (see CHANGELOG.md for detailed history)
+**Version**: 0.190.0 (see CHANGELOG.md for detailed history)
 
 **Recent Work**:
+- **Fix Lexer Token Type Issues (v0.190.0)**:
+  - Removed `REDIRECT_ERR`/`REDIRECT_ERR_APPEND` token types; `2>` now
+    tokenizes as `WORD '2'` + `REDIRECT_OUT '>'` like all other fd redirects
+  - Fixed `}` to use `command_position` check instead of "followed by
+    delimiter" heuristic — `}` in brace expansions is now correctly `WORD`
+  - Added case pattern context tracking (`case_depth`, `in_case_pattern`)
+    so `[` in case patterns is collected as glob word, not `LBRACKET`
+  - Updated `parse_redirects()` to detect fd-prefixed redirects for
+    compound command trailing redirects (subshells, brace groups, etc.)
+  - Removed parser workarounds: `_parse_err_redirect()`, combinator
+    RBRACE hack, LBRACKET reconstruction in case patterns
 - **Interactive Public API Cleanup (v0.187.0)**:
   - Rewrote `__init__.py`: added module docstring, `load_rc_file` and
     `is_safe_rc_file` imports; trimmed `__all__` from 7 to 2 items
