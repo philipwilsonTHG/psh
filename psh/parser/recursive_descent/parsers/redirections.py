@@ -22,11 +22,33 @@ class RedirectionParser:
         """Initialize with reference to main parser."""
         self.parser = main_parser
 
+    def _is_fd_prefixed_redirect(self) -> bool:
+        """Check for fd-prefixed redirect pattern like 2>file."""
+        if not self.parser.match(TokenType.WORD):
+            return False
+        fd_token = self.parser.peek()
+        if not fd_token.value.isdigit():
+            return False
+        redirect_token = self.parser.peek(1)
+        if not redirect_token:
+            return False
+        if redirect_token.type not in TokenGroups.REDIRECTS:
+            return False
+        return bool(redirect_token.adjacent_to_previous)
+
     def parse_redirects(self) -> List[Redirect]:
         """Parse zero or more redirections."""
         redirects = []
-        while self.parser.match_any(TokenGroups.REDIRECTS):
-            redirects.append(self.parse_redirect())
+        while self.parser.match_any(TokenGroups.REDIRECTS) or self._is_fd_prefixed_redirect():
+            if self._is_fd_prefixed_redirect():
+                fd_token = self.parser.advance()
+                fd = int(fd_token.value)
+                redirect = self.parse_redirect()
+                if redirect.fd is None:
+                    redirect.fd = fd
+                redirects.append(redirect)
+            else:
+                redirects.append(self.parse_redirect())
         return redirects
 
     def parse_fd_dup_word(self) -> Redirect:
@@ -74,8 +96,6 @@ class RedirectionParser:
             return self._parse_here_string(redirect_token)
         elif redirect_token.type == TokenType.REDIRECT_DUP:
             return self._parse_dup_redirect(redirect_token)
-        elif redirect_token.type in (TokenType.REDIRECT_ERR, TokenType.REDIRECT_ERR_APPEND):
-            return self._parse_err_redirect(redirect_token)
         else:
             return self._parse_standard_redirect(redirect_token)
 
@@ -160,40 +180,6 @@ class RedirectionParser:
                 )
 
         raise self.parser.error(f"Invalid redirection operator: {token.value}")
-
-    def _parse_err_redirect(self, token: Token) -> Redirect:
-        """Parse stderr redirection."""
-        # Check for file descriptor duplication (2>&1)
-        if self.parser.match(TokenType.AMPERSAND):
-            self.parser.advance()  # consume &
-            if not self.parser.match(TokenType.WORD):
-                raise self.parser.error("Expected file descriptor after &")
-
-            dup_token = self.parser.advance()
-            dup_fd = int(dup_token.value) if dup_token.value.isdigit() else None
-
-            # Return as file descriptor duplication
-            return Redirect(
-                type='>&',
-                target=dup_token.value,
-                fd=2,  # stderr
-                dup_fd=dup_fd
-            )
-
-        # Regular file redirection
-        if not self.parser.match_any(TokenGroups.WORD_LIKE):
-            raise self.parser.error("Expected target after stderr redirect")
-
-        target_token = self.parser.advance()
-
-        # Extract operator without file descriptor (2> -> >, 2>> -> >>)
-        operator = token.value[1:]  # Remove the '2' prefix
-
-        return Redirect(
-            type=operator,
-            target=target_token.value,
-            fd=2
-        )
 
     def _parse_standard_redirect(self, token: Token) -> Redirect:
         """Parse standard redirection (< > >>)."""

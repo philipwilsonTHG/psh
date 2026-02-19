@@ -34,7 +34,6 @@ class TokenGroups:
         TokenType.REDIRECT_IN, TokenType.REDIRECT_OUT,
         TokenType.REDIRECT_APPEND, TokenType.HEREDOC,
         TokenType.HEREDOC_STRIP, TokenType.HERE_STRING,
-        TokenType.REDIRECT_ERR, TokenType.REDIRECT_ERR_APPEND,
         TokenType.REDIRECT_DUP
     })
 

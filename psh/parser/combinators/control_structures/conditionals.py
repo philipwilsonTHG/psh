@@ -25,11 +25,7 @@ CASE_TERMINATOR_TOKENS = {
 
 
 def _parse_case_pattern_value(tokens, pos, pattern_types):
-    """Parse a single case pattern value, handling LBRACKET character classes.
-
-    When the lexer emits LBRACKET (``[`` at command position), the character
-    class pattern is split across multiple tokens.  This function
-    reconstructs the full glob pattern from the constituent tokens.
+    """Parse a single case pattern value.
 
     Returns:
         (pattern_string, new_pos) or (None, pos) if no pattern found.
@@ -39,31 +35,8 @@ def _parse_case_pattern_value(tokens, pos, pattern_types):
 
     tok = tokens[pos]
 
-    # Normal case: pattern is a single word-like token
     if tok.type.name in pattern_types:
         return format_token_value(tok), pos + 1
-
-    # Character class case: LBRACKET starts a glob pattern like [a-z]*)
-    # Tokens look like: LBRACKET '[', WORD 'a-z', WORD ']*', RPAREN ')'
-    # We reconstruct: '[a-z]*'
-    if tok.type.name == 'LBRACKET':
-        pattern = '['
-        pos += 1
-        # Collect tokens until we find one containing ']'
-        while pos < len(tokens):
-            t = tokens[pos]
-            # Stop before ')' — that's the case pattern delimiter
-            if t.type.name == 'RPAREN':
-                break
-            val = t.value
-            pattern += val
-            pos += 1
-            # If this token contained ']', the bracket expression is closed.
-            # Any remaining glob chars (e.g. '*' in ']*') are already
-            # included in this token's value, so we're done.
-            if ']' in val:
-                break
-        return pattern, pos
 
     return None, pos
 

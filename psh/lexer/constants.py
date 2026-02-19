@@ -29,7 +29,6 @@ OPERATORS_BY_LENGTH = {
     4: {'2>&1': TokenType.REDIRECT_DUP},
     3: {
         '<<<': TokenType.HERE_STRING,
-        '2>>': TokenType.REDIRECT_ERR_APPEND,
         ';;&': TokenType.AMP_SEMICOLON,
         '<<-': TokenType.HEREDOC_STRIP,
     },
@@ -46,7 +45,6 @@ OPERATORS_BY_LENGTH = {
         '=~': TokenType.REGEX_MATCH,
         '>&': TokenType.REDIRECT_DUP,
         '<&': TokenType.REDIRECT_DUP,
-        '2>': TokenType.REDIRECT_ERR,
     },
     1: {
         '|': TokenType.PIPE,

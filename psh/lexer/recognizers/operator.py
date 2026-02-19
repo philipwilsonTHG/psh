@@ -19,7 +19,6 @@ class OperatorRecognizer(ContextualRecognizer):
         3: {
             '<<<': TokenType.HERE_STRING,
             '<<-': TokenType.HEREDOC_STRIP,
-            '2>>': TokenType.REDIRECT_ERR_APPEND,
             ';;&': TokenType.AMP_SEMICOLON,
         },
         2: {
@@ -36,7 +35,6 @@ class OperatorRecognizer(ContextualRecognizer):
             '!=': TokenType.NOT_EQUAL,
             ';;': TokenType.DOUBLE_SEMICOLON,
             ';&': TokenType.SEMICOLON_AMP,
-            '2>': TokenType.REDIRECT_ERR,
         },
         1: {
             '|': TokenType.PIPE,
@@ -244,16 +242,19 @@ class OperatorRecognizer(ContextualRecognizer):
                         if not self._is_shell_token_delimiter(input_text[pos + 1]):
                             continue
 
-                    # { and } are reserved words only when standalone (followed
-                    # by whitespace/delimiter/EOF).  When attached to word chars
-                    # (e.g. {a..1} after failed brace expansion) they are literal.
+                    # { and } are reserved words only when standalone.
                     # Special case: {} is a single word, not LBRACE + RBRACE.
                     if candidate in ('{', '}'):
                         next_pos = pos + 1
                         if candidate == '{' and next_pos < len(input_text) and input_text[next_pos] == '}':
                             continue  # {} is a word, not brace group
-                        if next_pos < len(input_text) and not self._is_shell_token_delimiter(input_text[next_pos]):
+                        # } is a reserved word (RBRACE) only at command position
+                        if candidate == '}' and not context.command_position:
                             continue
+                        # { uses the "followed by delimiter" heuristic
+                        if candidate == '{':
+                            if next_pos < len(input_text) and not self._is_shell_token_delimiter(input_text[next_pos]):
+                                continue
 
                     # Check configuration to see if this operator is enabled
                     if not self._is_operator_enabled(candidate):
@@ -282,7 +283,7 @@ class OperatorRecognizer(ContextualRecognizer):
             return False
 
         # Check redirections
-        if operator in ['<', '>', '>>', '<<', '<<<', '2>', '2>>'] and not self.config.enable_redirections:
+        if operator in ['<', '>', '>>', '<<', '<<<'] and not self.config.enable_redirections:
             return False
 
         # Check background operator
@@ -324,6 +325,11 @@ class OperatorRecognizer(ContextualRecognizer):
             # [ should NOT be an operator (should be part of word) in these contexts:
             # 3. Glob patterns in arguments: echo [abc]* (not at command position)
             # 4. Glob patterns in filenames: echo file[12].txt (not at command position)
+            # 5. Inside case patterns: case x in [a-z]*) ... (glob character class)
+
+            # Inside case patterns, [ starts a glob character class, not test command
+            if context.in_case_pattern:
+                return False
 
             if not context.command_position:
                 # Not at command position - must be argument/glob pattern

@@ -17,8 +17,6 @@ class TokenType(Enum):
     REDIRECT_IN = auto()
     REDIRECT_OUT = auto()
     REDIRECT_APPEND = auto()
-    REDIRECT_ERR = auto()
-    REDIRECT_ERR_APPEND = auto()
     REDIRECT_DUP = auto()
     HEREDOC = auto()
     HEREDOC_STRIP = auto()

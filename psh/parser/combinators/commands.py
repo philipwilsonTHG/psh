@@ -180,23 +180,6 @@ class CommandParsers:
             )
             return ParseResult(success=True, value=redirect, position=content_result.position)
 
-        # Handle stderr redirections: REDIRECT_ERR ('2>') and REDIRECT_ERR_APPEND ('2>>')
-        # The lexer produces a single token with value '2>' or '2>>'.  The executor
-        # expects Redirect(type='>' or '>>', fd=2), so strip the leading '2'.
-        if op_token.type.name in ('REDIRECT_ERR', 'REDIRECT_ERR_APPEND'):
-            target_result = self.tokens.word_like.parse(tokens, pos)
-            if not target_result.success:
-                return ParseResult(
-                    success=False,
-                    error=f"Expected target after {op_token.value}",
-                    position=pos,
-                )
-            target_value = target_result.value.value if hasattr(target_result.value, 'value') else str(target_result.value)
-            # Strip '2' prefix: '2>' → '>', '2>>' → '>>'
-            operator = op_token.value[1:]
-            redirect = Redirect(type=operator, target=target_value, fd=fd if fd is not None else 2)
-            return ParseResult(success=True, value=redirect, position=target_result.position)
-
         # Normal redirection - needs a target
         target_result = self.tokens.word_like.parse(tokens, pos)
         if not target_result.success:
@@ -286,18 +269,6 @@ class CommandParsers:
                         )
                         word_tokens.append(synth_token)
 
-                    continue
-
-                # RBRACE as part of brace expansion (e.g. echo {$((1)),$((2))})
-                # Only consume when adjacent to the previous token — a
-                # standalone '}' (with whitespace before it) ends a brace
-                # group and must not be consumed as a command argument.
-                if (pos < len(tokens)
-                        and tokens[pos].type.name == 'RBRACE'
-                        and word_tokens
-                        and getattr(tokens[pos], 'adjacent_to_previous', False)):
-                    word_tokens.append(tokens[pos])
-                    pos += 1
                     continue
 
                 # Nothing matched — stop collecting

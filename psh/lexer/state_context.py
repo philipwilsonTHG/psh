@@ -33,6 +33,11 @@ class LexerContext:
     # Configuration flags for Unicode/POSIX compliance
     posix_mode: bool = False
 
+    # Case statement context tracking
+    case_depth: int = 0               # Nesting depth of case..esac blocks
+    case_expecting_in: bool = False   # True between 'case' and its 'in'
+    in_case_pattern: bool = False     # True when next tokens are case patterns
+
     def copy(self) -> 'LexerContext':
         """Create a deep copy of the context."""
         return LexerContext(
@@ -47,7 +52,10 @@ class LexerContext:
             arithmetic_depth=self.arithmetic_depth,
             token_start_offset=self.token_start_offset,
             current_token_parts=self.current_token_parts.copy(),
-            posix_mode=self.posix_mode
+            posix_mode=self.posix_mode,
+            case_depth=self.case_depth,
+            case_expecting_in=self.case_expecting_in,
+            in_case_pattern=self.in_case_pattern,
         )
 
     def in_double_brackets(self) -> bool:

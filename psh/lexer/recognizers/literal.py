@@ -82,6 +82,9 @@ class LiteralRecognizer(ContextualRecognizer):
                 # {} is a word, not operators
                 if char == '{' and next_pos < len(input_text) and input_text[next_pos] == '}':
                     return True
+                # } at non-command position is always a word character
+                if char == '}' and not context.command_position:
+                    return True
                 if next_pos >= len(input_text) or input_text[next_pos] in ' \t\n\r;|&(){}<>':
                     return False  # Standalone brace — let operator handle it
                 return True  # Attached to word chars — part of word

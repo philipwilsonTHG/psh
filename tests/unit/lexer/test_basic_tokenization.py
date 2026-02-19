@@ -63,8 +63,6 @@ class TestBasicTokenization:
             ("echo > file", TokenType.REDIRECT_OUT, ">"),
             ("echo >> file", TokenType.REDIRECT_APPEND, ">>"),
             ("cat < file", TokenType.REDIRECT_IN, "<"),
-            ("cmd 2> errors", TokenType.REDIRECT_ERR, "2>"),
-            # Note: PSH tokenizes 2>&1 as separate tokens: 2> & 1
         ]
 
         for command, expected_type, expected_value in test_cases:
@@ -72,11 +70,18 @@ class TestBasicTokenization:
             # Find the redirect token
             redirect_token = next(t for t in tokens if t.type in (
                 TokenType.REDIRECT_OUT, TokenType.REDIRECT_APPEND,
-                TokenType.REDIRECT_IN, TokenType.REDIRECT_ERR,
+                TokenType.REDIRECT_IN,
                 TokenType.REDIRECT_DUP
             ))
             assert redirect_token.type == expected_type
             assert redirect_token.value == expected_value
+
+        # 2> is now tokenized as WORD '2' + REDIRECT_OUT '>'
+        tokens = list(tokenize("cmd 2> errors"))
+        fd_token = next(t for t in tokens if t.type == TokenType.WORD and t.value == '2')
+        assert fd_token is not None
+        redirect_token = next(t for t in tokens if t.type == TokenType.REDIRECT_OUT)
+        assert redirect_token.value == '>'
 
     def test_command_separator(self):
         """Test command separator tokenization."""

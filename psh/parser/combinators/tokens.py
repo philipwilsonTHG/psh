@@ -54,8 +54,6 @@ class TokenParsers:
         self.redirect_out = token('REDIRECT_OUT')
         self.redirect_in = token('REDIRECT_IN')
         self.redirect_append = token('REDIRECT_APPEND')
-        self.redirect_err = token('REDIRECT_ERR')  # 2>
-        self.redirect_err_append = token('REDIRECT_ERR_APPEND')  # 2>>
         self.redirect_dup = token('REDIRECT_DUP')  # >&, 2>&1
 
         # Here document operators
@@ -68,8 +66,6 @@ class TokenParsers:
             self.redirect_out
             .or_else(self.redirect_in)
             .or_else(self.redirect_append)
-            .or_else(self.redirect_err)
-            .or_else(self.redirect_err_append)
             .or_else(self.redirect_dup)
             .or_else(self.heredoc)
             .or_else(self.heredoc_strip)
@@ -229,8 +225,6 @@ class TokenParsers:
         return (token('REDIRECT_OUT')
                 .or_else(token('REDIRECT_APPEND'))
                 .or_else(token('REDIRECT_IN'))
-                .or_else(token('REDIRECT_ERR'))
-                .or_else(token('REDIRECT_ERR_APPEND'))
                 .or_else(token('REDIRECT_DUP'))
                 .or_else(token('HEREDOC'))
                 .or_else(token('HEREDOC_STRIP'))
@@ -287,7 +281,7 @@ class TokenParsers:
         """
         redirect_types = {
             'REDIRECT_OUT', 'REDIRECT_IN', 'REDIRECT_APPEND',
-            'REDIRECT_ERR', 'REDIRECT_ERR_APPEND', 'REDIRECT_DUP',
+            'REDIRECT_DUP',
             'HEREDOC', 'HEREDOC_STRIP', 'HERE_STRING'
         }
         return token.type.name in redirect_types

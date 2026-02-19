@@ -217,8 +217,7 @@ class ModularLexer:
 
         neutral_tokens = {
             TokenType.REDIRECT_IN, TokenType.REDIRECT_OUT,
-            TokenType.REDIRECT_APPEND, TokenType.REDIRECT_ERR,
-            TokenType.REDIRECT_ERR_APPEND, TokenType.HEREDOC,
+            TokenType.REDIRECT_APPEND, TokenType.HEREDOC,
             TokenType.HEREDOC_STRIP, TokenType.HERE_STRING
         }
 
@@ -231,6 +230,28 @@ class ModularLexer:
             self.context.enter_arithmetic()
         elif token_type == TokenType.DOUBLE_RPAREN:
             self.context.exit_arithmetic()
+
+        # Track case statement context for proper [ tokenization
+        if token_type == TokenType.WORD and token_value == 'case':
+            self.context.case_depth += 1
+            self.context.case_expecting_in = True
+        elif (token_type == TokenType.WORD and token_value == 'in'
+              and self.context.case_expecting_in):
+            self.context.case_expecting_in = False
+            self.context.in_case_pattern = True
+        elif (token_type == TokenType.WORD and token_value == 'esac'
+              and self.context.case_depth > 0):
+            self.context.case_depth -= 1
+            self.context.in_case_pattern = False
+        elif (token_type == TokenType.RPAREN
+              and self.context.case_depth > 0
+              and self.context.in_case_pattern):
+            self.context.in_case_pattern = False
+        elif (token_type in {TokenType.DOUBLE_SEMICOLON,
+                             TokenType.SEMICOLON_AMP,
+                             TokenType.AMP_SEMICOLON}
+              and self.context.case_depth > 0):
+            self.context.in_case_pattern = True
 
         if token_type in command_starting_tokens:
             self.context.set_command_position()
