@@ -495,7 +495,7 @@ class MyVisitor(ASTVisitor[T]):
 
 ## Current Development Status
 
-**Version**: 0.192.0 (see CHANGELOG.md for detailed history)
+**Version**: 0.192.1 (see CHANGELOG.md for detailed history)
 
 **Recent Work**:
 - **Add 5 Missing Redirection Operators (v0.192.0)**:
